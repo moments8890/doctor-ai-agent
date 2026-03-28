@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture — Doctor AI Agent</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #58a6ff;
+  --green: #3fb950;
+  --orange: #d29922;
+  --purple: #bc8cff;
+  --red: #f85149;
+  --radius: 8px;
+  --gap: 16px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  padding: 32px 24px 64px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ── Header ────────────────────────────────────────────── */
+.header {
+  text-align: center;
+  margin-bottom: 48px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.header .subtitle {
+  color: var(--muted);
+  font-size: 1rem;
+}
+.header .updated {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 8px;
+}
+
+/* ── Section (collapsible) ─────────────────────────────── */
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.section-header:hover {
+  background: rgba(88, 166, 255, 0.06);
+}
+.section-header h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-header .chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.section.open .chevron {
+  transform: rotate(90deg);
+}
+.section-body {
+  display: none;
+  padding: 0 20px 20px;
+}
+.section.open .section-body {
+  display: block;
+}
+
+/* ── Non-collapsible section ───────────────────────────── */
+.section-static {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  padding: 20px;
+}
+.section-static h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Section color dots ────────────────────────────────── */
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-green { background: var(--green); }
+.dot-blue { background: var(--accent); }
+.dot-orange { background: var(--orange); }
+.dot-purple { background: var(--purple); }
+.dot-gray { background: var(--muted); }
+.dot-red { background: var(--red); }
+
+/* ── Paragraph ─────────────────────────────────────────── */
+p { margin-bottom: 12px; color: var(--text); }
+p.muted { color: var(--muted); font-size: 0.9rem; }
+
+/* ── File path (clickable) ─────────────────────────────── */
+.file-path {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.82rem;
+  color: var(--accent);
+  background: rgba(88, 166, 255, 0.08);
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  position: relative;
+}
+.file-path:hover {
+  background: rgba(88, 166, 255, 0.18);
+  text-decoration: underline;
+}
+
+/* ── Tables ────────────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.9rem;
+}
+th {
+  text-align: left;
+  padding: 10px 12px;
+  background: rgba(88, 166, 255, 0.06);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(88, 166, 255, 0.03); }
+
+/* ── Table row color coding ────────────────────────────── */
+tr.row-blue td { border-left: 3px solid var(--accent); }
+tr.row-green td { border-left: 3px solid var(--green); }
+tr.row-gray td { border-left: 3px solid var(--muted); }
+tr.row-orange td { border-left: 3px solid var(--orange); }
+tr.row-purple td { border-left: 3px solid var(--purple); }
+
+/* ── Diagram containers ───────────────────────────────── */
+.diagram {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.diagram-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-width: 180px;
+}
+.diagram-column-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+/* ── Diagram boxes ─────────────────────────────────────── */
+.box {
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: center;
+  border: 1px solid;
+  position: relative;
+}
+.box-green {
+  background: rgba(63, 185, 80, 0.1);
+  border-color: rgba(63, 185, 80, 0.3);
+  color: var(--green);
+}
+.box-blue {
+  background: rgba(88, 166, 255, 0.1);
+  border-color: rgba(88, 166, 255, 0.3);
+  color: var(--accent);
+}
+.box-orange {
+  background: rgba(210, 153, 34, 0.1);
+  border-color: rgba(210, 153, 34, 0.3);
+  color: var(--orange);
+}
+.box-purple {
+  background: rgba(188, 140, 255, 0.1);
+  border-color: rgba(188, 140, 255, 0.3);
+  color: var(--purple);
+}
+.box-gray {
+  background: rgba(139, 148, 158, 0.08);
+  border-color: rgba(139, 148, 158, 0.25);
+  color: var(--muted);
+}
+.box-label {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  display: block;
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+/* ── Arrow connector ───────────────────────────────────── */
+.arrow {
+  text-align: center;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 2px 0;
+}
+.arrow-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 1.5rem;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ── Pipeline timeline (horizontal) ───────────────────── */
+.pipeline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 20px 0;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.pipeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100px;
+  position: relative;
+}
+.pipeline-dot {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  border: 2px solid;
+  flex-shrink: 0;
+}
+.pipeline-dot-green { background: rgba(63,185,80,0.15); border-color: var(--green); color: var(--green); }
+.pipeline-dot-blue { background: rgba(88,166,255,0.15); border-color: var(--accent); color: var(--accent); }
+.pipeline-dot-orange { background: rgba(210,153,34,0.15); border-color: var(--orange); color: var(--orange); }
+.pipeline-dot-purple { background: rgba(188,140,255,0.15); border-color: var(--purple); color: var(--purple); }
+.pipeline-dot-gray { background: rgba(139,148,158,0.1); border-color: var(--muted); color: var(--muted); }
+.pipeline-label {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  white-space: nowrap;
+}
+.pipeline-sublabel {
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-align: center;
+}
+.pipeline-connector {
+  width: 36px;
+  height: 2px;
+  background: var(--border);
+  flex-shrink: 0;
+  position: relative;
+}
+.pipeline-connector::after {
+  content: '';
+  position: absolute;
+  right: -4px;
+  top: -3px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid var(--border);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+
+/* ── Layer stack ───────────────────────────────────────── */
+.layer-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 16px 0;
+  max-width: 600px;
+}
+.layer-bar {
+  padding: 12px 16px;
+  font-size: 0.82rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.layer-bar:first-child {
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.layer-bar:last-child {
+  border-radius: 0 0 var(--radius) var(--radius);
+  border-bottom: none;
+}
+.layer-num {
+  font-weight: 700;
+  margin-right: 12px;
+  opacity: 0.6;
+  font-size: 0.75rem;
+  min-width: 18px;
+}
+.layer-name {
+  flex: 1;
+  font-weight: 500;
+}
+.layer-source {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  font-family: monospace;
+}
+
+/* ── Composition patterns (side by side) ───────────────── */
+.patterns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 16px 0;
+}
+@media (max-width: 700px) {
+  .patterns { grid-template-columns: 1fr; }
+}
+.pattern-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.pattern-card h4 {
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+  color: var(--accent);
+}
+.pattern-block {
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-family: monospace;
+  margin-bottom: 6px;
+}
+.pattern-system {
+  background: rgba(88, 166, 255, 0.1);
+  border-left: 3px solid var(--accent);
+  color: var(--accent);
+}
+.pattern-history {
+  background: rgba(139, 148, 158, 0.08);
+  border-left: 3px solid var(--muted);
+  color: var(--muted);
+}
+.pattern-user {
+  background: rgba(63, 185, 80, 0.1);
+  border-left: 3px solid var(--green);
+  color: var(--green);
+}
+
+/* ── ER diagram boxes ──────────────────────────────────── */
+.er-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+.er-group-label {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  padding: 8px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.er-box {
+  background: var(--bg);
+  border: 1px solid;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.er-box-header {
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border-bottom: 1px solid;
+}
+.er-box-body {
+  padding: 8px 14px;
+}
+.er-col {
+  font-size: 0.78rem;
+  padding: 3px 0;
+  color: var(--muted);
+  font-family: monospace;
+  display: flex;
+  gap: 6px;
+}
+.er-col .pk { color: var(--orange); font-weight: 600; }
+.er-col .fk { color: var(--purple); font-size: 0.7rem; }
+.er-col .col-name { color: var(--text); }
+
+.er-box-green { border-color: rgba(63,185,80,0.3); }
+.er-box-green .er-box-header { background: rgba(63,185,80,0.1); border-color: rgba(63,185,80,0.3); color: var(--green); }
+.er-box-blue { border-color: rgba(88,166,255,0.3); }
+.er-box-blue .er-box-header { background: rgba(88,166,255,0.1); border-color: rgba(88,166,255,0.3); color: var(--accent); }
+.er-box-orange { border-color: rgba(210,153,34,0.3); }
+.er-box-orange .er-box-header { background: rgba(210,153,34,0.1); border-color: rgba(210,153,34,0.3); color: var(--orange); }
+.er-box-purple { border-color: rgba(188,140,255,0.3); }
+.er-box-purple .er-box-header { background: rgba(188,140,255,0.1); border-color: rgba(188,140,255,0.3); color: var(--purple); }
+.er-box-gray { border-color: rgba(139,148,158,0.25); }
+.er-box-gray .er-box-header { background: rgba(139,148,158,0.08); border-color: rgba(139,148,158,0.25); color: var(--muted); }
+
+/* ── State machine ─────────────────────────────────────── */
+.state-machine {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+.state-box {
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 2px solid;
+  text-align: center;
+  min-width: 120px;
+}
+.state-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 8px;
+}
+.state-connector-line {
+  width: 30px;
+  height: 2px;
+  background: var(--border);
+}
+.state-connector-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.state-orange {
+  background: rgba(210,153,34,0.1);
+  border-color: rgba(210,153,34,0.4);
+  color: var(--orange);
+}
+.state-blue {
+  background: rgba(88,166,255,0.1);
+  border-color: rgba(88,166,255,0.4);
+  color: var(--accent);
+}
+.state-green {
+  background: rgba(63,185,80,0.1);
+  border-color: rgba(63,185,80,0.4);
+  color: var(--green);
+}
+.state-gray {
+  background: rgba(139,148,158,0.08);
+  border-color: rgba(139,148,158,0.3);
+  color: var(--muted);
+}
+.state-red {
+  background: rgba(248,81,73,0.1);
+  border-color: rgba(248,81,73,0.4);
+  color: var(--red);
+}
+
+/* ── Branch diagram ────────────────────────────────────── */
+.branch-container {
+  margin: 12px 0;
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.branch-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 8px 0;
+}
+.branch-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  min-width: 140px;
+  text-align: right;
+  padding-right: 12px;
+  font-style: italic;
+}
+
+/* ── Source tags ────────────────────────────────────────── */
+.source-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+  margin: 2px 4px 2px 0;
+}
+.source-tag-ui { background: rgba(88,166,255,0.15); color: var(--accent); }
+.source-tag-chat { background: rgba(63,185,80,0.15); color: var(--green); }
+.source-tag-auto { background: rgba(188,140,255,0.15); color: var(--purple); }
+
+/* ── HTTP method badges ────────────────────────────────── */
+.method {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: monospace;
+  min-width: 48px;
+  text-align: center;
+}
+.method-get { background: rgba(88,166,255,0.15); color: var(--accent); }
+.method-post { background: rgba(63,185,80,0.15); color: var(--green); }
+.method-put { background: rgba(210,153,34,0.15); color: var(--orange); }
+.method-delete { background: rgba(248,81,73,0.15); color: var(--red); }
+.method-patch { background: rgba(188,140,255,0.15); color: var(--purple); }
+
+.route-path {
+  font-family: monospace;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.route-desc {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+/* ── Toast notification ────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--green);
+  color: var(--bg);
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+  z-index: 1000;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── Footer ────────────────────────────────────────────── */
+.footer {
+  text-align: center;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+@media (max-width: 600px) {
+  body { padding: 16px 12px 48px; }
+  .header h1 { font-size: 1.5rem; }
+  .diagram { flex-direction: column; }
+  .pipeline { flex-wrap: wrap; justify-content: center; }
+  .er-grid { grid-template-columns: 1fr; }
+  .state-machine { flex-direction: column; align-items: center; }
+  .state-connector { transform: rotate(90deg); padding: 4px 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     HEADER
+     ═══════════════════════════════════════════════════════ -->
+<div class="header">
+  <h1>Architecture &mdash; Doctor AI Agent</h1>
+  <div class="subtitle">Interactive visual guide</div>
+  <div class="updated">Last updated: 2026-03-27</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     WHAT IS THIS (always visible, not collapsible)
+     ═══════════════════════════════════════════════════════ -->
+<div class="section-static">
+  <h2><span class="dot dot-blue"></span> What Is This?</h2>
+  <p>
+    A personal AI assistant for doctors managing private patients outside hospitals.
+    Doctors dictate medical records, get AI-powered differential diagnoses, manage follow-up tasks,
+    and communicate with patients. <strong>NOT an EMR</strong> &mdash; a lightweight clinical productivity tool.
+  </p>
+  <p>
+    <strong>Three channels:</strong> Web (React SPA), WeChat/WeCom, Patient portal.
+    <strong>Backend:</strong> FastAPI with Plan-and-Act agent pipeline.
+    <strong>LLM:</strong> Qwen3 via OpenAI-compatible API with instructor for structured output.
+  </p>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     START HERE (expanded by default)
+     ═══════════════════════════════════════════════════════ -->
+<div class="section open" id="start-here">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-green"></span> Start Here</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">Click any file path to copy it to your clipboard.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>I want to&hellip;</th>
+          <th>Look at</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Understand agent pipeline</td>
+          <td>
+            <span class="file-path" onclick="copyPath(this)">src/agent/handle_turn.py</span> &rarr;
+            <span class="file-path" onclick="copyPath(this)">src/agent/router.py</span> &rarr;
+            <span class="file-path" onclick="copyPath(this)">src/agent/dispatcher.py</span> &rarr;
+            <span class="file-path" onclick="copyPath(this)">src/agent/handlers/</span>
+          </td>
+        </tr>
+        <tr>
+          <td>Add a new intent</td>
+          <td>
+            <span class="file-path" onclick="copyPath(this)">src/agent/types.py</span> &rarr;
+            <span class="file-path" onclick="copyPath(this)">src/agent/handlers/</span> &rarr;
+            <span class="file-path" onclick="copyPath(this)">src/agent/prompt_config.py</span> &rarr;
+            <span class="file-path" onclick="copyPath(this)">src/agent/prompts/intent/</span>
+          </td>
+        </tr>
+        <tr>
+          <td>Edit an LLM prompt</td>
+          <td>
+            <span class="file-path" onclick="copyPath(this)">src/agent/prompts/intent/*.md</span>
+          </td>
+        </tr>
+        <tr>
+          <td>Add a new API endpoint</td>
+          <td>
+            <span class="file-path" onclick="copyPath(this)">src/channels/web/</span> &rarr; register in
+            <span class="file-path" onclick="copyPath(this)">src/main.py</span>
+          </td>
+        </tr>
+        <tr>
+          <td>Modify the database</td>
+          <td>
+            <span class="file-path" onclick="copyPath(this)">src/db/models/</span> &rarr;
+            <span class="file-path" onclick="copyPath(this)">src/db/crud/</span>
+          </td>
+        </tr>
+        <tr>
+          <td>Understand the frontend</td>
+          <td>
+            <span class="file-path" onclick="copyPath(this)">frontend/web/src/App.jsx</span> &rarr;
+            <span class="file-path" onclick="copyPath(this)">frontend/web/src/pages/doctor/</span> &rarr;
+            <span class="file-path" onclick="copyPath(this)">frontend/web/src/pages/patient/</span>
+          </td>
+        </tr>
+        <tr>
+          <td>Run tests</td>
+          <td>
+            <span class="file-path" onclick="copyPath(this)">tests/scenarios/</span> or
+            <span class="file-path" onclick="copyPath(this)">tests/prompts/run.sh</span>
+          </td>
+        </tr>
+        <tr>
+          <td>Debug with mock data</td>
+          <td>
+            <span class="file-path" onclick="copyPath(this)">http://localhost:5173/debug/doctor/</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     SYSTEM OVERVIEW
+     ═══════════════════════════════════════════════════════ -->
+<div class="section" id="system-overview">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-blue"></span> System Overview</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">Visual pipeline diagram &mdash; channels on the left, agent in the center, LLM on the right.</p>
+
+    <div class="diagram">
+      <!-- Channels column -->
+      <div class="diagram-column">
+        <div class="diagram-column-label">Channels</div>
+        <div class="box box-green">
+          Web Dashboard
+          <span class="box-label">channels/web/chat.py</span>
+        </div>
+        <div class="box box-green">
+          WeChat / WeCom
+          <span class="box-label">channels/wechat/router.py</span>
+        </div>
+        <div class="box box-green">
+          Patient Portal
+          <span class="box-label">channels/web/patient_portal.py</span>
+        </div>
+        <div class="box box-green">
+          Patient Interview
+          <span class="box-label">channels/web/patient_interview_routes.py</span>
+        </div>
+      </div>
+
+      <!-- Arrow -->
+      <div class="arrow-right">&rarr;</div>
+
+      <!-- Agent Pipeline column -->
+      <div class="diagram-column">
+        <div class="diagram-column-label">Agent Pipeline</div>
+        <div class="box box-blue">
+          Route
+          <span class="box-label">agent/router.py &mdash; LLM classifies intent</span>
+        </div>
+        <div class="arrow">&darr;</div>
+        <div class="box box-blue">
+          Dispatch
+          <span class="box-label">agent/dispatcher.py &mdash; intent &rarr; handler</span>
+        </div>
+        <div class="arrow">&darr;</div>
+        <div class="box box-blue">
+          Handle
+          <span class="box-label">agent/handlers/*.py &mdash; 7 intent handlers</span>
+        </div>
+      </div>
+
+      <!-- Arrow -->
+      <div class="arrow-right">&rarr;</div>
+
+      <!-- LLM column -->
+      <div class="diagram-column">
+        <div class="diagram-column-label">LLM Layer</div>
+        <div class="box box-orange">
+          structured_call()
+          <span class="box-label">Instructor + tool-call &rarr; Pydantic model</span>
+        </div>
+        <div class="arrow">&darr;</div>
+        <div class="box box-orange">
+          llm_call()
+          <span class="box-label">Raw text generation for replies</span>
+        </div>
+        <div style="height: 4px"></div>
+        <div class="box box-orange" style="opacity: 0.7;">
+          agent/llm.py
+          <span class="box-label">Provider resolution, retry, tracing</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prompt Composer -->
+    <div style="margin-top: 16px;">
+      <div class="diagram-column-label">Prompt Composer</div>
+      <div class="box box-purple" style="max-width: 500px;">
+        <div style="font-weight: 600; margin-bottom: 8px;">prompt_composer.py</div>
+        <div style="display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem; text-align: left;">
+          <div style="padding: 4px 8px; background: rgba(188,140,255,0.15); border-radius: 3px;">L1: Identity / Safety &mdash; common/base.md</div>
+          <div style="padding: 4px 8px; background: rgba(188,140,255,0.12); border-radius: 3px;">L2: Specialty &mdash; domain/neurology.md</div>
+          <div style="padding: 4px 8px; background: rgba(188,140,255,0.10); border-radius: 3px;">L3: Intent rules &mdash; intent/*.md</div>
+          <div style="padding: 4px 8px; background: rgba(188,140,255,0.08); border-radius: 3px;">L4: Doctor knowledge &mdash; from DB</div>
+          <div style="padding: 4px 8px; background: rgba(188,140,255,0.06); border-radius: 3px;">L5: Patient context &mdash; from DB</div>
+          <div style="padding: 4px 8px; background: rgba(188,140,255,0.04); border-radius: 3px;">L6: User message</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Domain + DB -->
+    <div style="margin-top: 16px; display: flex; gap: 20px; flex-wrap: wrap;">
+      <div>
+        <div class="diagram-column-label">Domain Layer</div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <div class="box box-gray">
+            domain/knowledge/
+            <span class="box-label">Doctor KB, embedding search</span>
+          </div>
+          <div class="box box-gray">
+            domain/records/
+            <span class="box-label">PDF export, structuring</span>
+          </div>
+          <div class="box box-gray">
+            domain/tasks/
+            <span class="box-label">Notifications, lifecycle</span>
+          </div>
+          <div class="box box-gray">
+            domain/patient_lifecycle/
+            <span class="box-label">Triage, interview</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="diagram-column-label">Database</div>
+        <div class="box box-gray">
+          SQLite + SQLAlchemy (async)
+          <span class="box-label">db/engine.py, db/models/, db/crud/</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PIPELINE FLOW
+     ═══════════════════════════════════════════════════════ -->
+<div class="section" id="pipeline-flow">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-blue"></span> Pipeline Flow</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">Doctor-chat flow &mdash; one turn through the Plan-and-Act pipeline.</p>
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-green">1</div>
+        <div class="pipeline-label">Doctor</div>
+        <div class="pipeline-sublabel">dictates message</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-green">2</div>
+        <div class="pipeline-label">Channel</div>
+        <div class="pipeline-sublabel">web / wechat</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-orange">3</div>
+        <div class="pipeline-label">Router LLM</div>
+        <div class="pipeline-sublabel">structured_call()</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-blue">4</div>
+        <div class="pipeline-label">Dispatch</div>
+        <div class="pipeline-sublabel">intent &rarr; handler</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-blue">5</div>
+        <div class="pipeline-label">Handler</div>
+        <div class="pipeline-sublabel">DB reads/writes</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-purple">6</div>
+        <div class="pipeline-label">Compose</div>
+        <div class="pipeline-sublabel">6-layer prompt</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-orange">7</div>
+        <div class="pipeline-label">LLM</div>
+        <div class="pipeline-sublabel">llm_call()</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-green">8</div>
+        <div class="pipeline-label">Response</div>
+        <div class="pipeline-sublabel">reply + data</div>
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top: 12px;">
+      Key files:
+      <span class="file-path" onclick="copyPath(this)">src/agent/handle_turn.py</span> orchestrates the pipeline.
+      History is loaded from <span class="file-path" onclick="copyPath(this)">src/agent/session.py</span> (DB-backed + in-memory cache).
+      If an <code>action_hint</code> is provided, the router LLM is bypassed (deterministic dispatch).
+    </p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     INTENT TYPES
+     ═══════════════════════════════════════════════════════ -->
+<div class="section" id="intent-types">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-orange"></span> Intent Types</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">7 intents classified by the routing LLM. Color = category: <span style="color:var(--accent);">query</span>, <span style="color:var(--green);">create</span>, <span style="color:var(--muted);">general</span>.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Intent</th>
+          <th>Handler</th>
+          <th>Patient Required</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="row-blue">
+          <td><code>query_record</code></td>
+          <td><span class="file-path" onclick="copyPath(this)">handlers/query_record.py</span></td>
+          <td>Yes</td>
+          <td>Look up patient medical records</td>
+        </tr>
+        <tr class="row-green">
+          <td><code>create_record</code></td>
+          <td><span class="file-path" onclick="copyPath(this)">handlers/create_record.py</span></td>
+          <td>Yes</td>
+          <td>Dictate a new medical record (interview mode)</td>
+        </tr>
+        <tr class="row-blue">
+          <td><code>query_task</code></td>
+          <td><span class="file-path" onclick="copyPath(this)">handlers/query_task.py</span></td>
+          <td>No</td>
+          <td>List or search follow-up tasks</td>
+        </tr>
+        <tr class="row-green">
+          <td><code>create_task</code></td>
+          <td><span class="file-path" onclick="copyPath(this)">handlers/create_task.py</span></td>
+          <td>No</td>
+          <td>Create a new follow-up or reminder task</td>
+        </tr>
+        <tr class="row-blue">
+          <td><code>query_patient</code></td>
+          <td><span class="file-path" onclick="copyPath(this)">handlers/query_patient.py</span></td>
+          <td>Yes</td>
+          <td>Look up patient demographics and history</td>
+        </tr>
+        <tr class="row-gray">
+          <td><code>daily_summary</code></td>
+          <td><span class="file-path" onclick="copyPath(this)">handlers/daily_summary.py</span></td>
+          <td>No</td>
+          <td>Generate daily briefing of tasks and patients</td>
+        </tr>
+        <tr class="row-gray">
+          <td><code>general</code></td>
+          <td><span class="file-path" onclick="copyPath(this)">handlers/general.py</span></td>
+          <td>No</td>
+          <td>Catch-all for greetings, help, medical questions</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PROMPT ARCHITECTURE
+     ═══════════════════════════════════════════════════════ -->
+<div class="section" id="prompt-architecture">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-purple"></span> Prompt Architecture</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">
+      6-layer prompt stack assembled by
+      <span class="file-path" onclick="copyPath(this)">src/agent/prompt_composer.py</span>
+      using config from
+      <span class="file-path" onclick="copyPath(this)">src/agent/prompt_config.py</span>.
+    </p>
+
+    <div class="layer-stack">
+      <div class="layer-bar" style="background: rgba(188,140,255,0.18);">
+        <span><span class="layer-num">L1</span> <span class="layer-name">Identity / Safety</span></span>
+        <span class="layer-source file-path" onclick="copyPath(this)">src/agent/prompts/common/base.md</span>
+      </div>
+      <div class="layer-bar" style="background: rgba(188,140,255,0.14);">
+        <span><span class="layer-num">L2</span> <span class="layer-name">Specialty</span></span>
+        <span class="layer-source file-path" onclick="copyPath(this)">src/agent/prompts/domain/neurology.md</span>
+      </div>
+      <div class="layer-bar" style="background: rgba(188,140,255,0.11);">
+        <span><span class="layer-num">L3</span> <span class="layer-name">Intent Rules</span></span>
+        <span class="layer-source file-path" onclick="copyPath(this)">src/agent/prompts/intent/*.md</span>
+      </div>
+      <div class="layer-bar" style="background: rgba(210,153,34,0.10);">
+        <span><span class="layer-num">L4</span> <span class="layer-name">Doctor Knowledge</span></span>
+        <span class="layer-source">from DB (doctor_knowledge_items)</span>
+      </div>
+      <div class="layer-bar" style="background: rgba(63,185,80,0.08);">
+        <span><span class="layer-num">L5</span> <span class="layer-name">Patient Context</span></span>
+        <span class="layer-source">from DB (records, history)</span>
+      </div>
+      <div class="layer-bar" style="background: rgba(139,148,158,0.06);">
+        <span><span class="layer-num">L6</span> <span class="layer-name">User Message</span></span>
+        <span class="layer-source">doctor's input text</span>
+      </div>
+    </div>
+
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Composition Patterns</h3>
+    <div class="patterns">
+      <div class="pattern-card">
+        <h4>Pattern 1: Single-Turn</h4>
+        <p class="muted">Used by query_record, query_task, query_patient, create_task, general, daily_summary.</p>
+        <div class="pattern-block pattern-system">
+          <strong>system</strong>: L1 + L2 + L3
+        </div>
+        <div class="pattern-block pattern-user">
+          <strong>user</strong>: &lt;knowledge&gt;L4&lt;/knowledge&gt;<br>
+          &lt;patient_context&gt;L5&lt;/patient_context&gt;<br>
+          &lt;user_message&gt;L6&lt;/user_message&gt;
+        </div>
+      </div>
+      <div class="pattern-card">
+        <h4>Pattern 2: Conversation</h4>
+        <p class="muted">Used by create_record (interview mode).</p>
+        <div class="pattern-block pattern-system">
+          <strong>system</strong>: L1 + L2 + L3 + L4 + L5
+        </div>
+        <div class="pattern-block pattern-history">
+          <strong>history</strong>: prior turns...
+        </div>
+        <div class="pattern-block pattern-user">
+          <strong>user</strong>: L6 (plain text)
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     DATABASE SCHEMA
+     ═══════════════════════════════════════════════════════ -->
+<div class="section" id="database-schema">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-gray"></span> Database Schema</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">Main tables grouped by domain. <span style="color:var(--orange);">PK</span> = primary key, <span style="color:var(--purple);">FK</span> = foreign key.</p>
+
+    <!-- Core -->
+    <div class="er-grid">
+      <div class="er-group-label" style="color: var(--green);"><span class="dot dot-green"></span> Core</div>
+
+      <div class="er-box er-box-green">
+        <div class="er-box-header">doctors</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">doctor_id</span> str(64)</div>
+          <div class="er-col"><span class="col-name">name</span> str</div>
+          <div class="er-col"><span class="col-name">specialty</span> str</div>
+          <div class="er-col"><span class="col-name">created_at</span> datetime</div>
+        </div>
+      </div>
+
+      <div class="er-box er-box-green">
+        <div class="er-box-header">patients</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">doctor_id</span> &rarr; doctors</div>
+          <div class="er-col"><span class="col-name">name</span> str</div>
+          <div class="er-col"><span class="col-name">gender, age, phone</span></div>
+          <div class="er-col"><span class="col-name">access_code_hash</span></div>
+        </div>
+      </div>
+
+      <div class="er-box er-box-green">
+        <div class="er-box-header">medical_records</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">doctor_id</span> &rarr; doctors</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">patient_id</span> &rarr; patients</div>
+          <div class="er-col"><span class="col-name">status</span> enum</div>
+          <div class="er-col"><span class="col-name">chief_complaint</span> text</div>
+          <div class="er-col"><span class="col-name">present_illness</span> text</div>
+          <div class="er-col"><span class="col-name">content, tags</span></div>
+        </div>
+      </div>
+
+      <div class="er-box er-box-green">
+        <div class="er-box-header">ai_suggestions</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">record_id</span> &rarr; medical_records</div>
+          <div class="er-col"><span class="col-name">section</span> enum</div>
+          <div class="er-col"><span class="col-name">content</span> text</div>
+          <div class="er-col"><span class="col-name">decision</span> enum</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Knowledge -->
+    <div class="er-grid">
+      <div class="er-group-label" style="color: var(--accent);"><span class="dot dot-blue"></span> Knowledge</div>
+
+      <div class="er-box er-box-blue">
+        <div class="er-box-header">doctor_knowledge_items</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">doctor_id</span> &rarr; doctors</div>
+          <div class="er-col"><span class="col-name">category</span> str</div>
+          <div class="er-col"><span class="col-name">title, content</span> text</div>
+          <div class="er-col"><span class="col-name">source_type</span> str</div>
+        </div>
+      </div>
+
+      <div class="er-box er-box-blue">
+        <div class="er-box-header">knowledge_usage_log</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">knowledge_item_id</span></div>
+          <div class="er-col"><span class="col-name">used_in, context</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Communication -->
+    <div class="er-grid">
+      <div class="er-group-label" style="color: var(--orange);"><span class="dot dot-orange"></span> Communication</div>
+
+      <div class="er-box er-box-orange">
+        <div class="er-box-header">doctor_chat_log</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="col-name">identity</span> str</div>
+          <div class="er-col"><span class="col-name">role</span> enum (user/assistant)</div>
+          <div class="er-col"><span class="col-name">content</span> text</div>
+        </div>
+      </div>
+
+      <div class="er-box er-box-orange">
+        <div class="er-box-header">patient_messages</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">patient_id</span> &rarr; patients</div>
+          <div class="er-col"><span class="col-name">direction</span> in/out</div>
+          <div class="er-col"><span class="col-name">content</span> text</div>
+        </div>
+      </div>
+
+      <div class="er-box er-box-orange">
+        <div class="er-box-header">message_drafts</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">patient_id</span> &rarr; patients</div>
+          <div class="er-col"><span class="col-name">status</span> enum</div>
+          <div class="er-col"><span class="col-name">content</span> text</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workflow -->
+    <div class="er-grid">
+      <div class="er-group-label" style="color: var(--purple);"><span class="dot dot-purple"></span> Workflow</div>
+
+      <div class="er-box er-box-purple">
+        <div class="er-box-header">interview_sessions</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> str(36)</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">doctor_id</span> &rarr; doctors</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">patient_id</span> &rarr; patients</div>
+          <div class="er-col"><span class="col-name">status</span> enum</div>
+          <div class="er-col"><span class="col-name">mode</span> patient/doctor</div>
+          <div class="er-col"><span class="col-name">collected, conversation</span> JSON</div>
+        </div>
+      </div>
+
+      <div class="er-box er-box-purple">
+        <div class="er-box-header">doctor_tasks</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">doctor_id</span> &rarr; doctors</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">patient_id</span> &rarr; patients</div>
+          <div class="er-col"><span class="col-name">task_type</span> enum</div>
+          <div class="er-col"><span class="col-name">status</span> enum</div>
+          <div class="er-col"><span class="col-name">due_at</span> datetime</div>
+        </div>
+      </div>
+
+      <div class="er-box er-box-purple">
+        <div class="er-box-header">doctor_edits</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">record_id</span> &rarr; medical_records</div>
+          <div class="er-col"><span class="col-name">field, old_value, new_value</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- System -->
+    <div class="er-grid">
+      <div class="er-group-label" style="color: var(--muted);"><span class="dot dot-gray"></span> System</div>
+
+      <div class="er-box er-box-gray">
+        <div class="er-box-header">audit_log</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="col-name">actor, action, detail</span></div>
+          <div class="er-col"><span class="col-name">created_at</span> datetime</div>
+        </div>
+      </div>
+
+      <div class="er-box er-box-gray">
+        <div class="er-box-header">invite_codes</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="col-name">code</span> str(unique)</div>
+          <div class="er-col"><span class="col-name">used_by, used_at</span></div>
+        </div>
+      </div>
+
+      <div class="er-box er-box-gray">
+        <div class="er-box-header">runtime_tokens</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="col-name">token_type, value</span></div>
+          <div class="er-col"><span class="col-name">expires_at</span> datetime</div>
+        </div>
+      </div>
+
+      <div class="er-box er-box-gray">
+        <div class="er-box-header">patient_auth</div>
+        <div class="er-box-body">
+          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
+          <div class="er-col"><span class="fk">FK</span> <span class="col-name">patient_id</span> &rarr; patients</div>
+          <div class="er-col"><span class="col-name">phone, yob</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     RECORD LIFECYCLE
+     ═══════════════════════════════════════════════════════ -->
+<div class="section" id="record-lifecycle">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-green"></span> Record Lifecycle</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">Medical record state transitions &mdash; <span class="file-path" onclick="copyPath(this)">src/db/models/records.py</span> RecordStatus enum.</p>
+
+    <!-- Main flow -->
+    <div class="state-machine">
+      <div class="state-box state-orange">interview_active</div>
+      <div class="state-connector">
+        <div class="state-connector-line"></div>
+        <div class="state-connector-label">confirm</div>
+      </div>
+      <div class="state-box state-blue">pending_review</div>
+      <div class="state-connector">
+        <div class="state-connector-line"></div>
+        <div class="state-connector-label">doctor reviews</div>
+      </div>
+      <div class="state-box state-green">completed</div>
+    </div>
+
+    <!-- Shortcut flow -->
+    <div class="branch-container">
+      <p style="font-size: 0.85rem; margin-bottom: 8px; font-weight: 500;">Shortcut path (all fields present at confirm):</p>
+      <div class="branch-row">
+        <div class="state-box state-orange" style="padding: 8px 14px; font-size: 0.78rem;">interview_active</div>
+        <div class="state-connector">
+          <div class="state-connector-line"></div>
+          <div class="state-connector-label">confirm (complete)</div>
+        </div>
+        <div class="state-box state-green" style="padding: 8px 14px; font-size: 0.78rem;">completed</div>
+      </div>
+      <p class="muted" style="margin-top: 8px;">
+        When the interview collects all required fields and the doctor confirms,
+        the record skips <code>pending_review</code> and transitions directly to <code>completed</code>.
+      </p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     TASK LIFECYCLE
+     ═══════════════════════════════════════════════════════ -->
+<div class="section" id="task-lifecycle">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-purple"></span> Task Lifecycle</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">Follow-up task state machine &mdash; <span class="file-path" onclick="copyPath(this)">src/db/models/tasks.py</span> TaskStatus enum.</p>
+
+    <div class="state-machine">
+      <div class="state-box state-orange">pending</div>
+      <div class="state-connector">
+        <div class="state-connector-line"></div>
+        <div class="state-connector-label">due_at reached</div>
+      </div>
+      <div class="state-box state-blue">notified</div>
+      <div class="state-connector">
+        <div class="state-connector-line"></div>
+        <div class="state-connector-label">doctor acts</div>
+      </div>
+      <div class="state-box state-green">completed</div>
+    </div>
+
+    <!-- Cancelled branch -->
+    <div class="branch-container" style="margin-top: 12px;">
+      <div class="branch-row">
+        <div class="branch-label">any status &rarr;</div>
+        <div class="state-box state-red" style="padding: 8px 14px; font-size: 0.78rem;">cancelled</div>
+      </div>
+    </div>
+
+    <!-- Task types -->
+    <p style="font-size: 0.9rem; margin-top: 16px; font-weight: 500;">Task types:</p>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+      <span class="source-tag source-tag-ui">general</span>
+      <span class="source-tag source-tag-ui">review</span>
+      <span class="source-tag source-tag-chat">follow_up</span>
+      <span class="source-tag source-tag-chat">medication</span>
+      <span class="source-tag source-tag-auto">checkup</span>
+    </div>
+
+    <p style="font-size: 0.9rem; margin-top: 16px; font-weight: 500;">Creation sources:</p>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+      <span class="source-tag source-tag-ui">UI (manual)</span>
+      <span class="source-tag source-tag-chat">Chat (create_task intent)</span>
+      <span class="source-tag source-tag-auto">Diagnosis auto-generate</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     API ROUTES
+     ═══════════════════════════════════════════════════════ -->
+<div class="section" id="api-routes">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-green"></span> API Routes</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+
+    <!-- Web Dashboard -->
+    <h3 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--text);">Web Dashboard</h3>
+    <p class="muted">
+      <span class="file-path" onclick="copyPath(this)">src/channels/web/chat.py</span>
+      <span class="file-path" onclick="copyPath(this)">src/channels/web/tasks.py</span>
+      <span class="file-path" onclick="copyPath(this)">src/channels/web/export.py</span>
+      <span class="file-path" onclick="copyPath(this)">src/channels/web/ui/</span>
+    </p>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/records/chat</td><td class="route-desc">Doctor AI chat (main pipeline)</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/records/upload</td><td class="route-desc">Upload image/PDF for OCR</td></tr>
+        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/tasks/</td><td class="route-desc">List tasks with filters</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/tasks/</td><td class="route-desc">Create new task</td></tr>
+        <tr><td><span class="method method-patch">PATCH</span></td><td class="route-path">/api/tasks/{id}/status</td><td class="route-desc">Update task status</td></tr>
+        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/export/{patient_id}/pdf</td><td class="route-desc">Export patient records as PDF</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/export/bulk</td><td class="route-desc">Bulk export as ZIP</td></tr>
+        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/ui/patients</td><td class="route-desc">Patient list for dashboard</td></tr>
+        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/ui/records/{patient_id}</td><td class="route-desc">Records for a patient</td></tr>
+        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/ui/diagnosis/{record_id}</td><td class="route-desc">AI suggestions for a record</td></tr>
+        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/ui/knowledge</td><td class="route-desc">Doctor knowledge base items</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/ui/knowledge</td><td class="route-desc">Add knowledge item</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/import/csv</td><td class="route-desc">Import patients from CSV</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Patient Portal -->
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Patient Portal</h3>
+    <p class="muted">
+      <span class="file-path" onclick="copyPath(this)">src/channels/web/patient_portal.py</span>
+      <span class="file-path" onclick="copyPath(this)">src/channels/web/patient_interview_routes.py</span>
+    </p>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/login</td><td class="route-desc">Patient authentication</td></tr>
+        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/patient/records</td><td class="route-desc">Patient's own records</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/message</td><td class="route-desc">Send message to doctor</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/interview/start</td><td class="route-desc">Start pre-consultation interview</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/interview/turn</td><td class="route-desc">Interview conversation turn</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/interview/confirm</td><td class="route-desc">Confirm interview result</td></tr>
+      </tbody>
+    </table>
+
+    <!-- WeChat -->
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">WeChat / WeCom</h3>
+    <p class="muted">
+      <span class="file-path" onclick="copyPath(this)">src/channels/wechat/router.py</span>
+    </p>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/wechat</td><td class="route-desc">WeChat signature verification</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/wechat</td><td class="route-desc">WeChat message webhook</td></tr>
+        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/wecom/kf</td><td class="route-desc">WeCom KF verification</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/wecom/kf</td><td class="route-desc">WeCom KF message webhook</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Auth -->
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Authentication</h3>
+    <p class="muted">
+      <span class="file-path" onclick="copyPath(this)">src/channels/web/auth.py</span>
+      <span class="file-path" onclick="copyPath(this)">src/channels/web/unified_auth_routes.py</span>
+    </p>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/auth/login</td><td class="route-desc">Unified login (phone + YOB)</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/auth/invite</td><td class="route-desc">Invite code login for doctors</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/auth/miniapp</td><td class="route-desc">WeChat mini-program login</td></tr>
+        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/auth/wecom/callback</td><td class="route-desc">WeCom OAuth callback</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     TOAST NOTIFICATION
+     ═══════════════════════════════════════════════════════ -->
+<div class="toast" id="toast">Copied!</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════ -->
+<div class="footer">
+  Source of truth: <span class="file-path" onclick="copyPath(this)">docs/architecture.md</span> &mdash; this HTML is a visual companion.<br>
+  Generated 2026-03-27.
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════════ -->
+<script>
+// ── Collapsible sections ──────────────────────────────────
+function toggleSection(header) {
+  var section = header.parentElement;
+  section.classList.toggle('open');
+}
+
+// ── Copy file path to clipboard ───────────────────────────
+function copyPath(el) {
+  var text = el.textContent || el.innerText;
+  text = text.trim();
+
+  // Use Clipboard API if available, fallback to execCommand
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      showToast('Copied!');
+    });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Copied!');
+  }
+}
+
+// ── Toast notification ────────────────────────────────────
+var toastTimeout = null;
+function showToast(msg) {
+  var toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(function() {
+    toast.classList.remove('show');
+  }, 1200);
+}
+</script>
+
+</body>
+</html>

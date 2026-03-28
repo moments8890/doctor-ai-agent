@@ -35,6 +35,7 @@ All documentation lives under `docs/`. These are the canonical folders:
 4. Prefer updating an existing doc over creating a near-duplicate.
 5. If a doc references stale file paths or old architecture, rewrite it — don't keep two versions.
 6. Mockup HTML files go alongside their spec: `docs/specs/YYYY-MM-DD-mockups/`.
+7. **Companion HTML for large docs:** Architecture and design docs over 200 lines MUST have a companion HTML visual version in the same directory. Link it at the top of the markdown: `> **Visual version:** [filename.html](filename.html)`. The markdown is the source of truth (AI reads it); the HTML is for human onboarding. When the markdown changes, update the HTML to match.
 
 ## Source of Truth
 
