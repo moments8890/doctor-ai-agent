@@ -578,7 +578,18 @@ export default function FollowupPage({ doctorId }) {
     setTeachEditId(null);
   };
 
-  const isEmpty = !loading && !error && pendingMessages.length === 0 && upcomingFollowups.length === 0 && pendingTasks.length === 0 && recentlySent.length === 0;
+  const [filter, setFilter] = useState("all");
+  const totalCount = pendingMessages.length + upcomingFollowups.length + pendingTasks.length;
+  const isEmpty = !loading && !error && totalCount === 0 && recentlySent.length === 0;
+
+  const handleFilter = (key) => {
+    setFilter((prev) => prev === key ? "all" : key);
+  };
+
+  const showMessages = filter === "all" || filter === "messages";
+  const showFollowups = filter === "all" || filter === "followups";
+  const showTasks = filter === "all" || filter === "tasks";
+  const showSent = filter === "all" || filter === "sent";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
@@ -619,43 +630,89 @@ export default function FollowupPage({ doctorId }) {
         {/* Content */}
         {!loading && !error && !isEmpty && (
           <>
-            {/* ── Summary bar ── */}
+            {/* ── Filter tab bar ── */}
             <Box sx={{
-              display: "flex",
-              px: 2, py: 1.5,
+              display: "flex", gap: 0.8,
+              px: 1.5, py: 1,
               bgcolor: COLOR.white,
               borderBottom: `0.5px solid ${COLOR.border}`,
               borderTop: `0.5px solid ${COLOR.border}`,
+              overflowX: "auto",
             }}>
-              <SummaryStat value={pendingMessages.length} label="待回复" sublabel={aiDraftedCount > 0 ? `${aiDraftedCount}条已起草` : undefined} color={COLOR.danger} onClick={() => pendingRef.current?.scrollIntoView()} />
-              <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-              <SummaryStat value={upcomingFollowups.length} label="随访" color={COLOR.warning} onClick={() => followupsRef.current?.scrollIntoView()} />
-              <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-              <SummaryStat value={pendingTasks.length} label="待办" onClick={() => tasksRef.current?.scrollIntoView()} />
+              {[
+                { key: "all", label: "全部", count: totalCount, color: COLOR.text1 },
+                { key: "messages", label: "待回复", count: pendingMessages.length, color: COLOR.danger },
+                { key: "followups", label: "随访", count: upcomingFollowups.length, color: COLOR.warning },
+                { key: "tasks", label: "待办", count: pendingTasks.length, color: COLOR.text1 },
+                { key: "sent", label: "已发送", count: recentlySent.length, color: COLOR.text4 },
+              ].map((tab) => {
+                const active = filter === tab.key;
+                return (
+                  <Box
+                    key={tab.key}
+                    onClick={() => handleFilter(tab.key)}
+                    sx={{
+                      display: "flex", alignItems: "center", gap: 0.5,
+                      px: 1.2, py: 0.6,
+                      borderRadius: "14px",
+                      bgcolor: active ? COLOR.primary : "transparent",
+                      border: active ? "none" : `1px solid ${COLOR.border}`,
+                      cursor: "pointer", userSelect: "none",
+                      whiteSpace: "nowrap", flexShrink: 0,
+                      transition: "all 0.15s ease",
+                      "&:active": { opacity: 0.6 },
+                    }}
+                  >
+                    <Typography sx={{
+                      fontSize: 12, fontWeight: active ? 600 : 400,
+                      color: active ? "#fff" : COLOR.text3,
+                    }}>
+                      {tab.label}
+                    </Typography>
+                    {tab.count > 0 && (
+                      <Typography sx={{
+                        fontSize: 11, fontWeight: 600,
+                        color: active ? "rgba(255,255,255,0.85)" : tab.color,
+                      }}>
+                        {tab.count}
+                      </Typography>
+                    )}
+                  </Box>
+                );
+              })}
             </Box>
 
             {/* ── Section: 患者消息 · 待回复 ── */}
-            {pendingMessages.length > 0 && (
-              <CollapsibleSection ref={pendingRef} title="患者消息 · 待回复" count={pendingMessages.length}>
-                <Box sx={{
-                  bgcolor: COLOR.white,
-                  borderTop: `0.5px solid ${COLOR.border}`,
-                  borderBottom: `0.5px solid ${COLOR.border}`,
-                }}>
-                  {pendingMessages.map((msg) => (
-                    <MessageItem
-                      key={msg.id}
-                      item={msg}
-                      onSend={handleOpenSend}
-                      onTeachPrompt={handleTeachPrompt}
-                    />
-                  ))}
-                </Box>
-              </CollapsibleSection>
+            {showMessages && pendingMessages.length > 0 && (
+              <>
+                <CollapsibleSection ref={pendingRef} title="患者消息 · 待回复" count={pendingMessages.length}>
+                  <Box sx={{
+                    bgcolor: COLOR.white,
+                    borderTop: `0.5px solid ${COLOR.border}`,
+                    borderBottom: `0.5px solid ${COLOR.border}`,
+                  }}>
+                    {pendingMessages.map((msg) => (
+                      <MessageItem
+                        key={msg.id}
+                        item={msg}
+                        onSend={handleOpenSend}
+                        onTeachPrompt={handleTeachPrompt}
+                      />
+                    ))}
+                  </Box>
+                </CollapsibleSection>
+                {aiDraftedCount > 0 && filter === "messages" && (
+                  <Box sx={{ px: 1.5, py: 0.5 }}>
+                    <Typography sx={{ fontSize: 11, color: COLOR.primary }}>
+                      其中{aiDraftedCount}条AI已起草回复
+                    </Typography>
+                  </Box>
+                )}
+              </>
             )}
 
             {/* ── Section: 即将到期的随访 ── */}
-            {upcomingFollowups.length > 0 && (
+            {showFollowups && upcomingFollowups.length > 0 && (
               <CollapsibleSection ref={followupsRef} title="即将到期的随访" count={upcomingFollowups.length}>
                 <Box sx={{
                   bgcolor: COLOR.white,
@@ -670,7 +727,7 @@ export default function FollowupPage({ doctorId }) {
             )}
 
             {/* ── Section: 待办提醒 ── */}
-            {pendingTasks.length > 0 && (
+            {showTasks && pendingTasks.length > 0 && (
               <CollapsibleSection ref={tasksRef} title="待办提醒" count={pendingTasks.length}>
                 <Box sx={{
                   bgcolor: COLOR.white,
@@ -685,7 +742,7 @@ export default function FollowupPage({ doctorId }) {
             )}
 
             {/* ── Section: 最近已发送 ── */}
-            {recentlySent.length > 0 && (
+            {showSent && recentlySent.length > 0 && (
               <CollapsibleSection title="最近已发送" count={recentlySent.length} defaultOpen={false}>
                 <Box sx={{
                   bgcolor: COLOR.white,
