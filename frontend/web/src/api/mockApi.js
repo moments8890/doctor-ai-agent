@@ -421,20 +421,21 @@ export async function fetchAIActivity() {
         type: "draft",
         description: "起草了随访回复",
         patient_id: 3,
-        patient_name: "王建国", // display-only, not in real API
+        patient_name: "王明", // display-only, not in real API
         timestamp: "2026-03-27T13:20:00",
       },
       {
         type: "citation",
         description: "引用了知识库条目 KB-7",
         patient_id: 2,
-        patient_name: "李阿姨", // display-only, not in real API
+        patient_name: "李复诊", // display-only, not in real API
         timestamp: "2026-03-27T13:10:00",
       },
       {
         type: "diagnosis",
         description: "生成诊断建议：术后迟发性血肿鉴别",
-        patient_id: null,
+        patient_id: 1,
+        patient_name: "陈伟强", // display-only, not in real API
         record_id: 102,
         timestamp: "2026-03-27T12:45:00",
       },
@@ -442,6 +443,7 @@ export async function fetchAIActivity() {
         type: "task",
         description: "创建任务：复查血常规",
         patient_id: 1,
+        patient_name: "陈伟强", // display-only, not in real API
         timestamp: "2026-03-27T11:30:00",
       },
     ],
@@ -452,8 +454,6 @@ export async function fetchDraftSummary() {
   // Real API: GET /api/manage/drafts/summary → { pending, ai_drafted, due_soon, review_pending_count }
   return {
     pending: 2,
-    ai_drafted: 3,
-    due_soon: 4,
     review_pending_count: 3,
     today_processed: 5,
   };
@@ -480,7 +480,7 @@ export async function fetchAIAttention() {
         short_tag: "回复已起草", // display-only, not in real API
       },
       {
-        patient_id: null,
+        patient_id: 1,
         record_id: 102,
         patient_name: "陈伟强", // display-only, not in real API
         reason: "AI建议待审核：术后迟发性血肿鉴别",
@@ -501,7 +501,7 @@ export async function getReviewQueue() {
         urgency: "urgent",
         section: "differential", content: "术后迟发性血肿",
         detail: "术后第7天头痛加剧，需排除迟发性硬膜外/下血肿，建议急查头颅CT\n\n【类似病例参考】\n1. 相似度92% — 动脉瘤夹闭术后头痛 → 迟发性血管痉挛（治疗：尼莫地平+TCD+ICU）\n2. 相似度85% — 开颅术后第8天头痛加剧 → 术区血肿再扩大（治疗：急诊手术清除）",
-        rule_cited: "术后头痛红旗",
+        rule_cited: "术后头痛危险信号",
       },
       {
         id: "r2", record_id: 106, suggestion_id: 401,
@@ -538,7 +538,7 @@ export async function fetchDrafts() {
       {
         id: 101,
         patient_id: 5,
-        patient_name: "刘明",
+        patient_name: "刘建国",
         patient_message: "张医生您好，我昨天晚上又头晕了一次，大概持续了十几秒，翻身的时候发作的，需要去医院吗？",
         draft_text: "刘先生您好，根据您描述的情况（翻身时短暂头晕），考虑可能与体位变化有关。建议您先观察2-3天，如果发作频率增加或持续时间超过1分钟，请及时来院复查。",
         original_draft_text: "刘先生您好，根据您描述的情况（翻身时短暂头晕），考虑可能与体位变化有关。建议您先观察2-3天，如果发作频率增加或持续时间超过1分钟，请及时来院复查。",
@@ -556,12 +556,12 @@ export async function fetchDrafts() {
       {
         id: 102,
         patient_id: 1,
-        patient_name: "王建国",
+        patient_name: "陈伟强",
         patient_message: "张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？",
         draft_text: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
         original_draft_text: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
         cited_knowledge_ids: [7],
-        cited_rules: [{ id: 7, title: "术后头痛红旗" }],
+        cited_rules: [{ id: 7, title: "术后头痛危险信号" }],
         confidence: 0.92,
         status: "generated",
         ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
@@ -573,10 +573,10 @@ export async function fetchDrafts() {
       },
     ],
     upcoming_followups: [
-      { id: "f1", patient_id: 3, patient_name: "王建国", task: "术后复查CT", detail: "脑膜瘤术后第7天常规复查", due_label: "今天", soon: true },
-      { id: "f2", patient_id: 2, patient_name: "李阿姨", task: "颈动脉超声", detail: "TIA首发48h内血管评估", due_label: "明天", soon: true },
+      { id: "f1", patient_id: 3, patient_name: "王明", task: "术后复查CT", detail: "脑膜瘤术后第7天常规复查", due_label: "今天", soon: true },
+      { id: "f2", patient_id: 2, patient_name: "李复诊", task: "颈动脉超声", detail: "TIA首发48h内血管评估", due_label: "明天", soon: true },
       { id: "f3", patient_id: 4, patient_name: "赵敏", task: "用药效果复查", detail: "卡马西平2周疗效评估", due_label: "4月3日", soon: false },
-      { id: "f4", patient_id: 5, patient_name: "陈大伟", task: "腰椎复查", detail: "保守治疗1个月评估", due_label: "4月10日", soon: false },
+      { id: "f4", patient_id: 5, patient_name: "刘建国", task: "腰椎复查", detail: "保守治疗1个月评估", due_label: "4月10日", soon: false },
     ],
     recently_sent: [
       { id: "s1", patient_id: 4, patient_name: "赵敏", task: "服药提醒", read_status: "已读", time: "昨天" },
@@ -611,7 +611,7 @@ export async function getDraftConfirmation(draftId) {
     ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
     full_text_preview: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。\n\n【此回复由AI辅助起草，经医生审核】",
     cited_rules: [
-      { id: 7, title: "术后头痛红旗", text: "脑疝早期征象：一侧瞳孔进行性散大、对光反射消失..." },
+      { id: 7, title: "术后头痛危险信号", text: "脑疝早期征象：一侧瞳孔进行性散大、对光反射消失..." },
     ],
     confidence: 0.92,
     status: "generated",
@@ -632,27 +632,27 @@ export async function fetchKnowledgeUsageHistory(doctorId, itemId) {
       {
         id: 1,
         usage_context: "diagnosis",
-        patient_id: "1",
+        patient_id: 1,
         record_id: 101,
         created_at: "2026-03-27T10:00:00",
         // display-only, not in real API
-        patient_name: "王建国",
+        patient_name: "陈伟强",
         detail: "鉴别诊断：术后迟发性血肿",
       },
       {
         id: 2,
         usage_context: "followup",
-        patient_id: "3",
+        patient_id: 3,
         record_id: null,
         created_at: "2026-03-26T14:30:00",
         // display-only, not in real API
-        patient_name: "刘明",
+        patient_name: "王明",
         detail: "按此规则起草了回复",
       },
       {
         id: 3,
         usage_context: "diagnosis",
-        patient_id: "2",
+        patient_id: 2,
         record_id: 102,
         created_at: "2026-03-25T09:15:00",
         // display-only, not in real API
