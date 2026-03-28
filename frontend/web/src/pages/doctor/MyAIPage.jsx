@@ -355,7 +355,12 @@ export default function MyAIPage({ doctorId }) {
                     ? <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{item.time_label}</Typography>
                     : null
               }
-              onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
+              onClick={() => {
+                if (item.type === "draft") navigate("/doctor/tasks?tab=messages");
+                else if (item.type === "diagnosis" && item.record_id) navigate(`/doctor/review/${item.record_id}`);
+                else if (item.type === "task") navigate("/doctor/tasks?tab=followups");
+                else if (item.patient_id) navigate(`/doctor/patients/${item.patient_id}`);
+              }}
               sx={idx === recentActivity.length - 1 ? { borderBottom: "none" } : {}}
             />
           ))}
