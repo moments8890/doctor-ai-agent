@@ -453,7 +453,7 @@ export async function fetchAIActivity() {
 export async function fetchDraftSummary() {
   // Real API: GET /api/manage/drafts/summary → { pending, ai_drafted, due_soon, review_pending_count }
   return {
-    pending: 2,
+    pending: 3,
     review_pending_count: 3,
     today_processed: 5,
   };
@@ -552,6 +552,24 @@ export async function fetchDrafts() {
         patient_context: "眩晕症随访第3天",
         time: "今天 13:20",
         badge: "new",
+      },
+      {
+        id: 103,
+        patient_id: 2,
+        patient_name: "李复诊",
+        patient_message: "医生，我术后第5天了，刀口周围有点红肿，正常吗？",
+        draft_text: "李女士您好，术后第5天切口周围轻微红肿多数属正常愈合反应。请注意观察：如果红肿范围扩大、有渗液或体温超过38度，请及时来院复查。目前可保持切口干燥清洁。",
+        original_draft_text: "李女士您好，术后第5天切口周围轻微红肿多数属正常愈合反应。请注意观察：如果红肿范围扩大、有渗液或体温超过38度，请及时来院复查。目前可保持切口干燥清洁。",
+        cited_knowledge_ids: [7],
+        cited_rules: [{ id: 7, title: "术后头痛危险信号" }],
+        confidence: 0.88,
+        status: "generated",
+        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
+        created_at: "2026-03-27T13:10:00",
+        patient_context: "腰椎术后复查",
+        time: "今天 13:10",
+        badge: null,
+        rule_cited: "术后头痛危险信号",
       },
       {
         id: 102,
