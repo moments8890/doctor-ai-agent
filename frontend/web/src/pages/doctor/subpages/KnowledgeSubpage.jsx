@@ -9,7 +9,6 @@
 import { Box, Typography } from "@mui/material";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
-import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import { TYPE, ICON, COLOR } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import BarButton from "../../../components/BarButton";
@@ -100,7 +99,7 @@ function KnowledgeRow({ item, onClick }) {
     >
       {/* Green active dot */}
       <Box sx={{ pt: 0.7, flexShrink: 0 }}>
-        <FiberManualRecordIcon sx={{ fontSize: 8, color: COLOR.primary }} />
+        <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: COLOR.primary, flexShrink: 0 }} />
       </Box>
 
       {/* Content */}

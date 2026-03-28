@@ -15,7 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
-import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import EmptyState from "../../components/EmptyState";
@@ -371,7 +371,7 @@ export default function ReviewQueuePage({ doctorId }) {
         {/* Empty state */}
         {!loading && pending.length === 0 && (
           <EmptyState
-            icon={<RateReviewOutlinedIcon />}
+            icon={<AssignmentOutlinedIcon />}
             title="暂无待审核项"
             subtitle="新的诊断建议会自动出现在这里"
           />
