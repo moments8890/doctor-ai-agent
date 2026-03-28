@@ -7,9 +7,6 @@
 import { useEffect, useState } from "react";
 import { Badge, Box, CircularProgress, Skeleton, Typography } from "@mui/material";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import ContentPasteOutlinedIcon from "@mui/icons-material/ContentPasteOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
@@ -21,6 +18,8 @@ import SectionLabel from "../../components/SectionLabel";
 import ListCard from "../../components/ListCard";
 import AppButton from "../../components/AppButton";
 import PatientAvatar from "../../components/PatientAvatar";
+import IconBadge from "../../components/IconBadge";
+import { ICON_BADGES } from "./constants";
 import { TYPE, ICON, COLOR } from "../../theme";
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -251,14 +250,14 @@ export default function MyAIPage({ doctorId }) {
         <SectionLabel>快捷入口</SectionLabel>
         <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
           <ListCard
-            avatar={<QuickActionIcon bg="#07C160"><ContentPasteOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
+            avatar={<IconBadge config={ICON_BADGES.new_record} />}
             title="新建病历"
             subtitle="语音或文字录入患者信息"
             chevron
             onClick={() => navigate("/doctor/patients/new")}
           />
           <ListCard
-            avatar={<QuickActionIcon bg={COLOR.warning}><CheckCircleOutlineIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
+            avatar={<IconBadge config={ICON_BADGES.review} />}
             title="待审核"
             subtitle="AI建议等你确认"
             right={<InlineBadge count={reviewBadge} />}
@@ -266,7 +265,7 @@ export default function MyAIPage({ doctorId }) {
             onClick={() => navigate("/doctor/review")}
           />
           <ListCard
-            avatar={<QuickActionIcon bg={COLOR.accent}><ChatOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
+            avatar={<IconBadge config={ICON_BADGES.followup} />}
             title="处理随访"
             subtitle="患者消息可快速处理"
             right={<InlineBadge count={followupBadge} color="#ef4444" />}
@@ -274,7 +273,7 @@ export default function MyAIPage({ doctorId }) {
             onClick={() => navigate("/doctor/tasks")}
           />
           <ListCard
-            avatar={<QuickActionIcon bg={COLOR.primary}><QrCode2OutlinedIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
+            avatar={<IconBadge config={ICON_BADGES.qr_code} />}
             title="患者预问诊码"
             subtitle="患者扫码自助填写病史"
             chevron
@@ -301,21 +300,21 @@ export default function MyAIPage({ doctorId }) {
           {topRules.length === 0 && !loading && (
             <>
               <ListCard
-                avatar={<UploadFileOutlinedIcon sx={{ fontSize: 20, color: COLOR.primary }} />}
+                avatar={<IconBadge config={ICON_BADGES.upload} />}
                 title="上传指南"
                 subtitle="PDF / Word 文档"
                 onClick={() => navigate("/doctor/settings/knowledge/add")}
                 chevron
               />
               <ListCard
-                avatar={<ContentPasteOutlinedIcon sx={{ fontSize: 20, color: COLOR.primary }} />}
+                avatar={<IconBadge config={ICON_BADGES.new_record} />}
                 title="粘贴常用回复"
                 subtitle="你常用的回复模板"
                 onClick={() => navigate("/doctor/settings/knowledge/add")}
                 chevron
               />
               <ListCard
-                avatar={<AssignmentOutlinedIcon sx={{ fontSize: 20, color: COLOR.primary }} />}
+                avatar={<IconBadge config={ICON_BADGES.kb_doctor} />}
                 title="导入已确认病例"
                 subtitle="从病历中提取规则"
                 onClick={() => navigate("/doctor/chat")}

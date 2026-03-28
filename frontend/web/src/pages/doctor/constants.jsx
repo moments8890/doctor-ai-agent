@@ -1,5 +1,5 @@
 /**
- * 医生工作台常量：任务类型、病历类型、导航项等静态配置。
+ * 医生工作台常量：任务类型、病历类型、导航项、图标配置等静态配置。
  */
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
@@ -9,6 +9,24 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import ContentPasteOutlinedIcon from "@mui/icons-material/ContentPasteOutlined";
+import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
+import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
+import BiotechOutlinedIcon from "@mui/icons-material/BiotechOutlined";
+import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
+import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
+import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
+import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 
 export const TASK_TYPE_LABEL = {
   follow_up:   "随访",
@@ -196,4 +214,49 @@ export const TASK_FILTER_CHIPS = [
   { key: "task", label: "待办" },
   { key: "done", label: "已完成" },
 ];
+
+// ── Icon badge configs (used with <IconBadge config={...} />) ──────────────
+// All avatar-style icons share the same visual treatment: icon in colored box.
+
+export const ICON_BADGES = {
+  // Quick actions (MyAI page)
+  qr_code:      { icon: QrCode2OutlinedIcon, bg: "#07C160" },
+  review:       { icon: CheckCircleOutlineIcon, bg: "#e8833a" },
+  followup:     { icon: ChatOutlinedIcon, bg: "#0969da" },
+  new_record:   { icon: ContentPasteOutlinedIcon, bg: "#07C160" },
+
+  // Knowledge sources
+  kb_doctor:    { icon: EditNoteOutlinedIcon, bg: "#07C160" },
+  kb_ai:        { icon: SmartToyOutlinedIcon, bg: "#999" },
+  kb_upload:    { icon: DescriptionOutlinedIcon, bg: "#07C160" },
+  kb_url:       { icon: LinkOutlinedIcon, bg: "#0969da" },
+  kb_add:       { icon: AddCircleOutlineIcon, bg: "#07C160" },
+
+  // Knowledge add page
+  upload:       { icon: UploadFileOutlinedIcon, bg: "#07C160" },
+  camera:       { icon: CameraAltOutlinedIcon, bg: "#07C160" },
+  url:          { icon: LinkOutlinedIcon, bg: "#0969da" },
+
+  // Chat avatars
+  ai:           { icon: SmartToyOutlinedIcon, bg: "#07C160" },
+  doctor:       { icon: LocalHospitalOutlinedIcon, bg: "#5b9bd5" },
+  patient:      { icon: PersonOutlineIcon, bg: "#5b9bd5" },
+  notification: { icon: NotificationsNoneOutlinedIcon, bg: "#f0f0f0", color: "#999" },
+
+  // Record types
+  rec_visit:     { icon: LocalHospitalOutlinedIcon, bg: "#07C160" },
+  rec_dictation: { icon: MicNoneOutlinedIcon, bg: "#5b9bd5" },
+  rec_import:    { icon: FileUploadOutlinedIcon, bg: "#e8833a" },
+  rec_lab:       { icon: BiotechOutlinedIcon, bg: "#9b59b6" },
+  rec_imaging:   { icon: MonitorHeartOutlinedIcon, bg: "#1890ff" },
+  rec_surgery:   { icon: LocalHospitalOutlinedIcon, bg: "#FA5151" },
+  rec_interview: { icon: ChatOutlinedIcon, bg: "#8e44ad" },
+
+  // Task types
+  task_follow_up:  { icon: EventRepeatOutlinedIcon, bg: "#07C160" },
+  task_medication: { icon: MedicationOutlinedIcon, bg: "#5b9bd5" },
+  task_checkup:    { icon: BiotechOutlinedIcon, bg: "#e8833a" },
+  task_general:    { icon: AssignmentOutlinedIcon, bg: "#8e44ad" },
+  task_imaging:    { icon: MonitorHeartOutlinedIcon, bg: "#1890ff" },
+};
 
