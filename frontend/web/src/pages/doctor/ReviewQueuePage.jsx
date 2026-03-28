@@ -127,7 +127,7 @@ function PendingReviewCard({ item, onConfirm, onReject, onEdit, onNavigate }) {
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 400, color: COLOR.text1, mb: 0.5 }}>
           {SECTION_LABEL[item.section] || item.section}：{item.content}
         </Typography>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, lineHeight: 1.4 }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
           {item.detail}
         </Typography>
       </Box>
