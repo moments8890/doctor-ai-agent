@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UI Design Guide — Doctor AI Agent</title>
+<style>
+:root {
+  --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de; --text: #1f2328;
+  --muted: #656d76; --accent: #0969da; --green: #1a7f37; --orange: #9a6700;
+  --purple: #8250df; --red: #cf222e; --radius: 8px; --gap: 16px;
+  --yellow: #9a6700; --code-bg: #f6f8fa;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; line-height: 1.6; padding: 32px 24px 64px; max-width: 1200px; margin: 0 auto; }
+.header { text-align: center; margin-bottom: 48px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+.header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 6px; }
+.header .subtitle { color: var(--muted); font-size: 1rem; }
+.header .updated { color: var(--muted); font-size: 0.8rem; margin-top: 8px; }
+.section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
+.section-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; cursor: pointer; user-select: none; transition: background 0.15s; }
+.section-header:hover { background: rgba(9, 105, 218, 0.06); }
+.section-header h2 { font-size: 1.15rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.section-header .chevron { width: 20px; height: 20px; color: var(--muted); transition: transform 0.2s; flex-shrink: 0; }
+.section.open .chevron { transform: rotate(90deg); }
+.section-body { display: none; padding: 0 20px 20px; }
+.section.open .section-body { display: block; }
+.section-static { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; padding: 20px; }
+.section-static h2 { font-size: 1.15rem; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dot-green { background: var(--green); } .dot-blue { background: var(--accent); }
+.dot-orange { background: var(--orange); } .dot-purple { background: var(--purple); }
+.dot-gray { background: var(--muted); } .dot-red { background: var(--red); }
+p { margin-bottom: 12px; } p.muted { color: var(--muted); font-size: 0.9rem; }
+.file-path { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.82rem; color: var(--accent); background: rgba(9, 105, 218, 0.08); padding: 2px 7px; border-radius: 4px; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+.file-path:hover { background: rgba(9, 105, 218, 0.18); text-decoration: underline; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.9rem; }
+th { text-align: left; padding: 10px 12px; background: rgba(9, 105, 218, 0.06); border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(9, 105, 218, 0.03); }
+.cat-header { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 14px 12px 6px; margin-top: 16px; display: flex; align-items: center; gap: 8px; }
+.cat-header:first-child { margin-top: 0; }
+.showcase-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.showcase-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; transition: border-color 0.15s; }
+.showcase-card:hover { border-color: var(--accent); }
+.showcase-card a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.95rem; }
+.showcase-card a:hover { text-decoration: underline; }
+.showcase-card .desc { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
+.principles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin: 16px 0; }
+.principle-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; gap: 14px; align-items: flex-start; }
+.principle-num { background: var(--green); color: var(--bg); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+.principle-body h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 4px; }
+.principle-body p { font-size: 0.82rem; color: var(--muted); margin: 0; }
+.anti-list { list-style: none; padding: 0; margin: 12px 0; }
+.anti-list li { padding: 8px 14px; margin-bottom: 6px; background: rgba(207, 34, 46, 0.06); border-left: 3px solid var(--red); border-radius: 0 var(--radius) var(--radius) 0; font-size: 0.85rem; }
+.swatch-group { margin-bottom: 20px; }
+.swatch-group-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; color: var(--muted); margin-bottom: 10px; }
+.swatch-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.swatch { display: flex; align-items: center; gap: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; min-width: 170px; }
+.swatch-color { width: 36px; height: 36px; border-radius: 6px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.1); }
+.swatch-info .hex { font-family: 'SFMono-Regular', Consolas, monospace; font-size: 0.82rem; font-weight: 600; }
+.swatch-info .label { color: var(--muted); font-size: 0.75rem; }
+.type-scale { display: flex; flex-direction: column; margin: 16px 0; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.type-row { display: flex; align-items: baseline; gap: 20px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.type-row:last-child { border-bottom: none; }
+.type-token { font-family: 'SFMono-Regular', Consolas, monospace; color: var(--accent); font-size: 0.78rem; min-width: 120px; flex-shrink: 0; }
+.type-meta { color: var(--muted); font-size: 0.75rem; min-width: 90px; flex-shrink: 0; }
+.type-usage { color: var(--muted); font-size: 0.75rem; flex: 1; }
+.spacing-grid { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0; }
+.spacing-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.spacing-box { background: rgba(26, 127, 55, 0.2); border: 1px solid rgba(26, 127, 55, 0.4); border-radius: 2px; }
+.spacing-label { font-family: monospace; font-size: 0.75rem; color: var(--muted); }
+.spacing-desc { font-size: 0.7rem; color: var(--muted); text-align: center; max-width: 80px; }
+.phone-mockup-wrapper { display: flex; justify-content: center; padding: 24px 0; }
+.phone-mockup-bg { background: #e8e8e8; padding: 32px 48px; border-radius: 12px; }
+.phone-mockup { width: 180px; height: 390px; background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.12); overflow: hidden; display: flex; flex-direction: column; font-family: -apple-system, sans-serif; }
+.phone-topbar { height: 36px; background: #fff; border-bottom: 0.5px solid #d9d9d9; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #1a1a1a; }
+.phone-content { flex: 1; background: #ededed; padding: 8px; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+.phone-card { background: #fff; border-radius: 6px; padding: 8px; font-size: 8px; color: #333; }
+.phone-card-title { font-size: 9px; font-weight: 600; color: #1a1a1a; margin-bottom: 3px; }
+.phone-bottomnav { height: 40px; background: #f7f7f7; border-top: 0.5px solid #d9d9d9; display: flex; align-items: center; justify-content: space-around; font-size: 7px; color: #999; }
+.phone-nav-active { color: #07C160; font-weight: 600; }
+.mockup-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin: 16px 0; }
+.mockup-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.mockup-card h4 { font-size: 0.9rem; color: var(--accent); margin-bottom: 12px; }
+.mockup-inner { background: #ededed; border-radius: 8px; padding: 8px; font-family: -apple-system, sans-serif; }
+.mock-list-card { background: #fff; border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; font-size: 12px; color: #333; margin-bottom: 4px; }
+.mock-list-card:last-child { margin-bottom: 0; }
+.mock-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0; }
+.mock-list-body { flex: 1; } .mock-list-title { font-weight: 600; color: #1a1a1a; font-size: 13px; }
+.mock-list-sub { color: #999; font-size: 11px; } .mock-chevron { color: #ccc; font-size: 14px; }
+.mock-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 500; border: 0.5px solid; }
+.diag-states { display: flex; flex-direction: column; gap: 6px; }
+.diag-item { background: #fff; border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #333; border-left: 3px solid; }
+.diag-title { font-weight: 600; color: #1a1a1a; } .diag-status { font-size: 11px; font-weight: 500; }
+.nav-mockup { display: flex; justify-content: center; margin: 16px 0; }
+.nav-bar-mock { background: #f7f7f7; border: 0.5px solid #d9d9d9; border-radius: 12px; padding: 10px 0; display: flex; width: 320px; justify-content: space-around; }
+.nav-tab-mock { text-align: center; font-size: 10px; color: #999; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.nav-tab-mock.active { color: #07C160; font-weight: 600; }
+.nav-icon-mock { width: 22px; height: 22px; border-radius: 4px; background: currentColor; opacity: 0.3; }
+.nav-tab-mock.active .nav-icon-mock { opacity: 0.6; }
+.subpage-header-mock { background: #fff; border: 0.5px solid #d9d9d9; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #1a1a1a; margin: 12px auto; max-width: 320px; }
+.subpage-back { color: #333; font-size: 18px; } .subpage-title { font-weight: 600; }
+.subpage-action { color: #07C160; font-size: 12px; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1f2328; color: #ffffff; padding: 8px 20px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 1000; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.footer { text-align: center; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.8rem; }
+@media (max-width: 600px) { body { padding: 16px 12px 48px; } .header h1 { font-size: 1.5rem; } .principles-grid, .mockup-row, .showcase-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div id="toast" class="toast"></div>
+
+<!-- HEADER -->
+<div class="header">
+  <h1>UI Design Principles &amp; Component Guide</h1>
+  <div class="subtitle">Interactive visual companion for the design system</div>
+  <div class="updated">Last updated 2026-03-27</div>
+</div>
+
+<!-- LIVE SHOWCASES (always visible) -->
+<div class="section-static">
+  <h2><span class="dot dot-green"></span> Live Showcases</h2>
+  <p class="muted">Always reference these live debug views instead of static PNG screenshots.</p>
+  <div class="showcase-grid">
+    <div class="showcase-card">
+      <a href="http://localhost:5173/debug/components" target="_blank">/debug/components</a>
+      <div class="desc">All reusable UI in src/components/ and src/components/doctor/</div>
+    </div>
+    <div class="showcase-card">
+      <a href="http://localhost:5173/debug/doctor-pages" target="_blank">/debug/doctor-pages</a>
+      <div class="desc">Page-level mockups with sample data</div>
+    </div>
+    <div class="showcase-card">
+      <a href="http://localhost:5173/debug/doctor-components" target="_blank">/debug/doctor-components</a>
+      <div class="desc">Doctor-specific components (DiagnosisCard, FieldReviewCard, etc.)</div>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK REFERENCE — COMPONENT FILE MAP (expanded by default) -->
+<div class="section open">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-blue"></span> Quick Reference &mdash; Component File Map</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <div class="cat-header"><span class="dot dot-green"></span> App Shell</div>
+    <table>
+      <tr><th>Component</th><th>File</th><th>Purpose</th></tr>
+      <tr><td>MobileFrame</td><td><span class="file-path" onclick="copyPath(this)">src/App.jsx</span></td><td>Phone-shaped container for desktop</td></tr>
+      <tr><td>DoctorPage</td><td><span class="file-path" onclick="copyPath(this)">src/pages/doctor/DoctorPage.jsx</span></td><td>Doctor app shell (top bar + content + nav)</td></tr>
+      <tr><td>PatientPage</td><td><span class="file-path" onclick="copyPath(this)">src/pages/patient/PatientPage.jsx</span></td><td>Patient portal shell</td></tr>
+      <tr><td>LoginPage</td><td><span class="file-path" onclick="copyPath(this)">src/pages/LoginPage.jsx</span></td><td>Unified login (doctor/patient tabs)</td></tr>
+    </table>
+    <div class="cat-header"><span class="dot dot-blue"></span> Top Bar &amp; Navigation</div>
+    <table>
+      <tr><th>Component</th><th>File</th><th>Purpose</th></tr>
+      <tr><td>SubpageHeader</td><td><span class="file-path" onclick="copyPath(this)">src/components/SubpageHeader.jsx</span></td><td>Back + title + action</td></tr>
+      <tr><td>BarButton</td><td><span class="file-path" onclick="copyPath(this)">src/components/BarButton.jsx</span></td><td>Top bar text action button</td></tr>
+      <tr><td>MobileBottomNav</td><td><span class="file-path" onclick="copyPath(this)">src/pages/doctor/DoctorPage.jsx</span></td><td>4-tab bottom navigation</td></tr>
+    </table>
+    <div class="cat-header"><span class="dot dot-purple"></span> Layout &amp; Structure</div>
+    <table>
+      <tr><th>Component</th><th>File</th><th>Purpose</th></tr>
+      <tr><td>PageSkeleton</td><td><span class="file-path" onclick="copyPath(this)">src/components/PageSkeleton.jsx</span></td><td>Page layout wrapper (list + detail)</td></tr>
+      <tr><td>SectionLabel</td><td><span class="file-path" onclick="copyPath(this)">src/components/SectionLabel.jsx</span></td><td>Section header label (12px/600)</td></tr>
+      <tr><td>EmptyState</td><td><span class="file-path" onclick="copyPath(this)">src/components/EmptyState.jsx</span></td><td>Centered placeholder</td></tr>
+    </table>
+    <div class="cat-header"><span class="dot dot-orange"></span> Buttons &amp; Actions</div>
+    <table>
+      <tr><th>Component</th><th>File</th><th>Purpose</th></tr>
+      <tr><td>AppButton</td><td><span class="file-path" onclick="copyPath(this)">src/components/AppButton.jsx</span></td><td>Content-level button (primary/secondary/danger)</td></tr>
+      <tr><td>CancelConfirm</td><td><span class="file-path" onclick="copyPath(this)">src/components/CancelConfirm.jsx</span></td><td>Two-step cancel popup</td></tr>
+      <tr><td>ConfirmDialog</td><td><span class="file-path" onclick="copyPath(this)">src/components/ConfirmDialog.jsx</span></td><td>Compact confirm/destructive dialog</td></tr>
+      <tr><td>ActionPanel</td><td><span class="file-path" onclick="copyPath(this)">src/components/ActionPanel.jsx</span></td><td>Slide-up action sheet</td></tr>
+    </table>
+    <div class="cat-header"><span class="dot dot-green"></span> Content Components</div>
+    <table>
+      <tr><th>Component</th><th>File</th><th>Purpose</th></tr>
+      <tr><td>ListCard</td><td><span class="file-path" onclick="copyPath(this)">src/components/ListCard.jsx</span></td><td>List row (avatar + title + subtitle + chevron)</td></tr>
+      <tr><td>NewItemCard</td><td><span class="file-path" onclick="copyPath(this)">src/components/NewItemCard.jsx</span></td><td>"+" dashed new item row</td></tr>
+      <tr><td>RecordCard</td><td><span class="file-path" onclick="copyPath(this)">src/components/RecordCard.jsx</span></td><td>Expandable medical record card</td></tr>
+      <tr><td>RecordFields</td><td><span class="file-path" onclick="copyPath(this)">src/components/RecordFields.jsx</span></td><td>NHC structured field rows</td></tr>
+      <tr><td>DetailCard</td><td><span class="file-path" onclick="copyPath(this)">src/components/DetailCard.jsx</span></td><td>Compact key-value card</td></tr>
+    </table>
+    <div class="cat-header"><span class="dot dot-blue"></span> Chat &amp; Input</div>
+    <table>
+      <tr><th>Component</th><th>File</th><th>Purpose</th></tr>
+      <tr><td>AskAIBar</td><td><span class="file-path" onclick="copyPath(this)">src/components/AskAIBar.jsx</span></td><td>Floating "Ask AI" entry bar</td></tr>
+      <tr><td>SuggestionChips</td><td><span class="file-path" onclick="copyPath(this)">src/components/SuggestionChips.jsx</span></td><td>Quick-reply options above input</td></tr>
+      <tr><td>DoctorBubble</td><td><span class="file-path" onclick="copyPath(this)">src/components/DoctorBubble.jsx</span></td><td>Doctor reply message bubble</td></tr>
+      <tr><td>VoiceInput</td><td><span class="file-path" onclick="copyPath(this)">src/components/VoiceInput.jsx</span></td><td>Press-to-talk voice input</td></tr>
+    </table>
+    <div class="cat-header"><span class="dot dot-orange"></span> Dialogs &amp; Pickers</div>
+    <table>
+      <tr><th>Component</th><th>File</th><th>Purpose</th></tr>
+      <tr><td>SheetDialog</td><td><span class="file-path" onclick="copyPath(this)">src/components/SheetDialog.jsx</span></td><td>Bottom-sheet dialog shell</td></tr>
+      <tr><td>BottomSheet</td><td><span class="file-path" onclick="copyPath(this)">src/components/BottomSheet.jsx</span></td><td>Swipe-up panel overlay</td></tr>
+      <tr><td>RecordEditDialog</td><td><span class="file-path" onclick="copyPath(this)">src/components/RecordEditDialog.jsx</span></td><td>Medical record field editor</td></tr>
+      <tr><td>ExportSelectorDialog</td><td><span class="file-path" onclick="copyPath(this)">src/components/ExportSelectorDialog.jsx</span></td><td>PDF export field picker</td></tr>
+      <tr><td>ImportChoiceDialog</td><td><span class="file-path" onclick="copyPath(this)">src/components/ImportChoiceDialog.jsx</span></td><td>Import method selector</td></tr>
+      <tr><td>PatientPickerDialog</td><td><span class="file-path" onclick="copyPath(this)">src/components/PatientPickerDialog.jsx</span></td><td>Patient search and select</td></tr>
+    </table>
+    <div class="cat-header"><span class="dot dot-red"></span> Badges &amp; Avatars</div>
+    <table>
+      <tr><th>Component</th><th>File</th><th>Purpose</th></tr>
+      <tr><td>StatusBadge</td><td><span class="file-path" onclick="copyPath(this)">src/components/StatusBadge.jsx</span></td><td>Colored status pill</td></tr>
+      <tr><td>PatientAvatar</td><td><span class="file-path" onclick="copyPath(this)">src/components/PatientAvatar.jsx</span></td><td>Colored circle with surname</td></tr>
+      <tr><td>RecordAvatar</td><td><span class="file-path" onclick="copyPath(this)">src/components/RecordAvatar.jsx</span></td><td>Record type icon</td></tr>
+    </table>
+    <div class="cat-header"><span class="dot dot-purple"></span> Doctor-Specific</div>
+    <table>
+      <tr><th>Component</th><th>File</th><th>Purpose</th></tr>
+      <tr><td>DiagnosisCard</td><td><span class="file-path" onclick="copyPath(this)">src/components/doctor/DiagnosisCard.jsx</span></td><td>Collapsible diagnosis review card (5 states)</td></tr>
+      <tr><td>FieldReviewCard</td><td><span class="file-path" onclick="copyPath(this)">src/components/doctor/FieldReviewCard.jsx</span></td><td>Carry-forward / import field review</td></tr>
+      <tr><td>InterviewCompleteDialog</td><td><span class="file-path" onclick="copyPath(this)">src/components/doctor/InterviewCompleteDialog.jsx</span></td><td>NHC preview + save/diagnose popup</td></tr>
+    </table>
+    <div class="cat-header"><span class="dot dot-green"></span> Pages</div>
+    <table>
+      <tr><th>Component</th><th>File</th><th>Purpose</th></tr>
+      <tr><td>HomePage</td><td><span class="file-path" onclick="copyPath(this)">src/pages/doctor/HomePage.jsx</span></td><td>Home tab: stats + onboarding</td></tr>
+      <tr><td>ChatPage</td><td><span class="file-path" onclick="copyPath(this)">src/pages/doctor/ChatPage.jsx</span></td><td>AI chat with quick commands</td></tr>
+      <tr><td>PatientsPage</td><td><span class="file-path" onclick="copyPath(this)">src/pages/doctor/PatientsPage.jsx</span></td><td>Patient list + detail drill-down</td></tr>
+      <tr><td>PatientDetail</td><td><span class="file-path" onclick="copyPath(this)">src/pages/doctor/patients/PatientDetail.jsx</span></td><td>Patient profile + records + actions</td></tr>
+      <tr><td>TasksPage</td><td><span class="file-path" onclick="copyPath(this)">src/pages/doctor/TasksPage.jsx</span></td><td>Task list with filter chips</td></tr>
+      <tr><td>SettingsPage</td><td><span class="file-path" onclick="copyPath(this)">src/pages/doctor/SettingsPage.jsx</span></td><td>Profile, tools, knowledge base</td></tr>
+      <tr><td>ReviewPage</td><td><span class="file-path" onclick="copyPath(this)">src/pages/doctor/ReviewPage.jsx</span></td><td>Diagnosis review subpage</td></tr>
+      <tr><td>InterviewPage</td><td><span class="file-path" onclick="copyPath(this)">src/pages/doctor/InterviewPage.jsx</span></td><td>Doctor interview (chat + fields)</td></tr>
+    </table>
+    <div class="cat-header"><span class="dot dot-orange"></span> Theme &amp; Tokens</div>
+    <table>
+      <tr><th>File</th><th>Purpose</th></tr>
+      <tr><td><span class="file-path" onclick="copyPath(this)">src/theme.js</span></td><td>TYPE, ICON, COLOR tokens + MUI theme</td></tr>
+      <tr><td><span class="file-path" onclick="copyPath(this)">src/api.js</span></td><td>All API functions</td></tr>
+      <tr><td><span class="file-path" onclick="copyPath(this)">src/store/doctorStore.js</span></td><td>Auth state (Zustand)</td></tr>
+      <tr><td><span class="file-path" onclick="copyPath(this)">src/pages/doctor/constants.jsx</span></td><td>Labels, enums, field definitions</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- DESIGN PHILOSOPHY (collapsed) -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-green"></span> Design Philosophy</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">WeChat-native medical assistant. The app should feel like a professional extension of WeChat &mdash; familiar to Chinese smartphone users, not a foreign SaaS product.</p>
+    <div class="principles-grid">
+      <div class="principle-card"><div class="principle-num">1</div><div class="principle-body"><h4>Function over decoration</h4><p>No visual element without purpose. If it doesn't help the doctor treat patients faster, remove it.</p></div></div>
+      <div class="principle-card"><div class="principle-num">2</div><div class="principle-body"><h4>Flat and clean</h4><p>No shadows, no gradients, no 3D effects. White cards on gray backgrounds, hairline borders.</p></div></div>
+      <div class="principle-card"><div class="principle-num">3</div><div class="principle-body"><h4>Mobile-first, mobile-only</h4><p>All views render as mobile layout. Desktop shows a phone-shaped frame. One-thumb operation.</p></div></div>
+      <div class="principle-card"><div class="principle-num">4</div><div class="principle-body"><h4>Scan, don't read</h4><p>Doctors have 30 seconds per patient. Brief labels for scanning, full text on expand.</p></div></div>
+      <div class="principle-card"><div class="principle-num">5</div><div class="principle-body"><h4>Safety through layout</h4><p>Destructive left, constructive right. Red for danger, green for go. No exceptions.</p></div></div>
+      <div class="principle-card"><div class="principle-num">6</div><div class="principle-body"><h4>Consistent density</h4><p>4px base unit, compact spacing, but min 44px tap targets.</p></div></div>
+      <div class="principle-card"><div class="principle-num">7</div><div class="principle-body"><h4>Chinese-first</h4><p>All UI text in Chinese. Preserve medical abbreviations (CT, MRI, NIHSS).</p></div></div>
+      <div class="principle-card"><div class="principle-num">8</div><div class="principle-body"><h4>Flat icons only</h4><p>MUI outlined icons only. Never emoji, Unicode symbols, or icon fonts.</p></div></div>
+    </div>
+    <h3 style="color: var(--red); font-size: 0.95rem; margin: 20px 0 8px;">What We Don't Do</h3>
+    <ul class="anti-list">
+      <li>No skeleton screens for fast loads (&lt;200ms) &mdash; show content directly</li>
+      <li>No emoji or Unicode symbol icons &mdash; use MUI outlined icons only</li>
+      <li>No toast notifications for expected outcomes &mdash; only for errors/async</li>
+      <li>No modal dialogs unless blocking is intentional</li>
+      <li>No hover effects &mdash; touch-first UI</li>
+      <li>No animations except page transitions and loading spinners</li>
+      <li>No color for color's sake &mdash; gray is the default, color = meaning</li>
+    </ul>
+  </div>
+</div>
+
+<!-- PLATFORM & FRAME (collapsed) -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-purple"></span> Platform &amp; Frame</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p>Desktop browsers render the app inside a phone-shaped container (MobileFrame). Ratio: <strong>9:19.5</strong>. File: <span class="file-path" onclick="copyPath(this)">src/App.jsx</span></p>
+    <p class="muted">CSS min() for constraint-driven sizing. transform: translateZ(0) for containing block. On mobile (&lt;520px): full screen, no frame.</p>
+    <div class="phone-mockup-wrapper">
+      <div class="phone-mockup-bg">
+        <div class="phone-mockup">
+          <div class="phone-topbar">Patient List</div>
+          <div class="phone-content">
+            <div class="phone-card"><div class="phone-card-title">Zhang Wei</div>M / 45y / Outpatient</div>
+            <div class="phone-card"><div class="phone-card-title">Li Fang</div>F / 56y / Follow-up</div>
+            <div class="phone-card"><div class="phone-card-title">Wang Ming</div>M / 72y / Emergency</div>
+            <div style="flex:1"></div>
+          </div>
+          <div class="phone-bottomnav">
+            <div>AI</div><div class="phone-nav-active">Patients</div><div>Review</div><div>Follow</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="muted" style="text-align:center">#e8e8e8 background &middot; 16px border-radius &middot; subtle shadow &middot; 9:19.5 ratio</p>
+    <h3 style="font-size: 0.95rem; margin: 20px 0 8px;">Three-Component Page Architecture</h3>
+    <table>
+      <tr><th>Zone</th><th>Height</th><th>Behavior</th></tr>
+      <tr><td>Top Bar</td><td>48px</td><td>Fixed. Navigation + 1 action. White #fff, border-bottom 0.5px #d9d9d9</td></tr>
+      <tr><td>Content</td><td>flex: 1</td><td>Scrollable. Different per page. Bottom padding 64px for nav clearance.</td></tr>
+      <tr><td>Bottom Nav</td><td>64px + safe-area</td><td>Fixed. 4 tabs. position: absolute (not fixed). #f7f7f7 background.</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- COLOR SYSTEM (collapsed) -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-orange"></span> Color System</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <div class="swatch-group">
+      <div class="swatch-group-label">Primary &amp; Semantic</div>
+      <div class="swatch-row">
+        <div class="swatch"><div class="swatch-color" style="background:#07C160"></div><div class="swatch-info"><div class="hex">#07C160</div><div class="label">Green &mdash; primary, active, go</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#1B6EF3"></div><div class="swatch-info"><div class="hex">#1B6EF3</div><div class="label">Accent blue</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#576B95"></div><div class="swatch-info"><div class="hex">#576B95</div><div class="label">WeChat link blue</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#D65745"></div><div class="swatch-info"><div class="hex">#D65745</div><div class="label">Danger red &mdash; delete only</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#F59E0B"></div><div class="swatch-info"><div class="hex">#F59E0B</div><div class="label">Warning amber &mdash; pending</div></div></div>
+      </div>
+    </div>
+    <div class="swatch-group">
+      <div class="swatch-group-label">Backgrounds</div>
+      <div class="swatch-row">
+        <div class="swatch"><div class="swatch-color" style="background:#ffffff; border-color:#ccc"></div><div class="swatch-info"><div class="hex">#FFFFFF</div><div class="label">Card background</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#ededed"></div><div class="swatch-info"><div class="hex">#EDEDED</div><div class="label">Page background</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#f5f5f5"></div><div class="swatch-info"><div class="hex">#F5F5F5</div><div class="label">Surface / input</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#f7f7f7"></div><div class="swatch-info"><div class="hex">#F7F7F7</div><div class="label">Nav bar</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#e8e8e8"></div><div class="swatch-info"><div class="hex">#E8E8E8</div><div class="label">Desktop viewport</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#fafafa"></div><div class="swatch-info"><div class="hex">#FAFAFA</div><div class="label">Rejected / dimmed</div></div></div>
+      </div>
+    </div>
+    <div class="swatch-group">
+      <div class="swatch-group-label">Text Scale</div>
+      <div class="swatch-row">
+        <div class="swatch"><div class="swatch-color" style="background:#1A1A1A"></div><div class="swatch-info"><div class="hex">#1A1A1A</div><div class="label">text1 &mdash; headings</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#333333"></div><div class="swatch-info"><div class="hex">#333333</div><div class="label">text2 &mdash; body</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#666666"></div><div class="swatch-info"><div class="hex">#666666</div><div class="label">text3 &mdash; descriptions</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#999999"></div><div class="swatch-info"><div class="hex">#999999</div><div class="label">text4 &mdash; metadata</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#c7c7c7"></div><div class="swatch-info"><div class="hex">#C7C7C7</div><div class="label">Disabled</div></div></div>
+      </div>
+    </div>
+    <div class="swatch-group">
+      <div class="swatch-group-label">Borders</div>
+      <div class="swatch-row">
+        <div class="swatch"><div class="swatch-color" style="background:#E5E5E5"></div><div class="swatch-info"><div class="hex">#E5E5E5</div><div class="label">Card border</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#f0f0f0"></div><div class="swatch-info"><div class="hex">#F0F0F0</div><div class="label">Hairline divider</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#d9d9d9"></div><div class="swatch-info"><div class="hex">#D9D9D9</div><div class="label">Top/bottom bar border</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TYPOGRAPHY (collapsed) -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-blue"></span> Typography</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">Import from <span class="file-path" onclick="copyPath(this)">src/theme.js</span>. Never hardcode font sizes.</p>
+    <div class="type-scale">
+      <div class="type-row"><span class="type-token">TYPE.title</span><span class="type-meta">16px / 600</span><span style="font-size:16px;font-weight:600">Page titles, top bar</span></div>
+      <div class="type-row"><span class="type-token">TYPE.action</span><span class="type-meta">15px / 400</span><span style="font-size:15px;color:var(--green)">Top bar actions</span></div>
+      <div class="type-row"><span class="type-token">TYPE.heading</span><span class="type-meta">14px / 600</span><span style="font-size:14px;font-weight:600">Section titles, form labels</span></div>
+      <div class="type-row"><span class="type-token">TYPE.body</span><span class="type-meta">14px / 400</span><span style="font-size:14px">Content text, buttons</span></div>
+      <div class="type-row"><span class="type-token">TYPE.secondary</span><span class="type-meta">13px / 400</span><span style="font-size:13px;color:var(--muted)">Descriptions, field labels</span></div>
+      <div class="type-row"><span class="type-token">TYPE.caption</span><span class="type-meta">12px / 400</span><span style="font-size:12px;color:var(--muted)">Metadata, timestamps</span></div>
+      <div class="type-row"><span class="type-token">TYPE.micro</span><span class="type-meta">11px / 500</span><span style="font-size:11px;color:var(--muted)">Badges, status pills</span></div>
+    </div>
+    <h3 style="font-size: 0.95rem; margin: 20px 0 8px;">Icon Sizes (ICON tokens)</h3>
+    <div class="type-scale">
+      <div class="type-row"><span class="type-token">ICON.xs</span><span class="type-meta">13px</span><span class="type-usage">Inline tiny (sort arrows)</span></div>
+      <div class="type-row"><span class="type-token">ICON.sm</span><span class="type-meta">16px</span><span class="type-usage">Action button icons</span></div>
+      <div class="type-row"><span class="type-token">ICON.md</span><span class="type-meta">18px</span><span class="type-usage">List item icons</span></div>
+      <div class="type-row"><span class="type-token">ICON.lg</span><span class="type-meta">20px</span><span class="type-usage">Nav icons, settings</span></div>
+      <div class="type-row"><span class="type-token">ICON.xl</span><span class="type-meta">22px</span><span class="type-usage">Quick action cards</span></div>
+      <div class="type-row"><span class="type-token">ICON.xxl</span><span class="type-meta">24px</span><span class="type-usage">Detail header icons</span></div>
+      <div class="type-row"><span class="type-token">ICON.hero</span><span class="type-meta">28px</span><span class="type-usage">SubpageHeader back chevron</span></div>
+      <div class="type-row"><span class="type-token">ICON.display</span><span class="type-meta">48px</span><span class="type-usage">Empty state icons</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- SPACING & LAYOUT (collapsed) -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-purple"></span> Spacing &amp; Layout</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p>Base unit: <strong>4px</strong>. All spacing values are multiples of 4.</p>
+    <div class="spacing-grid">
+      <div class="spacing-item"><div class="spacing-box" style="width:4px;height:24px"></div><div class="spacing-label">4px</div><div class="spacing-desc">Micro gap</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:8px;height:24px"></div><div class="spacing-label">8px</div><div class="spacing-desc">Card gap</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:12px;height:24px"></div><div class="spacing-label">12px</div><div class="spacing-desc">Card padding</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:16px;height:24px"></div><div class="spacing-label">16px</div><div class="spacing-desc">Section gap</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:20px;height:24px"></div><div class="spacing-label">20px</div><div class="spacing-desc">Large pad</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:24px;height:24px"></div><div class="spacing-label">24px</div><div class="spacing-desc">Section margin</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:48px;height:24px"></div><div class="spacing-label">48px</div><div class="spacing-desc">Top bar</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:64px;height:24px"></div><div class="spacing-label">64px</div><div class="spacing-desc">Bottom nav</div></div>
+    </div>
+    <table>
+      <tr><th>Rule</th><th>Value</th></tr>
+      <tr><td>Min tap target</td><td>44px touch area</td></tr>
+      <tr><td>Card gap</td><td>8px between cards</td></tr>
+      <tr><td>Bottom clearance</td><td>padding-bottom: 64px</td></tr>
+      <tr><td>Card stacking</td><td>Vertical only &mdash; no columns, no grids</td></tr>
+      <tr><td>Background</td><td>#ededed page, #fff cards</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- COMPONENT PATTERNS (collapsed) -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-green"></span> Component Patterns</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <div class="mockup-row">
+      <div class="mockup-card">
+        <h4>ListCard Anatomy</h4>
+        <p class="muted" style="font-size:0.78rem">File: <span class="file-path" onclick="copyPath(this)">src/components/ListCard.jsx</span></p>
+        <div class="mockup-inner">
+          <div class="mock-list-card"><div class="mock-avatar" style="background:#07C160">Li</div><div class="mock-list-body"><div class="mock-list-title">Li Fang</div><div class="mock-list-sub">F / 56y / Follow-up #1</div></div><div class="mock-chevron">&#8250;</div></div>
+          <div class="mock-list-card"><div class="mock-avatar" style="background:#576B95">Zh</div><div class="mock-list-body"><div class="mock-list-title">Zhang Wei</div><div class="mock-list-sub">M / 45y / Outpatient</div></div><div class="mock-chevron">&#8250;</div></div>
+          <div class="mock-list-card"><div class="mock-avatar" style="background:#D65745">Wa</div><div class="mock-list-body"><div class="mock-list-title">Wang Ming</div><div class="mock-list-sub">M / 72y / Emergency</div></div><div style="font-size:10px;color:#999">3h</div></div>
+        </div>
+        <p class="muted" style="font-size:0.75rem;margin-top:8px">48-56px height. Avatar (36px) + title + subtitle. Right: timestamp or chevron.</p>
+      </div>
+      <div class="mockup-card">
+        <h4>RecordCard</h4>
+        <p class="muted" style="font-size:0.78rem">File: <span class="file-path" onclick="copyPath(this)">src/components/RecordCard.jsx</span></p>
+        <div class="mockup-inner">
+          <div style="background:#fff;border-radius:6px;padding:10px 12px;margin-bottom:4px;font-size:12px">
+            <div style="display:flex;justify-content:space-between"><div><span style="color:#07C160;font-weight:600;font-size:11px;margin-right:6px">Outpatient</span><span style="color:#333">Headache, 3 days</span></div><span style="color:#999;font-size:10px">03-25</span></div>
+          </div>
+          <div style="background:#fff;border-radius:6px;padding:10px 12px;font-size:12px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px"><div><span style="color:#bc8cff;font-weight:600;font-size:11px;margin-right:6px">Lab</span><span style="color:#333">Blood panel</span></div><span style="color:#999;font-size:10px">03-20</span></div>
+            <div style="border-top:1px solid #f0f0f0;padding-top:4px">
+              <div style="display:flex;gap:8px;font-size:11px;padding:2px 0"><span style="color:#999;min-width:40px">WBC</span><span style="color:#333">6.2</span></div>
+              <div style="display:flex;gap:8px;font-size:11px;padding:2px 0"><span style="color:#999;min-width:40px">HGB</span><span style="color:#333">142</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- DiagnosisCard 5 states -->
+    <div class="mockup-card" style="margin-top:4px">
+      <h4>DiagnosisCard &mdash; 5 States</h4>
+      <p class="muted" style="font-size:0.78rem">File: <span class="file-path" onclick="copyPath(this)">src/components/doctor/DiagnosisCard.jsx</span></p>
+      <div class="mockup-inner">
+        <div class="diag-states">
+          <div class="diag-item" style="border-left-color:#f0f0f0"><div><span class="diag-title">Hypertension Gr.2</span> <span class="mock-badge" style="color:#999;border-color:#ccc;margin-left:6px">High</span></div><div class="diag-status" style="color:#999">Pending</div></div>
+          <div class="diag-item" style="border-left-color:#07C160"><div><span class="diag-title">Type 2 Diabetes</span></div><div class="diag-status" style="color:#07C160">Confirmed</div></div>
+          <div class="diag-item" style="border-left-color:#e5e5e5;background:#fafafa"><div><span class="diag-title" style="color:#999;text-decoration:line-through">Anemia</span></div><div class="diag-status" style="color:#999">Rejected</div></div>
+          <div class="diag-item" style="border-left-color:#F59E0B"><div><span class="diag-title">Hyperlipidemia</span> <span class="mock-badge" style="color:#F59E0B;border-color:#F59E0B;margin-left:6px">Edited</span></div><div class="diag-status" style="color:#F59E0B">Edited</div></div>
+          <div class="diag-item" style="border-left-color:#07C160"><div><span class="diag-title">Coronary Artery Disease</span></div><div class="diag-status" style="color:#07C160">Doctor-added</div></div>
+        </div>
+      </div>
+      <table style="margin-top:12px">
+        <tr><th>State</th><th>Left Border</th><th>Status</th></tr>
+        <tr><td>Unreviewed</td><td><span style="display:inline-block;width:20px;height:10px;background:#f0f0f0;border-radius:2px;vertical-align:middle"></span> #f0f0f0</td><td style="color:#999">Pending</td></tr>
+        <tr><td>Confirmed</td><td><span style="display:inline-block;width:20px;height:10px;background:#07C160;border-radius:2px;vertical-align:middle"></span> #07C160</td><td style="color:#07C160">Confirmed</td></tr>
+        <tr><td>Rejected</td><td><span style="display:inline-block;width:20px;height:10px;background:#e5e5e5;border-radius:2px;vertical-align:middle"></span> #e5e5e5</td><td style="color:#999">Rejected</td></tr>
+        <tr><td>Edited</td><td><span style="display:inline-block;width:20px;height:10px;background:#F59E0B;border-radius:2px;vertical-align:middle"></span> #F59E0B</td><td style="color:#F59E0B">Edited</td></tr>
+        <tr><td>Doctor-added</td><td><span style="display:inline-block;width:20px;height:10px;background:#07C160;border-radius:2px;vertical-align:middle"></span> #07C160</td><td style="color:#07C160">Doctor-added</td></tr>
+      </table>
+    </div>
+    <!-- Buttons & Badges -->
+    <div class="mockup-row" style="margin-top:16px">
+      <div class="mockup-card">
+        <h4>Button Patterns</h4>
+        <p class="muted" style="font-size:0.78rem"><span class="file-path" onclick="copyPath(this)">src/components/AppButton.jsx</span> / <span class="file-path" onclick="copyPath(this)">src/components/BarButton.jsx</span></p>
+        <div class="mockup-inner" style="display:flex;flex-direction:column;gap:8px;padding:12px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="background:#07C160;color:#fff;padding:8px 20px;border-radius:6px;font-size:12px;font-weight:600">Primary</div>
+            <div style="border:1px solid #ccc;color:#333;padding:8px 20px;border-radius:6px;font-size:12px;background:#fff">Secondary</div>
+            <div style="color:#D65745;font-size:12px;padding:8px 12px">Danger</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;background:#fff;padding:8px 12px;border-radius:6px;font-size:12px"><span style="color:#D65745">Delete</span><span style="color:#07C160">Edit</span></div>
+          <p style="font-size:10px;color:#666;margin:0;text-align:center">Destructive left, constructive right. Always.</p>
+        </div>
+      </div>
+      <div class="mockup-card">
+        <h4>Badges &amp; Filter Chips</h4>
+        <p class="muted" style="font-size:0.78rem"><span class="file-path" onclick="copyPath(this)">src/components/StatusBadge.jsx</span></p>
+        <div class="mockup-inner" style="padding:12px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span class="mock-badge" style="color:#D65745;border-color:#D65745">Emergency</span>
+            <span class="mock-badge" style="color:#F59E0B;border-color:#F59E0B">Urgent</span>
+            <span class="mock-badge" style="color:#999;border-color:#ccc">Routine</span>
+            <span class="mock-badge" style="color:#07C160;border-color:#07C160">High</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <div style="background:#07C160;color:#fff;padding:4px 12px;border-radius:14px;font-size:11px">All</div>
+            <div style="border:1px solid #ccc;color:#999;padding:4px 12px;border-radius:14px;font-size:11px;background:#fff">Pending</div>
+            <div style="border:1px solid #ccc;color:#999;padding:4px 12px;border-radius:14px;font-size:11px;background:#fff">Todo</div>
+            <div style="border:1px solid #ccc;color:#999;padding:4px 12px;border-radius:14px;font-size:11px;background:#fff">Done</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NAVIGATION (collapsed) -->
+<div class="section">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-orange"></span> Navigation</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <h3 style="font-size: 0.95rem; margin-bottom: 12px;">Bottom Navigation (4-tab)</h3>
+    <div class="nav-mockup">
+      <div class="nav-bar-mock">
+        <div class="nav-tab-mock active"><div class="nav-icon-mock"></div><span>My AI</span></div>
+        <div class="nav-tab-mock"><div class="nav-icon-mock"></div><span>Patients</span></div>
+        <div class="nav-tab-mock"><div class="nav-icon-mock"></div><span>Review</span></div>
+        <div class="nav-tab-mock"><div class="nav-icon-mock"></div><span>Follow-up</span></div>
+      </div>
+    </div>
+    <table>
+      <tr><th>Property</th><th>Value</th></tr>
+      <tr><td>Position</td><td>absolute (not fixed &mdash; contained by MobileFrame)</td></tr>
+      <tr><td>Background</td><td>#f7f7f7, border-top 0.5px solid #d9d9d9</td></tr>
+      <tr><td>Height</td><td>64px + env(safe-area-inset-bottom)</td></tr>
+      <tr><td>Active</td><td>Green #07C160, fontWeight 600</td></tr>
+      <tr><td>Inactive</td><td>Gray #999</td></tr>
+    </table>
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px;">Main Tab vs Subpage</h3>
+    <table>
+      <tr><th>Page Type</th><th>Bottom Nav</th><th>Top Bar</th><th>Examples</th></tr>
+      <tr><td>Main tab</td><td style="color:var(--green)">Visible</td><td>Title only, no back</td><td>My AI, Patients, Review, Follow-up</td></tr>
+      <tr><td>Subpage</td><td style="color:var(--red)">Hidden</td><td>Back + title + action</td><td>Settings, Knowledge, Patient Detail</td></tr>
+    </table>
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px;">SubpageHeader Pattern</h3>
+    <div class="subpage-header-mock">
+      <span class="subpage-back">&#8249;</span>
+      <span class="subpage-title">Diagnosis Review</span>
+      <span class="subpage-action">Done</span>
+    </div>
+    <p class="muted" style="text-align:center;font-size:0.78rem;margin-top:8px">48px. Back chevron (44x48px). Title centered (16px/600). Max 1 action, 2 chars, green.</p>
+    <table>
+      <tr><th>Action</th><th>Result</th></tr>
+      <tr><td>Tab tap</td><td>Switch section, no animation</td></tr>
+      <tr><td>List row tap</td><td>Push to detail (SubpageHeader)</td></tr>
+      <tr><td>Back button</td><td>Pop to previous (navigate(-1))</td></tr>
+      <tr><td>Swipe</td><td>Not used (reserved)</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  Source of truth: <span class="file-path" onclick="copyPath(this)">docs/ux/UI-DESIGN.md</span> &mdash; this HTML is a visual companion.<br>
+  Generated 2026-03-27.
+</div>
+
+<script>
+function toggleSection(header) {
+  header.parentElement.classList.toggle('open');
+}
+function copyPath(el) {
+  var text = (el.textContent || el.innerText).trim();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() { showToast('Copied!'); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta); showToast('Copied!');
+  }
+}
+var toastTimeout = null;
+function showToast(msg) {
+  var toast = document.getElementById('toast');
+  toast.textContent = msg; toast.classList.add('show');
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(function() { toast.classList.remove('show'); }, 1200);
+}
+</script>
+
+</body>
+</html>

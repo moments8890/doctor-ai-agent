@@ -6,16 +6,20 @@
 <title>Architecture — Doctor AI Agent</title>
 <style>
 :root {
-  --bg: #0d1117;
-  --surface: #161b22;
-  --border: #30363d;
-  --text: #e6edf3;
-  --muted: #8b949e;
-  --accent: #58a6ff;
-  --green: #3fb950;
-  --orange: #d29922;
-  --purple: #bc8cff;
-  --red: #f85149;
+  --bg: #ffffff;
+  --surface: #f6f8fa;
+  --border: #d0d7de;
+  --text: #1f2328;
+  --muted: #656d76;
+  --accent: #0969da;
+  --green: #1a7f37;
+  --red: #cf222e;
+  --yellow: #9a6700;
+  --orange: #bc4c00;
+  --purple: #8250df;
+  --code-bg: #f6f8fa;
+  --add-bg: #dafbe1;
+  --add-border: #1a7f37;
   --radius: 8px;
   --gap: 16px;
 }
@@ -62,6 +66,7 @@ body {
   border-radius: var(--radius);
   margin-bottom: 20px;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 .section-header {
   display: flex;
@@ -73,7 +78,7 @@ body {
   transition: background 0.15s;
 }
 .section-header:hover {
-  background: rgba(88, 166, 255, 0.06);
+  background: rgba(9, 105, 218, 0.06);
 }
 .section-header h2 {
   font-size: 1.15rem;
@@ -107,6 +112,7 @@ body {
   border-radius: var(--radius);
   margin-bottom: 20px;
   padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 .section-static h2 {
   font-size: 1.15rem;
@@ -141,7 +147,7 @@ p.muted { color: var(--muted); font-size: 0.9rem; }
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 0.82rem;
   color: var(--accent);
-  background: rgba(88, 166, 255, 0.08);
+  background: rgba(9, 105, 218, 0.08);
   padding: 2px 7px;
   border-radius: 4px;
   cursor: pointer;
@@ -150,7 +156,7 @@ p.muted { color: var(--muted); font-size: 0.9rem; }
   position: relative;
 }
 .file-path:hover {
-  background: rgba(88, 166, 255, 0.18);
+  background: rgba(9, 105, 218, 0.18);
   text-decoration: underline;
 }
 
@@ -164,7 +170,7 @@ table {
 th {
   text-align: left;
   padding: 10px 12px;
-  background: rgba(88, 166, 255, 0.06);
+  background: rgba(9, 105, 218, 0.06);
   border-bottom: 1px solid var(--border);
   color: var(--muted);
   font-weight: 600;
@@ -178,7 +184,7 @@ td {
   vertical-align: top;
 }
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: rgba(88, 166, 255, 0.03); }
+tr:hover td { background: rgba(9, 105, 218, 0.03); }
 
 /* ── Table row color coding ────────────────────────────── */
 tr.row-blue td { border-left: 3px solid var(--accent); }
@@ -222,28 +228,28 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   position: relative;
 }
 .box-green {
-  background: rgba(63, 185, 80, 0.1);
-  border-color: rgba(63, 185, 80, 0.3);
+  background: rgba(26, 127, 55, 0.08);
+  border-color: rgba(26, 127, 55, 0.25);
   color: var(--green);
 }
 .box-blue {
-  background: rgba(88, 166, 255, 0.1);
-  border-color: rgba(88, 166, 255, 0.3);
+  background: rgba(9, 105, 218, 0.08);
+  border-color: rgba(9, 105, 218, 0.25);
   color: var(--accent);
 }
 .box-orange {
-  background: rgba(210, 153, 34, 0.1);
-  border-color: rgba(210, 153, 34, 0.3);
+  background: rgba(188, 76, 0, 0.08);
+  border-color: rgba(188, 76, 0, 0.25);
   color: var(--orange);
 }
 .box-purple {
-  background: rgba(188, 140, 255, 0.1);
-  border-color: rgba(188, 140, 255, 0.3);
+  background: rgba(130, 80, 223, 0.08);
+  border-color: rgba(130, 80, 223, 0.25);
   color: var(--purple);
 }
 .box-gray {
-  background: rgba(139, 148, 158, 0.08);
-  border-color: rgba(139, 148, 158, 0.25);
+  background: rgba(101, 109, 118, 0.06);
+  border-color: rgba(101, 109, 118, 0.2);
   color: var(--muted);
 }
 .box-label {
@@ -300,11 +306,11 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   border: 2px solid;
   flex-shrink: 0;
 }
-.pipeline-dot-green { background: rgba(63,185,80,0.15); border-color: var(--green); color: var(--green); }
-.pipeline-dot-blue { background: rgba(88,166,255,0.15); border-color: var(--accent); color: var(--accent); }
-.pipeline-dot-orange { background: rgba(210,153,34,0.15); border-color: var(--orange); color: var(--orange); }
-.pipeline-dot-purple { background: rgba(188,140,255,0.15); border-color: var(--purple); color: var(--purple); }
-.pipeline-dot-gray { background: rgba(139,148,158,0.1); border-color: var(--muted); color: var(--muted); }
+.pipeline-dot-green { background: rgba(26,127,55,0.1); border-color: var(--green); color: var(--green); }
+.pipeline-dot-blue { background: rgba(9,105,218,0.1); border-color: var(--accent); color: var(--accent); }
+.pipeline-dot-orange { background: rgba(188,76,0,0.1); border-color: var(--orange); color: var(--orange); }
+.pipeline-dot-purple { background: rgba(130,80,223,0.1); border-color: var(--purple); color: var(--purple); }
+.pipeline-dot-gray { background: rgba(101,109,118,0.08); border-color: var(--muted); color: var(--muted); }
 .pipeline-label {
   margin-top: 8px;
   font-size: 0.75rem;
@@ -351,7 +357,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--border);
 }
 .layer-bar:first-child {
   border-radius: var(--radius) var(--radius) 0 0;
@@ -392,6 +398,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 .pattern-card h4 {
   font-size: 0.9rem;
@@ -406,17 +413,17 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   margin-bottom: 6px;
 }
 .pattern-system {
-  background: rgba(88, 166, 255, 0.1);
+  background: rgba(9, 105, 218, 0.08);
   border-left: 3px solid var(--accent);
   color: var(--accent);
 }
 .pattern-history {
-  background: rgba(139, 148, 158, 0.08);
+  background: rgba(101, 109, 118, 0.06);
   border-left: 3px solid var(--muted);
   color: var(--muted);
 }
 .pattern-user {
-  background: rgba(63, 185, 80, 0.1);
+  background: rgba(26, 127, 55, 0.08);
   border-left: 3px solid var(--green);
   color: var(--green);
 }
@@ -444,6 +451,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   border: 1px solid;
   border-radius: var(--radius);
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 .er-box-header {
   padding: 10px 14px;
@@ -466,16 +474,16 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
 .er-col .fk { color: var(--purple); font-size: 0.7rem; }
 .er-col .col-name { color: var(--text); }
 
-.er-box-green { border-color: rgba(63,185,80,0.3); }
-.er-box-green .er-box-header { background: rgba(63,185,80,0.1); border-color: rgba(63,185,80,0.3); color: var(--green); }
-.er-box-blue { border-color: rgba(88,166,255,0.3); }
-.er-box-blue .er-box-header { background: rgba(88,166,255,0.1); border-color: rgba(88,166,255,0.3); color: var(--accent); }
-.er-box-orange { border-color: rgba(210,153,34,0.3); }
-.er-box-orange .er-box-header { background: rgba(210,153,34,0.1); border-color: rgba(210,153,34,0.3); color: var(--orange); }
-.er-box-purple { border-color: rgba(188,140,255,0.3); }
-.er-box-purple .er-box-header { background: rgba(188,140,255,0.1); border-color: rgba(188,140,255,0.3); color: var(--purple); }
-.er-box-gray { border-color: rgba(139,148,158,0.25); }
-.er-box-gray .er-box-header { background: rgba(139,148,158,0.08); border-color: rgba(139,148,158,0.25); color: var(--muted); }
+.er-box-green { border-color: rgba(26,127,55,0.25); }
+.er-box-green .er-box-header { background: rgba(26,127,55,0.08); border-color: rgba(26,127,55,0.25); color: var(--green); }
+.er-box-blue { border-color: rgba(9,105,218,0.25); }
+.er-box-blue .er-box-header { background: rgba(9,105,218,0.08); border-color: rgba(9,105,218,0.25); color: var(--accent); }
+.er-box-orange { border-color: rgba(188,76,0,0.25); }
+.er-box-orange .er-box-header { background: rgba(188,76,0,0.08); border-color: rgba(188,76,0,0.25); color: var(--orange); }
+.er-box-purple { border-color: rgba(130,80,223,0.25); }
+.er-box-purple .er-box-header { background: rgba(130,80,223,0.08); border-color: rgba(130,80,223,0.25); color: var(--purple); }
+.er-box-gray { border-color: rgba(101,109,118,0.2); }
+.er-box-gray .er-box-header { background: rgba(101,109,118,0.06); border-color: rgba(101,109,118,0.2); color: var(--muted); }
 
 /* ── State machine ─────────────────────────────────────── */
 .state-machine {
@@ -513,28 +521,28 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
 }
 
 .state-orange {
-  background: rgba(210,153,34,0.1);
-  border-color: rgba(210,153,34,0.4);
+  background: rgba(188,76,0,0.08);
+  border-color: rgba(188,76,0,0.3);
   color: var(--orange);
 }
 .state-blue {
-  background: rgba(88,166,255,0.1);
-  border-color: rgba(88,166,255,0.4);
+  background: rgba(9,105,218,0.08);
+  border-color: rgba(9,105,218,0.3);
   color: var(--accent);
 }
 .state-green {
-  background: rgba(63,185,80,0.1);
-  border-color: rgba(63,185,80,0.4);
+  background: rgba(26,127,55,0.08);
+  border-color: rgba(26,127,55,0.3);
   color: var(--green);
 }
 .state-gray {
-  background: rgba(139,148,158,0.08);
-  border-color: rgba(139,148,158,0.3);
+  background: rgba(101,109,118,0.06);
+  border-color: rgba(101,109,118,0.25);
   color: var(--muted);
 }
 .state-red {
-  background: rgba(248,81,73,0.1);
-  border-color: rgba(248,81,73,0.4);
+  background: rgba(207,34,46,0.08);
+  border-color: rgba(207,34,46,0.3);
   color: var(--red);
 }
 
@@ -545,6 +553,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 .branch-row {
   display: flex;
@@ -570,9 +579,9 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   font-weight: 500;
   margin: 2px 4px 2px 0;
 }
-.source-tag-ui { background: rgba(88,166,255,0.15); color: var(--accent); }
-.source-tag-chat { background: rgba(63,185,80,0.15); color: var(--green); }
-.source-tag-auto { background: rgba(188,140,255,0.15); color: var(--purple); }
+.source-tag-ui { background: rgba(9,105,218,0.1); color: var(--accent); }
+.source-tag-chat { background: rgba(26,127,55,0.1); color: var(--green); }
+.source-tag-auto { background: rgba(130,80,223,0.1); color: var(--purple); }
 
 /* ── HTTP method badges ────────────────────────────────── */
 .method {
@@ -585,11 +594,11 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   min-width: 48px;
   text-align: center;
 }
-.method-get { background: rgba(88,166,255,0.15); color: var(--accent); }
-.method-post { background: rgba(63,185,80,0.15); color: var(--green); }
-.method-put { background: rgba(210,153,34,0.15); color: var(--orange); }
-.method-delete { background: rgba(248,81,73,0.15); color: var(--red); }
-.method-patch { background: rgba(188,140,255,0.15); color: var(--purple); }
+.method-get { background: rgba(9,105,218,0.1); color: var(--accent); }
+.method-post { background: rgba(26,127,55,0.1); color: var(--green); }
+.method-put { background: rgba(188,76,0,0.1); color: var(--orange); }
+.method-delete { background: rgba(207,34,46,0.1); color: var(--red); }
+.method-patch { background: rgba(130,80,223,0.1); color: var(--purple); }
 
 .route-path {
   font-family: monospace;
@@ -607,8 +616,8 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%) translateY(20px);
-  background: var(--green);
-  color: var(--bg);
+  background: #1f2328;
+  color: #ffffff;
   padding: 8px 20px;
   border-radius: 20px;
   font-size: 0.85rem;
@@ -617,6 +626,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   transition: opacity 0.2s, transform 0.2s;
   pointer-events: none;
   z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 .toast.show {
   opacity: 1;
@@ -842,12 +852,12 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
       <div class="box box-purple" style="max-width: 500px;">
         <div style="font-weight: 600; margin-bottom: 8px;">prompt_composer.py</div>
         <div style="display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem; text-align: left;">
-          <div style="padding: 4px 8px; background: rgba(188,140,255,0.15); border-radius: 3px;">L1: Identity / Safety &mdash; common/base.md</div>
-          <div style="padding: 4px 8px; background: rgba(188,140,255,0.12); border-radius: 3px;">L2: Specialty &mdash; domain/neurology.md</div>
-          <div style="padding: 4px 8px; background: rgba(188,140,255,0.10); border-radius: 3px;">L3: Intent rules &mdash; intent/*.md</div>
-          <div style="padding: 4px 8px; background: rgba(188,140,255,0.08); border-radius: 3px;">L4: Doctor knowledge &mdash; from DB</div>
-          <div style="padding: 4px 8px; background: rgba(188,140,255,0.06); border-radius: 3px;">L5: Patient context &mdash; from DB</div>
-          <div style="padding: 4px 8px; background: rgba(188,140,255,0.04); border-radius: 3px;">L6: User message</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.15); border-radius: 3px;">L1: Identity / Safety &mdash; common/base.md</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.12); border-radius: 3px;">L2: Specialty &mdash; domain/neurology.md</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.10); border-radius: 3px;">L3: Intent rules &mdash; intent/*.md</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.08); border-radius: 3px;">L4: Doctor knowledge &mdash; from DB</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.06); border-radius: 3px;">L5: Patient context &mdash; from DB</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.04); border-radius: 3px;">L6: User message</div>
         </div>
       </div>
     </div>
@@ -1042,27 +1052,27 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
     </p>
 
     <div class="layer-stack">
-      <div class="layer-bar" style="background: rgba(188,140,255,0.18);">
+      <div class="layer-bar" style="background: rgba(130,80,223,0.18);">
         <span><span class="layer-num">L1</span> <span class="layer-name">Identity / Safety</span></span>
         <span class="layer-source file-path" onclick="copyPath(this)">src/agent/prompts/common/base.md</span>
       </div>
-      <div class="layer-bar" style="background: rgba(188,140,255,0.14);">
+      <div class="layer-bar" style="background: rgba(130,80,223,0.14);">
         <span><span class="layer-num">L2</span> <span class="layer-name">Specialty</span></span>
         <span class="layer-source file-path" onclick="copyPath(this)">src/agent/prompts/domain/neurology.md</span>
       </div>
-      <div class="layer-bar" style="background: rgba(188,140,255,0.11);">
+      <div class="layer-bar" style="background: rgba(130,80,223,0.11);">
         <span><span class="layer-num">L3</span> <span class="layer-name">Intent Rules</span></span>
         <span class="layer-source file-path" onclick="copyPath(this)">src/agent/prompts/intent/*.md</span>
       </div>
-      <div class="layer-bar" style="background: rgba(210,153,34,0.10);">
+      <div class="layer-bar" style="background: rgba(188,76,0,0.10);">
         <span><span class="layer-num">L4</span> <span class="layer-name">Doctor Knowledge</span></span>
         <span class="layer-source">from DB (doctor_knowledge_items)</span>
       </div>
-      <div class="layer-bar" style="background: rgba(63,185,80,0.08);">
+      <div class="layer-bar" style="background: rgba(26,127,55,0.08);">
         <span><span class="layer-num">L5</span> <span class="layer-name">Patient Context</span></span>
         <span class="layer-source">from DB (records, history)</span>
       </div>
-      <div class="layer-bar" style="background: rgba(139,148,158,0.06);">
+      <div class="layer-bar" style="background: rgba(101,109,118,0.06);">
         <span><span class="layer-num">L6</span> <span class="layer-name">User Message</span></span>
         <span class="layer-source">doctor's input text</span>
       </div>

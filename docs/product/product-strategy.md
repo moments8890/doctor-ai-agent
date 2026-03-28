@@ -1,5 +1,7 @@
 # 产品战略：专科医生的AI助手
 
+> **Visual version:** [product-strategy-visual.html](product-strategy-visual.html) — open in browser for interactive strategy overview
+
 > 日期：2026-03-20
 > 基于：甲方医生需求原话 + 竞品分析 + Codex多轮战略审查
 >

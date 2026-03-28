@@ -1,5 +1,7 @@
 # UI Design Principles & Component Guide
 
+> **Visual version:** [UI-DESIGN-visual.html](UI-DESIGN-visual.html) — open in browser for interactive component guide
+
 > Source of truth for all frontend visual and interaction decisions.
 > Read this before creating or modifying any UI component.
 

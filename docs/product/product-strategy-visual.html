@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>产品战略 — 专科医生的AI助手</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --surface: #f6f8fa;
+  --border: #d0d7de;
+  --text: #1f2328;
+  --muted: #656d76;
+  --accent: #0969da;
+  --green: #1a7f37;
+  --red: #cf222e;
+  --yellow: #9a6700;
+  --orange: #bc4c00;
+  --code-bg: #f6f8fa;
+  --purple: #8250df;
+  --radius: 8px;
+  --gap: 16px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  padding: 32px 24px 64px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ── Header ────────────────────────────────────────────── */
+.header {
+  text-align: center;
+  margin-bottom: 48px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 6px; }
+.header .subtitle { color: var(--muted); font-size: 1rem; }
+.header .updated { color: var(--muted); font-size: 0.8rem; margin-top: 8px; }
+.correction {
+  background: rgba(207, 34, 46, 0.06);
+  border: 1px solid rgba(207, 34, 46, 0.25);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-top: 20px;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.correction strong { color: var(--red); }
+.correction ul { margin: 8px 0 0 20px; }
+.correction li { margin-bottom: 4px; color: var(--muted); }
+
+/* ── Section (collapsible) ─────────────────────────────── */
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.section-header:hover { background: rgba(9, 105, 218, 0.06); }
+.section-header h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-header .chevron {
+  width: 20px; height: 20px;
+  color: var(--muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.section.open .chevron { transform: rotate(90deg); }
+.section-body { display: none; padding: 0 20px 20px; }
+.section.open .section-body { display: block; }
+
+/* ── Dot indicators ───────────────────────────────────── */
+.dot {
+  display: inline-block; width: 10px; height: 10px;
+  border-radius: 50%; flex-shrink: 0;
+}
+.dot-green { background: var(--green); }
+.dot-blue { background: var(--accent); }
+.dot-red { background: var(--red); }
+.dot-yellow { background: var(--yellow); }
+.dot-purple { background: var(--purple); }
+.dot-orange { background: var(--orange); }
+
+/* ── Paragraph & muted ────────────────────────────────── */
+p { margin-bottom: 12px; }
+p.muted { color: var(--muted); font-size: 0.9rem; }
+
+/* ── Tables ───────────────────────────────────────────── */
+table {
+  width: 100%; border-collapse: collapse;
+  margin: 12px 0; font-size: 0.9rem;
+}
+th {
+  text-align: left; padding: 10px 12px;
+  background: rgba(9, 105, 218, 0.06);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted); font-weight: 600;
+  font-size: 0.8rem; text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(9, 105, 218, 0.04); }
+tr.row-red td { border-left: 3px solid var(--red); }
+tr.row-orange td { border-left: 3px solid var(--orange); }
+tr.row-yellow td { border-left: 3px solid var(--yellow); }
+tr.row-green td { border-left: 3px solid var(--green); }
+tr.row-blue td { border-left: 3px solid var(--accent); }
+tr.row-purple td { border-left: 3px solid var(--purple); }
+
+/* ── Boxes ────────────────────────────────────────────── */
+.box {
+  padding: 14px 16px; border-radius: var(--radius);
+  font-size: 0.85rem; font-weight: 500;
+  border: 1px solid;
+}
+.box-green { background: rgba(26,127,55,0.08); border-color: rgba(26,127,55,0.3); color: var(--green); }
+.box-blue { background: rgba(9,105,218,0.08); border-color: rgba(9,105,218,0.3); color: var(--accent); }
+.box-yellow { background: rgba(154,103,0,0.08); border-color: rgba(154,103,0,0.3); color: var(--yellow); }
+.box-red { background: rgba(207,34,46,0.08); border-color: rgba(207,34,46,0.3); color: var(--red); }
+.box-purple { background: rgba(130,80,223,0.08); border-color: rgba(130,80,223,0.3); color: var(--purple); }
+.box-gray { background: rgba(101,109,118,0.08); border-color: rgba(101,109,118,0.25); color: var(--muted); }
+
+/* ── Comparison grid ──────────────────────────────────── */
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px; margin: 16px 0;
+}
+@media (max-width: 640px) { .compare-grid { grid-template-columns: 1fr; } }
+.compare-col { border-radius: var(--radius); padding: 16px; }
+.compare-col h3 { font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.compare-col ul { list-style: none; }
+.compare-col li { padding: 6px 0; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+.compare-col li:last-child { border-bottom: none; }
+
+/* ── Cards ────────────────────────────────────────────── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px; margin: 16px 0;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.card h4 { font-size: 0.95rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.card p { font-size: 0.88rem; color: var(--muted); margin-bottom: 0; }
+
+/* ── Blockquote ───────────────────────────────────────── */
+.quote {
+  border-left: 3px solid var(--accent);
+  padding: 12px 16px;
+  margin: 12px 0;
+  background: rgba(9,105,218,0.05);
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ── Insight box ──────────────────────────────────────── */
+.insight {
+  background: rgba(26,127,55,0.06);
+  border: 1px solid rgba(26,127,55,0.25);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin: 16px 0;
+}
+.insight strong { color: var(--green); }
+
+/* ── Flow pipeline ────────────────────────────────────── */
+.flow {
+  display: flex; align-items: stretch;
+  gap: 0; margin: 20px 0;
+  overflow-x: auto;
+}
+.flow-card {
+  flex: 1; min-width: 220px;
+  padding: 20px; border-radius: var(--radius);
+  border: 1px solid; position: relative;
+}
+.flow-card h3 { font-size: 1.1rem; margin-bottom: 10px; }
+.flow-card ul { list-style: none; font-size: 0.88rem; }
+.flow-card li { padding: 4px 0; }
+.flow-card li::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+.flow-arrow {
+  display: flex; align-items: center;
+  font-size: 1.8rem; color: var(--muted);
+  padding: 0 8px; flex-shrink: 0;
+}
+
+/* ── Stack diagram ────────────────────────────────────── */
+.stack { display: flex; flex-direction: column; gap: 0; margin: 16px 0; }
+.stack-layer {
+  padding: 20px; border: 1px solid;
+  font-size: 0.9rem; text-align: center;
+}
+.stack-layer:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+.stack-layer:last-child { border-radius: 0 0 var(--radius) var(--radius); }
+.stack-layer h4 { font-size: 1rem; margin-bottom: 6px; }
+.stack-layer p { margin-bottom: 0; font-size: 0.85rem; }
+
+/* ── Timeline ─────────────────────────────────────────── */
+.timeline {
+  display: flex; align-items: flex-start;
+  gap: 0; margin: 20px 0;
+  overflow-x: auto; padding-bottom: 12px;
+}
+.tl-phase {
+  flex: 1; min-width: 180px;
+  text-align: center; position: relative;
+  padding: 0 8px;
+}
+.tl-dot {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  margin: 0 auto 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.85rem;
+}
+.tl-phase h4 { font-size: 0.9rem; margin-bottom: 6px; }
+.tl-phase p { font-size: 0.8rem; color: var(--muted); }
+.tl-phase .metric { font-size: 0.78rem; color: var(--green); margin-top: 6px; }
+.tl-line {
+  position: absolute; top: 15px; right: -50%;
+  width: 100%; height: 2px;
+  background: var(--border); z-index: 0;
+}
+
+/* ── Pricing ──────────────────────────────────────────── */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px; margin: 16px 0;
+}
+.pricing-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px; text-align: center;
+}
+.pricing-card h4 { font-size: 1rem; margin-bottom: 4px; }
+.pricing-card .price { font-size: 1.4rem; font-weight: 700; color: var(--accent); margin: 8px 0; }
+.pricing-card p { font-size: 0.82rem; color: var(--muted); margin-bottom: 0; }
+.pricing-card.featured { border-color: var(--accent); }
+
+/* ── Profile card ─────────────────────────────────────── */
+.profile {
+  display: flex; align-items: center; gap: 20px;
+  background: rgba(9,105,218,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px; margin-bottom: 20px;
+}
+.profile-avatar {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; flex-shrink: 0;
+}
+.profile-info h3 { font-size: 1.1rem; margin-bottom: 4px; }
+.profile-info p { font-size: 0.88rem; color: var(--muted); margin-bottom: 2px; }
+
+/* ── Footer ───────────────────────────────────────────── */
+.footer {
+  text-align: center; color: var(--muted);
+  font-size: 0.82rem; margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<div class="header">
+  <h1>产品战略：专科医生的AI助手</h1>
+  <div class="subtitle">Interactive visual guide</div>
+  <div class="updated">2026-03-20 &middot; 基于甲方医生需求原话 + 竞品分析 + Codex多轮战略审查</div>
+  <div class="correction">
+    <strong>修正 (2026-03-27):</strong>
+    <ul>
+      <li>消息分级系统：文档描述绿/黄/红三级，实际实现为<strong>二元分类</strong>（AI自动处理 vs 上报医生），无中间"黄色"级别</li>
+      <li>知识库分类：文档描述5类taxonomy，实际已简化为<strong>单一类别</strong>（所有知识条目统一存储，feed-all-to-LLM策略）</li>
+      <li>外部模型桥接（DIAGNOSIS_PROVIDERS）：<strong>未实现</strong>，ADR 0019因PHI法律风险推迟</li>
+      <li>分阶段交付：文档描述顺序执行，实际Phase 1-3<strong>并行开发</strong>，均已在main上实现</li>
+      <li>详见 <code>north-star.md</code> 获取当前准确状态</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════ 1. 统一定位 ═══════════════════ -->
+<div class="section open" id="sec-positioning">
+  <div class="section-header" onclick="toggle('sec-positioning')">
+    <h2><span class="dot dot-blue"></span> 统一定位</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <div class="quote" style="font-size:1.05rem; font-style:normal; border-left-color:var(--green);">
+      <strong style="color:var(--green);">为专科医生打造的AI助手：</strong>像医生助手一样问诊、写病历、给初步建议、做随访 — 医生只需做最终决策。
+    </div>
+    <p class="muted">主任医师的真实工作模式：他让住院医/研究生先问好、写好病历、给初步建议，他来"查房"做决策。我们的AI就是这个角色。</p>
+
+    <h3 style="margin:20px 0 12px; font-size:1rem;">AI助手做什么 vs. 医生做什么</h3>
+    <div class="compare-grid">
+      <div class="compare-col" style="background:rgba(26,127,55,0.06); border:1px solid rgba(26,127,55,0.2);">
+        <h3><span style="color:var(--green);">AI助手</span></h3>
+        <ul>
+          <li>问病史 — 语音/文字多轮采集，生成结构化病历</li>
+          <li>初步诊断 — 基于病历+知识库+历史病例给出建议</li>
+          <li>检查建议 — 推荐需要做的检查</li>
+          <li>治疗建议 — 推荐治疗方向（药物类别，不含剂量）</li>
+          <li>术后随访 — 回答常规问题，收集症状，提醒复查</li>
+          <li>全程管理 — 按医生方案执行提醒和随访</li>
+        </ul>
+      </div>
+      <div class="compare-col" style="background:rgba(9,105,218,0.06); border:1px solid rgba(9,105,218,0.2);">
+        <h3><span style="color:var(--accent);">医生（主任）</span></h3>
+        <ul>
+          <li>审核病历 — 补充关键问题</li>
+          <li>最终诊断 — 筛选、修改、做最终诊断</li>
+          <li>确认检查 — 确认/调整检查方案</li>
+          <li>确认治疗 — 确认/修改治疗方案</li>
+          <li>处理异常 — 处理AI上报的异常和紧急情况</li>
+          <li>制定方案 — 制定管理方案，调整计划</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top:16px;"><strong style="color:var(--text);">这不是：</strong> 诊所管理系统 / 通用医疗聊天机器人 / 取代医生 — AI只做初级工作，医生做所有决策。</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ 2. 真实客户画像 ═══════════════════ -->
+<div class="section" id="sec-persona">
+  <div class="section-header" onclick="toggle('sec-persona')">
+    <h2><span class="dot dot-green"></span> 真实客户画像</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <div class="profile">
+      <div class="profile-avatar">&#x1F9D1;&#x200D;&#x2695;&#xFE0F;</div>
+      <div class="profile-info">
+        <h3>大医院神经外科医生</h3>
+        <p>有大量私域患者（200+ 微信日消息）</p>
+        <p style="color:var(--accent);">"这个智能体就是取代一个初级医生的功能"</p>
+      </div>
+    </div>
+
+    <div class="card-grid">
+      <div class="card" style="border-left:3px solid var(--red);">
+        <h4><span style="font-size:1.2rem;">&#x1F4CB;</span> 痛点1：门诊前没有好病历</h4>
+        <p>要自己从头问诊，费时费力</p>
+      </div>
+      <div class="card" style="border-left:3px solid var(--yellow);">
+        <h4><span style="font-size:1.2rem;">&#x1F4E9;</span> 痛点2：诊后消息淹没</h4>
+        <p>200+条微信问"刀口肿不肿""药吃到什么时候"</p>
+      </div>
+      <div class="card" style="border-left:3px solid var(--purple);">
+        <h4><span style="font-size:1.2rem;">&#x1F916;</span> 痛点3：缺少AI辅助</h4>
+        <p>其他系统有诊断建议，他想要但不知道怎么接入</p>
+      </div>
+    </div>
+
+    <h3 style="margin:20px 0 12px; font-size:1rem;">医生原话</h3>
+    <div class="quote">"如果病人医生在看到病人前就有一份相对比较好的病例，他就会很舒服"</div>
+    <div class="quote">"我只要做一个最终的决策，这个智能体就是取代一个初级医生的功能"</div>
+    <div class="quote">"希望能够有初步的诊断、鉴别诊断以及进一步治疗的建议，我在里面只要筛选"</div>
+    <div class="quote">"到复诊、用药调整时会提醒双方，执行病人随访方案"</div>
+    <div class="quote">"要有自己核心专科小模型在手才能安全"</div>
+    <div class="quote">"他们是给医院做的，我们是给医生做的，使用量级完全不一样"</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 3. 竞品分析 ═══════════════════ -->
+<div class="section" id="sec-competitors">
+  <div class="section-header" onclick="toggle('sec-competitors')">
+    <h2><span class="dot dot-red"></span> 竞品分析</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <h3 style="margin-bottom:12px; font-size:1rem;">中国市场</h3>
+    <table>
+      <tr><th>竞品</th><th>定位</th><th>与我们的关系</th></tr>
+      <tr class="row-yellow"><td><strong>杏仁医生/未来医生</strong></td><td>随访老患者、康复随访智能体</td><td>最直接的竞品</td></tr>
+      <tr class="row-red"><td><strong>好大夫在线</strong></td><td>医患沟通平台，有AI辅助</td><td>平台拥有流量，医生是"打工人"</td></tr>
+      <tr class="row-red"><td><strong>京东健康</strong></td><td>专家医生AI分身</td><td>平台级，数据属于京东</td></tr>
+      <tr class="row-red"><td><strong>支付宝AI健康管家</strong></td><td>名医AI克隆</td><td>平台拥有，医生是内容来源</td></tr>
+      <tr class="row-orange"><td><strong>讯飞"智医随行"</strong></td><td>医院级AI助手，含随访</td><td>医院所有，不是医生个人工具</td></tr>
+      <tr class="row-purple"><td><strong>医生的现状</strong></td><td>深夜语音回复、选择性忽略</td><td>我们要替代的就是这个</td></tr>
+    </table>
+    <p class="muted" style="margin-top:4px;">
+      <span style="display:inline-block;width:10px;height:10px;background:var(--red);border-radius:2px;vertical-align:middle;margin-right:4px;"></span> 平台型
+      <span style="display:inline-block;width:10px;height:10px;background:var(--orange);border-radius:2px;vertical-align:middle;margin:0 4px 0 12px;"></span> 医院型
+      <span style="display:inline-block;width:10px;height:10px;background:var(--yellow);border-radius:2px;vertical-align:middle;margin:0 4px 0 12px;"></span> 最近竞品
+    </p>
+
+    <h3 style="margin:24px 0 12px; font-size:1rem;">海外</h3>
+    <table>
+      <tr><th>竞品</th><th>定位</th><th>与我们的关系</th></tr>
+      <tr class="row-yellow"><td><strong>Hippocratic AI (Raven)</strong></td><td>术后出院患者AI随访Agent</td><td>方向最接近，美国市场</td></tr>
+      <tr class="row-red"><td><strong>Artera Care Navigator</strong></td><td>患者沟通自动化平台</td><td>通用平台，不做专科深度</td></tr>
+      <tr class="row-orange"><td><strong>Commure Engage</strong></td><td>数字化护理路径</td><td>面向医院，不面向个体医生</td></tr>
+    </table>
+
+    <div class="insight" style="margin-top:20px;">
+      <strong>核心发现：</strong>截至2026年3月，中国市场没有明显的主导产品在做<em>"医生个人拥有的、微信原生的、专科AI助手"</em>。
+      <br>平台型 = 医生不拥有数据 / 医院型 = 医院所有 / 最近竞品 = 需深入调研。
+      <br><strong>我们的机会：医生拥有的、微信原生的、专科深度的AI助手。</strong>
+    </div>
+
+    <h3 style="margin:24px 0 12px; font-size:1rem;">核心差异化：医生数据主权</h3>
+    <div class="card-grid">
+      <div class="card" style="border-top:3px solid var(--green);">
+        <h4><span style="color:var(--green);">1.</span> 数据完全归医生所有</h4>
+        <p>患者资料、病历、对话、随访 — 所有权归医生。删除账号 = 数据彻底删除。</p>
+      </div>
+      <div class="card" style="border-top:3px solid var(--accent);">
+        <h4><span style="color:var(--accent);">2.</span> 知识可完全导入导出</h4>
+        <p>专科Playbook、常见问答、回复模板 — 支持JSON/PDF/Markdown导出，零迁移壁垒。</p>
+      </div>
+      <div class="card" style="border-top:3px solid var(--purple);">
+        <h4><span style="color:var(--purple);">3.</span> 商业模式不靠数据锁定</h4>
+        <p>我们卖的是工具，不是数据。医生用得好自然续费，不需要锁定。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 4. 三段式工作流 ═══════════════════ -->
+<div class="section" id="sec-workflow">
+  <div class="section-header" onclick="toggle('sec-workflow')">
+    <h2><span class="dot dot-green"></span> 三段式工作流</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">AI助手覆盖 <strong style="color:var(--text);">诊前问诊 &rarr; 诊中辅助 &rarr; 诊后随访</strong> 全流程。</p>
+
+    <div class="flow">
+      <div class="flow-card box-green" style="background:rgba(26,127,55,0.06);">
+        <h3>诊前（第一优先）</h3>
+        <ul>
+          <li style="color:var(--text);">患者扫码进入</li>
+          <li style="color:var(--text);">AI语音/文字多轮问诊</li>
+          <li style="color:var(--text);">生成结构化病历</li>
+          <li style="color:var(--text);">患者确认 &rarr; 传给医生</li>
+        </ul>
+        <div class="quote" style="margin-top:12px; font-size:0.82rem; border-left-color:var(--green);">"如果看到病人前就有一份好病例，他就会很舒服"</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-card box-blue" style="background:rgba(9,105,218,0.06);">
+        <h3>诊中（第二优先）</h3>
+        <ul>
+          <li style="color:var(--text);">结构化病历 + AI初步诊断</li>
+          <li style="color:var(--text);">鉴别诊断 + 检查建议</li>
+          <li style="color:var(--text);">治疗方向建议</li>
+          <li style="color:var(--text);">医生筛选确认 &rarr; 最终决策</li>
+        </ul>
+        <div class="quote" style="margin-top:12px; font-size:0.82rem;">"我在里面只要筛选，来决定下面的整治"</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-card box-yellow" style="background:rgba(154,103,0,0.06);">
+        <h3>诊后（第三优先）</h3>
+        <ul>
+          <li style="color:var(--text);">AI基于病历+医嘱自动回复</li>
+          <li style="color:var(--text);">收集症状，提醒复查</li>
+          <li style="color:var(--text);">医生制定管理方案</li>
+          <li style="color:var(--text);">异常上报 &rarr; 医生处理</li>
+        </ul>
+        <div class="quote" style="margin-top:12px; font-size:0.82rem; border-left-color:var(--yellow);">"到复诊、用药调整时会提醒双方"</div>
+      </div>
+    </div>
+
+    <div class="insight">
+      <strong>Day 1 价值：</strong> 如果第一周不能把医生的夜间消息处理时间砍掉至少1小时，这不是产品。
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 5. 专科知识架构 ═══════════════════ -->
+<div class="section" id="sec-knowledge">
+  <div class="section-header" onclick="toggle('sec-knowledge')">
+    <h2><span class="dot dot-purple"></span> 专科知识架构</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">不需要建传统知识图谱。三层架构让LLM拥有专科能力：</p>
+
+    <div class="stack">
+      <div class="stack-layer box-green" style="background:rgba(26,127,55,0.06);">
+        <h4 style="color:var(--green);">Skills（专科提示词知识）</h4>
+        <p style="color:var(--text);">神经科问诊话术、诊断规则、危险信号、治疗方案</p>
+        <p>&darr; 告诉LLM"怎么问、怎么判断" &middot; 医生可看/可改/可导入导出</p>
+      </div>
+      <div class="stack-layer box-blue" style="background:rgba(9,105,218,0.06);">
+        <h4 style="color:var(--accent);">RAG（病例历史匹配）</h4>
+        <p style="color:var(--text);">医生确认过的历史病例，embed后做相似匹配</p>
+        <p>&darr; 新患者来了，找到相似病例给LLM参考 &middot; 用得越多，匹配越准</p>
+      </div>
+      <div class="stack-layer box-purple" style="background:rgba(130,80,223,0.06);">
+        <h4 style="color:var(--purple);">Context（患者上下文）</h4>
+        <p style="color:var(--text);">这个患者的病历、用药、恢复阶段、对话历史</p>
+        <p>&darr; 每次回复都带上，AI"了解"这个患者 &middot; 医生可看/可修正</p>
+      </div>
+    </div>
+
+    <table style="margin-top:20px;">
+      <tr><th></th><th>知识图谱（左手医生）</th><th>我们的 Skills + RAG + Context</th></tr>
+      <tr><td>构建成本</td><td>巨大（6000+疾病实体关系）</td><td style="color:var(--green);">低（markdown提示词+病例积累）</td></tr>
+      <tr><td>更新方式</td><td>需要专人维护图谱</td><td style="color:var(--green);">医生确认病例自动积累</td></tr>
+      <tr><td>医生个性化</td><td>不能</td><td style="color:var(--green);">天然实现（RAG匹配医生自己的病例）</td></tr>
+      <tr><td>专科深度</td><td>广而浅</td><td style="color:var(--green);">深而专（按亚专科写skills）</td></tr>
+    </table>
+    <p class="muted" style="margin-top:12px;">"要有自己核心专科小模型在手才能安全" — 不是训练模型权重，而是积累专科知识库+病例库。这些才是真正属于医生的"小模型"。</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ 6. 分阶段交付 ═══════════════════ -->
+<div class="section" id="sec-phases">
+  <div class="section-header" onclick="toggle('sec-phases')">
+    <h2><span class="dot dot-yellow"></span> 分阶段交付</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">医生端先做，用起来再开放患者端。定位从第一天就是"AI助手"。</p>
+
+    <div class="timeline">
+      <div class="tl-phase">
+        <div class="tl-dot" style="background:var(--accent); color:var(--bg);">1</div>
+        <h4>医生工作台 + 知识库</h4>
+        <p>Dashboard、病历审核面板、专科知识库、知识管理界面</p>
+        <div class="metric">节省 15+ 分钟/天</div>
+      </div>
+      <div class="tl-phase">
+        <div class="tl-dot" style="background:var(--green); color:var(--bg);">2</div>
+        <h4>AI诊断 + 诊疗建议</h4>
+        <p>诊断Pipeline、医生筛选确认、病例库增长、外部模型桥接</p>
+        <div class="metric">采纳率 &gt;50%</div>
+      </div>
+      <div class="tl-phase">
+        <div class="tl-dot" style="background:var(--yellow); color:var(--bg);">3</div>
+        <h4>患者端入口 + 预问诊</h4>
+        <p>扫码入口、AI语音问诊、结构化病历、病历流转</p>
+        <div class="metric">完成率 &gt;70%</div>
+      </div>
+      <div class="tl-phase">
+        <div class="tl-dot" style="background:var(--purple); color:var(--bg);">4</div>
+        <h4>诊后随访 + 全程管理</h4>
+        <p>自动随访、管理方案、双向提醒、增长飞轮</p>
+        <div class="metric">自动处理 &gt;60%</div>
+      </div>
+    </div>
+
+    <table style="margin-top:12px;">
+      <tr><th>指标</th><th>第一期</th><th>第二期</th><th>第三期</th><th>第四期</th></tr>
+      <tr><td>医生每日节省时间</td><td>&ge;15分钟</td><td>&ge;30分钟</td><td>&ge;1小时</td><td>&ge;1.5小时</td></tr>
+      <tr><td>诊断建议采纳率</td><td>--</td><td>&gt;50%</td><td>--</td><td>--</td></tr>
+      <tr><td>患者完成预问诊率</td><td>--</td><td>--</td><td>&gt;70%</td><td>--</td></tr>
+      <tr><td>病历质量（医生认可率）</td><td>--</td><td>--</td><td>&gt;80%</td><td>--</td></tr>
+      <tr><td>随访消息自动处理率</td><td>--</td><td>--</td><td>--</td><td>&gt;60%</td></tr>
+    </table>
+
+    <div class="correction" style="margin-top:16px; background:rgba(154,103,0,0.06); border-color:rgba(154,103,0,0.25);">
+      <strong style="color:var(--yellow);">实际状态：</strong> Phase 1-3 并行开发，均已在 main 上实现。文档描述的顺序执行与实际不符。
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ 7. 商业模式 ═══════════════════ -->
+<div class="section" id="sec-business">
+  <div class="section-header" onclick="toggle('sec-business')">
+    <h2><span class="dot dot-orange"></span> 商业模式</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">付费买家不是医院IT，是<strong style="color:var(--text);">医生本人</strong>。</p>
+
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <h4>付费试用</h4>
+        <div class="price">&yen;8,000-20,000</div>
+        <p>2-3个月<br>历史对话导入、医生风格调优、专科playbook、白手套实施</p>
+      </div>
+      <div class="pricing-card featured">
+        <h4>续费（按月）</h4>
+        <div class="price">&yen;2,999-6,999/月</div>
+        <p>按活跃患者数或对话量分级<br>全功能持续使用</p>
+      </div>
+      <div class="pricing-card">
+        <h4>团队版（后期）</h4>
+        <div class="price">&yen;X/月/科室</div>
+        <p>多个医生 + 共享患者池</p>
+      </div>
+    </div>
+
+    <div class="insight">
+      <strong>为什么能收这个价？</strong> 1小时/天 &times; 30天 = 30小时/月的专家时间。神经外科医生的时间价值远高于&yen;3,000/月。实际是帮医生维护私域患者关系 = 维护收入来源。
+    </div>
+
+    <p class="muted" style="margin-top:12px;"><strong style="color:var(--red);">不做的变现方式：</strong> 患者收费、药品提成、转诊佣金 — 利益冲突，破坏信任。</p>
+  </div>
+</div>
+
+<!-- ═══════════════════ FOOTER ═══════════════════ -->
+<div class="footer">
+  Source of truth: <code>product-strategy.md</code> &mdash; this HTML is a visual companion
+</div>
+
+<script>
+function toggle(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+</script>
+</body>
+</html>
