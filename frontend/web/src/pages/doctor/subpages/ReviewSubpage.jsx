@@ -17,9 +17,9 @@ import BarButton from "../../../components/BarButton";
 import { TYPE, COLOR } from "../../../theme";
 
 const SECTIONS = [
-  { key: "differential", label: "鉴别诊断" },
-  { key: "workup",       label: "检查建议" },
-  { key: "treatment",    label: "治疗方向" },
+  { key: "differential", label: "鉴别诊断", color: "#e8833a" },
+  { key: "workup",       label: "检查建议", color: "#E8533F" },
+  { key: "treatment",    label: "治疗方向", color: "#1a7f37" },
 ];
 
 /* ── Inline add form ── */
@@ -61,7 +61,7 @@ function InlineAddForm({ onSubmit, onCancel }) {
 
 /* ── Suggestion section ── */
 
-function SuggestionSection({ sectionKey, label, items, expandedIds, onToggle, onDecide, onAdd, knowledgeMap }) {
+function SuggestionSection({ sectionKey, label, items, expandedIds, onToggle, onDecide, onAdd, knowledgeMap, color }) {
   const [adding, setAdding] = useState(false);
   if ((!items || items.length === 0) && !adding) return null;
 
@@ -71,7 +71,7 @@ function SuggestionSection({ sectionKey, label, items, expandedIds, onToggle, on
   return (
     <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
       {/* Section header */}
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, px: 2, py: 1.2 }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, px: 2, py: 1.2, borderLeft: color ? `3px solid ${color}` : "none" }}>
         <Box sx={{ minWidth: 0 }}>
           <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>{label}</Typography>
           <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.2 }}>{decidedCount}/{total} 已处理</Typography>
@@ -147,6 +147,7 @@ export default function ReviewSubpage({
                 key={sec.key}
                 sectionKey={sec.key}
                 label={sec.label}
+                color={sec.color}
                 items={grouped[sec.key]}
                 expandedIds={expandedIds}
                 onToggle={onToggle}

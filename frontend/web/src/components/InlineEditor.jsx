@@ -70,21 +70,22 @@ export default function InlineEditor({ value, onSave, onCancel, onDelete }) {
           />
         </Box>
       )}
-      <Box sx={{ display: "flex", alignItems: "center", mt: 0.75 }}>
-        {onDelete && (
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 0.75 }}>
+        {onDelete ? (
           <Typography onClick={onDelete}
-            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.danger, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
+            sx={{ fontSize: TYPE.body.fontSize, color: COLOR.danger, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
             删除
           </Typography>
+        ) : (
+          <Box />
         )}
-        <Box sx={{ flex: 1 }} />
         <Typography onClick={onCancel}
-          sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, cursor: "pointer", mr: 2, "&:active": { opacity: 0.5 } }}>
+          sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text3, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
           取消
         </Typography>
         <Typography onClick={isDirty ? () => onSave(text.trim()) : undefined}
           sx={{
-            fontSize: TYPE.caption.fontSize, fontWeight: isDirty ? 500 : 400,
+            fontSize: TYPE.body.fontSize, fontWeight: isDirty ? 500 : 400,
             color: isDirty ? COLOR.primary : COLOR.text4,
             cursor: isDirty ? "pointer" : "default",
             "&:active": isDirty ? { opacity: 0.5 } : {},

@@ -291,7 +291,7 @@ function PendingReviewRow({ record, onClick }) {
   );
 }
 
-function RecordListSection({ loading, error, records, filteredRecords, activeTab, setActiveTab, setRecords, doctorId, load }) {
+function RecordListSection({ loading, error, records, filteredRecords, activeTab, setActiveTab, setRecords, doctorId, load, highlightRecordId }) {
   const navigate = useAppNavigate();
   return (
     <Box sx={{ bgcolor: "#fff", mb: 0.8 }}>
@@ -310,6 +310,7 @@ function RecordListSection({ loading, error, records, filteredRecords, activeTab
             <PendingReviewRow key={r.id} record={r} onClick={() => navigate(`/doctor/review/${r.id}`)} />
           ) : (
             <RecordCard key={r.id} record={r} doctorId={doctorId}
+              defaultExpanded={highlightRecordId === r.id ? true : undefined}
               onUpdated={(updated) => setRecords((prev) => prev.map((x) => x.id === updated.id ? { ...x, ...updated } : x))}
               onDeleted={(id) => setRecords((prev) => prev.filter((x) => x.id !== id))} />
           )
@@ -741,7 +742,8 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
       <DeletePatientDialog open={deleteConfirmOpen} patientName={patient.name} deleting={deleting} onConfirm={handleDelete} onClose={() => setDeleteConfirmOpen(false)} />
       <ExportSelectorDialog open={exportOpen} onClose={() => setExportOpen(false)} patientId={patient.id} patientName={patient.name}
         onExport={(opts) => { setExportOpen(false); handleExportPdf(opts); }} />
-      <RecordListSection loading={loading} error={error} records={records} filteredRecords={filteredRecords} activeTab={activeTab} setActiveTab={setActiveTab} setRecords={setRecords} doctorId={doctorId} load={load} />
+      <RecordListSection loading={loading} error={error} records={records} filteredRecords={filteredRecords} activeTab={activeTab} setActiveTab={setActiveTab} setRecords={setRecords} doctorId={doctorId} load={load}
+        highlightRecordId={(() => { const p = new URLSearchParams(window.location.search).get("record"); return p ? parseInt(p) : null; })()} />
       <PatientChatPage patientId={patient.id} doctorId={doctorId} />
       <QRDialog open={qrOpen} onClose={() => setQrOpen(false)} title="患者二维码"
         name={patient.name} url={qrUrl} loading={qrLoading} error={qrError}

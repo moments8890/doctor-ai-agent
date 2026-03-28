@@ -147,11 +147,11 @@ function RecordExpandedBody({ current, confirmingDelete, deleting, onConfirmDele
   );
 }
 
-export default function RecordCard({ record, doctorId, onUpdated, onDeleted }) {
+export default function RecordCard({ record, doctorId, onUpdated, onDeleted, defaultExpanded }) {
   const { deleteRecord } = useApi();
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
-  const [expanded, setExpanded] = useState(isDesktop);
+  const [expanded, setExpanded] = useState(defaultExpanded ?? isDesktop);
   const [editing, setEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);

@@ -51,8 +51,7 @@ const SECTION_LABEL = {
 function FilterStatBar({ summary, filter, onFilter }) {
   const tabs = [
     { key: "pending", label: "待审核", count: summary.pending, activeColor: COLOR.warning },
-    { key: "confirmed", label: "已确认", count: summary.confirmed, activeColor: COLOR.primary },
-    { key: "modified", label: "已修改", count: summary.modified, activeColor: COLOR.text1 },
+    { key: "completed", label: "已完成", count: summary.completed, activeColor: COLOR.primary },
   ];
   return (
     <Box sx={{
@@ -262,7 +261,7 @@ function CompletedRow({ item, onClick }) {
 
 /* ── Main ─────────────────────────────────────────────────────────────────── */
 
-const REVIEW_TABS = new Set(["pending", "confirmed", "modified"]);
+const REVIEW_TABS = new Set(["pending", "completed"]);
 
 export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   const navigate = useAppNavigate();
@@ -295,9 +294,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
 
   const pending = queue?.pending || [];
   const completed = queue?.completed || [];
-  const confirmedItems = completed.filter((c) => c.decision !== "edited");
-  const modifiedItems = completed.filter((c) => c.decision === "edited");
-  const summary = { pending: pending.length, confirmed: confirmedItems.length, modified: modifiedItems.length };
+  const summary = { pending: pending.length, completed: completed.length };
   const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
   const initialTab = tabFromUrl && REVIEW_TABS.has(tabFromUrl) ? tabFromUrl : "pending";
   const [filter, setFilter] = useState(initialTab);
@@ -311,7 +308,6 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   };
 
   const showPending = filter === "pending";
-  const filteredCompleted = filter === "confirmed" ? confirmedItems : filter === "modified" ? modifiedItems : [];
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
@@ -358,25 +354,32 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
         )}
 
         {/* Completed items */}
-        {!loading && !showPending && filteredCompleted.length > 0 && (
+        {!loading && !showPending && completed.length > 0 && (
           <>
-            <SectionLabel>{filter === "confirmed" ? "已确认" : "已修改"}</SectionLabel>
+            <SectionLabel>已完成</SectionLabel>
             <Box sx={{
               bgcolor: COLOR.white,
               borderTop: `0.5px solid ${COLOR.border}`,
               borderBottom: `0.5px solid ${COLOR.border}`,
             }}>
-              {filteredCompleted.map((item) => (
-                <CompletedRow key={item.id} item={item} onClick={() => item.record_id ? navigate(`/doctor/review/${item.record_id}`) : undefined} />
+              {completed.map((item) => (
+                <CompletedRow key={item.id} item={item} onClick={() => {
+                  if (item.patient_id) {
+                    const params = item.record_id ? `?record=${item.record_id}` : "";
+                    navigate(`/doctor/patients/${item.patient_id}${params}`);
+                  } else if (item.record_id) {
+                    navigate(`/doctor/review/${item.record_id}`);
+                  }
+                }} />
               ))}
             </Box>
           </>
         )}
 
-        {!loading && !showPending && filteredCompleted.length === 0 && (
+        {!loading && !showPending && completed.length === 0 && (
           <EmptyState
             icon={<AssignmentOutlinedIcon />}
-            title={filter === "confirmed" ? "暂无已确认项" : "暂无已修改项"}
+            title="暂无已完成项"
           />
         )}
 
