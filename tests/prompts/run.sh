@@ -1,6 +1,6 @@
 #!/bin/bash
 # Run promptfoo eval for all prompts — one prompt per eval to avoid cross-product.
-# Usage: ./run.sh                        — run all 9 prompts
+# Usage: ./run.sh                        — run all 14 prompts
 #        ./run.sh doctor-extract routing — run specific prompts only
 # Key is loaded from config/runtime.json automatically.
 

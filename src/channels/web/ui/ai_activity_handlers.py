@@ -116,7 +116,25 @@ async def ai_activity_feed(
 
     # Merge all, sort by timestamp desc, take top N
     events.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
-    return {"activity": events[:limit]}
+    trimmed = events[:limit]
+
+    # Resolve patient names for events that have a patient_id
+    patient_ids = list({e["patient_id"] for e in trimmed if e.get("patient_id")})
+    if patient_ids:
+        async with AsyncSessionLocal() as name_session:
+            name_rows = (
+                await name_session.execute(
+                    select(Patient.id, Patient.name)
+                    .where(Patient.id.in_(patient_ids))
+                )
+            ).all()
+            name_map = {pid: name for pid, name in name_rows}
+        for e in trimmed:
+            pid = e.get("patient_id")
+            if pid and pid in name_map:
+                e["patient_name"] = name_map[pid]
+
+    return {"activity": trimmed}
 
 
 # ---------------------------------------------------------------------------

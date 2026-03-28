@@ -4,7 +4,7 @@
 
 **Design doc:** `~/.gstack/projects/moments8890-doctor-ai-agent/jingwuxu-main-design-20260328-095518.md`
 
-**Status:** APPROVED (eng review complete, Codex-validated)
+**Status:** COMPLETE (all 7 steps done)
 
 ---
 
@@ -59,53 +59,31 @@
 4. ~~File serve endpoint~~ — `GET /api/manage/knowledge/file/{path}` with auth check
 5. ~~Frontend~~ — "查看原文" button in KB detail page linking to file endpoint
 
-### Step 4: Finish teaching loop (20% remaining)
+### Step 4: Finish teaching loop (20% remaining) -- DONE
 
-1. In `draft_handlers.py`:
-   - Add `POST /api/manage/drafts/{draft_id}/save-as-rule` endpoint
-   - Calls `create_rule_from_edit()` from teaching.py
-   - Returns created KB item
-2. Frontend: when `teach_prompt=True` is returned from edit endpoint,
-   show prompt: "您的修改已记录。要将这个回复模式保存为知识条目吗？" [保存] [跳过]
-   - [保存] calls the new save-as-rule endpoint
-   - [跳过] dismisses
-3. Verify: after saving rule, future draft replies should cite it
+1. ~~`POST /api/manage/drafts/{draft_id}/save-as-rule`~~ — endpoint added in draft_handlers.py
+2. ~~Frontend teaching prompt~~ — Snackbar shown after draft edit with save-as-rule action
+3. ~~Verified~~ — saved rules appear in KB and are cited by future drafts
 
-### Step 5: Build demo_sim.py
+### Step 5: Build demo_sim.py -- DONE
 
-1. Extract `scripts/patient_sim/http_client.py`:
-   - `register_patient(server_url, doctor_id, name, gender, year_of_birth)`
-   - `send_chat_message(server_url, patient_id, doctor_id, content)`
-   - `seed_knowledge_item(server_url, doctor_id, text, source, source_url, category)`
-   - `cleanup_sim_data(server_url, doctor_id_prefix)`
-2. Create `scripts/demo_sim.py` with subcommands:
-   - `--seed`: register 6 patients + seed 10 KB entries from YAML config
-   - `--tick`: check YAML for messages whose delay has elapsed, send them
-   - `--skip-to PATIENT MSG_NUM`: force-send a specific message immediately
-   - `--reset`: delete all sim data (patients with doctor_id prefix `demo_`)
-   - `--status`: show which messages have been sent, which are pending
-3. State tracking: write `scripts/.demo_state.json` with sent message IDs and timestamps
-4. Idempotent: `--tick` called twice for same window sends nothing new
+1. ~~`scripts/patient_sim/http_client.py`~~ — extracted with shared HTTP functions
+2. ~~`scripts/demo_sim.py`~~ — created with --seed, --tick, --skip-to, --reset, --status subcommands
+3. ~~State tracking~~ — `scripts/.demo_state.json`
+4. ~~Idempotent~~ — duplicate ticks are no-ops
 
-### Step 6: Write demo config YAML
+### Step 6: Write demo config YAML -- DONE
 
-1. Create `scripts/demo_config.yaml` with:
-   - 6 patient profiles (张阿姨, 李大爷, 王先生, 赵女士, 陈先生, 周老伯)
-   - Scripted messages per design doc scenario scripts
-   - 10 KB entries (full content from design doc sections KB-1 through KB-8)
-   - Timing: Day 1-4 schedule with message delays in hours
-2. Include realistic cerebrovascular patient data sourced from:
-   - 中国破裂颅内动脉瘤临床管理指南(2024版)
-   - 颅内动脉瘤显微手术治疗专家共识(2025版)
-   - 陆华教授 神外前沿 WeChat articles
-   - CEA/AVM/烟雾病 national guidelines
+1. ~~`scripts/demo_config.yaml`~~ — created with 6 patients, scripted messages, 10 KB entries, Day 1-4 timing
+2. ~~Clinical data sourced~~ — from national guidelines and specialty references
 
-### Step 7: Frontend polish
+### Step 7: Frontend polish -- DONE
 
-1. Patient list: add triage color dot (red/yellow/green) based on latest message triage_category
-2. KB detail page: show source (decoded from payload) as subtle footer, source_url as clickable link
-3. Draft reply display: ensure [编辑后发送] / [直接发送] UX is clear in PatientDetail chat
-4. Teaching prompt: after edit, show "save as rule?" prompt if teach_prompt=True
+1. ~~Patient list triage dots~~ — red/yellow/green dots based on latest message triage_category
+2. ~~KB source footer~~ — source_url clickable link + "查看原文" button for uploaded files
+3. ~~Draft reply UI~~ — auto-size textarea, same-position edit/view buttons, whiteSpace pre-line, undrafted yellow notice
+4. ~~Teaching prompt~~ — Snackbar after draft edit with save-as-rule option
+5. Additional: cited_rules as clickable green tags, tab badge fixes (审核 counts AI suggestions, 任务 counts pending drafts + undrafted), session persistence fix
 
 ---
 

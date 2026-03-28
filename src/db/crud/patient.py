@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from sqlalchemy import and_, delete, or_, select, update
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import (
     Patient,
@@ -226,7 +226,8 @@ async def search_patients_nl(
         rec_q = rec_q.distinct()
         q = q.where(Patient.id.in_(rec_q))
 
-    q = q.order_by(Patient.created_at.desc()).limit(limit)
+    sort_ts = func.coalesce(Patient.last_activity_at, Patient.created_at)
+    q = q.order_by(sort_ts.desc()).limit(limit)
     result = await session.execute(q)
     return list(result.scalars().all())
 

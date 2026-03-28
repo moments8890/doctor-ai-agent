@@ -14,7 +14,7 @@ from db.crud import (
     get_records_for_patient,
     get_all_patients,
 )
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, func, or_, select
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB, Patient, PatientMessage
 from infra.auth.rate_limit import enforce_doctor_rate_limit
@@ -266,7 +266,8 @@ async def manage_patients_for_doctor(
             next_cursor: Optional[str] = None
             if len(patients) == limit:
                 last = patients[-1]
-                next_cursor = encode_cursor(last.created_at, last.id)
+                last_sort_ts = getattr(last, "last_activity_at", None) or last.created_at
+                next_cursor = encode_cursor(last_sort_ts, last.id)
 
             return {
                 "doctor_id": doctor_id,

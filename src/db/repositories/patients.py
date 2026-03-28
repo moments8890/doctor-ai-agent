@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import Patient
@@ -74,11 +74,11 @@ class PatientRepository:
         return list(result.scalars().all())
 
     async def list_for_doctor(self, doctor_id: str, limit: int = 200, offset: int = 0) -> List[Patient]:
+        sort_ts = func.coalesce(Patient.last_activity_at, Patient.created_at)
         result = await self.session.execute(
             select(Patient)
             .where(Patient.doctor_id == doctor_id)
-            .order_by(Patient.created_at.desc())
-            
+            .order_by(sort_ts.desc())
             .limit(limit)
             .offset(offset)
         )
