@@ -1,10 +1,9 @@
 /**
  * CollapsibleSection — tap header to collapse/expand content.
- * WeChat-style: SectionLabel with chevron indicator.
+ * iOS grouped table style: gray sticky header with count + chevron.
  */
 import { useState } from "react";
 import { Box, Typography } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { TYPE, COLOR } from "../theme";
 
 export default function CollapsibleSection({ title, count, defaultOpen = true, children }) {
@@ -16,23 +15,25 @@ export default function CollapsibleSection({ title, count, defaultOpen = true, c
         onClick={() => setOpen(!open)}
         sx={{
           display: "flex", alignItems: "center",
-          px: 1.5, py: 1.2,
-          bgcolor: open ? "transparent" : COLOR.white,
-          borderBottom: open ? "none" : `0.5px solid ${COLOR.borderLight}`,
+          px: 1.5, py: 1,
+          bgcolor: "#f0f0f0",
+          borderTop: `0.5px solid ${COLOR.border}`,
+          borderBottom: `0.5px solid ${COLOR.border}`,
           cursor: "pointer", userSelect: "none",
-          transition: "background-color 0.15s ease",
           "&:active": { opacity: 0.6 },
         }}
       >
         <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, fontWeight: 600, letterSpacing: 0.5, flex: 1 }}>
           {title}
-          {count != null && <Box component="span" sx={{ color: COLOR.text4, fontWeight: 400 }}> {count}</Box>}
         </Typography>
-        <ExpandMoreIcon sx={{
-          fontSize: 16, color: COLOR.text4,
-          transition: "transform 0.2s ease",
-          transform: open ? "rotate(0deg)" : "rotate(-90deg)",
-        }} />
+        {count != null && (
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: open ? COLOR.primary : COLOR.text4, fontWeight: 500, mr: 0.5 }}>
+            {count}条
+          </Typography>
+        )}
+        <Typography sx={{ fontSize: 12, color: COLOR.text4, lineHeight: 1 }}>
+          {open ? "▾" : "▸"}
+        </Typography>
       </Box>
       {open && children}
     </>
