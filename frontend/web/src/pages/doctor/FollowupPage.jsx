@@ -641,7 +641,7 @@ export default function FollowupPage({ doctorId }) {
                 { key: "messages", label: "待回复", count: pendingMessages.length, activeColor: COLOR.danger },
                 { key: "followups", label: "随访", count: upcomingFollowups.length, activeColor: COLOR.warning },
                 { key: "tasks", label: "待办", count: pendingTasks.length, activeColor: COLOR.text1 },
-                { key: "sent", label: "已发送", count: recentlySent.length, activeColor: COLOR.text4 },
+                { key: "sent", label: "已完成", count: recentlySent.length, activeColor: COLOR.text4 },
               ].map((tab, i, arr) => {
                 const active = filter === tab.key;
                 return (
