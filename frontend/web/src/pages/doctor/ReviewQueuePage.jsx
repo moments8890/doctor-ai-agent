@@ -20,7 +20,7 @@ import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import EmptyState from "../../components/EmptyState";
 import PatientAvatar from "../../components/PatientAvatar";
-import CollapsibleSection from "../../components/CollapsibleSection";
+import SectionLabel from "../../components/SectionLabel";
 import SubpageHeader from "../../components/SubpageHeader";
 import { TYPE, COLOR } from "../../theme";
 
@@ -47,20 +47,12 @@ const SECTION_LABEL = {
 
 /* ── Summary bar ──────────────────────────────────────────────────────────── */
 
-function StatColumn({ value, label, color }) {
-  return (
-    <Box sx={{ flex: 1, textAlign: "center", py: 1.25 }}>
-      <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 600, color: color || COLOR.text1 }}>
-        {value ?? 0}
-      </Typography>
-      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mt: 0.25 }}>
-        {label}
-      </Typography>
-    </Box>
-  );
-}
-
-function SummaryBar({ summary }) {
+function FilterStatBar({ summary, filter, onFilter }) {
+  const tabs = [
+    { key: "pending", label: "待审核", count: summary.pending, activeColor: COLOR.warning },
+    { key: "confirmed", label: "已确认", count: summary.confirmed, activeColor: COLOR.primary },
+    { key: "modified", label: "已修改", count: summary.modified, activeColor: COLOR.text1 },
+  ];
   return (
     <Box sx={{
       display: "flex",
@@ -68,11 +60,41 @@ function SummaryBar({ summary }) {
       borderBottom: `0.5px solid ${COLOR.border}`,
       borderTop: `0.5px solid ${COLOR.border}`,
     }}>
-      <StatColumn value={summary.pending} label="待审核" color={COLOR.warning} />
-      <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 1 }} />
-      <StatColumn value={summary.confirmed} label="已确认" />
-      <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 1 }} />
-      <StatColumn value={summary.modified} label="已修改" />
+      {tabs.map((tab, i) => {
+        const active = filter === tab.key;
+        return (
+          <Box key={tab.key} sx={{ display: "contents" }}>
+            <Box
+              onClick={() => onFilter(tab.key)}
+              sx={{
+                flex: 1, textAlign: "center", py: 1.25,
+                cursor: "pointer", userSelect: "none",
+                borderBottom: active ? `2px solid ${tab.activeColor}` : "2px solid transparent",
+                transition: "border-color 0.15s ease",
+                "&:active": { opacity: 0.5 },
+              }}
+            >
+              <Typography sx={{
+                fontSize: TYPE.title.fontSize, fontWeight: 600,
+                color: active ? tab.activeColor : COLOR.text4,
+                transition: "color 0.15s ease",
+              }}>
+                {tab.count ?? 0}
+              </Typography>
+              <Typography sx={{
+                fontSize: TYPE.micro.fontSize, mt: 0.25,
+                color: active ? COLOR.text2 : COLOR.text4,
+                fontWeight: active ? 500 : 400,
+              }}>
+                {tab.label}
+              </Typography>
+            </Box>
+            {i < tabs.length - 1 && (
+              <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.8 }} />
+            )}
+          </Box>
+        );
+      })}
     </Box>
   );
 }
@@ -82,16 +104,12 @@ function SummaryBar({ summary }) {
 function PendingReviewCard({ item, onConfirm, onReject, onEdit, onNavigate }) {
   const hasCitation = !!item.rule_cited;
   const hasCaseMemory = (item.detail || "").includes("相似度") || (item.detail || "").includes("类似病例");
-  const borderLeft = hasCitation
-    ? `3px solid ${COLOR.primary}`
-    : `3px dashed ${COLOR.border}`;
 
   const urgencyLabel = item.urgency === "urgent" ? "紧急" : "待处理";
   const urgencyColor = item.urgency === "urgent" ? COLOR.danger : COLOR.warning;
 
   return (
     <Box sx={{
-      borderLeft,
       borderBottom: `0.5px solid ${COLOR.borderLight}`,
       bgcolor: COLOR.white,
       "&:last-child": { borderBottom: "none" },
@@ -186,7 +204,6 @@ function PendingReviewCard({ item, onConfirm, onReject, onEdit, onNavigate }) {
           mx: 2, mb: 0.75,
           bgcolor: "#f0faf4", borderRadius: "6px",
           padding: "10px 12px",
-          borderLeft: `3px solid ${COLOR.primary}`,
         }}>
           <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>
             你处理过类似病例
@@ -360,14 +377,20 @@ export default function ReviewQueuePage({ doctorId }) {
   const summary = queue?.summary || { pending: 0, confirmed: 0, modified: 0 };
   const pending = queue?.pending || [];
   const completed = queue?.completed || [];
+  const [filter, setFilter] = useState("pending");
+
+  const handleFilter = (key) => setFilter((prev) => prev === key ? "pending" : key);
+
+  const showPending = filter === "pending";
+  const showCompleted = filter === "confirmed" || filter === "modified";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
       <SubpageHeader title="门诊" />
 
       <Box sx={{ flex: 1, overflow: "auto" }}>
-        {/* Summary bar */}
-        <SummaryBar summary={summary} />
+        {/* Filter stat bar */}
+        <FilterStatBar summary={summary} filter={filter} onFilter={handleFilter} />
 
         {/* Loading */}
         {loading && (
@@ -377,8 +400,9 @@ export default function ReviewQueuePage({ doctorId }) {
         )}
 
         {/* Pending items */}
-        {!loading && pending.length > 0 && (
-          <CollapsibleSection title="待审核" count={pending.length}>
+        {!loading && showPending && pending.length > 0 && (
+          <>
+            <SectionLabel>待审核</SectionLabel>
             <Box sx={{
               bgcolor: COLOR.white,
               borderTop: `0.5px solid ${COLOR.border}`,
@@ -395,11 +419,11 @@ export default function ReviewQueuePage({ doctorId }) {
                 />
               ))}
             </Box>
-          </CollapsibleSection>
+          </>
         )}
 
         {/* Empty state */}
-        {!loading && pending.length === 0 && (
+        {!loading && showPending && pending.length === 0 && (
           <EmptyState
             icon={<AssignmentOutlinedIcon />}
             title="暂无待审核项"
@@ -407,9 +431,10 @@ export default function ReviewQueuePage({ doctorId }) {
           />
         )}
 
-        {/* Recently completed */}
-        {!loading && completed.length > 0 && (
-          <CollapsibleSection title="最近已审核" count={completed.length} defaultOpen={false}>
+        {/* Completed items */}
+        {!loading && showCompleted && completed.length > 0 && (
+          <>
+            <SectionLabel>{filter === "confirmed" ? "已确认" : "已修改"}</SectionLabel>
             <Box sx={{
               bgcolor: COLOR.white,
               borderTop: `0.5px solid ${COLOR.border}`,
@@ -419,7 +444,14 @@ export default function ReviewQueuePage({ doctorId }) {
                 <CompletedRow key={item.id} item={item} />
               ))}
             </Box>
-          </CollapsibleSection>
+          </>
+        )}
+
+        {!loading && showCompleted && completed.length === 0 && (
+          <EmptyState
+            icon={<AssignmentOutlinedIcon />}
+            title={filter === "confirmed" ? "暂无已确认项" : "暂无已修改项"}
+          />
         )}
 
         {/* Bottom disclaimer */}
