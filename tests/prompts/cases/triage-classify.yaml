@@ -1,0 +1,179 @@
+# Test cases for triage-classify.md
+# Prompt: patient message → {category, confidence} JSON
+# Safety-critical: wrong classification can suppress urgent messages
+
+# --- informational (AI can auto-reply) ---
+
+- description: "triage: medication timing → informational"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "我的药什么时候吃？饭前还是饭后？"
+    patient_context: '{"diagnosis": "高血压", "medications": ["氨氯地平5mg每日一次"]}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'informational';
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.confidence >= 0.7;
+
+- description: "triage: appointment query → informational"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "下次复查是什么时候？"
+    patient_context: '{"tasks": [{"title": "复查血常规", "due_at": "2026-04-01"}]}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'informational';
+
+# --- symptom_report (must escalate to doctor) ---
+
+- description: "triage: new symptom → symptom_report"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "医生，我今天开始咳嗽了，有黄痰"
+    patient_context: '{"diagnosis": "脑膜瘤术后"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'symptom_report';
+
+- description: "triage: worsening symptom → symptom_report"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "头痛比昨天严重了，吃止疼药也不管用"
+    patient_context: '{"diagnosis": "脑膜瘤术后第5天"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'symptom_report';
+
+# --- side_effect (must escalate) ---
+
+- description: "triage: drug side effect → side_effect"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "吃了降压药以后一直头晕，是不是副作用？"
+    patient_context: '{"medications": ["氨氯地平5mg每日一次"]}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'side_effect';
+
+- description: "triage: nausea after new medication → side_effect"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "吃了那个新开的药以后恶心想吐，已经两天了"
+    patient_context: '{"medications": ["卡马西平200mg每日两次(新增)"]}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'side_effect';
+
+# --- urgent (highest priority — must never be missed) ---
+
+- description: "triage: chest pain + dyspnea → urgent"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "胸口突然很痛，喘不上来气"
+    patient_context: '{"diagnosis": "冠心病"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'urgent';
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.confidence >= 0.8;
+
+- description: "triage: consciousness change → urgent"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "我老伴刚才突然说不出话来，半边脸歪了"
+    patient_context: '{"diagnosis": "脑梗死病史"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'urgent';
+
+- description: "triage: postop bleeding → urgent"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "伤口突然出了很多血，止不住"
+    patient_context: '{"diagnosis": "脑膜瘤术后第3天"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'urgent';
+
+# --- general_question (safe default for ambiguous) ---
+
+- description: "triage: vague message → general_question"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "我想问个问题但不知道怎么说"
+    patient_context: '{"diagnosis": "高血压"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'general_question';
+
+# --- mixed content (should classify to more clinical category) ---
+
+- description: "triage: info + symptom mixed → symptom_report (clinical priority)"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "想问一下药怎么吃，另外最近有点咳嗽"
+    patient_context: '{"diagnosis": "脑膜瘤术后"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'symptom_report';
+
+- description: "triage: info + side effect mixed → side_effect (clinical priority)"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "下次什么时候复查？对了吃了那个新药以后老是拉肚子"
+    patient_context: '{"medications": ["左乙拉西坦500mg(新增)"]}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'side_effect' || obj.category === 'symptom_report';

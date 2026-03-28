@@ -1,0 +1,80 @@
+# Test cases for triage-escalation.md
+# Prompt: patient message → structured escalation summary for doctor
+# Must: summarize accurately, suggest action, explain why AI can't handle
+
+- description: "escalation: drug side effect → structured summary"
+  options:
+    prompts: [triage-escalation]
+  vars:
+    message: "吃了那个新开的药以后恶心想吐，已经两天了"
+    patient_context: '{"diagnosis": "癫痫", "medications": ["卡马西平200mg每日两次(新增)"]}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.patient_question && obj.patient_question.length > 0;
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.reason_for_escalation && obj.reason_for_escalation.length > 0;
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.suggested_action && obj.suggested_action.length > 0;
+
+- description: "escalation: new limb symptom → no diagnosis guessing"
+  options:
+    prompts: [triage-escalation]
+  vars:
+    message: "左腿突然肿了，走路有点疼"
+    patient_context: '{"diagnosis": "脑梗死术后"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        // Must mention the symptom
+        const q = obj.patient_question || '';
+        return q.includes('肿') || q.includes('腿') || q.includes('下肢');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        // Must NOT guess diagnosis (e.g., DVT)
+        const all = JSON.stringify(obj);
+        return !all.includes('深静脉血栓') && !all.includes('DVT');
+
+- description: "escalation: worsening headache postop → actionable suggestion"
+  options:
+    prompts: [triage-escalation]
+  vars:
+    message: "头痛越来越厉害了，止疼药吃了也不管用，还有点恶心"
+    patient_context: '{"diagnosis": "脑膜瘤术后第5天"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        // Should mention headache in patient_question
+        const q = obj.patient_question || '';
+        return q.includes('头痛') || q.includes('疼');
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        // Should have actionable suggestion
+        return obj.suggested_action && obj.suggested_action.length > 5;
+
+- description: "escalation: must not fabricate symptoms"
+  options:
+    prompts: [triage-escalation]
+  vars:
+    message: "最近睡眠不太好"
+    patient_context: '{"diagnosis": "高血压"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        // Must NOT add symptoms the patient didn't mention
+        const all = JSON.stringify(obj);
+        return !all.includes('头痛') && !all.includes('胸痛') && !all.includes('呼吸');

@@ -26,7 +26,11 @@ prompts/
 │   ├── diagnosis.md            differential diagnosis generation
 │   ├── doctor-extract.md       extract 14 fields (dictation, voice, paste, photo OCR)
 │   ├── patient-extract.md      extract 7 fields from patient transcript
-│   └── vision-ocr.md           clinical image → plain text (OCR)
+│   ├── vision-ocr.md           clinical image → plain text (OCR)
+│   ├── triage-classify.md      patient message → triage category (5 categories)
+│   ├── triage-informational.md auto-reply to informational patient questions
+│   └── triage-escalation.md    structured escalation summary for doctor
+├── knowledge_ingest.md      ← OCR/document cleanup → structured knowledge entry
 └── README.md
 ```
 

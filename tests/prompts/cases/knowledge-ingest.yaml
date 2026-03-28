@@ -1,0 +1,143 @@
+# Test cases for knowledge-ingest.md
+# Prompt: raw OCR/parsed document text → structured Chinese knowledge entry
+# Safety: must preserve drug names, dosages, contraindications exactly
+
+- description: "ingest: drug dosing table → structured output with dosage preserved"
+  options:
+    prompts: [knowledge-ingest]
+  vars:
+    document_text: |
+      卡马西平片说明书
+      页码：3/8    版权所有 某药厂 2024
+
+      【用法用量】
+      成人：初始剂量 100-200mg，每日1-2次
+      维持剂量：400-800mg/日，分2-3次
+      最大剂量：1200mg/日
+      儿童（6岁以上）：初始 10-20mg/kg/日
+
+      【禁忌】
+      1. 对本品过敏者
+      2. 房室传导阻滞
+      3. 骨髓抑制病史
+  assert:
+    - type: javascript
+      value: |
+        // Must preserve exact dosage numbers
+        return output.includes('100') && output.includes('200') && output.includes('1200');
+    - type: javascript
+      value: |
+        // Must preserve drug name
+        return output.includes('卡马西平');
+    - type: javascript
+      value: |
+        // Must include contraindications
+        return output.includes('禁忌') || output.includes('禁用');
+    - type: javascript
+      value: |
+        // Must clean up noise (page numbers, copyright)
+        return !output.includes('页码：3/8') && !output.includes('版权所有');
+
+- description: "ingest: red flag symptoms → preserved as red flags"
+  options:
+    prompts: [knowledge-ingest]
+  vars:
+    document_text: |
+      神经外科术后红旗征象
+
+      以下情况需立即处理：
+      - 术后新发肢体无力或麻木
+      - 意识水平下降（GCS下降≥2分）
+      - 瞳孔不等大
+      - 剧烈头痛伴喷射性呕吐
+      - 伤口持续渗血或脑脊液漏
+      - 癫痫持续状态（>5分钟）
+  assert:
+    - type: javascript
+      value: |
+        // Must include red flag section
+        return output.includes('红旗') || output.includes('立即处理');
+    - type: javascript
+      value: |
+        // Must preserve GCS threshold exactly
+        return output.includes('GCS') && output.includes('2');
+    - type: javascript
+      value: |
+        // Must preserve seizure duration threshold
+        return output.includes('5分钟') || output.includes('5 分钟');
+
+- description: "ingest: OCR noise cleanup — headers/footers removed"
+  options:
+    prompts: [knowledge-ingest]
+  vars:
+    document_text: |
+      北京某医院神经外科  临床指南  第3版
+      ---------- 第 1 页 ----------
+      北京某医院神经外科  临床指南  第3版
+
+      TIA急性期处理流程：
+      - 48h内完成颈动脉超声+头颅MRA
+      - ABCD2评分≥4分：住院观察
+      - 双抗治疗：阿司匹林100mg+氯吡格雷75mg，21天
+
+      ---------- 第 2 页 ----------
+      北京某医院神经外科  临床指南  第3版
+      联系电话：010-12345678
+  assert:
+    - type: javascript
+      value: |
+        // Must remove repeated headers
+        const count = (output.match(/北京某医院/g) || []).length;
+        return count <= 1;
+    - type: javascript
+      value: |
+        // Must remove phone numbers
+        return !output.includes('010-12345678');
+    - type: javascript
+      value: |
+        // Must preserve clinical content
+        return output.includes('TIA') && output.includes('ABCD2');
+    - type: javascript
+      value: |
+        // Must preserve exact drug dosages
+        return output.includes('100mg') && output.includes('75mg') && output.includes('21');
+
+- description: "ingest: no clinical content → sentinel output"
+  options:
+    prompts: [knowledge-ingest]
+  vars:
+    document_text: |
+      目录
+      第一章 .............. 3
+      第二章 .............. 15
+      第三章 .............. 28
+
+      版权所有 © 2024 某出版社
+      未经许可不得转载
+  assert:
+    - type: javascript
+      value: |
+        // Should output sentinel for non-clinical content
+        return output.includes('未提取到可用的临床知识内容') || output.includes('未提取到');
+
+- description: "ingest: ambiguous OCR dosage → flag in 原文疑点"
+  options:
+    prompts: [knowledge-ingest]
+  vars:
+    document_text: |
+      抗癫痫药物调整指南
+
+      丙戊酸钠：
+      - 起始：250mg bid
+      - 维持：500-l000mg/日（注：此处原文模糊）
+      - 血药浓度监测：50-l00 μg/mL
+  assert:
+    - type: javascript
+      value: |
+        // Must preserve drug name
+        return output.includes('丙戊酸钠');
+    - type: javascript
+      value: |
+        // Should flag the ambiguous l/1 OCR issue in 原文疑点
+        // Either flags it or correctly interprets 1000
+        return output.includes('疑点') || output.includes('1000');
