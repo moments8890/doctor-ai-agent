@@ -123,7 +123,11 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
 
   // Derive display values
   const text = item?.text || item?.content || "";
-  const title = item?.title || text.split("\n").filter((l) => l.trim())[0] || "知识条目";
+  const rawTitle = item?.title || text.split("\n").filter((l) => l.trim())[0] || "知识条目";
+  // Shorten title on frontend if backend didn't — cap at 20 CJK chars
+  const title = rawTitle.length > 25 ? rawTitle.slice(0, 20) + "…" : rawTitle;
+  // Don't repeat title in body — show body text minus the title portion
+  const bodyText = text.startsWith(rawTitle) ? text.slice(rawTitle.length).replace(/^[：:\s]+/, "") : text;
   const cfg = item ? getSourceConfig(item.source) : null;
   const sourceLabel = cfg ? (item.source?.startsWith("upload:") ? `来源：${cfg.label}` : `来源：${cfg.label}`) : "";
   const category = item?.category;
@@ -171,7 +175,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
                 color: COLOR.text2, lineHeight: 1.6,
                 whiteSpace: "pre-wrap", wordBreak: "break-word",
               }}>
-                {text}
+                {bodyText || text}
               </Typography>
             </Box>
 
@@ -288,7 +292,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
   return (
     <>
       <PageSkeleton
-        title={item?.title || "知识详情"}
+        title={title || "知识详情"}
         onBack={onBack}
         isMobile={isMobile}
         listPane={listContent}

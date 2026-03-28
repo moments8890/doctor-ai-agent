@@ -141,17 +141,29 @@ def invalidate_knowledge_cache(doctor_id: str) -> None:
 
 # ── Title extraction ──────────────────────────────────────────────
 
-def extract_title_from_text(text: str, max_len: int = 50) -> str:
-    """Extract a short title from knowledge text.
-    Strategy: use the first line/sentence, truncated to max_len.
+def extract_title_from_text(text: str, max_len: int = 20) -> str:
+    """Extract a SHORT title from knowledge text.
+
+    Strategy: prefer the shortest meaningful split.
+    1. Split on newline -> take first line
+    2. Try colon first (strongest title delimiter): ： or :
+    3. Then period: 。
+    4. Truncate to max_len (default 20 chars for CJK)
     """
     if not text:
         return ""
     first_line = text.split("\n")[0].strip()
-    for sep in ("。", "：", ":"):
+    # Try colon first — "蛛网膜下腔出血（SAH）：..." -> "蛛网膜下腔出血（SAH）"
+    for sep in ("：", ":"):
         if sep in first_line:
-            first_line = first_line.split(sep)[0].strip()
-            break
+            candidate = first_line.split(sep)[0].strip()
+            if candidate:
+                first_line = candidate
+                break
+    else:
+        # No colon found — try period
+        if "。" in first_line:
+            first_line = first_line.split("。")[0].strip()
     if len(first_line) > max_len:
         first_line = first_line[:max_len] + "…"
     return first_line

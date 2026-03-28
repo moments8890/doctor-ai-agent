@@ -33,9 +33,15 @@ def test_extract_title_first_line():
 
 def test_extract_title_truncates_long():
     text = "这是一个非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常非常长的标题"
-    result = extract_title_from_text(text, max_len=20)
+    result = extract_title_from_text(text)
     assert len(result) <= 21  # 20 + "…"
     assert result.endswith("…")
+
+
+def test_extract_title_splits_on_colon_before_period():
+    """Colon is a stronger delimiter — split on ： before 。"""
+    text = "蛛网膜下腔出血（SAH）：突发剧烈头痛，伴恶心呕吐。Fisher分级。"
+    assert extract_title_from_text(text) == "蛛网膜下腔出血（SAH）"
 
 
 def test_extract_title_splits_on_period():
