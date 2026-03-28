@@ -630,52 +630,49 @@ export default function FollowupPage({ doctorId }) {
         {/* Content */}
         {!loading && !error && !isEmpty && (
           <>
-            {/* ── Filter tab bar ── */}
+            {/* ── Filter stat bar ── */}
             <Box sx={{
-              display: "flex", gap: 0.8,
-              px: 1.5, py: 1,
+              display: "flex",
               bgcolor: COLOR.white,
               borderBottom: `0.5px solid ${COLOR.border}`,
               borderTop: `0.5px solid ${COLOR.border}`,
-              overflowX: "auto",
             }}>
               {[
-                { key: "all", label: "全部", count: totalCount, color: COLOR.text1 },
-                { key: "messages", label: "待回复", count: pendingMessages.length, color: COLOR.danger },
-                { key: "followups", label: "随访", count: upcomingFollowups.length, color: COLOR.warning },
-                { key: "tasks", label: "待办", count: pendingTasks.length, color: COLOR.text1 },
-                { key: "sent", label: "已发送", count: recentlySent.length, color: COLOR.text4 },
-              ].map((tab) => {
+                { key: "messages", label: "待回复", count: pendingMessages.length, activeColor: COLOR.danger },
+                { key: "followups", label: "随访", count: upcomingFollowups.length, activeColor: COLOR.warning },
+                { key: "tasks", label: "待办", count: pendingTasks.length, activeColor: COLOR.text1 },
+                { key: "sent", label: "已发送", count: recentlySent.length, activeColor: COLOR.text4 },
+              ].map((tab, i, arr) => {
                 const active = filter === tab.key;
                 return (
-                  <Box
-                    key={tab.key}
-                    onClick={() => handleFilter(tab.key)}
-                    sx={{
-                      display: "flex", alignItems: "center", gap: 0.5,
-                      px: 1.2, py: 0.6,
-                      borderRadius: "14px",
-                      bgcolor: active ? COLOR.primary : "transparent",
-                      border: active ? "none" : `1px solid ${COLOR.border}`,
-                      cursor: "pointer", userSelect: "none",
-                      whiteSpace: "nowrap", flexShrink: 0,
-                      transition: "all 0.15s ease",
-                      "&:active": { opacity: 0.6 },
-                    }}
-                  >
-                    <Typography sx={{
-                      fontSize: 12, fontWeight: active ? 600 : 400,
-                      color: active ? "#fff" : COLOR.text3,
-                    }}>
-                      {tab.label}
-                    </Typography>
-                    {tab.count > 0 && (
+                  <Box key={tab.key} sx={{ display: "contents" }}>
+                    <Box
+                      onClick={() => handleFilter(tab.key)}
+                      sx={{
+                        flex: 1, textAlign: "center",
+                        py: 1.2, cursor: "pointer", userSelect: "none",
+                        borderBottom: active ? `2px solid ${tab.activeColor}` : "2px solid transparent",
+                        transition: "border-color 0.15s ease",
+                        "&:active": { opacity: 0.5 },
+                      }}
+                    >
                       <Typography sx={{
-                        fontSize: 11, fontWeight: 600,
-                        color: active ? "rgba(255,255,255,0.85)" : tab.color,
+                        fontSize: TYPE.title.fontSize, fontWeight: 600,
+                        color: active ? tab.activeColor : COLOR.text4,
+                        transition: "color 0.15s ease",
                       }}>
                         {tab.count}
                       </Typography>
+                      <Typography sx={{
+                        fontSize: TYPE.micro.fontSize, mt: "2px",
+                        color: active ? COLOR.text2 : COLOR.text4,
+                        fontWeight: active ? 500 : 400,
+                      }}>
+                        {tab.label}
+                      </Typography>
+                    </Box>
+                    {i < arr.length - 1 && (
+                      <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.8 }} />
                     )}
                   </Box>
                 );
