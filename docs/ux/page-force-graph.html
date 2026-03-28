@@ -88,6 +88,7 @@ canvas.dragging { cursor: grabbing; }
     <button class="filter-btn" data-filter="doctor">Doctor</button>
     <button class="filter-btn" data-filter="patient">Patient</button>
     <button class="filter-btn" data-filter="cross">Cross-links</button>
+    <button class="filter-btn" data-filter="orphan">Orphaned</button>
   </div>
 </div>
 
@@ -136,6 +137,11 @@ var NODES = [
   // Standalone
   { id: 'login', label: 'Login', route: '/login', comp: 'LoginPage', img: 'login.png', app: 'standalone', color: '#656d76', gx: 0.92, gy: 0.88 },
   { id: 'admin', label: 'Admin', route: '/admin', comp: 'AdminPage', img: 'admin.png', app: 'standalone', color: '#656d76', gx: 0.06, gy: 0.88 },
+  // Orphaned — routes exist but no navigation leads here
+  { id: 'privacy', label: '隐私政策', route: '/privacy', comp: 'PrivacyPage', img: null, app: 'orphan', color: '#cf222e', gx: 0.80, gy: 0.88, orphan: true, reason: 'Opens in new tab from Settings, not in-app nav' },
+  { id: 'home-legacy', label: 'Home (legacy)', route: '/doctor/ (home)', comp: 'HomeSubpage', img: null, app: 'orphan', color: '#cf222e', gx: 0.20, gy: 0.88, orphan: true, reason: 'HomeSubpage exists but MyAIPage replaced it — no nav tab points here' },
+  { id: 'showcase', label: 'Components', route: '/debug/components', comp: 'ComponentShowcase', img: 'debug-components.png', app: 'orphan', color: '#cf222e', gx: 0.50, gy: 0.88, orphan: true, reason: 'Debug-only, no in-app navigation' },
+  { id: 'dr-showcase', label: 'Dr Components', route: '/debug/doctor-components', comp: 'Showcase', img: 'debug-doctor-components.png', app: 'orphan', color: '#cf222e', gx: 0.64, gy: 0.88, orphan: true, reason: 'Debug-only, no in-app navigation' },
 ];
 
 var EDGES = [
@@ -343,6 +349,30 @@ function draw() {
     ctx.fillText('PATIENT APP', minX - 24, minY - 20);
   }
 
+  // Orphan group
+  var oNodes = NODES.filter(function(n) { return n.orphan && n.visible; });
+  if (oNodes.length) {
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    oNodes.forEach(function(n) {
+      if (n.x - NODE_R < minX) minX = n.x - NODE_R;
+      if (n.y - NODE_R < minY) minY = n.y - NODE_R;
+      if (n.x + NODE_R > maxX) maxX = n.x + NODE_R;
+      if (n.y + NODE_R > maxY) maxY = n.y + NODE_R;
+    });
+    ctx.fillStyle = 'rgba(207, 34, 46, 0.03)';
+    ctx.strokeStyle = 'rgba(207, 34, 46, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.roundRect(minX - 30, minY - 40, maxX - minX + 60, maxY - minY + 80, 16);
+    ctx.fill(); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = 'bold 11px -apple-system, sans-serif';
+    ctx.fillStyle = 'rgba(207, 34, 46, 0.5)';
+    ctx.textAlign = 'left';
+    ctx.fillText('ORPHANED / DEAD PAGES', minX - 24, minY - 20);
+  }
+
   // Edges
   EDGES.forEach(function(e) {
     var a = nodeMap[e.from], b = nodeMap[e.to];
@@ -373,14 +403,27 @@ function draw() {
     // Circle
     ctx.beginPath();
     ctx.arc(n.x, n.y, NODE_R, 0, Math.PI * 2);
-    ctx.fillStyle = dim ? '#f5f5f5' : '#fff';
+    ctx.fillStyle = dim ? '#f5f5f5' : (n.orphan ? '#fff5f5' : '#fff');
     ctx.fill();
     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+    if (n.orphan) ctx.setLineDash([4, 3]);
     ctx.strokeStyle = isHover ? n.color : (dim ? '#e8e8e8' : n.color);
     ctx.lineWidth = isHover ? 3 : 2;
     ctx.globalAlpha = dim ? 0.3 : 1;
     ctx.stroke();
+    ctx.setLineDash([]);
     ctx.globalAlpha = 1;
+
+    // "No screenshot" placeholder for orphans
+    if (!n.img) {
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.fillStyle = n.orphan ? '#cf222e' : '#999';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(n.orphan ? '⚠' : '?', n.x, n.y - 4);
+      ctx.font = '8px -apple-system, sans-serif';
+      ctx.fillText(n.orphan ? 'ORPHAN' : 'no img', n.x, n.y + 8);
+    }
 
     // Screenshot
     var img = images[n.id];
@@ -450,9 +493,10 @@ canvas.addEventListener('mousemove', function(e) {
   var tip = document.getElementById('tooltip');
   if (n) {
     canvas.style.cursor = 'pointer';
-    var html = '<div class="t-label">' + n.label + '</div>';
+    var html = '<div class="t-label">' + n.label + (n.orphan ? ' <span style="color:#f85149">⚠ ORPHAN</span>' : '') + '</div>';
     html += '<div class="t-route">' + n.route + '</div>';
     html += '<div class="t-comp">' + n.comp + '</div>';
+    if (n.reason) html += '<div style="color:#f85149;font-size:11px;margin-top:4px">' + n.reason + '</div>';
     var links = [];
     EDGES.forEach(function(e) {
       if (e.from === n.id) links.push('→ ' + (nodeMap[e.to] || {}).label + ' <span style="color:#8b949e">(' + e.label + ')</span>');
@@ -497,6 +541,7 @@ document.querySelectorAll('.filter-btn').forEach(function(btn) {
       if (activeFilter === 'all') n.visible = true;
       else if (activeFilter === 'doctor') n.visible = n.app === 'doctor';
       else if (activeFilter === 'patient') n.visible = n.app === 'patient';
+      else if (activeFilter === 'orphan') n.visible = !!n.orphan;
       else if (activeFilter === 'cross') {
         var has = false;
         EDGES.forEach(function(e) { if (e.type === 'cross' && (e.from === n.id || e.to === n.id)) has = true; });
