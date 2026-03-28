@@ -140,9 +140,15 @@ SaaS product. Every interaction should feel like messaging a trusted assistant.
 7. **Chinese-first** — All UI text in Chinese. Preserve medical abbreviations
    (CT, MRI, NIHSS). No English UI labels except technical identifiers.
 
+8. **Flat icons only** — Use MUI outlined icons (`@mui/icons-material/*Outlined`).
+   Never use emoji (💬📋), Unicode symbols (✓✗◫⚙✦◆), or icon fonts.
+   Emoji render inconsistently across devices and look unprofessional.
+   MUI outlined icons match WeChat's flat, consistent icon style.
+
 ### What We Don't Do
 
 - No skeleton screens for fast loads (<200ms) — show content directly
+- No emoji or Unicode symbol icons — use MUI outlined icons only
 - No toast notifications for expected outcomes — only for errors and
   async completions
 - No modal dialogs unless blocking is intentional (delete confirmation,

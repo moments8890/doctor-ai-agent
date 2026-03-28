@@ -6,6 +6,10 @@
  */
 import { useEffect, useState } from "react";
 import { Badge, Box, CircularProgress, Skeleton, Typography } from "@mui/material";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import { useDoctorStore } from "../../store/doctorStore";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
@@ -168,7 +172,7 @@ export default function MyAIPage({ doctorId }) {
                 "&:active": { bgcolor: COLOR.surfaceAlt },
               }}
             >
-              <Typography sx={{ fontSize: ICON.lg, color: COLOR.text4, lineHeight: 1 }}>⚙</Typography>
+              <SettingsOutlinedIcon sx={{ fontSize: ICON.lg, color: COLOR.text4 }} />
               <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>设置</Typography>
             </Box>
           </Box>
@@ -221,14 +225,14 @@ export default function MyAIPage({ doctorId }) {
         <SectionLabel sx={{ pt: 2 }}>快捷入口</SectionLabel>
         <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
           <ListCard
-            avatar={<QuickActionIcon bg={COLOR.primary}>◫</QuickActionIcon>}
+            avatar={<QuickActionIcon bg={COLOR.primary}><QrCode2OutlinedIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
             title="患者预问诊码"
             subtitle="患者扫码自助填写病史"
             chevron
             onClick={() => navigate("/doctor/settings/qr")}
           />
           <ListCard
-            avatar={<QuickActionIcon bg={COLOR.warning}>✓</QuickActionIcon>}
+            avatar={<QuickActionIcon bg={COLOR.warning}><CheckCircleOutlineIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
             title="待审核"
             subtitle="AI建议等你确认"
             right={<InlineBadge count={reviewBadge} />}
@@ -236,7 +240,7 @@ export default function MyAIPage({ doctorId }) {
             onClick={() => navigate("/doctor/review")}
           />
           <ListCard
-            avatar={<QuickActionIcon bg={COLOR.accent}>💬</QuickActionIcon>}
+            avatar={<QuickActionIcon bg={COLOR.accent}><ChatOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
             title="处理随访"
             subtitle="患者消息可快速处理"
             right={<InlineBadge count={followupBadge} color="#ef4444" />}

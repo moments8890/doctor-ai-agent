@@ -13,6 +13,8 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import PatientAvatar from "../../components/PatientAvatar";
@@ -195,7 +197,7 @@ function PendingReviewCard({ item, onConfirm, onReject, onEdit, onNavigate }) {
 function CompletedRow({ item }) {
   const isEdited = item.decision === "edited";
   const checkColor = isEdited ? COLOR.warning : COLOR.primary;
-  const checkIcon = isEdited ? "✎" : "✓";
+  const CheckIcon = isEdited ? EditOutlinedIcon : CheckOutlinedIcon;
 
   const detailText = (() => {
     if (isEdited && item.detail) return `已修改 · ${item.detail}`;
@@ -210,9 +212,7 @@ function CompletedRow({ item }) {
       borderBottom: `0.5px solid ${COLOR.borderLight}`,
       "&:last-child": { borderBottom: "none" },
     }}>
-      <Typography sx={{ fontSize: TYPE.body.fontSize, color: checkColor, flexShrink: 0 }}>
-        {checkIcon}
-      </Typography>
+      <CheckIcon sx={{ fontSize: TYPE.body.fontSize, color: checkColor, flexShrink: 0 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4 }}>
           {item.patient_name} · {item.content}

@@ -9,6 +9,8 @@
  */
 import { useEffect, useState, useCallback } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
+import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import { useApi } from "../../api/ApiContext";
 import SubpageHeader from "../../components/SubpageHeader";
 import PatientAvatar from "../../components/PatientAvatar";
@@ -211,7 +213,7 @@ function ScheduledRow({ item }) {
       borderBottom: `0.5px solid ${COLOR.borderLight}`,
       "&:last-child": { borderBottom: "none" },
     }}>
-      <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4, flexShrink: 0 }}>◷</Typography>
+      <AccessTimeOutlinedIcon sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4, flexShrink: 0 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>
           {item.patient_name} · {item.task}
@@ -241,7 +243,7 @@ function SentRow({ item }) {
       borderBottom: `0.5px solid ${COLOR.borderLight}`,
       "&:last-child": { borderBottom: "none" },
     }}>
-      <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.primary, flexShrink: 0 }}>✓</Typography>
+      <CheckOutlinedIcon sx={{ fontSize: TYPE.body.fontSize, color: COLOR.primary, flexShrink: 0 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4 }}>
           {item.patient_name} · {item.task}

@@ -11,6 +11,8 @@ import { Avatar, Box, Typography } from "@mui/material";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import { TYPE, COLOR } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import SectionLabel from "../../../components/SectionLabel";
@@ -56,14 +58,14 @@ function formatDate(dateStr) {
 }
 
 const USAGE_TYPE_CONFIG = {
-  diagnosis: { icon: "\uD83D\uDCCB", label: "诊断审核" },
-  followup:  { icon: "\uD83D\uDCAC", label: "随访回复" },
-  draft:     { icon: "\uD83D\uDCAC", label: "草稿起草" },
-  chat:      { icon: "\uD83D\uDCC4", label: "对话引用" },
+  diagnosis: { icon: <AssignmentOutlinedIcon sx={{ fontSize: 16, color: COLOR.text3 }} />, label: "诊断审核" },
+  followup:  { icon: <ChatOutlinedIcon sx={{ fontSize: 16, color: COLOR.text3 }} />, label: "随访回复" },
+  draft:     { icon: <ChatOutlinedIcon sx={{ fontSize: 16, color: COLOR.text3 }} />, label: "草稿起草" },
+  chat:      { icon: <DescriptionOutlinedIcon sx={{ fontSize: 16, color: COLOR.text3 }} />, label: "对话引用" },
 };
 
 function getUsageTypeConfig(type) {
-  return USAGE_TYPE_CONFIG[type] || { icon: "\uD83D\uDCC4", label: type || "引用" };
+  return USAGE_TYPE_CONFIG[type] || { icon: <DescriptionOutlinedIcon sx={{ fontSize: 16, color: COLOR.text3 }} />, label: type || "引用" };
 }
 
 /* ── Main ── */
