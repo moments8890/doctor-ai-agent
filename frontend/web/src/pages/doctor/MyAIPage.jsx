@@ -132,8 +132,9 @@ export default function MyAIPage({ doctorId }) {
   const knowledgeList = Array.isArray(knowledge) ? knowledge : (knowledge?.items || []);
   const knowledgeCount = knowledgeList.length;
   const topRules = knowledgeList.slice(0, 3);
-  const recentActivity = Array.isArray(activity) ? activity.slice(0, 2) : (activity?.items || []).slice(0, 2);
-  const latestActivity = Array.isArray(activity) ? activity[0] : (activity?.items || [])[0];
+  const activityList = Array.isArray(activity) ? activity : (activity?.activity || activity?.items || []);
+  const recentActivity = activityList.slice(0, 2);
+  const latestActivity = activityList[0];
 
   const weekCitations = loading ? null : (knowledgeStats?.citations_7d ?? knowledgeStats?.total_citations ?? 0);
   const pendingConfirm = loading ? null : (draftSummary?.pending_count ?? draftSummary?.pending ?? 0);

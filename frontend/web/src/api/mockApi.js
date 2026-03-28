@@ -68,9 +68,19 @@ export async function getSuggestions(recordId) {
 }
 
 export async function getKnowledgeItems() {
-  const sorted = [...knowledgeItems].sort((a, b) =>
-    (b.created_at || "").localeCompare(a.created_at || "")
-  );
+  // Real API: GET /api/manage/knowledge → { items: [{ id, text, source, confidence, category, title, summary, created_at }] }
+  // Ensure every item has the fields the real API returns
+  const sorted = [...knowledgeItems]
+    .map((item) => ({
+      title: "",
+      summary: "",
+      category: "custom",
+      confidence: 1.0,
+      ...item,
+    }))
+    .sort((a, b) =>
+      (b.created_at || "").localeCompare(a.created_at || "")
+    );
   return { items: sorted };
 }
 
@@ -115,10 +125,12 @@ export async function postponeTask(taskId, doctorId, dueAt) {
 }
 
 export async function decideSuggestion(suggestionId, decision, opts = {}) {
+  // Real API: POST /api/doctor/suggestions/{suggestion_id}/decide →
+  //   { status: "ok", id: int, decision: str, teach_prompt?: bool, edit_id?: int }
   suggestions = suggestions.map((s) =>
     s.id === suggestionId ? { ...s, decision, ...opts } : s
   );
-  return {};
+  return { status: "ok", id: suggestionId, decision };
 }
 
 export async function addSuggestion(recordId, doctorId, section, content, detail) {
@@ -364,33 +376,99 @@ export async function transcribeAudio() {
 // ── Knowledge stats, AI activity, drafts (MyAIPage) ──
 
 export async function fetchKnowledgeStats() {
-  return { citations_7d: 26, today_processed: 3, total_rules: 12 };
+  // Real API: GET /api/manage/knowledge/stats → { stats: [{ knowledge_item_id, total_count, last_used }] }
+  return {
+    stats: [
+      { knowledge_item_id: 7, total_count: 7, last_used: "2026-03-27T10:00:00" },
+      { knowledge_item_id: 4, total_count: 12, last_used: "2026-03-27T09:30:00" },
+      { knowledge_item_id: 3, total_count: 8, last_used: "2026-03-26T14:00:00" },
+      { knowledge_item_id: 9, total_count: 6, last_used: "2026-03-26T11:00:00" },
+      { knowledge_item_id: 1, total_count: 5, last_used: "2026-03-25T16:00:00" },
+    ],
+    // display-only, not in real API — convenience aggregates for dashboard
+    citations_7d: 26,
+    today_processed: 3,
+    total_rules: 12,
+  };
 }
 
 export async function fetchAIActivity() {
-  return [
-    { id: "a1", patient_id: 3, patient_name: "王建国", description: "按你的话术起草了随访回复", status: "pending" },
-    { id: "a2", patient_id: 2, patient_name: "李阿姨", description: "诊断建议引用了 2 条规则", time_label: "10分钟前", rule_name: "术后头痛红旗" },
-  ];
+  // Real API: GET /api/manage/ai/activity → { activity: [{ type, description, patient_id, timestamp, record_id? }] }
+  return {
+    activity: [
+      {
+        type: "draft",
+        description: "起草了随访回复",
+        patient_id: 3,
+        patient_name: "王建国", // display-only, not in real API
+        timestamp: "2026-03-27T13:20:00",
+      },
+      {
+        type: "citation",
+        description: "引用了知识库条目 KB-7",
+        patient_id: 2,
+        patient_name: "李阿姨", // display-only, not in real API
+        timestamp: "2026-03-27T13:10:00",
+      },
+      {
+        type: "diagnosis",
+        description: "生成诊断建议：术后迟发性血肿鉴别",
+        patient_id: null,
+        record_id: 102,
+        timestamp: "2026-03-27T12:45:00",
+      },
+      {
+        type: "task",
+        description: "创建任务：复查血常规",
+        patient_id: 1,
+        timestamp: "2026-03-27T11:30:00",
+      },
+    ],
+  };
 }
 
 export async function fetchDraftSummary() {
+  // Real API: GET /api/manage/drafts/summary → { pending, ai_drafted, due_soon }
   return {
-    pending_reply: 2,
+    pending: 2,
     ai_drafted: 3,
-    upcoming: 4,
+    due_soon: 4,
+    // display-only, not in real API — backward compat fields used by DoctorPage badge counts
+    pending_reply: 2,
     today_processed: 3,
-    // backward compat fields used by DoctorPage badge counts
     pending_count: 3,
     followup_count: 5,
   };
 }
 
 export async function fetchAIAttention() {
+  // Real API: GET /api/manage/patients/ai-attention → { patients: [{ patient_id, reason, urgency, type, record_id? }] }
   return {
     patients: [
-      { patient_id: 1, patient_name: "陈伟强", reason: "术后第7天 · 需复查CT", short_tag: "需复查CT", urgency: "urgent" },
-      { patient_id: 2, patient_name: "李复诊", reason: "随访回复已起草 · 待你确认发送", short_tag: "回复已起草", urgency: "pending" },
+      {
+        patient_id: 1,
+        patient_name: "陈伟强", // display-only, not in real API
+        reason: "任务到期：复查血常规",
+        urgency: "high",
+        type: "due_task",
+        short_tag: "需复查CT", // display-only, not in real API
+      },
+      {
+        patient_id: 2,
+        patient_name: "李复诊", // display-only, not in real API
+        reason: "患者消息待处理",
+        urgency: "medium",
+        type: "unread_message",
+        short_tag: "回复已起草", // display-only, not in real API
+      },
+      {
+        patient_id: null,
+        record_id: 102,
+        patient_name: "陈伟强", // display-only, not in real API
+        reason: "AI建议待审核：术后迟发性血肿鉴别",
+        urgency: "medium",
+        type: "unreviewed_suggestion",
+      },
     ],
   };
 }
@@ -433,31 +511,47 @@ export async function getReviewQueue() {
 }
 
 export async function fetchDrafts() {
+  // Real API: GET /api/manage/drafts → flat array of draft objects:
+  //   [{ id, patient_id, patient_name, patient_message, draft_text, original_draft_text,
+  //      cited_knowledge_ids, confidence, status, ai_disclosure, created_at }]
+  // The frontend groups into 3 arrays; keep that structure but add all real API fields.
   return {
     pending_messages: [
       {
-        id: "d1",
+        id: 101,
         patient_id: 5,
         patient_name: "刘明",
+        patient_message: "张医生您好，我昨天晚上又头晕了一次，大概持续了十几秒，翻身的时候发作的，需要去医院吗？",
+        draft_text: "刘先生您好，根据您描述的情况（翻身时短暂头晕），考虑可能与体位变化有关。建议您先观察2-3天，如果发作频率增加或持续时间超过1分钟，请及时来院复查。",
+        original_draft_text: "刘先生您好，根据您描述的情况（翻身时短暂头晕），考虑可能与体位变化有关。建议您先观察2-3天，如果发作频率增加或持续时间超过1分钟，请及时来院复查。",
+        cited_knowledge_ids: [8],
+        confidence: 0.85,
+        status: "generated",
+        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
+        created_at: "2026-03-27T13:20:00",
+        // display-only, not in real API
         patient_context: "眩晕症随访第3天",
         time: "今天 13:20",
         badge: "new",
-        patient_message: "张医生您好，我昨天晚上又头晕了一次，大概持续了十几秒，翻身的时候发作的，需要去医院吗？",
-        draft_text: "刘先生您好，根据您描述的情况（翻身时短暂头晕），考虑可能与体位变化有关。建议您先观察2-3天，如果发作频率增加或持续时间超过1分钟，请及时来院复查。",
         rule_cited: "随访安抚话术",
-        status: "drafted",
       },
       {
-        id: "d2",
+        id: 102,
         patient_id: 1,
         patient_name: "王建国",
+        patient_message: "张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？",
+        draft_text: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
+        original_draft_text: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
+        cited_knowledge_ids: [7],
+        confidence: 0.92,
+        status: "generated",
+        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
+        created_at: "2026-03-27T11:45:00",
+        // display-only, not in real API
         patient_context: "脑膜瘤术后第12天",
         time: "今天 11:45",
         badge: "urgent",
-        patient_message: "张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？",
-        draft_text: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
         rule_cited: "术后头痛红旗",
-        status: "drafted",
       },
     ],
     upcoming_followups: [
@@ -474,32 +568,79 @@ export async function fetchDrafts() {
 }
 
 export async function sendDraft(draftId) {
+  // Real API: POST /api/manage/drafts/{draft_id}/send → { status: "ok", message_id: int }
   await new Promise((r) => setTimeout(r, 400));
-  return { success: true };
+  return { status: "ok", message_id: 999 };
 }
 export async function editDraft(draftId, _doctorId, editedText) {
+  // Real API: PUT /api/manage/drafts/{draft_id}/edit → { status: "ok", teach_prompt: bool, edit_id: int|null }
   await new Promise((r) => setTimeout(r, 300));
-  return { success: true, edited_text: editedText };
+  return { status: "ok", teach_prompt: false, edit_id: null };
 }
 export async function dismissDraft(draftId) {
-  return { success: true };
+  // Real API: POST /api/manage/drafts/{draft_id}/dismiss → { status: "ok" }
+  return { status: "ok" };
 }
 export async function getDraftConfirmation(draftId) {
+  // Real API: POST /api/manage/drafts/{draft_id}/send-confirmation →
+  //   { draft_id, patient_name, patient_message, draft_text, ai_disclosure,
+  //     full_text_preview, cited_rules: [{ id, title, text }], confidence, status }
   return {
+    draft_id: draftId || 102,
     patient_name: "王建国",
-    patient_context: "脑膜瘤术后第12天",
+    patient_message: "张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？",
     draft_text: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。",
-    rules_cited: ["术后头痛红旗"],
+    ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
+    full_text_preview: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。\n\n【此回复由AI辅助起草，经医生审核】",
+    cited_rules: [
+      { id: 7, title: "术后头痛红旗", text: "脑疝早期征象：一侧瞳孔进行性散大、对光反射消失..." },
+    ],
+    confidence: 0.92,
+    status: "generated",
+    // display-only, not in real API
+    patient_context: "脑膜瘤术后第12天",
   };
 }
-export async function createRuleFromEdit() { return {}; }
+export async function createRuleFromEdit() {
+  // Real API: POST /api/manage/teaching/create-rule → { status: "ok", rule_id: int, title: str }
+  return { status: "ok", rule_id: 99, title: "新规则" };
+}
 
 export async function fetchKnowledgeUsageHistory(doctorId, itemId) {
+  // Real API: GET /api/manage/knowledge/{item_id}/usage →
+  //   { usage: [{ id, usage_context, patient_id, record_id, created_at }] }
   return {
     usage: [
-      { id: 1, type: "diagnosis", patient_name: "王建国", context: "诊断审核", detail: "鉴别诊断：术后迟发性血肿", date: "2026-03-27", patient_id: "1", record_id: 101 },
-      { id: 2, type: "followup", patient_name: "刘明", context: "随访回复", detail: "按此规则起草了回复", date: "2026-03-26", patient_id: "3" },
-      { id: 3, type: "diagnosis", patient_name: "李复诊", context: "诊断审核", detail: "检查建议：急查头颅CT", date: "2026-03-25", patient_id: "2", record_id: 102 },
+      {
+        id: 1,
+        usage_context: "diagnosis",
+        patient_id: "1",
+        record_id: 101,
+        created_at: "2026-03-27T10:00:00",
+        // display-only, not in real API
+        patient_name: "王建国",
+        detail: "鉴别诊断：术后迟发性血肿",
+      },
+      {
+        id: 2,
+        usage_context: "followup",
+        patient_id: "3",
+        record_id: null,
+        created_at: "2026-03-26T14:30:00",
+        // display-only, not in real API
+        patient_name: "刘明",
+        detail: "按此规则起草了回复",
+      },
+      {
+        id: 3,
+        usage_context: "diagnosis",
+        patient_id: "2",
+        record_id: 102,
+        created_at: "2026-03-25T09:15:00",
+        // display-only, not in real API
+        patient_name: "李复诊",
+        detail: "检查建议：急查头颅CT",
+      },
     ],
   };
 }

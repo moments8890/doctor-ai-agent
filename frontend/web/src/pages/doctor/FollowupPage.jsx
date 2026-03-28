@@ -485,11 +485,11 @@ export default function FollowupPage({ doctorId }) {
               borderBottom: `0.5px solid ${COLOR.border}`,
               borderTop: `0.5px solid ${COLOR.border}`,
             }}>
-              <SummaryStat value={summary?.pending_reply ?? pendingMessages.length} label="待回复" color={COLOR.danger} />
+              <SummaryStat value={summary?.pending_reply ?? summary?.pending ?? pendingMessages.length} label="待回复" color={COLOR.danger} />
               <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
               <SummaryStat value={summary?.ai_drafted ?? 0} label="AI已起草" color={COLOR.warning} />
               <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-              <SummaryStat value={summary?.upcoming ?? upcomingFollowups.length} label="即将到期" />
+              <SummaryStat value={summary?.due_soon ?? summary?.upcoming ?? upcomingFollowups.length} label="即将到期" />
             </Box>
 
             {/* ── Section: 患者消息 · 待回复 ── */}
