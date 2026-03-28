@@ -52,7 +52,7 @@ const BADGE_COLOR_MAP = {
 const BADGE_LABEL = { new: "新消息", urgent: "紧急" };
 
 // ── Summary stat component ──
-function SummaryStat({ value, label, color, onClick }) {
+function SummaryStat({ value, label, sublabel, color, onClick }) {
   return (
     <Box onClick={onClick} sx={{ flex: 1, textAlign: "center", cursor: onClick ? "pointer" : "default", "&:active": onClick ? { opacity: 0.5 } : {} }}>
       <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 600, color: color || COLOR.text1 }}>
@@ -61,6 +61,11 @@ function SummaryStat({ value, label, color, onClick }) {
       <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mt: "2px" }}>
         {label}
       </Typography>
+      {sublabel && (
+        <Typography sx={{ fontSize: 10, color: COLOR.primary, mt: "1px" }}>
+          {sublabel}
+        </Typography>
+      )}
     </Box>
   );
 }
@@ -510,6 +515,7 @@ export default function FollowupPage({ doctorId }) {
   const upcomingFollowups = data?.upcoming_followups || [];
   const pendingTasks = data?.tasks || [];
   const recentlySent = data?.recently_sent || [];
+  const aiDraftedCount = pendingMessages.filter((m) => m.draft_text).length;
 
   const handleOpenSend = (item) => {
     setConfirmItem(item);
@@ -621,11 +627,11 @@ export default function FollowupPage({ doctorId }) {
               borderBottom: `0.5px solid ${COLOR.border}`,
               borderTop: `0.5px solid ${COLOR.border}`,
             }}>
-              <SummaryStat value={summary?.pending_reply ?? summary?.pending ?? pendingMessages.length} label="待回复" color={COLOR.danger} onClick={() => pendingRef.current?.scrollIntoView()} />
+              <SummaryStat value={pendingMessages.length} label="待回复" sublabel={aiDraftedCount > 0 ? `${aiDraftedCount}条已起草` : undefined} color={COLOR.danger} onClick={() => pendingRef.current?.scrollIntoView()} />
               <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-              <SummaryStat value={summary?.ai_drafted ?? 0} label="AI已起草" color={COLOR.warning} onClick={() => pendingRef.current?.scrollIntoView()} />
+              <SummaryStat value={upcomingFollowups.length} label="随访" color={COLOR.warning} onClick={() => followupsRef.current?.scrollIntoView()} />
               <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-              <SummaryStat value={(summary?.due_soon ?? summary?.upcoming ?? upcomingFollowups.length) + pendingTasks.length} label="即将到期" onClick={() => (followupsRef.current || tasksRef.current)?.scrollIntoView()} />
+              <SummaryStat value={pendingTasks.length} label="待办" onClick={() => tasksRef.current?.scrollIntoView()} />
             </Box>
 
             {/* ── Section: 患者消息 · 待回复 ── */}
