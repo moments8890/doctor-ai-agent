@@ -1,19 +1,40 @@
 # Testing and Evaluation Guide
 
-Current MVP policy: skip unit tests during normal development. Prefer
-integration tests and E2E replay for behavior validation.
+## Testing Policy
+
+**Default mode**: agents do NOT run tests automatically. The `AGENTS.md` "DO NOT RUN TESTS"
+rule stays in effect for normal development sessions.
+
+**Opt-in TDD**: invoke `/tdd` to activate test-driven development for a session.
+This overrides the default and enables red-green-refactor cycles.
+
+**Pre-push gate**: invoke `/test-gate` before pushing to validate no regressions.
+
+## Test Classification
+
+Tests are classified by **determinism**, not folder name.
+
+| Classification | What to test | How to test | Example |
+|---------------|-------------|------------|---------|
+| **Deterministic** | Pure domain logic, CRUD, parsers, validators, formatters | **Unit tests** (TDD via `/tdd`) | `structuring.py`, `triage.py`, `pdf_helpers.py`, `knowledge_crud.py` |
+| **Seam/Contract** | Orchestration around LLM calls — assert side effects, not LLM output | **Mock LLM**, assert DB writes, tool calls, routing | `handle_turn.py`, `session.py` |
+| **Scenario** | Multi-turn workflows, intent routing, field extraction | **YAML fixtures** with tolerant matchers | `tests/scenarios/fixtures/*.yaml` |
+| **Eval/Regression** | Prompt quality, extraction accuracy, agent behavior | **promptfoo** + **patient/doctor simulation** | `tests/prompts/`, `/sim` |
+| **Frontend** | Zustand stores, form logic, critical flows | **Vitest** + `@testing-library/react` | `doctorStore.test.js` |
+| **Visual/UX** | Layout, styling, responsive, clinical warnings | **Browser QA** via `/qa` | Screenshots + walkthrough |
 
 ## Test Directories
 
-| Directory | What it tests | Needs server? |
-|-----------|--------------|---------------|
-| `tests/core/` | Unit tests (mocked I/O, no server) | No |
-| `tests/integration/` | API pipelines, prompts, DB side effects | Yes (port 8001) |
-| `tests/regression/` | Scenario-based regression tests | Yes (port 8001) |
-| `tests/scenarios/` | Individual patient scenario fixtures | Data only |
-| `tests/prompts/` | Prompt evaluation tests (promptfoo) | Varies |
-| `tests/wechat/` | WeChat channel-specific tests | Yes |
-| `tests/fixtures/` | Shared test fixtures | Data only |
+| Directory | Classification | Needs server? |
+|-----------|---------------|---------------|
+| `tests/core/` | Deterministic + Seam | No |
+| `tests/integration/` | Scenario + Seam | Yes (port 8001) |
+| `tests/regression/` | Eval/Regression | Yes (port 8001) |
+| `tests/scenarios/` | Scenario (YAML fixtures) | Data only |
+| `tests/prompts/` | Eval (promptfoo) | Groq API |
+| `tests/wechat/` | Integration | Yes |
+| `tests/fixtures/` | Shared test data | Data only |
+| `frontend/web/src/**/*.test.js` | Frontend (Vitest) | No |
 
 ## Test Modes (`scripts/test.sh`)
 
@@ -23,14 +44,20 @@ bash scripts/test.sh <mode>
 
 | Mode | What it runs | When to use |
 |------|-------------|-------------|
-| `unit` | `tests/core/` (mocked, no server) | Explicit test work only |
+| `unit` | `tests/core/` (mocked, no server) | After modifying domain logic or CRUD |
 | `integration` | `tests/integration/test_text_pipeline.py` | Default gate for code changes |
 | `integration-full` | All of `tests/integration/` | Prompt, routing, or pipeline changes |
 | `chatlog-half` | Chatlog E2E replay (half dataset) | Routing or wording changes |
 | `chatlog-full` | Chatlog E2E replay (full dataset) | Major workflow changes |
-| `hero-loop` | Benchmark gate (via `scripts/benchmark_gate.sh`) | Pre-release validation |
-| `benchmark-gate` | Same as hero-loop | Alias |
+| `hero-loop` | Benchmark gate | Pre-release validation |
 | `all` | Integration tests | Quick full check |
+
+### Frontend Tests
+
+```bash
+cd frontend/web && npm test          # run once
+cd frontend/web && npm run test:watch # watch mode
+```
 
 ## Patient Simulation
 
@@ -40,7 +67,7 @@ Simulates realistic patient interviews against the running server.
 # Start test server first
 ./cli.py start --port 8001 --no-frontend &
 
-# Run simulation
+# Run simulation (or use /sim skill)
 python scripts/run_patient_sim.py --server http://127.0.0.1:8001
 ```
 
@@ -48,11 +75,19 @@ Reports written to `reports/patient_sim/` and `reports/doctor_sim/`.
 
 ## Standard Validation Path
 
-For normal code changes:
+For normal code changes (no TDD):
 
 ```bash
 bash scripts/test.sh integration
 bash scripts/test.sh chatlog-half
+```
+
+For TDD sessions (after `/tdd`):
+
+```bash
+# Unit tests run during TDD cycle automatically
+# Then validate integration before push:
+bash scripts/test.sh integration
 ```
 
 Escalate to `integration-full` or `chatlog-full` when changes affect
@@ -62,18 +97,52 @@ LLM routing, structuring, or multi-turn workflow behavior.
 
 | Change type | Run |
 |------------|-----|
+| Domain logic (structuring, triage, PDF, knowledge) | `/tdd` + unit tests |
 | Prompt-only | integration + chatlog if wording/routing may shift |
 | Routing / context-assembly | `integration-full` + chatlog |
 | Structuring | integration tests hitting record creation paths |
 | Session / state | core + integration if state crosses request boundaries |
 | Schema | targeted integration for affected write/read paths |
+| Frontend components | Vitest (`npm test` in `frontend/web/`) |
+| Pre-push (any change) | `/test-gate` |
+
+## Medical Safety Testing
+
+For code touching clinical data, these assertion patterns apply:
+
+**Clinical Invariants** — must always hold:
+- Allergies never dropped during record updates
+- Negations preserved ("no history of diabetes" stays negative)
+- Patient identity never crosses records
+- Red flags always surface in diagnosis output
+
+**Must-Not Assertions** — safety guardrails:
+- No fabricated vitals or lab values
+- No invented diagnosis certainty
+- No medication dose mutation without evidence
+- No unsafe reassurance for red-flag symptoms
+
+**Metamorphic Tests** — same input, different form:
+- Reordered facts produce same clinical classification
+- OCR artifacts / abbreviations don't change extraction results
+- Bilingual input (mixed Chinese/English) extracts correctly
+
+## Custom Skills
+
+| Skill | Purpose | When to use |
+|-------|---------|-------------|
+| `/tdd` | Activate TDD mode for session | Before implementing deterministic code |
+| `/test-gate` | Pre-push validation gate | Before `git push` |
+| `/sim` | Patient/doctor simulation | After agent behavior changes |
+| `/prompt-surgeon` | Prompt edit with eval | After modifying prompt files |
 
 ## Rules
 
 - All tests MUST run against port **8001**, never 8000 (dev server with real data)
 - Unit tests must not make real LLM, DB, or network calls — use `AsyncMock` / `patch`
-- Do not add new unit tests for normal product work during MVP phase
 - Default LLM provider for tests: `groq`
+- Safety-critical modules (diagnosis pipeline, CDS) require integration test coverage
+- TDD is opt-in via `/tdd` — default agents skip tests unless explicitly invoked
 
 ## Runtime Notes
 

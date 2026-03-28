@@ -9,6 +9,8 @@
     "build": "vite build",
     "build:android": "vite build --mode android",
     "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android"
   },
@@ -28,8 +30,12 @@
   "devDependencies": {
     "@capacitor/android": "^7.0.0",
     "@capacitor/cli": "^7.0.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^4.4.1",
+    "jsdom": "^27.0.1",
     "typescript": "^6.0.2",
-    "vite": "^6.2.2"
+    "vite": "^6.2.2",
+    "vitest": "^3.2.4"
   }
 }

@@ -6,6 +6,11 @@ const hmrDisabled = process.env.VITE_NO_HMR === "1";
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: "./src/test/setup.js",
+  },
   server: {
     host: "127.0.0.1",
     port: 5173,
