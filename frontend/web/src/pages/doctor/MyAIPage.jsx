@@ -86,6 +86,38 @@ function RuleDot({ color = COLOR.primary }) {
   );
 }
 
+// ── Activity helpers ─────────────────────────────────────────────────────────
+
+/** Map activity type to a short Chinese label and badge color. */
+function activityBadge(item) {
+  const desc = (item.description || "").toLowerCase();
+  if (desc.includes("紧急") || desc.includes("急查")) return { label: "紧急", color: COLOR.danger };
+  if (item.type === "draft") return { label: "AI已起草回复", color: COLOR.primary };
+  if (item.type === "diagnosis") return { label: "AI诊断建议", color: COLOR.warning };
+  if (item.type === "citation") return { label: "知识库引用", color: COLOR.text4 };
+  if (item.type === "task") return { label: "待办任务", color: COLOR.warning };
+  return { label: "AI处理", color: COLOR.text4 };
+}
+
+/** Format an ISO timestamp to a short relative label. */
+function formatActivityTime(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "刚刚";
+  if (diffMin < 60) return `${diffMin}分钟前`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}小时前`;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (dt.getTime() === today.getTime()) return `今天 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  if (dt.getTime() === yesterday.getTime()) return "昨天";
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function MyAIPage({ doctorId }) {
@@ -132,7 +164,7 @@ export default function MyAIPage({ doctorId }) {
   const knowledgeCount = knowledgeList.length;
   const topRules = knowledgeList.slice(0, 3);
   const activityList = Array.isArray(activity) ? activity : (activity?.activity || activity?.items || []);
-  const recentActivity = activityList.slice(0, 4);
+  const recentActivity = activityList.slice(0, 3);
 
   const weekCitations = loading ? null : knowledgeList.reduce((sum, k) => sum + (k.reference_count || 0), 0);
   const pendingReview = loading ? null : (reviewQueue?.pending || []).length;
@@ -331,7 +363,7 @@ export default function MyAIPage({ doctorId }) {
             onClick={() => navigate("/doctor/tasks")}
             sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
           >
-            全部 ›
+            全部 {activityList.length} 条 ›
           </Typography>
         </Box>
         <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
@@ -347,28 +379,40 @@ export default function MyAIPage({ doctorId }) {
               <CircularProgress size={20} sx={{ color: COLOR.text4 }} />
             </Box>
           )}
-          {recentActivity.map((item, idx) => (
-            <ListCard
-              key={item.id || idx}
-              avatar={<PatientAvatar name={item.patient_name || "?"} size={36} />}
-              title={item.patient_name || "患者"}
-              subtitle={item.description || item.action_description || "AI处理"}
-              right={
-                item.status === "pending"
-                  ? <InlineBadge count="待确认" />
-                  : item.time_label
-                    ? <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{item.time_label}</Typography>
-                    : null
-              }
-              onClick={() => {
-                if (item.type === "draft" || item.type === "citation") navigate("/doctor/tasks?tab=messages");
-                else if (item.type === "diagnosis" && item.record_id) navigate(`/doctor/review/${item.record_id}`);
-                else if (item.type === "task") navigate("/doctor/tasks?tab=followups");
-                else if (item.patient_id) navigate(`/doctor/patients/${item.patient_id}`);
-              }}
-              sx={idx === recentActivity.length - 1 ? { borderBottom: "none" } : {}}
-            />
-          ))}
+          {recentActivity.map((item, idx) => {
+            const badge = activityBadge(item);
+            const timeStr = formatActivityTime(item.timestamp);
+            return (
+              <ListCard
+                key={item.id || idx}
+                avatar={<PatientAvatar name={item.patient_name || "?"} size={36} />}
+                title={
+                  <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
+                    {item.patient_name || "患者"}
+                    <Box component="span" sx={{
+                      fontSize: TYPE.micro.fontSize, fontWeight: 500, color: COLOR.white,
+                      bgcolor: badge.color, borderRadius: "4px", px: 0.6, py: 0.1,
+                      lineHeight: "16px", ml: 0.3, flexShrink: 0,
+                    }}>
+                      {badge.label}
+                    </Box>
+                  </Box>
+                }
+                subtitle={item.description || item.action_description || "AI处理"}
+                right={
+                  <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, whiteSpace: "nowrap" }}>
+                    {timeStr}
+                  </Typography>
+                }
+                onClick={() => {
+                  if (item.patient_id) navigate(`/doctor/patients/${item.patient_id}`);
+                  else if (item.type === "diagnosis" && item.record_id) navigate(`/doctor/review/${item.record_id}`);
+                  else navigate("/doctor/tasks");
+                }}
+                sx={idx === recentActivity.length - 1 ? { borderBottom: "none" } : {}}
+              />
+            );
+          })}
         </Box>
 
       </Box>

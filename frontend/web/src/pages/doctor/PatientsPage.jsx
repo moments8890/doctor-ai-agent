@@ -69,7 +69,7 @@ function TriageDot({ triageCategory }) {
 
 function PatientRow({ patient, aiTag, onClick }) {
   const age = patient.year_of_birth ? new Date().getFullYear() - patient.year_of_birth : null;
-  const timeStr = formatPatientTime(patient.updated_at || patient.created_at);
+  const timeStr = formatPatientTime(patient.last_activity_at || patient.updated_at || patient.created_at);
   const baseSub = [
     patient.gender ? ({ male: "男", female: "女" }[patient.gender] || patient.gender) : null,
     age ? `${age}岁` : null,
@@ -246,7 +246,6 @@ function PatientListPane({ patients, loading, error, search, nlResults, nlLoadin
       {error && <Alert severity="error" action={<Button size="small" onClick={onLoad}>重试</Button>}>{error}</Alert>}
       <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
         {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
-        {!loading && !search.trim() && <AIAttentionSection attention={attention} navigate={navigate} />}
         {!loading && !search.trim() && <NewItemCard title="新建患者" subtitle="添加新的患者档案" onClick={onStartInterview} />}
         <input ref={importFileRef} type="file" hidden accept=".pdf,image/jpeg,image/png,image/webp" onChange={onFileInputChange} />
         {!loading && (
