@@ -143,9 +143,10 @@ const PAGES = [
   ]},
   { id: 'review', title: '门诊', route: '/doctor/review', img: 'page-screenshots/doctor-review.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title' },
-    { name: 'FilterStatBar', group: 'FilterStatBar', desc: '待审核 / 已确认 / 已修改 (⚠ filter bug)' },
-    { name: 'PendingReviewCard', group: 'PatientAvatar', desc: 'Review card + patient avatar + citation' },
-    { name: 'SectionLabel', group: '_page', desc: '待审核 section header', path: 'frontend/web/src/pages/doctor/ReviewQueuePage.jsx' },
+    { name: 'FilterStatBar', group: 'FilterStatBar', desc: '门诊 / 回复 / 完成 (3 tabs)' },
+    { name: 'PendingReviewCard', group: 'PatientAvatar', desc: '门诊 tab: review cards + citation' },
+    { name: 'MessageItem', group: 'MessageItem', desc: '回复 tab: patient messages + AI drafts' },
+    { name: 'CompletedRow', group: '_page', desc: '完成 tab: confirmed/edited items', path: 'frontend/web/src/pages/doctor/ReviewQueuePage.jsx' },
   ]},
   { id: 'tasks', title: '任务', route: '/doctor/tasks', img: 'page-screenshots/doctor-tasks.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title' },
