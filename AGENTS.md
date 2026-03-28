@@ -232,3 +232,36 @@ If a category has no impact, write "None." Do not omit the category. This sectio
    - `src/agent/prompts/README.md` — if prompt files, intent routing, or LLM contracts changed
    - Do not defer doc updates to a separate task — update docs in the same work session as the code change
 
+## Skill Routine — Proactive Reminders
+
+Claude should proactively suggest these skills at the right moments. Do not wait
+for the user to ask — suggest when the trigger condition is met.
+
+### Per-Task (suggest during work)
+
+| Trigger | Skill | What to say |
+|---------|-------|-------------|
+| Editing `src/agent/prompts/**/*.md` | `/prompt-surgeon` | "This is a prompt edit — want me to run `/prompt-surgeon` for eval coverage?" |
+| Bug report or "something's broken" | `/investigate` | "Let me use `/investigate` for structured root cause analysis." |
+| Agent/prompt behavior change | `/sim` | "This changes agent behavior — want me to run `/sim` to verify?" |
+| UI component or page changes | `/design-review` | "UI changed — want me to run `/design-review` for visual QA?" |
+| Before pushing >5 changed files | `/review` | "Big change set — suggest running `/review` before push." |
+| After pushing to main | `/document-release` | "Just shipped — want me to run `/document-release` to sync docs?" |
+
+### Per-Session (suggest at session boundaries)
+
+| Trigger | Skill | What to say |
+|---------|-------|-------------|
+| Friday or end of a multi-day sprint | `/retro` | "End of the week — want a `/retro` to review what shipped?" |
+| Starting a new feature design | `/plan-eng-review` | "Before implementing — want `/plan-eng-review` to check architecture?" |
+| Product direction uncertainty | `/office-hours` | "Sounds like a product question — `/office-hours` can help clarify." |
+| Big architectural decision | `/codex consult` | "Big decision — want a `/codex` second opinion?" |
+
+### Monthly (suggest when >30 days since last run)
+
+| Skill | Purpose |
+|-------|---------|
+| `/cso` | Security audit — secrets, dependencies, OWASP, LLM trust boundaries |
+| `/cleanup` | Dead code, unused imports, stale docs, oversized modules |
+| `/retro` | Monthly velocity and pattern review |
+
