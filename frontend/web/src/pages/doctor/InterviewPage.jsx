@@ -9,10 +9,16 @@ import { Alert, Box, Button, CircularProgress, IconButton, LinearProgress, Stack
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import MicIcon from "@mui/icons-material/Mic";
+import KeyboardIcon from "@mui/icons-material/Keyboard";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import SuggestionChips from "../../components/SuggestionChips";
+import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
+import ActionPanel from "../../components/ActionPanel";
+import ImportChoiceDialog from "../../components/ImportChoiceDialog";
 import FieldReviewCard from "../../components/doctor/FieldReviewCard";
 import InterviewCompleteDialog from "../../components/doctor/InterviewCompleteDialog";
 import { TYPE, ICON, COLOR } from "../../theme";
@@ -56,6 +62,11 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
   }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [actionPanelOpen, setActionPanelOpen] = useState(false);
+  const [importChoice, setImportChoice] = useState(null);
+  const cameraInputRef = useRef(null);
+  const voiceSupported = isVoiceSupported();
   const [session, setSession] = useState({
     sessionId: resumeSessionId || null,
     progress: { filled: 0, total: 7 },
@@ -197,6 +208,26 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
 
   function handleImportConfirmAll() {
     setImportItems([]);
+  }
+
+  function handlePanelAction(action) {
+    setActionPanelOpen(false);
+    if (action === "camera") cameraInputRef.current?.click();
+    else if (action === "gallery") cameraInputRef.current?.click();
+    else if (action === "file") cameraInputRef.current?.click();
+  }
+
+  async function handleCameraFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const { ocrImage } = api;
+      if (ocrImage) {
+        const result = await ocrImage(file);
+        if (result?.text) setImportChoice({ text: result.text });
+      }
+    } catch { /* silent */ }
+    e.target.value = "";
   }
 
   async function handleSend() {
@@ -435,43 +466,81 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
         />
       )}
 
-      {/* Input bar */}
+      {/* Input bar — WeChat style: voice toggle | text input | + actions | send */}
       {session.status !== "draft_created" && (
-        <Box sx={{ borderTop: "1px solid #d9d9d9", bgcolor: "#f5f5f5", px: 1, py: 0.8,
-          display: "flex", alignItems: "flex-end", gap: 0.5 }}>
-          <Box sx={{ flex: 1, bgcolor: "#fff", borderRadius: "4px", px: 1, py: 0.5,
-            display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>
-            {selectedSuggestions.map((s, i) => (
-              <Box key={i} sx={{
-                display: "inline-flex", alignItems: "center", gap: 0.3,
-                px: 1, py: 0.2, borderRadius: "12px", fontSize: TYPE.secondary.fontSize,
-                bgcolor: "#e8f5e9", color: "#07C160", fontWeight: 500,
-                flexShrink: 0,
-              }}>
-                {s}
-                <Box component="span"
-                  onClick={() => setSelectedSuggestions(prev => prev.filter(x => x !== s))}
-                  sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, ml: 0.2, "&:active": { opacity: 0.5 } }}>
-                  ×
-                </Box>
+        <>
+          {voiceMode && (
+            <Box sx={{ px: 2, py: 1, borderTop: "1px solid #d9d9d9", bgcolor: "#f5f5f5" }}>
+              <VoiceInput
+                onResult={(text) => { setInput((prev) => prev ? prev + text : text); setVoiceMode(false); }}
+                onCancel={() => setVoiceMode(false)}
+              />
+            </Box>
+          )}
+          {!voiceMode && (
+            <Box sx={{ borderTop: "1px solid #d9d9d9", bgcolor: "#f5f5f5", px: 0.8, py: 0.8,
+              display: "flex", alignItems: "flex-end", gap: 0.5 }}>
+              {/* Voice toggle */}
+              {voiceSupported && (
+                <IconButton onClick={() => setVoiceMode(true)} sx={{ color: "#999", p: 0.8 }}>
+                  <MicIcon sx={{ fontSize: 22 }} />
+                </IconButton>
+              )}
+              {/* Text input with suggestion chips */}
+              <Box sx={{ flex: 1, bgcolor: "#fff", borderRadius: "4px", px: 1, py: 0.5,
+                display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>
+                {selectedSuggestions.map((s, i) => (
+                  <Box key={i} sx={{
+                    display: "inline-flex", alignItems: "center", gap: 0.3,
+                    px: 1, py: 0.2, borderRadius: "12px", fontSize: TYPE.secondary.fontSize,
+                    bgcolor: "#e8f5e9", color: "#07C160", fontWeight: 500, flexShrink: 0,
+                  }}>
+                    {s}
+                    <Box component="span"
+                      onClick={() => setSelectedSuggestions(prev => prev.filter(x => x !== s))}
+                      sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, ml: 0.2, "&:active": { opacity: 0.5 } }}>
+                      ×
+                    </Box>
+                  </Box>
+                ))}
+                <Box component="input" ref={inputRef} value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={loading}
+                  placeholder={selectedSuggestions.length > 0 ? "" : "输入患者信息..."}
+                  sx={{ flex: 1, minWidth: 60, border: "none", outline: "none", fontSize: TYPE.body.fontSize,
+                    fontFamily: "inherit", bgcolor: "transparent", p: 0.3 }}
+                />
               </Box>
-            ))}
-            <Box component="input" ref={inputRef} value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={loading}
-              placeholder={selectedSuggestions.length > 0 ? "" : "输入患者信息..."}
-              sx={{ flex: 1, minWidth: 60, border: "none", outline: "none", fontSize: TYPE.body.fontSize, fontFamily: "inherit",
-                bgcolor: "transparent", p: 0.3 }}
-            />
-          </Box>
-          <IconButton onClick={() => handleSend()} disabled={loading || (!input.trim() && selectedSuggestions.length === 0)}
-            sx={{ bgcolor: "#07C160", color: "#fff", p: 1, borderRadius: "50%",
-              "&:hover": { bgcolor: "#06ad56" }, "&.Mui-disabled": { bgcolor: "#ccc", color: "#fff" } }}>
-            <SendOutlinedIcon fontSize="small" />
-          </IconButton>
-        </Box>
+              {/* Action panel toggle (camera, gallery, file) */}
+              <IconButton onClick={() => setActionPanelOpen(true)} sx={{ color: "#999", p: 0.8 }}>
+                <AddCircleOutlineIcon sx={{ fontSize: 24 }} />
+              </IconButton>
+              {/* Send button */}
+              <IconButton onClick={() => handleSend()} disabled={loading || (!input.trim() && selectedSuggestions.length === 0)}
+                sx={{ bgcolor: "#07C160", color: "#fff", p: 1, borderRadius: "50%",
+                  "&:hover": { bgcolor: "#06ad56" }, "&.Mui-disabled": { bgcolor: "#ccc", color: "#fff" } }}>
+                <SendOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          )}
+        </>
       )}
+
+      {/* Hidden camera input */}
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment"
+        style={{ display: "none" }} onChange={handleCameraFile} />
+
+      {/* Action panel (camera, gallery, file) */}
+      <ActionPanel open={actionPanelOpen} onClose={() => setActionPanelOpen(false)} onAction={handlePanelAction} />
+
+      {/* Import choice dialog (OCR result → send to interview) */}
+      <ImportChoiceDialog
+        open={Boolean(importChoice)} text={importChoice?.text || ""}
+        onInterview={(text) => { setImportChoice(null); setInput(text); }}
+        onChat={(text) => { setImportChoice(null); setInput(text); }}
+        onClose={() => setImportChoice(null)}
+      />
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mx: 1, mb: 0.5 }}>{error}</Alert>}
 
