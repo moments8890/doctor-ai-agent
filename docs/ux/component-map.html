@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Component Map — Page Composition</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f6f8fa;
+  color: #1f2328;
+  min-height: 100vh;
+}
+
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+  background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+  border-bottom: 1px solid #d0d7de;
+  padding: 12px 24px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.header-top { display: flex; align-items: center; gap: 16px; }
+.header h1 { font-size: 18px; font-weight: 700; white-space: nowrap; }
+.header .subtitle { font-size: 12px; color: #656d76; }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: #656d76;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: 10px; background: #fff;
+  border: 1px solid #e1e4e8; cursor: default;
+}
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+.board {
+  margin-top: 90px; padding: 24px;
+  display: flex; gap: 20px;
+  overflow-x: auto; min-height: calc(100vh - 90px);
+  align-items: flex-start;
+}
+
+.page-col {
+  min-width: 200px; max-width: 220px; flex-shrink: 0;
+  background: #fff; border: 1px solid #d0d7de; border-radius: 10px;
+  overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.page-title {
+  padding: 10px 14px; font-size: 13px; font-weight: 700;
+  background: #f6f8fa; border-bottom: 1px solid #e1e4e8;
+  display: flex; align-items: center; gap: 6px;
+}
+.page-title .route {
+  font-size: 10px; font-weight: 400; color: #656d76;
+  font-family: "SF Mono", SFMono-Regular, monospace;
+}
+.page-blocks { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+
+.block {
+  padding: 10px 12px; border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer; transition: all 0.15s ease;
+  position: relative;
+}
+.block:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.block.highlighted {
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.8), 0 0 12px 4px var(--glow);
+  transform: translateY(-2px); z-index: 2;
+}
+.block.dimmed { opacity: 0.25; }
+.block-name { font-size: 12px; font-weight: 600; line-height: 1.3; }
+.block-desc { font-size: 10px; color: #656d76; margin-top: 2px; line-height: 1.3; }
+.block-badge {
+  position: absolute; top: 4px; right: 6px;
+  font-size: 8px; font-weight: 700; color: #fff;
+  background: rgba(0,0,0,0.15); border-radius: 6px;
+  padding: 1px 5px; letter-spacing: 0.3px;
+}
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #1f2328; color: #fff; padding: 8px 16px;
+  border-radius: 8px; font-size: 12px; z-index: 20;
+  opacity: 0; transition: opacity 0.25s;
+  pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+.toast.visible { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <h1>Component Map</h1>
+    <span class="subtitle">Click a block to copy its file path. Hover to highlight shared components across pages.</span>
+  </div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<div class="board" id="board"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── Color palette for shared component groups ── */
+const GROUPS = {
+  SubpageHeader:   { color: '#2da44e', bg: '#dafbe1', label: 'SubpageHeader',   path: 'frontend/web/src/components/common/SubpageHeader.jsx' },
+  ListCard:        { color: '#0969da', bg: '#ddf4ff', label: 'ListCard',         path: 'frontend/web/src/components/common/ListCard.jsx' },
+  FilterStatBar:   { color: '#bf5700', bg: '#fff1e5', label: 'FilterStatBar',    path: 'frontend/web/src/components/common/FilterStatBar.jsx' },
+  MessageItem:     { color: '#8250df', bg: '#fbefff', label: 'MessageItem',      path: 'frontend/web/src/components/chat/MessageItem.jsx' },
+  VoiceInput:      { color: '#0e7c6b', bg: '#ddf5f0', label: 'VoiceInput',       path: 'frontend/web/src/components/common/VoiceInput.jsx' },
+  PatientAvatar:   { color: '#bf3989', bg: '#ffeff7', label: 'PatientAvatar',    path: 'frontend/web/src/components/common/PatientAvatar.jsx' },
+  _page:           { color: '#8c959f', bg: '#f0f2f4', label: 'Page-specific',    path: '' },
+};
+
+/* ── Page definitions ── */
+const PAGES = [
+  { id: 'myai', title: 'MyAI', route: '/doctor', blocks: [
+    { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
+    { name: 'HeroIdentityCard', group: '_page', desc: 'AI name, avatar, stats row', path: 'frontend/web/src/pages/doctor/subpages/MyAISubpage.jsx' },
+    { name: 'CTAButtons', group: '_page', desc: '我的知识库 + 继续教AI', path: 'frontend/web/src/pages/doctor/subpages/MyAISubpage.jsx' },
+    { name: 'QuickActions', group: 'ListCard', desc: '4 ListCard action rows' },
+    { name: 'KnowledgePreview', group: '_page', desc: 'Top 3 knowledge rules', path: 'frontend/web/src/pages/doctor/subpages/MyAISubpage.jsx' },
+    { name: 'RecentActivity', group: 'PatientAvatar', desc: 'AI-processed list + avatars' },
+  ]},
+  { id: 'patients', title: 'Patients', route: '/doctor/patients', blocks: [
+    { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
+    { name: 'SearchBar', group: '_page', desc: 'Patient name search', path: 'frontend/web/src/pages/doctor/PatientsPage.jsx' },
+    { name: 'AIAttentionSection', group: '_page', desc: 'AI-flagged patients', path: 'frontend/web/src/pages/doctor/PatientsPage.jsx' },
+    { name: 'PatientList', group: 'PatientAvatar', desc: 'Scrollable patient cards + avatars' },
+    { name: 'PatientDetail link', group: '_page', desc: '-> PatientDetail column', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
+  ]},
+  { id: 'review', title: '门诊', route: '/doctor/review', blocks: [
+    { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
+    { name: 'FilterStatBar', group: 'FilterStatBar', desc: '待审核 / 已确认 / 已修改' },
+    { name: 'PendingReviewCard', group: 'PatientAvatar', desc: 'Review card + patient avatar' },
+    { name: 'CompletedRow', group: '_page', desc: 'Completed review items', path: 'frontend/web/src/pages/doctor/ReviewPage.jsx' },
+    { name: 'EmptyState', group: '_page', desc: 'No items placeholder', path: 'frontend/web/src/pages/doctor/ReviewPage.jsx' },
+  ]},
+  { id: 'tasks', title: '任务', route: '/doctor/tasks', blocks: [
+    { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
+    { name: 'FilterStatBar', group: 'FilterStatBar', desc: '待回复 / 待完成 / 已完成' },
+    { name: 'MessageItem', group: 'MessageItem', desc: 'Patient messages + AI drafts' },
+    { name: 'ScheduledRow', group: '_page', desc: 'Scheduled follow-ups', path: 'frontend/web/src/pages/doctor/TasksPage.jsx' },
+    { name: 'TaskRow', group: '_page', desc: 'Active task items', path: 'frontend/web/src/pages/doctor/TasksPage.jsx' },
+    { name: 'SentRow', group: '_page', desc: 'Sent message history', path: 'frontend/web/src/pages/doctor/TasksPage.jsx' },
+  ]},
+  { id: 'settings', title: 'Settings', route: '/doctor/settings', blocks: [
+    { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
+    { name: 'AccountBlock', group: '_page', desc: 'Avatar, name, hospital', path: 'frontend/web/src/pages/doctor/SettingsPage.jsx' },
+    { name: 'SettingsRows', group: 'ListCard', desc: 'ListCard setting rows' },
+    { name: 'Subpages', group: '_page', desc: 'Knowledge, Template, About, Privacy', path: 'frontend/web/src/pages/doctor/subpages/' },
+  ]},
+  { id: 'patient-detail', title: 'PatientDetail', route: '/doctor/patients/:id', blocks: [
+    { name: 'StickyTopBar', group: '_page', desc: 'Back button + patient name', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
+    { name: 'CollapsibleProfile', group: '_page', desc: 'Expandable patient info', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
+    { name: 'RecordTabs + RecordCard', group: '_page', desc: 'History / notes tab switcher', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
+    { name: 'PendingReviewRow', group: '_page', desc: '-> links to 门诊 review', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
+    { name: 'PatientMessages', group: '_page', desc: 'Recent messages list', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
+  ]},
+  { id: 'interview', title: 'Interview', route: '/patient/interview', blocks: [
+    { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
+    { name: 'ProgressBar', group: '_page', desc: 'Multi-step progress indicator', path: 'frontend/web/src/pages/patient/InterviewPage.jsx' },
+    { name: 'ChatBubbles', group: 'MessageItem', desc: 'AI / patient chat bubbles' },
+    { name: 'SuggestionChips', group: '_page', desc: 'Quick-reply options', path: 'frontend/web/src/pages/patient/InterviewPage.jsx' },
+    { name: 'InputBar + VoiceInput', group: 'VoiceInput', desc: 'Text + voice input bar' },
+    { name: 'ActionPanel', group: '_page', desc: 'Submit / next actions', path: 'frontend/web/src/pages/patient/InterviewPage.jsx' },
+  ]},
+  { id: 'chat', title: 'Chat', route: '/doctor/chat', blocks: [
+    { name: 'ChatTopbar', group: '_page', desc: 'Patient context header', path: 'frontend/web/src/pages/doctor/ChatPage.jsx' },
+    { name: 'ChatBubbles', group: 'MessageItem', desc: 'Doctor / AI chat bubbles' },
+    { name: 'DataCards', group: '_page', desc: 'Inline structured data cards', path: 'frontend/web/src/pages/doctor/ChatPage.jsx' },
+    { name: 'InputBar + VoiceInput', group: 'VoiceInput', desc: 'Text + voice input bar' },
+    { name: 'ActionPanel', group: '_page', desc: 'Quick actions panel', path: 'frontend/web/src/pages/doctor/ChatPage.jsx' },
+  ]},
+];
+
+/* ── Build legend ── */
+const legendEl = document.getElementById('legend');
+Object.entries(GROUPS).forEach(([key, g]) => {
+  if (key === '_page') return;
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.dataset.group = key;
+  item.innerHTML = `<span class="legend-dot" style="background:${g.color}"></span>${g.label}`;
+  item.addEventListener('mouseenter', () => highlightGroup(key));
+  item.addEventListener('mouseleave', clearHighlight);
+  legendEl.appendChild(item);
+});
+/* Gray entry for page-specific */
+const grayItem = document.createElement('div');
+grayItem.className = 'legend-item';
+grayItem.innerHTML = `<span class="legend-dot" style="background:${GROUPS._page.color}"></span>Page-specific`;
+legendEl.appendChild(grayItem);
+
+/* ── Build page columns ── */
+const boardEl = document.getElementById('board');
+const allBlocks = [];
+
+PAGES.forEach(page => {
+  const col = document.createElement('div');
+  col.className = 'page-col';
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'page-title';
+  titleEl.innerHTML = `${page.title} <span class="route">${page.route}</span>`;
+  col.appendChild(titleEl);
+
+  const blocksEl = document.createElement('div');
+  blocksEl.className = 'page-blocks';
+
+  page.blocks.forEach(block => {
+    const g = GROUPS[block.group] || GROUPS._page;
+    const el = document.createElement('div');
+    el.className = 'block';
+    el.dataset.group = block.group;
+    el.style.background = g.bg;
+    el.style.borderColor = g.bg;
+    el.style.setProperty('--glow', g.color + '66');
+
+    let html = `<div class="block-name" style="color:${g.color}">${block.name}</div>`;
+    html += `<div class="block-desc">${block.desc}</div>`;
+    if (block.group !== '_page') {
+      html += `<span class="block-badge" style="background:${g.color}88">shared</span>`;
+    }
+    el.innerHTML = html;
+
+    /* Resolve file path */
+    const filePath = block.path || g.path;
+    el.dataset.path = filePath;
+
+    el.addEventListener('mouseenter', () => {
+      if (block.group !== '_page') highlightGroup(block.group);
+    });
+    el.addEventListener('mouseleave', clearHighlight);
+    el.addEventListener('click', () => copyPath(filePath));
+
+    blocksEl.appendChild(el);
+    allBlocks.push(el);
+  });
+
+  col.appendChild(blocksEl);
+  boardEl.appendChild(col);
+});
+
+/* ── Interaction: highlight group ── */
+function highlightGroup(group) {
+  allBlocks.forEach(b => {
+    if (b.dataset.group === group) {
+      b.classList.add('highlighted');
+      b.classList.remove('dimmed');
+    } else {
+      b.classList.remove('highlighted');
+      b.classList.add('dimmed');
+    }
+  });
+}
+
+function clearHighlight() {
+  allBlocks.forEach(b => {
+    b.classList.remove('highlighted', 'dimmed');
+  });
+}
+
+/* ── Copy path to clipboard ── */
+const toastEl = document.getElementById('toast');
+let toastTimer;
+function copyPath(path) {
+  if (!path) { showToast('No file path for this block'); return; }
+  navigator.clipboard.writeText(path).then(() => {
+    showToast('Copied: ' + path);
+  }).catch(() => {
+    showToast(path);
+  });
+}
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  toastEl.textContent = msg;
+  toastEl.classList.add('visible');
+  toastTimer = setTimeout(() => toastEl.classList.remove('visible'), 2200);
+}
+</script>
+</body>
+</html>
