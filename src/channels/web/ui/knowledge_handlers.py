@@ -20,12 +20,14 @@ from domain.knowledge.doctor_knowledge import (
     process_knowledge_text,
 )
 from channels.web.ui._utils import _resolve_ui_doctor_id
+from db.models.doctor import KnowledgeCategory
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
 
 
 class AddKnowledgeRequest(BaseModel):
     content: str
+    category: KnowledgeCategory = KnowledgeCategory.custom
 
 
 class ProcessTextRequest(BaseModel):
@@ -62,6 +64,8 @@ async def list_knowledge(
             "source": source,
             "confidence": confidence,
             "category": getattr(item, "category", None) or "custom",
+            "title": item.title or "",
+            "summary": item.summary or "",
             "created_at": item.created_at.isoformat() if item.created_at else None,
         })
     return {"items": result}
@@ -84,6 +88,7 @@ async def add_knowledge(
         item = await save_knowledge_item(
             session, resolved, content,
             source="doctor", confidence=1.0,
+            category=body.category,
         )
     invalidate_knowledge_cache(resolved)
     if not item:
@@ -164,6 +169,7 @@ async def upload_extract(
 class UploadSaveRequest(BaseModel):
     text: str
     source_filename: str
+    category: KnowledgeCategory = KnowledgeCategory.custom
 
 
 @router.post("/api/manage/knowledge/upload/save")
@@ -182,7 +188,7 @@ async def upload_save(
         raise HTTPException(413, "内容过长（超过3000字）")
 
     try:
-        result = await save_uploaded_knowledge(resolved, text, body.source_filename)
+        result = await save_uploaded_knowledge(resolved, text, body.source_filename, category=body.category)
     except ValueError as e:
         raise HTTPException(400, str(e))
 

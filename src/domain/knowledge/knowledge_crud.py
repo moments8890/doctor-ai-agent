@@ -11,6 +11,7 @@ from typing import Optional, Tuple
 
 from db.crud import add_doctor_knowledge_item, list_doctor_knowledge_items
 from db.models import DoctorKnowledgeItem
+from db.models.doctor import KnowledgeCategory
 from utils.log import log
 
 # ── Regex & constants ──────────────────────────────────────────────
@@ -138,6 +139,24 @@ def invalidate_knowledge_cache(doctor_id: str) -> None:
     _invalidate_cache(doctor_id)
 
 
+# ── Title extraction ──────────────────────────────────────────────
+
+def extract_title_from_text(text: str, max_len: int = 50) -> str:
+    """Extract a short title from knowledge text.
+    Strategy: use the first line/sentence, truncated to max_len.
+    """
+    if not text:
+        return ""
+    first_line = text.split("\n")[0].strip()
+    for sep in ("。", "：", ":"):
+        if sep in first_line:
+            first_line = first_line.split(sep)[0].strip()
+            break
+    if len(first_line) > max_len:
+        first_line = first_line[:max_len] + "…"
+    return first_line
+
+
 # ── DB write ───────────────────────────────────────────────────────
 
 async def save_knowledge_item(
@@ -146,6 +165,9 @@ async def save_knowledge_item(
     text: str,
     source: str = "doctor",
     confidence: float = 1.0,
+    category: str = KnowledgeCategory.custom,
+    title: Optional[str] = None,
+    summary: Optional[str] = None,
 ) -> Optional[DoctorKnowledgeItem]:
     cleaned = _normalize_text(text)
     if not cleaned:
@@ -164,4 +186,9 @@ async def save_knowledge_item(
             return row
 
     payload = _encode_knowledge_payload(cleaned, source=source, confidence=confidence)
-    return await add_doctor_knowledge_item(session, doctor_id, payload, category="custom")
+    item = await add_doctor_knowledge_item(session, doctor_id, payload, category=category)
+    item.title = title or extract_title_from_text((text or "").strip())
+    item.summary = summary
+    await session.commit()
+    await session.refresh(item)
+    return item

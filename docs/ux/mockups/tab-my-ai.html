@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的AI — v3 WeChat style</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #ededed;
+    color: #1a1a1a;
+    max-width: 375px;
+    margin: 0 auto;
+    min-height: 812px;
+    padding-bottom: 130px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* === Top bar (48px) === */
+  .top-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 16px;
+    height: 48px;
+    background: #fff;
+    border-bottom: 0.5px solid #d9d9d9;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .top-bar-title { font-size: 16px; font-weight: 600; }
+  .top-bar-action { font-size: 15px; color: #07C160; font-weight: 400; }
+
+  /* === Cards === */
+  .card {
+    background: #fff;
+    margin: 8px 0;
+    border-top: 0.5px solid #e5e5e5;
+    border-bottom: 0.5px solid #e5e5e5;
+  }
+  .card-inner { padding: 14px 16px; }
+
+  /* === Section label === */
+  .section-label {
+    font-size: 12px; font-weight: 600; color: #666;
+    padding: 16px 16px 6px;
+  }
+
+  /* === Hero identity === */
+  .hero-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 0.5px solid #f0f0f0;
+  }
+  .hero-avatar {
+    width: 44px; height: 44px; border-radius: 6px;
+    background: #07C160;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 20px; font-weight: 600;
+    flex-shrink: 0;
+  }
+  .hero-info { flex: 1; }
+  .hero-name { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+  .hero-meta { font-size: 13px; color: #999; margin-top: 2px; }
+  .hero-status {
+    font-size: 11px; font-weight: 500; color: #07C160;
+  }
+
+  /* Hero stats row */
+  .hero-stats {
+    display: flex; padding: 12px 16px;
+    border-bottom: 0.5px solid #f0f0f0;
+  }
+  .hero-stat {
+    flex: 1; text-align: center;
+  }
+  .hero-stat-num { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+  .hero-stat-label { font-size: 11px; color: #999; margin-top: 2px; }
+  .hero-stat + .hero-stat { border-left: 0.5px solid #f0f0f0; }
+
+  /* Hero live line */
+  .hero-live {
+    padding: 10px 16px;
+    font-size: 13px; color: #666; line-height: 1.5;
+  }
+  .hero-live .hl { color: #07C160; font-weight: 500; }
+
+  /* === List rows === */
+  .list-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 16px;
+    border-bottom: 0.5px solid #f0f0f0;
+  }
+  .list-row:last-child { border-bottom: none; }
+  .list-icon {
+    width: 36px; height: 36px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0; color: #fff;
+  }
+  .list-icon.green { background: #07C160; }
+  .list-icon.amber { background: #F59E0B; }
+  .list-icon.blue { background: #576B95; }
+  .list-icon.gray { background: #999; }
+  .list-text { flex: 1; min-width: 0; }
+  .list-title { font-size: 14px; font-weight: 400; color: #1a1a1a; }
+  .list-sub { font-size: 13px; color: #999; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .list-right { flex-shrink: 0; display: flex; align-items: center; gap: 4px; }
+  .list-chevron { font-size: 14px; color: #c7c7cc; }
+  .list-badge {
+    font-size: 11px; font-weight: 500; color: #fff;
+    background: #F59E0B; border-radius: 8px;
+    padding: 1px 6px; min-width: 16px; text-align: center;
+  }
+  .list-badge.red { background: #ef4444; }
+  .list-time { font-size: 12px; color: #999; }
+
+  /* === Rule card (inline) === */
+  .rule-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 0.5px solid #f0f0f0;
+  }
+  .rule-row:last-child { border-bottom: none; }
+  .rule-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #07C160; flex-shrink: 0;
+    margin-top: 6px;
+  }
+  .rule-content { flex: 1; }
+  .rule-title { font-size: 14px; font-weight: 400; color: #1a1a1a; }
+  .rule-detail { font-size: 12px; color: #999; margin-top: 2px; line-height: 1.4; }
+  .rule-right { font-size: 12px; color: #999; flex-shrink: 0; }
+
+  /* === Patient rows === */
+  .patient-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 500; color: #fff; flex-shrink: 0;
+  }
+  .patient-avatar.pa { background: #576B95; }
+  .patient-avatar.pb { background: #F59E0B; }
+
+  /* === AskAI bar === */
+  .ask-bar {
+    position: fixed; bottom: 68px; left: 50%; transform: translateX(-50%);
+    width: 343px; background: #fff;
+    border: 0.5px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px; z-index: 20;
+  }
+  .ask-icon {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: #07C160;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 12px; flex-shrink: 0;
+  }
+  .ask-text { font-size: 14px; color: #999; }
+
+  /* === Tab bar (64px) === */
+  .tab-bar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 375px; background: #f7f7f7;
+    border-top: 0.5px solid #d9d9d9;
+    display: flex; padding: 6px 0 20px; z-index: 20;
+  }
+  .tab { flex: 1; text-align: center; cursor: pointer; }
+  .tab-icon { font-size: 20px; margin-bottom: 1px; color: #999; }
+  .tab-label { font-size: 10px; color: #999; }
+  .tab.active .tab-icon { color: #07C160; }
+  .tab.active .tab-label { color: #07C160; font-weight: 600; }
+  .tab-inner { position: relative; display: inline-block; }
+  .tab-badge {
+    position: absolute; top: -2px; right: -8px;
+    min-width: 14px; height: 14px; border-radius: 7px;
+    background: #ef4444; color: #fff; font-size: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; padding: 0 3px;
+  }
+
+  /* CTA row */
+  .cta-row {
+    display: flex; gap: 10px; padding: 10px 16px 14px;
+  }
+  .cta-primary {
+    flex: 1; padding: 10px; border-radius: 6px;
+    background: #07C160; color: #fff; font-size: 14px; font-weight: 500;
+    border: none; cursor: pointer; text-align: center;
+  }
+  .cta-secondary {
+    flex: 1; padding: 10px; border-radius: 6px;
+    background: #fff; color: #333; font-size: 14px; font-weight: 400;
+    border: 0.5px solid #e5e5e5; cursor: pointer; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <span class="top-bar-title">我的AI</span>
+  <span class="top-bar-action">设置</span>
+</div>
+
+<!-- Hero identity card -->
+<div class="card" style="margin-top: 0;">
+  <!-- Identity row -->
+  <div class="hero-row">
+    <div class="hero-avatar">AI</div>
+    <div class="hero-info">
+      <div class="hero-name">张医生AI</div>
+      <div class="hero-meta">神经外科 · 已学会 12 条规则</div>
+    </div>
+    <div class="hero-status">在线</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-num">26</div>
+      <div class="hero-stat-label">7天引用</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">2</div>
+      <div class="hero-stat-label">待确认</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">3</div>
+      <div class="hero-stat-label">今日处理</div>
+    </div>
+  </div>
+
+  <!-- Live status -->
+  <div class="hero-live">
+    刚刚在李阿姨复诊中用了「<span class="hl">术后头痛红旗</span>」
+  </div>
+
+  <!-- CTAs -->
+  <div class="cta-row">
+    <button class="cta-primary">继续教AI</button>
+    <button class="cta-secondary">导入病例</button>
+  </div>
+</div>
+
+<!-- Quick actions -->
+<div class="section-label">快捷入口</div>
+<div class="card">
+  <div class="list-row">
+    <div class="list-icon green">◫</div>
+    <div class="list-text">
+      <div class="list-title">患者预问诊码</div>
+      <div class="list-sub">患者扫码自助填写病史</div>
+    </div>
+    <div class="list-right"><span class="list-chevron">›</span></div>
+  </div>
+  <div class="list-row">
+    <div class="list-icon amber">✓</div>
+    <div class="list-text">
+      <div class="list-title">待审核</div>
+      <div class="list-sub">AI建议等你确认</div>
+    </div>
+    <div class="list-right"><span class="list-badge">3</span><span class="list-chevron"> ›</span></div>
+  </div>
+  <div class="list-row">
+    <div class="list-icon blue">💬</div>
+    <div class="list-text">
+      <div class="list-title">处理随访</div>
+      <div class="list-sub">患者消息可快速处理</div>
+    </div>
+    <div class="list-right"><span class="list-badge red">5</span><span class="list-chevron"> ›</span></div>
+  </div>
+</div>
+
+<!-- My methods / knowledge -->
+<div class="section-label" style="display:flex;justify-content:space-between;align-items:center;padding-right:16px;">
+  <span>我的方法 · 最近活跃</span>
+  <span style="font-size:12px;color:#07C160;font-weight:400;">全部 12 条 ›</span>
+</div>
+<div class="card">
+  <div class="rule-row">
+    <div class="rule-dot"></div>
+    <div class="rule-content">
+      <div class="rule-title">术后头痛红旗</div>
+      <div class="rule-detail">先排除再出血，再评估颅压</div>
+    </div>
+    <div class="rule-right">今天3次</div>
+  </div>
+  <div class="rule-row">
+    <div class="rule-dot"></div>
+    <div class="rule-content">
+      <div class="rule-title">TIA复查路径</div>
+      <div class="rule-detail">48h内颈动脉超声+MRA</div>
+    </div>
+    <div class="rule-right">本周5次</div>
+  </div>
+  <div class="rule-row">
+    <div class="rule-dot" style="background:#F59E0B;"></div>
+    <div class="rule-content">
+      <div class="rule-title">随访安抚话术</div>
+      <div class="rule-detail">先共情再给时间节点</div>
+    </div>
+    <div class="rule-right" style="color:#F59E0B;">待确认</div>
+  </div>
+</div>
+
+<!-- Recent AI activity -->
+<div class="section-label" style="display:flex;justify-content:space-between;align-items:center;padding-right:16px;">
+  <span>最近由AI处理</span>
+  <span style="font-size:12px;color:#07C160;font-weight:400;">全部 ›</span>
+</div>
+<div class="card">
+  <div class="list-row">
+    <div class="patient-avatar pa">王</div>
+    <div class="list-text">
+      <div class="list-title">王建国</div>
+      <div class="list-sub">按你的话术起草了随访回复</div>
+    </div>
+    <div class="list-right"><span class="list-badge">待确认</span></div>
+  </div>
+  <div class="list-row">
+    <div class="patient-avatar pb">李</div>
+    <div class="list-text">
+      <div class="list-title">李阿姨</div>
+      <div class="list-sub">诊断建议引用了 2 条规则</div>
+    </div>
+    <div class="list-right"><span class="list-time">10分钟前</span></div>
+  </div>
+</div>
+
+<!-- AskAI bar -->
+<div class="ask-bar">
+  <div class="ask-icon">AI</div>
+  <div class="ask-text">让张医生AI先看一眼...</div>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <div class="tab active">
+    <div class="tab-inner">
+      <div class="tab-icon">◆</div>
+      <div class="tab-label">我的AI</div>
+    </div>
+  </div>
+  <div class="tab">
+    <div class="tab-inner">
+      <div class="tab-icon">👤</div>
+      <div class="tab-label">患者</div>
+    </div>
+  </div>
+  <div class="tab">
+    <div class="tab-inner">
+      <div class="tab-icon">☑</div>
+      <div class="tab-label">审核</div>
+      <div class="tab-badge">3</div>
+    </div>
+  </div>
+  <div class="tab">
+    <div class="tab-inner">
+      <div class="tab-icon">✉</div>
+      <div class="tab-label">随访</div>
+      <div class="tab-badge">5</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

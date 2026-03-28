@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>随访 — v3 WeChat style</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #ededed;
+    color: #1a1a1a;
+    max-width: 375px;
+    margin: 0 auto;
+    min-height: 812px;
+    padding-bottom: 130px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .top-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 16px; height: 48px;
+    background: #fff;
+    border-bottom: 0.5px solid #d9d9d9;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .top-bar-title { font-size: 16px; font-weight: 600; }
+  .top-bar-action { font-size: 15px; color: #07C160; font-weight: 400; }
+
+  .card {
+    background: #fff;
+    margin: 8px 0;
+    border-top: 0.5px solid #e5e5e5;
+    border-bottom: 0.5px solid #e5e5e5;
+  }
+
+  .section-label {
+    font-size: 12px; font-weight: 600; color: #666;
+    padding: 14px 16px 6px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  /* Summary bar */
+  .summary-bar {
+    display: flex; padding: 12px 16px;
+    background: #fff;
+    border-bottom: 0.5px solid #e5e5e5;
+    border-top: 0.5px solid #e5e5e5;
+  }
+  .summary-stat { flex: 1; text-align: center; }
+  .summary-num { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+  .summary-num.red { color: #D65745; }
+  .summary-num.amber { color: #F59E0B; }
+  .summary-label { font-size: 11px; color: #999; margin-top: 2px; }
+  .summary-stat + .summary-stat { border-left: 0.5px solid #f0f0f0; }
+
+  /* Message item */
+  .msg-item {
+    padding: 14px 16px;
+    border-bottom: 0.5px solid #f0f0f0;
+  }
+  .msg-item:last-child { border-bottom: none; }
+
+  .msg-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .msg-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500; color: #fff; flex-shrink: 0;
+  }
+  .ma-blue { background: #576B95; }
+  .ma-amber { background: #F59E0B; }
+  .ma-red { background: #D65745; }
+  .ma-green { background: #07C160; }
+  .ma-gray { background: #999; }
+  .msg-who { flex: 1; }
+  .msg-name { font-size: 14px; font-weight: 400; color: #1a1a1a; }
+  .msg-time { font-size: 12px; color: #999; }
+  .msg-badge {
+    font-size: 11px; font-weight: 500;
+    border-radius: 3px; padding: 0 5px;
+    border: 0.5px solid;
+  }
+  .mb-urgent { color: #D65745; border-color: #D65745; }
+  .mb-new { color: #F59E0B; border-color: #F59E0B; }
+
+  /* Patient message preview */
+  .msg-bubble {
+    background: #f7f7f7;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 13px; color: #333; line-height: 1.5;
+  }
+
+  /* AI draft */
+  .msg-draft {
+    background: #fff;
+    border: 0.5px solid #e5e5e5;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .draft-label {
+    font-size: 11px; color: #07C160; font-weight: 500;
+    margin-bottom: 4px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .draft-text { font-size: 13px; color: #333; line-height: 1.5; }
+  .draft-citation { font-size: 11px; color: #999; margin-top: 6px; }
+  .draft-citation .tag { color: #07C160; }
+
+  /* Actions */
+  .msg-actions {
+    display: flex; justify-content: flex-end; gap: 16px;
+  }
+  .msg-action { font-size: 13px; font-weight: 400; cursor: pointer; }
+  .msg-action.send { color: #07C160; }
+  .msg-action.edit { color: #576B95; }
+  .msg-action.dismiss { color: #999; }
+
+  /* Scheduled row */
+  .sched-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 0.5px solid #f0f0f0;
+  }
+  .sched-row:last-child { border-bottom: none; }
+  .sched-icon { font-size: 14px; color: #999; flex-shrink: 0; }
+  .sched-info { flex: 1; }
+  .sched-title { font-size: 14px; color: #1a1a1a; }
+  .sched-detail { font-size: 12px; color: #999; margin-top: 1px; }
+  .sched-date { font-size: 12px; color: #999; flex-shrink: 0; }
+  .sched-date.soon { color: #F59E0B; font-weight: 500; }
+
+  /* Tab bar */
+  .tab-bar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 375px; background: #f7f7f7;
+    border-top: 0.5px solid #d9d9d9;
+    display: flex; padding: 6px 0 20px; z-index: 20;
+  }
+  .tab { flex: 1; text-align: center; cursor: pointer; }
+  .tab-icon { font-size: 20px; margin-bottom: 1px; color: #999; }
+  .tab-label { font-size: 10px; color: #999; }
+  .tab.active .tab-icon { color: #07C160; }
+  .tab.active .tab-label { color: #07C160; font-weight: 600; }
+  .tab-inner { position: relative; display: inline-block; }
+  .tab-badge {
+    position: absolute; top: -2px; right: -8px;
+    min-width: 14px; height: 14px; border-radius: 7px;
+    background: #ef4444; color: #fff; font-size: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; padding: 0 3px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <span class="top-bar-title">随访</span>
+  <span class="top-bar-action"></span>
+</div>
+
+<!-- Summary -->
+<div class="summary-bar">
+  <div class="summary-stat">
+    <div class="summary-num red">2</div>
+    <div class="summary-label">待回复</div>
+  </div>
+  <div class="summary-stat">
+    <div class="summary-num amber">3</div>
+    <div class="summary-label">AI已起草</div>
+  </div>
+  <div class="summary-stat">
+    <div class="summary-num">4</div>
+    <div class="summary-label">即将到期</div>
+  </div>
+</div>
+
+<!-- Pending replies -->
+<div class="section-label">
+  <span>患者消息 · 待回复</span>
+</div>
+<div class="card">
+
+  <!-- Item 1: AI drafted reply -->
+  <div class="msg-item">
+    <div class="msg-header">
+      <div class="msg-avatar ma-amber">刘</div>
+      <div class="msg-who">
+        <div class="msg-name">刘明</div>
+        <div class="msg-time">今天 13:20</div>
+      </div>
+      <span class="msg-badge mb-new">新消息</span>
+    </div>
+    <div class="msg-bubble">
+      张医生您好，我昨天晚上又头晕了一次，大概持续了十几秒，翻身的时候发作的，需要去医院吗？
+    </div>
+    <div class="msg-draft">
+      <div class="draft-label">AI按你的话术起草</div>
+      <div class="draft-text">刘先生您好，根据您描述的情况（翻身时短暂头晕），考虑可能与体位变化有关。建议您先观察2-3天，如果发作频率增加或持续时间超过1分钟，请及时来院复查。</div>
+      <div class="draft-citation">引用：<span class="tag">随访安抚话术</span></div>
+    </div>
+    <div class="msg-actions">
+      <span class="msg-action edit">✎ 修改</span>
+      <span class="msg-action send">发送 ›</span>
+    </div>
+  </div>
+
+  <!-- Item 2: No AI draft yet -->
+  <div class="msg-item">
+    <div class="msg-header">
+      <div class="msg-avatar ma-red">王</div>
+      <div class="msg-who">
+        <div class="msg-name">王建国</div>
+        <div class="msg-time">今天 11:45</div>
+      </div>
+      <span class="msg-badge mb-urgent">紧急</span>
+    </div>
+    <div class="msg-bubble">
+      张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？
+    </div>
+    <div class="msg-draft">
+      <div class="draft-label">AI按你的话术起草</div>
+      <div class="draft-text">王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。</div>
+      <div class="draft-citation">引用：<span class="tag">术后头痛红旗</span></div>
+    </div>
+    <div class="msg-actions">
+      <span class="msg-action edit">✎ 修改</span>
+      <span class="msg-action send">发送 ›</span>
+    </div>
+  </div>
+</div>
+
+<!-- Upcoming follow-ups -->
+<div class="section-label">
+  <span>即将到期的随访</span>
+</div>
+<div class="card">
+  <div class="sched-row">
+    <span class="sched-icon">◷</span>
+    <div class="sched-info">
+      <div class="sched-title">王建国 · 术后复查CT</div>
+      <div class="sched-detail">脑膜瘤术后第7天常规复查</div>
+    </div>
+    <span class="sched-date soon">今天</span>
+  </div>
+  <div class="sched-row">
+    <span class="sched-icon">◷</span>
+    <div class="sched-info">
+      <div class="sched-title">李阿姨 · 颈动脉超声</div>
+      <div class="sched-detail">TIA首发48h内血管评估</div>
+    </div>
+    <span class="sched-date soon">明天</span>
+  </div>
+  <div class="sched-row">
+    <span class="sched-icon">◷</span>
+    <div class="sched-info">
+      <div class="sched-title">赵敏 · 用药效果复查</div>
+      <div class="sched-detail">卡马西平2周疗效评估</div>
+    </div>
+    <span class="sched-date">4月3日</span>
+  </div>
+  <div class="sched-row">
+    <span class="sched-icon">◷</span>
+    <div class="sched-info">
+      <div class="sched-title">陈大伟 · 腰椎复查</div>
+      <div class="sched-detail">保守治疗1个月评估</div>
+    </div>
+    <span class="sched-date">4月10日</span>
+  </div>
+</div>
+
+<!-- Recently sent -->
+<div class="section-label">
+  <span>最近已发送</span>
+</div>
+<div class="card">
+  <div class="sched-row">
+    <span class="sched-icon" style="color:#07C160;">✓</span>
+    <div class="sched-info">
+      <div class="sched-title" style="color:#999;">赵敏 · 服药提醒</div>
+      <div class="sched-detail">已发送 · 患者已读</div>
+    </div>
+    <span class="sched-date">昨天</span>
+  </div>
+  <div class="sched-row">
+    <span class="sched-icon" style="color:#07C160;">✓</span>
+    <div class="sched-info">
+      <div class="sched-title" style="color:#999;">周小林 · 复查提醒</div>
+      <div class="sched-detail">已发送 · 患者未读</div>
+    </div>
+    <span class="sched-date">3月25日</span>
+  </div>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <div class="tab">
+    <div class="tab-inner">
+      <div class="tab-icon">◆</div>
+      <div class="tab-label">我的AI</div>
+    </div>
+  </div>
+  <div class="tab">
+    <div class="tab-inner">
+      <div class="tab-icon">👤</div>
+      <div class="tab-label">患者</div>
+    </div>
+  </div>
+  <div class="tab">
+    <div class="tab-inner">
+      <div class="tab-icon">☑</div>
+      <div class="tab-label">审核</div>
+    </div>
+  </div>
+  <div class="tab active">
+    <div class="tab-inner">
+      <div class="tab-icon">✉</div>
+      <div class="tab-label">随访</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -23,6 +23,7 @@ from db.crud.patient_message import save_patient_message
 from db.engine import AsyncSessionLocal
 from db.models.ai_suggestion import AISuggestion, SuggestionDecision, SuggestionSection
 from db.models.records import MedicalRecordDB, RecordStatus
+from domain.knowledge.teaching import log_doctor_edit, should_prompt_teaching
 from utils.log import log, safe_create_task
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
@@ -189,6 +190,9 @@ async def decide_suggestion(
         if row is None:
             raise HTTPException(status_code=404, detail="Suggestion not found")
 
+        # Capture original text before update for teaching loop
+        original_text = row.content or row.detail or ""
+
         updated = await update_decision(
             db,
             suggestion_id,
@@ -197,10 +201,34 @@ async def decide_suggestion(
             reason=body.reason,
         )
 
+        # Teaching loop: detect significant edits and prompt doctor to save as rule
+        teach_prompt = False
+        edit_id = None
+        if (
+            decision_enum == SuggestionDecision.edited
+            and body.edited_text
+            and should_prompt_teaching(original_text, body.edited_text)
+        ):
+            edit_id = await log_doctor_edit(
+                db,
+                doctor_id=row.doctor_id,
+                entity_type="diagnosis",
+                entity_id=suggestion_id,
+                original_text=original_text,
+                edited_text=body.edited_text,
+                field_name="content",
+            )
+            teach_prompt = True
+            await db.commit()
+
     if updated is None:
         raise HTTPException(status_code=404, detail="Suggestion not found")
 
-    return {"status": "ok", "id": updated.id, "decision": updated.decision}
+    result: dict = {"status": "ok", "id": updated.id, "decision": updated.decision}
+    if teach_prompt and edit_id is not None:
+        result["teach_prompt"] = True
+        result["edit_id"] = edit_id
+    return result
 
 
 # ── 4. POST /records/{record_id}/suggestions — add custom suggestion ─────

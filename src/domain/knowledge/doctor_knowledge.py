@@ -8,6 +8,7 @@ All public symbols are defined in the focused sub-modules:
 """
 
 from domain.knowledge.knowledge_crud import (
+    extract_title_from_text,
     invalidate_knowledge_cache,
     knowledge_limits,
     parse_add_to_knowledge_command,
@@ -26,6 +27,7 @@ from domain.knowledge.knowledge_ingest import (
 
 __all__ = [
     # crud
+    "extract_title_from_text",
     "invalidate_knowledge_cache",
     "knowledge_limits",
     "parse_add_to_knowledge_command",

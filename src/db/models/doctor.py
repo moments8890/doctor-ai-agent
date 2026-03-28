@@ -5,11 +5,21 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
 from db.models.base import _utcnow
+
+
+class KnowledgeCategory(str, Enum):
+    custom = "custom"
+    diagnosis = "diagnosis"
+    communication = "communication"
+    followup = "followup"
+    medication = "medication"
+    preference = "preference"
 
 
 class DoctorKnowledgeItem(Base):
@@ -19,7 +29,9 @@ class DoctorKnowledgeItem(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    category: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, default="custom")
+    category: Mapped[Optional[KnowledgeCategory]] = mapped_column(String(32), nullable=True, default=KnowledgeCategory.custom)
+    title: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     reference_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)

@@ -12,9 +12,11 @@ from domain.knowledge.knowledge_crud import (
     _encode_knowledge_payload,
     _int_env,
     _normalize_text,
+    extract_title_from_text,
     invalidate_knowledge_cache,
     knowledge_limits,
 )
+from db.models.doctor import KnowledgeCategory
 from utils.log import log
 
 
@@ -149,7 +151,7 @@ async def process_knowledge_text(raw_text: str) -> dict:
     }
 
 
-async def save_uploaded_knowledge(doctor_id: str, text: str, source_filename: str) -> dict:
+async def save_uploaded_knowledge(doctor_id: str, text: str, source_filename: str, category: str = KnowledgeCategory.custom) -> dict:
     """Save doctor-approved text as a knowledge item."""
     from db.engine import AsyncSessionLocal
     from db.crud import add_doctor_knowledge_item
@@ -162,8 +164,11 @@ async def save_uploaded_knowledge(doctor_id: str, text: str, source_filename: st
     payload = _encode_knowledge_payload(text.strip(), source="upload:{0}".format(source_filename), confidence=1.0)
 
     async with AsyncSessionLocal() as session:
-        item = await add_doctor_knowledge_item(session, doctor_id, payload, category="custom")
+        item = await add_doctor_knowledge_item(session, doctor_id, payload, category=category)
         # Note: add_doctor_knowledge_item already commits
+        if item:
+            item.title = extract_title_from_text(text.strip())
+            await session.commit()
 
     # Invalidate cache
     invalidate_knowledge_cache(doctor_id)

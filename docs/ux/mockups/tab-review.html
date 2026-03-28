@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>审核 — v3 WeChat style</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #ededed;
+    color: #1a1a1a;
+    max-width: 375px;
+    margin: 0 auto;
+    min-height: 812px;
+    padding-bottom: 130px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Top bar */
+  .top-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 16px; height: 48px;
+    background: #fff;
+    border-bottom: 0.5px solid #d9d9d9;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .top-bar-title { font-size: 16px; font-weight: 600; }
+  .top-bar-action { font-size: 15px; color: #07C160; font-weight: 400; }
+
+  /* Cards */
+  .card {
+    background: #fff;
+    margin: 8px 0;
+    border-top: 0.5px solid #e5e5e5;
+    border-bottom: 0.5px solid #e5e5e5;
+  }
+
+  /* Section label */
+  .section-label {
+    font-size: 12px; font-weight: 600; color: #666;
+    padding: 14px 16px 6px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .section-link { font-size: 12px; color: #07C160; font-weight: 400; }
+
+  /* Review item */
+  .review-item {
+    padding: 14px 16px;
+    border-bottom: 0.5px solid #f0f0f0;
+  }
+  .review-item:last-child { border-bottom: none; }
+
+  .review-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .review-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500; color: #fff; flex-shrink: 0;
+  }
+  .ra-blue { background: #576B95; }
+  .ra-amber { background: #F59E0B; }
+  .ra-red { background: #D65745; }
+  .ra-green { background: #07C160; }
+  .review-who { flex: 1; }
+  .review-name { font-size: 14px; font-weight: 400; color: #1a1a1a; }
+  .review-time { font-size: 12px; color: #999; }
+  .review-badge {
+    font-size: 11px; font-weight: 500;
+    border-radius: 3px; padding: 0 5px;
+    border: 0.5px solid;
+  }
+  .rb-pending { color: #F59E0B; border-color: #F59E0B; }
+  .rb-urgent { color: #D65745; border-color: #D65745; }
+
+  /* Diagnosis preview */
+  .review-diagnosis {
+    background: #f7f7f7;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .diag-title { font-size: 13px; font-weight: 400; color: #1a1a1a; margin-bottom: 4px; }
+  .diag-detail { font-size: 12px; color: #666; line-height: 1.4; }
+
+  /* Knowledge citation */
+  .review-citation {
+    font-size: 12px; color: #999; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .citation-tag {
+    font-size: 11px; color: #07C160; font-weight: 500;
+  }
+
+  /* Review actions */
+  .review-actions {
+    display: flex; justify-content: flex-end; gap: 16px;
+  }
+  .review-action {
+    font-size: 13px; font-weight: 400; cursor: pointer;
+  }
+  .review-action.confirm { color: #07C160; }
+  .review-action.edit { color: #576B95; }
+  .review-action.reject { color: #D65745; }
+
+  /* Summary stats */
+  .summary-bar {
+    display: flex; padding: 12px 16px;
+    background: #fff;
+    border-bottom: 0.5px solid #e5e5e5;
+    border-top: 0.5px solid #e5e5e5;
+  }
+  .summary-stat {
+    flex: 1; text-align: center;
+  }
+  .summary-num { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+  .summary-num.amber { color: #F59E0B; }
+  .summary-label { font-size: 11px; color: #999; margin-top: 2px; }
+  .summary-stat + .summary-stat { border-left: 0.5px solid #f0f0f0; }
+
+  /* Completed row */
+  .done-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 0.5px solid #f0f0f0;
+  }
+  .done-row:last-child { border-bottom: none; }
+  .done-check { font-size: 14px; color: #07C160; flex-shrink: 0; }
+  .done-info { flex: 1; }
+  .done-name { font-size: 14px; color: #999; }
+  .done-detail { font-size: 12px; color: #ccc; margin-top: 1px; }
+  .done-time { font-size: 11px; color: #ccc; flex-shrink: 0; }
+
+  /* Tab bar */
+  .tab-bar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 375px; background: #f7f7f7;
+    border-top: 0.5px solid #d9d9d9;
+    display: flex; padding: 6px 0 20px; z-index: 20;
+  }
+  .tab { flex: 1; text-align: center; cursor: pointer; }
+  .tab-icon { font-size: 20px; margin-bottom: 1px; color: #999; }
+  .tab-label { font-size: 10px; color: #999; }
+  .tab.active .tab-icon { color: #07C160; }
+  .tab.active .tab-label { color: #07C160; font-weight: 600; }
+  .tab-inner { position: relative; display: inline-block; }
+  .tab-badge {
+    position: absolute; top: -2px; right: -8px;
+    min-width: 14px; height: 14px; border-radius: 7px;
+    background: #ef4444; color: #fff; font-size: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; padding: 0 3px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <span class="top-bar-title">审核</span>
+  <span class="top-bar-action"></span>
+</div>
+
+<!-- Summary -->
+<div class="summary-bar">
+  <div class="summary-stat">
+    <div class="summary-num amber">3</div>
+    <div class="summary-label">待审核</div>
+  </div>
+  <div class="summary-stat">
+    <div class="summary-num">8</div>
+    <div class="summary-label">已确认</div>
+  </div>
+  <div class="summary-stat">
+    <div class="summary-num">2</div>
+    <div class="summary-label">已修改</div>
+  </div>
+</div>
+
+<!-- Pending review -->
+<div class="section-label">
+  <span>待审核 · 3条</span>
+</div>
+<div class="card">
+
+  <!-- Item 1 -->
+  <div class="review-item">
+    <div class="review-header">
+      <div class="review-avatar ra-red">王</div>
+      <div class="review-who">
+        <div class="review-name">王建国</div>
+        <div class="review-time">今天 14:32</div>
+      </div>
+      <span class="review-badge rb-urgent">紧急</span>
+    </div>
+    <div class="review-diagnosis">
+      <div class="diag-title">鉴别诊断：术后迟发性血肿</div>
+      <div class="diag-detail">术后第7天头痛加剧，需排除迟发性硬膜外/下血肿，建议急查头颅CT</div>
+    </div>
+    <div class="review-citation">
+      引用了你的规则：<span class="citation-tag">术后头痛红旗</span>
+    </div>
+    <div class="review-actions">
+      <span class="review-action reject">✗ 排除</span>
+      <span class="review-action edit">✎ 修改</span>
+      <span class="review-action confirm">✓ 确认</span>
+    </div>
+  </div>
+
+  <!-- Item 2 -->
+  <div class="review-item">
+    <div class="review-header">
+      <div class="review-avatar ra-blue">李</div>
+      <div class="review-who">
+        <div class="review-name">李阿姨</div>
+        <div class="review-time">今天 14:08</div>
+      </div>
+      <span class="review-badge rb-pending">待处理</span>
+    </div>
+    <div class="review-diagnosis">
+      <div class="diag-title">检查建议：颈动脉超声 + MRA</div>
+      <div class="diag-detail">首发TIA，ABCD2评分4分，48h内完成血管评估</div>
+    </div>
+    <div class="review-citation">
+      引用了你的规则：<span class="citation-tag">TIA复查路径</span>
+    </div>
+    <div class="review-actions">
+      <span class="review-action reject">✗ 排除</span>
+      <span class="review-action edit">✎ 修改</span>
+      <span class="review-action confirm">✓ 确认</span>
+    </div>
+  </div>
+
+  <!-- Item 3 -->
+  <div class="review-item">
+    <div class="review-header">
+      <div class="review-avatar ra-amber">刘</div>
+      <div class="review-who">
+        <div class="review-name">刘明</div>
+        <div class="review-time">今天 13:45</div>
+      </div>
+      <span class="review-badge rb-pending">待处理</span>
+    </div>
+    <div class="review-diagnosis">
+      <div class="diag-title">鉴别诊断：良性阵发性位置性眩晕</div>
+      <div class="diag-detail">反复发作位置性头晕，Dix-Hallpike试验阳性可能</div>
+    </div>
+    <div class="review-citation">
+      未引用个人规则
+    </div>
+    <div class="review-actions">
+      <span class="review-action reject">✗ 排除</span>
+      <span class="review-action edit">✎ 修改</span>
+      <span class="review-action confirm">✓ 确认</span>
+    </div>
+  </div>
+</div>
+
+<!-- Recently completed -->
+<div class="section-label">
+  <span>最近已审核</span>
+</div>
+<div class="card">
+  <div class="done-row">
+    <span class="done-check">✓</span>
+    <div class="done-info">
+      <div class="done-name">赵敏 · 三叉神经痛药物方案</div>
+      <div class="done-detail">已确认 · 引用了你的 1 条规则</div>
+    </div>
+    <span class="done-time">昨天</span>
+  </div>
+  <div class="done-row">
+    <span class="done-check" style="color:#F59E0B;">✎</span>
+    <div class="done-info">
+      <div class="done-name">陈大伟 · 腰椎管狭窄保守方案</div>
+      <div class="done-detail">已修改 · 你调整了用药剂量</div>
+    </div>
+    <span class="done-time">3月25日</span>
+  </div>
+  <div class="done-row">
+    <span class="done-check">✓</span>
+    <div class="done-info">
+      <div class="done-name">周小林 · 颈椎间盘突出评估</div>
+      <div class="done-detail">已确认</div>
+    </div>
+    <span class="done-time">3月24日</span>
+  </div>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <div class="tab">
+    <div class="tab-inner">
+      <div class="tab-icon">◆</div>
+      <div class="tab-label">我的AI</div>
+    </div>
+  </div>
+  <div class="tab">
+    <div class="tab-inner">
+      <div class="tab-icon">👤</div>
+      <div class="tab-label">患者</div>
+    </div>
+  </div>
+  <div class="tab active">
+    <div class="tab-inner">
+      <div class="tab-icon">☑</div>
+      <div class="tab-label">审核</div>
+    </div>
+  </div>
+  <div class="tab">
+    <div class="tab-inner">
+      <div class="tab-icon">✉</div>
+      <div class="tab-label">随访</div>
+      <div class="tab-badge">5</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
