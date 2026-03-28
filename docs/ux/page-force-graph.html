@@ -118,8 +118,7 @@ var NODES = [
   { id: 'followup', label: '随访',     route: '/doctor/followup',   comp: 'FollowupPage',    img: 'doctor-followup.png', app: 'doctor', color: '#1a7f37', gx: 0.56, gy: 0.14 },
   // Doctor main pages — row 1
   { id: 'chat',     label: 'AI Chat ⚠', route: '/doctor/chat',       comp: 'ChatPage',        img: 'doctor-chat.png',     app: 'doctor', color: '#9a6700', gx: 0.06, gy: 0.40, reason: 'No nav tab. Reachable via AskAIBar and navigate() calls only.' },
-  { id: 'tasks',    label: '任务 ⚠',   route: '/doctor/tasks',      comp: 'TasksPage',       img: 'doctor-tasks.png',    app: 'doctor', color: '#9a6700', gx: 0.20, gy: 0.40, reason: 'No mobile nav tab. Desktop sidebar only + stat card click.' },
-  { id: 'settings', label: '设置',     route: '/doctor/settings',   comp: 'SettingsPage',    img: 'doctor-settings.png', app: 'doctor', color: '#0969da', gx: 0.34, gy: 0.40 },
+  { id: 'settings', label: '设置',     route: '/doctor/settings',   comp: 'SettingsPage',    img: 'doctor-settings.png', app: 'doctor', color: '#0969da', gx: 0.28, gy: 0.40 },
   // Doctor subpages — row 2
   { id: 'patient-detail', label: '患者详情',  route: '/patients/:id',   comp: 'PatientDetail',      img: 'doctor-patients-1.png',          app: 'doctor', color: '#8250df', gx: 0.10, gy: 0.66 },
   { id: 'interview',      label: '新建病历',  route: '/patients/new',   comp: 'InterviewPage',      img: 'doctor-patients-new.png',        app: 'doctor', color: '#8250df', gx: 0.24, gy: 0.66 },
@@ -138,7 +137,8 @@ var NODES = [
   { id: 'login', label: 'Login', route: '/login', comp: 'LoginPage', img: 'login.png', app: 'standalone', color: '#656d76', gx: 0.92, gy: 0.88 },
   { id: 'admin', label: 'Admin', route: '/admin', comp: 'AdminPage', img: 'admin.png', app: 'standalone', color: '#656d76', gx: 0.06, gy: 0.88 },
   // Orphaned / semi-dead — no nav tab, reachable only via specific actions or not at all
-  { id: 'home-legacy', label: 'Home (dead)', route: '/doctor/home', comp: 'HomePage + HomeSubpage', img: 'doctor-home-legacy.png', app: 'orphan', color: '#cf222e', gx: 0.14, gy: 0.88, orphan: true, reason: 'DEAD: MyAIPage replaced it. No nav tab points to "home" section. Has AskAIBar that MyAI lacks.' },
+  { id: 'home-legacy', label: 'Home (deleted)', route: '/doctor/home', comp: 'HomePage + HomeSubpage', img: 'doctor-home-legacy.png', app: 'orphan', color: '#cf222e', gx: 0.14, gy: 0.88, orphan: true, reason: 'DELETED: MyAIPage replaced it. Files removed.' },
+  { id: 'tasks-legacy', label: 'Tasks (deleted)', route: '/doctor/tasks', comp: 'TasksPage', img: 'doctor-tasks.png', app: 'orphan', color: '#cf222e', gx: 0.80, gy: 0.88, orphan: true, reason: 'DELETED: Merged into FollowupPage. "待办提醒" section now in 随访 tab.' },
   { id: 'privacy', label: '隐私政策', route: '/privacy', comp: 'PrivacyPage', img: null, app: 'orphan', color: '#cf222e', gx: 0.36, gy: 0.88, orphan: true, reason: 'Opens in new browser tab from Settings → 隐私政策. Not in-app navigation.' },
   { id: 'showcase', label: 'Components', route: '/debug/components', comp: 'ComponentShowcase', img: 'debug-components.png', app: 'orphan', color: '#cf222e', gx: 0.54, gy: 0.88, orphan: true, reason: 'Debug-only showcase. No in-app navigation, direct URL only.' },
   { id: 'dr-showcase', label: 'Dr Components', route: '/debug/doctor-components', comp: 'Showcase', img: 'debug-doctor-components.png', app: 'orphan', color: '#cf222e', gx: 0.68, gy: 0.88, orphan: true, reason: 'Debug-only showcase. No in-app navigation, direct URL only.' },
@@ -177,8 +177,7 @@ var EDGES = [
   { from: 'followup', to: 'patient-detail', label: 'tap row', type: 'cross' },
   { from: 'chat', to: 'patient-detail', label: 'patient card', type: 'cross' },
   { from: 'chat', to: 'patients', label: '"查看全部"', type: 'cross' },
-  { from: 'chat', to: 'tasks', label: '"查看全部"', type: 'cross' },
-  { from: 'tasks', to: 'review', label: 'review task', type: 'cross' },
+  { from: 'chat', to: 'followup', label: '"查看全部" tasks', type: 'cross' },
   // Login
   { from: 'login', to: 'myai', label: 'doctor login', type: 'drill' },
   { from: 'login', to: 'p-chat', label: 'patient login', type: 'drill' },
