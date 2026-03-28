@@ -1,5 +1,7 @@
 /** @route /privacy */
 import { Box, Typography } from "@mui/material";
+import SubpageHeader from "../components/SubpageHeader";
+import CollapsibleSection from "../components/CollapsibleSection";
 import { COLOR, TYPE } from "../theme";
 
 const SECTIONS = [
@@ -94,42 +96,40 @@ const SECTIONS = [
 
 export default function PrivacyPage() {
   return (
-    <Box sx={{
-      minHeight: "100vh",
-      bgcolor: COLOR.white,
-      display: "flex",
-      justifyContent: "center",
-      py: 4,
-      px: 2,
-    }}>
-      <Box sx={{ maxWidth: 680, width: "100%" }}>
-        <Typography sx={{ ...TYPE.title, fontSize: 20, mb: 1, textAlign: "center" }}>
-          鲸鱼随行隐私政策
-        </Typography>
-        <Typography sx={{ ...TYPE.caption, color: COLOR.text4, textAlign: "center", mb: 4 }}>
-          最后更新日期：2026 年 3 月 23 日
-        </Typography>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
+      <SubpageHeader title="隐私政策" onBack={() => window.close()} />
+      <Box sx={{ flex: 1, overflow: "auto" }}>
+        {/* Intro */}
+        <Box sx={{ bgcolor: COLOR.white, px: 2, py: 2, borderBottom: `0.5px solid ${COLOR.border}` }}>
+          <Typography sx={{ ...TYPE.caption, color: COLOR.text4, mb: 1 }}>
+            最后更新日期：2026 年 3 月 23 日
+          </Typography>
+          <Typography sx={{ ...TYPE.body, color: COLOR.text2, lineHeight: 1.8 }}>
+            「鲸鱼随行」由苏州市昆山市鲸鱼互联网有限责任公司（以下简称"我们"）开发和运营。我们深知个人信息对您的重要性，将严格遵守《中华人民共和国个人信息保护法》《中华人民共和国数据安全法》《中华人民共和国网络安全法》等法律法规，保护您的个人信息安全。
+          </Typography>
+        </Box>
 
-        <Typography sx={{ ...TYPE.body, color: COLOR.text2, lineHeight: 1.8, mb: 3 }}>
-          「鲸鱼随行」由苏州市昆山市鲸鱼互联网有限责任公司（以下简称"我们"）开发和运营。我们深知个人信息对您的重要性，将严格遵守《中华人民共和国个人信息保护法》《中华人民共和国数据安全法》《中华人民共和国网络安全法》等法律法规，保护您的个人信息安全。
-        </Typography>
-
+        {/* Sections */}
         {SECTIONS.map((section) => (
-          <Box key={section.title} sx={{ mb: 3 }}>
-            <Typography sx={{ ...TYPE.heading, color: COLOR.text1, mb: 1 }}>
-              {section.title}
-            </Typography>
-            {section.content.map((line, i) =>
-              line === "" ? (
-                <Box key={i} sx={{ height: 8 }} />
-              ) : (
-                <Typography key={i} sx={{ ...TYPE.body, color: COLOR.text2, lineHeight: 1.8 }}>
-                  {line}
-                </Typography>
-              )
-            )}
-          </Box>
+          <CollapsibleSection key={section.title} title={section.title} defaultOpen={false}>
+            <Box sx={{
+              bgcolor: COLOR.white, px: 2, py: 1.5,
+              borderTop: `0.5px solid ${COLOR.border}`,
+              borderBottom: `0.5px solid ${COLOR.border}`,
+            }}>
+              {section.content.map((line, i) =>
+                line === "" ? (
+                  <Box key={i} sx={{ height: 6 }} />
+                ) : (
+                  <Typography key={i} sx={{ ...TYPE.body, color: COLOR.text2, lineHeight: 1.8 }}>
+                    {line}
+                  </Typography>
+                )
+              )}
+            </Box>
+          </CollapsibleSection>
         ))}
+        <Box sx={{ height: 32 }} />
       </Box>
     </Box>
   );
