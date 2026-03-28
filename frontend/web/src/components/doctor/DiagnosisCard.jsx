@@ -17,7 +17,7 @@
  *  - knowledgeMap: object — KB ID → { id, text, source } for citation chips
  */
 import { useState } from "react";
-import { Box, Typography, TextField, Chip } from "@mui/material";
+import { Box, Typography, TextField } from "@mui/material";
 import { TYPE, BUTTON, COLOR } from "../../theme";
 import InlineEditor from "../InlineEditor";
 import SheetDialog from "../SheetDialog";
@@ -186,56 +186,10 @@ function RejectMode({ onSubmit, onCancel }) {
 
 /* ── Citation rendering ────────────────────────────────────────────────────── */
 
-/** Parse [KB-{id}] markers in detail text, render interleaved text + chips. */
-function renderDetailWithCitations(detail, knowledgeMap, onCitationTap) {
+/** Strip [KB-{id}] markers from detail text — citations are shown as title badges. */
+function stripCitationMarkers(detail) {
   if (!detail) return null;
-  if (!knowledgeMap || Object.keys(knowledgeMap).length === 0) {
-    // No knowledge data — strip markers to keep text clean
-    return detail.replace(/\[KB-\d+\]/g, "").trim();
-  }
-  const parts = detail.split(/(\[KB-\d+\])/g);
-  return parts.map((part, i) => {
-    const match = part.match(/^\[KB-(\d+)\]$/);
-    if (match) {
-      const id = parseInt(match[1]);
-      const item = knowledgeMap[id];
-      if (item) {
-        const sourceLabel = item.source?.startsWith("upload:")
-          ? item.source.replace("upload:", "")
-          : `KB-${id}`;
-        return (
-          <Chip
-            key={i}
-            label={sourceLabel}
-            size="small"
-            onClick={(e) => { e.stopPropagation(); onCitationTap(item); }}
-            sx={{
-              height: 20,
-              fontSize: 10,
-              fontWeight: 500,
-              bgcolor: "#e3f2fd",
-              color: "#1565c0",
-              cursor: "pointer",
-              maxWidth: 140,
-              mx: 0.3,
-              verticalAlign: "middle",
-              "& .MuiChip-label": {
-                px: 0.8,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              },
-              "&:hover": { bgcolor: "#bbdefb" },
-              "&:active": { opacity: 0.7 },
-            }}
-          />
-        );
-      }
-      // Unresolved citation
-      return <span key={i} style={{ color: "#999", fontSize: 11 }}>[KB-?]</span>;
-    }
-    return <span key={i}>{part}</span>;
-  });
+  return detail.replace(/\[KB-\d+\]/g, "").replace(/\s{2,}/g, " ").trim();
 }
 
 /** Bottom sheet for viewing a cited knowledge item. */
@@ -364,7 +318,7 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
       >
         <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5 }}>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, flexWrap: "wrap" }}>
               <Typography
                 sx={{
                   fontSize: TYPE.action.fontSize,
@@ -379,6 +333,31 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
                 {content}
               </Typography>
               <MetaBadge value={badgeValue} />
+              {/* Citation badges — inline with title, always visible */}
+              {(() => {
+                const text = suggestion.edited_text || detail || "";
+                const matches = [...text.matchAll(/\[KB-(\d+)\]/g)];
+                if (matches.length === 0) return null;
+                const cited = matches.map((m) => ({ id: parseInt(m[1]), item: knowledgeMap[parseInt(m[1])] })).filter((c) => c.item);
+                return cited.map((c) => (
+                  <Box
+                    key={c.id}
+                    component="span"
+                    onClick={(e) => { e.stopPropagation(); setCitationItem(c.item); }}
+                    sx={{
+                      fontSize: 10, fontWeight: 500,
+                      color: "#1565c0", bgcolor: "#e3f2fd",
+                      px: 0.8, py: 0.15, borderRadius: "3px",
+                      whiteSpace: "nowrap", flexShrink: 0, lineHeight: 1.4,
+                      cursor: "pointer", maxWidth: 120,
+                      overflow: "hidden", textOverflow: "ellipsis",
+                      "&:active": { opacity: 0.7 },
+                    }}
+                  >
+                    {c.item.title || (c.item.text || "").slice(0, 15) || `KB-${c.id}`}
+                  </Box>
+                ));
+              })()}
             </Box>
           </Box>
           <RightIndicator decision={effectiveDecision} expanded={expanded} />
@@ -400,11 +379,7 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
                   whiteSpace: "pre-wrap",
                 }}
               >
-                {renderDetailWithCitations(
-                  suggestion.edited_text || detail,
-                  knowledgeMap,
-                  (item) => setCitationItem(item),
-                )}
+                {stripCitationMarkers(suggestion.edited_text || detail)}
               </Typography>
             </Box>
           )}

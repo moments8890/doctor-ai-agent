@@ -479,7 +479,7 @@ function ChatTopbar({ onClearClick, onBack }) {
     <SubpageHeader
       title={t("chat.workspaceTitle")}
       onBack={onBack}
-      right={<BarButton onClick={onClearClick} color="#999">清空</BarButton>}
+      right={null}
     />
   );
 }

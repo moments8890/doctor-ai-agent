@@ -30,7 +30,7 @@ const SUMMARY_FIELD_ORDER = [
 /* ── Collapsible record summary ────────────────────────────────────────────── */
 
 function RecordSummary({ record }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   if (!record) return null;
 
   const structured = record.structured || {};
@@ -125,7 +125,7 @@ export default function ReviewPage({ recordId }) {
 
   const [record, setRecord] = useState(null);
   const [suggestions, setSuggestions] = useState(null); // null = not loaded, [] = empty
-  const [expandedId, setExpandedId] = useState(null);
+  const [expandedIds, setExpandedIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
   const [toast, setToast] = useState(null);
@@ -205,7 +205,12 @@ export default function ReviewPage({ recordId }) {
   /* ── Handlers ────────────────────────────────────────────────────────────── */
 
   function handleToggle(id) {
-    setExpandedId((prev) => (prev === id ? null : id));
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   async function handleDecide(suggestionId, decision, opts) {
@@ -278,7 +283,7 @@ export default function ReviewPage({ recordId }) {
       <ReviewSubpage
         record={record}
         suggestions={hasSuggestions ? suggestions : []}
-        expandedId={expandedId}
+        expandedIds={expandedIds}
         onToggle={handleToggle}
         onDecide={handleDecide}
         onAdd={handleAdd}

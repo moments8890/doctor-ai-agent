@@ -16,6 +16,7 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import EmptyState from "../../components/EmptyState";
@@ -101,7 +102,7 @@ function FilterStatBar({ summary, filter, onFilter }) {
 
 /* ── Pending review item card ─────────────────────────────────────────────── */
 
-function PendingReviewCard({ item, onConfirm, onReject, onEdit, onNavigate }) {
+function PendingReviewCard({ item, onNavigate }) {
   const hasCitation = !!item.rule_cited;
   const hasCaseMemory = (item.detail || "").includes("相似度") || (item.detail || "").includes("类似病例");
 
@@ -147,6 +148,7 @@ function PendingReviewCard({ item, onConfirm, onReject, onEdit, onNavigate }) {
         >
           {urgencyLabel}
         </Box>
+        <ChevronRightOutlinedIcon sx={{ fontSize: 18, color: COLOR.text4, flexShrink: 0 }} />
       </Box>
 
       {/* Diagnosis preview gray card */}
@@ -214,37 +216,14 @@ function PendingReviewCard({ item, onConfirm, onReject, onEdit, onNavigate }) {
         </Box>
       )}
 
-      {/* Action row */}
-      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, px: 2, pb: 1.25 }}>
-        <Typography
-          component="span"
-          onClick={(e) => { e.stopPropagation(); onReject?.(item); }}
-          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.danger, cursor: "pointer", "&:active": { opacity: 0.5 } }}
-        >
-          ✗ 排除
-        </Typography>
-        <Typography
-          component="span"
-          onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}
-          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.accent, cursor: "pointer", "&:active": { opacity: 0.5 } }}
-        >
-          ✎ 修改
-        </Typography>
-        <Typography
-          component="span"
-          onClick={(e) => { e.stopPropagation(); onConfirm?.(item); }}
-          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: "pointer", fontWeight: 500, "&:active": { opacity: 0.5 } }}
-        >
-          ✓ 确认
-        </Typography>
-      </Box>
+      {/* Tap anywhere to go to diagnosis page */}
     </Box>
   );
 }
 
 /* ── Completed row ────────────────────────────────────────────────────────── */
 
-function CompletedRow({ item }) {
+function CompletedRow({ item, onClick }) {
   const isEdited = item.decision === "edited";
   const checkColor = isEdited ? COLOR.warning : COLOR.primary;
   const CheckIcon = isEdited ? EditOutlinedIcon : CheckOutlinedIcon;
@@ -256,24 +235,27 @@ function CompletedRow({ item }) {
   })();
 
   return (
-    <Box sx={{
-      display: "flex", alignItems: "center", gap: 1.25,
-      px: 2, py: 1.25,
-      borderBottom: `0.5px solid ${COLOR.borderLight}`,
-      "&:last-child": { borderBottom: "none" },
-    }}>
+    <Box
+      onClick={onClick}
+      sx={{
+        display: "flex", alignItems: "center", gap: 1.25,
+        px: 2, py: 1.25,
+        borderBottom: `0.5px solid ${COLOR.borderLight}`,
+        cursor: onClick ? "pointer" : "default",
+        "&:active": onClick ? { bgcolor: COLOR.surface } : {},
+        "&:last-child": { borderBottom: "none" },
+      }}
+    >
       <CheckIcon sx={{ fontSize: TYPE.body.fontSize, color: checkColor, flexShrink: 0 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4 }}>
+        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text3 }}>
           {item.patient_name} · {item.content}
         </Typography>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#ccc", mt: 0.15 }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.15 }}>
           {detailText}
         </Typography>
       </Box>
-      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#ccc", flexShrink: 0 }}>
-        {item.time}
-      </Typography>
+      <ChevronRightOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4, flexShrink: 0 }} />
     </Box>
   );
 }
@@ -284,7 +266,7 @@ const REVIEW_TABS = new Set(["pending", "confirmed", "modified"]);
 
 export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   const navigate = useAppNavigate();
-  const { getReviewQueue, decideSuggestion } = useApi();
+  const { getReviewQueue } = useApi();
   const [queue, setQueue] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -304,71 +286,6 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   }, [doctorId, getReviewQueue]);
 
   useEffect(() => { load(); }, [load]);
-
-  /* ── Inline actions ─────────────────────────────────────────────────────── */
-
-  async function handleConfirm(item) {
-    if (!item.suggestion_id) {
-      // No suggestion_id — navigate to full review page
-      navigate(`/doctor/review/${item.record_id}`);
-      return;
-    }
-    try {
-      if (typeof decideSuggestion === "function") {
-        await decideSuggestion(item.suggestion_id, "confirmed", {});
-      }
-      // Optimistic update: remove from pending, bump confirmed count
-      setQueue((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          summary: {
-            ...prev.summary,
-            pending: Math.max(0, prev.summary.pending - 1),
-            confirmed: prev.summary.confirmed + 1,
-          },
-          pending: prev.pending.filter((p) => p.id !== item.id),
-          completed: [
-            { id: item.id, patient_name: item.patient_name, content: item.content, decision: "confirmed", rule_count: item.rule_cited ? 1 : 0, time: "刚刚" },
-            ...(prev.completed || []),
-          ],
-        };
-      });
-    } catch {
-      // On failure, navigate to full review page
-      navigate(`/doctor/review/${item.record_id}`);
-    }
-  }
-
-  async function handleReject(item) {
-    if (!item.suggestion_id) {
-      navigate(`/doctor/review/${item.record_id}`);
-      return;
-    }
-    try {
-      if (typeof decideSuggestion === "function") {
-        await decideSuggestion(item.suggestion_id, "rejected", {});
-      }
-      setQueue((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          summary: {
-            ...prev.summary,
-            pending: Math.max(0, prev.summary.pending - 1),
-          },
-          pending: prev.pending.filter((p) => p.id !== item.id),
-        };
-      });
-    } catch {
-      navigate(`/doctor/review/${item.record_id}`);
-    }
-  }
-
-  function handleEdit(item) {
-    // Edit requires the full review page for the inline editor
-    navigate(`/doctor/review/${item.record_id}`);
-  }
 
   function handleNavigate(item) {
     navigate(`/doctor/review/${item.record_id}`);
@@ -424,9 +341,6 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
                 <PendingReviewCard
                   key={item.id}
                   item={item}
-                  onConfirm={handleConfirm}
-                  onReject={handleReject}
-                  onEdit={handleEdit}
                   onNavigate={handleNavigate}
                 />
               ))}
@@ -453,7 +367,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
               borderBottom: `0.5px solid ${COLOR.border}`,
             }}>
               {filteredCompleted.map((item) => (
-                <CompletedRow key={item.id} item={item} />
+                <CompletedRow key={item.id} item={item} onClick={() => item.record_id ? navigate(`/doctor/review/${item.record_id}`) : undefined} />
               ))}
             </Box>
           </>

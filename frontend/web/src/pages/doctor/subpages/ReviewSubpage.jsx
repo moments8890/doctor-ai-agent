@@ -61,7 +61,7 @@ function InlineAddForm({ onSubmit, onCancel }) {
 
 /* ── Suggestion section ── */
 
-function SuggestionSection({ sectionKey, label, items, expandedId, onToggle, onDecide, onAdd, knowledgeMap }) {
+function SuggestionSection({ sectionKey, label, items, expandedIds, onToggle, onDecide, onAdd, knowledgeMap }) {
   const [adding, setAdding] = useState(false);
   if ((!items || items.length === 0) && !adding) return null;
 
@@ -93,7 +93,7 @@ function SuggestionSection({ sectionKey, label, items, expandedId, onToggle, onD
         <DiagnosisCard
           key={s.id}
           suggestion={s}
-          expanded={expandedId === s.id}
+          expanded={expandedIds instanceof Set ? expandedIds.has(s.id) : expandedIds === s.id}
           onToggle={() => onToggle(s.id)}
           onDecide={onDecide}
           knowledgeMap={knowledgeMap}
@@ -108,7 +108,7 @@ function SuggestionSection({ sectionKey, label, items, expandedId, onToggle, onD
 export default function ReviewSubpage({
   record,
   suggestions = [],
-  expandedId,
+  expandedIds,
   onToggle,
   onDecide,
   onAdd,
@@ -148,7 +148,7 @@ export default function ReviewSubpage({
                 sectionKey={sec.key}
                 label={sec.label}
                 items={grouped[sec.key]}
-                expandedId={expandedId}
+                expandedIds={expandedIds}
                 onToggle={onToggle}
                 onDecide={onDecide}
                 onAdd={onAdd}

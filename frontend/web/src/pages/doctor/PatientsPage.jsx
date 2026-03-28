@@ -55,6 +55,18 @@ function formatPatientTime(dateStr) {
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
+/* Triage dot: urgent → red, symptom_report/side_effect → amber, others → hidden */
+function TriageDot({ triageCategory }) {
+  if (!triageCategory) return null;
+  let color = null;
+  if (triageCategory === "urgent") color = COLOR.danger;
+  else if (triageCategory === "symptom_report" || triageCategory === "side_effect") color = COLOR.warning;
+  if (!color) return null;
+  return (
+    <Box component="span" sx={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", bgcolor: color, flexShrink: 0, ml: 0.5 }} />
+  );
+}
+
 function PatientRow({ patient, aiTag, onClick }) {
   const age = patient.year_of_birth ? new Date().getFullYear() - patient.year_of_birth : null;
   const timeStr = formatPatientTime(patient.updated_at || patient.created_at);
@@ -70,10 +82,16 @@ function PatientRow({ patient, aiTag, onClick }) {
         </Box>
       )
     : baseSub;
+  const triageCategory = patient.latest_triage_category || patient.triage_category;
   return (
     <ListCard
       avatar={<PatientAvatar name={patient.name} size={36} />}
-      title={patient.name}
+      title={
+        <Box component="span" sx={{ display: "inline-flex", alignItems: "center" }}>
+          {patient.name}
+          <TriageDot triageCategory={triageCategory} />
+        </Box>
+      }
       subtitle={subtitle}
       right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>{timeStr}</Typography>}
       onClick={onClick}
@@ -371,7 +389,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
         patientContext={interviewPatient}
         prePopulated={chatInterviewPrePopulated}
         onComplete={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); load(); }}
-        onCancel={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); }} />
+        onCancel={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); navigate(-1); }} />
     </Box>
   ) : isMobile && selectedId ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
@@ -392,7 +410,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
       sessionId={chatInterviewSessionId}
       prePopulated={chatInterviewPrePopulated}
       onComplete={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); load(); }}
-      onCancel={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); }} />
+      onCancel={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); navigate(-1); }} />
   ) : (
     <PatientDetail patient={selectedPatient} doctorId={doctorId}
       onDeleted={(id) => { setPatients((prev) => prev.filter((p) => p.id !== id)); navigate("/doctor/patients"); }}
