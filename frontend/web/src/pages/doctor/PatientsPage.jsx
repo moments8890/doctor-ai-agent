@@ -375,7 +375,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
     </Box>
   ) : isMobile && selectedId ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
-      <SubpageHeader title={selectedPatient?.name || ""} onBack={() => navigate("/doctor/patients")}
+      <SubpageHeader title={selectedPatient?.name || ""} onBack={() => navigate(-1)}
         right={
           <BarButton onClick={handleStartInterview}>门诊</BarButton>
         }

@@ -152,7 +152,7 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
 
   // URL-driven: "new" subpage for adding
   if (urlSubId === "new" || urlSubId === "add") {
-    return <AddKnowledgeSubpage doctorId={doctorId} onBack={() => { navigate("/doctor/settings/knowledge"); load(); }} isMobile={isMobile} />;
+    return <AddKnowledgeSubpage doctorId={doctorId} onBack={() => { navigate(-1); load(); }} isMobile={isMobile} />;
   }
 
   async function handleDelete(itemId) {

@@ -160,24 +160,16 @@ export default function MyAIPage({ doctorId }) {
                 {knowledgeCount > 0 ? `已学会 ${knowledgeCount} 条规则` : "尚未添加规则"}
               </Typography>
             </Box>
-            <Box
+            <Typography
               onClick={() => navigate("/doctor/settings")}
               sx={{
-                display: "flex", alignItems: "center", gap: 0.5,
-                cursor: "pointer", px: 0.5, py: 0.3, borderRadius: "6px",
-                "&:active": { bgcolor: COLOR.surfaceAlt },
+                fontSize: TYPE.secondary.fontSize, color: COLOR.text4,
+                cursor: "pointer", px: 0.5,
+                "&:active": { color: COLOR.text3 },
               }}
             >
-              <Box sx={{
-                width: 6, height: 6, borderRadius: "50%", bgcolor: COLOR.primary,
-              }} />
-              <Typography sx={{ fontSize: TYPE.micro.fontSize, fontWeight: 500, color: COLOR.primary }}>
-                在线
-              </Typography>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 0.3 }}>
-                ›
-              </Typography>
-            </Box>
+              ⚙
+            </Typography>
           </Box>
 
           {/* Stats row */}

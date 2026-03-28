@@ -385,7 +385,7 @@ export default function TasksPage({ doctorId, urlSubpage, urlSubId }) {
     setCreating(true); setCreateError("");
     try {
       await createTask(doctorId, { taskType: createForm.taskType, title: createForm.title || TASK_TYPE_LABEL[createForm.taskType] || createForm.taskType, dueAt: createForm.dueAt || undefined, patientId: createForm.patientId ? Number(createForm.patientId) : undefined, content: createForm.content || undefined });
-      setCreateOpen(false); setCreateForm({ taskType: "follow_up", title: "", dueAt: tomorrowStr(), patientId: "", patientSearch: "", content: "" }); navigate("/doctor/tasks"); loadAll();
+      setCreateOpen(false); setCreateForm({ taskType: "follow_up", title: "", dueAt: tomorrowStr(), patientId: "", patientSearch: "", content: "" }); navigate(-1); loadAll();
     } catch (e) { setCreateError(e.message || "创建失败"); } finally { setCreating(false); }
   }
   async function handleConfirmPostpone() {
@@ -424,10 +424,10 @@ export default function TasksPage({ doctorId, urlSubpage, urlSubId }) {
       onCreate={handleCreate} onClose={() => setCreateOpen(false)} />
   ) : isMobile && detailReview ? (
     <ReviewDetail queueId={detailReview.id} doctorId={doctorId} isMobile={true}
-      onBack={() => { setDetailReview(null); loadAll(); navigate("/doctor/tasks"); }} onConfirmed={() => { loadAll(); }} />
+      onBack={() => { setDetailReview(null); loadAll(); navigate(-1); }} onConfirmed={() => { loadAll(); }} />
   ) : isMobile && detailTask ? (
     <TaskDetailView task={detailTask} doctorId={doctorId} isMobile={isMobile}
-      onBack={() => { setDetailTask(null); loadAll(); navigate("/doctor/tasks"); }}
+      onBack={() => { setDetailTask(null); loadAll(); navigate(-1); }}
       onComplete={handleComplete} onPostpone={handlePostpone} onCancel={handleCancel} />
   ) : null;
 
@@ -478,10 +478,10 @@ export default function TasksPage({ doctorId, urlSubpage, urlSubId }) {
       onCreate={handleCreate} onClose={() => setCreateOpen(false)} />
   ) : detailReview ? (
     <ReviewDetail queueId={detailReview.id} doctorId={doctorId} isMobile={isMobile}
-      onBack={() => { setDetailReview(null); loadAll(); navigate("/doctor/tasks"); }} onConfirmed={() => { loadAll(); }} />
+      onBack={() => { setDetailReview(null); loadAll(); navigate(-1); }} onConfirmed={() => { loadAll(); }} />
   ) : detailTask ? (
     <TaskDetailView task={detailTask} doctorId={doctorId} isMobile={isMobile}
-      onBack={() => { setDetailTask(null); loadAll(); navigate("/doctor/tasks"); }}
+      onBack={() => { setDetailTask(null); loadAll(); navigate(-1); }}
       onComplete={handleComplete} onPostpone={handlePostpone} onCancel={handleCancel} />
   ) : null;
 
