@@ -1,57 +1,85 @@
-# North Star — Doctor AI Agent
+# North Star — Personal AI Copilot for Specialists
 
 **Last verified: 2026-03-27 against code on `main`**
 
 ---
 
-## What We're Building
+## What We Are
 
-AI assistant for specialist doctors: asks questions like a junior doctor, writes medical records, gives preliminary diagnostic suggestions, manages patient follow-up — **doctors only make final decisions.**
+A **personal AI follow-up copilot** for specialists managing recurring patients. The doctor's clinical expertise, guidelines, communication style, and treatment preferences shape every AI output. The AI learns from the doctor's edits and decisions, getting smarter with use.
+
+**"This AI thinks like me."**
+
+## What We Are Not
+
+- Not a hospital EMR/HIS/PMS
+- Not an appointment/billing/prescription system
+- Not an autonomous diagnostic or prescribing system
+- Not a generic medical chatbot
 
 ## For Whom
 
-Large-hospital specialist doctors (neurosurgery) with significant private patient bases who manage 200+ WeChat patient messages daily and lack quality records before consultations.
+Large-hospital specialist doctors (neurosurgery) with significant private patient bases who manage 200+ WeChat messages daily. They need a copilot that handles follow-up, documentation, and preliminary review — so they only make final decisions.
 
-## Core Value
+## Core Value Loop
 
 | Stage | AI Does | Doctor Does |
 |-------|---------|-------------|
-| **诊前** (Pre-visit) | Structured patient interview → quality medical record | Reviews, edits record |
-| **诊中** (During visit) | Differential diagnosis + workup + treatment suggestions | Confirms, rejects, edits suggestions |
-| **诊后** (Post-visit) | Auto-triage patient messages, follow-up task tracking | Reviews escalations, makes clinical decisions |
+| **诊前** | Structured patient interview → quality record | Reviews, edits record |
+| **诊中** | Differential diagnosis + workup + treatment suggestions, citing doctor's own rules | Confirms, rejects, edits — AI learns from edits |
+| **诊后** | Drafts follow-up replies in doctor's voice, triages patient messages, tracks tasks | Reviews drafts, sends with one tap, teaches AI new rules |
+
+## What Makes a Doctor Pay
+
+1. The AI reliably sounds like them, not generic
+2. It improves visibly after they teach it
+3. It saves real time on daily tasks (replies, diagnosis review)
+4. They can see and control what rules it uses
+5. It's easier than maintaining their own ChatGPT setup
+
+## Competitive Moat
+
+Not any single feature — the **integrated loop**: personal knowledge → patient context → personalized reasoning → doctor feedback → compounding improvement.
+
+| Need | Current alternatives | Our edge |
+|------|---------------------|----------|
+| Documentation | Freed, Heidi, Nabla | We personalize to doctor's style |
+| Clinical answers | OpenEvidence, Heidi Evidence | We use doctor's own rules + cases |
+| Patient comms | Artera, Hippocratic AI | We draft in doctor's voice with citations |
+| Personal knowledge | ChatGPT Projects | We integrate into clinical workflow |
 
 ## Delivery
 
-- **Doctor:** Web workbench (React SPA)
+- **Doctor:** Web workbench (React SPA) — 4 tabs: 我的AI / 患者 / 审核 / 随访
 - **Patient:** WeChat Mini Program + Web portal
-- **Architecture:** Plan-and-Act agent pipeline, 7 intent types, 6-layer prompt composer, feed-all-to-LLM knowledge strategy
+- **Architecture:** Plan-and-Act agent, 7 intents, 6-layer prompt composer, feed-all-to-LLM knowledge
 
 ## Current Status (78% feature complete)
 
 **Done (51/65):**
 - Doctor workbench: chat, patients, tasks, settings, knowledge management
-- Diagnosis pipeline: AI suggestions → doctor review → confirm/reject/edit
-- Patient portal: pre-consultation interview, record viewing, messaging, task checklist
+- Diagnosis pipeline: AI suggestions → doctor review → confirm/reject/edit with KB citations
+- Patient portal: pre-consultation interview, records, messaging, tasks, voice input
 - Document upload with LLM processing and citation in diagnosis
-- QR code login, bulk data export, voice input
-- Regression test infrastructure (86+ scenarios)
+- QR code login, bulk data export, regression tests (86+ scenarios)
 
-**Remaining (14/65):**
-- Structured clinical data extraction (prescriptions, labs, allergies) — blocks patient medications view
-- Clinical safety & emergency handling (red flag rules)
-- Push notification infrastructure (WeChat template messages / web push)
-- Case reference matching (needs new approach after embedding removal)
+**Next Phase — Personal AI Features:**
+- Knowledge usage tracking (when/where AI cites doctor's rules)
+- AI draft replies in doctor's voice with rule citations
+- Teaching loop: doctor edits → AI learns preferences
+- AI activity feed: "按你的方法处理了 N 位患者"
+- AI-flagged patients based on doctor's own rules
+- Citation visual treatment ("引用了你的规则" vs "未引用个人规则")
+
+**Deferred:**
+- Structured clinical data extraction (prescriptions, labs, allergies)
+- Push notification infrastructure
+- Case reference matching (embedding replacement)
 
 ## Monetization
 
-¥2,999–6,999/month per doctor. Rationale: saves 1+ hour/day of clerical work (~30 hours/month of specialist physician time).
-
-## Competitive Moat
-
-1. **Physician data sovereignty** — doctors own and can export all data
-2. **Specialty depth over breadth** — deep neurosurgery first, then expand
-3. **No platform lock-in** — unlike 好大夫/京东健康, doctors keep their patients
+¥2,999–6,999/month per doctor. Saves 1+ hour/day of clerical work (~30 hours/month of specialist physician time).
 
 ---
 
-*For details: [product-strategy.md](product-strategy.md) (vision) · [requirements-and-gaps.md](requirements-and-gaps.md) (roadmap) · [feature-parity-matrix.md](feature-parity-matrix.md) (build status)*
+*Details: [product-strategy.md](product-strategy.md) (vision) · [requirements-and-gaps.md](requirements-and-gaps.md) (roadmap) · [feature-parity-matrix.md](feature-parity-matrix.md) (build status) · [personal AI redesign spec](../specs/2026-03-27-personal-ai-redesign.md) (next phase UI + backend)*

@@ -43,6 +43,24 @@ The 5 entrypoints are: `AGENTS.md`, `docs/architecture.md`, `docs/product/index.
 `docs/ux/UI-DESIGN.md`, `docs/dev/index.md`. Before creating a new doc, check if
 a canonical entrypoint already covers the topic.
 
+## Read Before Doing
+
+Before starting any task, read the relevant docs for context:
+
+| Task type | Read first |
+|-----------|-----------|
+| **Any feature work** | `docs/product/north-star.md` (product vision), `docs/architecture.md` (system design) |
+| **Backend / API** | `docs/architecture.md` §3-6 (pipeline, intents, prompts, DB schema) |
+| **Frontend / UI** | `docs/ux/UI-DESIGN.md` (components, tokens), `docs/ux/design-spec.md` (UX flows) |
+| **Diagnosis / CDS** | `docs/product/clinical-decision-support-design.md`, `docs/architecture.md` §7 (CDS pipeline) |
+| **Patient portal** | `docs/architecture.md` §8 (channels), `docs/product/requirements-and-gaps.md` (Phase 3) |
+| **Prompts / LLM** | `src/agent/prompts/README.md`, `docs/guides/llm-prompting-guide.md` |
+| **Testing** | `docs/TESTING.md`, `docs/dev/patient-simulation-guide.md` |
+| **Deploy / Release** | `docs/dev/index.md`, `docs/deploy/tecenet-deployment/index.md` |
+| **New feature design** | `docs/product/feature-parity-matrix.md` (what exists), `docs/product/requirements-and-gaps.md` (roadmap) |
+
+Do not start implementation without understanding how your change fits the existing system.
+
 ## UI Design
 
 Always read `docs/ux/UI-DESIGN.md` before making any visual or UI decisions.
