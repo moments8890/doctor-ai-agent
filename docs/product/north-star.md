@@ -16,6 +16,7 @@ A **personal AI follow-up copilot** for specialists managing recurring patients.
 - Not an appointment/billing/prescription system
 - Not an autonomous diagnostic or prescribing system
 - Not a generic medical chatbot
+- Not a replacement for the physician's clinical judgment
 
 ## For Whom
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>产品战略 — 专科医生的AI助手</title>
+<title>产品战略 — 专科医生的AI随访副驾驶</title>
 <style>
 :root {
   --bg: #ffffff;
@@ -305,17 +305,17 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
 
 <!-- ═══════════════════ HEADER ═══════════════════ -->
 <div class="header">
-  <h1>产品战略：专科医生的AI助手</h1>
+  <h1>产品战略：专科医生的AI随访副驾驶</h1>
   <div class="subtitle">Interactive visual guide</div>
-  <div class="updated">2026-03-20 &middot; 基于甲方医生需求原话 + 竞品分析 + Codex多轮战略审查</div>
+  <div class="updated">2026-03-27 &middot; 基于个人AI redesign spec + 甲方医生需求 + 竞品分析 + 多轮战略审查</div>
   <div class="correction">
-    <strong>修正 (2026-03-27):</strong>
+    <strong>重新定位 (2026-03-27):</strong>
     <ul>
-      <li>消息分级系统：文档描述绿/黄/红三级，实际实现为<strong>二元分类</strong>（AI自动处理 vs 上报医生），无中间"黄色"级别</li>
-      <li>知识库分类：文档描述5类taxonomy，实际已简化为<strong>单一类别</strong>（所有知识条目统一存储，feed-all-to-LLM策略）</li>
-      <li>外部模型桥接（DIAGNOSIS_PROVIDERS）：<strong>未实现</strong>，ADR 0019因PHI法律风险推迟</li>
-      <li>分阶段交付：文档描述顺序执行，实际Phase 1-3<strong>并行开发</strong>，均已在main上实现</li>
-      <li>详见 <code>north-star.md</code> 获取当前准确状态</li>
+      <li>产品定位：从"AI助手"更新为<strong>AI随访副驾驶</strong>（personal AI follow-up copilot）</li>
+      <li>核心价值："这个AI想法跟我一样" — 医生的规则、病例、沟通风格塑造每一个AI输出</li>
+      <li>导航结构：4-tab 底部导航 — <strong>我的AI / 患者 / 审核 / 随访</strong></li>
+      <li>教学闭环：医生编辑 &rarr; AI学习偏好 &rarr; 引用透明度 &rarr; 越用越懂你</li>
+      <li>详见 <code>north-star.md</code> 获取当前准确状态，<code>docs/specs/2026-03-27-personal-ai-redesign.md</code> 获取完整UI+后端设计</li>
     </ul>
   </div>
 </div>
@@ -328,37 +328,60 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   </div>
   <div class="section-body">
     <div class="quote" style="font-size:1.05rem; font-style:normal; border-left-color:var(--green);">
-      <strong style="color:var(--green);">为专科医生打造的AI助手：</strong>像医生助手一样问诊、写病历、给初步建议、做随访 — 医生只需做最终决策。
+      <strong style="color:var(--green);">"这个AI想法跟我一样。"</strong> 医生的规则、病例、沟通风格塑造每一个AI输出。越用越懂你。
     </div>
-    <p class="muted">主任医师的真实工作模式：他让住院医/研究生先问好、写好病历、给初步建议，他来"查房"做决策。我们的AI就是这个角色。</p>
+    <p class="muted">专科医生的<strong style="color:var(--text);">AI随访副驾驶</strong>：管理复诊患者的诊断审核、随访回复、消息分诊。在医生已有的患者关系中运作（微信、门户、门诊渠道），不是独立的诊断/处方系统。</p>
 
-    <h3 style="margin:20px 0 12px; font-size:1rem;">AI助手做什么 vs. 医生做什么</h3>
+    <h3 style="margin:20px 0 12px; font-size:1rem;">核心价值闭环</h3>
+    <table>
+      <tr><th>阶段</th><th>AI做什么</th><th>医生做什么</th></tr>
+      <tr><td><strong>诊前</strong></td><td>结构化患者问诊 &rarr; 高质量病历</td><td>审核、编辑病历</td></tr>
+      <tr><td><strong>诊中</strong></td><td>鉴别诊断 + 检查 + 治疗建议，<strong>引用医生自己的规则</strong></td><td>确认、拒绝、编辑 — AI从编辑中学习</td></tr>
+      <tr><td><strong>诊后</strong></td><td>用医生的语气起草随访回复，分诊患者消息，追踪任务</td><td>审核草稿、一键发送，教AI新规则</td></tr>
+    </table>
+
+    <h3 style="margin:20px 0 12px; font-size:1rem;">医生为什么付费</h3>
+    <div class="card-grid">
+      <div class="card" style="border-left:3px solid var(--green);">
+        <h4>1. AI说话像我</h4>
+        <p>不是通用模板，是医生自己的风格和术语</p>
+      </div>
+      <div class="card" style="border-left:3px solid var(--accent);">
+        <h4>2. 教完就变聪明</h4>
+        <p>每次编辑和规则积累，AI输出质量可见提升</p>
+      </div>
+      <div class="card" style="border-left:3px solid var(--yellow);">
+        <h4>3. 省真实时间</h4>
+        <p>每天省1小时+的消息处理和诊断审核时间</p>
+      </div>
+      <div class="card" style="border-left:3px solid var(--purple);">
+        <h4>4. 规则透明可控</h4>
+        <p>看得到AI用了哪条规则，随时增删改</p>
+      </div>
+    </div>
+
+    <h3 style="margin:20px 0 12px; font-size:1rem;">这不是什么</h3>
     <div class="compare-grid">
-      <div class="compare-col" style="background:rgba(26,127,55,0.06); border:1px solid rgba(26,127,55,0.2);">
-        <h3><span style="color:var(--green);">AI助手</span></h3>
+      <div class="compare-col" style="background:rgba(207,34,46,0.06); border:1px solid rgba(207,34,46,0.2);">
+        <h3><span style="color:var(--red);">不做</span></h3>
         <ul>
-          <li>问病史 — 语音/文字多轮采集，生成结构化病历</li>
-          <li>初步诊断 — 基于病历+知识库+历史病例给出建议</li>
-          <li>检查建议 — 推荐需要做的检查</li>
-          <li>治疗建议 — 推荐治疗方向（药物类别，不含剂量）</li>
-          <li>术后随访 — 回答常规问题，收集症状，提醒复查</li>
-          <li>全程管理 — 按医生方案执行提醒和随访</li>
+          <li>医院EMR/HIS/PMS</li>
+          <li>预约/收费/处方系统</li>
+          <li>自主诊断或处方系统</li>
+          <li>通用医疗聊天机器人</li>
+          <li>取代医生临床判断</li>
         </ul>
       </div>
-      <div class="compare-col" style="background:rgba(9,105,218,0.06); border:1px solid rgba(9,105,218,0.2);">
-        <h3><span style="color:var(--accent);">医生（主任）</span></h3>
+      <div class="compare-col" style="background:rgba(26,127,55,0.06); border:1px solid rgba(26,127,55,0.2);">
+        <h3><span style="color:var(--green);">竞争壁垒</span></h3>
         <ul>
-          <li>审核病历 — 补充关键问题</li>
-          <li>最终诊断 — 筛选、修改、做最终诊断</li>
-          <li>确认检查 — 确认/调整检查方案</li>
-          <li>确认治疗 — 确认/修改治疗方案</li>
-          <li>处理异常 — 处理AI上报的异常和紧急情况</li>
-          <li>制定方案 — 制定管理方案，调整计划</li>
+          <li>不是单一功能 — 是<strong>集成闭环</strong></li>
+          <li>个人知识 &rarr; 患者上下文 &rarr; 个性化推理</li>
+          <li>&rarr; 医生反馈 &rarr; 复利式改进</li>
+          <li>比维护自己的ChatGPT Projects更简单</li>
         </ul>
       </div>
     </div>
-
-    <p class="muted" style="margin-top:16px;"><strong style="color:var(--text);">这不是：</strong> 诊所管理系统 / 通用医疗聊天机器人 / 取代医生 — AI只做初级工作，医生做所有决策。</p>
   </div>
 </div>
 
@@ -435,9 +458,9 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
     </table>
 
     <div class="insight" style="margin-top:20px;">
-      <strong>核心发现：</strong>截至2026年3月，中国市场没有明显的主导产品在做<em>"医生个人拥有的、微信原生的、专科AI助手"</em>。
+      <strong>核心发现：</strong>截至2026年3月，中国市场没有产品做<em>"医生个人拥有的、越教越懂你的AI随访副驾驶"</em>。
       <br>平台型 = 医生不拥有数据 / 医院型 = 医院所有 / 最近竞品 = 需深入调研。
-      <br><strong>我们的机会：医生拥有的、微信原生的、专科深度的AI助手。</strong>
+      <br><strong>我们的壁垒不是单一功能，是集成闭环：</strong>个人知识 &rarr; 患者上下文 &rarr; 个性化推理 &rarr; 医生反馈 &rarr; 复利式改进。
     </div>
 
     <h3 style="margin:24px 0 12px; font-size:1rem;">核心差异化：医生数据主权</h3>
@@ -458,142 +481,188 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
   </div>
 </div>
 
-<!-- ═══════════════════ 4. 三段式工作流 ═══════════════════ -->
+<!-- ═══════════════════ 4. 医生工作台：4-Tab 导航 ═══════════════════ -->
 <div class="section" id="sec-workflow">
   <div class="section-header" onclick="toggle('sec-workflow')">
-    <h2><span class="dot dot-green"></span> 三段式工作流</h2>
+    <h2><span class="dot dot-green"></span> 医生工作台：4-Tab 导航</h2>
     <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
   </div>
   <div class="section-body">
-    <p class="muted">AI助手覆盖 <strong style="color:var(--text);">诊前问诊 &rarr; 诊中辅助 &rarr; 诊后随访</strong> 全流程。</p>
+    <p class="muted">医生端 4 个底部 Tab，每个对应一类认知任务。设置合并进"我的AI"页面。</p>
 
     <div class="flow">
       <div class="flow-card box-green" style="background:rgba(26,127,55,0.06);">
-        <h3>诊前（第一优先）</h3>
+        <h3>我的AI</h3>
         <ul>
-          <li style="color:var(--text);">患者扫码进入</li>
-          <li style="color:var(--text);">AI语音/文字多轮问诊</li>
-          <li style="color:var(--text);">生成结构化病历</li>
-          <li style="color:var(--text);">患者确认 &rarr; 传给医生</li>
+          <li style="color:var(--text);">AI身份卡（"张医生AI · 已学会12条规则"）</li>
+          <li style="color:var(--text);">7天引用数 / 待确认 / 今日处理</li>
+          <li style="color:var(--text);">快捷操作：预问诊码、待审核、处理随访</li>
+          <li style="color:var(--text);">我的方法：最近活跃的规则列表</li>
+          <li style="color:var(--text);">CTA："继续教AI" / "导入病例"</li>
         </ul>
-        <div class="quote" style="margin-top:12px; font-size:0.82rem; border-left-color:var(--green);">"如果看到病人前就有一份好病例，他就会很舒服"</div>
       </div>
       <div class="flow-arrow">&rarr;</div>
       <div class="flow-card box-blue" style="background:rgba(9,105,218,0.06);">
-        <h3>诊中（第二优先）</h3>
+        <h3>患者</h3>
         <ul>
-          <li style="color:var(--text);">结构化病历 + AI初步诊断</li>
-          <li style="color:var(--text);">鉴别诊断 + 检查建议</li>
-          <li style="color:var(--text);">治疗方向建议</li>
-          <li style="color:var(--text);">医生筛选确认 &rarr; 最终决策</li>
+          <li style="color:var(--text);">AI建议关注：基于医生规则触发</li>
+          <li style="color:var(--text);">每行显示AI知道/做了什么</li>
+          <li style="color:var(--text);">"术后第7天 · 按你的规则 需复查CT"</li>
+          <li style="color:var(--text);">搜索 + 新建患者</li>
         </ul>
-        <div class="quote" style="margin-top:12px; font-size:0.82rem;">"我在里面只要筛选，来决定下面的整治"</div>
       </div>
       <div class="flow-arrow">&rarr;</div>
       <div class="flow-card box-yellow" style="background:rgba(154,103,0,0.06);">
-        <h3>诊后（第三优先）</h3>
+        <h3>审核</h3>
         <ul>
-          <li style="color:var(--text);">AI基于病历+医嘱自动回复</li>
-          <li style="color:var(--text);">收集症状，提醒复查</li>
-          <li style="color:var(--text);">医生制定管理方案</li>
-          <li style="color:var(--text);">异常上报 &rarr; 医生处理</li>
+          <li style="color:var(--text);">AI诊断建议队列</li>
+          <li style="color:var(--text);">引用透明：<strong>"引用了你的规则"</strong> vs "未引用个人规则"</li>
+          <li style="color:var(--text);">确认 / 修改 / 排除 一键操作</li>
+          <li style="color:var(--text);">修改后提示"记成我的偏好？"</li>
         </ul>
-        <div class="quote" style="margin-top:12px; font-size:0.82rem; border-left-color:var(--yellow);">"到复诊、用药调整时会提醒双方"</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-card box-purple" style="background:rgba(130,80,223,0.06);">
+        <h3>随访</h3>
+        <ul>
+          <li style="color:var(--text);">AI用医生话术起草的回复草稿</li>
+          <li style="color:var(--text);">引用规则标签 + 一键发送</li>
+          <li style="color:var(--text);">即将到期的随访任务</li>
+          <li style="color:var(--text);">发送确认页（患者上下文 + 安全检查）</li>
+        </ul>
       </div>
     </div>
 
     <div class="insight">
+      <strong>核心产品时刻：</strong> 医生打开随访Tab，看到AI已经用他的话术起草了回复并标注了引用规则，点"发送"。这就是每日习惯闭环。
+    </div>
+
+    <h3 style="margin:20px 0 12px; font-size:1rem;">诊前 &rarr; 诊中 &rarr; 诊后 全流程</h3>
+    <table>
+      <tr><th>阶段</th><th>AI副驾驶</th><th>医生</th></tr>
+      <tr><td><strong>诊前</strong></td><td>患者扫码 &rarr; AI多轮问诊 &rarr; 结构化病历</td><td>审核病历，补充关键问题</td></tr>
+      <tr><td><strong>诊中</strong></td><td>鉴别诊断 + 检查 + 治疗方向，引用医生规则</td><td>筛选确认，编辑 &rarr; AI学习偏好</td></tr>
+      <tr><td><strong>诊后</strong></td><td>起草随访回复、分诊消息、追踪复查</td><td>审核草稿、一键发送、教新规则</td></tr>
+    </table>
+
+    <div class="insight" style="margin-top:16px;">
       <strong>Day 1 价值：</strong> 如果第一周不能把医生的夜间消息处理时间砍掉至少1小时，这不是产品。
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════ 5. 专科知识架构 ═══════════════════ -->
+<!-- ═══════════════════ 5. 教学闭环 + 引用透明 ═══════════════════ -->
 <div class="section" id="sec-knowledge">
   <div class="section-header" onclick="toggle('sec-knowledge')">
-    <h2><span class="dot dot-purple"></span> 专科知识架构</h2>
+    <h2><span class="dot dot-purple"></span> 教学闭环 + 引用透明</h2>
     <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
   </div>
   <div class="section-body">
-    <p class="muted">不需要建传统知识图谱。三层架构让LLM拥有专科能力：</p>
+    <p class="muted">"这个AI想法跟我一样"的核心机制：医生教 &rarr; AI学 &rarr; 引用透明 &rarr; 信任建立 &rarr; 医生继续教。</p>
 
-    <div class="stack">
-      <div class="stack-layer box-green" style="background:rgba(26,127,55,0.06);">
-        <h4 style="color:var(--green);">Skills（专科提示词知识）</h4>
-        <p style="color:var(--text);">神经科问诊话术、诊断规则、危险信号、治疗方案</p>
-        <p>&darr; 告诉LLM"怎么问、怎么判断" &middot; 医生可看/可改/可导入导出</p>
+    <div class="flow">
+      <div class="flow-card box-green" style="background:rgba(26,127,55,0.06);">
+        <h3>医生输入</h3>
+        <ul>
+          <li style="color:var(--text);">上传/粘贴诊疗规则</li>
+          <li style="color:var(--text);">编辑AI诊断建议</li>
+          <li style="color:var(--text);">修改AI随访草稿</li>
+          <li style="color:var(--text);">确认/拒绝推荐</li>
+        </ul>
       </div>
-      <div class="stack-layer box-blue" style="background:rgba(9,105,218,0.06);">
-        <h4 style="color:var(--accent);">RAG（病例历史匹配）</h4>
-        <p style="color:var(--text);">医生确认过的历史病例，embed后做相似匹配</p>
-        <p>&darr; 新患者来了，找到相似病例给LLM参考 &middot; 用得越多，匹配越准</p>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-card box-blue" style="background:rgba(9,105,218,0.06);">
+        <h3>AI学习</h3>
+        <ul>
+          <li style="color:var(--text);">编辑 &rarr; "记成我的偏好？"</li>
+          <li style="color:var(--text);">规则积累 &rarr; 引用频率追踪</li>
+          <li style="color:var(--text);">3次以上同类编辑 &rarr; 规则建议</li>
+          <li style="color:var(--text);">风格一致度指标（高/中/低）</li>
+        </ul>
       </div>
-      <div class="stack-layer box-purple" style="background:rgba(130,80,223,0.06);">
-        <h4 style="color:var(--purple);">Context（患者上下文）</h4>
-        <p style="color:var(--text);">这个患者的病历、用药、恢复阶段、对话历史</p>
-        <p>&darr; 每次回复都带上，AI"了解"这个患者 &middot; 医生可看/可修正</p>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-card box-purple" style="background:rgba(130,80,223,0.06);">
+        <h3>引用透明</h3>
+        <ul>
+          <li style="color:var(--text);"><strong>"引用了你的规则：术后头痛红旗"</strong></li>
+          <li style="color:var(--text);">"未引用个人规则" &rarr; 教AI一条</li>
+          <li style="color:var(--text);">"AI按你的话术起草"</li>
+          <li style="color:var(--text);">"按你的方法处理了 N 位患者"</li>
+        </ul>
       </div>
     </div>
 
-    <table style="margin-top:20px;">
-      <tr><th></th><th>知识图谱（左手医生）</th><th>我们的 Skills + RAG + Context</th></tr>
-      <tr><td>构建成本</td><td>巨大（6000+疾病实体关系）</td><td style="color:var(--green);">低（markdown提示词+病例积累）</td></tr>
-      <tr><td>更新方式</td><td>需要专人维护图谱</td><td style="color:var(--green);">医生确认病例自动积累</td></tr>
-      <tr><td>医生个性化</td><td>不能</td><td style="color:var(--green);">天然实现（RAG匹配医生自己的病例）</td></tr>
-      <tr><td>专科深度</td><td>广而浅</td><td style="color:var(--green);">深而专（按亚专科写skills）</td></tr>
-    </table>
-    <p class="muted" style="margin-top:12px;">"要有自己核心专科小模型在手才能安全" — 不是训练模型权重，而是积累专科知识库+病例库。这些才是真正属于医生的"小模型"。</p>
+    <div class="insight">
+      <strong>引用是信任原语：</strong>"引用了你的规则" vs "未引用个人规则" 的对比让医生<em>想要</em>教AI更多规则。缺失个性化变成了微转化时刻（"教AI一条"）。
+    </div>
+
+    <h3 style="margin:20px 0 12px; font-size:1rem;">知识三层架构</h3>
+    <div class="stack">
+      <div class="stack-layer box-green" style="background:rgba(26,127,55,0.06);">
+        <h4 style="color:var(--green);">个人规则（Skills）</h4>
+        <p style="color:var(--text);">诊断规则、沟通话术、随访方案、危险信号</p>
+        <p>&darr; 医生的"方法论" &middot; AI每次输出都引用 &middot; 可看/可改/可导入导出</p>
+      </div>
+      <div class="stack-layer box-blue" style="background:rgba(9,105,218,0.06);">
+        <h4 style="color:var(--accent);">病例记忆（RAG）</h4>
+        <p style="color:var(--text);">医生确认过的历史病例作为检索语料</p>
+        <p>&darr; 新患者 &rarr; 找相似病例给LLM参考 &middot; 确认越多匹配越准</p>
+      </div>
+      <div class="stack-layer box-purple" style="background:rgba(130,80,223,0.06);">
+        <h4 style="color:var(--purple);">患者上下文（Context）</h4>
+        <p style="color:var(--text);">这个患者的病历、用药、恢复阶段、对话历史</p>
+        <p>&darr; 每次AI输出都带上下文 &middot; 实现"了解这个患者"</p>
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top:12px;">"要有自己核心专科小模型在手才能安全" — 不是训练权重，而是积累个人规则+病例。这些才是真正属于医生的"小模型"，越用越强。</p>
   </div>
 </div>
 
-<!-- ═══════════════════ 6. 分阶段交付 ═══════════════════ -->
+<!-- ═══════════════════ 6. 当前状态 + 下阶段 ═══════════════════ -->
 <div class="section" id="sec-phases">
   <div class="section-header" onclick="toggle('sec-phases')">
-    <h2><span class="dot dot-yellow"></span> 分阶段交付</h2>
+    <h2><span class="dot dot-yellow"></span> 当前状态 + 下阶段</h2>
     <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
   </div>
   <div class="section-body">
-    <p class="muted">医生端先做，用起来再开放患者端。定位从第一天就是"AI助手"。</p>
+    <p class="muted">78% feature complete。基础框架已实现，下阶段聚焦<strong style="color:var(--text);">个人AI特性</strong>（教学闭环、草稿回复、引用透明）。</p>
 
-    <div class="timeline">
-      <div class="tl-phase">
-        <div class="tl-dot" style="background:var(--accent); color:var(--bg);">1</div>
-        <h4>医生工作台 + 知识库</h4>
-        <p>Dashboard、病历审核面板、专科知识库、知识管理界面</p>
-        <div class="metric">节省 15+ 分钟/天</div>
+    <div class="compare-grid">
+      <div class="compare-col" style="background:rgba(26,127,55,0.06); border:1px solid rgba(26,127,55,0.2);">
+        <h3><span style="color:var(--green);">已完成</span></h3>
+        <ul>
+          <li>医生工作台：聊天、患者、任务、设置、知识管理</li>
+          <li>诊断流水线：AI建议 &rarr; 医生审核 &rarr; 确认/拒绝/编辑 + KB引用</li>
+          <li>患者端：预问诊、病历、消息、任务、语音输入</li>
+          <li>文档上传 + LLM处理 + 诊断引用</li>
+          <li>QR登录、批量导出、回归测试（86+场景）</li>
+        </ul>
       </div>
-      <div class="tl-phase">
-        <div class="tl-dot" style="background:var(--green); color:var(--bg);">2</div>
-        <h4>AI诊断 + 诊疗建议</h4>
-        <p>诊断Pipeline、医生筛选确认、病例库增长、外部模型桥接</p>
-        <div class="metric">采纳率 &gt;50%</div>
-      </div>
-      <div class="tl-phase">
-        <div class="tl-dot" style="background:var(--yellow); color:var(--bg);">3</div>
-        <h4>患者端入口 + 预问诊</h4>
-        <p>扫码入口、AI语音问诊、结构化病历、病历流转</p>
-        <div class="metric">完成率 &gt;70%</div>
-      </div>
-      <div class="tl-phase">
-        <div class="tl-dot" style="background:var(--purple); color:var(--bg);">4</div>
-        <h4>诊后随访 + 全程管理</h4>
-        <p>自动随访、管理方案、双向提醒、增长飞轮</p>
-        <div class="metric">自动处理 &gt;60%</div>
+      <div class="compare-col" style="background:rgba(130,80,223,0.06); border:1px solid rgba(130,80,223,0.2);">
+        <h3><span style="color:var(--purple);">下阶段：个人AI</span></h3>
+        <ul>
+          <li>知识引用追踪（何时何处AI引用了医生规则）</li>
+          <li>AI草稿回复（医生话术 + 规则引用）</li>
+          <li>教学闭环（编辑 &rarr; AI学偏好 &rarr; "记成我的偏好？"）</li>
+          <li>AI活动Feed（"按你的方法处理了N位患者"）</li>
+          <li>AI建议关注患者（基于医生自己的规则）</li>
+          <li>引用视觉处理（"引用了你的规则" vs "未引用个人规则"）</li>
+          <li>4-Tab UI重构（我的AI / 患者 / 审核 / 随访）</li>
+        </ul>
       </div>
     </div>
 
-    <table style="margin-top:12px;">
-      <tr><th>指标</th><th>第一期</th><th>第二期</th><th>第三期</th><th>第四期</th></tr>
-      <tr><td>医生每日节省时间</td><td>&ge;15分钟</td><td>&ge;30分钟</td><td>&ge;1小时</td><td>&ge;1.5小时</td></tr>
-      <tr><td>诊断建议采纳率</td><td>--</td><td>&gt;50%</td><td>--</td><td>--</td></tr>
-      <tr><td>患者完成预问诊率</td><td>--</td><td>--</td><td>&gt;70%</td><td>--</td></tr>
-      <tr><td>病历质量（医生认可率）</td><td>--</td><td>--</td><td>&gt;80%</td><td>--</td></tr>
-      <tr><td>随访消息自动处理率</td><td>--</td><td>--</td><td>--</td><td>&gt;60%</td></tr>
+    <h3 style="margin:20px 0 12px; font-size:1rem;">构建顺序（4条并行流）</h3>
+    <table>
+      <tr><th>流</th><th>内容</th><th>依赖</th></tr>
+      <tr class="row-green"><td><strong>A: 知识基础</strong></td><td>分类修复 &rarr; 标题提取 &rarr; 引用解析spike &rarr; 使用追踪 &rarr; 教学闭环</td><td>最先构建，其他流依赖</td></tr>
+      <tr class="row-blue"><td><strong>B: 草稿回复</strong></td><td>AI草稿生成 &rarr; 安全约束 &rarr; 审核/发送 &rarr; 失效重生成 &rarr; 草稿教学</td><td>依赖A的分类+引用</td></tr>
+      <tr class="row-yellow"><td><strong>C: 聚合查询</strong></td><td>AI活动Feed + AI建议关注患者</td><td>依赖A的引用追踪</td></tr>
+      <tr class="row-purple"><td><strong>D: 前端</strong></td><td>Mockup更新 &rarr; 4-Tab导航 &rarr; 我的AI &rarr; 患者 &rarr; 审核 &rarr; 随访</td><td>依赖后端API就绪</td></tr>
     </table>
 
-    <div class="correction" style="margin-top:16px; background:rgba(154,103,0,0.06); border-color:rgba(154,103,0,0.25);">
-      <strong style="color:var(--yellow);">实际状态：</strong> Phase 1-3 并行开发，均已在 main 上实现。文档描述的顺序执行与实际不符。
-    </div>
+    <p class="muted" style="margin-top:12px;">详见 <code>docs/specs/2026-03-27-personal-ai-redesign.md</code> 第7节完整构建计划。</p>
   </div>
 </div>
 
@@ -634,7 +703,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
 
 <!-- ═══════════════════ FOOTER ═══════════════════ -->
 <div class="footer">
-  Source of truth: <code>product-strategy.md</code> &mdash; this HTML is a visual companion
+  Source of truth: <code>north-star.md</code> &mdash; this HTML is a visual companion &middot; Full redesign spec: <code>docs/specs/2026-03-27-personal-ai-redesign.md</code>
 </div>
 
 <script>
