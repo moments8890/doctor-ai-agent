@@ -20,7 +20,7 @@ import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import EmptyState from "../../components/EmptyState";
 import PatientAvatar from "../../components/PatientAvatar";
-import SectionLabel from "../../components/SectionLabel";
+import CollapsibleSection from "../../components/CollapsibleSection";
 import SubpageHeader from "../../components/SubpageHeader";
 import { TYPE, COLOR } from "../../theme";
 
@@ -378,8 +378,7 @@ export default function ReviewQueuePage({ doctorId }) {
 
         {/* Pending items */}
         {!loading && pending.length > 0 && (
-          <>
-            <SectionLabel>待审核 · {pending.length}条</SectionLabel>
+          <CollapsibleSection title="待审核" count={pending.length}>
             <Box sx={{
               bgcolor: COLOR.white,
               borderTop: `0.5px solid ${COLOR.border}`,
@@ -396,7 +395,7 @@ export default function ReviewQueuePage({ doctorId }) {
                 />
               ))}
             </Box>
-          </>
+          </CollapsibleSection>
         )}
 
         {/* Empty state */}
@@ -410,8 +409,7 @@ export default function ReviewQueuePage({ doctorId }) {
 
         {/* Recently completed */}
         {!loading && completed.length > 0 && (
-          <>
-            <SectionLabel>最近已审核</SectionLabel>
+          <CollapsibleSection title="最近已审核" count={completed.length} defaultOpen={false}>
             <Box sx={{
               bgcolor: COLOR.white,
               borderTop: `0.5px solid ${COLOR.border}`,
@@ -421,7 +419,7 @@ export default function ReviewQueuePage({ doctorId }) {
                 <CompletedRow key={item.id} item={item} />
               ))}
             </Box>
-          </>
+          </CollapsibleSection>
         )}
 
         {/* Bottom disclaimer */}

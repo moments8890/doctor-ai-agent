@@ -23,7 +23,7 @@ import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import EmptyState from "../../components/EmptyState";
 import PatientAvatar from "../../components/PatientAvatar";
-import SectionLabel from "../../components/SectionLabel";
+import CollapsibleSection from "../../components/CollapsibleSection";
 import StatusBadge from "../../components/StatusBadge";
 import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
@@ -624,8 +624,7 @@ export default function FollowupPage({ doctorId }) {
 
             {/* ── Section: 患者消息 · 待回复 ── */}
             {pendingMessages.length > 0 && (
-              <>
-                <SectionLabel>患者消息 · 待回复</SectionLabel>
+              <CollapsibleSection title="患者消息 · 待回复" count={pendingMessages.length}>
                 <Box sx={{
                   bgcolor: COLOR.white,
                   borderTop: `0.5px solid ${COLOR.border}`,
@@ -636,16 +635,16 @@ export default function FollowupPage({ doctorId }) {
                       key={msg.id}
                       item={msg}
                       onSend={handleOpenSend}
+                      onTeachPrompt={handleTeachPrompt}
                     />
                   ))}
                 </Box>
-              </>
+              </CollapsibleSection>
             )}
 
             {/* ── Section: 即将到期的随访 ── */}
             {upcomingFollowups.length > 0 && (
-              <>
-                <SectionLabel>即将到期的随访</SectionLabel>
+              <CollapsibleSection title="即将到期的随访" count={upcomingFollowups.length}>
                 <Box sx={{
                   bgcolor: COLOR.white,
                   borderTop: `0.5px solid ${COLOR.border}`,
@@ -655,13 +654,12 @@ export default function FollowupPage({ doctorId }) {
                     <ScheduledRow key={f.id} item={f} />
                   ))}
                 </Box>
-              </>
+              </CollapsibleSection>
             )}
 
             {/* ── Section: 待办提醒 ── */}
             {pendingTasks.length > 0 && (
-              <>
-                <SectionLabel>待办提醒</SectionLabel>
+              <CollapsibleSection title="待办提醒" count={pendingTasks.length}>
                 <Box sx={{
                   bgcolor: COLOR.white,
                   borderTop: `0.5px solid ${COLOR.border}`,
@@ -671,13 +669,12 @@ export default function FollowupPage({ doctorId }) {
                     <TaskRow key={t.id} item={t} />
                   ))}
                 </Box>
-              </>
+              </CollapsibleSection>
             )}
 
             {/* ── Section: 最近已发送 ── */}
             {recentlySent.length > 0 && (
-              <>
-                <SectionLabel>最近已发送</SectionLabel>
+              <CollapsibleSection title="最近已发送" count={recentlySent.length} defaultOpen={false}>
                 <Box sx={{
                   bgcolor: COLOR.white,
                   borderTop: `0.5px solid ${COLOR.border}`,
@@ -687,7 +684,7 @@ export default function FollowupPage({ doctorId }) {
                     <SentRow key={s.id} item={s} />
                   ))}
                 </Box>
-              </>
+              </CollapsibleSection>
             )}
           </>
         )}
@@ -700,6 +697,47 @@ export default function FollowupPage({ doctorId }) {
         item={confirmItem}
         onConfirm={handleConfirmSend}
         sending={sending}
+      />
+
+      {/* Teaching prompt: save edited draft as knowledge rule */}
+      <Snackbar
+        open={!!teachEditId}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        message="您的修改已记录。要将这个回复模式保存为知识条目吗？"
+        action={
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Typography
+              onClick={handleTeachDismiss}
+              sx={{
+                fontSize: TYPE.secondary.fontSize, color: COLOR.white,
+                cursor: "pointer", opacity: 0.8,
+                "&:active": { opacity: 0.5 },
+              }}
+            >
+              跳过
+            </Typography>
+            <Typography
+              onClick={handleTeachSave}
+              sx={{
+                fontSize: TYPE.secondary.fontSize, color: COLOR.primaryLight,
+                cursor: teachSaving ? "default" : "pointer",
+                fontWeight: 500, opacity: teachSaving ? 0.5 : 1,
+                "&:active": teachSaving ? {} : { opacity: 0.5 },
+              }}
+            >
+              {teachSaving ? "保存中..." : "保存"}
+            </Typography>
+          </Box>
+        }
+      />
+
+      {/* Success toast after saving as knowledge rule */}
+      <Snackbar
+        open={teachSaved}
+        autoHideDuration={2000}
+        onClose={() => setTeachSaved(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        message="已保存为知识条目"
       />
     </Box>
   );
