@@ -219,6 +219,13 @@ export default function MyAIPage({ doctorId }) {
         <SectionLabel>快捷入口</SectionLabel>
         <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
           <ListCard
+            avatar={<QuickActionIcon bg="#07C160"><ContentPasteOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
+            title="新建病历"
+            subtitle="语音或文字录入患者信息"
+            chevron
+            onClick={() => navigate("/doctor/patients/new")}
+          />
+          <ListCard
             avatar={<QuickActionIcon bg={COLOR.primary}><QrCode2OutlinedIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
             title="患者预问诊码"
             subtitle="患者扫码自助填写病史"
