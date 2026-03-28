@@ -582,7 +582,6 @@ export default function FollowupPage({ doctorId }) {
 
   const showMessages = filter === "all" || filter === "messages";
   const showFollowups = filter === "all" || filter === "followups";
-  const showTasks = filter === "all" || filter === "tasks";
   const showSent = filter === "all" || filter === "sent";
 
   return (
@@ -633,8 +632,7 @@ export default function FollowupPage({ doctorId }) {
             }}>
               {[
                 { key: "messages", label: "待回复", count: pendingMessages.length, activeColor: COLOR.danger },
-                { key: "followups", label: "随访", count: upcomingFollowups.length, activeColor: COLOR.warning },
-                { key: "tasks", label: "日程", count: pendingTasks.length, activeColor: COLOR.text1 },
+                { key: "followups", label: "待完成", count: upcomingFollowups.length + pendingTasks.length, activeColor: COLOR.warning },
                 { key: "sent", label: "已完成", count: recentlySent.length, activeColor: COLOR.text4 },
               ].map((tab, i, arr) => {
                 const active = filter === tab.key;
@@ -712,7 +710,7 @@ export default function FollowupPage({ doctorId }) {
             )}
 
             {/* ── Section: 任务 ── */}
-            {showTasks && pendingTasks.length > 0 && (
+            {showFollowups && pendingTasks.length > 0 && (
               <>
                 <SectionLabel>任务</SectionLabel>
                 <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>

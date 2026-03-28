@@ -374,15 +374,17 @@ export default function ReviewQueuePage({ doctorId }) {
 
   /* ── Render ─────────────────────────────────────────────────────────────── */
 
-  const summary = queue?.summary || { pending: 0, confirmed: 0, modified: 0 };
   const pending = queue?.pending || [];
   const completed = queue?.completed || [];
+  const confirmedItems = completed.filter((c) => c.decision !== "edited");
+  const modifiedItems = completed.filter((c) => c.decision === "edited");
+  const summary = { pending: pending.length, confirmed: confirmedItems.length, modified: modifiedItems.length };
   const [filter, setFilter] = useState("pending");
 
   const handleFilter = (key) => setFilter((prev) => prev === key ? "pending" : key);
 
   const showPending = filter === "pending";
-  const showCompleted = filter === "confirmed" || filter === "modified";
+  const filteredCompleted = filter === "confirmed" ? confirmedItems : filter === "modified" ? modifiedItems : [];
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
@@ -432,7 +434,7 @@ export default function ReviewQueuePage({ doctorId }) {
         )}
 
         {/* Completed items */}
-        {!loading && showCompleted && completed.length > 0 && (
+        {!loading && !showPending && filteredCompleted.length > 0 && (
           <>
             <SectionLabel>{filter === "confirmed" ? "已确认" : "已修改"}</SectionLabel>
             <Box sx={{
@@ -440,14 +442,14 @@ export default function ReviewQueuePage({ doctorId }) {
               borderTop: `0.5px solid ${COLOR.border}`,
               borderBottom: `0.5px solid ${COLOR.border}`,
             }}>
-              {completed.map((item) => (
+              {filteredCompleted.map((item) => (
                 <CompletedRow key={item.id} item={item} />
               ))}
             </Box>
           </>
         )}
 
-        {!loading && showCompleted && completed.length === 0 && (
+        {!loading && !showPending && filteredCompleted.length === 0 && (
           <EmptyState
             icon={<AssignmentOutlinedIcon />}
             title={filter === "confirmed" ? "暂无已确认项" : "暂无已修改项"}
