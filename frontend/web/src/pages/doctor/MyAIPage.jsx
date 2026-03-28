@@ -39,9 +39,9 @@ function AIAvatar({ size = 44 }) {
   );
 }
 
-function StatColumn({ value, label }) {
+function StatColumn({ value, label, onClick }) {
   return (
-    <Box sx={{ flex: 1, textAlign: "center" }}>
+    <Box onClick={onClick} sx={{ flex: 1, textAlign: "center", cursor: onClick ? "pointer" : "default", "&:active": onClick ? { opacity: 0.5 } : {} }}>
       <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 600, color: COLOR.text1 }}>
         {value ?? <Skeleton width={20} sx={{ mx: "auto" }} />}
       </Typography>
@@ -185,33 +185,19 @@ export default function MyAIPage({ doctorId }) {
           <Box sx={{ display: "flex", py: 1.5, px: 2, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
             <StatColumn value={weekCitations} label="7天引用" />
             <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-            <StatColumn value={pendingConfirm} label="待确认" />
+            <StatColumn value={pendingConfirm} label="待确认" onClick={() => navigate("/doctor/review?tab=pending")} />
             <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-            <StatColumn value={todayProcessed} label="今日处理" />
+            <StatColumn value={todayProcessed} label="今日处理" onClick={() => navigate("/doctor/tasks?tab=sent")} />
           </Box>
 
-          {/* Live status line — or onboarding hint when no knowledge yet */}
-          {!loading && knowledgeCount === 0 ? (
+          {/* Onboarding hint when no knowledge yet */}
+          {!loading && knowledgeCount === 0 && (
             <Box sx={{ px: 2, py: 1.2 }}>
               <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.5 }}>
                 上传你的诊疗规则或常用模板后，它才会按你的方法工作
               </Typography>
             </Box>
-          ) : latestActivity ? (
-            <Box sx={{ px: 2, py: 1.2 }}>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, lineHeight: 1.5 }}>
-                {latestActivity.description || (
-                  <>
-                    刚刚在{latestActivity.patient_name || "患者"}处理中用了「
-                    <Typography component="span" sx={{ color: COLOR.primary, fontWeight: 500, fontSize: "inherit" }}>
-                      {latestActivity.rule_name || latestActivity.title || "规则"}
-                    </Typography>
-                    」
-                  </>
-                )}
-              </Typography>
-            </Box>
-          ) : null}
+          )}
 
           {/* CTA row */}
           <Box sx={{ display: "flex", gap: 1.2, px: 2, py: 1.5 }}>
