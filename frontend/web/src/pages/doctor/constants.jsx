@@ -81,14 +81,14 @@ export const NAV = [
   { key: "my-ai", label: "我的AI", icon: <AutoAwesomeOutlinedIcon fontSize="medium" /> },
   { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="medium" /> },
   { key: "review", label: "门诊", icon: <LocalHospitalOutlinedIcon fontSize="medium" />, badgeKey: "review" },
-  { key: "followup", label: "任务", icon: <AssignmentTurnedInOutlinedIcon fontSize="medium" />, badgeKey: "followup" },
+  { key: "tasks", label: "任务", icon: <AssignmentTurnedInOutlinedIcon fontSize="medium" />, badgeKey: "tasks" },
 ];
 
 export const DESKTOP_NAV = [
   { key: "my-ai", label: "我的AI", icon: <AutoAwesomeOutlinedIcon fontSize="medium" /> },
   { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="medium" /> },
   { key: "review", label: "门诊", icon: <LocalHospitalOutlinedIcon fontSize="medium" />, badgeKey: "review" },
-  { key: "followup", label: "任务", icon: <AssignmentTurnedInOutlinedIcon fontSize="medium" />, badgeKey: "followup" },
+  { key: "tasks", label: "任务", icon: <AssignmentTurnedInOutlinedIcon fontSize="medium" />, badgeKey: "tasks" },
   { key: "settings", label: "设置", icon: <SettingsOutlinedIcon fontSize="medium" /> },
 ];
 

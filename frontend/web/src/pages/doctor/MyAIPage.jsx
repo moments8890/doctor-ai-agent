@@ -255,7 +255,7 @@ export default function MyAIPage({ doctorId }) {
             subtitle="患者消息可快速处理"
             right={<InlineBadge count={followupBadge} color="#ef4444" />}
             chevron
-            onClick={() => navigate("/doctor/followup")}
+            onClick={() => navigate("/doctor/tasks")}
             sx={{ borderBottom: "none" }}
           />
         </Box>
@@ -339,7 +339,7 @@ export default function MyAIPage({ doctorId }) {
             最近由AI处理
           </Typography>
           <Typography
-            onClick={() => navigate("/doctor/followup")}
+            onClick={() => navigate("/doctor/tasks")}
             sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
           >
             全部 ›

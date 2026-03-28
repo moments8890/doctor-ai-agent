@@ -140,7 +140,7 @@ function TaskCards({ tasks, onNavigate, max = 5 }) {
   return (
     <Box sx={{ mt: 1, borderTop: "1px solid #e5e5e5", pt: 0.5 }}>
       {shown.map((tk) => (
-        <Box key={tk.id} sx={cardRowSx} onClick={() => tk.patient_id ? onNavigate(`/doctor/patients/${tk.patient_id}`) : onNavigate("/doctor/followup")}>
+        <Box key={tk.id} sx={cardRowSx} onClick={() => tk.patient_id ? onNavigate(`/doctor/patients/${tk.patient_id}`) : onNavigate("/doctor/tasks")}>
           <Box sx={cardIconSx("#fff3e0")}><AssignmentOutlinedIcon sx={{ fontSize: 16, color: "#e8833a" }} /></Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 600, color: "#333" }} noWrap>
@@ -155,7 +155,7 @@ function TaskCards({ tasks, onNavigate, max = 5 }) {
       ))}
       {tasks.length > max && (
         <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#07C160", textAlign: "center", pt: 0.5 }}
-          onClick={() => onNavigate("/doctor/followup")}>
+          onClick={() => onNavigate("/doctor/tasks")}>
           查看全部 ({tasks.length})
         </Typography>
       )}

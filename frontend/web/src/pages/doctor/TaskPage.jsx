@@ -1,5 +1,5 @@
 /**
- * @route /doctor/followup
+ * @route /doctor/tasks
  *
  * TaskPage -- "任务" tab. Shows pending replies, followups, tasks,
  * and completed items. Three filter tabs:

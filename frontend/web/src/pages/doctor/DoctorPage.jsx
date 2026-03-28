@@ -143,7 +143,7 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
         </ErrorBoundary>
       )}
       {activeSection === "review" && <ErrorBoundary label="审核"><ReviewQueuePage doctorId={doctorId} /></ErrorBoundary>}
-      {activeSection === "followup" && <ErrorBoundary label="任务"><TaskPage doctorId={doctorId} /></ErrorBoundary>}
+      {activeSection === "tasks" && <ErrorBoundary label="任务"><TaskPage doctorId={doctorId} /></ErrorBoundary>}
       {activeSection === "settings" && <ErrorBoundary label="设置"><SettingsPage doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
     </Box>
   );
@@ -213,14 +213,14 @@ export default function DoctorPage() {
 
   const { pendingTaskCount, reviewCount, followupCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
-  const navBadge = { tasks: pendingTaskCount, review: reviewCount, followup: followupCount };
+  const navBadge = { tasks: followupCount, review: reviewCount };
 
   const isReviewPage = !!recordId;
   const activeSection = patientId ? "patients" : (section || "my-ai");
 
   // Main tabs show bottom nav; subpages hide it and show ‹ back in top bar.
   // WeChat pattern: bottom nav only on root tab views.
-  const MAIN_TABS = new Set(["my-ai", "patients", "review", "followup"]);
+  const MAIN_TABS = new Set(["my-ai", "patients", "review", "tasks"]);
   const isSubpage = isReviewPage || !MAIN_TABS.has(activeSection) || !!patientId;
 
   function handleNav(key) { navigate(key === "my-ai" ? "/doctor" : `/doctor/${key}`); }
