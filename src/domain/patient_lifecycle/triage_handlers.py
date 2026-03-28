@@ -1,0 +1,375 @@
+"""Triage handlers for patient messages (ADR 0020).
+
+Contains the per-category handler functions (informational, escalation, urgent)
+along with their shared helpers: rate limiting, notification batching, patient
+name lookup, and LLM response models.
+"""
+from __future__ import annotations
+
+import json
+import os
+import time
+from typing import Dict, List
+
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from db.crud.patient_message import save_patient_message
+from db.models.patient import Patient
+from domain.tasks.notifications import send_doctor_notification
+from utils.log import log, safe_create_task
+from utils.prompt_loader import get_prompt_sync
+
+
+# ---------------------------------------------------------------------------
+# LLM response models
+# ---------------------------------------------------------------------------
+
+class InformationalLLMResponse(BaseModel):
+    """LLM response for informational patient questions."""
+    reply: str
+
+
+class EscalationLLMResponse(BaseModel):
+    """LLM response for escalation summary."""
+    patient_question: str
+    conversation_context: str
+    patient_status: str
+    reason_for_escalation: str
+    suggested_action: str
+
+
+# ---------------------------------------------------------------------------
+# LLM provider helper
+# ---------------------------------------------------------------------------
+
+def _triage_env_var() -> str:
+    """Resolve env var for triage LLM: TRIAGE_LLM → ROUTING_LLM → groq."""
+    if os.environ.get("TRIAGE_LLM"):
+        return "TRIAGE_LLM"
+    return "ROUTING_LLM"
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting — max 3 escalations per 6-hour window per patient
+# ---------------------------------------------------------------------------
+
+_RATE_LIMIT_WINDOW = 6 * 60 * 60  # 6 hours in seconds
+_RATE_LIMIT_MAX = 3
+
+# Key: (patient_id, doctor_id) → list of timestamps (epoch seconds)
+_escalation_timestamps: Dict[tuple, List[float]] = {}
+
+
+def _is_rate_limited(patient_id: int, doctor_id: str) -> bool:
+    """Return True if the patient has exceeded the escalation notification limit.
+
+    Trims expired entries on each call. The ``urgent`` category should bypass
+    this check entirely (caller responsibility).
+    """
+    key = (patient_id, doctor_id)
+    now = time.time()
+    cutoff = now - _RATE_LIMIT_WINDOW
+
+    # Trim expired entries
+    timestamps = _escalation_timestamps.get(key, [])
+    timestamps = [ts for ts in timestamps if ts > cutoff]
+    _escalation_timestamps[key] = timestamps
+
+    return len(timestamps) >= _RATE_LIMIT_MAX
+
+
+def _record_escalation(patient_id: int, doctor_id: str) -> None:
+    """Record a new escalation timestamp for rate limiting."""
+    key = (patient_id, doctor_id)
+    _escalation_timestamps.setdefault(key, []).append(time.time())
+
+
+# ---------------------------------------------------------------------------
+# Notification batching — 10-minute quiet window per patient
+# ---------------------------------------------------------------------------
+
+_BATCH_WINDOW = 10 * 60  # 10 minutes in seconds
+
+# Key: (patient_id, doctor_id) → last notification epoch timestamp
+_last_notify_time: Dict[tuple, float] = {}
+
+
+def _should_notify(patient_id: int, doctor_id: str) -> bool:
+    """Return True if enough time has passed since the last notification.
+
+    The ``urgent`` category should bypass this check entirely (caller
+    responsibility).
+    """
+    key = (patient_id, doctor_id)
+    now = time.time()
+    last = _last_notify_time.get(key, 0.0)
+    return (now - last) >= _BATCH_WINDOW
+
+
+def _mark_notified(patient_id: int, doctor_id: str) -> None:
+    """Record that we just sent a notification for this patient."""
+    _last_notify_time[(patient_id, doctor_id)] = time.time()
+
+
+# ---------------------------------------------------------------------------
+# Patient name helper
+# ---------------------------------------------------------------------------
+
+async def _get_patient_name(
+    db_session: AsyncSession,
+    patient_id: int,
+    doctor_id: str,
+) -> str:
+    """Look up the patient's display name; falls back to '患者'."""
+    try:
+        result = await db_session.execute(
+            select(Patient.name).where(
+                Patient.id == patient_id,
+                Patient.doctor_id == doctor_id,
+            )
+        )
+        name = result.scalar_one_or_none()
+        return name if name else "患者"
+    except Exception:
+        return "患者"
+
+
+# ---------------------------------------------------------------------------
+# Fire-and-forget notification helper
+# ---------------------------------------------------------------------------
+
+async def _notify_doctor_safe(doctor_id: str, message: str) -> None:
+    """Send notification to doctor, swallowing exceptions."""
+    try:
+        await send_doctor_notification(doctor_id, message)
+    except Exception as exc:
+        log(f"[triage] failed to notify doctor {doctor_id}: {exc}", level="error")
+
+
+# ---------------------------------------------------------------------------
+# Prompt constants
+# ---------------------------------------------------------------------------
+
+_INFORMATIONAL_SYSTEM_PROMPT = get_prompt_sync("intent/triage-informational")
+_ESCALATION_SYSTEM_PROMPT = get_prompt_sync("intent/triage-escalation")
+
+
+# ---------------------------------------------------------------------------
+# Handlers
+# ---------------------------------------------------------------------------
+
+async def handle_informational(
+    message: str,
+    context: dict,
+    db_session: AsyncSession,
+    patient_id: int,
+    doctor_id: str,
+) -> str:
+    """Handle an informational message: AI generates a direct answer.
+
+    Saves both the inbound patient message and the outbound AI response
+    with ``ai_handled=True`` and ``triage_category="informational"``.
+    """
+    from agent.llm import structured_call
+
+    context_text = json.dumps(context, ensure_ascii=False, indent=2)
+    system = _INFORMATIONAL_SYSTEM_PROMPT.replace("{patient_context}", context_text)
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": message},
+    ]
+
+    try:
+        result = await structured_call(
+            response_model=InformationalLLMResponse,
+            messages=messages,
+            op_name="triage.informational",
+            env_var=_triage_env_var(),
+            temperature=0.3,
+            max_tokens=500,
+        )
+        reply = result.reply
+    except Exception as exc:
+        log(f"[triage] handle_informational failed: {exc}", level="error")
+        reply = ""
+
+    if not reply:
+        reply = "抱歉，我暂时无法回答您的问题，已通知您的主治医生。"
+
+    # Persist inbound patient message
+    await save_patient_message(
+        db_session,
+        patient_id=patient_id,
+        doctor_id=doctor_id,
+        content=message,
+        direction="inbound",
+        source="patient",
+        ai_handled=True,
+        triage_category="informational",
+    )
+    # Persist outbound AI response
+    await save_patient_message(
+        db_session,
+        patient_id=patient_id,
+        doctor_id=doctor_id,
+        content=reply,
+        direction="outbound",
+        source="ai",
+        ai_handled=True,
+        triage_category="informational",
+    )
+
+    return reply
+
+
+async def handle_escalation(
+    message: str,
+    context: dict,
+    category: str,
+    db_session: AsyncSession,
+    patient_id: int,
+    doctor_id: str,
+) -> str:
+    """Handle a message that requires doctor escalation.
+
+    Generates a structured summary for the doctor, saves the message with
+    ``ai_handled=False`` and the summary as ``structured_data``.
+
+    Returns a patient-facing acknowledgment.
+    """
+    from agent.llm import structured_call
+
+    context_text = json.dumps(context, ensure_ascii=False, indent=2)
+    system = _ESCALATION_SYSTEM_PROMPT.replace("{patient_context}", context_text)
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": message},
+    ]
+
+    try:
+        result = await structured_call(
+            response_model=EscalationLLMResponse,
+            messages=messages,
+            op_name="triage.escalation",
+            env_var=_triage_env_var(),
+            temperature=0.1,
+            max_tokens=800,
+        )
+        summary_json = result.model_dump_json()
+    except Exception as exc:
+        log(f"[triage] handle_escalation summary failed: {exc}", level="error")
+        # Still escalate even if summary generation fails
+        summary_json = json.dumps({
+            "patient_question": message,
+            "conversation_context": "",
+            "patient_status": "未知",
+            "reason_for_escalation": f"分类为{category}，摘要生成失败",
+            "suggested_action": "请查看患者消息",
+        }, ensure_ascii=False)
+
+    # Persist inbound patient message with escalation metadata
+    await save_patient_message(
+        db_session,
+        patient_id=patient_id,
+        doctor_id=doctor_id,
+        content=message,
+        direction="inbound",
+        source="patient",
+        ai_handled=False,
+        triage_category=category,
+        structured_data=summary_json,
+    )
+
+    # Rate limiting: max 3 escalation notifications per 6h per patient.
+    # If rate-limited, still save the message but don't notify the doctor.
+    if _is_rate_limited(patient_id, doctor_id):
+        log(f"[triage] rate-limited escalation for patient {patient_id}, skipping notification")
+        reply = "医生将在查看时一并处理您的问题"
+    else:
+        _record_escalation(patient_id, doctor_id)
+        reply = "这个问题需要您的主治医生回复，我已通知医生。"
+
+        # Batch notifications: only notify if 10-min quiet window has elapsed.
+        if _should_notify(patient_id, doctor_id):
+            _mark_notified(patient_id, doctor_id)
+            patient_name = await _get_patient_name(db_session, patient_id, doctor_id)
+            preview = message[:40] + ("…" if len(message) > 40 else "")
+            notification = "患者【{name}】有新消息需要您处理：{preview}".format(
+                name=patient_name, preview=preview,
+            )
+            safe_create_task(_notify_doctor_safe(doctor_id, notification))
+        else:
+            log(f"[triage] batching notification for patient {patient_id} (within 10-min window)")
+
+    # Persist outbound acknowledgment
+    await save_patient_message(
+        db_session,
+        patient_id=patient_id,
+        doctor_id=doctor_id,
+        content=reply,
+        direction="outbound",
+        source="ai",
+        ai_handled=False,
+        triage_category=category,
+    )
+
+    return reply
+
+
+async def handle_urgent(
+    message: str,
+    context: dict,
+    db_session: AsyncSession,
+    patient_id: int,
+    doctor_id: str,
+) -> str:
+    """Handle an urgent message: provide safety guidance and notify doctor.
+
+    Returns a static safety message — no LLM call (latency matters for urgent).
+    Saves with ``triage_category="urgent"`` and ``ai_handled=False``.
+
+    ``urgent`` always notifies immediately — bypasses rate limiting and batching.
+    """
+    reply = "如出现严重症状请立即就医或拨打120。已通知您的主治医生。"
+
+    # Persist inbound urgent message
+    await save_patient_message(
+        db_session,
+        patient_id=patient_id,
+        doctor_id=doctor_id,
+        content=message,
+        direction="inbound",
+        source="patient",
+        ai_handled=False,
+        triage_category="urgent",
+        structured_data=json.dumps({
+            "patient_question": message,
+            "reason_for_escalation": "紧急情况",
+            "suggested_action": "请立即联系患者",
+        }, ensure_ascii=False),
+    )
+
+    # Persist outbound safety guidance
+    await save_patient_message(
+        db_session,
+        patient_id=patient_id,
+        doctor_id=doctor_id,
+        content=reply,
+        direction="outbound",
+        source="ai",
+        ai_handled=False,
+        triage_category="urgent",
+    )
+
+    # Urgent always notifies immediately — bypasses rate limiting and batching.
+    patient_name = await _get_patient_name(db_session, patient_id, doctor_id)
+    preview = message[:40] + ("…" if len(message) > 40 else "")
+    notification = "【紧急】患者【{name}】: {preview}，请立即处理".format(
+        name=patient_name, preview=preview,
+    )
+    _mark_notified(patient_id, doctor_id)
+    safe_create_task(_notify_doctor_safe(doctor_id, notification))
+
+    return reply
