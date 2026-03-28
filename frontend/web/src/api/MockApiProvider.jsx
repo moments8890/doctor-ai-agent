@@ -15,7 +15,7 @@ export function MockApiProvider({ children }) {
 
   useEffect(() => {
     document.title = "[debug] 鲸鱼随行";
-    setAuth({ doctorId: "mock_doctor", doctorName: "测试医生", accessToken: "mock-token" });
+    setAuth("mock_doctor", "测试医生", "mock-token");
     return () => { document.title = "鲸鱼随行"; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
