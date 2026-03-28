@@ -114,8 +114,8 @@ var NODES = [
   // Doctor nav tabs — row 0
   { id: 'myai',     label: '我的AI',   route: '/doctor',           comp: 'MyAIPage',        img: 'doctor-home.png',     app: 'doctor', color: '#1a7f37', gx: 0.10, gy: 0.14 },
   { id: 'patients', label: '患者',     route: '/doctor/patients',   comp: 'PatientsPage',    img: 'doctor-patients.png', app: 'doctor', color: '#1a7f37', gx: 0.26, gy: 0.14 },
-  { id: 'review',   label: '审核',     route: '/doctor/review',     comp: 'ReviewQueuePage', img: 'doctor-review.png',   app: 'doctor', color: '#1a7f37', gx: 0.42, gy: 0.14 },
-  { id: 'followup', label: '随访',     route: '/doctor/followup',   comp: 'FollowupPage',    img: 'doctor-followup.png', app: 'doctor', color: '#1a7f37', gx: 0.56, gy: 0.14 },
+  { id: 'review',   label: '门诊',     route: '/doctor/review',     comp: 'ReviewQueuePage', img: 'doctor-review.png',   app: 'doctor', color: '#1a7f37', gx: 0.42, gy: 0.14 },
+  { id: 'tasks',    label: '任务',     route: '/doctor/tasks',      comp: 'TaskPage',        img: 'doctor-followup.png', app: 'doctor', color: '#1a7f37', gx: 0.56, gy: 0.14 },
   // Doctor main pages — row 1
   { id: 'chat',     label: 'AI Chat ⚠', route: '/doctor/chat',       comp: 'ChatPage',        img: 'doctor-chat.png',     app: 'doctor', color: '#9a6700', gx: 0.06, gy: 0.40, reason: 'No nav tab. Reachable via AskAIBar and navigate() calls only.' },
   { id: 'settings', label: '设置',     route: '/doctor/settings',   comp: 'SettingsPage',    img: 'doctor-settings.png', app: 'doctor', color: '#0969da', gx: 0.28, gy: 0.40 },
@@ -138,8 +138,8 @@ var NODES = [
   { id: 'admin', label: 'Admin', route: '/admin', comp: 'AdminPage', img: 'admin.png', app: 'standalone', color: '#656d76', gx: 0.06, gy: 0.88 },
   // Orphaned / semi-dead — no nav tab, reachable only via specific actions or not at all
   { id: 'home-legacy', label: 'Home (deleted)', route: '/doctor/home', comp: 'HomePage + HomeSubpage', img: 'doctor-home-legacy.png', app: 'orphan', color: '#cf222e', gx: 0.14, gy: 0.88, orphan: true, reason: 'DELETED: MyAIPage replaced it. Files removed.' },
-  { id: 'tasks-legacy', label: 'Tasks (deleted)', route: '/doctor/tasks', comp: 'TasksPage', img: 'doctor-tasks.png', app: 'orphan', color: '#cf222e', gx: 0.80, gy: 0.88, orphan: true, reason: 'DELETED: Merged into FollowupPage. "待办提醒" section now in 随访 tab.' },
-  { id: 'privacy', label: '隐私政策', route: '/privacy', comp: 'PrivacyPage', img: null, app: 'orphan', color: '#cf222e', gx: 0.36, gy: 0.88, orphan: true, reason: 'Opens in new browser tab from Settings → 隐私政策. Not in-app navigation.' },
+  { id: 'tasks-legacy', label: 'TasksPage (deleted)', route: '/doctor/tasks (old)', comp: 'TasksPage', img: 'doctor-tasks.png', app: 'orphan', color: '#cf222e', gx: 0.80, gy: 0.88, orphan: true, reason: 'DELETED: Merged into TaskPage (was FollowupPage). /doctor/tasks now serves the new TaskPage.' },
+  { id: 'privacy', label: '隐私政策', route: '/settings/privacy', comp: 'PrivacyPage', img: null, app: 'doctor', color: '#8250df', gx: 0.74, gy: 0.66 },
   { id: 'showcase', label: 'Components', route: '/debug/components', comp: 'ComponentShowcase', img: 'debug-components.png', app: 'orphan', color: '#cf222e', gx: 0.54, gy: 0.88, orphan: true, reason: 'Debug-only showcase. No in-app navigation, direct URL only.' },
   { id: 'dr-showcase', label: 'Dr Components', route: '/debug/doctor-components', comp: 'Showcase', img: 'debug-doctor-components.png', app: 'orphan', color: '#cf222e', gx: 0.68, gy: 0.88, orphan: true, reason: 'Debug-only showcase. No in-app navigation, direct URL only.' },
 ];
@@ -148,10 +148,10 @@ var EDGES = [
   // Nav tabs (bidirectional shown as single)
   { from: 'myai', to: 'patients', label: 'nav', type: 'nav' },
   { from: 'myai', to: 'review', label: 'nav', type: 'nav' },
-  { from: 'myai', to: 'followup', label: 'nav', type: 'nav' },
+  { from: 'myai', to: 'tasks', label: 'nav', type: 'nav' },
   { from: 'patients', to: 'review', label: 'nav', type: 'nav' },
-  { from: 'patients', to: 'followup', label: 'nav', type: 'nav' },
-  { from: 'review', to: 'followup', label: 'nav', type: 'nav' },
+  { from: 'patients', to: 'tasks', label: 'nav', type: 'nav' },
+  { from: 'review', to: 'tasks', label: 'nav', type: 'nav' },
   // MyAI drill
   { from: 'myai', to: 'settings', label: '⚙️ icon', type: 'drill' },
   { from: 'myai', to: 'chat', label: 'AskAI bar', type: 'drill' },
@@ -169,15 +169,16 @@ var EDGES = [
   { from: 'settings', to: 'knowledge', label: '"知识库"', type: 'drill' },
   { from: 'settings', to: 'template', label: '"报告模板"', type: 'drill' },
   { from: 'settings', to: 'about', label: '"关于"', type: 'drill' },
+  { from: 'settings', to: 'privacy', label: '"隐私政策"', type: 'drill' },
   { from: 'settings', to: 'login', label: '"退出登录"', type: 'drill' },
   // Knowledge drill
   { from: 'knowledge', to: 'knowledge-add', label: '"添加"', type: 'drill' },
   // Cross-section links
   { from: 'review', to: 'patient-detail', label: 'tap item', type: 'cross' },
-  { from: 'followup', to: 'patient-detail', label: 'tap row', type: 'cross' },
+  { from: 'tasks', to: 'patient-detail', label: 'tap row', type: 'cross' },
   { from: 'chat', to: 'patient-detail', label: 'patient card', type: 'cross' },
   { from: 'chat', to: 'patients', label: '"查看全部"', type: 'cross' },
-  { from: 'chat', to: 'followup', label: '"查看全部" tasks', type: 'cross' },
+  { from: 'chat', to: 'tasks', label: '"查看全部" tasks', type: 'cross' },
   // Login
   { from: 'login', to: 'myai', label: 'doctor login', type: 'drill' },
   { from: 'login', to: 'p-chat', label: 'patient login', type: 'drill' },
