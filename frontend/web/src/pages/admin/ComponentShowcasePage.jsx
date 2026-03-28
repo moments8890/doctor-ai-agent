@@ -690,7 +690,7 @@ export default function ComponentShowcasePage() {
       </Group>
 
       <Box sx={{ display: "flex", gap: 1, justifyContent: "center", mt: 2, mb: 4 }}>
-        <Box onClick={() => window.location.href = "/debug/doctor-pages"}
+        <Box onClick={() => window.location.href = "/debug/doctor"}
           sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.accent, cursor: "pointer", textDecoration: "underline" }}>
           Mock Pages
         </Box>

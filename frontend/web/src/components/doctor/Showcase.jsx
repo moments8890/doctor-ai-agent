@@ -133,7 +133,7 @@ export default function DoctorComponentShowcase() {
           Shared Components
         </Box>
         <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>·</Typography>
-        <Box onClick={() => window.location.href = "/debug/doctor-pages"}
+        <Box onClick={() => window.location.href = "/debug/doctor"}
           sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.accent, cursor: "pointer", textDecoration: "underline" }}>
           Mock Pages
         </Box>

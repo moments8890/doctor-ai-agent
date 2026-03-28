@@ -66,6 +66,7 @@ async def list_knowledge(
             "category": getattr(item, "category", None) or "custom",
             "title": item.title or "",
             "summary": item.summary or "",
+            "reference_count": getattr(item, "reference_count", None) or 0,
             "created_at": item.created_at.isoformat() if item.created_at else None,
         })
     return {"items": result}
