@@ -257,44 +257,51 @@ export async function sendChat(payload) {
   const text = (payload.text || payload.message || "");
   if (text.includes("总结") || text.includes("最近情况")) {
     return {
-      reply: "**陈伟强 临床总结**\n\n**基本信息：** 男，42岁\n\n**主要诊断：**\n- 2026-03-26 主诉：头痛3天伴恶心呕吐，诊断：高血压\n- 2026-03-19 主诉：头晕反复发作1月\n\n**治疗经过：** 口服降压药（氨氯地平5mg qd），症状有所缓解\n\n**当前状态：** 最近一次就诊血压控制尚可，仍有间断头痛\n\n**注意事项：** ⚠ 需复查血常规和肝肾功能，监测血压变化",
+      reply: "**陈伟强 临床总结**\n\n**基本信息：** 男，42岁\n\n**主要诊断：** 右额叶脑膜瘤（WHO I级）\n\n**手术记录：**\n- 2026-03-20 开颅脑膜瘤切除术（Simpson I级切除）\n\n**当前状态：** 术后第7天，今日头痛加剧伴恶心\n\n**注意事项：** ⚠ 需急查头颅CT排除迟发性血肿",
       view_payload: {
         records: [
-          { id: 1, patient_id: 1, patient_name: "陈伟强", chief_complaint: "头痛3天伴恶心呕吐", record_type: "visit", created_at: "2026-03-26" },
-          { id: 2, patient_id: 1, patient_name: "陈伟强", chief_complaint: "头晕反复发作1月", record_type: "visit", created_at: "2026-03-19" },
+          { id: 101, patient_id: 1, patient_name: "陈伟强", chief_complaint: "右额叶占位性病变", record_type: "visit", created_at: "2026-03-20" },
+          { id: 102, patient_id: 1, patient_name: "陈伟强", chief_complaint: "术后头痛加剧伴恶心1天", record_type: "interview_summary", created_at: "2026-03-27" },
         ],
       },
     };
   }
   if (text.includes("患者") || text.includes("查询")) {
     return {
-      reply: "找到 2 位患者：",
+      reply: "找到 5 位患者：",
       view_payload: {
         patients: [
           { id: 1, name: "陈伟强", gender: "male", age: 42 },
+          { id: 2, name: "李复诊", gender: "female", age: 56 },
           { id: 3, name: "王明", gender: "male", age: 71 },
+          { id: 4, name: "张小红", gender: "female", age: 36 },
+          { id: 5, name: "刘建国", gender: "male", age: 58 },
         ],
       },
     };
   }
   if (text.includes("任务") || text.includes("今日")) {
     return {
-      reply: "您有 2 个待办任务：",
+      reply: "您有 5 个待办任务，其中1个紧急：",
       view_payload: {
         tasks: [
-          { id: 1, title: "复查血常规", task_type: "checkup", due_at: "2026-03-28T10:00", status: "pending" },
-          { id: 2, title: "调整降压药剂量", task_type: "medication", due_at: "2026-03-29T09:00", status: "pending" },
+          { id: 201, title: "陈伟强 术后复查CT", task_type: "imaging", due_at: "2026-03-27", status: "pending" },
+          { id: 202, title: "李复诊 颈动脉超声", task_type: "checkup", due_at: "2026-03-28", status: "pending" },
+          { id: 203, title: "王明 术后复查DSA", task_type: "imaging", due_at: "2026-04-03", status: "pending" },
+          { id: 204, title: "张小红 用药效果复查", task_type: "follow_up", due_at: "2026-04-03", status: "pending" },
+          { id: 205, title: "刘建国 保守治疗1月评估", task_type: "follow_up", due_at: "2026-04-10", status: "pending" },
         ],
       },
     };
   }
   if (text.includes("病历") || text.includes("记录")) {
     return {
-      reply: "找到 2 条病历记录：",
+      reply: "找到最近的病历记录：",
       view_payload: {
         records: [
-          { id: 1, patient_id: 1, patient_name: "陈伟强", chief_complaint: "头痛3天伴恶心呕吐", record_type: "visit", created_at: "2026-03-26" },
-          { id: 2, patient_id: 2, patient_name: "李复诊", chief_complaint: "头晕反复发作1月", record_type: "visit", created_at: "2026-03-25" },
+          { id: 102, patient_id: 1, patient_name: "陈伟强", chief_complaint: "术后头痛加剧伴恶心1天", record_type: "interview_summary", created_at: "2026-03-27" },
+          { id: 105, patient_id: 3, patient_name: "王明", chief_complaint: "术后恢复中，轻微头痛", record_type: "visit", created_at: "2026-03-27" },
+          { id: 103, patient_id: 2, patient_name: "李复诊", chief_complaint: "右侧肢体无力20分钟自行缓解", record_type: "visit", created_at: "2026-03-25" },
         ],
       },
     };
@@ -349,7 +356,7 @@ export async function clearContext() {
 }
 
 export async function ocrImage() {
-  return { text: "模拟OCR文本：患者陈伟强，男，42岁，主诉头痛3天。" };
+  return { text: "模拟OCR文本：患者陈伟强，男，42岁，右额叶脑膜瘤术后第7天，头痛加剧伴恶心。术前MRI示右额叶脑膜瘤4.2x3.8cm，3月20日行开颅切除术（Simpson I级）。" };
 }
 
 export async function extractFileForChat() {
@@ -400,16 +407,16 @@ export async function fetchKnowledgeStats() {
   // Real API: GET /api/manage/knowledge/stats → { stats: [{ knowledge_item_id, total_count, last_used }] }
   return {
     stats: [
-      { knowledge_item_id: 7, total_count: 7, last_used: "2026-03-27T10:00:00" },
-      { knowledge_item_id: 4, total_count: 12, last_used: "2026-03-27T09:30:00" },
-      { knowledge_item_id: 3, total_count: 8, last_used: "2026-03-26T14:00:00" },
-      { knowledge_item_id: 9, total_count: 6, last_used: "2026-03-26T11:00:00" },
-      { knowledge_item_id: 1, total_count: 5, last_used: "2026-03-25T16:00:00" },
+      { knowledge_item_id: 7, total_count: 7, last_used: "2026-03-27T13:25:00" },  // 术后头痛危险信号 — patients 1,3
+      { knowledge_item_id: 5, total_count: 2, last_used: "2026-03-27T13:10:00" },  // TIA复查路径 — patient 2
+      { knowledge_item_id: 9, total_count: 6, last_used: "2026-03-26T11:00:00" },  // 颅内压增高三联征
+      { knowledge_item_id: 1, total_count: 5, last_used: "2026-03-25T16:00:00" },  // 蛛网膜下腔出血
+      { knowledge_item_id: 6, total_count: 3, last_used: "2026-03-27T13:20:00" },  // 腰椎穿刺术后护理 — patient 5
     ],
     // display-only, not in real API — convenience aggregates for dashboard
-    citations_7d: 26,
-    today_processed: 3,
-    total_rules: 12,
+    citations_7d: 23,
+    today_processed: 6,
+    total_rules: 11,
   };
 }
 
@@ -419,39 +426,46 @@ export async function fetchAIActivity() {
     activity: [
       {
         type: "draft",
-        description: "起草了随访回复",
+        description: "起草了安抚回复 — 术后轻微头痛属正常恢复",
         patient_id: 3,
-        patient_name: "王明", // display-only, not in real API
-        timestamp: "2026-03-27T13:20:00",
+        patient_name: "王明",
+        timestamp: "2026-03-27T13:25:00",
       },
       {
         type: "draft",
-        description: "起草了随访回复",
+        description: "起草了常规回复 — 建议先保守治疗",
         patient_id: 5,
         patient_name: "刘建国",
         timestamp: "2026-03-27T13:20:00",
       },
       {
         type: "citation",
-        description: "回复中引用了「术后头痛危险信号」",
+        description: "回复中引用了「TIA复查路径」",
         patient_id: 2,
         patient_name: "李复诊",
         timestamp: "2026-03-27T13:10:00",
       },
       {
         type: "draft",
-        description: "起草了紧急回复",
-        patient_id: 1,
-        patient_name: "陈伟强",
-        timestamp: "2026-03-27T11:45:00",
+        description: "起草了常规回复 — 明天做颈动脉超声",
+        patient_id: 2,
+        patient_name: "李复诊",
+        timestamp: "2026-03-27T13:05:00",
       },
       {
         type: "diagnosis",
-        description: "生成诊断建议：术后迟发性血肿鉴别",
+        description: "生成鉴别诊断：术后迟发性血肿",
         patient_id: 1,
         patient_name: "陈伟强",
         record_id: 102,
-        timestamp: "2026-03-27T12:45:00",
+        timestamp: "2026-03-27T12:00:00",
+      },
+      {
+        type: "draft",
+        description: "起草了紧急回复 — 建议急查头颅CT",
+        patient_id: 1,
+        patient_name: "陈伟强",
+        timestamp: "2026-03-27T11:45:00",
       },
     ],
   };
@@ -459,10 +473,11 @@ export async function fetchAIActivity() {
 
 export async function fetchDraftSummary() {
   // Real API: GET /api/manage/drafts/summary → { pending, ai_drafted, due_soon, review_pending_count }
+  // pending=4 (patients 1,2,3,5), review_pending_count=2 (patients 1,2), recently_sent=2 (patients 4,5)
   return {
     pending: 4,
-    review_pending_count: 3,
-    today_processed: 5,
+    review_pending_count: 2,
+    today_processed: 6,
   };
 }
 
@@ -472,27 +487,19 @@ export async function fetchAIAttention() {
     patients: [
       {
         patient_id: 1,
-        patient_name: "陈伟强", // display-only, not in real API
-        reason: "任务到期：复查血常规",
+        patient_name: "陈伟强",
+        reason: "术后头痛加剧伴恶心，需急查头颅CT排除再出血",
         urgency: "high",
         type: "due_task",
-        short_tag: "需复查CT", // display-only, not in real API
+        short_tag: "紧急复查CT",
       },
       {
         patient_id: 2,
-        patient_name: "李复诊", // display-only, not in real API
-        reason: "患者消息待处理",
+        patient_name: "李复诊",
+        reason: "TIA首发48h内需完成颈动脉超声+MRA血管评估",
         urgency: "medium",
-        type: "unread_message",
-        short_tag: "回复已起草", // display-only, not in real API
-      },
-      {
-        patient_id: 1,
-        record_id: 102,
-        patient_name: "陈伟强", // display-only, not in real API
-        reason: "AI建议待审核：术后迟发性血肿鉴别",
-        urgency: "medium",
-        type: "unreviewed_suggestion",
+        type: "due_task",
+        short_tag: "明天颈动脉超声",
       },
     ],
   };
@@ -500,37 +507,29 @@ export async function fetchAIAttention() {
 
 export async function getReviewQueue() {
   return {
-    summary: { pending: 3, confirmed: 8, modified: 2 },
+    summary: { pending: 2, confirmed: 2, modified: 1 },
     pending: [
       {
         id: "r1", record_id: 102, suggestion_id: 301,
-        patient_id: 1, patient_name: "陈伟强", time: "今天 14:32",
+        patient_id: 1, patient_name: "陈伟强", time: "今天 12:00",
         urgency: "urgent",
         section: "differential", content: "术后迟发性血肿",
-        detail: "术后第7天头痛加剧，需排除迟发性硬膜外/下血肿，建议急查头颅CT\n\n【类似病例参考】\n1. 相似度92% — 动脉瘤夹闭术后头痛 → 迟发性血管痉挛（治疗：尼莫地平+TCD+ICU）\n2. 相似度85% — 开颅术后第8天头痛加剧 → 术区血肿再扩大（治疗：急诊手术清除）",
+        detail: "脑膜瘤术后第7天头痛加剧伴恶心，需排除迟发性硬膜外/硬膜下血肿，建议急查头颅CT平扫\n\n【类似病例参考】\n1. 相似度92% — 脑膜瘤开颅术后第6天头痛加剧 → 硬膜下血肿（治疗：急诊血肿清除术）\n2. 相似度85% — 开颅术后第8天恶心呕吐 → 术区脑水肿加重（治疗：甘露醇脱水+地塞米松）",
         rule_cited: "术后头痛危险信号",
       },
       {
-        id: "r2", record_id: 106, suggestion_id: 401,
-        patient_id: 5, patient_name: "刘建国", time: "今天 14:08",
+        id: "r2", record_id: 103, suggestion_id: 401,
+        patient_id: 2, patient_name: "李复诊", time: "今天 11:30",
         urgency: "pending",
         section: "workup", content: "颈动脉超声 + MRA",
-        detail: "首发TIA，ABCD2评分4分，48h内完成血管评估",
+        detail: "TIA首发，ABCD2评分4分，48h内需完成颈动脉超声+头颅MRA血管评估，排除大血管狭窄",
         rule_cited: "TIA复查路径",
-      },
-      {
-        id: "r3", record_id: 102, suggestion_id: 303,
-        patient_id: 1, patient_name: "陈伟强", time: "今天 13:45",
-        urgency: "pending",
-        section: "differential", content: "良性阵发性位置性眩晕",
-        detail: "反复发作位置性头晕，Dix-Hallpike试验阳性可能",
-        rule_cited: null,
       },
     ],
     completed: [
-      { id: "c1", patient_id: 4, patient_name: "张小红", content: "三叉神经痛药物方案", decision: "confirmed", rule_count: 1, time: "昨天" },
-      { id: "c2", patient_id: 3, patient_name: "王明", content: "腰椎管狭窄保守方案", decision: "edited", detail: "你调整了用药剂量", time: "3月25日" },
-      { id: "c3", patient_id: 2, patient_name: "李复诊", content: "颈椎间盘突出评估", decision: "confirmed", rule_count: 0, time: "3月24日" },
+      { id: "c1", patient_id: 3, patient_name: "王明", content: "动脉瘤夹闭术后恢复评估", decision: "confirmed", rule_count: 1, time: "今天 08:30" },
+      { id: "c2", patient_id: 4, patient_name: "张小红", content: "三叉神经痛 — 卡马西平治疗方案", decision: "confirmed", rule_count: 0, time: "3月25日" },
+      { id: "c3", patient_id: 5, patient_name: "刘建国", content: "腰椎管狭窄 — 保守治疗方案", decision: "edited", detail: "你调整了塞来昔布用药剂量", time: "3月22日" },
     ],
   };
 }
@@ -542,88 +541,92 @@ export async function fetchDrafts() {
   // The frontend groups into 3 arrays; keep that structure but add all real API fields.
   return {
     pending_messages: [
-      {
-        id: 104,
-        patient_id: 3,
-        patient_name: "王明",
-        patient_message: "张医生，我术后第7天了，今天头还是有点隐隐作痛，这个正常吗？",
-        draft_text: "王先生您好，术后第7天仍有轻微头痛多属正常恢复过程。请注意观察：如果头痛突然加剧、伴呕吐或意识模糊，请立即就医。建议按时来院复查CT。",
-        original_draft_text: "王先生您好，术后第7天仍有轻微头痛多属正常恢复过程。请注意观察：如果头痛突然加剧、伴呕吐或意识模糊，请立即就医。建议按时来院复查CT。",
-        cited_knowledge_ids: [7],
-        cited_rules: [{ id: 7, title: "术后头痛危险信号" }],
-        confidence: 0.90,
-        status: "generated",
-        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
-        created_at: "2026-03-27T13:25:00",
-        patient_context: "脑膜瘤术后第7天",
-        time: "今天 13:25",
-        badge: "new",
-        rule_cited: "术后头痛危险信号",
-      },
+      // Patient 1: 陈伟强 — 紧急，术后头痛加剧
       {
         id: 101,
-        patient_id: 5,
-        patient_name: "刘建国",
-        patient_message: "张医生您好，我昨天晚上又头晕了一次，大概持续了十几秒，翻身的时候发作的，需要去医院吗？",
-        draft_text: "刘先生您好，根据您描述的情况（翻身时短暂头晕），考虑可能与体位变化有关。建议您先观察2-3天，如果发作频率增加或持续时间超过1分钟，请及时来院复查。",
-        original_draft_text: "刘先生您好，根据您描述的情况（翻身时短暂头晕），考虑可能与体位变化有关。建议您先观察2-3天，如果发作频率增加或持续时间超过1分钟，请及时来院复查。",
-        cited_knowledge_ids: [5],
-        cited_rules: [{ id: 5, title: "TIA复查路径" }],
-        confidence: 0.85,
-        status: "generated",
-        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
-        created_at: "2026-03-27T13:20:00",
-        // display-only, not in real API
-        patient_context: "眩晕症随访第3天",
-        time: "今天 13:20",
-        badge: "new",
-      },
-      {
-        id: 103,
-        patient_id: 2,
-        patient_name: "李复诊",
-        patient_message: "医生，我术后第5天了，刀口周围有点红肿，正常吗？",
-        draft_text: "李女士您好，术后第5天切口周围轻微红肿多数属正常愈合反应。请注意观察：如果红肿范围扩大、有渗液或体温超过38度，请及时来院复查。目前可保持切口干燥清洁。",
-        original_draft_text: "李女士您好，术后第5天切口周围轻微红肿多数属正常愈合反应。请注意观察：如果红肿范围扩大、有渗液或体温超过38度，请及时来院复查。目前可保持切口干燥清洁。",
-        cited_knowledge_ids: [7],
-        cited_rules: [{ id: 7, title: "术后头痛危险信号" }],
-        confidence: 0.88,
-        status: "generated",
-        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
-        created_at: "2026-03-27T13:10:00",
-        patient_context: "术后复查",
-        time: "今天 13:10",
-        badge: null,
-        rule_cited: "术后头痛危险信号",
-      },
-      {
-        id: 102,
         patient_id: 1,
         patient_name: "陈伟强",
         patient_message: "张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？",
-        draft_text: "陈先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
-        original_draft_text: "陈先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
+        draft_text: "陈先生，您术后头痛加剧伴恶心需要高度重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果出现剧烈头痛、呕吐或意识不清，请立即拨打120。",
+        original_draft_text: "陈先生，您术后头痛加剧伴恶心需要高度重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果出现剧烈头痛、呕吐或意识不清，请立即拨打120。",
+        cited_knowledge_ids: [7],
+        cited_rules: [{ id: 7, title: "术后头痛危险信号" }],
+        confidence: 0.95,
+        status: "generated",
+        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
+        created_at: "2026-03-27T11:45:00",
+        patient_context: "右额叶脑膜瘤术后第7天",
+        time: "今天 11:45",
+        badge: "urgent",
+        rule_cited: "术后头痛危险信号",
+      },
+      // Patient 2: 李复诊 — 常规，问下次检查时间
+      {
+        id: 102,
+        patient_id: 2,
+        patient_name: "李复诊",
+        patient_message: "张医生，我想问下我下次检查是什么时候？需要做什么准备吗？",
+        draft_text: "李女士您好，根据您TIA的情况，明天需要做颈动脉超声检查，评估颈部血管情况。检查前无需空腹，正常饮食即可。同时还会安排头颅MRA检查。请按时服用阿司匹林和氯吡格雷，不要自行停药。",
+        original_draft_text: "李女士您好，根据您TIA的情况，明天需要做颈动脉超声检查，评估颈部血管情况。检查前无需空腹，正常饮食即可。同时还会安排头颅MRA检查。请按时服用阿司匹林和氯吡格雷，不要自行停药。",
+        cited_knowledge_ids: [5],
+        cited_rules: [{ id: 5, title: "TIA复查路径" }],
+        confidence: 0.90,
+        status: "generated",
+        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
+        created_at: "2026-03-27T13:10:00",
+        patient_context: "TIA首发48小时",
+        time: "今天 13:10",
+        badge: "new",
+        rule_cited: "TIA复查路径",
+      },
+      // Patient 3: 王明 — 安抚，术后轻微头痛
+      {
+        id: 103,
+        patient_id: 3,
+        patient_name: "王明",
+        patient_message: "张医生，我术后第12天了，今天还是有点隐隐头痛，这个正常吗？",
+        draft_text: "王先生您好，动脉瘤夹闭术后第12天仍有轻微头痛属于正常恢复过程，不必过于担心。请注意观察：如果头痛突然加剧、伴呕吐或意识模糊，请立即就医。下周我们安排DSA复查，评估夹闭效果。",
+        original_draft_text: "王先生您好，动脉瘤夹闭术后第12天仍有轻微头痛属于正常恢复过程，不必过于担心。请注意观察：如果头痛突然加剧、伴呕吐或意识模糊，请立即就医。下周我们安排DSA复查，评估夹闭效果。",
         cited_knowledge_ids: [7],
         cited_rules: [{ id: 7, title: "术后头痛危险信号" }],
         confidence: 0.92,
         status: "generated",
         ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
-        created_at: "2026-03-27T11:45:00",
-        // display-only, not in real API
-        patient_context: "头晕反复发作1月，待审核",
-        time: "今天 11:45",
-        badge: "urgent",
+        created_at: "2026-03-27T13:25:00",
+        patient_context: "前交通动脉瘤夹闭术后第12天",
+        time: "今天 13:25",
+        badge: "new",
+        rule_cited: "术后头痛危险信号",
+      },
+      // Patient 5: 刘建国 — 常规，问能不能做腰椎穿刺
+      {
+        id: 104,
+        patient_id: 5,
+        patient_name: "刘建国",
+        patient_message: "医生您好，我腰椎的问题能不能做腰椎穿刺检查一下？",
+        draft_text: "刘先生您好，腰椎管狭窄的诊断主要依靠MRI检查，目前您的MRI已经明确了L3/4、L4/5狭窄的情况。腰椎穿刺一般用于排除感染或测量脑脊液压力，对您目前的情况不是必要的检查。建议先继续保守治疗方案，4月10日来院评估疗效。",
+        original_draft_text: "刘先生您好，腰椎管狭窄的诊断主要依靠MRI检查，目前您的MRI已经明确了L3/4、L4/5狭窄的情况。腰椎穿刺一般用于排除感染或测量脑脊液压力，对您目前的情况不是必要的检查。建议先继续保守治疗方案，4月10日来院评估疗效。",
+        cited_knowledge_ids: [6],
+        cited_rules: [{ id: 6, title: "腰椎穿刺术后护理要点" }],
+        confidence: 0.88,
+        status: "generated",
+        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
+        created_at: "2026-03-27T13:20:00",
+        patient_context: "腰椎管狭窄保守治疗中",
+        time: "今天 13:20",
+        badge: "new",
+        rule_cited: "腰椎穿刺术后护理要点",
       },
     ],
     upcoming_followups: [
-      { id: "f1", patient_id: 3, patient_name: "王明", task: "术后复查CT", detail: "脑膜瘤术后第7天常规复查", due_label: "今天", soon: true },
+      { id: "f1", patient_id: 1, patient_name: "陈伟强", task: "术后复查CT", detail: "脑膜瘤术后第7天，头痛加剧，紧急排除再出血", due_label: "今天", soon: true },
       { id: "f2", patient_id: 2, patient_name: "李复诊", task: "颈动脉超声", detail: "TIA首发48h内血管评估", due_label: "明天", soon: true },
-      { id: "f3", patient_id: 4, patient_name: "张小红", task: "用药效果复查", detail: "卡马西平2周疗效评估", due_label: "4月3日", soon: false },
-      { id: "f4", patient_id: 5, patient_name: "刘建国", task: "腰椎复查", detail: "保守治疗1个月评估", due_label: "4月10日", soon: false },
+      { id: "f3", patient_id: 3, patient_name: "王明", task: "术后复查DSA", detail: "动脉瘤夹闭术后评估夹闭效果", due_label: "下周", soon: false },
+      { id: "f4", patient_id: 4, patient_name: "张小红", task: "用药效果复查", detail: "卡马西平2周疗效评估", due_label: "4月3日", soon: false },
     ],
     recently_sent: [
-      { id: "s1", patient_id: 4, patient_name: "张小红", task: "服药提醒", read_status: "已读", time: "昨天" },
-      { id: "s2", patient_id: 3, patient_name: "王明", task: "复查提醒", read_status: "未读", time: "3月25日" },
+      { id: "s1", patient_id: 4, patient_name: "张小红", task: "服药提醒 — 卡马西平按时服用", read_status: "已读", time: "昨天" },
+      { id: "s2", patient_id: 5, patient_name: "刘建国", task: "康复指导 — 腰背肌功能锻炼", read_status: "已读", time: "3月25日" },
     ],
   };
 }
@@ -647,19 +650,18 @@ export async function getDraftConfirmation(draftId) {
   //   { draft_id, patient_name, patient_message, draft_text, ai_disclosure,
   //     full_text_preview, cited_rules: [{ id, title, text }], confidence, status }
   return {
-    draft_id: draftId || 102,
+    draft_id: draftId || 101,
     patient_name: "陈伟强",
     patient_message: "张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？",
-    draft_text: "陈先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。",
+    draft_text: "陈先生，您术后头痛加剧伴恶心需要高度重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果出现剧烈头痛、呕吐或意识不清，请立即拨打120。",
     ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
-    full_text_preview: "陈先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。\n\n【此回复由AI辅助起草，经医生审核】",
+    full_text_preview: "陈先生，您术后头痛加剧伴恶心需要高度重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果出现剧烈头痛、呕吐或意识不清，请立即拨打120。\n\n【此回复由AI辅助起草，经医生审核】",
     cited_rules: [
-      { id: 7, title: "术后头痛危险信号", text: "脑疝早期征象：一侧瞳孔进行性散大、对光反射消失..." },
+      { id: 7, title: "术后头痛危险信号", text: "开颅术后头痛加剧需警惕：迟发性颅内血肿（术后3-10天多见）、脑水肿加重、颅内感染。危险信号：头痛进行性加剧、伴恶心呕吐、一侧瞳孔散大、意识水平下降。" },
     ],
-    confidence: 0.92,
+    confidence: 0.95,
     status: "generated",
-    // display-only, not in real API
-    patient_context: "头晕反复发作1月，待审核",
+    patient_context: "右额叶脑膜瘤术后第7天",
   };
 }
 export async function createRuleFromEdit() {
@@ -670,38 +672,47 @@ export async function createRuleFromEdit() {
 export async function fetchKnowledgeUsageHistory(doctorId, itemId) {
   // Real API: GET /api/manage/knowledge/{item_id}/usage →
   //   { usage: [{ id, usage_context, patient_id, record_id, created_at }] }
-  return {
-    usage: [
+  // Return citations matching the patient stories. itemId determines which knowledge item.
+  const usageMap = {
+    // KB-7: 术后头痛危险信号 — cited for patients 1 and 3
+    7: [
       {
-        id: 1,
-        usage_context: "diagnosis",
-        patient_id: 1,
-        record_id: 101,
-        created_at: "2026-03-27T10:00:00",
-        // display-only, not in real API
-        patient_name: "陈伟强",
-        detail: "鉴别诊断：术后迟发性血肿",
+        id: 1, usage_context: "diagnosis", patient_id: 1, record_id: 102,
+        created_at: "2026-03-27T12:00:00",
+        patient_name: "陈伟强", detail: "鉴别诊断：术后迟发性颅内血肿",
       },
       {
-        id: 2,
-        usage_context: "followup",
-        patient_id: 3,
-        record_id: null,
-        created_at: "2026-03-26T14:30:00",
-        // display-only, not in real API
-        patient_name: "王明",
-        detail: "按此规则起草了回复",
+        id: 2, usage_context: "followup", patient_id: 3, record_id: null,
+        created_at: "2026-03-27T13:25:00",
+        patient_name: "王明", detail: "起草安抚回复：术后轻微头痛属正常恢复",
       },
       {
-        id: 3,
-        usage_context: "diagnosis",
-        patient_id: 1,
-        record_id: 102,
-        created_at: "2026-03-25T09:15:00",
-        // display-only, not in real API
-        patient_name: "陈伟强",
-        detail: "检查建议：急查头颅CT",
+        id: 3, usage_context: "followup", patient_id: 1, record_id: null,
+        created_at: "2026-03-27T11:45:00",
+        patient_name: "陈伟强", detail: "起草紧急回复：建议急查头颅CT",
+      },
+    ],
+    // KB-5: TIA复查路径 — cited for patient 2
+    5: [
+      {
+        id: 4, usage_context: "followup", patient_id: 2, record_id: null,
+        created_at: "2026-03-27T13:10:00",
+        patient_name: "李复诊", detail: "起草回复：明天做颈动脉超声+MRA",
+      },
+      {
+        id: 5, usage_context: "diagnosis", patient_id: 2, record_id: 103,
+        created_at: "2026-03-27T11:30:00",
+        patient_name: "李复诊", detail: "检查建议：48h内颈动脉超声+MRA",
+      },
+    ],
+    // KB-6: 腰椎穿刺术后护理要点 — cited for patient 5
+    6: [
+      {
+        id: 6, usage_context: "followup", patient_id: 5, record_id: null,
+        created_at: "2026-03-27T13:20:00",
+        patient_name: "刘建国", detail: "起草回复：腰椎穿刺非必要检查",
       },
     ],
   };
+  return { usage: usageMap[itemId] || usageMap[7] };
 }
