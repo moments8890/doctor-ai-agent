@@ -160,7 +160,7 @@ export default function LoginPage() {
 
             {/* Role tabs */}
             <Tabs value={tab} onChange={(_, v) => { setTab(v); setMode("login"); setError(""); setRoleChoices(null); }}
-              sx={{ width: "100%", "& .MuiTab-root": { flex: 1, fontSize: TYPE.body.fontSize }, "& .Mui-selected": { color: "#07C160" }, "& .MuiTabs-indicator": { bgcolor: "#07C160" } }}>
+              sx={{ width: "100%", "& .MuiTab-root": { flex: 1, fontSize: TYPE.body.fontSize, color: "#999" }, "& .Mui-selected": { color: "#07C160", fontWeight: 600 }, "& .MuiTabs-indicator": { bgcolor: "#07C160", height: 3 } }}>
               <Tab label="医生" />
               <Tab label="患者" />
             </Tabs>
