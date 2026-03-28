@@ -618,12 +618,7 @@ export async function fetchDrafts() {
         rule_cited: "腰椎穿刺术后护理要点",
       },
     ],
-    upcoming_followups: [
-      { id: "f1", patient_id: 1, patient_name: "陈伟强", task: "术后复查CT", detail: "脑膜瘤术后第7天，头痛加剧，紧急排除再出血", due_label: "今天", soon: true },
-      { id: "f2", patient_id: 2, patient_name: "李复诊", task: "颈动脉超声", detail: "TIA首发48h内血管评估", due_label: "明天", soon: true },
-      { id: "f3", patient_id: 3, patient_name: "王明", task: "术后复查DSA", detail: "动脉瘤夹闭术后评估夹闭效果", due_label: "下周", soon: false },
-      { id: "f4", patient_id: 4, patient_name: "张小红", task: "用药效果复查", detail: "卡马西平2周疗效评估", due_label: "4月3日", soon: false },
-    ],
+    upcoming_followups: [],
     recently_sent: [
       { id: "s1", patient_id: 4, patient_name: "张小红", task: "服药提醒 — 卡马西平按时服用", read_status: "已读", time: "昨天" },
       { id: "s2", patient_id: 5, patient_name: "刘建国", task: "康复指导 — 腰背肌功能锻炼", read_status: "已读", time: "3月25日" },
