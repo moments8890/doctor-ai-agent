@@ -8,7 +8,7 @@
  *   3. 待办提醒           (doctor-created tasks/reminders)
  *   4. 最近已发送         (recently sent messages)
  */
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Box, CircularProgress, Snackbar, Typography } from "@mui/material";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
@@ -23,7 +23,7 @@ import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import EmptyState from "../../components/EmptyState";
 import PatientAvatar from "../../components/PatientAvatar";
-import CollapsibleSection from "../../components/CollapsibleSection";
+import SectionLabel from "../../components/SectionLabel";
 import StatusBadge from "../../components/StatusBadge";
 import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
@@ -463,12 +463,6 @@ export default function FollowupPage({ doctorId }) {
   const [confirmItem, setConfirmItem] = useState(null);
   const [sending, setSending] = useState(false);
 
-  // Section refs for scroll-to
-  const pendingRef = useRef(null);
-  const followupsRef = useRef(null);
-  const tasksRef = useRef(null);
-  const sentRef = useRef(null);
-
   // Teaching prompt state (shown after doctor edits a draft)
   const [teachEditId, setTeachEditId] = useState(null);
   const [teachSaving, setTeachSaving] = useState(false);
@@ -639,8 +633,8 @@ export default function FollowupPage({ doctorId }) {
             }}>
               {[
                 { key: "messages", label: "待回复", count: pendingMessages.length, activeColor: COLOR.danger },
-                { key: "followups", label: "随访", count: upcomingFollowups.length, activeColor: COLOR.warning },
-                { key: "tasks", label: "待办", count: pendingTasks.length, activeColor: COLOR.text1 },
+                { key: "followups", label: "门诊", count: upcomingFollowups.length, activeColor: COLOR.warning },
+                { key: "tasks", label: "任务", count: pendingTasks.length, activeColor: COLOR.text1 },
                 { key: "sent", label: "已完成", count: recentlySent.length, activeColor: COLOR.text4 },
               ].map((tab, i, arr) => {
                 const active = filter === tab.key;
@@ -682,7 +676,7 @@ export default function FollowupPage({ doctorId }) {
             {/* ── Section: 患者消息 · 待回复 ── */}
             {showMessages && pendingMessages.length > 0 && (
               <>
-                <CollapsibleSection ref={pendingRef} title="患者消息 · 待回复" count={pendingMessages.length}>
+                <SectionLabel>患者消息 · 待回复</SectionLabel>
                   <Box sx={{
                     bgcolor: COLOR.white,
                     borderTop: `0.5px solid ${COLOR.border}`,
@@ -697,60 +691,44 @@ export default function FollowupPage({ doctorId }) {
                       />
                     ))}
                   </Box>
-                </CollapsibleSection>
-                {aiDraftedCount > 0 && filter === "messages" && (
-                  <Box sx={{ px: 1.5, py: 0.5 }}>
-                    <Typography sx={{ fontSize: 11, color: COLOR.primary }}>
-                      其中{aiDraftedCount}条AI已起草回复
-                    </Typography>
-                  </Box>
-                )}
+                  {aiDraftedCount > 0 && filter === "messages" && (
+                    <Box sx={{ px: 1.5, py: 0.5 }}>
+                      <Typography sx={{ fontSize: 11, color: COLOR.primary }}>
+                        其中{aiDraftedCount}条AI已起草回复
+                      </Typography>
+                    </Box>
+                  )}
+                </>
+            )}
+
+            {/* ── Section: 随访 ── */}
+            {showFollowups && upcomingFollowups.length > 0 && (
+              <>
+                <SectionLabel>随访</SectionLabel>
+                <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+                  {upcomingFollowups.map((f) => <ScheduledRow key={f.id} item={f} />)}
+                </Box>
               </>
             )}
 
-            {/* ── Section: 即将到期的随访 ── */}
-            {showFollowups && upcomingFollowups.length > 0 && (
-              <CollapsibleSection ref={followupsRef} title="即将到期的随访" count={upcomingFollowups.length}>
-                <Box sx={{
-                  bgcolor: COLOR.white,
-                  borderTop: `0.5px solid ${COLOR.border}`,
-                  borderBottom: `0.5px solid ${COLOR.border}`,
-                }}>
-                  {upcomingFollowups.map((f) => (
-                    <ScheduledRow key={f.id} item={f} />
-                  ))}
-                </Box>
-              </CollapsibleSection>
-            )}
-
-            {/* ── Section: 待办提醒 ── */}
+            {/* ── Section: 任务 ── */}
             {showTasks && pendingTasks.length > 0 && (
-              <CollapsibleSection ref={tasksRef} title="待办提醒" count={pendingTasks.length}>
-                <Box sx={{
-                  bgcolor: COLOR.white,
-                  borderTop: `0.5px solid ${COLOR.border}`,
-                  borderBottom: `0.5px solid ${COLOR.border}`,
-                }}>
-                  {pendingTasks.map((t) => (
-                    <TaskRow key={t.id} item={t} />
-                  ))}
+              <>
+                <SectionLabel>任务</SectionLabel>
+                <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+                  {pendingTasks.map((t) => <TaskRow key={t.id} item={t} />)}
                 </Box>
-              </CollapsibleSection>
+              </>
             )}
 
-            {/* ── Section: 最近已发送 ── */}
+            {/* ── Section: 已完成 ── */}
             {showSent && recentlySent.length > 0 && (
-              <CollapsibleSection title="最近已发送" count={recentlySent.length} defaultOpen={false}>
-                <Box sx={{
-                  bgcolor: COLOR.white,
-                  borderTop: `0.5px solid ${COLOR.border}`,
-                  borderBottom: `0.5px solid ${COLOR.border}`,
-                }}>
-                  {recentlySent.map((s) => (
-                    <SentRow key={s.id} item={s} />
-                  ))}
+              <>
+                <SectionLabel>已完成</SectionLabel>
+                <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+                  {recentlySent.map((s) => <SentRow key={s.id} item={s} />)}
                 </Box>
-              </CollapsibleSection>
+              </>
             )}
           </>
         )}
