@@ -355,18 +355,19 @@ An assert at import time ensures every `IntentType` has a config entry -- adding
 
 ### Layer Usage Matrix
 
-| Intent | Pattern | Domain | Intent Prompt | Dr Knowledge | Patient Ctx |
-|--------|---------|--------|---------------|-------------|-------------|
-| routing | single | | routing | all | |
-| create_record | convo | Y | interview | all | Y |
-| query_record | single | | query | all | Y |
-| query_task | single | | query | all | |
-| create_task | single | | general | all | |
-| query_patient | single | | query | all | Y |
-| daily_summary | single | | general | all | |
-| general | single | | general | all | |
-| patient_interview | convo | Y | patient-interview | all | Y |
-| review/diagnosis | single | Y | diagnosis | all | Y |
+| Intent | Pattern | Domain | Intent Prompt | Dr Knowledge | Case Memory | Patient Ctx |
+|--------|---------|--------|---------------|-------------|-------------|-------------|
+| routing | single | | routing | all | | |
+| create_record | convo | Y | interview | all | | Y |
+| query_record | single | | query | all | | Y |
+| query_task | single | | query | all | | |
+| create_task | single | | general | all | | |
+| query_patient | single | | query | all | | Y |
+| daily_summary | single | | general | all | | |
+| general | single | | general | all | | |
+| patient_interview | convo | Y | patient-interview | all | | Y |
+| review/diagnosis | single | Y | diagnosis | all | **L4b** | Y |
+| **followup_reply** | single | Y | followup_reply | all | | Y |
 
 ### Knowledge Categories
 
@@ -381,6 +382,27 @@ Doctor knowledge items (`doctor_knowledge_items` table) are categorized. Each ca
 | `custom` | 自定义 | All intents (always injected) |
 
 Doctor knowledge outranks patient context in the prompt stack. If the doctor's KB says "偏头痛首选曲普坦" but a past case used a different drug, the doctor's stated preference wins (enforced by prompt ordering).
+
+### Case Memory (Layer 4b)
+
+The diagnosis pipeline injects similar confirmed cases as Layer 4b between doctor knowledge (L4) and patient context (L5). Implemented in `domain/knowledge/case_matching.py`.
+
+- **Source:** `medical_records` JOIN `ai_suggestions` WHERE `decision IN (confirmed, edited)`
+- **Matching:** Keyword-based Jaccard similarity on `chief_complaint` + `present_illness`
+- **Injected as:** `【类似病例参考】` section with similarity %, diagnosis, treatment
+- **Formatter:** `_format_matched_cases()` in `diagnosis_pipeline.py`
+- **No new tables** — queries existing confirmed decisions
+
+### Citation Tracking
+
+When the LLM produces `[KB-{id}]` markers in its output, `citation_parser.py` extracts and validates them. Valid citations are logged to `knowledge_usage_log` via `usage_tracking.py`. This powers:
+- Knowledge usage stats on the 我的AI dashboard
+- "引用了你的规则" display on review and followup cards
+- Per-item usage history on the knowledge detail page
+
+### Draft Reply Pipeline (FOLLOWUP_REPLY_LAYERS)
+
+When a patient message is escalated to the doctor, `draft_reply.py` generates a reply using the doctor's communication rules. Registered as `FOLLOWUP_REPLY_LAYERS` in prompt_config.py. Includes red-flag detection, medical safety constraints, and AI disclosure labeling. Triggered as a background task from the escalation handler with 30-second batching.
 
 ### Structured Output
 

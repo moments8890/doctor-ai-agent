@@ -1066,7 +1066,11 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
       </div>
       <div class="layer-bar" style="background: rgba(188,76,0,0.10);">
         <span><span class="layer-num">L4</span> <span class="layer-name">Doctor Knowledge</span></span>
-        <span class="layer-source">from DB (doctor_knowledge_items)</span>
+        <span class="layer-source">from DB (doctor_knowledge_items) with [KB-{id}] citations</span>
+      </div>
+      <div class="layer-bar" style="background: rgba(7,193,96,0.10);">
+        <span><span class="layer-num">L4b</span> <span class="layer-name">Case Memory</span></span>
+        <span class="layer-source">similar confirmed cases via case_matching.py</span>
       </div>
       <div class="layer-bar" style="background: rgba(26,127,55,0.08);">
         <span><span class="layer-num">L5</span> <span class="layer-name">Patient Context</span></span>
@@ -1106,6 +1110,30 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
         </div>
       </div>
     </div>
+
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Registered Configs (prompt_config.py)</h3>
+    <table style="width:100%; font-size:0.82rem; border-collapse:collapse;">
+      <thead><tr style="border-bottom:1px solid var(--border); text-align:left;">
+        <th style="padding:6px 8px;">Config</th><th style="padding:6px 8px;">Intent</th><th style="padding:6px 8px;">KB</th><th style="padding:6px 8px;">Cases</th><th style="padding:6px 8px;">Patient Ctx</th><th style="padding:6px 8px;">Used by</th>
+      </tr></thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border-light);">
+          <td style="padding:5px 8px; font-weight:500;">INTENT_LAYERS (×7)</td><td style="padding:5px 8px;">query, interview, general, etc.</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">varies</td><td style="padding:5px 8px;">Chat pipeline</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border-light);">
+          <td style="padding:5px 8px; font-weight:500;">ROUTING_LAYERS</td><td style="padding:5px 8px;">routing</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">Intent classification</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border-light);">
+          <td style="padding:5px 8px; font-weight:500;">REVIEW_LAYERS</td><td style="padding:5px 8px;">diagnosis</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">✅ L4b</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">Diagnosis pipeline + case memory</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border-light);">
+          <td style="padding:5px 8px; font-weight:500; color:#07C160;">FOLLOWUP_REPLY_LAYERS</td><td style="padding:5px 8px;">followup_reply</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">Draft reply generation</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 8px; font-weight:500;">PATIENT_INTERVIEW_LAYERS</td><td style="padding:5px 8px;">patient-interview</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">Patient pre-consultation</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </div>
 
