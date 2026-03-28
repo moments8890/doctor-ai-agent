@@ -461,14 +461,14 @@ export async function fetchDrafts() {
       },
     ],
     upcoming_followups: [
-      { id: "f1", patient_name: "王建国", task: "术后复查CT", detail: "脑膜瘤术后第7天常规复查", due_label: "今天", soon: true },
-      { id: "f2", patient_name: "李阿姨", task: "颈动脉超声", detail: "TIA首发48h内血管评估", due_label: "明天", soon: true },
-      { id: "f3", patient_name: "赵敏", task: "用药效果复查", detail: "卡马西平2周疗效评估", due_label: "4月3日", soon: false },
-      { id: "f4", patient_name: "陈大伟", task: "腰椎复查", detail: "保守治疗1个月评估", due_label: "4月10日", soon: false },
+      { id: "f1", patient_id: 3, patient_name: "王建国", task: "术后复查CT", detail: "脑膜瘤术后第7天常规复查", due_label: "今天", soon: true },
+      { id: "f2", patient_id: 2, patient_name: "李阿姨", task: "颈动脉超声", detail: "TIA首发48h内血管评估", due_label: "明天", soon: true },
+      { id: "f3", patient_id: 4, patient_name: "赵敏", task: "用药效果复查", detail: "卡马西平2周疗效评估", due_label: "4月3日", soon: false },
+      { id: "f4", patient_id: 5, patient_name: "陈大伟", task: "腰椎复查", detail: "保守治疗1个月评估", due_label: "4月10日", soon: false },
     ],
     recently_sent: [
-      { id: "s1", patient_name: "赵敏", task: "服药提醒", read_status: "已读", time: "昨天" },
-      { id: "s2", patient_name: "周小林", task: "复查提醒", read_status: "未读", time: "3月25日" },
+      { id: "s1", patient_id: 4, patient_name: "赵敏", task: "服药提醒", read_status: "已读", time: "昨天" },
+      { id: "s2", patient_id: 6, patient_name: "周小林", task: "复查提醒", read_status: "未读", time: "3月25日" },
     ],
   };
 }
