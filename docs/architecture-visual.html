@@ -1111,7 +1111,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
 
 
 <!-- ═══════════════════════════════════════════════════════
-     DATABASE SCHEMA
+     DATABASE SCHEMA — INTERACTIVE GRAPH
      ═══════════════════════════════════════════════════════ -->
 <div class="section" id="database-schema">
   <div class="section-header" onclick="toggleSection(this)">
@@ -1119,195 +1119,37 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
     <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
   </div>
   <div class="section-body">
-    <p class="muted">Main tables grouped by domain. <span style="color:var(--orange);">PK</span> = primary key, <span style="color:var(--purple);">FK</span> = foreign key.</p>
+    <p class="muted">
+      18 tables, 21 foreign keys. Hover for columns &amp; relationships. Drag to rearrange.
+      Solid red = CASCADE delete, dashed yellow = SET NULL.
+      Source of truth: <span class="file-path" onclick="copyPath(this)">src/db/models/</span>
+    </p>
 
-    <!-- Core -->
-    <div class="er-grid">
-      <div class="er-group-label" style="color: var(--green);"><span class="dot dot-green"></span> Core</div>
-
-      <div class="er-box er-box-green">
-        <div class="er-box-header">doctors</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">doctor_id</span> str(64)</div>
-          <div class="er-col"><span class="col-name">name</span> str</div>
-          <div class="er-col"><span class="col-name">specialty</span> str</div>
-          <div class="er-col"><span class="col-name">created_at</span> datetime</div>
-        </div>
-      </div>
-
-      <div class="er-box er-box-green">
-        <div class="er-box-header">patients</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">doctor_id</span> &rarr; doctors</div>
-          <div class="er-col"><span class="col-name">name</span> str</div>
-          <div class="er-col"><span class="col-name">gender, age, phone</span></div>
-          <div class="er-col"><span class="col-name">access_code_hash</span></div>
-        </div>
-      </div>
-
-      <div class="er-box er-box-green">
-        <div class="er-box-header">medical_records</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">doctor_id</span> &rarr; doctors</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">patient_id</span> &rarr; patients</div>
-          <div class="er-col"><span class="col-name">status</span> enum</div>
-          <div class="er-col"><span class="col-name">chief_complaint</span> text</div>
-          <div class="er-col"><span class="col-name">present_illness</span> text</div>
-          <div class="er-col"><span class="col-name">content, tags</span></div>
-        </div>
-      </div>
-
-      <div class="er-box er-box-green">
-        <div class="er-box-header">ai_suggestions</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">record_id</span> &rarr; medical_records</div>
-          <div class="er-col"><span class="col-name">section</span> enum</div>
-          <div class="er-col"><span class="col-name">content</span> text</div>
-          <div class="er-col"><span class="col-name">decision</span> enum</div>
-        </div>
-      </div>
+    <!-- Filter buttons -->
+    <div style="display: flex; gap: 5px; margin: 12px 0;">
+      <button class="db-filter active" data-dbfilter="all" style="font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid #d0d7de;background:#0969da;color:#fff;cursor:pointer;font-weight:500;">All</button>
+      <button class="db-filter" data-dbfilter="core" style="font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid #d0d7de;background:#fff;color:#656d76;cursor:pointer;font-weight:500;">Core</button>
+      <button class="db-filter" data-dbfilter="knowledge" style="font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid #d0d7de;background:#fff;color:#656d76;cursor:pointer;font-weight:500;">Knowledge</button>
+      <button class="db-filter" data-dbfilter="communication" style="font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid #d0d7de;background:#fff;color:#656d76;cursor:pointer;font-weight:500;">Comms</button>
+      <button class="db-filter" data-dbfilter="workflow" style="font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid #d0d7de;background:#fff;color:#656d76;cursor:pointer;font-weight:500;">Workflow</button>
+      <button class="db-filter" data-dbfilter="system" style="font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid #d0d7de;background:#fff;color:#656d76;cursor:pointer;font-weight:500;">System</button>
     </div>
 
-    <!-- Knowledge -->
-    <div class="er-grid">
-      <div class="er-group-label" style="color: var(--accent);"><span class="dot dot-blue"></span> Knowledge</div>
-
-      <div class="er-box er-box-blue">
-        <div class="er-box-header">doctor_knowledge_items</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">doctor_id</span> &rarr; doctors</div>
-          <div class="er-col"><span class="col-name">category</span> str</div>
-          <div class="er-col"><span class="col-name">title, content</span> text</div>
-          <div class="er-col"><span class="col-name">source_type</span> str</div>
-        </div>
-      </div>
-
-      <div class="er-box er-box-blue">
-        <div class="er-box-header">knowledge_usage_log</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">knowledge_item_id</span></div>
-          <div class="er-col"><span class="col-name">used_in, context</span></div>
-        </div>
-      </div>
+    <!-- Canvas -->
+    <div style="position:relative; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; background:#f9fafb;">
+      <canvas id="db-canvas" style="display:block; cursor:grab; width:100%; height:520px;"></canvas>
+      <div id="db-tooltip" style="display:none;position:absolute;z-index:20;background:#1f2328;color:#fff;padding:10px 14px;border-radius:8px;font-size:12px;max-width:320px;box-shadow:0 4px 16px rgba(0,0,0,0.2);pointer-events:none;"></div>
     </div>
 
-    <!-- Communication -->
-    <div class="er-grid">
-      <div class="er-group-label" style="color: var(--orange);"><span class="dot dot-orange"></span> Communication</div>
-
-      <div class="er-box er-box-orange">
-        <div class="er-box-header">doctor_chat_log</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="col-name">identity</span> str</div>
-          <div class="er-col"><span class="col-name">role</span> enum (user/assistant)</div>
-          <div class="er-col"><span class="col-name">content</span> text</div>
-        </div>
-      </div>
-
-      <div class="er-box er-box-orange">
-        <div class="er-box-header">patient_messages</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">patient_id</span> &rarr; patients</div>
-          <div class="er-col"><span class="col-name">direction</span> in/out</div>
-          <div class="er-col"><span class="col-name">content</span> text</div>
-        </div>
-      </div>
-
-      <div class="er-box er-box-orange">
-        <div class="er-box-header">message_drafts</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">patient_id</span> &rarr; patients</div>
-          <div class="er-col"><span class="col-name">status</span> enum</div>
-          <div class="er-col"><span class="col-name">content</span> text</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Workflow -->
-    <div class="er-grid">
-      <div class="er-group-label" style="color: var(--purple);"><span class="dot dot-purple"></span> Workflow</div>
-
-      <div class="er-box er-box-purple">
-        <div class="er-box-header">interview_sessions</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> str(36)</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">doctor_id</span> &rarr; doctors</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">patient_id</span> &rarr; patients</div>
-          <div class="er-col"><span class="col-name">status</span> enum</div>
-          <div class="er-col"><span class="col-name">mode</span> patient/doctor</div>
-          <div class="er-col"><span class="col-name">collected, conversation</span> JSON</div>
-        </div>
-      </div>
-
-      <div class="er-box er-box-purple">
-        <div class="er-box-header">doctor_tasks</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">doctor_id</span> &rarr; doctors</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">patient_id</span> &rarr; patients</div>
-          <div class="er-col"><span class="col-name">task_type</span> enum</div>
-          <div class="er-col"><span class="col-name">status</span> enum</div>
-          <div class="er-col"><span class="col-name">due_at</span> datetime</div>
-        </div>
-      </div>
-
-      <div class="er-box er-box-purple">
-        <div class="er-box-header">doctor_edits</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">record_id</span> &rarr; medical_records</div>
-          <div class="er-col"><span class="col-name">field, old_value, new_value</span></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- System -->
-    <div class="er-grid">
-      <div class="er-group-label" style="color: var(--muted);"><span class="dot dot-gray"></span> System</div>
-
-      <div class="er-box er-box-gray">
-        <div class="er-box-header">audit_log</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="col-name">actor, action, detail</span></div>
-          <div class="er-col"><span class="col-name">created_at</span> datetime</div>
-        </div>
-      </div>
-
-      <div class="er-box er-box-gray">
-        <div class="er-box-header">invite_codes</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="col-name">code</span> str(unique)</div>
-          <div class="er-col"><span class="col-name">used_by, used_at</span></div>
-        </div>
-      </div>
-
-      <div class="er-box er-box-gray">
-        <div class="er-box-header">runtime_tokens</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="col-name">token_type, value</span></div>
-          <div class="er-col"><span class="col-name">expires_at</span> datetime</div>
-        </div>
-      </div>
-
-      <div class="er-box er-box-gray">
-        <div class="er-box-header">patient_auth</div>
-        <div class="er-box-body">
-          <div class="er-col"><span class="pk">PK</span> <span class="col-name">id</span> int</div>
-          <div class="er-col"><span class="fk">FK</span> <span class="col-name">patient_id</span> &rarr; patients</div>
-          <div class="er-col"><span class="col-name">phone, yob</span></div>
-        </div>
-      </div>
+    <!-- Legend -->
+    <div style="display:flex; gap:14px; margin-top:8px; font-size:11px; color:var(--muted);">
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#1a7f37;vertical-align:middle;"></span> Core</span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#0969da;vertical-align:middle;"></span> Knowledge</span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#bc4c00;vertical-align:middle;"></span> Communication</span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#8250df;vertical-align:middle;"></span> Workflow</span>
+      <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#656d76;vertical-align:middle;"></span> System</span>
+      <span style="margin-left:8px;"><span style="display:inline-block;width:16px;height:0;border-top:2px solid #cf222e;vertical-align:middle;"></span> CASCADE</span>
+      <span><span style="display:inline-block;width:16px;height:0;border-top:2px dashed #9a6700;vertical-align:middle;"></span> SET NULL</span>
     </div>
   </div>
 </div>
@@ -1421,82 +1263,322 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
     <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
   </div>
   <div class="section-body">
-
-    <!-- Web Dashboard -->
-    <h3 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--text);">Web Dashboard</h3>
     <p class="muted">
-      <span class="file-path" onclick="copyPath(this)">src/channels/web/chat.py</span>
-      <span class="file-path" onclick="copyPath(this)">src/channels/web/tasks.py</span>
-      <span class="file-path" onclick="copyPath(this)">src/channels/web/export.py</span>
-      <span class="file-path" onclick="copyPath(this)">src/channels/web/ui/</span>
-    </p>
-    <table>
-      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/records/chat</td><td class="route-desc">Doctor AI chat (main pipeline)</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/records/upload</td><td class="route-desc">Upload image/PDF for OCR</td></tr>
-        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/tasks/</td><td class="route-desc">List tasks with filters</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/tasks/</td><td class="route-desc">Create new task</td></tr>
-        <tr><td><span class="method method-patch">PATCH</span></td><td class="route-path">/api/tasks/{id}/status</td><td class="route-desc">Update task status</td></tr>
-        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/export/{patient_id}/pdf</td><td class="route-desc">Export patient records as PDF</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/export/bulk</td><td class="route-desc">Bulk export as ZIP</td></tr>
-        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/ui/patients</td><td class="route-desc">Patient list for dashboard</td></tr>
-        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/ui/records/{patient_id}</td><td class="route-desc">Records for a patient</td></tr>
-        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/ui/diagnosis/{record_id}</td><td class="route-desc">AI suggestions for a record</td></tr>
-        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/ui/knowledge</td><td class="route-desc">Doctor knowledge base items</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/ui/knowledge</td><td class="route-desc">Add knowledge item</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/import/csv</td><td class="route-desc">Import patients from CSV</td></tr>
-      </tbody>
-    </table>
-
-    <!-- Patient Portal -->
-    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Patient Portal</h3>
-    <p class="muted">
-      <span class="file-path" onclick="copyPath(this)">src/channels/web/patient_portal.py</span>
-      <span class="file-path" onclick="copyPath(this)">src/channels/web/patient_interview_routes.py</span>
-    </p>
-    <table>
-      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/login</td><td class="route-desc">Patient authentication</td></tr>
-        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/patient/records</td><td class="route-desc">Patient's own records</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/message</td><td class="route-desc">Send message to doctor</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/interview/start</td><td class="route-desc">Start pre-consultation interview</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/interview/turn</td><td class="route-desc">Interview conversation turn</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/interview/confirm</td><td class="route-desc">Confirm interview result</td></tr>
-      </tbody>
-    </table>
-
-    <!-- WeChat -->
-    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">WeChat / WeCom</h3>
-    <p class="muted">
+      Key entry points by channel. Full list at <code>http://localhost:8000/docs</code> (Swagger UI).
+      Source files:
+      <span class="file-path" onclick="copyPath(this)">src/channels/web/</span>
       <span class="file-path" onclick="copyPath(this)">src/channels/wechat/router.py</span>
     </p>
     <table>
-      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <thead><tr><th>Channel</th><th>Method</th><th>Path</th><th>Description</th></tr></thead>
       <tbody>
-        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/wechat</td><td class="route-desc">WeChat signature verification</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/wechat</td><td class="route-desc">WeChat message webhook</td></tr>
-        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/wecom/kf</td><td class="route-desc">WeCom KF verification</td></tr>
+        <tr><td rowspan="3" style="font-weight:600; color:var(--green);">Doctor</td>
+            <td><span class="method method-post">POST</span></td><td class="route-path">/api/records/chat</td><td class="route-desc">AI chat (main agent pipeline)</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/records/upload</td><td class="route-desc">Upload image/PDF for OCR import</td></tr>
+        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/export/{patient_id}/pdf</td><td class="route-desc">Export patient records as PDF</td></tr>
+        <tr><td rowspan="3" style="font-weight:600; color:var(--accent);">Patient</td>
+            <td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/interview/start</td><td class="route-desc">Start pre-consultation interview</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/interview/turn</td><td class="route-desc">Interview conversation turn</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/message</td><td class="route-desc">Send message to doctor (triage)</td></tr>
+        <tr><td rowspan="2" style="font-weight:600; color:var(--orange);">WeChat</td>
+            <td><span class="method method-post">POST</span></td><td class="route-path">/api/wechat</td><td class="route-desc">WeChat message webhook</td></tr>
         <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/wecom/kf</td><td class="route-desc">WeCom KF message webhook</td></tr>
+        <tr><td rowspan="3" style="font-weight:600; color:var(--muted);">Auth</td>
+            <td><span class="method method-post">POST</span></td><td class="route-path">/api/auth/login</td><td class="route-desc">Unified login (phone + YOB)</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/auth/invite</td><td class="route-desc">Invite code login for doctors</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/auth/miniapp</td><td class="route-desc">WeChat mini-program login</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PROCESS MODEL
+     ═══════════════════════════════════════════════════════ -->
+<div class="section" id="process-model">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot dot-red"></span> Process Model</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">
+      How the app runs: single async process, background workers, scheduled jobs, and fire-and-forget tasks.
+      Everything is <code>asyncio</code> &mdash; no threads, no multiprocessing, no Celery.
+    </p>
+
+    <!-- ── Uvicorn Process ── -->
+    <h3 style="font-size: 0.95rem; margin: 16px 0 12px; color: var(--text);">Runtime Process</h3>
+    <div class="diagram">
+      <div class="diagram-column" style="max-width: 360px;">
+        <div class="box box-blue">
+          uvicorn (1 worker, async)
+          <span class="box-label">main.py &mdash; lifespan manages startup/shutdown</span>
+        </div>
+        <div class="arrow">&darr; spawns at startup</div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <div class="box box-purple" style="flex: 1; min-width: 150px;">
+            Span Writer
+            <span class="box-label">observability/_storage.py<br>asyncio.Queue &rarr; JSONL</span>
+          </div>
+          <div class="box box-purple" style="flex: 1; min-width: 150px;">
+            Audit Drain
+            <span class="box-label">observability/audit.py<br>batch 100, flush 5s</span>
+          </div>
+          <div class="box box-orange" style="flex: 1; min-width: 150px;">
+            APScheduler
+            <span class="box-label">startup/scheduler.py<br>AsyncIOScheduler</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Background Workers ── -->
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Always-Running Background Workers</h3>
+    <p class="muted">Started in lifespan, run until shutdown. Both use <code>asyncio.Queue</code> for backpressure.</p>
+    <table>
+      <thead>
+        <tr><th>Worker</th><th>Queue Size</th><th>Behavior</th><th>Location</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Span Disk Writer</td>
+          <td>5,000</td>
+          <td>Writes trace spans to JSONL; prunes every 200 writes; falls back to sync write when queue full</td>
+          <td><span class="file-path" onclick="copyPath(this)">src/infra/observability/_storage.py</span></td>
+        </tr>
+        <tr>
+          <td>Audit Log Drain</td>
+          <td>2,000</td>
+          <td>Batches audit entries (100/batch), flushes to DB every 5s; 3 retries on DB failure; graceful drain on shutdown</td>
+          <td><span class="file-path" onclick="copyPath(this)">src/infra/observability/audit.py</span></td>
+        </tr>
       </tbody>
     </table>
 
-    <!-- Auth -->
-    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Authentication</h3>
+    <!-- ── Scheduled Jobs ── -->
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Scheduled Jobs (APScheduler)</h3>
     <p class="muted">
-      <span class="file-path" onclick="copyPath(this)">src/channels/web/auth.py</span>
-      <span class="file-path" onclick="copyPath(this)">src/channels/web/unified_auth_routes.py</span>
+      Configurable via <code>TASK_SCHEDULER_MODE</code> (interval or cron). Default: interval.
+      Multi-instance safe via DB lease (TTL 90s, owner = hostname:pid).
     </p>
     <table>
-      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <thead>
+        <tr><th>Job</th><th>Schedule</th><th>What it does</th><th>Location</th></tr>
+      </thead>
       <tbody>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/auth/login</td><td class="route-desc">Unified login (phone + YOB)</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/auth/invite</td><td class="route-desc">Invite code login for doctors</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/auth/miniapp</td><td class="route-desc">WeChat mini-program login</td></tr>
-        <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/auth/wecom/callback</td><td class="route-desc">WeCom OAuth callback</td></tr>
+        <tr class="row-orange">
+          <td>Task Notifications</td>
+          <td>Every 1 min</td>
+          <td>Polls <code>doctor_tasks</code> for due items, sends WeChat notifications, transitions pending &rarr; notified</td>
+          <td><span class="file-path" onclick="copyPath(this)">src/domain/tasks/task_crud.py</span></td>
+        </tr>
+        <tr class="row-gray">
+          <td>Chat Log Cleanup</td>
+          <td>Daily 04:30</td>
+          <td>Hard-deletes chat log entries older than 365 days</td>
+          <td><span class="file-path" onclick="copyPath(this)">src/startup/scheduler.py</span></td>
+        </tr>
+        <tr class="row-gray">
+          <td>Audit Retention</td>
+          <td>Monthly (1st, 03:00)</td>
+          <td>Deletes audit log entries older than 7 years</td>
+          <td><span class="file-path" onclick="copyPath(this)">src/startup/scheduler.py</span></td>
+        </tr>
+        <tr class="row-gray">
+          <td>Turn Log Pruning</td>
+          <td>Daily 05:30</td>
+          <td>Prunes conversation turn logs</td>
+          <td><span class="file-path" onclick="copyPath(this)">src/startup/scheduler.py</span></td>
+        </tr>
       </tbody>
     </table>
+
+    <!-- ── Fire-and-Forget Tasks ── -->
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Fire-and-Forget Tasks</h3>
+    <p class="muted">
+      Per-request async tasks via <code>safe_create_task()</code>
+      (<span class="file-path" onclick="copyPath(this)">src/utils/log.py</span>).
+      Wraps <code>asyncio.create_task()</code> with error logging &mdash; exceptions are caught and logged, never crash the request.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Trigger</th><th>Background Task</th><th>What happens</th><th>Location</th></tr>
+      </thead>
+      <tbody>
+        <tr class="row-green">
+          <td>WeChat doctor message</td>
+          <td><code>_handle_intent_bg()</code></td>
+          <td>Routes through agent pipeline, sends reply via WX API (4.5s timeout)</td>
+          <td><span class="file-path" onclick="copyPath(this)">src/channels/wechat/router.py</span></td>
+        </tr>
+        <tr class="row-green">
+          <td>WeChat patient message</td>
+          <td><code>_handle_patient_bg()</code></td>
+          <td>Emergency keyword check &rarr; triage &rarr; agent &rarr; auto-reply</td>
+          <td><span class="file-path" onclick="copyPath(this)">src/channels/wechat/router.py</span></td>
+        </tr>
+        <tr class="row-blue">
+          <td>Image upload (WeChat)</td>
+          <td><code>handle_image_bg()</code></td>
+          <td>Download media &rarr; vision LLM OCR &rarr; send result to doctor</td>
+          <td><span class="file-path" onclick="copyPath(this)">src/channels/wechat/flows.py</span></td>
+        </tr>
+        <tr class="row-blue">
+          <td>PDF/Word upload</td>
+          <td><code>handle_pdf_file_bg()</code></td>
+          <td>Extract text &rarr; optional LLM cleanup &rarr; send result</td>
+          <td><span class="file-path" onclick="copyPath(this)">src/channels/wechat/flows.py</span></td>
+        </tr>
+        <tr class="row-purple">
+          <td>Diagnosis confirmed</td>
+          <td><code>run_diagnosis()</code></td>
+          <td>LLM generates differentials &rarr; saves to ai_suggestions &rarr; auto-creates tasks &rarr; logs KB citations</td>
+          <td><span class="file-path" onclick="copyPath(this)">src/domain/diagnosis_pipeline.py</span></td>
+        </tr>
+        <tr class="row-orange">
+          <td>Triage escalation</td>
+          <td><code>handle_escalation()</code></td>
+          <td>LLM summarizes patient concern &rarr; creates review task for doctor &rarr; sends notification</td>
+          <td><span class="file-path" onclick="copyPath(this)">src/domain/patient_lifecycle/triage_handlers.py</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ── WeChat Message Fan-Out ── -->
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Example: WeChat Doctor Message Fan-Out</h3>
+    <p class="muted">A single WeChat message triggers up to 4 parallel async tasks. The webhook returns immediately.</p>
+
+    <div class="pipeline" style="flex-wrap: wrap; justify-content: flex-start;">
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-green">1</div>
+        <div class="pipeline-label">WeChat</div>
+        <div class="pipeline-sublabel">POST /api/wechat</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-blue">2</div>
+        <div class="pipeline-label">ACK</div>
+        <div class="pipeline-sublabel">return "ok" (5s limit)</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-orange">3</div>
+        <div class="pipeline-label">Fan-out</div>
+        <div class="pipeline-sublabel">safe_create_task()</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px;">
+      <div class="box box-orange" style="flex: 1; min-width: 140px;">
+        Prefetch Profile
+        <span class="box-label">cache doctor data</span>
+      </div>
+      <div class="box box-blue" style="flex: 1; min-width: 140px;">
+        Agent Pipeline
+        <span class="box-label">route &rarr; dispatch &rarr; handle</span>
+      </div>
+      <div class="box box-purple" style="flex: 1; min-width: 140px;">
+        Send Reply
+        <span class="box-label">WX customer service API</span>
+      </div>
+      <div class="box box-gray" style="flex: 1; min-width: 140px;">
+        Audit + Spans
+        <span class="box-label">queued to workers</span>
+      </div>
+    </div>
+
+    <!-- ── Patient Interview Session ── -->
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Patient Interview: Stateful HTTP</h3>
+    <p class="muted">
+      No WebSocket or SSE. Each turn is a standard HTTP request-response.
+      Session state lives in <code>interview_sessions</code> table (conversation history + collected fields).
+    </p>
+
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-green">1</div>
+        <div class="pipeline-label">Start</div>
+        <div class="pipeline-sublabel">POST /interview/start</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-blue">2</div>
+        <div class="pipeline-label">Turn N</div>
+        <div class="pipeline-sublabel">POST /interview/turn</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-blue">...</div>
+        <div class="pipeline-label">Loop</div>
+        <div class="pipeline-sublabel">until fields complete</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-green">3</div>
+        <div class="pipeline-label">Confirm</div>
+        <div class="pipeline-sublabel">POST /interview/confirm</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-purple">4</div>
+        <div class="pipeline-label">Extract</div>
+        <div class="pipeline-sublabel">patient-extract.md</div>
+      </div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-step">
+        <div class="pipeline-dot pipeline-dot-gray">5</div>
+        <div class="pipeline-label">Record</div>
+        <div class="pipeline-sublabel">+ review task</div>
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top: 12px;">
+      Key files:
+      <span class="file-path" onclick="copyPath(this)">src/channels/web/patient_interview_routes.py</span> (HTTP routes),
+      <span class="file-path" onclick="copyPath(this)">src/domain/patients/interview_turn.py</span> (LLM conversation),
+      <span class="file-path" onclick="copyPath(this)">src/domain/patients/interview_session.py</span> (session CRUD).
+    </p>
+
+    <!-- ── Concurrency Summary ── -->
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Concurrency Summary</h3>
+    <table>
+      <thead>
+        <tr><th>Pattern</th><th>Mechanism</th><th>Used by</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Request handling</td>
+          <td><code>async def</code> + <code>await</code></td>
+          <td>All HTTP endpoints</td>
+        </tr>
+        <tr>
+          <td>Background workers</td>
+          <td><code>asyncio.create_task()</code> in lifespan</td>
+          <td>Span writer, audit drain</td>
+        </tr>
+        <tr>
+          <td>Scheduled jobs</td>
+          <td>APScheduler <code>AsyncIOScheduler</code></td>
+          <td>Task notifications, cleanup</td>
+        </tr>
+        <tr>
+          <td>Per-request background</td>
+          <td><code>safe_create_task()</code> (fire-and-forget)</td>
+          <td>WeChat handlers, document ingestion, triage</td>
+        </tr>
+        <tr>
+          <td>Multi-instance safety</td>
+          <td>DB lease (hostname:pid, 90s TTL)</td>
+          <td>Scheduler job dedup</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="muted" style="margin-top: 12px;">
+      No threads, no multiprocessing, no Celery, no Redis queues.
+      Everything runs on a single asyncio event loop.
+      Production uses <code>uvicorn --workers N</code> for process-level parallelism.
+    </p>
   </div>
 </div>
 
@@ -1560,6 +1642,229 @@ function showToast(msg) {
     toast.classList.remove('show');
   }, 1200);
 }
+
+// ══════════════════════════════════════════════════════════
+// EMBEDDED DB RELATIONSHIP GRAPH
+// ══════════════════════════════════════════════════════════
+(function() {
+  var COLORS = { core:'#1a7f37', knowledge:'#0969da', communication:'#bc4c00', workflow:'#8250df', system:'#656d76' };
+  var FK_COLORS = { cascade:'#cf222e', set_null:'#9a6700', none:'#656d76' };
+  var NW = 140, NH = 36;
+
+  var NODES = [
+    { id:'doctors',          label:'doctors',            pk:'doctor_id (str)',  group:'core',    cols:'name, specialty, clinic_name', gx:0.28, gy:0.22 },
+    { id:'patients',         label:'patients',           pk:'id (int)',         group:'core',    cols:'doctor_id, name, gender, year_of_birth', gx:0.52, gy:0.22 },
+    { id:'medical_records',  label:'medical_records',    pk:'id (int)',         group:'core',    cols:'doctor_id, patient_id, status, 14 clinical fields', gx:0.52, gy:0.48 },
+    { id:'ai_suggestions',   label:'ai_suggestions',     pk:'id (int)',         group:'core',    cols:'record_id, section, decision, content', gx:0.74, gy:0.48 },
+    { id:'doctor_knowledge_items', label:'doctor_knowledge_items', pk:'id (int)', group:'knowledge', cols:'doctor_id, category, title, content', gx:0.10, gy:0.14 },
+    { id:'knowledge_usage_log',    label:'knowledge_usage_log',    pk:'id (int)', group:'knowledge', cols:'knowledge_item_id, usage_context', gx:0.10, gy:0.38 },
+    { id:'doctor_chat_log',   label:'doctor_chat_log',   pk:'id (int)',  group:'communication', cols:'doctor_id, session_id, role, content', gx:0.28, gy:0.68 },
+    { id:'patient_messages',  label:'patient_messages',   pk:'id (int)',  group:'communication', cols:'patient_id, doctor_id, direction, content', gx:0.74, gy:0.22 },
+    { id:'message_drafts',    label:'message_drafts',     pk:'id (int)',  group:'communication', cols:'source_message_id, status, draft_text', gx:0.92, gy:0.22 },
+    { id:'interview_sessions', label:'interview_sessions', pk:'id (uuid)', group:'workflow', cols:'doctor_id, patient_id, status, collected (JSON)', gx:0.52, gy:0.75 },
+    { id:'doctor_tasks',      label:'doctor_tasks',       pk:'id (int)',   group:'workflow', cols:'doctor_id, patient_id, record_id, task_type, status', gx:0.74, gy:0.72 },
+    { id:'doctor_edits',      label:'doctor_edits',       pk:'id (int)',   group:'workflow', cols:'rule_id, entity_type, original_text', gx:0.10, gy:0.60 },
+    { id:'audit_log',         label:'audit_log',          pk:'id (int)',   group:'system', cols:'doctor_id, action, resource_type', gx:0.10, gy:0.85 },
+    { id:'invite_codes',      label:'invite_codes',       pk:'code (str)', group:'system', cols:'doctor_id, active, max_uses', gx:0.30, gy:0.90 },
+    { id:'patient_auth',      label:'patient_auth',       pk:'patient_id', group:'system', cols:'access_code', gx:0.74, gy:0.90 },
+    { id:'doctor_wechat',     label:'doctor_wechat',      pk:'doctor_id',  group:'system', cols:'wechat_user_id, mini_openid', gx:0.28, gy:0.06 },
+    { id:'runtime_tokens',    label:'runtime_tokens',     pk:'token_key',  group:'system', cols:'token_value, expires_at', gx:0.52, gy:0.94 },
+    { id:'scheduler_leases',  label:'scheduler_leases',   pk:'lease_key',  group:'system', cols:'owner_id, lease_until', gx:0.90, gy:0.90 },
+  ];
+
+  var EDGES = [
+    { from:'patients', to:'doctors', fk:'doctor_id', on_delete:'cascade' },
+    { from:'medical_records', to:'doctors', fk:'doctor_id', on_delete:'cascade' },
+    { from:'medical_records', to:'patients', fk:'patient_id', on_delete:'cascade' },
+    { from:'ai_suggestions', to:'medical_records', fk:'record_id', on_delete:'none' },
+    { from:'doctor_knowledge_items', to:'doctors', fk:'doctor_id', on_delete:'cascade' },
+    { from:'knowledge_usage_log', to:'doctor_knowledge_items', fk:'knowledge_item_id', on_delete:'cascade' },
+    { from:'doctor_chat_log', to:'doctors', fk:'doctor_id', on_delete:'cascade' },
+    { from:'patient_messages', to:'patients', fk:'patient_id', on_delete:'cascade' },
+    { from:'patient_messages', to:'doctors', fk:'doctor_id', on_delete:'cascade' },
+    { from:'message_drafts', to:'patient_messages', fk:'source_message_id', on_delete:'none' },
+    { from:'interview_sessions', to:'doctors', fk:'doctor_id', on_delete:'cascade' },
+    { from:'interview_sessions', to:'patients', fk:'patient_id', on_delete:'cascade' },
+    { from:'doctor_tasks', to:'doctors', fk:'doctor_id', on_delete:'cascade' },
+    { from:'doctor_tasks', to:'patients', fk:'patient_id', on_delete:'set_null' },
+    { from:'doctor_tasks', to:'medical_records', fk:'record_id', on_delete:'set_null' },
+    { from:'doctor_edits', to:'doctor_knowledge_items', fk:'rule_id', on_delete:'set_null' },
+    { from:'audit_log', to:'doctors', fk:'doctor_id', on_delete:'set_null' },
+    { from:'invite_codes', to:'doctors', fk:'doctor_id', on_delete:'set_null' },
+    { from:'patient_auth', to:'patients', fk:'patient_id', on_delete:'cascade' },
+    { from:'doctor_wechat', to:'doctors', fk:'doctor_id', on_delete:'cascade' },
+  ];
+
+  var cv = document.getElementById('db-canvas');
+  if (!cv) return;
+  var cx = cv.getContext('2d');
+  var nodeMap = {};
+  var dbDragging = null, dbDragOff = {x:0,y:0}, dbHover = null;
+  NODES.forEach(function(n) { n.visible = true; nodeMap[n.id] = n; });
+
+  function dbResize() {
+    var rect = cv.parentElement.getBoundingClientRect();
+    var w = rect.width, h = 520;
+    cv.width = w * devicePixelRatio;
+    cv.height = h * devicePixelRatio;
+    cv.style.width = w + 'px';
+    cv.style.height = h + 'px';
+    cx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    NODES.forEach(function(n) {
+      if (!n._d) { n.x = n.gx * w; n.y = n.gy * h; }
+    });
+    return { w: w, h: h };
+  }
+
+  function dbDrawEdge(ax,ay,bx,by,color,dashed,label,hl) {
+    var dx=bx-ax,dy=by-ay,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<1)return;
+    var sx=ax+dx/d*(NW/2+4),sy=ay+dy/d*(NH/2+4);
+    var ex=bx-dx/d*(NW/2+4),ey=by-dy/d*(NH/2+4);
+    var mx=(sx+ex)/2,my=(sy+ey)/2;
+    var nx=-(ey-sy),ny=(ex-sx),nd=Math.sqrt(nx*nx+ny*ny);
+    var c=Math.min(28,d*0.1);
+    var cpx=mx+nx/nd*c,cpy=my+ny/nd*c;
+    cx.beginPath();cx.setLineDash(dashed?[5,3]:[]);
+    cx.moveTo(sx,sy);cx.quadraticCurveTo(cpx,cpy,ex,ey);
+    cx.strokeStyle=color;cx.lineWidth=hl?2.5:1.5;cx.globalAlpha=hl?0.85:0.15;
+    cx.stroke();cx.setLineDash([]);
+    var t=0.98;
+    var tx=2*(1-t)*(cpx-sx)+2*t*(ex-cpx),ty=2*(1-t)*(cpy-sy)+2*t*(ey-cpy);
+    var a=Math.atan2(ty,tx),al=6;
+    cx.beginPath();cx.moveTo(ex,ey);
+    cx.lineTo(ex-al*Math.cos(a-0.35),ey-al*Math.sin(a-0.35));
+    cx.lineTo(ex-al*Math.cos(a+0.35),ey-al*Math.sin(a+0.35));
+    cx.closePath();cx.fillStyle=color;cx.fill();cx.globalAlpha=1;
+    if(hl&&label){
+      var lx=0.25*sx+0.5*cpx+0.25*ex,ly=0.25*sy+0.5*cpy+0.25*ey;
+      cx.font='9px "SF Mono",monospace';
+      var tw=cx.measureText(label).width;
+      cx.fillStyle=color;cx.globalAlpha=0.9;cx.beginPath();
+      cx.roundRect(lx-tw/2-4,ly-7,tw+8,14,3);cx.fill();
+      cx.globalAlpha=1;cx.fillStyle='#fff';cx.textAlign='center';cx.textBaseline='middle';
+      cx.fillText(label,lx,ly);
+    }
+  }
+
+  function dbDrawGroup(gid,lbl,clr) {
+    var gn=NODES.filter(function(n){return n.group===gid&&n.visible;});
+    if(!gn.length)return;
+    var x1=1e9,y1=1e9,x2=-1e9,y2=-1e9;
+    gn.forEach(function(n){
+      if(n.x-NW/2<x1)x1=n.x-NW/2;if(n.y-NH/2<y1)y1=n.y-NH/2;
+      if(n.x+NW/2>x2)x2=n.x+NW/2;if(n.y+NH/2>y2)y2=n.y+NH/2;
+    });
+    cx.fillStyle=clr+'0a';cx.strokeStyle=clr+'1e';cx.lineWidth=1;
+    cx.beginPath();cx.roundRect(x1-20,y1-26,x2-x1+40,y2-y1+52,10);cx.fill();cx.stroke();
+    cx.font='bold 9px -apple-system,sans-serif';cx.fillStyle=clr+'66';
+    cx.textAlign='left';cx.fillText(lbl.toUpperCase(),x1-14,y1-12);
+  }
+
+  function dbDraw() {
+    var rect = cv.parentElement.getBoundingClientRect();
+    var w = rect.width, h = 520;
+    cx.clearRect(0,0,w,h);
+    dbDrawGroup('core','Core','#1a7f37');
+    dbDrawGroup('knowledge','Knowledge','#0969da');
+    dbDrawGroup('communication','Communication','#bc4c00');
+    dbDrawGroup('workflow','Workflow','#8250df');
+    dbDrawGroup('system','System','#656d76');
+    EDGES.forEach(function(e){
+      var a=nodeMap[e.from],b=nodeMap[e.to];
+      if(!a||!b||!a.visible||!b.visible)return;
+      var hl=dbHover&&(dbHover.id===e.from||dbHover.id===e.to);
+      dbDrawEdge(a.x,a.y,b.x,b.y,FK_COLORS[e.on_delete]||FK_COLORS.none,e.on_delete==='set_null',e.fk,hl);
+    });
+    NODES.forEach(function(n){
+      if(!n.visible)return;
+      var isH=dbHover&&dbHover.id===n.id,isCon=false;
+      if(dbHover)EDGES.forEach(function(e){if((e.from===dbHover.id&&e.to===n.id)||(e.to===dbHover.id&&e.from===n.id))isCon=true;});
+      var dim=dbHover&&!isH&&!isCon,clr=COLORS[n.group]||'#656d76';
+      if(isH){cx.shadowColor='rgba(0,0,0,0.1)';cx.shadowBlur=8;}
+      var rx=n.x-NW/2,ry=n.y-NH/2;
+      cx.beginPath();cx.roundRect(rx,ry,NW,NH,5);
+      cx.fillStyle=dim?'#f8f8f8':'#fff';cx.fill();
+      cx.shadowColor='transparent';cx.shadowBlur=0;
+      cx.strokeStyle=isH?clr:(dim?'#e0e0e0':clr);cx.lineWidth=isH?2.5:1.5;
+      cx.globalAlpha=dim?0.25:1;cx.stroke();cx.globalAlpha=1;
+      cx.beginPath();cx.roundRect(rx,ry,NW,4,[5,5,0,0]);
+      cx.fillStyle=dim?'#e0e0e0':clr;cx.globalAlpha=dim?0.25:0.8;cx.fill();cx.globalAlpha=1;
+      cx.font=(isH?'bold ':'')+' 10px "SF Mono",monospace';
+      cx.fillStyle=dim?'#d0d0d0':'#1f2328';cx.textAlign='center';cx.textBaseline='middle';
+      cx.fillText(n.label,n.x,n.y+2);
+    });
+  }
+
+  function dbGetNode(mx,my) {
+    var rect = cv.getBoundingClientRect();
+    var x = mx - rect.left, y = my - rect.top;
+    for(var i=NODES.length-1;i>=0;i--){
+      var n=NODES[i];if(!n.visible)continue;
+      if(x>=n.x-NW/2&&x<=n.x+NW/2&&y>=n.y-NH/2&&y<=n.y+NH/2)return n;
+    }
+    return null;
+  }
+
+  cv.addEventListener('mousedown',function(e){
+    var n=dbGetNode(e.clientX,e.clientY);
+    if(n){dbDragging=n;var r=cv.getBoundingClientRect();dbDragOff.x=e.clientX-r.left-n.x;dbDragOff.y=e.clientY-r.top-n.y;cv.style.cursor='grabbing';}
+  });
+  cv.addEventListener('mousemove',function(e){
+    var r=cv.getBoundingClientRect();
+    if(dbDragging){dbDragging.x=e.clientX-r.left-dbDragOff.x;dbDragging.y=e.clientY-r.top-dbDragOff.y;dbDragging._d=true;dbDraw();return;}
+    var n=dbGetNode(e.clientX,e.clientY);
+    if(n!==dbHover){dbHover=n;dbDraw();}
+    var tip=document.getElementById('db-tooltip');
+    if(n){
+      cv.style.cursor='pointer';
+      var h='<div style="font-weight:700;font-size:13px;">'+n.label+'</div>';
+      h+='<div style="font-family:monospace;color:#f0883e;font-size:11px;">PK: '+n.pk+'</div>';
+      h+='<div style="color:#8b949e;font-size:11px;margin-top:3px;">'+n.cols+'</div>';
+      var out=[],inp=[];
+      EDGES.forEach(function(ed){if(ed.from===n.id)out.push('<span style="color:#79c0ff;">'+ed.fk+'</span> &rarr; '+(nodeMap[ed.to]||{}).label+' ('+ed.on_delete+')');});
+      EDGES.forEach(function(ed){if(ed.to===n.id)inp.push('<span style="color:#7ee787;">'+(nodeMap[ed.from]||{}).label+'</span>.'+ed.fk);});
+      if(out.length||inp.length){
+        h+='<div style="margin-top:5px;border-top:1px solid #444;padding-top:4px;">';
+        if(out.length){h+='<div style="color:#79c0ff;font-size:10px;font-weight:600;">REFERENCES:</div>';out.forEach(function(f){h+='<div style="font-size:11px;color:#e6edf3;">'+f+'</div>';});}
+        if(inp.length){h+='<div style="color:#7ee787;font-size:10px;font-weight:600;margin-top:3px;">REFERENCED BY:</div>';inp.forEach(function(f){h+='<div style="font-size:11px;color:#e6edf3;">'+f+'</div>';});}
+        h+='</div>';
+      }
+      tip.innerHTML=h;tip.style.display='block';
+      tip.style.left=Math.min(e.clientX-r.left+16,r.width-330)+'px';
+      tip.style.top=Math.min(e.clientY-r.top+16,520-tip.offsetHeight-10)+'px';
+    } else {cv.style.cursor='grab';tip.style.display='none';}
+  });
+  cv.addEventListener('mouseup',function(){dbDragging=null;cv.style.cursor='grab';});
+
+  // Filters
+  document.querySelectorAll('.db-filter').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('.db-filter').forEach(function(b){b.style.background='#fff';b.style.color='#656d76';});
+      btn.style.background='#0969da';btn.style.color='#fff';
+      var f=btn.dataset.dbfilter;
+      NODES.forEach(function(n){
+        if(f==='all'){n.visible=true;}else{
+          if(n.group===f){n.visible=true;}else{
+            var con=false;
+            EDGES.forEach(function(e){
+              var a=nodeMap[e.from],b=nodeMap[e.to];
+              if(a&&b&&((a.group===f&&b.id===n.id)||(b.group===f&&a.id===n.id)))con=true;
+            });
+            n.visible=con;
+          }
+        }
+      });
+      dbDraw();
+    });
+  });
+
+  // Init
+  var ro = new ResizeObserver(function(){dbResize();dbDraw();});
+  ro.observe(cv.parentElement);
+  dbResize(); dbDraw();
+  setTimeout(dbDraw, 200);
+})();
 </script>
 
 </body>

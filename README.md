@@ -97,6 +97,17 @@ Each concern has one entrypoint. Start there, not in subfiles.
 | **UI / UX** | [`docs/ux/UI-DESIGN.md`](docs/ux/UI-DESIGN.md) | Design system, components, tokens, patterns; links to `design-spec.md` for Chinese UX flows |
 | **Dev ops** | [`docs/dev/index.md`](docs/dev/index.md) | Testing, deployment, LLM providers, patient sim, UI audit → links to subfiles |
 
+### Interactive Visual Guides
+
+Open in browser for draggable diagrams, hover tooltips, and filter controls.
+
+| File | What it shows |
+|------|-------------|
+| [`docs/architecture-visual.html`](docs/architecture-visual.html) | System overview, pipeline flow, prompt stack, DB relationship graph, process model |
+| [`docs/ux/page-force-graph.html`](docs/ux/page-force-graph.html) | Page navigation graph — all routes, cross-links, orphaned pages |
+| [`docs/ux/UI-DESIGN-visual.html`](docs/ux/UI-DESIGN-visual.html) | Design system visual reference — components, tokens, patterns |
+| [`docs/product/product-strategy-visual.html`](docs/product/product-strategy-visual.html) | Product strategy overview — north star, user personas, roadmap |
+
 ---
 
 # 医生 AI 助手
@@ -173,3 +184,14 @@ python scripts/seed_db.py --reset --import
 | **产品** | [`docs/product/index.md`](docs/product/index.md) | 战略、路线图、功能状态、CDS产品决策 → 链接到子文件 |
 | **UI / UX** | [`docs/ux/UI-DESIGN.md`](docs/ux/UI-DESIGN.md) | 设计系统、组件、令牌、模式；链接到 `design-spec.md`（中文UX流程） |
 | **开发运维** | [`docs/dev/index.md`](docs/dev/index.md) | 测试、部署、LLM配置、患者模拟、UI审计 → 链接到子文件 |
+
+### 交互式可视化
+
+用浏览器打开，支持拖拽、悬浮提示、筛选。
+
+| 文件 | 内容 |
+|------|------|
+| [`docs/architecture-visual.html`](docs/architecture-visual.html) | 系统架构、流水线、提示词栈、数据库关系图、进程模型 |
+| [`docs/ux/page-force-graph.html`](docs/ux/page-force-graph.html) | 页面导航图 — 路由、跨页链接、孤立页面 |
+| [`docs/ux/UI-DESIGN-visual.html`](docs/ux/UI-DESIGN-visual.html) | 设计系统参考 — 组件、令牌、模式 |
+| [`docs/product/product-strategy-visual.html`](docs/product/product-strategy-visual.html) | 产品策略概览 — 北极星、用户画像、路线图 |

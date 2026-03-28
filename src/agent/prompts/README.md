@@ -222,7 +222,7 @@ All extraction prompts follow **《病历书写基本规范》(卫医政发〔20
 ## Regression Tests
 
 ```bash
-cd tests/prompts && ./run.sh          # run all 43 tests
+cd tests/prompts && ./run.sh          # run all 46 tests
 ./run.sh doctor-extract routing       # run specific prompts
 npx promptfoo view                    # open results UI
 ```

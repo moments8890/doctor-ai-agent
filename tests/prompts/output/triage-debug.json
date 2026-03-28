@@ -1,0 +1,2627 @@
+{
+  "evalId": "eval-OnD-2026-03-28T18:43:39",
+  "results": {
+    "version": 3,
+    "timestamp": "2026-03-28T18:43:39.644Z",
+    "prompts": [
+      {
+        "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{{patient_context}}\n\n---\n\n患者消息：{{message}}\n",
+        "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+        "id": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "provider": "qwen3-32b-groq",
+        "metrics": {
+          "score": 14.666666666666666,
+          "testPassCount": 14,
+          "testFailCount": 1,
+          "testErrorCount": 0,
+          "assertPassCount": 33,
+          "assertFailCount": 1,
+          "totalLatencyMs": 8749,
+          "tokenUsage": {
+            "prompt": 10073,
+            "completion": 3387,
+            "cached": 0,
+            "total": 13460,
+            "numRequests": 15,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0
+            },
+            "assertions": {
+              "total": 0,
+              "prompt": 0,
+              "completion": 0,
+              "cached": 0,
+              "numRequests": 0,
+              "completionDetails": {
+                "reasoning": 0,
+                "acceptedPrediction": 0,
+                "rejectedPrediction": 0
+              }
+            }
+          },
+          "namedScores": {},
+          "namedScoresCount": {},
+          "cost": 0
+        }
+      }
+    ],
+    "results": [
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'informational';\n"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.confidence >= 0.7;\n"
+              }
+            }
+          ]
+        },
+        "id": "1e3dae15-3a27-4a0e-a568-b99711797fd1",
+        "latencyMs": 337,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"diagnosis\": \"高血压\", \"medications\": [\"氨氯地平5mg每日一次\"]}\n\n---\n\n患者消息：我的药什么时候吃？饭前还是饭后？\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"informational\", \"confidence\": 0.95}",
+          "tokenUsage": {
+            "total": 797,
+            "prompt": 677,
+            "completion": 120,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 337,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c81d28b8c3ca-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:39 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=MD05ILutMudIg.6_bB1jykqhTQZnG2oSBJGhLNbIjoo-1774723419.7010405-1.0.1.1-5dsXlz7iwLvbTMV1YSvRTHF57qw5a66chxu9GpNVJznQVBrFRZdwQw6x2LquWqGkRJUG4vqbkEhXGvUAkFIomwfLjPSVhA.srBeUjUv_qAMx49X4EKmPobrnPVD_z9.u; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:39 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499999",
+                "x-ratelimit-remaining-tokens": "299062",
+                "x-ratelimit-reset-requests": "172ms",
+                "x-ratelimit-reset-tokens": "187ms",
+                "x-request-id": "req_01kmtw4khyf3483qbzy2f2kndq"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: medication timing → informational",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "我的药什么时候吃？饭前还是饭后？",
+            "patient_context": "{\"diagnosis\": \"高血压\", \"medications\": [\"氨氯地平5mg每日一次\"]}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'informational';\n"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.confidence >= 0.7;\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 0,
+        "vars": {
+          "message": "我的药什么时候吃？饭前还是饭后？",
+          "patient_context": "{\"diagnosis\": \"高血压\", \"medications\": [\"氨氯地平5mg每日一次\"]}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c81d28b8c3ca-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:39 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=MD05ILutMudIg.6_bB1jykqhTQZnG2oSBJGhLNbIjoo-1774723419.7010405-1.0.1.1-5dsXlz7iwLvbTMV1YSvRTHF57qw5a66chxu9GpNVJznQVBrFRZdwQw6x2LquWqGkRJUG4vqbkEhXGvUAkFIomwfLjPSVhA.srBeUjUv_qAMx49X4EKmPobrnPVD_z9.u; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:39 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499999",
+              "x-ratelimit-remaining-tokens": "299062",
+              "x-ratelimit-reset-requests": "172ms",
+              "x-ratelimit-reset-tokens": "187ms",
+              "x-request-id": "req_01kmtw4khyf3483qbzy2f2kndq"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'informational';\n"
+              }
+            }
+          ]
+        },
+        "id": "4ee2e07b-eb91-47d3-82b9-87a0dae0eaf5",
+        "latencyMs": 428,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"tasks\": [{\"title\": \"复查血常规\", \"due_at\": \"2026-04-01\"}]}\n\n---\n\n患者消息：下次复查是什么时候？\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"informational\", \"confidence\": 0.95}",
+          "tokenUsage": {
+            "total": 845,
+            "prompt": 677,
+            "completion": 168,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 428,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c81d2884a32a-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=spvpPwSjDil6dPWGmo1AwXhJFxV1OZc4vuB7ILBYyuo-1774723419.7018952-1.0.1.1-qz4SMsmGGuPJvK3_2qq8sHxmWdCL_uUHoNngO.VT_7I58mACJ6gNMBU5gcDnHE4VPbNfgEkRjr.89tinSPDJP6lTWlZGMIppz53L3Hp78t7ScEFXUqZNWEHroid1BCn5; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499998",
+                "x-ratelimit-remaining-tokens": "298179",
+                "x-ratelimit-reset-requests": "345ms",
+                "x-ratelimit-reset-tokens": "364ms",
+                "x-request-id": "req_01kmtw4kj2f41tp270a6pwb9w0"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: appointment query → informational",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "下次复查是什么时候？",
+            "patient_context": "{\"tasks\": [{\"title\": \"复查血常规\", \"due_at\": \"2026-04-01\"}]}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'informational';\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 1,
+        "vars": {
+          "message": "下次复查是什么时候？",
+          "patient_context": "{\"tasks\": [{\"title\": \"复查血常规\", \"due_at\": \"2026-04-01\"}]}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c81d2884a32a-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=spvpPwSjDil6dPWGmo1AwXhJFxV1OZc4vuB7ILBYyuo-1774723419.7018952-1.0.1.1-qz4SMsmGGuPJvK3_2qq8sHxmWdCL_uUHoNngO.VT_7I58mACJ6gNMBU5gcDnHE4VPbNfgEkRjr.89tinSPDJP6lTWlZGMIppz53L3Hp78t7ScEFXUqZNWEHroid1BCn5; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499998",
+              "x-ratelimit-remaining-tokens": "298179",
+              "x-ratelimit-reset-requests": "345ms",
+              "x-ratelimit-reset-tokens": "364ms",
+              "x-request-id": "req_01kmtw4kj2f41tp270a6pwb9w0"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'symptom_report';\n"
+              }
+            }
+          ]
+        },
+        "id": "3bf3a124-6f95-4767-b289-633fef27e398",
+        "latencyMs": 551,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"diagnosis\": \"脑膜瘤术后\"}\n\n---\n\n患者消息：医生，我今天开始咳嗽了，有黄痰\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"symptom_report\", \"confidence\": 0.9}",
+          "tokenUsage": {
+            "total": 865,
+            "prompt": 665,
+            "completion": 200,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 551,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c81d28377618-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=H4WhzmwIBgLX3HC8Osn954T7Z6XfdypvCJezvOzkpD0-1774723419.7053921-1.0.1.1-i.Os8AapH07J7HUyM_3.UyvhhndyJq1KU0Xd6cv0Ajt56InaWHDQtQGT4ka70xBQ4uzxrGjgtMQREXIz2iACKqPIzG6t6vlhLKihWkz40BdEdYbLjSlv_Lqe4lds.Z3k; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499997",
+                "x-ratelimit-remaining-tokens": "296444",
+                "x-ratelimit-reset-requests": "518ms",
+                "x-ratelimit-reset-tokens": "711ms",
+                "x-request-id": "req_01kmtw4kj6f3498q1zy1axbntr"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: new symptom → symptom_report",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "医生，我今天开始咳嗽了，有黄痰",
+            "patient_context": "{\"diagnosis\": \"脑膜瘤术后\"}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'symptom_report';\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 2,
+        "vars": {
+          "message": "医生，我今天开始咳嗽了，有黄痰",
+          "patient_context": "{\"diagnosis\": \"脑膜瘤术后\"}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c81d28377618-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=H4WhzmwIBgLX3HC8Osn954T7Z6XfdypvCJezvOzkpD0-1774723419.7053921-1.0.1.1-i.Os8AapH07J7HUyM_3.UyvhhndyJq1KU0Xd6cv0Ajt56InaWHDQtQGT4ka70xBQ4uzxrGjgtMQREXIz2iACKqPIzG6t6vlhLKihWkz40BdEdYbLjSlv_Lqe4lds.Z3k; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499997",
+              "x-ratelimit-remaining-tokens": "296444",
+              "x-ratelimit-reset-requests": "518ms",
+              "x-ratelimit-reset-tokens": "711ms",
+              "x-request-id": "req_01kmtw4kj6f3498q1zy1axbntr"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'symptom_report';\n"
+              }
+            }
+          ]
+        },
+        "id": "4971cf23-5ad5-4f47-8aa7-40f288a5b278",
+        "latencyMs": 501,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"diagnosis\": \"脑膜瘤术后第5天\"}\n\n---\n\n患者消息：头痛比昨天严重了，吃止疼药也不管用\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"symptom_report\", \"confidence\": 0.9}",
+          "tokenUsage": {
+            "total": 830,
+            "prompt": 670,
+            "completion": 160,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 501,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c81d2e9c17fe-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=3nZOagsRGJDYiSclVGB4pL7Ktn.hECoF5VYKtOCYUTc-1774723419.705179-1.0.1.1-Sbf4OJ48P3pLJMiKJF_LbnmAsfYKoGEykby.kUx6BK24N3JgBAXpb0nk7omC2fy8P70wTp5W6v8XP3sGSW.yOpQZnRuzwj16Rlow9RlDn5wgiC32sZJe3ZZmEJbEQgvX; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499998",
+                "x-ratelimit-remaining-tokens": "297360",
+                "x-ratelimit-reset-requests": "345ms",
+                "x-ratelimit-reset-tokens": "528ms",
+                "x-request-id": "req_01kmtw4kj3e2s9dbr0tjef91kp"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: worsening symptom → symptom_report",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "头痛比昨天严重了，吃止疼药也不管用",
+            "patient_context": "{\"diagnosis\": \"脑膜瘤术后第5天\"}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'symptom_report';\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 3,
+        "vars": {
+          "message": "头痛比昨天严重了，吃止疼药也不管用",
+          "patient_context": "{\"diagnosis\": \"脑膜瘤术后第5天\"}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c81d2e9c17fe-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=3nZOagsRGJDYiSclVGB4pL7Ktn.hECoF5VYKtOCYUTc-1774723419.705179-1.0.1.1-Sbf4OJ48P3pLJMiKJF_LbnmAsfYKoGEykby.kUx6BK24N3JgBAXpb0nk7omC2fy8P70wTp5W6v8XP3sGSW.yOpQZnRuzwj16Rlow9RlDn5wgiC32sZJe3ZZmEJbEQgvX; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499998",
+              "x-ratelimit-remaining-tokens": "297360",
+              "x-ratelimit-reset-requests": "345ms",
+              "x-ratelimit-reset-tokens": "528ms",
+              "x-request-id": "req_01kmtw4kj3e2s9dbr0tjef91kp"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'side_effect';\n"
+              }
+            }
+          ]
+        },
+        "id": "fc32e789-9998-41e3-b797-1af450523713",
+        "latencyMs": 374,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"medications\": [\"氨氯地平5mg每日一次\"]}\n\n---\n\n患者消息：吃了降压药以后一直头晕，是不是副作用？\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"side_effect\", \"confidence\": 0.85}",
+          "tokenUsage": {
+            "total": 822,
+            "prompt": 670,
+            "completion": 152,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 374,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c81f5efbc3ca-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=YK52KIEJ.y8KbYH45hCG5BfVTIBgnCWDTp23OxzIWVY-1774723420.0575292-1.0.1.1-D0UJyL2bquc5b2KM6mTyCe6Ozr1wWInzv.8TWx9bUSdjtLOOAkDqhcxrda0vwaBwuAVEE.5e2orST7bEcgc0HivnBstbMlk8qPzaCHnnUm_OKj224wgO_VKUcmEhLECi; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499996",
+                "x-ratelimit-remaining-tokens": "297424",
+                "x-ratelimit-reset-requests": "691ms",
+                "x-ratelimit-reset-tokens": "515ms",
+                "x-request-id": "req_01kmtw4kx1f43vr22b9y9xmk2s"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: drug side effect → side_effect",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "吃了降压药以后一直头晕，是不是副作用？",
+            "patient_context": "{\"medications\": [\"氨氯地平5mg每日一次\"]}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'side_effect';\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 4,
+        "vars": {
+          "message": "吃了降压药以后一直头晕，是不是副作用？",
+          "patient_context": "{\"medications\": [\"氨氯地平5mg每日一次\"]}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c81f5efbc3ca-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=YK52KIEJ.y8KbYH45hCG5BfVTIBgnCWDTp23OxzIWVY-1774723420.0575292-1.0.1.1-D0UJyL2bquc5b2KM6mTyCe6Ozr1wWInzv.8TWx9bUSdjtLOOAkDqhcxrda0vwaBwuAVEE.5e2orST7bEcgc0HivnBstbMlk8qPzaCHnnUm_OKj224wgO_VKUcmEhLECi; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499996",
+              "x-ratelimit-remaining-tokens": "297424",
+              "x-ratelimit-reset-requests": "691ms",
+              "x-ratelimit-reset-tokens": "515ms",
+              "x-request-id": "req_01kmtw4kx1f43vr22b9y9xmk2s"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'side_effect';\n"
+              }
+            }
+          ]
+        },
+        "id": "adcbd319-094a-4621-9625-2cddb173bd4a",
+        "latencyMs": 393,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"medications\": [\"卡马西平200mg每日两次(新增)\"]}\n\n---\n\n患者消息：吃了那个新开的药以后恶心想吐，已经两天了\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"side_effect\", \"confidence\": 0.9}",
+          "tokenUsage": {
+            "total": 826,
+            "prompt": 678,
+            "completion": 148,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 393,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c81fbaaca32a-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=q7Tkd36PYfs26fdJkCGtOj3H8SbuGOTcZWADU3iS7NM-1774723420.1137588-1.0.1.1-azkyNbGpGi0EgMmgwo8e7XqMTQzX8Oo.HT9_OeeHOVUapRbVmZU1O7Nw_86G9pDxMxK1r9JGxOZWYmhsTqACa_G4yve51bh36TlIJ.eb4hZn0KzIvq1Of93ZRMAara3T; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499996",
+                "x-ratelimit-remaining-tokens": "296935",
+                "x-ratelimit-reset-requests": "691ms",
+                "x-ratelimit-reset-tokens": "613ms",
+                "x-request-id": "req_01kmtw4kyte2xr5sk5282jrvtg"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: nausea after new medication → side_effect",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "吃了那个新开的药以后恶心想吐，已经两天了",
+            "patient_context": "{\"medications\": [\"卡马西平200mg每日两次(新增)\"]}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'side_effect';\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 5,
+        "vars": {
+          "message": "吃了那个新开的药以后恶心想吐，已经两天了",
+          "patient_context": "{\"medications\": [\"卡马西平200mg每日两次(新增)\"]}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c81fbaaca32a-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=q7Tkd36PYfs26fdJkCGtOj3H8SbuGOTcZWADU3iS7NM-1774723420.1137588-1.0.1.1-azkyNbGpGi0EgMmgwo8e7XqMTQzX8Oo.HT9_OeeHOVUapRbVmZU1O7Nw_86G9pDxMxK1r9JGxOZWYmhsTqACa_G4yve51bh36TlIJ.eb4hZn0KzIvq1Of93ZRMAara3T; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499996",
+              "x-ratelimit-remaining-tokens": "296935",
+              "x-ratelimit-reset-requests": "691ms",
+              "x-ratelimit-reset-tokens": "613ms",
+              "x-request-id": "req_01kmtw4kyte2xr5sk5282jrvtg"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'urgent';\n"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.confidence >= 0.8;\n"
+              }
+            }
+          ]
+        },
+        "id": "50da3d84-c974-4707-9fec-91337b2a1725",
+        "latencyMs": 469,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"diagnosis\": \"冠心病\"}\n\n---\n\n患者消息：胸口突然很痛，喘不上来气\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"urgent\", \"confidence\": 0.95}",
+          "tokenUsage": {
+            "total": 841,
+            "prompt": 662,
+            "completion": 179,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 469,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c8202d8a17fe-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=pb5Ub9ZuzgCnrwHW2B4aHGjo6_Kr6SYEpHsc.U3PZKc-1774723420.1849601-1.0.1.1-cvOsstBl1X1fphyQpoqjlkmc6tdK_l_EoYPm3_kx_bf_vfpRv3BMDdvLtVDJIEM1XDAo.nqOoxT818mTnfnsMiZ3XFCMSyzrkIOr_THrspia0zBV7OJ81wZw6OsL.69t; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499995",
+                "x-ratelimit-remaining-tokens": "296438",
+                "x-ratelimit-reset-requests": "864ms",
+                "x-ratelimit-reset-tokens": "712ms",
+                "x-request-id": "req_01kmtw4m11f6r91jnts7n3da3w"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: chest pain + dyspnea → urgent",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "胸口突然很痛，喘不上来气",
+            "patient_context": "{\"diagnosis\": \"冠心病\"}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'urgent';\n"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.confidence >= 0.8;\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 6,
+        "vars": {
+          "message": "胸口突然很痛，喘不上来气",
+          "patient_context": "{\"diagnosis\": \"冠心病\"}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c8202d8a17fe-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=pb5Ub9ZuzgCnrwHW2B4aHGjo6_Kr6SYEpHsc.U3PZKc-1774723420.1849601-1.0.1.1-cvOsstBl1X1fphyQpoqjlkmc6tdK_l_EoYPm3_kx_bf_vfpRv3BMDdvLtVDJIEM1XDAo.nqOoxT818mTnfnsMiZ3XFCMSyzrkIOr_THrspia0zBV7OJ81wZw6OsL.69t; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499995",
+              "x-ratelimit-remaining-tokens": "296438",
+              "x-ratelimit-reset-requests": "864ms",
+              "x-ratelimit-reset-tokens": "712ms",
+              "x-request-id": "req_01kmtw4m11f6r91jnts7n3da3w"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'urgent';\n"
+              }
+            }
+          ]
+        },
+        "id": "46a8c4bd-0502-49a9-a76e-8d76e20b3eec",
+        "latencyMs": 633,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"diagnosis\": \"脑梗死病史\"}\n\n---\n\n患者消息：我老伴刚才突然说不出话来，半边脸歪了\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"urgent\", \"confidence\": 0.95}",
+          "tokenUsage": {
+            "total": 946,
+            "prompt": 669,
+            "completion": 277,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 633,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c8207be77618-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=s6M__119_T7lKqcwL6HLQ5lN_wAxscbnvqY4iMkFu0U-1774723420.2382348-1.0.1.1-TS_TNtqv66oelHthOXOV5kBh9HENChflUHSzMz6WMS5jV8JjPnq3rS7Pm3YyWM04vTdljwFOekZRuAJXYaFKQ89i2pH646D2wn4MbfjeI3Tw9C7ZWvNVHdQI7A_T95_k; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499994",
+                "x-ratelimit-remaining-tokens": "295921",
+                "x-ratelimit-reset-requests": "1.036s",
+                "x-ratelimit-reset-tokens": "815ms",
+                "x-request-id": "req_01kmtw4m2rf6r9nn6wg0d2p300"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: consciousness change → urgent",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "我老伴刚才突然说不出话来，半边脸歪了",
+            "patient_context": "{\"diagnosis\": \"脑梗死病史\"}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'urgent';\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 7,
+        "vars": {
+          "message": "我老伴刚才突然说不出话来，半边脸歪了",
+          "patient_context": "{\"diagnosis\": \"脑梗死病史\"}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c8207be77618-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:40 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=s6M__119_T7lKqcwL6HLQ5lN_wAxscbnvqY4iMkFu0U-1774723420.2382348-1.0.1.1-TS_TNtqv66oelHthOXOV5kBh9HENChflUHSzMz6WMS5jV8JjPnq3rS7Pm3YyWM04vTdljwFOekZRuAJXYaFKQ89i2pH646D2wn4MbfjeI3Tw9C7ZWvNVHdQI7A_T95_k; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:40 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499994",
+              "x-ratelimit-remaining-tokens": "295921",
+              "x-ratelimit-reset-requests": "1.036s",
+              "x-ratelimit-reset-tokens": "815ms",
+              "x-request-id": "req_01kmtw4m2rf6r9nn6wg0d2p300"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'urgent';\n"
+              }
+            }
+          ]
+        },
+        "id": "0390208b-bd5b-42be-b272-d25689019f00",
+        "latencyMs": 651,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"diagnosis\": \"脑膜瘤术后第3天\"}\n\n---\n\n患者消息：伤口突然出了很多血，止不住\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"urgent\", \"confidence\": 0.98}",
+          "tokenUsage": {
+            "total": 922,
+            "prompt": 665,
+            "completion": 257,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 651,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c821cdcac3ca-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:41 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=dnK0vhesn6mwSV9UtqrWPkWUYo3jx9XMLMllh0gGfkQ-1774723420.4414861-1.0.1.1-JonE.Dx3Mednj5lg176aUcOZMiK0mw2BZBhcjRe3DqSBb5NBVd2KmJWA0_A4gJMHL2.wRDGqd27yncUvwxNc5wde.D1rDYB3TW2rPSnQup.Oed5i6_i_IqF7WjwEPEgq; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:41 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499994",
+                "x-ratelimit-remaining-tokens": "296621",
+                "x-ratelimit-reset-requests": "1.036s",
+                "x-ratelimit-reset-tokens": "675ms",
+                "x-request-id": "req_01kmtw4m91f46rcmhe0xbeywt3"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: postop bleeding → urgent",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "伤口突然出了很多血，止不住",
+            "patient_context": "{\"diagnosis\": \"脑膜瘤术后第3天\"}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'urgent';\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 8,
+        "vars": {
+          "message": "伤口突然出了很多血，止不住",
+          "patient_context": "{\"diagnosis\": \"脑膜瘤术后第3天\"}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c821cdcac3ca-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:41 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=dnK0vhesn6mwSV9UtqrWPkWUYo3jx9XMLMllh0gGfkQ-1774723420.4414861-1.0.1.1-JonE.Dx3Mednj5lg176aUcOZMiK0mw2BZBhcjRe3DqSBb5NBVd2KmJWA0_A4gJMHL2.wRDGqd27yncUvwxNc5wde.D1rDYB3TW2rPSnQup.Oed5i6_i_IqF7WjwEPEgq; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:41 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499994",
+              "x-ratelimit-remaining-tokens": "296621",
+              "x-ratelimit-reset-requests": "1.036s",
+              "x-ratelimit-reset-tokens": "675ms",
+              "x-request-id": "req_01kmtw4m91f46rcmhe0xbeywt3"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'general_question';\n"
+              }
+            }
+          ]
+        },
+        "id": "48d28dfa-bbee-4d0e-93b4-bc612a0de08c",
+        "latencyMs": 649,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"diagnosis\": \"高血压\"}\n\n---\n\n患者消息：我想问个问题但不知道怎么说\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"general_question\", \"confidence\": 0.8}",
+          "tokenUsage": {
+            "total": 873,
+            "prompt": 658,
+            "completion": 215,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 649,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c8223d10a32a-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:41 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=n4aBLtGbj6EKm1RyE3iGDU8EdqlTqm.3lc9LORY_mQ0-1774723420.513975-1.0.1.1-HGg_SZRxoD6_3dH3klh37fIb44Yo2CB7Q7nFaZkZG9lefO0Wjszf8J8iKj4lwnD6G9V32lCVgVjmjUKUEYiZmrNmhSDrlcaI0AxcaJPcxzGX9bwZk0S.PXByxaQVsuyu; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:41 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499993",
+                "x-ratelimit-remaining-tokens": "296672",
+                "x-ratelimit-reset-requests": "1.209s",
+                "x-ratelimit-reset-tokens": "665ms",
+                "x-request-id": "req_01kmtw4mbcf6tbjvcrfg1tcet5"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: vague message → general_question",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "我想问个问题但不知道怎么说",
+            "patient_context": "{\"diagnosis\": \"高血压\"}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'general_question';\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 9,
+        "vars": {
+          "message": "我想问个问题但不知道怎么说",
+          "patient_context": "{\"diagnosis\": \"高血压\"}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c8223d10a32a-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:41 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=n4aBLtGbj6EKm1RyE3iGDU8EdqlTqm.3lc9LORY_mQ0-1774723420.513975-1.0.1.1-HGg_SZRxoD6_3dH3klh37fIb44Yo2CB7Q7nFaZkZG9lefO0Wjszf8J8iKj4lwnD6G9V32lCVgVjmjUKUEYiZmrNmhSDrlcaI0AxcaJPcxzGX9bwZk0S.PXByxaQVsuyu; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:41 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499993",
+              "x-ratelimit-remaining-tokens": "296672",
+              "x-ratelimit-reset-requests": "1.209s",
+              "x-ratelimit-reset-tokens": "665ms",
+              "x-request-id": "req_01kmtw4mbcf6tbjvcrfg1tcet5"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'symptom_report';\n"
+              }
+            }
+          ]
+        },
+        "id": "69e0f401-0cb1-4f01-a63e-f6adefa86895",
+        "latencyMs": 750,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"diagnosis\": \"脑膜瘤术后\"}\n\n---\n\n患者消息：想问一下药怎么吃，另外最近有点咳嗽\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"symptom_report\", \"confidence\": 0.75}",
+          "tokenUsage": {
+            "total": 932,
+            "prompt": 665,
+            "completion": 267,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 750,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c8232c8f17fe-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:41 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=lHW7IAX_9In9myvL7IC36MoU65asVpADyAb1BI9tlOg-1774723420.6654284-1.0.1.1-l6gneCpE7CIeoQrgXzS4JB1R_IpNF1A_71k5SPgKRL8qFI2jqi6uoTsJU27EmfI.qhP66eHUmVrcWfUFpvmqL5_0NdTiTfW5oiPIdWkl4dPJPcuYtES6OSJgwe5Be6wK; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:41 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499992",
+                "x-ratelimit-remaining-tokens": "297048",
+                "x-ratelimit-reset-requests": "1.382s",
+                "x-ratelimit-reset-tokens": "590ms",
+                "x-request-id": "req_01kmtw4mg2f46t94z6j46ngw7y"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: info + symptom mixed → symptom_report (clinical priority)",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "想问一下药怎么吃，另外最近有点咳嗽",
+            "patient_context": "{\"diagnosis\": \"脑膜瘤术后\"}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'symptom_report';\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 10,
+        "vars": {
+          "message": "想问一下药怎么吃，另外最近有点咳嗽",
+          "patient_context": "{\"diagnosis\": \"脑膜瘤术后\"}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c8232c8f17fe-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:41 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=lHW7IAX_9In9myvL7IC36MoU65asVpADyAb1BI9tlOg-1774723420.6654284-1.0.1.1-l6gneCpE7CIeoQrgXzS4JB1R_IpNF1A_71k5SPgKRL8qFI2jqi6uoTsJU27EmfI.qhP66eHUmVrcWfUFpvmqL5_0NdTiTfW5oiPIdWkl4dPJPcuYtES6OSJgwe5Be6wK; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:41 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499992",
+              "x-ratelimit-remaining-tokens": "297048",
+              "x-ratelimit-reset-requests": "1.382s",
+              "x-ratelimit-reset-tokens": "590ms",
+              "x-request-id": "req_01kmtw4mg2f46t94z6j46ngw7y"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'side_effect' || obj.category === 'symptom_report';\n"
+              }
+            }
+          ]
+        },
+        "id": "56dc6aad-7e54-4581-a32a-da9766ed8f16",
+        "latencyMs": 567,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"medications\": [\"左乙拉西坦500mg(新增)\"]}\n\n---\n\n患者消息：下次什么时候复查？对了吃了那个新药以后老是拉肚子\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"side_effect\", \"confidence\": 0.9}",
+          "tokenUsage": {
+            "total": 903,
+            "prompt": 679,
+            "completion": 224,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 567,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c8248f4a7618-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:41 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=YP.pskio9gHpwXUP8XIlKcRVYE1C9RM1sv2J5fdq8HY-1774723420.881893-1.0.1.1-tKsshd7C58ufRgKCeT6wCqaE61zM85NMs9XbTdXLPudgmKD5hnCjRs_EDD1ugBHfsY0bghl9Y_4llaJNRp5FnpJAe8Yhv3hC1.TeLytaK4kfYtLabfrMMPhAHPfhsIDQ; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:41 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499992",
+                "x-ratelimit-remaining-tokens": "297689",
+                "x-ratelimit-reset-requests": "1.382s",
+                "x-ratelimit-reset-tokens": "462ms",
+                "x-request-id": "req_01kmtw4mpvf6wtsefcs0px5zw4"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: info + side effect mixed → side_effect (clinical priority)",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "下次什么时候复查？对了吃了那个新药以后老是拉肚子",
+            "patient_context": "{\"medications\": [\"左乙拉西坦500mg(新增)\"]}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'side_effect' || obj.category === 'symptom_report';\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 11,
+        "vars": {
+          "message": "下次什么时候复查？对了吃了那个新药以后老是拉肚子",
+          "patient_context": "{\"medications\": [\"左乙拉西坦500mg(新增)\"]}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c8248f4a7618-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:41 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=YP.pskio9gHpwXUP8XIlKcRVYE1C9RM1sv2J5fdq8HY-1774723420.881893-1.0.1.1-tKsshd7C58ufRgKCeT6wCqaE61zM85NMs9XbTdXLPudgmKD5hnCjRs_EDD1ugBHfsY0bghl9Y_4llaJNRp5FnpJAe8Yhv3hC1.TeLytaK4kfYtLabfrMMPhAHPfhsIDQ; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:41 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499992",
+              "x-ratelimit-remaining-tokens": "297689",
+              "x-ratelimit-reset-requests": "1.382s",
+              "x-ratelimit-reset-tokens": "462ms",
+              "x-request-id": "req_01kmtw4mpvf6wtsefcs0px5zw4"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'urgent';\n"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.confidence >= 0.8;\n"
+              }
+            }
+          ]
+        },
+        "id": "910eb0b4-fb55-4f45-8423-a940f923fb34",
+        "latencyMs": 720,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"diagnosis\": \"左侧后交通动脉瘤开颅夹闭术后第14天\"}\n\n---\n\n患者消息：医生！头痛越来越厉害，刚才还吐了两次，血压量了一下170/100，眼睛看东西有点模糊\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"urgent\", \"confidence\": 0.95}",
+          "tokenUsage": {
+            "total": 999,
+            "prompt": 692,
+            "completion": 307,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 720,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c825e85bc3ca-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:41 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=4N95C2MUOZKGs61Q6j5mtgRTaHd0lZJ_tRQesnMiWr8-1774723421.1008887-1.0.1.1-BCWIky8L0VQymAaMeD7grWwFK6v7KPJSwQ3NhkaVvwWOuBrbDzdVYYSXUzbT0cUFY_CqBGqIiJBHOGSEFhlEl9pBIqxQmtN3oQ9bTvC3iulrt3J1ZMWKJqfl4H1wUpf4; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:41 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499992",
+                "x-ratelimit-remaining-tokens": "298302",
+                "x-ratelimit-reset-requests": "1.382s",
+                "x-ratelimit-reset-tokens": "339ms",
+                "x-request-id": "req_01kmtw4mxmf3jtbzes9xc7dsq9"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: postop headache + vomiting + high BP → urgent",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "医生！头痛越来越厉害，刚才还吐了两次，血压量了一下170/100，眼睛看东西有点模糊",
+            "patient_context": "{\"diagnosis\": \"左侧后交通动脉瘤开颅夹闭术后第14天\"}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'urgent';\n"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.confidence >= 0.8;\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 12,
+        "vars": {
+          "message": "医生！头痛越来越厉害，刚才还吐了两次，血压量了一下170/100，眼睛看东西有点模糊",
+          "patient_context": "{\"diagnosis\": \"左侧后交通动脉瘤开颅夹闭术后第14天\"}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c825e85bc3ca-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:41 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=4N95C2MUOZKGs61Q6j5mtgRTaHd0lZJ_tRQesnMiWr8-1774723421.1008887-1.0.1.1-BCWIky8L0VQymAaMeD7grWwFK6v7KPJSwQ3NhkaVvwWOuBrbDzdVYYSXUzbT0cUFY_CqBGqIiJBHOGSEFhlEl9pBIqxQmtN3oQ9bTvC3iulrt3J1ZMWKJqfl4H1wUpf4; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:41 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499992",
+              "x-ratelimit-remaining-tokens": "298302",
+              "x-ratelimit-reset-requests": "1.382s",
+              "x-ratelimit-reset-tokens": "339ms",
+              "x-request-id": "req_01kmtw4mxmf3jtbzes9xc7dsq9"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "error": "Custom function returned false\nconst obj = JSON.parse(output);\nreturn obj.category === 'urgent';",
+        "gradingResult": {
+          "pass": false,
+          "score": 0.6666666666666666,
+          "reason": "Custom function returned false\nconst obj = JSON.parse(output);\nreturn obj.category === 'urgent';",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": false,
+              "score": 0,
+              "reason": "Custom function returned false\nconst obj = JSON.parse(output);\nreturn obj.category === 'urgent';",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category === 'urgent';\n"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.confidence >= 0.8;\n"
+              }
+            }
+          ]
+        },
+        "id": "3f967c89-52c0-47d3-9730-fe73acda9baa",
+        "latencyMs": 447,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"diagnosis\": \"烟雾病STA-MCA搭桥术后第3天\"}\n\n---\n\n患者消息：术后突然右手没力气了，说话也有点不清楚\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"symptom_report\", \"confidence\": 0.92}",
+          "tokenUsage": {
+            "total": 861,
+            "prompt": 673,
+            "completion": 188,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 447,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c826586ea32a-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:41 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=sY1X3MqO7JF6KDYs9FBtM7UhevdsD2CVKSH3VhEfKGw-1774723421.1736376-1.0.1.1-1cSnlvDejqaI2ERZWXa7qVphJiLjbvc.m0eUQTNiM2B6e1jgzwqJ6sxbc0qTgWoDnyFHUNzRo6NbGt1eGZQRJ4u7Nqxe2CQMpnXv0eOEDOgn_Ez8KExybgD0CYd5uaG1; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:41 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499991",
+                "x-ratelimit-remaining-tokens": "297752",
+                "x-ratelimit-reset-requests": "1.555s",
+                "x-ratelimit-reset-tokens": "449ms",
+                "x-request-id": "req_01kmtw4mzzf4d94y3aap6bhtky"
+              }
+            }
+          }
+        },
+        "score": 0.6666666666666666,
+        "success": false,
+        "testCase": {
+          "description": "triage: postop new limb weakness + speech difficulty → urgent",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "术后突然右手没力气了，说话也有点不清楚",
+            "patient_context": "{\"diagnosis\": \"烟雾病STA-MCA搭桥术后第3天\"}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category === 'urgent';\n"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.confidence >= 0.8;\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 13,
+        "vars": {
+          "message": "术后突然右手没力气了，说话也有点不清楚",
+          "patient_context": "{\"diagnosis\": \"烟雾病STA-MCA搭桥术后第3天\"}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c826586ea32a-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:41 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=sY1X3MqO7JF6KDYs9FBtM7UhevdsD2CVKSH3VhEfKGw-1774723421.1736376-1.0.1.1-1cSnlvDejqaI2ERZWXa7qVphJiLjbvc.m0eUQTNiM2B6e1jgzwqJ6sxbc0qTgWoDnyFHUNzRo6NbGt1eGZQRJ4u7Nqxe2CQMpnXv0eOEDOgn_Ez8KExybgD0CYd5uaG1; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:41 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499991",
+              "x-ratelimit-remaining-tokens": "297752",
+              "x-ratelimit-reset-requests": "1.555s",
+              "x-ratelimit-reset-tokens": "449ms",
+              "x-request-id": "req_01kmtw4mzzf4d94y3aap6bhtky"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 1
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "is-json"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "const obj = JSON.parse(output);\nreturn obj.category !== 'urgent';\n"
+              }
+            }
+          ]
+        },
+        "id": "2cdf9033-872c-4b64-a9ba-5aa25fe21a36",
+        "latencyMs": 1279,
+        "namedScores": {},
+        "prompt": {
+          "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{\"diagnosis\": \"右侧MCA动脉瘤夹闭术后1月\"}\n\n---\n\n患者消息：手术后伤口有点疼，正常吗？缝线什么时候拆？\n",
+          "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          }
+        },
+        "promptId": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "{\"category\": \"symptom_report\", \"confidence\": 0.85}",
+          "tokenUsage": {
+            "total": 1198,
+            "prompt": 673,
+            "completion": 525,
+            "numRequests": 1
+          },
+          "cached": false,
+          "latencyMs": 1279,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9e38c827e81017fe-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Sat, 28 Mar 2026 18:43:42 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=OuVTShwwgqbIJ9pPAGCD39lpRkDO8rjhG_wBlHUNvkA-1774723421.4255764-1.0.1.1-xOfpW9YfmvC2hh7x96T_vBsUxfPEpTQtoNd98Vj2Mi0HfaNkAHO4KObNc2cHI409bzkfVzMvE9sxYMcsJ0O8Ea9pbEt7rpOgs6k9FrKSUx_CqFcXMrrz6Fy3JkP_1d65; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:42 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499991",
+                "x-ratelimit-remaining-tokens": "299118",
+                "x-ratelimit-reset-requests": "1.555s",
+                "x-ratelimit-reset-tokens": "176ms",
+                "x-request-id": "req_01kmtw4n7te37r55q4r7yjrvnb"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "triage: postop wound pain (routine) → symptom_report (NOT urgent)",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "triage-classify"
+            ]
+          },
+          "vars": {
+            "message": "手术后伤口有点疼，正常吗？缝线什么时候拆？",
+            "patient_context": "{\"diagnosis\": \"右侧MCA动脉瘤夹闭术后1月\"}"
+          },
+          "assert": [
+            {
+              "type": "is-json"
+            },
+            {
+              "type": "javascript",
+              "value": "const obj = JSON.parse(output);\nreturn obj.category !== 'urgent';\n"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 14,
+        "vars": {
+          "message": "手术后伤口有点疼，正常吗？缝线什么时候拆？",
+          "patient_context": "{\"diagnosis\": \"右侧MCA动脉瘤夹闭术后1月\"}"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9e38c827e81017fe-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Sat, 28 Mar 2026 18:43:42 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=OuVTShwwgqbIJ9pPAGCD39lpRkDO8rjhG_wBlHUNvkA-1774723421.4255764-1.0.1.1-xOfpW9YfmvC2hh7x96T_vBsUxfPEpTQtoNd98Vj2Mi0HfaNkAHO4KObNc2cHI409bzkfVzMvE9sxYMcsJ0O8Ea9pbEt7rpOgs6k9FrKSUx_CqFcXMrrz6Fy3JkP_1d65; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sat, 28 Mar 2026 19:13:42 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499991",
+              "x-ratelimit-remaining-tokens": "299118",
+              "x-ratelimit-reset-requests": "1.555s",
+              "x-ratelimit-reset-tokens": "176ms",
+              "x-request-id": "req_01kmtw4n7te37r55q4r7yjrvnb"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      }
+    ],
+    "stats": {
+      "successes": 14,
+      "failures": 1,
+      "errors": 0,
+      "tokenUsage": {
+        "prompt": 10073,
+        "completion": 3387,
+        "cached": 0,
+        "total": 13460,
+        "numRequests": 15,
+        "completionDetails": {
+          "reasoning": 0,
+          "acceptedPrediction": 0,
+          "rejectedPrediction": 0
+        },
+        "assertions": {
+          "total": 0,
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "numRequests": 0,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0
+          }
+        }
+      },
+      "durationMs": 3045,
+      "evaluationDurationMs": 3045
+    }
+  },
+  "config": {
+    "tags": {},
+    "description": "Doctor AI Agent — Medical Prompt Evaluation Suite",
+    "prompts": [
+      "wrappers/triage-classify.md"
+    ],
+    "providers": [
+      {
+        "id": "openai:chat:qwen/qwen3-32b",
+        "label": "qwen3-32b-groq",
+        "config": {
+          "apiBaseUrl": "https://api.groq.com/openai/v1",
+          "temperature": 0,
+          "max_tokens": 8192
+        }
+      }
+    ],
+    "tests": "cases/triage-classify.yaml",
+    "scenarios": [],
+    "env": {},
+    "defaultTest": {
+      "options": {
+        "timeout": 30000,
+        "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n"
+      },
+      "vars": {},
+      "assert": [],
+      "metadata": {}
+    },
+    "outputPath": [
+      "output/triage-debug.json"
+    ],
+    "extensions": [],
+    "metadata": {},
+    "evaluateOptions": {}
+  },
+  "shareableUrl": null,
+  "metadata": {
+    "promptfooVersion": "0.121.3",
+    "nodeVersion": "v23.11.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "exportedAt": "2026-03-28T18:43:42.734Z",
+    "evaluationCreatedAt": "2026-03-28T18:43:39.644Z"
+  }
+}

@@ -16,11 +16,16 @@ from sqlalchemy import func, select
 from channels.web.ui._utils import _resolve_ui_doctor_id
 from db.crud.patient_message import save_patient_message
 from db.engine import AsyncSessionLocal
+from db.models.doctor_edit import DoctorEdit
 from db.models.message_draft import DraftStatus, MessageDraft
 from db.models.patient import Patient
 from db.models.patient_message import PatientMessage
 from db.models.tasks import DoctorTask, TaskStatus
-from domain.knowledge.teaching import log_doctor_edit, should_prompt_teaching
+from domain.knowledge.teaching import (
+    create_rule_from_edit,
+    log_doctor_edit,
+    should_prompt_teaching,
+)
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from utils.log import log
 
@@ -393,4 +398,64 @@ async def send_confirmation(
         "cited_rules": cited_rules,
         "confidence": draft.confidence,
         "status": draft.status,
+    }
+
+
+# ── 7. Save doctor edit as knowledge rule ──────────────────────────────
+
+
+@router.post("/api/manage/drafts/{draft_id}/save-as-rule")
+async def save_edit_as_rule(
+    draft_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Save a significant doctor edit as a knowledge rule (teaching loop).
+
+    Looks up the DoctorEdit record associated with this draft and calls
+    ``create_rule_from_edit`` to persist it as a knowledge rule with
+    source='teaching' and category='preference'.
+    """
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(resolved, scope="ui.drafts.save_rule")
+
+    async with AsyncSessionLocal() as db:
+        # Verify draft exists and belongs to this doctor
+        draft = await db.get(MessageDraft, draft_id)
+        if draft is None or draft.doctor_id != resolved:
+            raise HTTPException(status_code=404, detail="Draft not found")
+
+        # Find the DoctorEdit record for this draft
+        stmt = (
+            select(DoctorEdit)
+            .where(
+                DoctorEdit.doctor_id == resolved,
+                DoctorEdit.entity_type == "draft_reply",
+                DoctorEdit.entity_id == draft_id,
+            )
+            .order_by(DoctorEdit.created_at.desc())
+            .limit(1)
+        )
+        edit = (await db.execute(stmt)).scalar_one_or_none()
+        if edit is None:
+            raise HTTPException(status_code=404, detail="未找到编辑记录")
+
+        # Create knowledge rule from the edit
+        rule = await create_rule_from_edit(
+            session=db,
+            doctor_id=resolved,
+            edit_id=edit.id,
+        )
+        if rule is None:
+            raise HTTPException(status_code=404, detail="未找到编辑记录")
+
+        await db.commit()
+
+        log(f"[draft] saved edit {edit.id} as rule {rule.id} for doctor={resolved}")
+
+    return {
+        "status": "ok",
+        "id": rule.id,
+        "text_preview": (rule.text or "")[:100],
+        "source": "teaching",
     }

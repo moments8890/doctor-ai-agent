@@ -49,16 +49,18 @@ async def list_knowledge(
         text = item.content
         source = "doctor"
         confidence = 1.0
+        source_url = None
         try:
             payload = json.loads(item.content)
             if isinstance(payload, dict):
                 text = payload.get("text", item.content)
                 source = payload.get("source", "doctor")
                 confidence = payload.get("confidence", 1.0)
+                source_url = payload.get("source_url") or None
         except (json.JSONDecodeError, TypeError):
             pass
 
-        result.append({
+        entry = {
             "id": item.id,
             "text": text,
             "source": source,
@@ -68,7 +70,10 @@ async def list_knowledge(
             "summary": item.summary or "",
             "reference_count": getattr(item, "reference_count", None) or 0,
             "created_at": item.created_at.isoformat() if item.created_at else None,
-        })
+        }
+        if source_url is not None:
+            entry["source_url"] = source_url
+        result.append(entry)
     return {"items": result}
 
 
@@ -171,6 +176,7 @@ class UploadSaveRequest(BaseModel):
     text: str
     source_filename: str
     category: KnowledgeCategory = KnowledgeCategory.custom
+    source_url: Optional[str] = None
 
 
 @router.post("/api/manage/knowledge/upload/save")
@@ -189,7 +195,10 @@ async def upload_save(
         raise HTTPException(413, "内容过长（超过3000字）")
 
     try:
-        result = await save_uploaded_knowledge(resolved, text, body.source_filename, category=body.category)
+        result = await save_uploaded_knowledge(
+            resolved, text, body.source_filename,
+            category=body.category, source_url=body.source_url,
+        )
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -228,17 +237,22 @@ async def batch_knowledge(
             continue
         text = item.content
         source = "doctor"
+        source_url = None
         try:
             payload = json.loads(item.content)
             if isinstance(payload, dict):
                 text = payload.get("text", item.content)
                 source = payload.get("source", "doctor")
+                source_url = payload.get("source_url") or None
         except (json.JSONDecodeError, TypeError):
             pass
-        result.append({
+        entry = {
             "id": item.id,
             "text": text,
             "source": source,
-        })
+        }
+        if source_url is not None:
+            entry["source_url"] = source_url
+        result.append(entry)
 
     return {"items": result}

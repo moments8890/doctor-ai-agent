@@ -177,3 +177,52 @@
       value: |
         const obj = JSON.parse(output);
         return obj.category === 'side_effect' || obj.category === 'symptom_report';
+
+# --- post-surgical neurological red flags ---
+
+- description: "triage: postop headache + vomiting + high BP → urgent"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "医生！头痛越来越厉害，刚才还吐了两次，血压量了一下170/100，眼睛看东西有点模糊"
+    patient_context: '{"diagnosis": "左侧后交通动脉瘤开颅夹闭术后第14天"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'urgent';
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.confidence >= 0.8;
+
+- description: "triage: postop new limb weakness + speech difficulty → urgent"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "术后突然右手没力气了，说话也有点不清楚"
+    patient_context: '{"diagnosis": "烟雾病STA-MCA搭桥术后第3天"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category === 'urgent';
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.confidence >= 0.8;
+
+- description: "triage: postop wound pain (routine) → symptom_report (NOT urgent)"
+  options:
+    prompts: [triage-classify]
+  vars:
+    message: "手术后伤口有点疼，正常吗？缝线什么时候拆？"
+    patient_context: '{"diagnosis": "右侧MCA动脉瘤夹闭术后1月"}'
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return obj.category !== 'urgent';

@@ -421,7 +421,7 @@ erDiagram
 
 **`ai_suggestions`** -- Per-item AI diagnosis suggestions with doctor decisions. Sections: `differential`, `workup`, `treatment`. Decisions: `confirmed`, `rejected`, `edited`, `custom`. One row per suggestion item.
 
-**`doctor_knowledge_items`** -- Per-doctor reusable knowledge snippets. Categories: `interview_guide`, `diagnosis_rule`, `red_flag`, `treatment_protocol`, `custom`.
+**`doctor_knowledge_items`** -- Per-doctor reusable knowledge snippets. Categories: `interview_guide`, `diagnosis_rule`, `red_flag`, `treatment_protocol`, `custom`. Content column stores a JSON payload (v1 format) with `text` and optional `source_url`.
 
 **`doctor_chat_log`** -- Doctor <-> AI conversation history. Roles: `user`, `assistant`.
 
@@ -492,6 +492,7 @@ red_flags: List[str]                        # urgent findings requiring immediat
 | `POST /api/records/chat` | `channels/web/chat.py` | Doctor chat -> agent pipeline |
 | `POST /api/records/interview/*` | `channels/web/doctor_interview.py` | Interview turn, confirm, cancel |
 | `GET/POST/DELETE /api/manage/*` | `channels/web/ui/` | Admin: knowledge, profile, patients |
+| `POST /api/manage/drafts/{draft_id}/save-as-rule` | `channels/web/ui/draft_handlers.py` | Teaching loop: convert draft edit into KB rule |
 | `GET/POST/PUT/DELETE /api/tasks/*` | `channels/web/tasks.py` | Task CRUD |
 | `GET /api/export/*` | `channels/web/export.py` | PDF/JSON export |
 | `POST /api/import/*` | `channels/web/import_routes.py` | Image/PDF import |

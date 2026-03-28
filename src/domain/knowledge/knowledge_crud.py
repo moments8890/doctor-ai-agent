@@ -70,20 +70,34 @@ def _sanitize_for_prompt(text: str) -> str:
 
 # ── Payload encode/decode ──────────────────────────────────────────
 
-def _encode_knowledge_payload(text: str, source: str, confidence: float) -> str:
+def _encode_knowledge_payload(
+    text: str,
+    source: str,
+    confidence: float,
+    source_url: Optional[str] = None,
+    file_path: Optional[str] = None,
+) -> str:
     payload = {
         "v": _KNOWLEDGE_PAYLOAD_VERSION,
         "text": _normalize_text(text),
         "source": source,
         "confidence": max(0.0, min(1.0, float(confidence))),
     }
+    if source_url is not None:
+        payload["source_url"] = source_url
+    if file_path is not None:
+        payload["file_path"] = file_path
     return json.dumps(payload, ensure_ascii=False)
 
 
-def _decode_knowledge_payload(raw: str) -> Tuple[str, str, float]:
+def _decode_knowledge_payload(raw: str) -> Tuple[str, str, float, Optional[str], Optional[str]]:
+    """Decode a knowledge payload JSON string.
+
+    Returns (text, source, confidence, source_url, file_path).
+    """
     content = (raw or "").strip()
     if not content:
-        return "", "doctor", 1.0
+        return "", "doctor", 1.0, None, None
     if content.startswith("{") and '"text"' in content:
         try:
             parsed = json.loads(content)
@@ -94,7 +108,9 @@ def _decode_knowledge_payload(raw: str) -> Tuple[str, str, float]:
                     confidence = float(parsed.get("confidence", 1.0))
                 except (TypeError, ValueError):
                     confidence = 1.0
-                return text, source, max(0.0, min(1.0, confidence))
+                source_url = parsed.get("source_url") or None
+                file_path = parsed.get("file_path") or None
+                return text, source, max(0.0, min(1.0, confidence)), source_url, file_path
         except Exception as exc:
             log(
                 "[Knowledge] decode payload failed; falling back to raw text payload_prefix={0!r} err={1}".format(
@@ -102,7 +118,7 @@ def _decode_knowledge_payload(raw: str) -> Tuple[str, str, float]:
                     exc,
                 )
             )
-    return _normalize_text(content), "doctor", 1.0
+    return _normalize_text(content), "doctor", 1.0, None, None
 
 
 # ── Limits ─────────────────────────────────────────────────────────
@@ -180,6 +196,8 @@ async def save_knowledge_item(
     category: str = KnowledgeCategory.custom,
     title: Optional[str] = None,
     summary: Optional[str] = None,
+    source_url: Optional[str] = None,
+    file_path: Optional[str] = None,
 ) -> Optional[DoctorKnowledgeItem]:
     cleaned = _normalize_text(text)
     if not cleaned:
@@ -193,11 +211,11 @@ async def save_knowledge_item(
     )
     normalized_new = _normalize_text(cleaned)
     for row in existing:
-        row_text, _row_source, _row_conf = _decode_knowledge_payload(row.content)
+        row_text, _row_source, _row_conf, _row_url, _row_fp = _decode_knowledge_payload(row.content)
         if _normalize_text(row_text) == normalized_new:
             return row
 
-    payload = _encode_knowledge_payload(cleaned, source=source, confidence=confidence)
+    payload = _encode_knowledge_payload(cleaned, source=source, confidence=confidence, source_url=source_url)
     item = await add_doctor_knowledge_item(session, doctor_id, payload, category=category)
     item.title = title or extract_title_from_text((text or "").strip())
     item.summary = summary

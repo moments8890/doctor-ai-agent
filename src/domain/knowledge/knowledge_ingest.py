@@ -151,7 +151,13 @@ async def process_knowledge_text(raw_text: str) -> dict:
     }
 
 
-async def save_uploaded_knowledge(doctor_id: str, text: str, source_filename: str, category: str = KnowledgeCategory.custom) -> dict:
+async def save_uploaded_knowledge(
+    doctor_id: str,
+    text: str,
+    source_filename: str,
+    category: str = KnowledgeCategory.custom,
+    source_url: Optional[str] = None,
+) -> dict:
     """Save doctor-approved text as a knowledge item."""
     from db.engine import AsyncSessionLocal
     from db.crud import add_doctor_knowledge_item
@@ -161,7 +167,12 @@ async def save_uploaded_knowledge(doctor_id: str, text: str, source_filename: st
     if len(text) > 3000:
         raise ValueError("内容过长（超过3000字）")
 
-    payload = _encode_knowledge_payload(text.strip(), source="upload:{0}".format(source_filename), confidence=1.0)
+    payload = _encode_knowledge_payload(
+        text.strip(),
+        source="upload:{0}".format(source_filename),
+        confidence=1.0,
+        source_url=source_url,
+    )
 
     async with AsyncSessionLocal() as session:
         item = await add_doctor_knowledge_item(session, doctor_id, payload, category=category)

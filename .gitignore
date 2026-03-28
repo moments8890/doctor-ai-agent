@@ -58,3 +58,9 @@ tests/prompts/.env
 
 # Generated QA walkthroughs and assets
 docs/qa/
+
+# Demo simulation state
+scripts/.demo_state.json
+
+# Uploaded original files
+uploads/

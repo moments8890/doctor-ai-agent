@@ -66,7 +66,7 @@ Not any single feature — the **integrated loop**: personal knowledge → patie
 **Next Phase — Personal AI Features:**
 - Knowledge usage tracking (when/where AI cites doctor's rules)
 - AI draft replies in doctor's voice with rule citations
-- Teaching loop: doctor edits → AI learns preferences
+- ~~Teaching loop: doctor edits → AI learns preferences~~ **Done** (save-as-rule endpoint)
 - AI activity feed: "按你的方法处理了 N 位患者"
 - AI-flagged patients based on doctor's own rules
 - Citation visual treatment ("引用了你的规则" vs "未引用个人规则")

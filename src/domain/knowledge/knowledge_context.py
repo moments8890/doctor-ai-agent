@@ -67,7 +67,7 @@ def render_knowledge_context(
 
     scored = []
     for idx, item in enumerate(items):
-        text, source, confidence = _decode_knowledge_payload(item.content)
+        text, source, confidence, _source_url, _file_path = _decode_knowledge_payload(item.content)
         if not text:
             continue
         relevance = _score_item(scoring_query, text)

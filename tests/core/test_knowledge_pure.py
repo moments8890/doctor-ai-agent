@@ -183,10 +183,11 @@ class TestEncodeKnowledgePayload:
 
     def test_round_trips_via_decode(self):
         raw = _encode_knowledge_payload("eGFR<60考虑CKD", "doctor", 0.85)
-        text, source, confidence = _decode_knowledge_payload(raw)
+        text, source, confidence, source_url = _decode_knowledge_payload(raw)
         assert "eGFR" in text
         assert source == "doctor"
         assert abs(confidence - 0.85) < 1e-9
+        assert source_url is None
 
 
 # ── _decode_knowledge_payload ──────────────────────────────────────
@@ -195,95 +196,114 @@ class TestEncodeKnowledgePayload:
 class TestDecodeKnowledgePayload:
     def test_decodes_valid_v1_payload(self):
         raw = json.dumps({"v": 1, "text": "心衰管理", "source": "doctor", "confidence": 0.9})
-        text, source, conf = _decode_knowledge_payload(raw)
+        text, source, conf, source_url = _decode_knowledge_payload(raw)
         assert text == "心衰管理"
         assert source == "doctor"
         assert abs(conf - 0.9) < 1e-9
+        assert source_url is None
 
     def test_empty_string_returns_defaults(self):
-        text, source, conf = _decode_knowledge_payload("")
+        text, source, conf, source_url = _decode_knowledge_payload("")
         assert text == ""
         assert source == "doctor"
         assert conf == 1.0
+        assert source_url is None
 
     def test_none_returns_defaults(self):
-        text, source, conf = _decode_knowledge_payload(None)  # type: ignore[arg-type]
+        text, source, conf, source_url = _decode_knowledge_payload(None)  # type: ignore[arg-type]
         assert text == ""
         assert source == "doctor"
         assert conf == 1.0
+        assert source_url is None
 
     def test_whitespace_only_returns_defaults(self):
-        text, source, conf = _decode_knowledge_payload("   ")
+        text, source, conf, source_url = _decode_knowledge_payload("   ")
         assert text == ""
         assert source == "doctor"
         assert conf == 1.0
+        assert source_url is None
 
     def test_legacy_plain_text_fallback(self):
         # Raw text that doesn't start with { → legacy plain text
         raw = "注意心率控制在60-80次/分"
-        text, source, conf = _decode_knowledge_payload(raw)
+        text, source, conf, source_url = _decode_knowledge_payload(raw)
         assert text == "注意心率控制在60-80次/分"
         assert source == "doctor"
         assert conf == 1.0
+        assert source_url is None
 
     def test_legacy_text_is_normalized(self):
         raw = "  多余空格   测试  "
-        text, source, conf = _decode_knowledge_payload(raw)
+        text, source, conf, _url = _decode_knowledge_payload(raw)
         assert text == "多余空格 测试"
 
     def test_json_without_text_key_falls_back_to_raw(self):
         # Starts with { but no "text" key → treated as raw text
         raw = '{"other": "value"}'
-        text, source, conf = _decode_knowledge_payload(raw)
+        text, source, conf, _url = _decode_knowledge_payload(raw)
         assert text == raw.strip()
         assert source == "doctor"
 
     def test_malformed_json_falls_back_to_raw(self):
         raw = '{"text": "broken", "v": 1'  # truncated JSON
-        text, source, conf = _decode_knowledge_payload(raw)
+        text, source, conf, _url = _decode_knowledge_payload(raw)
         assert source == "doctor"
         assert conf == 1.0
 
     def test_confidence_clamped_on_decode(self):
         raw = json.dumps({"v": 1, "text": "test", "source": "doctor", "confidence": 2.5})
-        _, _, conf = _decode_knowledge_payload(raw)
+        _, _, conf, _ = _decode_knowledge_payload(raw)
         assert conf == 1.0
 
     def test_confidence_clamped_negative_on_decode(self):
         raw = json.dumps({"v": 1, "text": "test", "source": "doctor", "confidence": -1.0})
-        _, _, conf = _decode_knowledge_payload(raw)
+        _, _, conf, _ = _decode_knowledge_payload(raw)
         assert conf == 0.0
 
     def test_missing_confidence_defaults_to_1(self):
         raw = json.dumps({"v": 1, "text": "诊断规范", "source": "doctor"})
-        _, _, conf = _decode_knowledge_payload(raw)
+        _, _, conf, _ = _decode_knowledge_payload(raw)
         assert conf == 1.0
 
     def test_missing_source_defaults_to_doctor(self):
         raw = json.dumps({"v": 1, "text": "诊断规范", "confidence": 0.8})
-        _, source, _ = _decode_knowledge_payload(raw)
+        _, source, _, _ = _decode_knowledge_payload(raw)
         assert source == "doctor"
 
     def test_non_string_confidence_defaults_to_1(self):
         raw = json.dumps({"v": 1, "text": "test", "source": "ai", "confidence": None})
-        _, _, conf = _decode_knowledge_payload(raw)
+        _, _, conf, _ = _decode_knowledge_payload(raw)
         assert conf == 1.0
 
     def test_text_normalized_on_decode(self):
         raw = json.dumps({"v": 1, "text": "  多余  空格  ", "source": "doctor", "confidence": 1.0})
-        text, _, _ = _decode_knowledge_payload(raw)
+        text, _, _, _ = _decode_knowledge_payload(raw)
         assert text == "多余 空格"
 
     def test_ai_source_preserved(self):
         raw = json.dumps({"v": 1, "text": "AI生成内容", "source": "ai", "confidence": 0.7})
-        _, source, _ = _decode_knowledge_payload(raw)
+        _, source, _, _ = _decode_knowledge_payload(raw)
         assert source == "ai"
 
     def test_medical_abbreviations_survive_round_trip(self):
         for abbr in ("STEMI", "BNP", "eGFR", "LVEF", "NT-proBNP"):
             encoded = _encode_knowledge_payload(f"{abbr}异常需要复查", "doctor", 0.95)
-            text, _, _ = _decode_knowledge_payload(encoded)
+            text, _, _, _ = _decode_knowledge_payload(encoded)
             assert abbr in text
+
+    def test_source_url_round_trip(self):
+        encoded = _encode_knowledge_payload("test", "doctor", 1.0, source_url="https://example.com/doc.pdf")
+        text, source, conf, source_url = _decode_knowledge_payload(encoded)
+        assert text == "test"
+        assert source_url == "https://example.com/doc.pdf"
+
+    def test_source_url_none_omitted_from_payload(self):
+        encoded = _encode_knowledge_payload("test", "doctor", 1.0, source_url=None)
+        import json as _json
+        parsed = _json.loads(encoded)
+        assert "source_url" not in parsed
+        _, _, _, source_url = _decode_knowledge_payload(encoded)
+        assert source_url is None
 
 
 # ── extract_title_from_text ────────────────────────────────────────
