@@ -294,7 +294,7 @@ export async function sendChat(payload) {
       view_payload: {
         records: [
           { id: 1, patient_id: 1, patient_name: "陈伟强", chief_complaint: "头痛3天伴恶心呕吐", record_type: "visit", created_at: "2026-03-26" },
-          { id: 2, patient_id: 3, patient_name: "王明", chief_complaint: "头晕反复发作1月", record_type: "visit", created_at: "2026-03-25" },
+          { id: 2, patient_id: 2, patient_name: "李复诊", chief_complaint: "头晕反复发作1月", record_type: "visit", created_at: "2026-03-25" },
         ],
       },
     };
@@ -349,7 +349,7 @@ export async function clearContext() {
 }
 
 export async function ocrImage() {
-  return { text: "模拟OCR文本：患者张三，男，45岁，主诉头痛3天。" };
+  return { text: "模拟OCR文本：患者陈伟强，男，42岁，主诉头痛3天。" };
 }
 
 export async function extractFileForChat() {
@@ -521,9 +521,9 @@ export async function getReviewQueue() {
       },
     ],
     completed: [
-      { id: "c1", patient_name: "赵敏", content: "三叉神经痛药物方案", decision: "confirmed", rule_count: 1, time: "昨天" },
-      { id: "c2", patient_name: "陈大伟", content: "腰椎管狭窄保守方案", decision: "edited", detail: "你调整了用药剂量", time: "3月25日" },
-      { id: "c3", patient_name: "周小林", content: "颈椎间盘突出评估", decision: "confirmed", rule_count: 0, time: "3月24日" },
+      { id: "c1", patient_id: 4, patient_name: "张小红", content: "三叉神经痛药物方案", decision: "confirmed", rule_count: 1, time: "昨天" },
+      { id: "c2", patient_id: 3, patient_name: "王明", content: "腰椎管狭窄保守方案", decision: "edited", detail: "你调整了用药剂量", time: "3月25日" },
+      { id: "c3", patient_id: 2, patient_name: "李复诊", content: "颈椎间盘突出评估", decision: "confirmed", rule_count: 0, time: "3月24日" },
     ],
   };
 }
@@ -542,8 +542,8 @@ export async function fetchDrafts() {
         patient_message: "张医生您好，我昨天晚上又头晕了一次，大概持续了十几秒，翻身的时候发作的，需要去医院吗？",
         draft_text: "刘先生您好，根据您描述的情况（翻身时短暂头晕），考虑可能与体位变化有关。建议您先观察2-3天，如果发作频率增加或持续时间超过1分钟，请及时来院复查。",
         original_draft_text: "刘先生您好，根据您描述的情况（翻身时短暂头晕），考虑可能与体位变化有关。建议您先观察2-3天，如果发作频率增加或持续时间超过1分钟，请及时来院复查。",
-        cited_knowledge_ids: [8],
-        cited_rules: [{ id: 8, title: "随访安抚话术" }],
+        cited_knowledge_ids: [5],
+        cited_rules: [{ id: 5, title: "TIA复查路径" }],
         confidence: 0.85,
         status: "generated",
         ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
@@ -566,7 +566,7 @@ export async function fetchDrafts() {
         status: "generated",
         ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
         created_at: "2026-03-27T13:10:00",
-        patient_context: "腰椎术后复查",
+        patient_context: "术后复查",
         time: "今天 13:10",
         badge: null,
         rule_cited: "术后头痛危险信号",
@@ -576,8 +576,8 @@ export async function fetchDrafts() {
         patient_id: 1,
         patient_name: "陈伟强",
         patient_message: "张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？",
-        draft_text: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
-        original_draft_text: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
+        draft_text: "陈先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
+        original_draft_text: "陈先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
         cited_knowledge_ids: [7],
         cited_rules: [{ id: 7, title: "术后头痛危险信号" }],
         confidence: 0.92,
@@ -585,7 +585,7 @@ export async function fetchDrafts() {
         ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
         created_at: "2026-03-27T11:45:00",
         // display-only, not in real API
-        patient_context: "脑膜瘤术后第12天",
+        patient_context: "头晕反复发作1月，待审核",
         time: "今天 11:45",
         badge: "urgent",
       },
@@ -593,12 +593,12 @@ export async function fetchDrafts() {
     upcoming_followups: [
       { id: "f1", patient_id: 3, patient_name: "王明", task: "术后复查CT", detail: "脑膜瘤术后第7天常规复查", due_label: "今天", soon: true },
       { id: "f2", patient_id: 2, patient_name: "李复诊", task: "颈动脉超声", detail: "TIA首发48h内血管评估", due_label: "明天", soon: true },
-      { id: "f3", patient_id: 4, patient_name: "赵敏", task: "用药效果复查", detail: "卡马西平2周疗效评估", due_label: "4月3日", soon: false },
+      { id: "f3", patient_id: 4, patient_name: "张小红", task: "用药效果复查", detail: "卡马西平2周疗效评估", due_label: "4月3日", soon: false },
       { id: "f4", patient_id: 5, patient_name: "刘建国", task: "腰椎复查", detail: "保守治疗1个月评估", due_label: "4月10日", soon: false },
     ],
     recently_sent: [
-      { id: "s1", patient_id: 4, patient_name: "赵敏", task: "服药提醒", read_status: "已读", time: "昨天" },
-      { id: "s2", patient_id: 6, patient_name: "周小林", task: "复查提醒", read_status: "未读", time: "3月25日" },
+      { id: "s1", patient_id: 4, patient_name: "张小红", task: "服药提醒", read_status: "已读", time: "昨天" },
+      { id: "s2", patient_id: 3, patient_name: "王明", task: "复查提醒", read_status: "未读", time: "3月25日" },
     ],
   };
 }
@@ -623,18 +623,18 @@ export async function getDraftConfirmation(draftId) {
   //     full_text_preview, cited_rules: [{ id, title, text }], confidence, status }
   return {
     draft_id: draftId || 102,
-    patient_name: "王建国",
+    patient_name: "陈伟强",
     patient_message: "张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？",
-    draft_text: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。",
+    draft_text: "陈先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。",
     ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
-    full_text_preview: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。\n\n【此回复由AI辅助起草，经医生审核】",
+    full_text_preview: "陈先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。\n\n【此回复由AI辅助起草，经医生审核】",
     cited_rules: [
       { id: 7, title: "术后头痛危险信号", text: "脑疝早期征象：一侧瞳孔进行性散大、对光反射消失..." },
     ],
     confidence: 0.92,
     status: "generated",
     // display-only, not in real API
-    patient_context: "脑膜瘤术后第12天",
+    patient_context: "头晕反复发作1月，待审核",
   };
 }
 export async function createRuleFromEdit() {
@@ -670,11 +670,11 @@ export async function fetchKnowledgeUsageHistory(doctorId, itemId) {
       {
         id: 3,
         usage_context: "diagnosis",
-        patient_id: 2,
+        patient_id: 1,
         record_id: 102,
         created_at: "2026-03-25T09:15:00",
         // display-only, not in real API
-        patient_name: "李复诊",
+        patient_name: "陈伟强",
         detail: "检查建议：急查头颅CT",
       },
     ],
