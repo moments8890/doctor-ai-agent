@@ -32,10 +32,28 @@ function formatRelativeDate(dateStr) {
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-function firstLine(text) {
+/**
+ * Extract a short title from knowledge text (mirrors backend logic).
+ * 1. Take first line  2. Split on ： or : (colon)  3. Split on 。 (period)  4. Cap at 20 chars
+ */
+function extractShortTitle(text, maxLen = 20) {
   if (!text) return "";
-  const lines = text.split("\n").filter((l) => l.trim());
-  return lines[0] || "";
+  let line = text.split("\n").filter((l) => l.trim())[0] || "";
+  // Try colon first (strongest delimiter)
+  for (const sep of ["：", ":"]) {
+    if (line.includes(sep)) {
+      const candidate = line.split(sep)[0].trim();
+      if (candidate) { line = candidate; break; }
+    }
+  }
+  // Then period
+  if (line.length > maxLen && line.includes("。")) {
+    line = line.split("。")[0].trim();
+  }
+  if (line.length > maxLen) {
+    line = line.slice(0, maxLen) + "…";
+  }
+  return line;
 }
 
 /**
@@ -68,8 +86,9 @@ function mergeAndSort(items, stats) {
 /* ── KnowledgeRow ── */
 
 function KnowledgeRow({ item, onClick }) {
-  const title = item.title || firstLine(item.text || item.content || "");
-  const summary = item.summary || (item.title ? firstLine(item.text || item.content || "") : "");
+  const rawText = item.text || item.content || "";
+  const title = item.title && item.title.length <= 25 ? item.title : extractShortTitle(rawText);
+  const summary = item.summary || (rawText.startsWith(title) ? rawText.slice(title.length).replace(/^[：:\s]+/, "").slice(0, 50) : rawText.slice(0, 50));
   const usageCount = item._usageCount || 0;
   const lastUsed = item._lastUsed;
 
