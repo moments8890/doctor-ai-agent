@@ -137,8 +137,7 @@ export default function ReviewPage({ recordId }) {
   const citedIds = useMemo(() => {
     const ids = new Set();
     (suggestions || []).forEach((s) => {
-      const matches = (s.detail || "").matchAll(/\[KB-(\d+)\]/g);
-      for (const m of matches) ids.add(parseInt(m[1]));
+      (s.cited_knowledge_ids || []).forEach((id) => ids.add(id));
     });
     return ids;
   }, [suggestions]);

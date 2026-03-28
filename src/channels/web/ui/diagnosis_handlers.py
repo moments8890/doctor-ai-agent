@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from channels.web.ui._utils import _resolve_ui_doctor_id
+from domain.knowledge.citation_parser import extract_citations, _CITATION_RE
 from db.crud.suggestions import (
     create_suggestion,
     get_suggestion_by_id,
@@ -57,12 +58,21 @@ class FinalizeRequest(BaseModel):
 
 
 def _suggestion_to_dict(s: AISuggestion) -> dict:
+    # Extract citation IDs and strip [KB-N] markers from detail text
+    raw_detail = s.detail or ""
+    citation_result = extract_citations(raw_detail)
+    clean_detail = _CITATION_RE.sub("", raw_detail).strip()
+    # Collapse double spaces left by stripping
+    import re as _re
+    clean_detail = _re.sub(r"  +", " ", clean_detail)
+
     return {
         "id": s.id,
         "record_id": s.record_id,
         "section": s.section,
         "content": s.content,
-        "detail": s.detail,
+        "detail": clean_detail,
+        "cited_knowledge_ids": citation_result.cited_ids,
         "confidence": s.confidence,
         "urgency": s.urgency,
         "intervention": s.intervention,

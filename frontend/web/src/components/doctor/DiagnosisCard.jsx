@@ -24,24 +24,7 @@ import SheetDialog from "../SheetDialog";
 
 /* ── State-derived style maps ──────────────────────────────────────────────── */
 
-const BORDER_BY_DECISION = {
-  confirmed: `3px solid ${COLOR.primary}`,
-  rejected:  `3px solid ${COLOR.border}`,
-  edited:    `3px solid ${COLOR.warning}`,
-  custom:    `3px solid ${COLOR.primary}`,
-};
-
-// Color-code by confidence/urgency so doctor can visually scan priority
-const BORDER_BY_PRIORITY = {
-  "高":   `3px solid #E8533F`,
-  "紧急": `3px solid #E8533F`,
-  "中":   `3px solid #e8833a`,
-  "常规": `3px solid #e8833a`,
-  "低":   `3px solid #ccc`,
-  "观察": `3px solid #ccc`,
-  "药物": `3px solid ${COLOR.primary}`,
-};
-const BORDER_DEFAULT = `3px solid ${COLOR.borderLight}`;
+// Left border color is now on the section level (ReviewSubpage), not per-item.
 
 const STATUS_LABEL = {
   confirmed: { text: "已确认", color: COLOR.primary },
@@ -133,20 +116,20 @@ function TextAction({ icon, label, color, onClick }) {
   );
 }
 
-/** Three-button action row: 排除 (left) | 修改 (middle) | 确认 (right) */
+/** Three-button action row: 排除 (left) | 修改 (center) | 确认 (right) */
 function ActionRow({ onConfirm, onReject, onEdit }) {
   return (
-    <Box sx={{ px: 2, pb: 1, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 2.5 }}>
-      <Typography component="span" onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
-        sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
-        修改
-      </Typography>
+    <Box sx={{ px: 2, pb: 1.25, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
       <Typography component="span" onClick={(e) => { e.stopPropagation(); onReject?.(); }}
-        sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
+        sx={{ fontSize: TYPE.body.fontSize, color: COLOR.danger, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
         排除
       </Typography>
+      <Typography component="span" onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
+        sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text3, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
+        修改
+      </Typography>
       <Typography component="span" onClick={(e) => { e.stopPropagation(); onConfirm?.(); }}
-        sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer", fontWeight: 500, "&:active": { opacity: 0.5 } }}>
+        sx={{ fontSize: TYPE.body.fontSize, color: COLOR.primary, cursor: "pointer", fontWeight: 500, "&:active": { opacity: 0.5 } }}>
         确认
       </Typography>
     </Box>
@@ -186,11 +169,8 @@ function RejectMode({ onSubmit, onCancel }) {
 
 /* ── Citation rendering ────────────────────────────────────────────────────── */
 
-/** Strip [KB-{id}] markers from detail text — citations are shown as title badges. */
-function stripCitationMarkers(detail) {
-  if (!detail) return null;
-  return detail.replace(/\[KB-\d+\]/g, "").replace(/\s{2,}/g, " ").trim();
-}
+// Citations are now returned as cited_knowledge_ids from the API.
+// Detail text is pre-stripped server-side — no client-side parsing needed.
 
 /** Bottom sheet for viewing a cited knowledge item. */
 function CitationSheet({ item, open, onClose }) {
@@ -260,11 +240,6 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
   // Determine which badge value to show (only one will be present)
   const badgeValue = confidence || urgency || intervention;
 
-  // Color-code left border: by decision if reviewed, by priority if pending
-  const borderLeft = BORDER_BY_DECISION[effectiveDecision]
-    || BORDER_BY_PRIORITY[badgeValue]
-    || BORDER_DEFAULT;
-
   /* ── Handlers ──────────────────────────────────────────────────────────── */
 
   function handleConfirm() {
@@ -299,9 +274,7 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
   return (
     <Box
       sx={{
-        borderLeft,
         bgcolor: COLOR.white,
-        transition: "border-color 0.15s",
         borderTop: `0.5px solid ${COLOR.borderLight}`,
       }}
     >
@@ -333,17 +306,15 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
                 {content}
               </Typography>
               <MetaBadge value={badgeValue} />
-              {/* Citation badges — inline with title, always visible */}
-              {(() => {
-                const text = suggestion.edited_text || detail || "";
-                const matches = [...text.matchAll(/\[KB-(\d+)\]/g)];
-                if (matches.length === 0) return null;
-                const cited = matches.map((m) => ({ id: parseInt(m[1]), item: knowledgeMap[parseInt(m[1])] })).filter((c) => c.item);
-                return cited.map((c) => (
+              {/* Citation badges — from cited_knowledge_ids field */}
+              {(suggestion.cited_knowledge_ids || []).map((kid) => {
+                const item = knowledgeMap[kid];
+                if (!item) return null;
+                return (
                   <Box
-                    key={c.id}
+                    key={kid}
                     component="span"
-                    onClick={(e) => { e.stopPropagation(); setCitationItem(c.item); }}
+                    onClick={(e) => { e.stopPropagation(); setCitationItem(item); }}
                     sx={{
                       fontSize: 10, fontWeight: 500,
                       color: "#1565c0", bgcolor: "#e3f2fd",
@@ -354,10 +325,10 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
                       "&:active": { opacity: 0.7 },
                     }}
                   >
-                    {c.item.title || (c.item.text || "").slice(0, 15) || `KB-${c.id}`}
+                    {item.title || (item.text || "").slice(0, 15) || `KB-${kid}`}
                   </Box>
-                ));
-              })()}
+                );
+              })}
             </Box>
           </Box>
           <RightIndicator decision={effectiveDecision} expanded={expanded} />
@@ -379,7 +350,7 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
                   whiteSpace: "pre-wrap",
                 }}
               >
-                {stripCitationMarkers(suggestion.edited_text || detail)}
+                {suggestion.edited_text || detail}
               </Typography>
             </Box>
           )}

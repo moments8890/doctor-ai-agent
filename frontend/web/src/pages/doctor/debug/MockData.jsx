@@ -151,7 +151,7 @@ export const MOCK_TASKS = [
 
 export const MOCK_SUGGESTIONS = [
   // Patient 1: 陈伟强 — 术后头痛加剧鉴别诊断
-  { id: 301, record_id: 102, section: "differential", content: "术后迟发性颅内血肿", detail: "脑膜瘤术后第7天头痛加剧伴恶心，需首先排除迟发性硬膜外/硬膜下血肿。[KB-7]术后3-10天为迟发性血肿高发期，头痛进行性加剧是最重要的预警信号。", confidence: "高", decision: null, is_custom: false },
+  { id: 301, record_id: 102, section: "differential", content: "术后迟发性颅内血肿", detail: "脑膜瘤术后第7天头痛加剧伴恶心，需首先排除迟发性硬膜外/硬膜下血肿。术后3-10天为迟发性血肿高发期，头痛进行性加剧是最重要的预警信号。", cited_knowledge_ids: [7], confidence: "高", decision: null, is_custom: false },
   { id: 302, record_id: 102, section: "differential", content: "术后脑水肿", detail: "开颅术后脑水肿可在术后数天内加重，表现为头痛加剧伴恶心。需CT评估水肿范围及中线移位情况。", confidence: "中", decision: null, is_custom: false },
   { id: 303, record_id: 102, section: "differential", content: "颅内感染", detail: "开颅术后颅内感染可表现为头痛加剧伴发热。需关注体温变化、颈强直等脑膜刺激征。", confidence: "低", decision: null, is_custom: false },
   { id: 304, record_id: 102, section: "workup", content: "急查头颅CT平扫", detail: "首选检查，快速排除术后再出血和脑水肿加重。重点观察术区有无新发血肿、中线移位程度。", urgency: "紧急", decision: null, is_custom: false },
@@ -159,7 +159,7 @@ export const MOCK_SUGGESTIONS = [
   { id: 306, record_id: 102, section: "treatment", content: "甘露醇脱水降颅压", detail: "如CT示脑水肿加重或中线移位，20%甘露醇250ml q8h快速静滴，密切监测电解质。", intervention: "药物", decision: null, is_custom: false },
   { id: 307, record_id: 102, section: "treatment", content: "急诊手术清除血肿", detail: "如CT证实血肿量大（>30ml）或中线移位>5mm，需急诊手术清除血肿。", intervention: "手术", decision: null, is_custom: false },
   // Patient 2: 李复诊 — TIA检查建议
-  { id: 401, record_id: 103, section: "workup", content: "颈动脉超声", detail: "TIA首发48h内必须完成颈动脉超声评估，排除颈动脉狭窄或不稳定斑块。[KB-5]TIA复查路径要求48h内完成血管评估。", urgency: "紧急", decision: null, is_custom: false },
+  { id: 401, record_id: 103, section: "workup", content: "颈动脉超声", detail: "TIA首发48h内必须完成颈动脉超声评估，排除颈动脉狭窄或不稳定斑块。TIA复查路径要求48h内完成血管评估。", cited_knowledge_ids: [5], urgency: "紧急", decision: null, is_custom: false },
   { id: 402, record_id: 103, section: "workup", content: "头颅MRA", detail: "无创评估颅内血管情况，排除大血管狭窄或闭塞，与颈动脉超声联合完成全面血管评估。", urgency: "紧急", decision: null, is_custom: false },
   { id: 403, record_id: 103, section: "workup", content: "心脏超声", detail: "排除心源性栓塞，特别是左房附壁血栓、卵圆孔未闭等。7天内完成。", urgency: "常规", decision: null, is_custom: false },
   { id: 404, record_id: 103, section: "differential", content: "大动脉粥样硬化型TIA", detail: "56岁女性，高血压+糖尿病，大动脉粥样硬化为最可能病因。颈动脉超声+MRA可明确。", confidence: "高", decision: null, is_custom: false },
