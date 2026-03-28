@@ -140,8 +140,8 @@ export default function MyAIPage({ doctorId }) {
   const latestActivity = activityList[0];
 
   const weekCitations = loading ? null : (knowledgeStats?.citations_7d ?? knowledgeStats?.total_citations ?? 0);
-  const pendingConfirm = loading ? null : (draftSummary?.pending_count ?? draftSummary?.pending ?? 0);
-  const todayProcessed = loading ? null : (knowledgeStats?.today_processed ?? draftSummary?.today_processed ?? 0);
+  const pendingConfirm = loading ? null : (draftSummary?.review_pending_count ?? draftSummary?.pending_count ?? 0);
+  const todayProcessed = loading ? null : (draftSummary?.today_processed ?? knowledgeStats?.today_processed ?? 0);
 
   // Badge counts for quick actions
   const reviewBadge = draftSummary?.pending_count ?? draftSummary?.pending ?? 0;

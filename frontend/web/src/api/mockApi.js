@@ -160,6 +160,16 @@ export async function addKnowledgeItem(doctorId, content) {
   return newItem;
 }
 
+export async function updateKnowledgeItem(_doctorId, itemId, text, title) {
+  const item = knowledgeItems.find((i) => i.id === itemId);
+  if (item) {
+    item.content = text;
+    item.text = text;
+    if (title !== undefined) item.title = title;
+  }
+  return { status: "ok", id: itemId };
+}
+
 export async function deleteKnowledgeItem(doctorId, itemId) {
   knowledgeItems = knowledgeItems.filter((i) => i.id !== itemId);
   return {};
@@ -204,6 +214,17 @@ export async function processKnowledgeText(_doctorId, text) {
     original_length: trimmed.length,
     processed_length: trimmed.length,
     llm_processed: false,
+  };
+}
+
+export async function fetchKnowledgeUrl(_doctorId, url) {
+  await new Promise((r) => setTimeout(r, 800));
+  const mockText = `（AI整理）从 ${url} 提取的内容摘要\n\n这是一篇关于临床指南的文章，主要内容包括诊断标准、治疗方案和随访建议。`;
+  return {
+    extracted_text: mockText,
+    source_url: url,
+    char_count: mockText.length,
+    llm_processed: true,
   };
 }
 
@@ -428,16 +449,13 @@ export async function fetchAIActivity() {
 }
 
 export async function fetchDraftSummary() {
-  // Real API: GET /api/manage/drafts/summary → { pending, ai_drafted, due_soon }
+  // Real API: GET /api/manage/drafts/summary → { pending, ai_drafted, due_soon, review_pending_count }
   return {
     pending: 2,
     ai_drafted: 3,
     due_soon: 4,
-    // display-only, not in real API — backward compat fields used by DoctorPage badge counts
-    pending_reply: 2,
-    today_processed: 3,
-    pending_count: 3,
-    followup_count: 5,
+    review_pending_count: 3,
+    today_processed: 5,
   };
 }
 
@@ -525,6 +543,7 @@ export async function fetchDrafts() {
         draft_text: "刘先生您好，根据您描述的情况（翻身时短暂头晕），考虑可能与体位变化有关。建议您先观察2-3天，如果发作频率增加或持续时间超过1分钟，请及时来院复查。",
         original_draft_text: "刘先生您好，根据您描述的情况（翻身时短暂头晕），考虑可能与体位变化有关。建议您先观察2-3天，如果发作频率增加或持续时间超过1分钟，请及时来院复查。",
         cited_knowledge_ids: [8],
+        cited_rules: [{ id: 8, title: "随访安抚话术" }],
         confidence: 0.85,
         status: "generated",
         ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
@@ -533,7 +552,6 @@ export async function fetchDrafts() {
         patient_context: "眩晕症随访第3天",
         time: "今天 13:20",
         badge: "new",
-        rule_cited: "随访安抚话术",
       },
       {
         id: 102,
@@ -543,6 +561,7 @@ export async function fetchDrafts() {
         draft_text: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
         original_draft_text: "王先生，您术后头痛加剧伴恶心需要重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果头痛突然加剧或出现呕吐，请立即拨打120。",
         cited_knowledge_ids: [7],
+        cited_rules: [{ id: 7, title: "术后头痛红旗" }],
         confidence: 0.92,
         status: "generated",
         ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
@@ -551,7 +570,6 @@ export async function fetchDrafts() {
         patient_context: "脑膜瘤术后第12天",
         time: "今天 11:45",
         badge: "urgent",
-        rule_cited: "术后头痛红旗",
       },
     ],
     upcoming_followups: [
