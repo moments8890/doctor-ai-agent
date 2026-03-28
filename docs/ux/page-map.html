@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Page Map — Doctor AI Agent</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --surface: #f6f8fa;
+  --surface-alt: #f0f2f5;
+  --border: #d0d7de;
+  --border-light: #e8ecf0;
+  --text1: #1f2328;
+  --text2: #424a53;
+  --text3: #656d76;
+  --text4: #8b949e;
+
+  --doctor-accent: #07C160;
+  --doctor-bg: #edf9f0;
+  --doctor-border: #b4dfbf;
+
+  --patient-accent: #3b82f6;
+  --patient-bg: #eff6ff;
+  --patient-border: #93c5fd;
+
+  --admin-accent: #6b7280;
+  --admin-bg: #f3f4f6;
+  --admin-border: #d1d5db;
+
+  --green: #07C160;
+  --yellow: #eab308;
+  --red: #ef4444;
+
+  --badge-live: #07C160;
+  --badge-mock: #f59e0b;
+  --badge-broken: #ef4444;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--surface);
+  color: var(--text1);
+  line-height: 1.5;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text1);
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text3);
+  margin-bottom: 24px;
+}
+
+/* ── Stats bar ── */
+.stats-bar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 16px 20px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text1);
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.stat-card.green .stat-value { color: var(--green); }
+.stat-card.yellow .stat-value { color: var(--yellow); }
+.stat-card.red .stat-value { color: var(--red); }
+.stat-card.gray .stat-value { color: var(--admin-accent); }
+
+/* ── Legend ── */
+.legend {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text3);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-dot.reachable { background: var(--green); }
+.legend-dot.deep { background: var(--yellow); }
+.legend-dot.orphaned { background: var(--red); }
+
+.legend-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.legend-badge.live { background: #dcfce7; color: #166534; }
+.legend-badge.mock { background: #fef3c7; color: #92400e; }
+.legend-badge.broken { background: #fecaca; color: #991b1b; }
+
+/* ── Columns layout ── */
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .columns { grid-template-columns: 1fr; }
+}
+
+/* ── Section ── */
+.section {
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.section-header {
+  padding: 14px 18px;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.section-header .count {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--surface-alt);
+  color: var(--text3);
+}
+
+.section.doctor .section-header { background: var(--doctor-bg); color: #166534; border-color: var(--doctor-border); }
+.section.patient .section-header { background: var(--patient-bg); color: #1e40af; border-color: var(--patient-border); }
+.section.admin .section-header { background: var(--admin-bg); color: #374151; border-color: var(--admin-border); }
+
+.section-body {
+  padding: 8px;
+}
+
+/* ── Page box ── */
+.page-box {
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: default;
+  position: relative;
+}
+
+.page-box:hover {
+  border-color: var(--border);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.page-box:last-child { margin-bottom: 0; }
+
+.page-route {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  color: var(--text1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-component {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.page-file {
+  font-size: 11px;
+  color: var(--text4);
+  margin-top: 3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  transition: background 0.1s, color 0.1s;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.page-file:hover {
+  background: var(--surface);
+  color: var(--text2);
+}
+
+.page-file .copy-icon { opacity: 0; transition: opacity 0.15s; font-size: 11px; }
+.page-file:hover .copy-icon { opacity: 1; }
+
+.copied-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text1);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.copied-toast.show { opacity: 1; }
+
+/* ── Badges ── */
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+
+.badge.live { background: #dcfce7; color: #166534; }
+.badge.mock { background: #fef3c7; color: #92400e; }
+.badge.broken { background: #fecaca; color: #991b1b; }
+
+/* ── Reachability dot ── */
+.reach-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.reach-dot.reachable { background: var(--green); }
+.reach-dot.deep { background: var(--yellow); }
+.reach-dot.orphaned { background: var(--red); }
+
+/* ── Navigation lines ── */
+.nav-links {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-light);
+}
+
+.nav-link {
+  font-size: 11px;
+  color: var(--text4);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 0;
+}
+
+.nav-link .arrow {
+  color: var(--text4);
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.nav-link .target {
+  font-family: "SF Mono", "Fira Code", monospace;
+  color: var(--text3);
+  font-weight: 500;
+}
+
+.nav-link .label {
+  color: var(--text4);
+  font-style: italic;
+  font-size: 10px;
+}
+
+/* ── Group label ── */
+.group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text4);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 10px 12px 4px;
+}
+
+/* ── Footer ── */
+.footer {
+  margin-top: 32px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text4);
+  padding-bottom: 24px;
+}
+
+/* ── Filter toggle ── */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--bg);
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-btn:hover { background: var(--surface); }
+.filter-btn.active { background: var(--text1); color: #fff; border-color: var(--text1); }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Page Map</h1>
+  <p class="subtitle">Visual sitemap of all routes and navigation relationships in the Doctor AI Agent app</p>
+
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar"></div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot reachable"></div> Reachable from main nav</div>
+    <div class="legend-item"><div class="legend-dot deep"></div> Deep link / action only</div>
+    <div class="legend-item"><div class="legend-dot orphaned"></div> Orphaned route</div>
+    <div class="legend-item"><span class="legend-badge live">LIVE</span> Real API</div>
+    <div class="legend-item"><span class="legend-badge mock">MOCK</span> Mock data only</div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-bar">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="reachable">Reachable</button>
+    <button class="filter-btn" data-filter="deep">Deep Link</button>
+    <button class="filter-btn" data-filter="mock">Mock Only</button>
+  </div>
+
+  <!-- Columns -->
+  <div class="columns" id="columns"></div>
+
+  <div class="footer">Generated from App.jsx route analysis</div>
+</div>
+
+<div class="copied-toast" id="copiedToast">Copied to clipboard</div>
+
+<script>
+// ─── Page Data ───────────────────────────────────────────────────────────────
+
+const pages = [
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DOCTOR APP
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    group: "doctor", subgroup: "Bottom Nav Tabs",
+    route: "/doctor", component: "MyAIPage", file: "pages/doctor/MyAIPage.jsx",
+    status: "live", reach: "reachable",
+    links: [
+      { target: "/doctor/settings", label: "settings icon" },
+      { target: "/doctor/settings/knowledge", label: "continue teaching AI" },
+      { target: "/doctor/settings/knowledge/add", label: "import cases" },
+      { target: "/doctor/settings/qr", label: "QR code quick action" },
+      { target: "/doctor/review", label: "pending review quick action" },
+      { target: "/doctor/followup", label: "follow-up quick action" },
+      { target: "/doctor/settings/knowledge/:id", label: "knowledge rule tap" },
+      { target: "/doctor/patients/:id", label: "recent activity tap" },
+    ],
+  },
+  {
+    group: "doctor", subgroup: "Bottom Nav Tabs",
+    route: "/doctor/patients", component: "PatientsPage", file: "pages/doctor/PatientsPage.jsx",
+    status: "live", reach: "reachable",
+    links: [
+      { target: "/doctor/patients/:id", label: "patient row tap" },
+      { target: "/doctor/patients/new", label: "add patient button" },
+      { target: "/doctor/chat", label: "navigate to chat / insert text" },
+    ],
+  },
+  {
+    group: "doctor", subgroup: "Bottom Nav Tabs",
+    route: "/doctor/review", component: "ReviewQueuePage", file: "pages/doctor/ReviewQueuePage.jsx",
+    status: "live", reach: "reachable",
+    links: [
+      { target: "/doctor/review/:recordId", label: "review item tap" },
+    ],
+  },
+  {
+    group: "doctor", subgroup: "Bottom Nav Tabs",
+    route: "/doctor/followup", component: "FollowupPage", file: "pages/doctor/FollowupPage.jsx",
+    status: "live", reach: "reachable",
+    links: [
+      { target: "/doctor/patients/:id", label: "patient row tap" },
+    ],
+  },
+
+  // Doctor subpages
+  {
+    group: "doctor", subgroup: "Subpages",
+    route: "/doctor/chat", component: "ChatPage", file: "pages/doctor/ChatPage.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "/doctor/patients", label: "start patient interview" },
+      { target: "/doctor", label: "back (mobile)" },
+    ],
+  },
+  {
+    group: "doctor", subgroup: "Subpages",
+    route: "/doctor/home", component: "HomePage", file: "pages/doctor/HomePage.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "/doctor/patients", label: "navigate to patients" },
+      { target: "/doctor/tasks", label: "navigate to tasks" },
+      { target: "/doctor/chat", label: "ask AI" },
+    ],
+  },
+  {
+    group: "doctor", subgroup: "Subpages",
+    route: "/doctor/tasks", component: "TasksPage", file: "pages/doctor/TasksPage.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "/doctor/tasks/new", label: "create task" },
+      { target: "/doctor/tasks/review/:id", label: "review task tap" },
+      { target: "/doctor/tasks/task/:id", label: "task detail tap" },
+      { target: "/doctor/review/:recordId", label: "record review tap" },
+    ],
+  },
+  {
+    group: "doctor", subgroup: "Subpages",
+    route: "/doctor/settings", component: "SettingsPage", file: "pages/doctor/SettingsPage.jsx",
+    status: "live", reach: "reachable",
+    links: [
+      { target: "/doctor/settings/template", label: "template subpage" },
+      { target: "/doctor/settings/knowledge", label: "knowledge subpage" },
+      { target: "/doctor/settings/knowledge/new", label: "add knowledge" },
+      { target: "/doctor/settings/knowledge/:id", label: "knowledge detail" },
+      { target: "/doctor/settings/qr", label: "QR code subpage" },
+      { target: "/doctor/settings/about", label: "about subpage" },
+    ],
+  },
+
+  // Doctor drill-down pages
+  {
+    group: "doctor", subgroup: "Drill-Down",
+    route: "/doctor/patients/:id", component: "PatientDetail", file: "pages/doctor/patients/PatientDetail.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "/doctor/patients", label: "back / delete" },
+      { target: "/doctor/review/:recordId", label: "pending review tap" },
+    ],
+  },
+  {
+    group: "doctor", subgroup: "Drill-Down",
+    route: "/doctor/patients/new", component: "InterviewPage", file: "pages/doctor/InterviewPage.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "/doctor/review/:recordId", label: "on interview complete" },
+    ],
+  },
+  {
+    group: "doctor", subgroup: "Drill-Down",
+    route: "/doctor/review/:recordId", component: "ReviewPage", file: "pages/doctor/ReviewPage.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "(back)", label: "navigate(-1)" },
+    ],
+  },
+  {
+    group: "doctor", subgroup: "Drill-Down",
+    route: "/doctor/settings/template", component: "TemplateSubpage", file: "pages/doctor/subpages/TemplateSubpage.jsx",
+    status: "live", reach: "deep",
+    links: [],
+  },
+  {
+    group: "doctor", subgroup: "Drill-Down",
+    route: "/doctor/settings/knowledge", component: "KnowledgeSubpage", file: "pages/doctor/subpages/KnowledgeSubpage.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "/doctor/settings/knowledge/new", label: "add button" },
+      { target: "/doctor/settings/knowledge/:id", label: "item tap" },
+    ],
+  },
+  {
+    group: "doctor", subgroup: "Drill-Down",
+    route: "/doctor/settings/knowledge/new", component: "AddKnowledgeSubpage", file: "pages/doctor/subpages/AddKnowledgeSubpage.jsx",
+    status: "live", reach: "deep",
+    links: [],
+  },
+  {
+    group: "doctor", subgroup: "Drill-Down",
+    route: "/doctor/settings/knowledge/:id", component: "KnowledgeDetailSubpage", file: "pages/doctor/subpages/KnowledgeDetailSubpage.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "/doctor/patients/:id", label: "usage patient tap" },
+    ],
+  },
+  {
+    group: "doctor", subgroup: "Drill-Down",
+    route: "/doctor/settings/qr", component: "SettingsPage (QR view)", file: "pages/doctor/SettingsPage.jsx",
+    status: "live", reach: "deep",
+    links: [],
+  },
+  {
+    group: "doctor", subgroup: "Drill-Down",
+    route: "/doctor/settings/about", component: "AboutSubpage", file: "pages/doctor/subpages/AboutSubpage.jsx",
+    status: "live", reach: "deep",
+    links: [],
+  },
+  {
+    group: "doctor", subgroup: "Drill-Down",
+    route: "/doctor/tasks/new", component: "TasksPage (create dialog)", file: "pages/doctor/TasksPage.jsx",
+    status: "live", reach: "deep",
+    links: [],
+  },
+  {
+    group: "doctor", subgroup: "Drill-Down",
+    route: "/doctor/tasks/review/:id", component: "ReviewSubpage", file: "pages/doctor/subpages/ReviewSubpage.jsx",
+    status: "live", reach: "deep",
+    links: [],
+  },
+  {
+    group: "doctor", subgroup: "Drill-Down",
+    route: "/doctor/tasks/task/:id", component: "TaskDetailSubpage", file: "pages/doctor/subpages/TaskDetailSubpage.jsx",
+    status: "live", reach: "deep",
+    links: [],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PATIENT APP
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    group: "patient", subgroup: "Bottom Nav Tabs",
+    route: "/patient", component: "ChatTab (default)", file: "pages/patient/ChatTab.jsx",
+    status: "live", reach: "reachable",
+    links: [
+      { target: "/patient/records/interview", label: "new interview button" },
+      { target: "/patient/records", label: "view records" },
+      { target: "/patient/records/:id", label: "inline record link tap" },
+      { target: "/patient/tasks", label: "inline task link tap" },
+    ],
+  },
+  {
+    group: "patient", subgroup: "Bottom Nav Tabs",
+    route: "/patient/records", component: "RecordsTab", file: "pages/patient/RecordsTab.jsx",
+    status: "live", reach: "reachable",
+    links: [
+      { target: "/patient/records/interview", label: "new record button" },
+      { target: "/patient/records/:id", label: "record row tap" },
+    ],
+  },
+  {
+    group: "patient", subgroup: "Bottom Nav Tabs",
+    route: "/patient/tasks", component: "TasksTab", file: "pages/patient/TasksTab.jsx",
+    status: "live", reach: "reachable",
+    links: [],
+  },
+  {
+    group: "patient", subgroup: "Bottom Nav Tabs",
+    route: "/patient/profile", component: "ProfileTab", file: "pages/patient/ProfileTab.jsx",
+    status: "live", reach: "reachable",
+    links: [],
+  },
+
+  // Patient subpages
+  {
+    group: "patient", subgroup: "Subpages",
+    route: "/patient/records/interview", component: "InterviewPage", file: "pages/patient/InterviewPage.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "/patient/records", label: "on back / cancel" },
+    ],
+  },
+  {
+    group: "patient", subgroup: "Subpages",
+    route: "/patient/records/:id", component: "RecordDetail", file: "pages/patient/subpages/RecordDetail.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "/patient/records", label: "back button" },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ADMIN / DEBUG
+  // ═══════════════════════════════════════════════════════════════════════════
+  {
+    group: "admin", subgroup: "Auth & Shared",
+    route: "/login", component: "LoginPage", file: "pages/LoginPage.jsx",
+    status: "live", reach: "reachable",
+    links: [
+      { target: "/doctor", label: "doctor login success" },
+      { target: "/patient", label: "patient login success" },
+    ],
+  },
+  {
+    group: "admin", subgroup: "Auth & Shared",
+    route: "/privacy", component: "PrivacyPage", file: "pages/PrivacyPage.jsx",
+    status: "live", reach: "deep",
+    links: [],
+  },
+  {
+    group: "admin", subgroup: "Admin Panel",
+    route: "/admin/login", component: "AdminLoginPage", file: "pages/admin/AdminLoginPage.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "/admin", label: "login success" },
+    ],
+  },
+  {
+    group: "admin", subgroup: "Admin Panel",
+    route: "/admin", component: "AdminPage", file: "pages/admin/AdminPage.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "/admin/:section", label: "sidebar tab navigation" },
+    ],
+  },
+  {
+    group: "admin", subgroup: "Admin Panel",
+    route: "/admin/:section", component: "AdminPage (section)", file: "pages/admin/AdminPage.jsx",
+    status: "live", reach: "deep",
+    links: [],
+    note: "Sections: invite_codes, doctors, patients, medical_records, pending_records, pending_messages, doctor_tasks, audit_log, chat_archive, doctor_contexts, doctor_knowledge_items, patient_labels, patient_label_assignments, medical_record_versions, medical_record_exports, system_prompts, system_prompt_versions, runtime_config, routing_keywords",
+  },
+  {
+    group: "admin", subgroup: "Debug Tools",
+    route: "/debug", component: "DebugPage", file: "pages/admin/DebugPage.jsx",
+    status: "live", reach: "deep",
+    links: [
+      { target: "/debug/:section", label: "sidebar tab navigation" },
+    ],
+  },
+  {
+    group: "admin", subgroup: "Debug Tools",
+    route: "/debug/:section", component: "DebugPage (section)", file: "pages/admin/DebugPage.jsx",
+    status: "live", reach: "deep",
+    links: [],
+    note: "Sections: metrics, observability, logs",
+  },
+  {
+    group: "admin", subgroup: "Debug Showcases",
+    route: "/debug/components", component: "ComponentShowcasePage", file: "pages/admin/ComponentShowcasePage.jsx",
+    status: "mock", reach: "deep",
+    links: [],
+  },
+  {
+    group: "admin", subgroup: "Debug Showcases",
+    route: "/debug/doctor-components", component: "DoctorComponentShowcase", file: "components/doctor/Showcase.jsx",
+    status: "mock", reach: "deep",
+    links: [],
+  },
+  {
+    group: "admin", subgroup: "Mock Apps",
+    route: "/debug/doctor", component: "DoctorPage (MockApi)", file: "pages/doctor/DoctorPage.jsx",
+    status: "mock", reach: "deep",
+    links: [
+      { target: "/debug/doctor/:section", label: "bottom nav tabs" },
+    ],
+    note: "Full doctor app with mock API provider",
+  },
+  {
+    group: "admin", subgroup: "Mock Apps",
+    route: "/debug/patient", component: "PatientPage (MockApi)", file: "pages/patient/PatientPage.jsx",
+    status: "mock", reach: "deep",
+    links: [
+      { target: "/debug/patient/:tab", label: "bottom nav tabs" },
+    ],
+    note: "Full patient app with mock API provider",
+  },
+];
+
+// ─── Render ──────────────────────────────────────────────────────────────────
+
+const FILE_PREFIX = "frontend/web/src/";
+
+function renderStats() {
+  const total = pages.length;
+  const reachable = pages.filter(p => p.reach === "reachable").length;
+  const orphaned = pages.filter(p => p.reach === "orphaned").length;
+  const mockOnly = pages.filter(p => p.status === "mock").length;
+
+  const el = document.getElementById("statsBar");
+  el.innerHTML = `
+    <div class="stat-card"><div class="stat-value">${total}</div><div class="stat-label">Total Pages</div></div>
+    <div class="stat-card green"><div class="stat-value">${reachable}</div><div class="stat-label">Reachable (main nav)</div></div>
+    <div class="stat-card yellow"><div class="stat-value">${total - reachable - orphaned}</div><div class="stat-label">Deep Link Only</div></div>
+    <div class="stat-card red"><div class="stat-value">${orphaned}</div><div class="stat-label">Orphaned</div></div>
+    <div class="stat-card gray"><div class="stat-value">${mockOnly}</div><div class="stat-label">Mock Data Only</div></div>
+  `;
+}
+
+function badgeHTML(status) {
+  if (status === "live") return '<span class="badge live">LIVE</span>';
+  if (status === "mock") return '<span class="badge mock">MOCK</span>';
+  if (status === "broken") return '<span class="badge broken">BROKEN</span>';
+  return "";
+}
+
+function linksHTML(links) {
+  if (!links || links.length === 0) return "";
+  const items = links.map(l =>
+    `<div class="nav-link"><span class="arrow">\u2192</span> <span class="target">${escapeHtml(l.target)}</span> <span class="label">${escapeHtml(l.label)}</span></div>`
+  ).join("");
+  return `<div class="nav-links">${items}</div>`;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function renderPageBox(page) {
+  const fileDisplay = FILE_PREFIX + page.file;
+  const noteHTML = page.note ? `<div style="font-size:10px;color:var(--text4);margin-top:4px;line-height:1.4">${escapeHtml(page.note)}</div>` : "";
+  return `
+    <div class="page-box" data-reach="${page.reach}" data-status="${page.status}" data-group="${page.group}">
+      <div class="page-route">
+        <div class="reach-dot ${page.reach}"></div>
+        <span>${escapeHtml(page.route)}</span>
+        ${badgeHTML(page.status)}
+      </div>
+      <div class="page-component">${escapeHtml(page.component)}</div>
+      <div class="page-file" onclick="copyPath('${escapeHtml(fileDisplay)}')" title="Click to copy file path">
+        ${escapeHtml(page.file)}
+        <span class="copy-icon">\u2398</span>
+      </div>
+      ${noteHTML}
+      ${linksHTML(page.links)}
+    </div>
+  `;
+}
+
+function renderColumns() {
+  const groups = [
+    { key: "doctor", label: "Doctor App", prefix: "/doctor/*", css: "doctor" },
+    { key: "patient", label: "Patient App", prefix: "/patient/*", css: "patient" },
+    { key: "admin", label: "Admin / Debug", prefix: "/admin/*, /debug/*, /login, /privacy", css: "admin" },
+  ];
+
+  const el = document.getElementById("columns");
+  el.innerHTML = groups.map(g => {
+    const groupPages = pages.filter(p => p.group === g.key);
+    const subgroups = [...new Set(groupPages.map(p => p.subgroup))];
+    const body = subgroups.map(sg => {
+      const sgPages = groupPages.filter(p => p.subgroup === sg);
+      return `<div class="group-label">${escapeHtml(sg)}</div>` + sgPages.map(renderPageBox).join("");
+    }).join("");
+
+    return `
+      <div class="section ${g.css}">
+        <div class="section-header">
+          ${escapeHtml(g.label)}
+          <span style="font-size:12px;font-weight:400;color:var(--text4);font-family:monospace">${escapeHtml(g.prefix)}</span>
+          <span class="count">${groupPages.length} pages</span>
+        </div>
+        <div class="section-body">${body}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+// ─── Copy to clipboard ──────────────────────────────────────────────────────
+
+let toastTimeout = null;
+function copyPath(path) {
+  navigator.clipboard.writeText(path).then(() => {
+    const toast = document.getElementById("copiedToast");
+    toast.textContent = "Copied: " + path;
+    toast.classList.add("show");
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => toast.classList.remove("show"), 1500);
+  });
+}
+
+// ─── Filtering ──────────────────────────────────────────────────────────────
+
+function setupFilters() {
+  document.querySelectorAll(".filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const filter = btn.dataset.filter;
+      document.querySelectorAll(".page-box").forEach(box => {
+        const reach = box.dataset.reach;
+        const status = box.dataset.status;
+        let show = true;
+        if (filter === "reachable") show = reach === "reachable";
+        else if (filter === "deep") show = reach === "deep";
+        else if (filter === "mock") show = status === "mock";
+        box.style.display = show ? "" : "none";
+      });
+    });
+  });
+}
+
+// ─── Init ───────────────────────────────────────────────────────────────────
+
+renderStats();
+renderColumns();
+setupFilters();
+</script>
+</body>
+</html>
