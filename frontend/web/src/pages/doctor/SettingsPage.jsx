@@ -20,6 +20,7 @@ import SheetDialog from "../../components/SheetDialog";
 import SubpageHeader from "../../components/SubpageHeader";
 import { QRCodeSVG } from "qrcode.react";
 import KnowledgeSubpage from "./subpages/KnowledgeSubpage";
+import KnowledgeDetailSubpage from "./subpages/KnowledgeDetailSubpage";
 import AboutSubpage from "./subpages/AboutSubpage";
 import TemplateSubpage from "./subpages/TemplateSubpage";
 import AddKnowledgeSubpage from "./subpages/AddKnowledgeSubpage";
@@ -151,6 +152,19 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
       .finally(() => setLoading(false));
   }, [doctorId]);
   useEffect(() => { load(); }, [load]);
+
+  // URL-driven: detail view for specific knowledge item
+  if (urlSubId && urlSubId !== "new" && urlSubId !== "add") {
+    return (
+      <KnowledgeDetailSubpage
+        doctorId={doctorId}
+        itemId={parseInt(urlSubId)}
+        onBack={onBack}
+        onDelete={async (id) => { await deleteKnowledgeItem(doctorId, id); navigate(-1); load(); }}
+        isMobile={isMobile}
+      />
+    );
+  }
 
   // URL-driven: "new" subpage for adding
   if (urlSubId === "new" || urlSubId === "add") {

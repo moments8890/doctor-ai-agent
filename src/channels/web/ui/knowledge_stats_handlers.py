@@ -26,6 +26,45 @@ async def knowledge_stats(
     return {"stats": stats}
 
 
+@router.get("/api/manage/knowledge/{item_id}/usage")
+async def knowledge_item_usage(
+    item_id: int,
+    doctor_id: str = Query(...),
+    limit: int = Query(20, ge=1, le=100),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Return usage history for a single knowledge item."""
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+    async with AsyncSessionLocal() as session:
+        from sqlalchemy import desc, select
+
+        from db.models.knowledge_usage import KnowledgeUsageLog
+
+        rows = (
+            await session.execute(
+                select(KnowledgeUsageLog)
+                .where(
+                    KnowledgeUsageLog.doctor_id == resolved,
+                    KnowledgeUsageLog.knowledge_item_id == item_id,
+                )
+                .order_by(desc(KnowledgeUsageLog.created_at))
+                .limit(limit)
+            )
+        ).scalars().all()
+        return {
+            "usage": [
+                {
+                    "id": r.id,
+                    "usage_context": r.usage_context,
+                    "patient_id": r.patient_id,
+                    "record_id": r.record_id,
+                    "created_at": r.created_at.isoformat() if r.created_at else None,
+                }
+                for r in rows
+            ]
+        }
+
+
 @router.get("/api/manage/knowledge/activity")
 async def knowledge_activity(
     doctor_id: str = Query(...),

@@ -493,3 +493,13 @@ export async function getDraftConfirmation(draftId) {
   };
 }
 export async function createRuleFromEdit() { return {}; }
+
+export async function fetchKnowledgeUsageHistory(doctorId, itemId) {
+  return {
+    usage: [
+      { id: 1, type: "diagnosis", patient_name: "王建国", context: "诊断审核", detail: "鉴别诊断：术后迟发性血肿", date: "2026-03-27", patient_id: "1", record_id: 101 },
+      { id: 2, type: "followup", patient_name: "刘明", context: "随访回复", detail: "按此规则起草了回复", date: "2026-03-26", patient_id: "3" },
+      { id: 3, type: "diagnosis", patient_name: "李复诊", context: "诊断审核", detail: "检查建议：急查头颅CT", date: "2026-03-25", patient_id: "2", record_id: 102 },
+    ],
+  };
+}

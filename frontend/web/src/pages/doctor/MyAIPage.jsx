@@ -274,7 +274,7 @@ export default function MyAIPage({ doctorId }) {
           {topRules.map((rule, idx) => (
             <Box
               key={rule.id || idx}
-              onClick={() => navigate("/doctor/settings/knowledge")}
+              onClick={() => navigate(`/doctor/settings/knowledge/${rule.id}`)}
               sx={{
                 display: "flex", alignItems: "flex-start", gap: 1.2,
                 px: 2, py: 1.5, cursor: "pointer",

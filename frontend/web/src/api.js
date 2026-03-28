@@ -1026,6 +1026,10 @@ export async function addSuggestion(recordId, doctorId, section, content, detail
 // Knowledge stats, AI activity, drafts
 // ---------------------------------------------------------------------------
 
+export async function fetchKnowledgeUsageHistory(doctorId, itemId) {
+  return request(`/api/manage/knowledge/${itemId}/usage?doctor_id=${encodeURIComponent(doctorId)}`);
+}
+
 export async function fetchKnowledgeStats(doctorId, days = 7) {
   return request(`/api/manage/knowledge/stats?doctor_id=${encodeURIComponent(doctorId)}&days=${days}`);
 }
