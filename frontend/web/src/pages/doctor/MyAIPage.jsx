@@ -135,9 +135,9 @@ export default function MyAIPage({ doctorId }) {
   const recentActivity = Array.isArray(activity) ? activity.slice(0, 2) : (activity?.items || []).slice(0, 2);
   const latestActivity = Array.isArray(activity) ? activity[0] : (activity?.items || [])[0];
 
-  const weekCitations = knowledgeStats?.citations_7d ?? knowledgeStats?.total_citations ?? "—";
-  const pendingConfirm = draftSummary?.pending_count ?? draftSummary?.pending ?? "—";
-  const todayProcessed = knowledgeStats?.today_processed ?? draftSummary?.today_processed ?? "—";
+  const weekCitations = loading ? null : (knowledgeStats?.citations_7d ?? knowledgeStats?.total_citations ?? 0);
+  const pendingConfirm = loading ? null : (draftSummary?.pending_count ?? draftSummary?.pending ?? 0);
+  const todayProcessed = loading ? null : (knowledgeStats?.today_processed ?? draftSummary?.today_processed ?? 0);
 
   // Badge counts for quick actions
   const reviewBadge = draftSummary?.pending_count ?? draftSummary?.pending ?? 0;
