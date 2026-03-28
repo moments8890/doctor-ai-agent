@@ -216,7 +216,7 @@ export default function MyAIPage({ doctorId }) {
         </Box>
 
         {/* ── B. Quick Actions ───────────────────────────────────── */}
-        <SectionLabel sx={{ pt: 2 }}>快捷入口</SectionLabel>
+        <SectionLabel>快捷入口</SectionLabel>
         <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
           <ListCard
             avatar={<QuickActionIcon bg={COLOR.primary}><QrCode2OutlinedIcon sx={{ fontSize: 18, color: "#fff" }} /></QuickActionIcon>}
@@ -245,10 +245,10 @@ export default function MyAIPage({ doctorId }) {
         </Box>
 
         {/* ── C. 我的方法 (Knowledge Preview) ─────────────────── */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, pt: 2, pb: 0.5 }}>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, fontWeight: 600, letterSpacing: 0.5 }}>
-            {knowledgeCount === 0 ? "我的方法 · 快速入门" : "我的方法 · 最近活跃"}
-          </Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
+          <SectionLabel>
+            {knowledgeCount === 0 ? "AI知识库 · 快速入门" : "AI知识库 · 最近活跃"}
+          </SectionLabel>
           {knowledgeCount > 0 && (
             <Typography
               onClick={() => navigate("/doctor/settings/knowledge")}
@@ -318,10 +318,8 @@ export default function MyAIPage({ doctorId }) {
         </Box>
 
         {/* ── D. 最近由AI处理 ────────────────────────────────── */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 1.5, pt: 2, pb: 0.5 }}>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, fontWeight: 600, letterSpacing: 0.5 }}>
-            最近由AI处理
-          </Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
+          <SectionLabel>最近由AI处理</SectionLabel>
           <Typography
             onClick={() => navigate("/doctor/tasks")}
             sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
@@ -356,7 +354,7 @@ export default function MyAIPage({ doctorId }) {
                     : null
               }
               onClick={() => {
-                if (item.type === "draft") navigate("/doctor/tasks?tab=messages");
+                if (item.type === "draft" || item.type === "citation") navigate("/doctor/tasks?tab=messages");
                 else if (item.type === "diagnosis" && item.record_id) navigate(`/doctor/review/${item.record_id}`);
                 else if (item.type === "task") navigate("/doctor/tasks?tab=followups");
                 else if (item.patient_id) navigate(`/doctor/patients/${item.patient_id}`);
