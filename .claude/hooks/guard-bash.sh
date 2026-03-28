@@ -6,6 +6,11 @@
 INPUT=$(cat)
 CMD=$(echo "$INPUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('tool_input',{}).get('command',''))" 2>/dev/null)
 
+# Skip checks for git commit/log/diff — message text is not a command
+if echo "$CMD" | grep -qE '^git (commit|log|diff|show|tag|blame)'; then
+  exit 0
+fi
+
 # 1. Block alembic (AGENTS.md: "No Alembic migrations")
 if echo "$CMD" | grep -qiE '\balembic\b'; then
   echo "BLOCKED: alembic is not allowed (AGENTS.md: No Alembic migrations until production launch)" >&2
