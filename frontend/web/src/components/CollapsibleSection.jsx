@@ -16,8 +16,11 @@ export default function CollapsibleSection({ title, count, defaultOpen = true, c
         onClick={() => setOpen(!open)}
         sx={{
           display: "flex", alignItems: "center",
-          px: 1.5, pt: 1, pb: 1,
+          px: 1.5, py: 1.2,
+          bgcolor: open ? "transparent" : COLOR.white,
+          borderBottom: open ? "none" : `0.5px solid ${COLOR.borderLight}`,
           cursor: "pointer", userSelect: "none",
+          transition: "background-color 0.15s ease",
           "&:active": { opacity: 0.6 },
         }}
       >
