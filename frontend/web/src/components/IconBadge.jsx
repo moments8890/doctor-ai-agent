@@ -10,16 +10,19 @@
  */
 import { Box } from "@mui/material";
 
-export default function IconBadge({ config, size = 36, radius = 6, sx }) {
+export default function IconBadge({ config, size = 36, radius = 6, solid = false, sx }) {
   if (!config) return null;
-  const { icon: Icon, bg, color = "#fff", iconSize } = config;
+  const { icon: Icon, bg, color, iconSize } = config;
+  // Default: tinted (light bg + colored icon). solid: colored bg + white icon.
+  const bgColor = solid ? bg : (bg + "18");
+  const iconColor = solid ? (color || "#fff") : (color || bg);
   return (
     <Box sx={{
       width: size, height: size, borderRadius: `${radius}px`, flexShrink: 0,
-      bgcolor: bg, display: "flex", alignItems: "center", justifyContent: "center",
+      bgcolor: bgColor, display: "flex", alignItems: "center", justifyContent: "center",
       ...sx,
     }}>
-      <Icon sx={{ fontSize: iconSize || size * 0.5, color }} />
+      <Icon sx={{ fontSize: iconSize || size * 0.5, color: iconColor }} />
     </Box>
   );
 }

@@ -7,12 +7,10 @@
  * @see /doctor/settings/knowledge/:id
  */
 import { useCallback, useEffect, useState } from "react";
-import { Avatar, Box, Button, TextField, Typography } from "@mui/material";
-import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import { Box, Button, TextField, Typography } from "@mui/material";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import { TYPE, COLOR } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import SectionLabel from "../../../components/SectionLabel";
@@ -20,34 +18,24 @@ import ListCard from "../../../components/ListCard";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import SheetDialog from "../../../components/SheetDialog";
 import AppButton from "../../../components/AppButton";
+import IconBadge from "../../../components/IconBadge";
 import { useApi } from "../../../api/ApiContext";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
+import { ICON_BADGES } from "../constants";
 
 /* ── Source config (shared with KnowledgeSubpage) ── */
 
-const SOURCE_CONFIG = {
-  doctor: {
-    label: "手动添加",
-    icon: <EditNoteOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} />,
-    bg: COLOR.primary,
-  },
-  agent_auto: {
-    label: "AI生成",
-    icon: <SmartToyOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} />,
-    bg: COLOR.text3,
-  },
+const SOURCE_BADGE = {
+  doctor:     { badge: ICON_BADGES.kb_doctor, label: "手动添加" },
+  agent_auto: { badge: ICON_BADGES.kb_ai,     label: "AI生成" },
 };
 
 function getSourceConfig(source) {
-  if (!source) return SOURCE_CONFIG.doctor;
+  if (!source) return SOURCE_BADGE.doctor;
   if (source.startsWith("upload:")) {
-    return {
-      label: source.slice("upload:".length),
-      icon: <DescriptionOutlinedIcon sx={{ fontSize: 18, color: "#fff" }} />,
-      bg: COLOR.success,
-    };
+    return { badge: ICON_BADGES.kb_upload, label: source.slice("upload:".length) };
   }
-  return SOURCE_CONFIG[source] || SOURCE_CONFIG.doctor;
+  return SOURCE_BADGE[source] || SOURCE_BADGE.doctor;
 }
 
 /* ── Helpers ── */
@@ -184,9 +172,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
             {/* Title + source avatar */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, pt: 2, pb: 1 }}>
               {cfg && (
-                <Avatar sx={{ width: 36, height: 36, bgcolor: cfg.bg, flexShrink: 0 }}>
-                  {cfg.icon}
-                </Avatar>
+                <IconBadge config={cfg.badge} solid />
               )}
               <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: TYPE.heading.fontWeight, color: COLOR.text1, flex: 1 }}>
                 {title}

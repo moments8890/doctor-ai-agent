@@ -11,12 +11,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Box, CircularProgress, Snackbar, Typography } from "@mui/material";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
-import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
-import BiotechOutlinedIcon from "@mui/icons-material/BiotechOutlined";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
-import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
-import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
@@ -25,20 +21,16 @@ import PatientAvatar from "../../components/PatientAvatar";
 import SectionLabel from "../../components/SectionLabel";
 import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
+import IconBadge from "../../components/IconBadge";
 import { TYPE, COLOR } from "../../theme";
+import { ICON_BADGES } from "./constants";
 
-// ── Task type icon/color mapping ──
-const TASK_TYPE_ICON = {
-  follow_up: EventRepeatOutlinedIcon,
-  medication: MedicationOutlinedIcon,
-  checkup: BiotechOutlinedIcon,
-  general: AssignmentOutlinedIcon,
-};
-const TASK_TYPE_COLOR = {
-  follow_up: "#07C160",
-  medication: "#5b9bd5",
-  checkup: "#e8833a",
-  general: "#8e44ad",
+// ── Task type badge mapping ──
+const TASK_TYPE_BADGE = {
+  follow_up: ICON_BADGES.task_follow_up,
+  medication: ICON_BADGES.task_medication,
+  checkup: ICON_BADGES.task_checkup,
+  general: ICON_BADGES.task_general,
 };
 
 // MessageItem moved to components/doctor/MessageItem.jsx
@@ -90,12 +82,17 @@ function _MessageItemRemoved_DEAD({ item, onSend, onEdit, onTeachPrompt }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const result = await (api.editDraft || (() => Promise.resolve({})))(item.id, null, editText);
-      item.draft_text = editText;
-      setEditing(false);
-      // If backend signals teach_prompt, surface it to the page
-      if (result?.teach_prompt && result?.edit_id && onTeachPrompt) {
-        onTeachPrompt(result.edit_id);
+      if (item.status === "no_draft") {
+        // Undrafted message: send as direct reply
+        await (api.replyToPatient || (() => Promise.resolve({})))(item.patient_id, editText);
+        if (onSend) onSend(item);
+      } else {
+        const result = await (api.editDraft || (() => Promise.resolve({})))(item.id, null, editText);
+        item.draft_text = editText;
+        setEditing(false);
+        if (result?.teach_prompt && result?.edit_id && onTeachPrompt) {
+          onTeachPrompt(result.edit_id);
+        }
       }
     } catch {
       // silently fail in mock
@@ -391,8 +388,7 @@ function ScheduledRow({ item }) {
 // ── Task reminder row ──
 function TaskRow({ item }) {
   const navigate = useAppNavigate();
-  const TaskIcon = TASK_TYPE_ICON[item.task_type] || AssignmentOutlinedIcon;
-  const iconColor = TASK_TYPE_COLOR[item.task_type] || "#8e44ad";
+  const badge = TASK_TYPE_BADGE[item.task_type] || ICON_BADGES.task_general;
   const dueLabel = item.due_at
     ? item.due_at.replace("T", " ").slice(0, 10)
     : "";
@@ -407,12 +403,7 @@ function TaskRow({ item }) {
         cursor: item.patient_id ? "pointer" : "default",
         "&:active": item.patient_id ? { bgcolor: "#f5f5f5" } : {},
       }}>
-      <Box sx={{
-        width: 28, height: 28, borderRadius: "4px", bgcolor: iconColor,
-        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-      }}>
-        <TaskIcon sx={{ fontSize: 16, color: "#fff" }} />
-      </Box>
+      <IconBadge config={badge} size={28} radius={4} solid />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>
           {item.title || "任务"}
@@ -732,19 +723,10 @@ export default function TaskPage({ doctorId, urlSubpage }) {
           </Box>
         )}
 
-        {/* Empty state */}
-        {isEmpty && (
-          <EmptyState
-            icon={<MailOutlineIcon />}
-            title="暂无随访消息"
-            subtitle="患者消息会自动出现在这里"
-          />
-        )}
-
         {/* Content */}
-        {!loading && !error && !isEmpty && (
+        {!loading && !error && (
           <>
-            {/* ── Filter stat bar ── */}
+            {/* ── Filter stat bar — always visible ── */}
             <Box sx={{
               display: "flex",
               bgcolor: COLOR.white,
@@ -813,6 +795,15 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                   {recentlySent.map((s) => <SentRow key={s.id} item={s} />)}
                 </Box>
               </>
+            )}
+
+            {/* Empty state for active tab */}
+            {isEmpty && (
+              <EmptyState
+                icon={<MailOutlineIcon />}
+                title="暂无待处理项目"
+                subtitle="患者消息会自动出现在这里"
+              />
             )}
           </>
         )}

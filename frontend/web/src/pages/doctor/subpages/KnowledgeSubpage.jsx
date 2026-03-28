@@ -8,13 +8,14 @@
  */
 import { Box, Typography } from "@mui/material";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import { TYPE, ICON, COLOR } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import ListCard from "../../../components/ListCard";
 import EmptyState from "../../../components/EmptyState";
 import AppButton from "../../../components/AppButton";
+import IconBadge from "../../../components/IconBadge";
+import { ICON_BADGES } from "../constants";
 
 /* ── Helpers ── */
 
@@ -225,7 +226,7 @@ export default function KnowledgeSubpage({
           {onAdd && (
             <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}`, mb: 0.5 }}>
               <ListCard
-                avatar={<AddCircleOutlineIcon sx={{ fontSize: 22, color: COLOR.primary }} />}
+                avatar={<IconBadge config={ICON_BADGES.kb_add} size={32} />}
                 title="添加知识"
                 subtitle="上传文件、粘贴网址或手动输入"
                 chevron
