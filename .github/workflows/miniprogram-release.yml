@@ -1,0 +1,56 @@
+name: WeChat Mini Program Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  upload-miniprogram:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Build the React SPA that gets loaded in the WebView
+      - name: Build web frontend
+        working-directory: frontend/web
+        run: |
+          npm ci
+          npm run build
+
+      # Install WeChat miniprogram-ci
+      - name: Install miniprogram-ci
+        run: npm install -g miniprogram-ci
+
+      # Write upload key from secret
+      - name: Write upload key
+        run: echo "${{ secrets.MINIPROGRAM_UPLOAD_KEY }}" > /tmp/mp-upload-key.key
+
+      # Extract version from tag (v1.2.0-xxx → 1.2.0)
+      - name: Extract version
+        id: version
+        run: echo "version=$(echo ${{ github.ref_name }} | sed 's/^v//' | sed 's/-.*//')" >> "$GITHUB_OUTPUT"
+
+      # Upload to WeChat MP platform
+      - name: Upload miniprogram
+        working-directory: frontend/miniprogram
+        run: |
+          miniprogram-ci upload \
+            --pp ./ \
+            --pkp /tmp/mp-upload-key.key \
+            --appid wx9667f8091b342fb7 \
+            --uv "${{ steps.version.outputs.version }}" \
+            --desc "Release ${{ github.ref_name }}" \
+            -r 1 \
+            --enable-es6 true \
+            --enable-es7 true \
+            --enable-minify true
+
+      - name: Cleanup key
+        if: always()
+        run: rm -f /tmp/mp-upload-key.key
