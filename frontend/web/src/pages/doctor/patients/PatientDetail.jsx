@@ -1,7 +1,7 @@
 /**
  * 患者详情面板：可折叠个人信息、带计数的病历标签页、置顶操作栏。
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert, Box, Button, CircularProgress, Stack, Typography,
 } from "@mui/material";
@@ -16,7 +16,8 @@ import { generateQRToken } from "../../../api";
 import QRDialog from "../../../components/QRDialog";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { RECORD_TAB_GROUPS } from "../constants";
-import RecordCard from "../../../components/RecordCard";
+import RecordCard, { formatRelativeDate } from "../../../components/RecordCard";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExportSelectorDialog from "../../../components/ExportSelectorDialog";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import { TYPE, ICON, COLOR } from "../../../theme";
@@ -107,16 +108,24 @@ function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExport
 
 /* ── CollapsibleProfile ── */
 
+function formatActivityDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function CollapsibleProfile({ patient, age, records, expanded, onToggle, exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen, onQRCode }) {
   const genderStr = patient.gender ? { male: "男", female: "女" }[patient.gender] || patient.gender : null;
   const stats = computeRecordStats(records);
+  const activityStr = formatActivityDate(patient.last_activity_at) || stats.lastVisitStr;
 
   if (!expanded) {
     const summaryParts = [
       genderStr,
       age ? `${age}岁` : null,
       `门诊${stats.visitCount}`,
-      `最近${stats.lastVisitStr}`,
+      `最近${activityStr}`,
     ].filter(Boolean).join(" · ");
 
     return (
@@ -157,7 +166,7 @@ function CollapsibleProfile({ patient, age, records, expanded, onToggle, exporti
           { label: "门诊", value: stats.visitCount },
           { label: "检验", value: stats.labCount },
           { label: "影像", value: stats.imagingCount },
-          { label: "最近就诊", value: stats.lastVisitStr },
+          { label: "最近活动", value: activityStr },
         ].map((s) => (
           <Typography key={s.label} sx={{ fontSize: TYPE.caption.fontSize, color: "#666" }}>
             {s.label} <Box component="span" sx={{ fontWeight: 600, color: "#333" }}>{s.value}</Box>
@@ -240,7 +249,7 @@ function PendingReviewRow({ record, onClick }) {
     visit: "门诊记录", dictation: "语音记录", import: "导入记录", interview_summary: "预问诊记录",
     lab: "检验", imaging: "影像", surgery: "手术", referral: "转诊",
   };
-  const date = record.created_at ? record.created_at.slice(0, 10) : "—";
+  const date = formatRelativeDate(record.created_at);
   const preview = record.structured?.chief_complaint || record.content || "（无记录内容）";
   return (
     <Box onClick={onClick} sx={{ borderBottom: "1px solid #f2f2f2", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
@@ -257,8 +266,13 @@ function PendingReviewRow({ record, onClick }) {
               <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.warning, bgcolor: COLOR.warningLight, px: 0.8, py: 0.1, borderRadius: 0.5, fontWeight: 500 }}>
                 待审核
               </Typography>
+              {(Array.isArray(record.tags) ? record.tags : []).map((tag, i) => (
+                <Typography key={i} sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, bgcolor: COLOR.surfaceAlt, px: 0.6, borderRadius: 0.5 }}>
+                  {tag}
+                </Typography>
+              ))}
             </Box>
-            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#bbb", flexShrink: 0, fontFamily: "monospace" }}>{date}</Typography>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#bbb", flexShrink: 0 }}>{date}</Typography>
           </Box>
           <Typography sx={{
             fontSize: TYPE.secondary.fontSize, color: preview !== "（无记录内容）" ? "text.primary" : "#bbb",
@@ -269,7 +283,7 @@ function PendingReviewRow({ record, onClick }) {
           </Typography>
         </Box>
         <Box sx={{ ml: 1, flexShrink: 0, display: "flex", alignItems: "center", mt: 0.2 }}>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.warning }}>→</Typography>
+          <ExpandMoreIcon sx={{ fontSize: ICON.md, color: COLOR.warning }} />
         </Box>
       </Box>
     </Box>
@@ -330,15 +344,177 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
   return { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, load, handleDelete, handleExportPdf, handleExportReport };
 }
 
+/* ── DraftReplyCard ── */
+
+function DraftReplyCard({ draft, doctorId, onSent }) {
+  const { editDraft, sendDraft } = useApi();
+  const navigate = useAppNavigate();
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(draft.draft_text || "");
+  const [saving, setSaving] = useState(false);
+  const [sendingDraft, setSendingDraft] = useState(false);
+  const textareaRef = useRef(null);
+
+  const handleStartEdit = () => {
+    setEditText(draft.draft_text || "");
+    setEditing(true);
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
+      }
+    }, 0);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await editDraft(draft.id, doctorId, editText);
+      draft.draft_text = editText;
+      setEditing(false);
+    } catch {} finally { setSaving(false); }
+  };
+
+  const handleCancel = () => {
+    setEditText(draft.draft_text || "");
+    setEditing(false);
+  };
+
+  const handleSend = async () => {
+    setSendingDraft(true);
+    try {
+      await sendDraft(draft.id, doctorId);
+      onSent?.(draft.id);
+    } catch {} finally { setSendingDraft(false); }
+  };
+
+  // No-draft notice (AI couldn't generate)
+  if (!draft.draft_text && draft.status === "no_draft") {
+    return (
+      <Box sx={{ mx: 2, mb: 1.2 }}>
+        {/* Patient message context */}
+        {draft.patient_message && (
+          <Box sx={{ bgcolor: COLOR.surface, borderRadius: "6px", px: 1.5, py: 1, mb: 0.8, fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5 }}>
+            {draft.patient_message}
+          </Box>
+        )}
+        <Box sx={{ bgcolor: "#fff8e1", border: "0.5px solid #ffcc02", borderRadius: "6px", px: 1.5, py: 1.2 }}>
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#b28704", fontWeight: 500 }}>
+            AI未找到可引用的知识条目，无法起草回复
+          </Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.3 }}>
+            请手动回复此消息，或添加相关知识条目后重新生成
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ mx: 2, mb: 1.2 }}>
+      {/* Patient message context */}
+      {draft.patient_message && (
+        <Box sx={{ bgcolor: COLOR.surface, borderRadius: "6px", px: 1.5, py: 1, mb: 0.8, fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5 }}>
+          {draft.patient_message}
+        </Box>
+      )}
+
+      {/* AI draft card */}
+      <Box sx={{ bgcolor: COLOR.white, border: `0.5px solid ${COLOR.border}`, borderRadius: "6px", px: 1.5, py: 1.2 }}>
+        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>
+          AI按你的话术起草
+        </Typography>
+
+        {editing ? (
+          <Box
+            component="textarea"
+            ref={textareaRef}
+            value={editText}
+            onChange={(e) => {
+              setEditText(e.target.value);
+              const ta = e.target;
+              ta.style.height = "auto";
+              ta.style.height = ta.scrollHeight + "px";
+            }}
+            onFocus={(e) => {
+              const ta = e.target;
+              ta.style.height = "auto";
+              ta.style.height = ta.scrollHeight + "px";
+            }}
+            sx={{
+              width: "100%", minHeight: 100,
+              border: `1px solid ${COLOR.border}`, borderRadius: "4px",
+              p: 1, fontSize: TYPE.secondary.fontSize, color: COLOR.text2,
+              lineHeight: 1.5, resize: "vertical", fontFamily: "inherit",
+              outline: "none", overflow: "hidden",
+              "&:focus": { borderColor: COLOR.primary },
+            }}
+          />
+        ) : (
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+            {draft.draft_text}
+          </Typography>
+        )}
+
+        {/* Citation tags */}
+        {draft.cited_rules?.length > 0 && !editing && (
+          <Box sx={{ mt: 0.8, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            {draft.cited_rules.map((rule) => (
+              <Box key={rule.id} component="span"
+                onClick={() => navigate(`/doctor/settings/knowledge/${rule.id}`)}
+                sx={{
+                  fontSize: 11, color: COLOR.primary, bgcolor: "#e8f5e9",
+                  px: 1, py: 0.3, borderRadius: "4px", cursor: "pointer",
+                  "&:hover": { bgcolor: "#c8e6c9" },
+                }}>
+                引用: {rule.title}
+              </Box>
+            ))}
+          </Box>
+        )}
+
+        {/* Action row */}
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 0.8 }}>
+          {editing ? (
+            <>
+              <Typography onClick={handleCancel}
+                sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer", userSelect: "none", "&:active": { opacity: 0.5 } }}>
+                取消
+              </Typography>
+              <Typography onClick={!saving ? handleSave : undefined}
+                sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: saving ? "default" : "pointer", userSelect: "none", opacity: saving ? 0.5 : 1, "&:active": saving ? {} : { opacity: 0.5 } }}>
+                {saving ? "保存中..." : "保存"}
+              </Typography>
+            </>
+          ) : (
+            <>
+              <Typography onClick={handleStartEdit}
+                sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.accent, cursor: "pointer", userSelect: "none", "&:active": { opacity: 0.5 } }}>
+                修改
+              </Typography>
+              <Typography onClick={!sendingDraft ? handleSend : undefined}
+                sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: sendingDraft ? "default" : "pointer", userSelect: "none", opacity: sendingDraft ? 0.5 : 1, "&:active": sendingDraft ? {} : { opacity: 0.5 } }}>
+                {sendingDraft ? "发送中..." : "发送 ›"}
+              </Typography>
+            </>
+          )}
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
 /* ── PatientChatPage ── */
 
 function PatientChatPage({ patientId, doctorId }) {
-  const { getPatientChat, replyToPatient } = useApi();
+  const { getPatientChat, replyToPatient, fetchDrafts } = useApi();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
+  const [drafts, setDrafts] = useState([]);
+  const [draftsLoading, setDraftsLoading] = useState(false);
 
   useEffect(() => {
     if (!patientId) return;
@@ -348,6 +524,21 @@ function PatientChatPage({ patientId, doctorId }) {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [patientId]);
+
+  // Fetch drafts for this patient
+  useEffect(() => {
+    if (!patientId || !doctorId) return;
+    setDraftsLoading(true);
+    fetchDrafts(doctorId)
+      .then(data => {
+        // API returns { pending_messages: [...] } or a flat array
+        const allDrafts = Array.isArray(data) ? data : (data?.pending_messages || []);
+        const patientDrafts = allDrafts.filter(d => d.patient_id === patientId);
+        setDrafts(patientDrafts);
+      })
+      .catch(() => setDrafts([]))
+      .finally(() => setDraftsLoading(false));
+  }, [patientId, doctorId]);
 
   async function handleReply() {
     const text = replyText.trim();
@@ -363,9 +554,18 @@ function PatientChatPage({ patientId, doctorId }) {
     finally { setSending(false); }
   }
 
+  function handleDraftSent(draftId) {
+    setDrafts(prev => prev.filter(d => d.id !== draftId));
+    // Refresh messages to show the sent reply
+    getPatientChat(patientId)
+      .then(data => setMessages(data.messages || []))
+      .catch(() => {});
+  }
+
   // Show only escalated/unhandled messages in triage summary
   const escalated = messages.filter(m => m.source === "patient" || (m.ai_handled === false));
   const hasMessages = messages.length > 0;
+  const hasDrafts = drafts.length > 0;
 
   return (
     <Box sx={{ bgcolor: "#fff", mb: 0.8 }}>
@@ -373,16 +573,16 @@ function PatientChatPage({ patientId, doctorId }) {
         <Typography sx={{ fontWeight: 600, fontSize: TYPE.heading.fontSize, color: COLOR.text2 }}>
           患者消息 {hasMessages && <Box component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 400 }}>({messages.length})</Box>}
         </Typography>
-        {loading && <CircularProgress size={14} sx={{ color: COLOR.success }} />}
+        {(loading || draftsLoading) && <CircularProgress size={14} sx={{ color: COLOR.success }} />}
       </Box>
 
-      {!loading && !hasMessages && (
+      {!loading && !hasMessages && !hasDrafts && (
         <Box sx={{ px: 2, pb: 1.5 }}>
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>暂无患者消息</Typography>
         </Box>
       )}
 
-      {!loading && hasMessages && (
+      {!loading && (hasMessages || hasDrafts) && (
         <>
           {/* Triage summary — escalated messages only */}
           {!expanded && escalated.length > 0 && (
@@ -406,13 +606,24 @@ function PatientChatPage({ patientId, doctorId }) {
             </Box>
           )}
 
+          {/* Draft reply cards — shown between triage summary and expand toggle when collapsed */}
+          {!expanded && hasDrafts && (
+            <Box sx={{ py: 0.5 }}>
+              {drafts.map(d => (
+                <DraftReplyCard key={d.id} draft={d} doctorId={doctorId} onSent={handleDraftSent} />
+              ))}
+            </Box>
+          )}
+
           {/* Expand toggle */}
-          <Box onClick={() => setExpanded(v => !v)}
-            sx={{ px: 2, py: 0.8, cursor: "pointer", borderTop: "0.5px solid #f0f0f0" }}>
-            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.success, textAlign: "center" }}>
-              {expanded ? "收起对话 ▴" : `查看完整对话 (${messages.length}) ▾`}
-            </Typography>
-          </Box>
+          {hasMessages && (
+            <Box onClick={() => setExpanded(v => !v)}
+              sx={{ px: 2, py: 0.8, cursor: "pointer", borderTop: "0.5px solid #f0f0f0" }}>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.success, textAlign: "center" }}>
+                {expanded ? "收起对话 ▴" : `查看完整对话 (${messages.length}) ▾`}
+              </Typography>
+            </Box>
+          )}
 
           {/* Full thread */}
           {expanded && (
@@ -434,6 +645,15 @@ function PatientChatPage({ patientId, doctorId }) {
                     </Typography>
                   </Box>
                 </Box>
+              ))}
+            </Box>
+          )}
+
+          {/* Draft reply cards — shown after messages when expanded */}
+          {expanded && hasDrafts && (
+            <Box sx={{ py: 0.5, borderTop: "0.5px solid #f0f0f0" }}>
+              {drafts.map(d => (
+                <DraftReplyCard key={d.id} draft={d} doctorId={doctorId} onSent={handleDraftSent} />
               ))}
             </Box>
           )}
@@ -498,7 +718,14 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
 
   /* Filter records by active tab */
   const activeGroup = RECORD_TAB_GROUPS.find((g) => g.key === activeTab);
-  const filteredRecords = activeGroup?.types ? records.filter((r) => activeGroup.types.includes(r.record_type)) : records;
+  // Sort: actionable items first (pending_review, interview_active), then newest first
+  const sortedRecords = [...records].sort((a, b) => {
+    const actionable = (r) => r.status === "pending_review" || r.status === "interview_active" ? 1 : 0;
+    const diff = actionable(b) - actionable(a);
+    if (diff !== 0) return diff;
+    return (b.created_at || "").localeCompare(a.created_at || "");
+  });
+  const filteredRecords = activeGroup?.types ? sortedRecords.filter((r) => activeGroup.types.includes(r.record_type)) : sortedRecords;
 
   return (
     <Box sx={{ overflowY: "auto", height: "100%", bgcolor: "#ededed" }}>

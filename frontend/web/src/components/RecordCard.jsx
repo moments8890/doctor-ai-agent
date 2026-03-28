@@ -46,8 +46,22 @@ function StructuredFields({ structured }) {
   );
 }
 
+export function formatRelativeDate(dateStr) {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round((today - target) / 86400000);
+  if (diffDays === 0) return "今天";
+  if (diffDays === 1) return "昨天";
+  if (diffDays === 2) return "前天";
+  if (d.getFullYear() === now.getFullYear()) return `${d.getMonth() + 1}月${d.getDate()}日`;
+  return dateStr.slice(0, 10);
+}
+
 function RecordCardHeader({ current, expanded, dotColor }) {
-  const date = current.created_at ? current.created_at.slice(0, 10) : "—";
+  const date = formatRelativeDate(current.created_at);
   const structured = current.structured || {};
   const hasStructured = Object.keys(structured).length > 0;
   // Collapsed preview: show chief_complaint or first line of content
@@ -69,7 +83,7 @@ function RecordCardHeader({ current, expanded, dotColor }) {
               </Typography>
             ))}
           </Box>
-          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, flexShrink: 0, fontFamily: "monospace" }}>{date}</Typography>
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, flexShrink: 0 }}>{date}</Typography>
         </Box>
         {!expanded ? (
           <Typography sx={{
