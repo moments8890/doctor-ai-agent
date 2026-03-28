@@ -355,7 +355,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   // URL-driven subpage (survives refresh)
   const subpage = urlSubpage || null;
   const goSub = (sub) => navigate(`/doctor/settings/${sub}`);
-  const goBack = () => navigate("/doctor/settings");
+  const goBack = () => navigate(-1);
 
   // Mobile subpage override
   const mobileSubpage = isMobile && subpage === "template" ? (
