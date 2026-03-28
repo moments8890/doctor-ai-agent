@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from db.crud import (
     delete_patient_for_doctor,
@@ -18,6 +18,7 @@ from db.crud.patient import search_patients_nl
 from domain.patients.nl_search import extract_criteria
 from db.engine import AsyncSessionLocal
 from db.models import MedicalRecordDB
+from db.models.patient_message import PatientMessage
 from domain.patients.timeline import build_patient_timeline
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.observability.audit import audit
@@ -26,6 +27,7 @@ from channels.web.ui.record_handlers import (
     manage_records_for_doctor as _manage_records_for_doctor_impl,
     manage_patients_for_doctor as _manage_patients_for_doctor_impl,
     manage_patients_grouped_for_doctor as _manage_patients_grouped_for_doctor_impl,
+    _fetch_latest_triage_map,
 )
 from channels.web.ui.admin_handlers import (
     admin_db_view_logic as _admin_db_view_logic,
@@ -96,6 +98,7 @@ async def search_patients_endpoint(
             count_map = {pid: count for pid, count in counts_result.all()}
         else:
             count_map = {}
+        triage_map = await _fetch_latest_triage_map(db, resolved_doctor_id, pids)
 
     items = [
         {
@@ -104,7 +107,9 @@ async def search_patients_endpoint(
             "gender": p.gender,
             "year_of_birth": p.year_of_birth,
             "created_at": _fmt_ts(p.created_at),
+            "last_activity_at": _fmt_ts(getattr(p, "last_activity_at", None)),
             "record_count": int(count_map.get(p.id, 0)),
+            "latest_triage_category": triage_map.get(p.id),
         }
         for p in patients
     ]
@@ -288,6 +293,7 @@ async def reply_to_patient(
 ):
     """Doctor sends a direct reply to a patient."""
     from db.crud.patient_message import save_patient_message
+    from db.models.message_draft import DraftStatus, MessageDraft
 
     resolved = _resolve_ui_doctor_id(doctor_id, authorization)
     enforce_doctor_rate_limit(resolved, scope="ui.patient_reply")
@@ -295,6 +301,7 @@ async def reply_to_patient(
     if not text:
         raise HTTPException(status_code=422, detail="Reply text is required")
 
+    stale_count = 0
     async with AsyncSessionLocal() as db:
         msg = await save_patient_message(
             db,
@@ -305,10 +312,56 @@ async def reply_to_patient(
             source="doctor",
             sender_id=resolved,
         )
+
+        # Mark any pending drafts for this patient as stale, since the doctor
+        # replied through the chat view rather than the draft review flow.
+        stale_stmt = (
+            select(MessageDraft)
+            .where(
+                MessageDraft.doctor_id == resolved,
+                MessageDraft.patient_id == str(patient_id),
+                MessageDraft.status.in_([
+                    DraftStatus.generated.value,
+                    DraftStatus.edited.value,
+                ]),
+            )
+        )
+        stale_drafts = (await db.execute(stale_stmt)).scalars().all()
+        for draft in stale_drafts:
+            draft.status = DraftStatus.stale.value
+        stale_count = len(stale_drafts)
+
+        # Mark inbound messages as handled (doctor has replied)
+        await db.execute(
+            update(PatientMessage)
+            .where(
+                PatientMessage.patient_id == patient_id,
+                PatientMessage.doctor_id == resolved,
+                PatientMessage.direction == "inbound",
+                PatientMessage.ai_handled == False,  # noqa: E712
+            )
+            .values(ai_handled=True)
+        )
+
+        if stale_count or True:  # always commit (inbound update)
+            await db.commit()
+
+    # Update last_activity_at for the patient
+    try:
+        from db.crud.patient import touch_patient_activity
+        async with AsyncSessionLocal() as _act_db:
+            await touch_patient_activity(_act_db, patient_id)
+    except Exception:
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "[reply_to_patient] failed to update last_activity_at | patient_id=%s", patient_id,
+        )
+
     safe_create_task(audit(resolved, "WRITE", "patient_reply", str(patient_id)))
     return {
         "ok": True,
         "message_id": msg.id,
+        "stale_drafts": stale_count,
     }
 
 

@@ -29,7 +29,8 @@ prompts/
 │   ├── vision-ocr.md           clinical image → plain text (OCR)
 │   ├── triage-classify.md      patient message → triage category (5 categories)
 │   ├── triage-informational.md auto-reply to informational patient questions
-│   └── triage-escalation.md    structured escalation summary for doctor
+│   ├── triage-escalation.md    structured escalation summary for doctor
+│   └── followup_reply.md       draft reply in doctor's voice (WeChat-style, ≤100 chars)
 ├── knowledge_ingest.md      ← OCR/document cleanup → structured knowledge entry
 └── README.md
 ```
@@ -125,7 +126,7 @@ flowchart LR
 
 | Pattern | System msg | User msg | Used by |
 |---------|-----------|----------|---------|
-| **A** single-turn | base + intent | KB + context + msg | routing, query, general, diagnosis |
+| **A** single-turn | base + intent | KB + context + msg | routing, query, general, diagnosis, followup_reply |
 | **B** conversation | base + domain + intent + KB + ctx | history turns | interview, patient-interview |
 | **C** direct | prompt only (or none) | template.format(vars) | doctor-extract, patient-extract, vision-ocr |
 
@@ -176,6 +177,8 @@ Used by: doctor-extract, patient-extract, vision-ocr
 | 9 | vision-ocr.md | Photo upload (OCR step) | C | `sys: vision-ocr.md` → `user: [image] + request` | VISION_LLM | Plain text |
 | 10 | doctor-extract.md | Interview confirm, voice/paste, photo OCR | C | `user: prompt.format(name,gender,age,transcript)` | ROUTING_LLM | `DoctorExtractResult` |
 | 11 | patient-extract.md | Patient interview confirm | C | `user: prompt.format(name,gender,age,transcript)` | ROUTING_LLM | `PatientExtractResult` |
+| 12 | triage-classify.md | Patient message received | C | `user: message + patient_context` | ROUTING_LLM | `TriageResult` |
+| 13 | followup_reply.md | Patient escalation → draft | A | `sys: base+domain+followup_reply+KB` → `user: ctx+msg` | ROUTING_LLM | Draft text or empty (no-draft when no KB citation) |
 
 ### LLM Providers
 
@@ -222,7 +225,7 @@ All extraction prompts follow **《病历书写基本规范》(卫医政发〔20
 ## Regression Tests
 
 ```bash
-cd tests/prompts && ./run.sh          # run all 46 tests
+cd tests/prompts && ./run.sh          # run all 75 tests (14 prompts)
 ./run.sh doctor-extract routing       # run specific prompts
 npx promptfoo view                    # open results UI
 ```

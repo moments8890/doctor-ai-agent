@@ -12,6 +12,7 @@ from channels.web.ui._utils import _resolve_ui_doctor_id
 from db.engine import AsyncSessionLocal
 from db.models.ai_suggestion import AISuggestion
 from db.models.message_draft import MessageDraft
+from db.models.patient import Patient
 from db.models.patient_message import PatientMessage
 from db.models.tasks import DoctorTask
 from domain.knowledge.usage_tracking import get_recent_activity
@@ -206,4 +207,21 @@ async def ai_flagged_patients(
             seen[pid] = f
 
     result = sorted(seen.values(), key=lambda x: _urgency_rank(x["urgency"]), reverse=True)
+
+    # Resolve patient names for all flagged items that have a patient_id
+    patient_ids = [r["patient_id"] for r in result if r.get("patient_id")]
+    if patient_ids:
+        async with AsyncSessionLocal() as session:
+            name_rows = (
+                await session.execute(
+                    select(Patient.id, Patient.name)
+                    .where(Patient.id.in_(patient_ids))
+                )
+            ).all()
+            name_map = {pid: name for pid, name in name_rows}
+        for r in result:
+            pid = r.get("patient_id")
+            if pid and pid in name_map:
+                r["patient_name"] = name_map[pid]
+
     return {"patients": result}

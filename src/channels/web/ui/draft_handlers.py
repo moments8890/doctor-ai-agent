@@ -16,6 +16,7 @@ from sqlalchemy import func, select
 from channels.web.ui._utils import _resolve_ui_doctor_id
 from db.crud.patient_message import save_patient_message
 from db.engine import AsyncSessionLocal
+from db.models.ai_suggestion import AISuggestion
 from db.models.doctor_edit import DoctorEdit
 from db.models.message_draft import DraftStatus, MessageDraft
 from db.models.patient import Patient
@@ -98,22 +99,90 @@ async def list_pending_drafts(
         )
         rows = (await db.execute(stmt)).all()
 
-    return [
+        # Collect all cited KB IDs across drafts and bulk-load titles
+        all_cited_ids: set[int] = set()
+        drafts_cited: list[tuple] = []
+        for draft, patient_message, patient_name in rows:
+            ids = _parse_cited_ids(draft.cited_knowledge_ids)
+            all_cited_ids.update(ids)
+            drafts_cited.append((draft, patient_message, patient_name, ids))
+
+        kb_map: dict[int, str] = {}
+        if all_cited_ids:
+            from db.models.doctor import DoctorKnowledgeItem
+            kb_stmt = (
+                select(DoctorKnowledgeItem.id, DoctorKnowledgeItem.title)
+                .where(
+                    DoctorKnowledgeItem.id.in_(all_cited_ids),
+                    DoctorKnowledgeItem.doctor_id == resolved,
+                )
+            )
+            kb_rows = (await db.execute(kb_stmt)).all()
+            kb_map = {row.id: row.title for row in kb_rows}
+
+    result = [
         {
             "id": draft.id,
+            "type": "draft",
             "patient_id": draft.patient_id,
             "patient_name": patient_name or "unknown",
             "patient_message": patient_message or "",
             "draft_text": draft.edited_text or draft.draft_text,
             "original_draft_text": draft.draft_text,
-            "cited_knowledge_ids": _parse_cited_ids(draft.cited_knowledge_ids),
+            "cited_knowledge_ids": cited_ids,
+            "cited_rules": [
+                {"id": kid, "title": kb_map.get(kid, f"规则 #{kid}")}
+                for kid in cited_ids
+            ],
             "confidence": draft.confidence,
             "status": draft.status,
             "ai_disclosure": draft.ai_disclosure,
             "created_at": draft.created_at.isoformat() if draft.created_at else None,
         }
-        for draft, patient_message, patient_name in rows
+        for draft, patient_message, patient_name, cited_ids in drafts_cited
     ]
+
+    # Also include escalated patient messages that have NO draft
+    # (AI couldn't ground reply in doctor's knowledge)
+    async with AsyncSessionLocal() as db:
+        drafted_msg_ids = {draft.source_message_id for draft, _, _, _ in drafts_cited if draft.source_message_id}
+        undrafted_stmt = (
+            select(PatientMessage, Patient.name.label("patient_name"))
+            .outerjoin(Patient, PatientMessage.patient_id == Patient.id)
+            .where(
+                PatientMessage.doctor_id == resolved,
+                PatientMessage.ai_handled == False,  # noqa: E712
+                PatientMessage.direction == "inbound",
+            )
+            .order_by(PatientMessage.created_at.desc())
+            .limit(50)
+        )
+        undrafted_rows = (await db.execute(undrafted_stmt)).all()
+
+        for msg, patient_name in undrafted_rows:
+            if msg.id in drafted_msg_ids:
+                continue  # already has a draft
+            result.append({
+                "id": f"msg_{msg.id}",
+                "type": "undrafted",
+                "patient_id": msg.patient_id,
+                "patient_name": patient_name or "unknown",
+                "patient_message": msg.content or "",
+                "draft_text": None,
+                "original_draft_text": None,
+                "cited_knowledge_ids": [],
+                "cited_rules": [],
+                "confidence": None,
+                "status": "no_draft",
+                "ai_disclosure": None,
+                "created_at": msg.created_at.isoformat() if msg.created_at else None,
+                "source_message_id": msg.id,
+                "triage_category": msg.triage_category,
+            })
+
+    # Sort all items by created_at descending
+    result.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    return result
 
 
 # ── 2. Summary counts ───────────────────────────────────────────────────
@@ -159,6 +228,27 @@ async def drafts_summary(
             )
         ).scalar_one()
 
+        # Undrafted escalated messages (AI couldn't ground reply in KB)
+        drafted_msg_ids_stmt = select(MessageDraft.source_message_id).where(
+            MessageDraft.doctor_id == resolved,
+            MessageDraft.source_message_id.isnot(None),
+        )
+        drafted_msg_ids = {r[0] for r in (await db.execute(drafted_msg_ids_stmt)).all()}
+
+        all_escalated: int = (
+            await db.execute(
+                select(func.count())
+                .select_from(PatientMessage)
+                .where(
+                    PatientMessage.doctor_id == resolved,
+                    PatientMessage.ai_handled == False,  # noqa: E712
+                    PatientMessage.direction == "inbound",
+                )
+            )
+        ).scalar_one()
+        undrafted_count = max(0, all_escalated - len(drafted_msg_ids))
+        pending_count += undrafted_count
+
         # Due soon: pending tasks due within 2 days
         due_soon_count: int = (
             await db.execute(
@@ -173,10 +263,23 @@ async def drafts_summary(
             )
         ).scalar_one()
 
+        # Pending AI suggestions (review queue badge count)
+        review_pending_count: int = (
+            await db.execute(
+                select(func.count())
+                .select_from(AISuggestion)
+                .where(
+                    AISuggestion.doctor_id == resolved,
+                    AISuggestion.decision == None,  # noqa: E711
+                )
+            )
+        ).scalar_one()
+
     return {
         "pending": pending_count,
         "ai_drafted": ai_drafted_count,
         "due_soon": due_soon_count,
+        "review_pending_count": review_pending_count,
     }
 
 
@@ -381,7 +484,7 @@ async def send_confirmation(
                 {
                     "id": kb.id,
                     "title": kb.title,
-                    "text": kb.text[:200] if kb.text else "",
+                    "text": kb.content[:200] if kb.content else "",
                 }
                 for kb in kb_rows
             ]

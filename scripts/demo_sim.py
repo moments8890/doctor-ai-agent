@@ -79,16 +79,23 @@ def _load_config(path: str) -> Dict[str, Any]:
 async def cmd_seed(config: Dict[str, Any], server: str) -> None:
     """Register all patients and seed all KB entries from YAML config."""
     doctor = config["doctor"]
-    doctor_id = doctor["doctor_id"]
-
-    # Ensure the demo doctor exists — register via direct DB insert
-    # (unified auth requires invite codes, so we bypass that).
-    await _ensure_demo_doctor(doctor)
 
     state = _load_state()
     state["seed_time"] = datetime.now(timezone.utc).isoformat()
     state.setdefault("patients", {})
     state["kb_seeded"] = False
+
+    # Ensure the demo doctor exists via proper auth flow
+    doctor_id = await _ensure_demo_doctor(doctor, server, state)
+    if not doctor_id:
+        logger.error("无法创建医生账户，终止。")
+        _save_state(state)
+        return
+
+    # Store the actual doctor_id (may differ from config)
+    state["config_doctor_id"] = config["doctor"]["doctor_id"]
+    state["actual_doctor_id"] = doctor_id
+    _save_state(state)
 
     # --- Register patients ---
     patients = config.get("patients", [])
@@ -151,37 +158,126 @@ async def cmd_seed(config: Dict[str, Any], server: str) -> None:
     logger.info("Seed 完成。")
 
 
-async def _ensure_demo_doctor(doctor: Dict[str, Any]) -> None:
-    """Insert the demo doctor directly into the database if not present."""
+def _find_db_path() -> str:
+    """Locate the SQLite database file."""
+    db_url = os.environ.get("DATABASE_URL", "")
+    if db_url.startswith("sqlite:///"):
+        return db_url[len("sqlite:///"):]
+    if db_url.startswith("sqlite+aiosqlite:///"):
+        return db_url[len("sqlite+aiosqlite:///"):]
+    for candidate in ["data/patients.db", "data/doctor_agent.db", "data/doctor_ai.db"]:
+        if os.path.exists(candidate):
+            return candidate
+    return "data/patients.db"
+
+
+async def _ensure_demo_doctor(doctor: Dict[str, Any], server: str, state: Dict[str, Any]) -> Optional[str]:
+    """Create the demo doctor via the proper auth flow.
+
+    Steps:
+    1. Check if doctor already exists (from previous seed)
+    2. Create an invite code in the DB
+    3. Register the doctor via the HTTP API
+    4. Store credentials in state for future login
+    5. Return the actual doctor_id assigned by the auth system
+
+    This works for any sim config, not just a specific doctor.
+    """
+    import sqlite3
+
+    config_id = doctor["doctor_id"]
+    name = doctor.get("name", "Demo Doctor")
+    specialty = doctor.get("specialty", "")
+    phone = doctor.get("phone", f"138{abs(hash(config_id)) % 100000000:08d}")
+    year_of_birth = doctor.get("year_of_birth", 1970)
+
+    # Check if already seeded from a previous run
+    if state.get("doctor_token") and state.get("doctor_id"):
+        # Verify the token still works
+        import httpx
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    f"{server.rstrip('/')}/api/auth/unified/me",
+                    headers={"Authorization": f"Bearer {state['doctor_token']}"},
+                )
+                if resp.status_code == 200:
+                    logger.info("医生账户已就绪: %s (doctor_id=%s)", name, state["doctor_id"])
+                    return state["doctor_id"]
+        except Exception:
+            pass  # Token invalid, re-register
+
+    # Try to login first (doctor may exist from manual registration)
+    import httpx
     try:
-        import sqlite3
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{server.rstrip('/')}/api/auth/unified/login",
+                json={"phone": phone, "year_of_birth": year_of_birth},
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("role") == "doctor":
+                    state["doctor_id"] = data["doctor_id"]
+                    state["doctor_token"] = data["token"]
+                    state["doctor_phone"] = phone
+                    state["doctor_year_of_birth"] = year_of_birth
+                    logger.info("医生账户已就绪 (已有账户): %s (doctor_id=%s)", name, data["doctor_id"])
+                    return data["doctor_id"]
+    except Exception:
+        pass
 
-        db_path = os.environ.get("DATABASE_URL", "data/doctor_agent.db")
-        if db_path.startswith("sqlite:///"):
-            db_path = db_path[len("sqlite:///"):]
-        elif db_path.startswith("sqlite+aiosqlite:///"):
-            db_path = db_path[len("sqlite+aiosqlite:///"):]
+    # Create invite code + register via API
+    db_path = _find_db_path()
+    invite_code = f"sim_{abs(hash(config_id + name)) % 10000000:07d}"
 
+    try:
         conn = sqlite3.connect(db_path)
         try:
             conn.execute(
                 """
-                INSERT OR IGNORE INTO doctors
-                    (doctor_id, name, specialty, created_at, updated_at)
-                VALUES (?, ?, ?, datetime('now'), datetime('now'))
+                INSERT OR IGNORE INTO invite_codes
+                    (code, doctor_id, doctor_name, active, created_at, max_uses, used_count)
+                VALUES (?, NULL, ?, 1, datetime('now'), 99, 0)
                 """,
-                (
-                    doctor["doctor_id"],
-                    doctor.get("name", "Demo Doctor"),
-                    doctor.get("specialty", ""),
-                ),
+                (invite_code, name),
             )
             conn.commit()
-            logger.info("医生账户已就绪: %s (%s)", doctor.get("name"), doctor["doctor_id"])
         finally:
             conn.close()
     except Exception as exc:
-        logger.error("创建医生账户失败: %s", exc)
+        logger.error("创建邀请码失败: %s", exc)
+        return None
+
+    # Register doctor via API
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{server.rstrip('/')}/api/auth/unified/register/doctor",
+                json={
+                    "invite_code": invite_code,
+                    "name": name,
+                    "phone": phone,
+                    "year_of_birth": year_of_birth,
+                    "specialty": specialty,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        actual_doctor_id = data["doctor_id"]
+        state["doctor_id"] = actual_doctor_id
+        state["doctor_token"] = data["token"]
+        state["doctor_phone"] = phone
+        state["doctor_year_of_birth"] = year_of_birth
+        state["invite_code"] = invite_code
+        logger.info("医生账户已创建: %s (doctor_id=%s)", name, actual_doctor_id)
+        logger.info("  登录方式: 手机号=%s 口令=%d", phone, year_of_birth)
+        logger.info("  邀请码: %s (可在登录页使用)", invite_code)
+        return actual_doctor_id
+    except Exception as exc:
+        logger.error("医生注册失败: %s", exc)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -321,10 +417,13 @@ async def cmd_skip_to(
 
 async def cmd_reset(config: Dict[str, Any], server: str) -> None:
     """Delete all demo simulation data."""
-    doctor_id = config["doctor"]["doctor_id"]
-    prefix = doctor_id.rsplit("_", 1)[0] + "_" if "_" in doctor_id else "demo_"
+    state = _load_state()
+    # Use actual doctor_id from state if available, otherwise fall back to config
+    doctor_id = state.get("actual_doctor_id") or config["doctor"]["doctor_id"]
+    # Clean up by exact doctor_id match (more precise than prefix)
+    prefix = doctor_id
 
-    logger.info("正在清理演示数据 (prefix=%s) ...", prefix)
+    logger.info("正在清理演示数据 (doctor_id=%s) ...", doctor_id)
 
     result = await cleanup_demo_data(server_url=server, doctor_id_prefix=prefix)
     deleted = result.get("deleted_rows", 0)
@@ -350,10 +449,20 @@ def cmd_status(config: Dict[str, Any]) -> None:
 
     seed_time = state.get("seed_time", "未知")
     kb_seeded = state.get("kb_seeded", False)
+    doctor_id = state.get("actual_doctor_id", "未知")
+    phone = state.get("doctor_phone", "未知")
+    yob = state.get("doctor_year_of_birth", "未知")
 
     print(f"=== 演示状态 ===")
     print(f"Seed 时间: {seed_time}")
     print(f"知识库已导入: {'是' if kb_seeded else '否'}")
+    print()
+    print(f"=== 医生登录信息 ===")
+    print(f"Doctor ID: {doctor_id}")
+    print(f"手机号: {phone}")
+    print(f"口令 (出生年份): {yob}")
+    if state.get("invite_code"):
+        print(f"邀请码: {state['invite_code']}")
 
     if seed_time and seed_time != "未知":
         try:

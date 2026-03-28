@@ -1,7 +1,7 @@
 # Feature Parity Matrix — Frontend vs. Product Requirements
 
 > Original: 2026-03-25
-> Updated: 2026-03-27 — verified against current code on `main`
+> Updated: 2026-03-28 — verified against current code on `main`
 > Method: Product docs (strategy, requirements, CDS design, UX spec) cross-referenced against actual frontend code
 > Scope: All user-facing features across doctor workbench, patient portal, admin, and cross-cutting
 
@@ -9,12 +9,12 @@
 
 | Category | Done | Partial | Backend Only | Missing | Build | Defer | Cut | Total |
 |----------|------|---------|-------------|---------|-------|-------|-----|-------|
-| **Doctor Workbench** | 32 | 1 | 1 | 7 | 0 | 7 | 1 | 42 |
+| **Doctor Workbench** | 34 | 0 | 1 | 7 | 0 | 6 | 1 | 42 |
 | **Patient Portal** | 15 | 1 | 0 | 3 | 0 | 3 | 0 | 19 |
 | **Cross-Cutting** | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 4 |
-| **Total** | **51** | **2** | **1** | **10** | **0** | **10** | **1** | **65** |
+| **Total** | **53** | **1** | **1** | **10** | **0** | **9** | **1** | **65** |
 
-**78% feature complete** (51/65 done), 82% including partials.
+**82% feature complete** (53/65 done), 83% including partials.
 
 > Previous (2026-03-25): 49% done. Delta: +13 items completed in 2 days
 > (diagnosis UI enabled, QR flow, patient timeline, doctor info card, review workflow)
@@ -24,7 +24,7 @@
 | Decision | Items | Notes |
 |----------|-------|-------|
 | **Build** (0) | All build items completed or deferred | P2.3, D6.7, D6.4 done; D4.7 deferred |
-| **Defer** (9) | D2.5 (risk badges), D3.5+D3.6+D3.7 (structured clinical data group), D4.5 (clinical safety & emergency group), D6.6 (notification prefs), P3.7 (medications — blocked by D3.5), P4.1+P4.2 (patient notifications — needs push infra) | |
+| **Defer** (8) | D3.5+D3.6+D3.7 (structured clinical data group), D4.5 (clinical safety & emergency group), D6.6 (notification prefs), P3.7 (medications — blocked by D3.5), P4.1+P4.2 (patient notifications — needs push infra) | |
 | **Cut** (1) | D4.9 (case library — redundant with patient list + D4.7) | |
 
 **Deferred groups:**
@@ -41,12 +41,11 @@
 3. ~~**D6.4 Document Upload + Citation**~~ — **Done** (2026-03-27). QA: 7/7 pass. Also: killed 5 categories → single bucket, removed dead embedding code, feed-all-to-LLM knowledge strategy.
 4. ~~**D4.7 Case References**~~ — **Deferred** (2026-03-27). embedding.py removed; needs new approach. Not blocking any workflow.
 
-## Deferred Gaps (9 items, grouped)
+## Deferred Gaps (8 items, grouped)
 
 1. **Structured Clinical Data** (D3.5, D3.6, D3.7) — extract detailed fields for prescriptions, lab results, allergies from NHC flat text. Unblocks P3.7 (current medications).
 2. **Clinical Safety & Emergency** (D4.5) — red flag rules + emergency tagging + alerting. Requires doctor specialty knowledge input + ADR 0022 first.
 3. **Active Notifications** (D6.6, P4.1, P4.2) — needs push infrastructure (WeChat template msg / web push / SMS). Stay passive for now.
-4. **Patient Risk Badges** (D2.5) — at-a-glance risk indicators on patient list. Low effort once diagnosis data model is richer.
 
 ---
 
@@ -73,7 +72,7 @@
 | D2.2 | 新建患者 / Create Patient | **Done** | Chat-driven (no standalone form, which is fine) |
 | D2.3 | 患者详情 / Patient Detail | **Done** | PatientDetail — info, records tabs, export, delete, chat |
 | D2.4 | 患者搜索 / Patient Search | **Done** | Text + NL search |
-| D2.5 | 患者状态指示 / Patient Status Indicator | **Defer** | No risk badges (red/orange/none) in patient list |
+| D2.5 | 患者状态指示 / Patient Status Indicator | **Done** | Triage color dots (red/yellow/green) in patient list based on latest message triage_category |
 | D2.6 | 医生档案增强 / Doctor Profile Enhancement | **Done** | Name, specialty, clinic name, bio — all editable via SettingsPage. Avatar deferred (cosmetic). |
 
 ### Medical Records
@@ -109,8 +108,8 @@
 | D5.1 | 任务系统 / Task Management | **Done** | TasksPage — filter chips, date groups, status actions, snooze |
 | D5.2 | 任务创建 / Task Creation | **Done** | CreateTask dialog + chat-driven + auto from diagnosis |
 | D5.3 | 任务提醒与通知 / Task Notifications | **Backend only** | Backend sends WeChat notifications via APScheduler; no doctor preference UI |
-| D5.4 | 医生→患者消息回复 / Doctor Reply to Patient | **Done** | PatientDetail chat panel with `replyToPatient` |
-| D5.5 | 患者消息分类 / Patient Message Triage | **Partial** | Triage color-coding in PatientDetail (urgent=red, normal=accent); no dedicated triage dashboard |
+| D5.4 | 医生→患者消息回复 / Doctor Reply to Patient | **Done** | PatientDetail chat panel with `replyToPatient`; reply marks inbound as ai_handled + drafts as stale |
+| D5.5 | 患者消息分类 / Patient Message Triage | **Done** | Triage color dots in patient list + PatientDetail; draft reply pipeline with cited_rules; undrafted message notice; no dedicated triage dashboard (handled inline) |
 
 ### Settings & Admin
 
@@ -203,3 +202,4 @@
 | 2026-03-27 | Verified against code. Diagnosis UI (D4.1-D4.4, D4.6) fully enabled. QR flow (D6.1, P1.1) implemented. Patient timeline (P3.5), doctor info card (P3.8) done. Triage color-coding (D5.5), knowledge-based AI customization (D6.3), treatment task checklist (P3.4) now partial. Item count corrected to 65. New score: 43/65 done (66%). Corrected NHC fields (not SOAP) |
 | 2026-03-27 | Triaged 14 remaining items: **Build** 4 (P2.3, D6.7, D6.4, D4.7), **Defer** 9 in 3 groups (Structured Clinical Data, Clinical Safety & Emergency, Active Notifications), **Cut** 1 (D4.9 — redundant with patient list + D4.7) |
 | 2026-03-27 | Implemented 3 build items: **P2.3** (patient voice input, QA 6/6), **D6.7** (bulk data export + single-patient section filtering, QA 5/5), **D6.4** (document upload + LLM processing + citation display + kill 5 categories + remove dead embedding code, QA 7/7). Score: 43→46 done (66%→71%). 1 build item remaining: D4.7 |
+| 2026-03-28 | **D2.5** done (triage color dots in patient list), **D5.5** done (draft reply pipeline + cited_rules + undrafted notice). Teaching loop, KB source footer, file storage, demo sim engine, followup_reply prompt rewrite, tab badge fixes, session persistence fix. Score: 51→53 done (78%→82%) |

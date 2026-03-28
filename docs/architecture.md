@@ -402,7 +402,9 @@ When the LLM produces `[KB-{id}]` markers in its output, `citation_parser.py` ex
 
 ### Draft Reply Pipeline (FOLLOWUP_REPLY_LAYERS)
 
-When a patient message is escalated to the doctor, `draft_reply.py` generates a reply using the doctor's communication rules. Registered as `FOLLOWUP_REPLY_LAYERS` in prompt_config.py. Includes red-flag detection, medical safety constraints, and AI disclosure labeling. Triggered as a background task from the escalation handler with 30-second batching.
+When a patient message is escalated to the doctor, `draft_reply.py` generates a WeChat-style reply (conversational, <=100 chars) using the doctor's communication rules. Registered as `FOLLOWUP_REPLY_LAYERS` in prompt_config.py. Includes red-flag detection, medical safety constraints, and AI disclosure labeling. Triggered as a background task from the escalation handler with 30-second batching.
+
+**Key behaviors:** `[KB-*]` markers are stripped from draft text before display. If no KB rule is cited, no draft is generated (the message is marked "undrafted" for manual reply). The API response includes `cited_rules` (list of cited KB item IDs) alongside the draft text. When the doctor replies, the inbound message is marked `ai_handled` and any existing draft is marked stale.
 
 ### Structured Output
 
@@ -443,7 +445,7 @@ erDiagram
 
 **`ai_suggestions`** -- Per-item AI diagnosis suggestions with doctor decisions. Sections: `differential`, `workup`, `treatment`. Decisions: `confirmed`, `rejected`, `edited`, `custom`. One row per suggestion item.
 
-**`doctor_knowledge_items`** -- Per-doctor reusable knowledge snippets. Categories: `interview_guide`, `diagnosis_rule`, `red_flag`, `treatment_protocol`, `custom`. Content column stores a JSON payload (v1 format) with `text` and optional `source_url`.
+**`doctor_knowledge_items`** -- Per-doctor reusable knowledge snippets. Categories: `interview_guide`, `diagnosis_rule`, `red_flag`, `treatment_protocol`, `custom`. Content column stores a JSON payload (v1 format) with `text`, optional `source_url`, and optional `file_path` (path to uploaded original file on disk under `uploads/{doctor_id}/`).
 
 **`doctor_chat_log`** -- Doctor <-> AI conversation history. Roles: `user`, `assistant`.
 
@@ -514,6 +516,7 @@ red_flags: List[str]                        # urgent findings requiring immediat
 | `POST /api/records/chat` | `channels/web/chat.py` | Doctor chat -> agent pipeline |
 | `POST /api/records/interview/*` | `channels/web/doctor_interview.py` | Interview turn, confirm, cancel |
 | `GET/POST/DELETE /api/manage/*` | `channels/web/ui/` | Admin: knowledge, profile, patients |
+| `GET /api/manage/knowledge/file/{path}` | `channels/web/ui/knowledge_handlers.py` | Serve uploaded original file (auth-checked) |
 | `POST /api/manage/drafts/{draft_id}/save-as-rule` | `channels/web/ui/draft_handlers.py` | Teaching loop: convert draft edit into KB rule |
 | `GET/POST/PUT/DELETE /api/tasks/*` | `channels/web/tasks.py` | Task CRUD |
 | `GET /api/export/*` | `channels/web/export.py` | PDF/JSON export |
@@ -571,6 +574,14 @@ Tasks can be created via:
 ### Scheduling
 
 APScheduler runs on an interval (configurable via `TASK_SCHEDULER_INTERVAL_MINUTES`, default 1 minute) or cron schedule. Checks for due tasks and sends notifications. Distributed lock via `scheduler_leases` table prevents duplicate notifications in multi-instance deployments.
+
+---
+
+## Demo Simulation Engine
+
+`scripts/demo_sim.py` provides a YAML-driven patient simulation for product demos. Reads `scripts/demo_config.yaml` with patient profiles, scripted messages, KB seed entries, and timing schedules. Uses `scripts/patient_sim/http_client.py` (shared with the E2E sim engine) for HTTP calls.
+
+Subcommands: `--seed` (register patients + KB), `--tick` (send time-elapsed messages), `--skip-to PATIENT MSG` (force-send), `--reset` (cleanup), `--status` (progress). State tracked in `scripts/.demo_state.json`.
 
 ---
 

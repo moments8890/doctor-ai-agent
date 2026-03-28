@@ -1,6 +1,6 @@
 # North Star — Personal AI Copilot for Specialists
 
-**Last verified: 2026-03-27 against code on `main`**
+**Last verified: 2026-03-28 against code on `main`**
 
 ---
 
@@ -55,22 +55,24 @@ Not any single feature — the **integrated loop**: personal knowledge → patie
 - **Patient:** WeChat Mini Program + Web portal
 - **Architecture:** Plan-and-Act agent, 7 intents, 6-layer prompt composer, feed-all-to-LLM knowledge
 
-## Current Status (78% feature complete)
+## Current Status (82% feature complete)
 
-**Done (51/65):**
+**Done (53/65):**
 - Doctor workbench: chat, patients, tasks, settings, knowledge management
 - Diagnosis pipeline: AI suggestions → doctor review → confirm/reject/edit with KB citations
 - Patient portal: pre-consultation interview, records, messaging, tasks, voice input
 - Document upload with LLM processing and citation in diagnosis
-- QR code login, bulk data export, regression tests (86+ scenarios)
+- QR code login, bulk data export, regression tests (75 promptfoo cases)
+- AI draft replies with KB citation tracking, teaching loop, triage color dots
+- Demo simulation engine for product showcases
 
 **Next Phase — Personal AI Features:**
-- Knowledge usage tracking (when/where AI cites doctor's rules)
-- AI draft replies in doctor's voice with rule citations
+- ~~Knowledge usage tracking (when/where AI cites doctor's rules)~~ **Done** (cited_rules in API, green tags in UI)
+- ~~AI draft replies in doctor's voice with rule citations~~ **Done** (followup_reply prompt, no-draft when no citation, WeChat-style <=100 chars)
 - ~~Teaching loop: doctor edits → AI learns preferences~~ **Done** (save-as-rule endpoint)
 - AI activity feed: "按你的方法处理了 N 位患者"
-- AI-flagged patients based on doctor's own rules
-- Citation visual treatment ("引用了你的规则" vs "未引用个人规则")
+- ~~AI-flagged patients based on doctor's own rules~~ **Done** (AI attention items include patient_name)
+- ~~Citation visual treatment ("引用了你的规则" vs "未引用个人规则")~~ **Done** (cited_rules clickable tags, undrafted yellow notice)
 
 **Deferred:**
 - Structured clinical data extraction (prescriptions, labs, allergies)

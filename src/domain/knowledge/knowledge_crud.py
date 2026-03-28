@@ -215,7 +215,7 @@ async def save_knowledge_item(
         if _normalize_text(row_text) == normalized_new:
             return row
 
-    payload = _encode_knowledge_payload(cleaned, source=source, confidence=confidence, source_url=source_url)
+    payload = _encode_knowledge_payload(cleaned, source=source, confidence=confidence, source_url=source_url, file_path=file_path)
     item = await add_doctor_knowledge_item(session, doctor_id, payload, category=category)
     item.title = title or extract_title_from_text((text or "").strip())
     item.summary = summary

@@ -94,12 +94,40 @@ function patientRoutes(prefix, Provider) {
 export default function App() {
   const { accessToken, doctorId, setAuth } = useDoctorStore();
 
-  // Dev mode: auto-set doctor identity so login is never required
-  useState(() => {
-    if (DEV_MODE && !doctorId) {
-      setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
+  // Dev mode: auto-set doctor identity only if no real login session exists
+  useEffect(() => {
+    if (!DEV_MODE) return;
+    // Wait for zustand hydration, then check if we need a dev fallback
+    const unsub = useDoctorStore.persist.onFinishHydration(() => {
+      const state = useDoctorStore.getState();
+      if (!state.doctorId || state.accessToken === "dev-token") {
+        // No real session — check localStorage for unified auth token
+        const savedId = localStorage.getItem("unified_auth_doctor_id");
+        const savedToken = localStorage.getItem("unified_auth_token");
+        const savedName = localStorage.getItem("unified_auth_name");
+        if (savedId && savedToken) {
+          state.setAuth(savedId, savedName || savedId, savedToken);
+        } else {
+          state.setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
+        }
+      }
+    });
+    // If already hydrated (hot reload), trigger immediately
+    if (useDoctorStore.persist.hasHydrated()) {
+      const state = useDoctorStore.getState();
+      if (!state.doctorId || state.accessToken === "dev-token") {
+        const savedId = localStorage.getItem("unified_auth_doctor_id");
+        const savedToken = localStorage.getItem("unified_auth_token");
+        const savedName = localStorage.getItem("unified_auth_name");
+        if (savedId && savedToken) {
+          state.setAuth(savedId, savedName || savedId, savedToken);
+        } else {
+          state.setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
+        }
+      }
     }
-  });
+    return unsub;
+  }, []);
 
   // Absorb token handed off from WeChat Mini Program web-view via URL params.
   useState(() => {

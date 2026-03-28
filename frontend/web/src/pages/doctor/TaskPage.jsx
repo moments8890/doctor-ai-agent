@@ -8,7 +8,7 @@
  *   3. 待办提醒           (doctor-created tasks/reminders)
  *   4. 最近已发送         (recently sent messages)
  */
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Box, CircularProgress, Snackbar, Typography } from "@mui/material";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
@@ -74,15 +74,24 @@ function SummaryStat({ value, label, sublabel, color, onClick }) {
 function MessageItem({ item, onSend, onEdit, onTeachPrompt }) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.draft_text || "");
+  const textareaRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
   const api = useApi();
+  const navigate = useAppNavigate();
 
   const badgeLabel = BADGE_LABEL[item.badge];
 
   const handleStartEdit = () => {
     setEditText(item.draft_text || "");
     setEditing(true);
+    // Auto-resize textarea after React renders it
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
+      }
+    }, 0);
   };
 
   const handleSave = async () => {
@@ -139,6 +148,54 @@ function MessageItem({ item, onSend, onEdit, onTeachPrompt }) {
         </Box>
       )}
 
+      {/* No-draft notice — AI couldn't ground reply in doctor's knowledge */}
+      {!item.draft_text && item.status === "no_draft" && (
+        <Box sx={{
+          bgcolor: "#fff8e1",
+          border: `0.5px solid #ffcc02`,
+          borderRadius: "6px",
+          px: 1.5, py: 1.2, mb: 1,
+        }}>
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#b28704", fontWeight: 500, mb: 0.5 }}>
+            AI未找到可引用的知识条目，无法起草回复
+          </Typography>
+          {editing ? (
+            <Box>
+              <Box
+                component="textarea"
+                ref={textareaRef}
+                value={editText}
+                onChange={(e) => {
+                  setEditText(e.target.value);
+                  const ta = e.target;
+                  ta.style.height = "auto";
+                  ta.style.height = ta.scrollHeight + "px";
+                }}
+                placeholder="请手动输入回复..."
+                sx={{
+                  width: "100%",
+                  minHeight: 80,
+                  border: `1px solid ${COLOR.border}`,
+                  borderRadius: "4px",
+                  p: 1,
+                  fontSize: TYPE.secondary.fontSize,
+                  color: COLOR.text2,
+                  lineHeight: 1.5,
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                  outline: "none",
+                  "&:focus": { borderColor: COLOR.primary },
+                }}
+              />
+            </Box>
+          ) : (
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>
+              请手动回复此消息，或添加相关知识条目后重新生成
+            </Typography>
+          )}
+        </Box>
+      )}
+
       {/* AI draft card */}
       {item.draft_text && (
         <Box sx={{
@@ -156,11 +213,24 @@ function MessageItem({ item, onSend, onEdit, onTeachPrompt }) {
               <Box sx={{ display: "flex", gap: 0.5, alignItems: "flex-start" }}>
                 <Box
                   component="textarea"
+                  ref={textareaRef}
                   value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
+                  onChange={(e) => {
+                    setEditText(e.target.value);
+                    // Auto-resize to fit content
+                    const ta = e.target;
+                    ta.style.height = "auto";
+                    ta.style.height = ta.scrollHeight + "px";
+                  }}
+                  onFocus={(e) => {
+                    // Auto-resize on first focus
+                    const ta = e.target;
+                    ta.style.height = "auto";
+                    ta.style.height = ta.scrollHeight + "px";
+                  }}
                   sx={{
                     flex: 1,
-                    minHeight: 80,
+                    minHeight: 120,
                     border: `1px solid ${COLOR.border}`,
                     borderRadius: "4px",
                     p: 1,
@@ -170,6 +240,7 @@ function MessageItem({ item, onSend, onEdit, onTeachPrompt }) {
                     resize: "vertical",
                     fontFamily: "inherit",
                     outline: "none",
+                    overflow: "hidden",
                     "&:focus": { borderColor: COLOR.primary },
                   }}
                 />
@@ -199,28 +270,6 @@ function MessageItem({ item, onSend, onEdit, onTeachPrompt }) {
                   />
                 </Box>
               )}
-              <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 0.8 }}>
-                <Typography
-                  onClick={handleCancel}
-                  sx={{
-                    fontSize: TYPE.secondary.fontSize, color: COLOR.text4,
-                    cursor: "pointer", "&:active": { opacity: 0.5 },
-                  }}
-                >
-                  取消
-                </Typography>
-                <Typography
-                  onClick={!saving ? handleSave : undefined}
-                  sx={{
-                    fontSize: TYPE.secondary.fontSize, color: COLOR.primary, fontWeight: 500,
-                    cursor: saving ? "default" : "pointer",
-                    opacity: saving ? 0.5 : 1,
-                    "&:active": saving ? {} : { opacity: 0.5 },
-                  }}
-                >
-                  {saving ? "保存中..." : "保存"}
-                </Typography>
-              </Box>
             </Box>
           ) : (
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5, whiteSpace: "pre-line" }}>
@@ -228,39 +277,85 @@ function MessageItem({ item, onSend, onEdit, onTeachPrompt }) {
             </Typography>
           )}
 
-          {item.rule_cited && !editing && (
-            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mt: 0.6 }}>
-              引用：<Box component="span" sx={{ color: COLOR.primary }}>{item.rule_cited}</Box>
-            </Typography>
+          {item.cited_rules?.length > 0 && !editing && (
+            <Box sx={{ mt: 0.8, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+              {item.cited_rules.map((rule) => (
+                <Box
+                  key={rule.id}
+                  component="span"
+                  onClick={() => navigate(`/doctor/settings/knowledge/${rule.id}`)}
+                  sx={{
+                    fontSize: 11,
+                    color: COLOR.primary,
+                    bgcolor: "#e8f5e9",
+                    px: 1,
+                    py: 0.3,
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    "&:hover": { bgcolor: "#c8e6c9" },
+                  }}
+                >
+                  引用: {rule.title}
+                </Box>
+              ))}
+            </Box>
           )}
         </Box>
       )}
 
-      {/* Action row */}
-      {!editing && (
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
-          <Typography
-            onClick={handleStartEdit}
-            sx={{
-              fontSize: TYPE.secondary.fontSize, color: COLOR.accent,
-              cursor: "pointer", userSelect: "none",
-              "&:active": { opacity: 0.5 },
-            }}
-          >
-            ✎ 修改
-          </Typography>
-          <Typography
-            onClick={() => onSend(item)}
-            sx={{
-              fontSize: TYPE.secondary.fontSize, color: COLOR.primary,
-              cursor: "pointer", userSelect: "none",
-              "&:active": { opacity: 0.5 },
-            }}
-          >
-            发送 ›
-          </Typography>
-        </Box>
-      )}
+      {/* Action row — same position in both edit and view modes */}
+      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
+        {editing ? (
+          <>
+            <Typography
+              onClick={handleCancel}
+              sx={{
+                fontSize: TYPE.secondary.fontSize, color: COLOR.text4,
+                cursor: "pointer", userSelect: "none",
+                "&:active": { opacity: 0.5 },
+              }}
+            >
+              取消
+            </Typography>
+            <Typography
+              onClick={!saving ? handleSave : undefined}
+              sx={{
+                fontSize: TYPE.secondary.fontSize, color: COLOR.primary,
+                cursor: saving ? "default" : "pointer", userSelect: "none",
+                opacity: saving ? 0.5 : 1,
+                "&:active": saving ? {} : { opacity: 0.5 },
+              }}
+            >
+              {saving ? "保存中..." : "发送 ›"}
+            </Typography>
+          </>
+        ) : (
+          <>
+            <Typography
+              onClick={handleStartEdit}
+              sx={{
+                fontSize: TYPE.secondary.fontSize, color: COLOR.accent,
+                cursor: "pointer", userSelect: "none",
+                "&:active": { opacity: 0.5 },
+              }}
+            >
+              {item.draft_text ? "✎ 修改" : "✎ 回复"}
+            </Typography>
+            {item.draft_text && (
+              <Typography
+                onClick={() => onSend(item)}
+                sx={{
+                  fontSize: TYPE.secondary.fontSize, color: COLOR.primary,
+                  cursor: "pointer", userSelect: "none",
+                  "&:active": { opacity: 0.5 },
+                }}
+              >
+                发送 ›
+              </Typography>
+            )}
+          </>
+        )}
+      </Box>
     </Box>
   );
 }
@@ -376,6 +471,7 @@ function SentRow({ item }) {
 
 // ── Send confirmation sheet ──
 function SendConfirmSheet({ open, onClose, item, onConfirm, sending }) {
+  const navigate = useAppNavigate();
   if (!item) return null;
   return (
     <SheetDialog
@@ -419,21 +515,35 @@ function SendConfirmSheet({ open, onClose, item, onConfirm, sending }) {
       </Box>
 
       {/* Cited rules */}
-      {item.rule_cited && (
+      {item.cited_rules?.length > 0 && (
         <Box sx={{ mb: 1.5 }}>
-          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mb: 0.5 }}>
             引用规则：
           </Typography>
-          <Box sx={{
-            display: "inline-block",
-            mt: 0.5, px: 1, py: 0.3,
-            bgcolor: COLOR.primaryLight,
-            borderRadius: "4px",
-            fontSize: TYPE.micro.fontSize,
-            color: COLOR.primary,
-            fontWeight: 500,
-          }}>
-            {item.rule_cited}
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            {item.cited_rules.map((rule) => (
+              <Box
+                key={rule.id}
+                component="span"
+                onClick={() => {
+                  onClose();
+                  navigate(`/doctor/settings/knowledge/${rule.id}`);
+                }}
+                sx={{
+                  fontSize: 11,
+                  color: COLOR.primary,
+                  bgcolor: "#e8f5e9",
+                  px: 1,
+                  py: 0.3,
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontWeight: 500,
+                  "&:hover": { bgcolor: "#c8e6c9" },
+                }}
+              >
+                {rule.title}
+              </Box>
+            ))}
           </Box>
         </Box>
       )}

@@ -51,9 +51,8 @@ async def register_patient(
         "name": name,
         "gender": gender,
         "year_of_birth": year_of_birth,
+        "phone": phone or f"138{abs(hash(name)) % 100000000:08d}",
     }
-    if phone:
-        payload["phone"] = phone
 
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(url, json=payload)

@@ -36,38 +36,28 @@
 
 ## Steps
 
-### Step 1: Triage prompt + eval (independent, no dependencies)
+### Step 1: Triage prompt + eval (independent, no dependencies) -- DONE
 
-1. Edit `src/agent/prompts/intent/triage-classify.md`:
-   - Add to urgent category examples: "术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力"
-2. Add 2-3 eval cases to `tests/prompts/cases/triage-classify.yaml`:
-   - "头痛越来越厉害，吐了两次，血压170/100" → must classify as `urgent`
-   - "术后突然右手没力气，说话也不太清楚" → must classify as `urgent`
-   - "手术后伤口有点疼，正常吗？" → should be `symptom_report`
-3. Run: `cd tests/prompts && bash run.sh triage-classify`
-4. Verify all existing 12 cases + new cases pass
+1. ~~Edit `src/agent/prompts/intent/triage-classify.md`~~ — post-surgical 危险信号 added to urgent examples
+2. ~~Add 2-3 eval cases~~ — 3 new cases added (15 total)
+3. ~~Run eval~~ — all 15 cases pass
+4. ~~Verify existing cases~~ — no regressions
 
-### Step 2: KB payload extension (source_url)
+### Step 2: KB payload extension (source_url) -- DONE
 
-1. In `knowledge_crud.py:_encode_knowledge_payload()`:
-   - Add `source_url` parameter, include in v1 payload JSON
-2. In `knowledge_crud.py:_decode_knowledge_payload()`:
-   - Extract `source_url` from payload, return in result
-3. Update `save_knowledge_item()` to accept `source_url`
-4. Update knowledge list/detail API responses to include decoded `source_url`
+1. ~~`_encode_knowledge_payload()` updated~~ — source_url and file_path added to v1 payload
+2. ~~`_decode_knowledge_payload()` updated~~ — extracts source_url and file_path
+3. ~~`save_knowledge_item()` updated~~ — accepts source_url
+4. ~~API responses updated~~ — include decoded source_url
 5. No DB migration needed (payload is JSON inside content column)
 
-### Step 3: Original file storage
+### Step 3: Original file storage -- DONE
 
-1. Create `uploads/` directory at project root (gitignored)
-2. In `knowledge_handlers.py:upload_extract()`:
-   - Before extraction, save original file to `uploads/{doctor_id}/{timestamp}_{filename}`
-   - Return `file_path` in response alongside extracted text
-3. In `knowledge_handlers.py:upload_save()`:
-   - Accept `file_path` parameter, save to KB payload
-4. Add `GET /api/manage/knowledge/file/{path}` endpoint to serve original files
-   - Auth check: verify doctor_id matches
-5. Frontend: add "查看原文" button in KB detail page linking to file endpoint
+1. ~~`uploads/` directory~~ — created, gitignored
+2. ~~`upload_extract()` updated~~ — saves original file to `uploads/{doctor_id}/{timestamp}_{filename}`
+3. ~~`upload_save()` updated~~ — accepts file_path, saves to KB payload
+4. ~~File serve endpoint~~ — `GET /api/manage/knowledge/file/{path}` with auth check
+5. ~~Frontend~~ — "查看原文" button in KB detail page linking to file endpoint
 
 ### Step 4: Finish teaching loop (20% remaining)
 

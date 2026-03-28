@@ -147,6 +147,14 @@ async def post_chat(
 
         ai_handled = category in _AI_HANDLED_CATEGORIES
 
+        # Update last_activity_at for the patient
+        try:
+            from db.crud.patient import touch_patient_activity
+            async with AsyncSessionLocal() as _act_db:
+                await touch_patient_activity(_act_db, patient.id)
+        except Exception:
+            logger.warning("[PatientChat] failed to update last_activity_at | patient_id=%s", patient.id)
+
         logger.info(
             "[PatientChat] triage complete | patient_id=%s category=%s ai_handled=%s confidence=%.2f",
             patient.id, category.value, ai_handled, triage_result.confidence,

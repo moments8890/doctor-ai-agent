@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,8 @@ from db.models.medical_record import MedicalRecord
 from db.crud._common import _trace_block
 from db.crud.doctor import _ensure_doctor_exists
 from utils.log import log
+
+_log = logging.getLogger(__name__)
 
 
 async def save_record(
@@ -37,6 +40,15 @@ async def save_record(
             db_record.status = status
         if commit:
             await session.commit()
+
+        # Update last_activity_at for the patient
+        if patient_id is not None:
+            try:
+                from db.crud.patient import touch_patient_activity
+                await touch_patient_activity(session, patient_id)
+            except Exception:
+                _log.warning("[save_record] failed to update last_activity_at | patient_id=%s", patient_id)
+
         return db_record
 
 

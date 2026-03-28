@@ -22,6 +22,7 @@ class Patient(Base):
     year_of_birth: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    last_activity_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     __table_args__ = (
         Index("ix_patients_doctor_created", "doctor_id", "created_at"),

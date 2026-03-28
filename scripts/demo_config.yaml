@@ -6,6 +6,8 @@ doctor:
   doctor_id: "demo_luhua"
   name: "陆华"
   specialty: "神经外科"
+  phone: "13800001234"
+  year_of_birth: 1969
 
 # ---------------------------------------------------------------------------
 # Patients — 6 scripted scenarios over 4 days
@@ -36,7 +38,7 @@ patients:
       - delay_hours: 27
         content: "今天头痛比昨天厉害了，吃了止疼药也不太管用"
       - delay_hours: 51
-        content: "医生！头痛越来越厉害，刚才还吐了两次，血压量了一下170/100，眼睛看东西有点模糊"
+        content: "医生！我术后这两天头痛越来越厉害，刚才突然吐了两次，血压量了一下170/100，眼睛看东西也变模糊了，怎么办？"
 
   # Patient 3: 王先生 (42M) — Day 2, AVM post-op medication concern
   - name: 王先生

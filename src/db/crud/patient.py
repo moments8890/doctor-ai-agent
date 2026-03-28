@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from sqlalchemy import and_, delete, or_, select
+from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from db.models import (
     Patient,
@@ -25,6 +25,16 @@ def _audit(doctor_id: str, action: str, **kwargs):
     """Lazy-import audit to avoid db/ → services/ module-level dependency."""
     from infra.observability.audit import audit
     return audit(doctor_id, action, **kwargs)
+
+
+async def touch_patient_activity(session: AsyncSession, patient_id: int) -> None:
+    """Update last_activity_at to now."""
+    await session.execute(
+        update(Patient)
+        .where(Patient.id == patient_id)
+        .values(last_activity_at=datetime.now(timezone.utc))
+    )
+    await session.commit()
 
 
 async def get_patient_for_doctor(session: AsyncSession, doctor_id: str, patient_id: int) -> Optional[Patient]:

@@ -14,9 +14,9 @@ from db.crud import (
     get_records_for_patient,
     get_all_patients,
 )
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from db.engine import AsyncSessionLocal
-from db.models import MedicalRecordDB, Patient
+from db.models import MedicalRecordDB, Patient, PatientMessage
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.observability.audit import audit
 from channels.web.ui._utils import (
@@ -108,17 +108,52 @@ async def _fetch_filtered_records(
 
 
 
-def _serialize_patient_item(p, count_map: dict) -> dict:
+def _serialize_patient_item(p, count_map: dict, triage_map: Optional[dict] = None) -> dict:
     """Turn a Patient ORM row into a JSON-serializable dict for patient list endpoints."""
-    return {
+    d = {
         "id": p.id, "name": p.name, "gender": p.gender,
         "year_of_birth": p.year_of_birth, "created_at": _fmt_ts(p.created_at),
+        "last_activity_at": _fmt_ts(getattr(p, "last_activity_at", None)),
         "record_count": int(count_map.get(p.id, 0)),
     }
+    if triage_map:
+        d["latest_triage_category"] = triage_map.get(p.id)
+    return d
 
 
-async def _fetch_patients_with_record_counts(db, doctor_id: str) -> tuple[list, dict]:
-    """Return (patients, count_map) for a doctor's namespace."""
+async def _fetch_latest_triage_map(db, doctor_id: str, patient_ids: list) -> dict:
+    """Return {patient_id: triage_category} for the most recent message per patient."""
+    if not patient_ids:
+        return {}
+    # Window function to pick the latest triage_category per patient.
+    # Works on both SQLite and MySQL.
+    inner = (
+        select(
+            PatientMessage.patient_id,
+            PatientMessage.triage_category,
+            func.row_number().over(
+                partition_by=PatientMessage.patient_id,
+                order_by=PatientMessage.created_at.desc(),
+            ).label("rn"),
+        )
+        .where(
+            PatientMessage.doctor_id == doctor_id,
+            PatientMessage.patient_id.in_(patient_ids),
+            PatientMessage.triage_category.is_not(None),
+        )
+        .subquery()
+    )
+    rows = (
+        await db.execute(
+            select(inner.c.patient_id, inner.c.triage_category)
+            .where(inner.c.rn == 1)
+        )
+    ).all()
+    return {pid: cat for pid, cat in rows}
+
+
+async def _fetch_patients_with_record_counts(db, doctor_id: str) -> tuple[list, dict, dict]:
+    """Return (patients, count_map, triage_map) for a doctor's namespace."""
     patients = await get_all_patients(db, doctor_id)
     counts_result = await db.execute(
         select(MedicalRecordDB.patient_id, func.count(MedicalRecordDB.id))
@@ -126,7 +161,9 @@ async def _fetch_patients_with_record_counts(db, doctor_id: str) -> tuple[list, 
         .group_by(MedicalRecordDB.patient_id)
     )
     count_map = {pid: count for pid, count in counts_result.all()}
-    return patients, count_map
+    pids = [p.id for p in patients]
+    triage_map = await _fetch_latest_triage_map(db, doctor_id, pids)
+    return patients, count_map, triage_map
 
 
 async def _fetch_patients_cursor_page(
@@ -136,32 +173,33 @@ async def _fetch_patients_cursor_page(
     category: Optional[str] = None,
     cursor_pair: Optional[Tuple[datetime, int]] = None,
     limit: int = 50,
-) -> Tuple[list, dict]:
+) -> Tuple[list, dict, dict]:
     """Fetch one page of patients using keyset pagination.
 
-    Ordering is ``(created_at DESC, id DESC)`` — deterministic even when
-    ``created_at`` values collide.
+    Ordering is ``(sort_ts DESC, id DESC)`` where ``sort_ts`` is
+    ``COALESCE(last_activity_at, created_at)`` — most recently active
+    patients first, deterministic even when timestamps collide.
 
     When *cursor_pair* is ``(ts, id)`` the query returns only rows that
     come **after** that position in the sort order.
 
-    Returns ``(patients_page, count_map)`` where *patients_page* has at
-    most *limit* rows.
+    Returns ``(patients_page, count_map, triage_map)`` where *patients_page*
+    has at most *limit* rows.
     """
+    sort_ts = func.coalesce(Patient.last_activity_at, Patient.created_at)
     stmt = (
         select(Patient)
         .where(Patient.doctor_id == doctor_id)
-        
-        .order_by(Patient.created_at.desc(), Patient.id.desc())
+        .order_by(sort_ts.desc(), Patient.id.desc())
     )
     if cursor_pair is not None:
         cursor_ts, cursor_id = cursor_pair
         # Keyset condition: row comes after (cursor_ts, cursor_id) in
-        # ``(created_at DESC, id DESC)`` order.
+        # ``(sort_ts DESC, id DESC)`` order.
         stmt = stmt.where(
             or_(
-                Patient.created_at < cursor_ts,
-                and_(Patient.created_at == cursor_ts, Patient.id < cursor_id),
+                sort_ts < cursor_ts,
+                and_(sort_ts == cursor_ts, Patient.id < cursor_id),
             )
         )
     stmt = stmt.limit(limit)
@@ -183,7 +221,8 @@ async def _fetch_patients_cursor_page(
     else:
         count_map = {}
 
-    return patients, count_map
+    triage_map = await _fetch_latest_triage_map(db, doctor_id, pids)
+    return patients, count_map, triage_map
 
 
 async def manage_patients_for_doctor(
@@ -218,10 +257,10 @@ async def manage_patients_for_doctor(
 
     async with AsyncSessionLocal() as db:
         if use_cursor_mode:
-            patients, count_map = await _fetch_patients_cursor_page(
+            patients, count_map, triage_map = await _fetch_patients_cursor_page(
                 db, doctor_id, category=category, cursor_pair=cursor_pair, limit=limit,
             )
-            items = [_serialize_patient_item(p, count_map) for p in patients]
+            items = [_serialize_patient_item(p, count_map, triage_map) for p in patients]
 
             # Build next_cursor from the last item when there may be more rows
             next_cursor: Optional[str] = None
@@ -237,9 +276,9 @@ async def manage_patients_for_doctor(
             }
         else:
             # Legacy offset mode (offset > 0 without cursor)
-            patients, count_map = await _fetch_patients_with_record_counts(db, doctor_id)
+            patients, count_map, triage_map = await _fetch_patients_with_record_counts(db, doctor_id)
 
-    items = [_serialize_patient_item(p, count_map) for p in patients]
+    items = [_serialize_patient_item(p, count_map, triage_map) for p in patients]
     total = len(items)
     return {"doctor_id": doctor_id, "items": items[offset:offset + limit], "total": total, "limit": limit, "offset": offset}
 
@@ -248,8 +287,8 @@ async def manage_patients_grouped_for_doctor(doctor_id: str) -> dict:
     """患者列表（分类功能已移除，返回全部患者在单一分组中）。"""
     enforce_doctor_rate_limit(doctor_id, scope="ui.manage_patients_grouped")
     async with AsyncSessionLocal() as db:
-        patients, count_map = await _fetch_patients_with_record_counts(db, doctor_id)
-    items = [_serialize_patient_item(p, count_map) for p in patients]
+        patients, count_map, triage_map = await _fetch_patients_with_record_counts(db, doctor_id)
+    items = [_serialize_patient_item(p, count_map, triage_map) for p in patients]
     return {"doctor_id": doctor_id, "groups": [{"group": "all", "count": len(items), "items": items}]}
 
 
