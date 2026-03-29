@@ -480,24 +480,33 @@ function PatientChatPage({ patientId, doctorId }) {
           {/* Full thread */}
           {expanded && (
             <Box sx={{ px: 2, pb: 1, maxHeight: 300, overflowY: "auto" }}>
-              {messages.map(m => (
-                <Box key={m.id} sx={{ py: 0.5, display: "flex", gap: 0.8, alignItems: "flex-start" }}>
-                  <Typography sx={{
-                    fontSize: TYPE.micro.fontSize, fontWeight: 500, flexShrink: 0, mt: 0.3,
-                    color: m.source === "patient" ? COLOR.accent : (m.source === "doctor" ? COLOR.success : COLOR.text4),
-                  }}>
-                    {m.source === "patient" ? "患者" : (m.source === "doctor" ? "医生" : "AI")}
-                  </Typography>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                      {m.content}
+              {messages.map(m => {
+                const label = m.source === "patient" ? "患者" : (m.source === "doctor" ? "医生" : "AI");
+                const labelColor = m.source === "patient" ? COLOR.accent : (m.source === "doctor" ? COLOR.success : COLOR.text4);
+                const isAiDisclosure = (m.content || "").includes("AI辅助生成");
+                return (
+                  <Box key={m.id} sx={{ display: "flex", py: 0.8, borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" } }}>
+                    <Typography sx={{
+                      width: 36, flexShrink: 0, fontSize: TYPE.micro.fontSize, fontWeight: 600,
+                      color: labelColor, pt: 0.2,
+                    }}>
+                      {label}
                     </Typography>
-                    <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
-                      {m.created_at ? new Date(m.created_at).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
-                    </Typography>
+                    <Box sx={{ flex: 1, minWidth: 0, pl: 0.5 }}>
+                      <Typography sx={{
+                        fontSize: TYPE.secondary.fontSize, color: isAiDisclosure ? COLOR.text4 : COLOR.text1,
+                        lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word",
+                        fontStyle: isAiDisclosure ? "italic" : "normal",
+                      }}>
+                        {m.content}
+                      </Typography>
+                      <Typography sx={{ fontSize: 10, color: COLOR.text4, mt: 0.2 }}>
+                        {m.created_at ? new Date(m.created_at).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              ))}
+                );
+              })}
             </Box>
           )}
 
