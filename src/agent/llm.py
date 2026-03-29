@@ -25,15 +25,14 @@ from utils.log import log
 T = TypeVar("T", bound=BaseModel)
 
 # ---------------------------------------------------------------------------
-# LLM debug logger — writes pretty-formatted input/output per call
+# LLM call logger — append-only JSONL with correlation fields
 # ---------------------------------------------------------------------------
 
 import json as _json
-from datetime import datetime as _dt
+from datetime import datetime as _dt, timezone as _tz
 from pathlib import Path as _Path
 
 _REPO_ROOT = _Path(__file__).resolve().parents[2]
-_LLM_LOG_DIR = _REPO_ROOT / "logs" / "llm_debug"
 _LLM_LOG_FILE = _REPO_ROOT / "logs" / "llm_calls.jsonl"
 _LLM_LOG_MAX_BYTES = 10 * 1024 * 1024  # 10 MB per file
 _LLM_LOG_BACKUP_COUNT = 5
@@ -45,8 +44,8 @@ def _rotate_if_needed(path: _Path) -> None:
         return
     # Check date — rotate if file is from a different day
     from datetime import date as _date
-    file_date = _dt.utcfromtimestamp(path.stat().st_mtime).date()
-    needs_rotate = path.stat().st_size >= _LLM_LOG_MAX_BYTES or file_date < _date.today()
+    file_date = _dt.fromtimestamp(path.stat().st_mtime, tz=_tz.utc).date()
+    needs_rotate = path.stat().st_size >= _LLM_LOG_MAX_BYTES or file_date < _dt.now(_tz.utc).date()
     if not needs_rotate:
         return
     # Shift existing backups: .4 → .5, .3 → .4, etc.
@@ -63,19 +62,17 @@ def _rotate_if_needed(path: _Path) -> None:
         oldest.unlink()
 
 
-def _log_llm_call(op_name: str, model: str, messages: list, output: Any = None) -> None:
-    """Log LLM call to both a per-call JSON file and an append-only JSONL file.
+def _log_llm_call(op_name: str, model: str, messages: list, output: Any = None, *, usage: Any = None) -> None:
+    """Log LLM call to an append-only JSONL file.
 
-    - Per-call file: logs/llm_debug/{op}_{timestamp}.json (pretty-formatted, for debugging)
     - Append file: logs/llm_calls.jsonl (one JSON line per call, auto-rotated by size/date)
     """
     try:
-        now = _dt.utcnow()
-        ts = now.strftime("%H%M%S_%f")
+        now = _dt.now(_tz.utc)
 
         # Build entry
         entry: Dict[str, Any] = {
-            "timestamp": now.isoformat() + "Z",
+            "timestamp": now.isoformat(),
             "op": op_name,
             "model": model,
             "input": {"messages": messages},
@@ -88,31 +85,23 @@ def _log_llm_call(op_name: str, model: str, messages: list, output: Any = None) 
             else:
                 entry["output"] = output
 
-        # 1. Per-call human-readable file (for debugging)
-        _LLM_LOG_DIR.mkdir(parents=True, exist_ok=True)
-        per_call = _LLM_LOG_DIR / f"{op_name}_{ts}.txt"
-        lines = [
-            f"# {op_name} — {now.isoformat()}Z",
-            f"Model: {model}",
-            "",
-        ]
-        for msg in messages:
-            role = msg.get("role", "?")
-            content = msg.get("content", "")
-            lines.append(f"## [{role}]")
-            lines.append(content)
-            lines.append("")
-        if output is not None:
-            lines.append("## [output]")
-            if isinstance(output, BaseModel):
-                lines.append(_json.dumps(output.model_dump(), ensure_ascii=False, indent=2))
-            elif isinstance(output, str):
-                lines.append(output)
-            else:
-                lines.append(_json.dumps(output, ensure_ascii=False, indent=2))
-        per_call.write_text("\n".join(lines), encoding="utf-8")
+        # Correlation: trace_id from HTTP middleware (observability ContextVar)
+        from infra.observability.observability import get_current_trace_id
+        # doctor_id and intent from log ContextVars (set by chat handlers)
+        from utils.log import _ctx_doctor_id, _ctx_intent
+        entry["trace_id"] = get_current_trace_id() or ""
+        entry["doctor_id"] = _ctx_doctor_id.get("")
+        entry["intent"] = _ctx_intent.get("")
 
-        # 2. Append to rotated JSONL file
+        # Token usage from LLM response
+        if usage is not None:
+            entry["tokens"] = {
+                "prompt": getattr(usage, "prompt_tokens", 0),
+                "completion": getattr(usage, "completion_tokens", 0),
+                "total": getattr(usage, "total_tokens", 0),
+            }
+
+        # Append to rotated JSONL file
         _LLM_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
         _rotate_if_needed(_LLM_LOG_FILE)
         with open(_LLM_LOG_FILE, "a", encoding="utf-8") as f:
@@ -176,7 +165,7 @@ def _get_instructor_client(env_var: str = "ROUTING_LLM", default: str = "groq"):
     if cache_key not in _instructor_cache:
         base_client = _get_client(env_var, default)
         _instructor_cache[cache_key] = instructor.from_openai(
-            base_client, mode=instructor.Mode.JSON
+            base_client, mode=instructor.Mode.MD_JSON
         )
     return _instructor_cache[cache_key]
 
@@ -207,9 +196,12 @@ async def structured_call(
 
     log(f"[{op_name}] input: model={model} msgs={len(messages)}")
 
+    _last_usage = None
+
     async def _call(model_name: str) -> T:
+        nonlocal _last_usage
         instructor_client = _get_instructor_client(env_var)
-        return await instructor_client.chat.completions.create(
+        result = await instructor_client.chat.completions.create(
             model=model_name,
             messages=messages,
             response_model=response_model,
@@ -217,12 +209,17 @@ async def structured_call(
             max_tokens=max_tokens,
             max_retries=max_retries,
         )
+        # instructor attaches _raw_response on the Pydantic model
+        raw_resp = getattr(result, "_raw_response", None)
+        if raw_resp:
+            _last_usage = getattr(raw_resp, "usage", None)
+        return result
 
     with trace_block("llm", op_name, {"model": model, "response_model": response_model.__name__}):
         result = await _call(model)
 
     log(f"[{op_name}] output: {result.model_dump_json()[:200]}")
-    _log_llm_call(op_name, model, messages, result)
+    _log_llm_call(op_name, model, messages, result, usage=_last_usage)
     return result
 
 
@@ -242,7 +239,10 @@ async def llm_call(
     """
     model = _get_model(env_var)
 
+    _last_usage = None
+
     async def _call(model_name: str) -> str:
+        nonlocal _last_usage
         client = _get_client(env_var)
         kwargs: Dict[str, Any] = {
             "model": model_name,
@@ -257,6 +257,7 @@ async def llm_call(
             kwargs["extra_body"] = extra
 
         response = await client.chat.completions.create(**kwargs)
+        _last_usage = getattr(response, "usage", None)
         raw = response.choices[0].message.content or ""
         return clean_llm_output(raw)
 
@@ -269,5 +270,5 @@ async def llm_call(
             backoff_seconds=(0.5,),
             op_name=op_name,
         )
-    _log_llm_call(op_name, model, messages, result)
+    _log_llm_call(op_name, model, messages, result, usage=_last_usage)
     return result

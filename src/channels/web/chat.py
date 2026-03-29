@@ -13,7 +13,7 @@ from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
 from agent import handle_turn
 from agent.actions import Action
-from utils.log import log
+from utils.log import log, bind_log_context
 
 from constants import SUPPORTED_IMAGE_TYPES
 
@@ -103,6 +103,8 @@ async def chat(
         raise HTTPException(status_code=422, detail="Text input cannot be empty.")
 
     enforce_doctor_rate_limit(doctor_id, scope="records.chat")
+
+    bind_log_context(doctor_id=doctor_id)
 
     result = await handle_turn(text, "doctor", doctor_id, action_hint=body.action_hint)
     return ChatResponse(reply=result.reply, view_payload=result.data)

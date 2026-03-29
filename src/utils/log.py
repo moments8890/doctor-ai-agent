@@ -172,15 +172,16 @@ def init_logging() -> None:
     level = getattr(logging, level_name, logging.INFO)
     use_json = _to_bool(os.environ.get("LOG_JSON"), default=False)
 
-    formatter = _build_formatter(use_json)
-    _configure_structlog(formatter, level)
+    console_formatter = _build_formatter(use_json)
+    file_formatter = _build_formatter(use_json=True)  # always JSON for files
+    _configure_structlog(console_formatter, level)
 
     root = logging.getLogger()
     task_logger = _configure_named_logger("tasks", level, "TASK_LOG_TO_CONSOLE")
     scheduler_logger = _configure_named_logger("apscheduler", level, "SCHEDULER_LOG_TO_CONSOLE")
 
     if _to_bool(os.environ.get("LOG_TO_FILE"), default=True):
-        _attach_file_handlers(formatter, level, root, task_logger, scheduler_logger)
+        _attach_file_handlers(file_formatter, level, root, task_logger, scheduler_logger)
 
 
 # ---------------------------------------------------------------------------

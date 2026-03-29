@@ -88,10 +88,28 @@ async def _startup_recovery(startup_log: logging.Logger) -> None:
         startup_log.warning("[Recovery] stale pending_message recovery FAILED: %s", _e)
 
 
+def _init_sentry() -> None:
+    """Initialize Sentry error tracking. No-op if SENTRY_DSN is not set."""
+    dsn = os.environ.get("SENTRY_DSN", "")
+    if not dsn:
+        return
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=dsn,
+            traces_sample_rate=float(os.environ.get("SENTRY_TRACES_RATE", "0.1")),
+            environment=os.environ.get("ENVIRONMENT", "development"),
+        )
+        logging.getLogger("startup").info("[Sentry] initialized (dsn=%s...)", dsn[:20])
+    except ImportError:
+        logging.getLogger("startup").warning("[Sentry] sentry-sdk not installed, skipping")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _startup_ready
     _startup_log = logging.getLogger("startup")
+    _init_sentry()
     # Production guards FIRST — before any DB/LLM/worker side effects.
     # A missing secret should abort immediately, not after tables are
     # created, prompts seeded, and workers started.

@@ -742,6 +742,7 @@ def _print_urls(host: str, port: int, want_frontend: bool,
         print(f"  Frontend   : http://127.0.0.1:{FRONTEND_PORT}")
         print(f"  Dashboard  : http://127.0.0.1:{FRONTEND_PORT}/admin")
     print(f"  WeChat URL : http://127.0.0.1:{port}/wechat")
+    print(f"  Debug      : http://127.0.0.1:{port}/debug")
     print(f"  Docs       : http://127.0.0.1:{port}/docs")
     print()
     if want_frontend:

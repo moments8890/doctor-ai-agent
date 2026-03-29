@@ -5,11 +5,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import json
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Optional
 import uuid
 
 from fastapi import APIRouter, Header, Query
+from fastapi.responses import FileResponse
 
 from infra.observability.observability import (
     add_span,
@@ -53,13 +55,30 @@ async def debug_logs(
     log_path = Path(_LOG_SOURCES.get(source, f"{_LOG_ROOT}/app.log"))
     if not log_path.exists():
         return {"lines": [], "source": source, "total": 0}
-    level_tags = _LOG_LEVEL_TAGS.get(level.upper())  # None means ALL
+    level_upper = level.upper()
+    level_priority = {"DEBUG": 0, "INFO": 1, "WARNING": 2, "ERROR": 3, "CRITICAL": 4}
+    min_priority = level_priority.get(level_upper, -1)  # -1 means ALL
     matching: list[str] = []
     try:
         with open(log_path, encoding="utf-8", errors="replace") as fh:
             for line in fh:
                 stripped = line.rstrip()
-                if level_tags is None or any(tag in stripped for tag in level_tags):
+                if not stripped:
+                    continue
+                if min_priority >= 0:
+                    # Try JSON parse first (new format)
+                    try:
+                        obj = json.loads(stripped)
+                        line_level = obj.get("level", "info").upper()
+                        if level_priority.get(line_level, 0) >= min_priority:
+                            matching.append(stripped)
+                        continue
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+                    # Fall back to text tag matching (old format lines still in log)
+                    if any(tag in stripped for tag in _LOG_LEVEL_TAGS.get(level_upper, [])):
+                        matching.append(stripped)
+                else:
                     matching.append(stripped)
     except OSError:
         return {"lines": [], "source": source, "total": 0}
@@ -152,3 +171,73 @@ async def debug_routing_metrics_reset(
     from infra.observability.routing_metrics import reset
     reset()
     return {"ok": True}
+
+
+_LLM_LOG_FILE = Path(__file__).resolve().parents[4] / "logs" / "llm_calls.jsonl"
+
+
+@router.get("/api/debug/llm-calls")
+async def debug_llm_calls(
+    limit: int = Query(default=30, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    op: Optional[str] = Query(default=None),
+    doctor_id: Optional[str] = Query(default=None),
+    trace_id: Optional[str] = Query(default=None),
+    since_minutes: int = Query(default=60, ge=1, le=1440),
+    x_debug_token: str | None = Header(default=None, alias="X-Debug-Token"),
+):
+    """Return recent LLM calls with filtering. Reads tail of llm_calls.jsonl."""
+    _require_ui_debug_access(x_debug_token)
+    if not _LLM_LOG_FILE.exists():
+        return {"calls": [], "total": 0, "has_more": False}
+
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
+    cutoff_iso = cutoff.isoformat()
+
+    # Read from end of file for speed — only read last chunk
+    _MAX_READ_BYTES = 512 * 1024  # 512 KB tail, enough for ~200 recent calls
+    matching: list[dict] = []
+    try:
+        file_size = _LLM_LOG_FILE.stat().st_size
+        read_start = max(0, file_size - _MAX_READ_BYTES) if not trace_id else 0  # full scan for trace_id lookup
+        with open(_LLM_LOG_FILE, encoding="utf-8", errors="replace") as fh:
+            if read_start > 0:
+                fh.seek(read_start)
+                fh.readline()  # skip partial first line after seek
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                ts = entry.get("timestamp", "")
+                if ts < cutoff_iso:
+                    continue
+                if op and entry.get("op") != op:
+                    continue
+                if doctor_id and entry.get("doctor_id") != doctor_id:
+                    continue
+                if trace_id and entry.get("trace_id") != trace_id:
+                    continue
+                matching.append(entry)
+    except OSError:
+        return {"calls": [], "total": 0, "has_more": False}
+
+    total = len(matching)
+    # Newest first, then paginate
+    matching.reverse()
+    page = matching[offset:offset + limit]
+    has_more = (offset + limit) < total
+    return {"calls": page, "total": total, "has_more": has_more}
+
+
+@router.get("/debug", include_in_schema=False)
+async def debug_dashboard_page(token: str = Query(..., description="Debug access token")):
+    """Serve the debug dashboard HTML page. Token required."""
+    _require_ui_debug_access(token)
+    return FileResponse(
+        Path(__file__).parent / "debug.html",
+        media_type="text/html",
+    )
