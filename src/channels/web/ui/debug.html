@@ -973,10 +973,12 @@ function updateLoadMoreBtn() {
 // Extract the user's actual input from an LLM call entry
 function extractUserInput(c) {
   const messages = (c.input && c.input.messages) || c.messages || [];
-  // Find last user message
+  // Find last REAL user message (skip instructor MD_JSON suffix)
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'user') {
       const content = messages[i].content || '';
+      // Skip instructor-appended messages
+      if (content.startsWith('Return the correct JSON response')) continue;
       // For Pattern 1: extract from <doctor_request> tag
       const m = content.match(/<doctor_request>\s*([\s\S]*?)\s*<\/doctor_request>/);
       if (m) return m[1].trim();
