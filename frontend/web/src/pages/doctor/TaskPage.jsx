@@ -53,14 +53,14 @@ function SummaryStat({ value, label, sublabel, color, onClick }) {
 }
 
 // ── Scheduled follow-up row ──
-function TaskCheckbox({ checked, color, onToggle }) {
+function TaskCheckbox({ checked, onToggle }) {
   return (
     <Box
       onClick={(e) => { e.stopPropagation(); onToggle(); }}
       sx={{
         width: 24, height: 24, borderRadius: "50%",
-        border: checked ? "none" : `2px solid ${color || COLOR.border}`,
-        bgcolor: checked ? (color || COLOR.primary) : "transparent",
+        border: checked ? "none" : `2px solid ${COLOR.border}`,
+        bgcolor: checked ? COLOR.primary : "transparent",
         display: "flex", alignItems: "center", justifyContent: "center",
         cursor: "pointer", flexShrink: 0,
         transition: "all 0.15s ease",
@@ -76,7 +76,7 @@ function ScheduledRow({ item, onComplete }) {
   const navigate = useAppNavigate();
   return (
     <ListCard
-      avatar={<TaskCheckbox checked={false} color={item.soon ? COLOR.warning : COLOR.border} onToggle={() => onComplete?.(item)} />}
+      avatar={<TaskCheckbox checked={false} onToggle={() => onComplete?.(item)} />}
       title={`${item.patient_name} · ${item.task}`}
       subtitle={item.detail}
       right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: item.soon ? COLOR.warning : COLOR.text4, fontWeight: item.soon ? 500 : 400 }}>{item.due_label}</Typography>}
@@ -91,7 +91,7 @@ function TaskRow({ item, onComplete }) {
   const dueLabel = item.due_at ? item.due_at.slice(0, 10) : "";
   return (
     <ListCard
-      avatar={<TaskCheckbox checked={false} color={badge?.bg || COLOR.border} onToggle={() => onComplete?.(item)} />}
+      avatar={<TaskCheckbox checked={false} onToggle={() => onComplete?.(item)} />}
       title={item.title || "任务"}
       subtitle={item.content}
       right={dueLabel ? <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{dueLabel}</Typography> : null}
