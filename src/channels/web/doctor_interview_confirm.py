@@ -139,6 +139,9 @@ async def interview_confirm_endpoint(
     session.status = InterviewStatus.confirmed
     await save_session(session)
 
+    from domain.patients.interview_turn import release_session_lock
+    release_session_lock(session_id)
+
     # Auto-generate follow-up tasks from orders/treatment (best-effort)
     try:
         from domain.tasks.from_record import generate_tasks_from_record
@@ -182,4 +185,8 @@ async def interview_cancel_endpoint(
 
     session.status = InterviewStatus.abandoned
     await save_session(session)
+
+    from domain.patients.interview_turn import release_session_lock
+    release_session_lock(session_id)
+
     return {"status": "abandoned"}

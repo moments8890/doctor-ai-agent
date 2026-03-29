@@ -211,6 +211,31 @@ async def confirm_interview(
     conversation: Optional[list] = None,
 ) -> Dict[str, int]:
     """Finalize interview: batch-extract from transcript → save record → create review task. Returns {record_id, review_id}."""
+    from domain.patients.interview_turn import get_session_lock, release_session_lock
+
+    async with get_session_lock(session_id):
+        try:
+            return await _confirm_interview_inner(
+                session_id=session_id,
+                doctor_id=doctor_id,
+                patient_id=patient_id,
+                patient_name=patient_name,
+                collected=collected,
+                conversation=conversation,
+            )
+        finally:
+            release_session_lock(session_id)
+
+
+async def _confirm_interview_inner(
+    session_id: str,
+    doctor_id: str,
+    patient_id: int,
+    patient_name: str,
+    collected: Dict[str, str],
+    conversation: Optional[list] = None,
+) -> Dict[str, int]:
+    """Inner implementation of confirm_interview — always called under the session lock."""
     from db.crud.patient import get_patient_for_doctor
     from db.crud.records import save_record
     from db.crud.tasks import create_task

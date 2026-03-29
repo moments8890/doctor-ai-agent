@@ -17,7 +17,7 @@ class InterviewTurnRequest(BaseModel):
 class InterviewSessionRequest(BaseModel):
     session_id: str
 from db.models.interview_session import InterviewStatus
-from domain.patients.completeness import count_filled
+from domain.patients.completeness import check_completeness, count_filled
 from domain.patients.interview_session import (
     create_session,
     get_active_session,
@@ -88,12 +88,23 @@ async def start_interview(
     # Check for existing active session
     active = await get_active_session(patient.id, patient.doctor_id)
     if active:
+        missing = check_completeness(active.collected or {}, mode="patient")
+        ready_to_review = active.status == InterviewStatus.reviewing or len(missing) == 0
+        if ready_to_review and active.status != InterviewStatus.reviewing:
+            active.status = InterviewStatus.reviewing
+            await save_session(active)
         return {
             "session_id": active.id,
-            "reply": f"欢迎回来！我们继续为{doctor_name}医生整理您的病情信息。",
+            "reply": (
+                f"欢迎回来！我已经为{doctor_name}医生整理好主要信息，请确认后提交；"
+                "如果还有补充，也可以继续补充。"
+                if ready_to_review
+                else f"欢迎回来！我们继续为{doctor_name}医生整理您的病情信息。"
+            ),
             "collected": active.collected,
             "progress": {"filled": count_filled(active.collected), "total": 7},
-            "status": active.status,
+            "status": InterviewStatus.reviewing if ready_to_review else active.status,
+            "ready_to_review": ready_to_review,
             "resumed": True,
         }
 
@@ -104,6 +115,7 @@ async def start_interview(
         "collected": {},
         "progress": {"filled": 0, "total": 7},
         "status": InterviewStatus.interviewing,
+        "ready_to_review": False,
         "resumed": False,
     }
 
@@ -138,6 +150,7 @@ async def turn(
         "collected": response.collected,
         "progress": response.progress,
         "status": response.status,
+        "ready_to_review": response.ready_to_review,
         "missing_fields": response.missing or [],
         "complete": len(response.missing or []) == 0,
         "suggestions": response.suggestions or [],
@@ -155,12 +168,19 @@ async def current_session(
     if active is None:
         return None
 
+    missing = check_completeness(active.collected or {}, mode="patient")
+    ready_to_review = active.status == InterviewStatus.reviewing or len(missing) == 0
+    if ready_to_review and active.status != InterviewStatus.reviewing:
+        active.status = InterviewStatus.reviewing
+        await save_session(active)
+
     return {
         "session_id": active.id,
         "collected": active.collected,
         "conversation": active.conversation,
         "progress": {"filled": count_filled(active.collected), "total": 7},
-        "status": active.status,
+        "status": InterviewStatus.reviewing if ready_to_review else active.status,
+        "ready_to_review": ready_to_review,
     }
 
 
@@ -194,6 +214,9 @@ async def confirm(
     session.status = InterviewStatus.confirmed
     await save_session(session)
 
+    from domain.patients.interview_turn import release_session_lock
+    release_session_lock(body.session_id)
+
     return {
         "status": InterviewStatus.confirmed,
         "record_id": result.get("record_id"),
@@ -220,5 +243,8 @@ async def cancel(
 
     session.status = InterviewStatus.abandoned
     await save_session(session)
+
+    from domain.patients.interview_turn import release_session_lock
+    release_session_lock(body.session_id)
 
     return {"status": InterviewStatus.abandoned}

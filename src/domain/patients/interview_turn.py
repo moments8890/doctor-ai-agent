@@ -4,9 +4,23 @@ Re-exports all public symbols so existing imports continue to work unchanged.
 """
 from __future__ import annotations
 
+import asyncio as _asyncio_lock
 import json
 import os
 from typing import Any, Dict, List, Optional
+
+# Per-session lock to prevent concurrent interview_turn calls on the same session
+_session_locks: dict[str, "_asyncio_lock.Lock"] = {}
+
+
+def get_session_lock(session_id: str) -> "_asyncio_lock.Lock":
+    """Get or create the per-session asyncio.Lock."""
+    return _session_locks.setdefault(session_id, _asyncio_lock.Lock())
+
+
+def release_session_lock(session_id: str) -> None:
+    """Remove the session lock entry when a session is finalized."""
+    _session_locks.pop(session_id, None)
 
 from domain.patients.completeness import (
     check_completeness,
@@ -39,6 +53,8 @@ __all__ = [
     "FIELD_LABELS",
     "_build_progress",
     "interview_turn",
+    "get_session_lock",
+    "release_session_lock",
 ]
 
 
@@ -125,6 +141,12 @@ async def _call_interview_llm(
 
 async def interview_turn(session_id: str, patient_text: str) -> InterviewResponse:
     """Process one patient message in the interview. Core loop."""
+    async with get_session_lock(session_id):
+        return await _interview_turn_inner(session_id, patient_text)
+
+
+async def _interview_turn_inner(session_id: str, patient_text: str) -> InterviewResponse:
+    """Inner implementation — always called under the session lock."""
     session = await load_session(session_id)
     if session is None:
         return InterviewResponse(
@@ -132,16 +154,21 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
             progress={"filled": 0, "total": total_fields()}, status="error",
         )
     mode = getattr(session, "mode", "patient")
-    if session.status not in (InterviewStatus.interviewing,):
+    resumed_from_review = session.status == InterviewStatus.reviewing
+    if session.status not in (InterviewStatus.interviewing, InterviewStatus.reviewing):
         return InterviewResponse(
             reply="该问诊已结束。", collected=session.collected,
             progress=_build_progress(session.collected, mode), status=session.status,
+            ready_to_review=session.status == InterviewStatus.reviewing,
         )
+    if session.status == InterviewStatus.reviewing:
+        # Patient chose "继续补充" — reopen the same session for one more turn.
+        session.status = InterviewStatus.interviewing
 
-    from datetime import datetime
+    from datetime import datetime, timezone
     session.conversation.append({
         "role": "user", "content": patient_text,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     })
     session.turn_count += 1
 
@@ -155,6 +182,7 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
             reply=reply, collected=session.collected,
             progress=_build_progress(session.collected, mode), status=session.status,
             missing=missing,
+            ready_to_review=session.status == InterviewStatus.reviewing,
         )
 
     # Main LLM call (with retry for transient failures)
@@ -196,6 +224,7 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
         return InterviewResponse(
             reply=reply, collected=session.collected,
             progress=_build_progress(session.collected, mode), status=session.status,
+            ready_to_review=session.status == InterviewStatus.reviewing,
         )
 
     # Merge extracted fields (clinical only — patient metadata excluded by _call_interview_llm)
@@ -210,6 +239,11 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
     missing = check_completeness(session.collected, mode=mode)
 
     reply = llm_response.get("reply", "请继续描述您的情况。" if mode == "patient" else "收到，已记录。")
+    ready_to_review = len(missing) == 0
+    if ready_to_review and mode == "patient":
+        session.status = InterviewStatus.reviewing
+        if not resumed_from_review:
+            reply = "我已经整理好主要信息。请确认后提交给医生；如果还有补充，也可以继续补充。"
 
     session.conversation.append({"role": "assistant", "content": reply})
     await save_session(session)
@@ -221,6 +255,7 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
         progress=_build_progress(session.collected, mode), status=session.status,
         missing=missing,
         suggestions=suggestions,
+        ready_to_review=ready_to_review,
         patient_name=llm_response.get("patient_name"),
         patient_gender=llm_response.get("patient_gender"),
         patient_age=llm_response.get("patient_age"),
