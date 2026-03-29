@@ -59,7 +59,7 @@ function TaskCheckbox({ checked, onToggle }) {
       onClick={(e) => { e.stopPropagation(); onToggle(); }}
       sx={{
         width: 24, height: 24, borderRadius: "50%",
-        border: checked ? "none" : `2px solid ${COLOR.border}`,
+        border: checked ? "none" : `2px solid ${COLOR.primary}`,
         bgcolor: checked ? COLOR.primary : "transparent",
         display: "flex", alignItems: "center", justifyContent: "center",
         cursor: "pointer", flexShrink: 0,
