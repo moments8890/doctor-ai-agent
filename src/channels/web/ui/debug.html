@@ -1054,41 +1054,89 @@ function buildLlmCard(c, cid) {
   const userPreview = userInput.length > 60 ? userInput.slice(0, 60) + '...' : userInput;
 
   // Build layer-structured input sections
+  // Separate: system layers, conversation history (combined), latest user message
   let inputHtml = '';
   let sectionIdx = 0;
-  for (const msg of messages) {
-    const role = (msg.role || '').toLowerCase();
-    const content = typeof msg.content === 'string' ? msg.content :
-      Array.isArray(msg.content) ? msg.content.map(p => typeof p === 'string' ? p : (p.text || JSON.stringify(p))).join('\n') :
-      JSON.stringify(msg.content, null, 2);
 
-    if (role === 'system') {
-      const layers = parseSystemLayers(content);
-      for (const layer of layers) {
-        inputHtml += renderLayerSection(layer, `sec-${cid}-${sectionIdx++}`, false);
-      }
-    } else if (role === 'user') {
-      // Check for XML-tagged layers (Pattern 1)
-      if (content.includes('<doctor_knowledge>') || content.includes('<doctor_request>')) {
+  // 1. System message → split into layers
+  const sysMsg = messages.find(m => (m.role || '').toLowerCase() === 'system');
+  if (sysMsg) {
+    const content = typeof sysMsg.content === 'string' ? sysMsg.content :
+      JSON.stringify(sysMsg.content, null, 2);
+    const layers = parseSystemLayers(content);
+    for (const layer of layers) {
+      inputHtml += renderLayerSection(layer, `sec-${cid}-${sectionIdx++}`, false);
+    }
+  }
+
+  // 2. Collect non-system messages: history vs latest
+  const nonSys = messages.filter(m => (m.role || '').toLowerCase() !== 'system');
+  const getText = (m) => typeof m.content === 'string' ? m.content :
+    Array.isArray(m.content) ? m.content.map(p => typeof p === 'string' ? p : (p.text || JSON.stringify(p))).join('\n') :
+    JSON.stringify(m.content, null, 2);
+
+  // Check if this is Pattern 1 (XML tags in user message) or Pattern 2 (conversation)
+  const hasXmlTags = nonSys.some(m => {
+    const c = getText(m);
+    return c.includes('<doctor_knowledge>') || c.includes('<doctor_request>');
+  });
+
+  if (hasXmlTags) {
+    // Pattern 1: single-turn — parse XML layers
+    for (const msg of nonSys) {
+      const content = getText(msg);
+      if ((msg.role || '').toLowerCase() === 'user') {
         const layers = parseUserLayers(content);
         for (const layer of layers) {
           const isUserMsg = layer.label.includes('User Message');
           inputHtml += renderLayerSection(layer, `sec-${cid}-${sectionIdx++}`, isUserMsg);
         }
-      } else {
-        // Plain user message (Pattern 2 conversation or simple)
-        inputHtml += renderLayerSection(
-          { label: 'L6 User Message', content },
-          `sec-${cid}-${sectionIdx++}`, true
-        );
       }
-    } else if (role === 'assistant') {
-      // Conversation history turns
+    }
+  } else if (nonSys.length > 1) {
+    // Pattern 2: conversation — combine history, show latest separately
+    const historyMsgs = nonSys.slice(0, -1);
+    const latestMsg = nonSys[nonSys.length - 1];
+
+    // Combined conversation history as chat bubbles
+    if (historyMsgs.length > 0) {
+      const historyHtml = historyMsgs.map(m => {
+        const role = (m.role || 'user').toUpperCase();
+        const color = role === 'USER' ? '#2196f3' : role === 'ASSISTANT' ? '#4caf50' : '#aaa';
+        const text = getText(m);
+        const preview = text.length > 120 ? text.slice(0, 120) + '...' : text;
+        return `<div style="margin:4px 0;padding:4px 8px;border-left:3px solid ${color};font-size:12px;">` +
+          `<span style="color:${color};font-weight:600;font-size:10px;text-transform:uppercase;">${escHtml(role)}</span> ` +
+          `<span style="color:var(--text-dim);">${escHtml(preview)}</span></div>`;
+      }).join('');
+      const hid = `sec-${cid}-${sectionIdx++}`;
+      inputHtml += `
+        <div class="msg-section">
+          <div class="msg-role-header" onclick="toggleMsgSection('${hid}')">
+            <span class="msg-role-label" style="color:#9c27b0;">Conversation History</span>
+            <span style="font-size:11px;color:var(--text-muted);">${historyMsgs.length} turns</span>
+            <span class="msg-toggle" id="arrow-${hid}">▸</span>
+          </div>
+          <div class="msg-content" id="${hid}" style="white-space:normal;">${historyHtml}</div>
+        </div>`;
+    }
+
+    // Latest message — always open
+    if (latestMsg) {
+      const latestRole = (latestMsg.role || 'user').toLowerCase();
+      const label = latestRole === 'user' ? 'L6 Latest User Message' : 'Latest (' + latestRole + ')';
       inputHtml += renderLayerSection(
-        { label: 'HISTORY (assistant)', content },
-        `sec-${cid}-${sectionIdx++}`, false
+        { label, content: getText(latestMsg) },
+        `sec-${cid}-${sectionIdx++}`, true
       );
     }
+  } else if (nonSys.length === 1) {
+    // Single user message (no history)
+    const msg = nonSys[0];
+    inputHtml += renderLayerSection(
+      { label: 'L6 User Message', content: getText(msg) },
+      `sec-${cid}-${sectionIdx++}`, true
+    );
   }
 
   // Output section — always open

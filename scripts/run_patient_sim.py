@@ -26,7 +26,7 @@ if _CONFIG_PATH.exists():
                 os.environ[k] = val
 
 from patient_sim.engine import run_persona, cleanup_sim_data  # noqa: E402
-from patient_sim.validator import validate_tier1, validate_tier2, validate_tier3, validate_tier4, analyze_results, resolve_db_path  # noqa: E402
+from patient_sim.validator import validate_tier1, validate_tier2, validate_tier3, validate_tier4, resolve_db_path  # noqa: E402
 from patient_sim.report import generate_reports  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -169,11 +169,9 @@ async def _run(args: argparse.Namespace) -> None:
         results.append(sim_result)
 
     # ------------------------------------------------------------------
-    # AI Analysis — 2 analysts review full results
+    # AI Analysis — skipped (analyze_results removed)
     # ------------------------------------------------------------------
-    print("\nRunning AI analysis...", end=" ", flush=True)
-    ai_analyses = await analyze_results(results, args.patient_llm)
-    print(f"done ({len(ai_analyses)} analysts)")
+    ai_analyses = []
 
     # ------------------------------------------------------------------
     # Report (before cleanup — needs DB records for medical record display)
@@ -186,7 +184,6 @@ async def _run(args: argparse.Namespace) -> None:
         patient_llm=args.patient_llm,
         server_url=server,
         db_path=str(db_path),
-        ai_analyses=ai_analyses,
     )
 
     # ------------------------------------------------------------------
