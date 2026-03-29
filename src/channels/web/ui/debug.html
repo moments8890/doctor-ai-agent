@@ -648,14 +648,47 @@ document.querySelectorAll('.tab').forEach(tab => {
   });
 });
 
+function persistUrlState() {
+  const url = new URL(window.location);
+  url.hash = currentTab;
+  url.searchParams.set('range', document.getElementById('globalTimeRange').value);
+  if (autoRefreshOn) url.searchParams.set('auto', '1');
+  else url.searchParams.delete('auto');
+  history.replaceState(null, '', url);
+}
+
+function restoreUrlState() {
+  const url = new URL(window.location);
+  // Tab from hash
+  const hash = url.hash.replace('#', '');
+  const validTabs = ['llm', 'requests', 'errors', 'health'];
+  if (hash && validTabs.includes(hash)) {
+    currentTab = hash;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === hash));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${hash}`));
+  }
+  // Time range
+  const range = url.searchParams.get('range');
+  if (range) {
+    const sel = document.getElementById('globalTimeRange');
+    const valid = [...sel.options].map(o => o.value);
+    if (valid.includes(range)) sel.value = range;
+  }
+  // Auto-refresh
+  if (url.searchParams.get('auto') === '1') {
+    autoRefreshOn = true;
+    const btn = document.getElementById('autoRefreshBtn');
+    btn.classList.add('active');
+    btn.textContent = 'Auto ON (30s)';
+    autoRefreshTimer = setInterval(() => loadCurrentTab(true), 30000);
+  }
+}
+
 function switchTab(name) {
   currentTab = name;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
-  // Persist tab in URL hash so refresh remembers it
-  const url = new URL(window.location);
-  url.hash = name;
-  history.replaceState(null, '', url);
+  persistUrlState();
   loadCurrentTab(false);
 }
 
@@ -669,6 +702,7 @@ document.getElementById('autoRefreshBtn').addEventListener('click', () => {
   const btn = document.getElementById('autoRefreshBtn');
   btn.classList.toggle('active', autoRefreshOn);
   btn.textContent = autoRefreshOn ? 'Auto ON (30s)' : 'Auto (30s)';
+  persistUrlState();
   if (autoRefreshOn) {
     autoRefreshTimer = setInterval(() => loadCurrentTab(true), 30000);
   } else {
@@ -676,7 +710,10 @@ document.getElementById('autoRefreshBtn').addEventListener('click', () => {
   }
 });
 
-document.getElementById('globalTimeRange').addEventListener('change', () => loadCurrentTab(true));
+document.getElementById('globalTimeRange').addEventListener('change', () => {
+  persistUrlState();
+  loadCurrentTab(true);
+});
 
 function stampRefreshed() {
   const el = document.getElementById('lastRefreshed');
@@ -1073,7 +1110,14 @@ function buildLlmCard(c, cid) {
   }
 
   // 2. Collect non-system messages: history vs latest
-  const nonSys = messages.filter(m => (m.role || '').toLowerCase() !== 'system');
+  // Filter out instructor MD_JSON appended message (not real user input)
+  const INSTRUCTOR_SUFFIX = 'Return the correct JSON response';
+  const nonSys = messages.filter(m => {
+    if ((m.role || '').toLowerCase() === 'system') return false;
+    const txt = typeof m.content === 'string' ? m.content : '';
+    if (txt.startsWith(INSTRUCTOR_SUFFIX)) return false;
+    return true;
+  });
   const getText = (m) => typeof m.content === 'string' ? m.content :
     Array.isArray(m.content) ? m.content.map(p => typeof p === 'string' ? p : (p.text || JSON.stringify(p))).join('\n') :
     JSON.stringify(m.content, null, 2);
@@ -1356,14 +1400,7 @@ function latencyClass(ms) {
 // INIT
 // ============================================================
 (function init() {
-  // Restore tab from URL hash (e.g., #llm, #requests, #errors, #health)
-  const hash = window.location.hash.replace('#', '');
-  const validTabs = ['llm', 'requests', 'errors', 'health'];
-  if (hash && validTabs.includes(hash)) {
-    currentTab = hash;
-    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === hash));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${hash}`));
-  }
+  restoreUrlState();
   if (!getToken()) {
     showTokenModal();
   } else {
