@@ -163,7 +163,7 @@ Section label: `我的方法 · 最近活跃` + `全部 12 条 ›` link
 Section label: `最近由AI处理` + `全部 ›`
 
 - 2 patient rows showing AI actions (e.g., "按你的话术起草了随访回复")
-- Standard `ListCard` with `PatientAvatar`
+- Standard `ListCard` with `NameAvatar`
 
 ---
 

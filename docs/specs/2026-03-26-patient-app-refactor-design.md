@@ -104,7 +104,7 @@ API calls via `usePatientApi()`:
 Extracted from current `RecordsTab`.
 
 - List view with `ListCard` components
-- Each record: `RecordAvatar` (type icon), title (record type label), subtitle (chief complaint), right side (status badge + date)
+- Each record: `RecordTypeAvatar` (type icon), title (record type label), subtitle (chief complaint), right side (status badge + date)
 - `NewItemCard` at top: "新建病历" → navigates to interview
 - Tap record → navigate to `/patient/records/:recordId`
 
@@ -139,7 +139,7 @@ API calls:
 
 Extracted from current `ProfileTab`.
 
-- "我的医生" section: doctor name + specialty (via PatientAvatar/ListCard)
+- "我的医生" section: doctor name + specialty (via NameAvatar/ListCard)
 - "我的信息" section: patient name, phone
 - Logout button (red "退出登录")
 

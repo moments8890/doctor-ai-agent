@@ -119,18 +119,25 @@ async def ai_activity_feed(
     trimmed = events[:limit]
 
     # Resolve patient names for events that have a patient_id
-    patient_ids = list({e["patient_id"] for e in trimmed if e.get("patient_id")})
-    if patient_ids:
+    raw_pids = [e["patient_id"] for e in trimmed if e.get("patient_id")]
+    int_pids = []
+    for p in raw_pids:
+        try:
+            int_pids.append(int(p))
+        except (ValueError, TypeError):
+            pass
+    int_pids = list(set(int_pids))
+    if int_pids:
         async with AsyncSessionLocal() as name_session:
             name_rows = (
                 await name_session.execute(
                     select(Patient.id, Patient.name)
-                    .where(Patient.id.in_(patient_ids))
+                    .where(Patient.id.in_(int_pids))
                 )
             ).all()
-            name_map = {pid: name for pid, name in name_rows}
+            name_map = {str(pid): name for pid, name in name_rows}
         for e in trimmed:
-            pid = e.get("patient_id")
+            pid = str(e.get("patient_id", ""))
             if pid and pid in name_map:
                 e["patient_name"] = name_map[pid]
 

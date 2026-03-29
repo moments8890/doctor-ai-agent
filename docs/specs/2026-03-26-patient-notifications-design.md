@@ -88,7 +88,7 @@ In the chat message rendering loop (PatientPage.jsx ChatTab), add a branch for `
 
 ```jsx
 <ListCard
-  avatar={<RecordAvatar type="visit" size={32} />}
+  avatar={<RecordTypeAvatar type="visit" size={32} />}
   title="您的诊断结果已出"
   subtitle="点击查看病历"
   chevron
@@ -101,7 +101,7 @@ In the chat message rendering loop (PatientPage.jsx ChatTab), add a branch for `
 | `triage_category` | Avatar | Navigate to |
 |-------------------|--------|-------------|
 | `notification:task:{id}` | Simple icon Box (task icon, `COLOR.primary`) | `/patient/tasks` |
-| `notification:record:{id}` | `RecordAvatar type="visit"` | `/patient/records/{id}` |
+| `notification:record:{id}` | `RecordTypeAvatar type="visit"` | `/patient/records/{id}` |
 | `notification` (no link) | Simple icon Box (bell icon, `COLOR.text4`) | non-navigable |
 
 **Parsing link info:** Use `triage_category` to encode notification type and link info as a structured string:
@@ -137,7 +137,7 @@ Red dot + unread count on the 主页 tab icon in the bottom nav.
 | Component | Usage |
 |-----------|-------|
 | `ListCard` | Notification card in chat feed |
-| `RecordAvatar` | Avatar for diagnosis/record notifications |
+| `RecordTypeAvatar` | Avatar for diagnosis/record notifications |
 | MUI `Badge` | Unread count on tab icon |
 
 ### 4.4 New Components
@@ -173,7 +173,7 @@ Patient opens chat tab → last_seen_chat updated → badge clears
 
 - [x] All `TYPE`/`COLOR`/`ICON` tokens from theme.js
 - [x] No shadows, no gradients — flat only
-- [x] Reuses existing components (ListCard, RecordAvatar, Badge)
+- [x] Reuses existing components (ListCard, RecordTypeAvatar, Badge)
 - [x] Chinese-first labels
 - [x] No new tabs or navigation changes
 - [x] System messages visually distinct from patient/AI/doctor messages

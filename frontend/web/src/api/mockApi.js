@@ -12,12 +12,94 @@ import {
   MOCK_SETTINGS_TEMPLATES,
 } from "../pages/doctor/debug/MockData";
 
+const INITIAL_DRAFT_MESSAGES = [
+  {
+    id: 101,
+    patient_id: 1,
+    patient_name: "陈伟强",
+    patient_message: "张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？",
+    draft_text: "陈先生，您术后头痛加剧伴恶心需要高度重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果出现剧烈头痛、呕吐或意识不清，请立即拨打120。",
+    original_draft_text: "陈先生，您术后头痛加剧伴恶心需要高度重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果出现剧烈头痛、呕吐或意识不清，请立即拨打120。",
+    cited_knowledge_ids: [7],
+    cited_rules: [{ id: 7, title: "术后头痛危险信号" }],
+    confidence: 0.95,
+    status: "generated",
+    ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
+    created_at: "2026-03-27T11:45:00",
+    patient_context: "右额叶脑膜瘤术后第7天",
+    time: "今天 11:45",
+    badge: "urgent",
+    rule_cited: "术后头痛危险信号",
+  },
+  {
+    id: 102,
+    patient_id: 2,
+    patient_name: "李复诊",
+    patient_message: "张医生，我想问下我下次检查是什么时候？需要做什么准备吗？",
+    draft_text: "李女士您好，根据您TIA的情况，明天需要做颈动脉超声检查，评估颈部血管情况。检查前无需空腹，正常饮食即可。同时还会安排头颅MRA检查。请按时服用阿司匹林和氯吡格雷，不要自行停药。",
+    original_draft_text: "李女士您好，根据您TIA的情况，明天需要做颈动脉超声检查，评估颈部血管情况。检查前无需空腹，正常饮食即可。同时还会安排头颅MRA检查。请按时服用阿司匹林和氯吡格雷，不要自行停药。",
+    cited_knowledge_ids: [5],
+    cited_rules: [{ id: 5, title: "TIA复查路径" }],
+    confidence: 0.90,
+    status: "generated",
+    ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
+    created_at: "2026-03-27T13:10:00",
+    patient_context: "TIA首发48小时",
+    time: "今天 13:10",
+    badge: "new",
+    rule_cited: "TIA复查路径",
+  },
+  {
+    id: 103,
+    patient_id: 3,
+    patient_name: "王明",
+    patient_message: "张医生，我术后第12天了，今天还是有点隐隐头痛，这个正常吗？",
+    draft_text: "王先生您好，动脉瘤夹闭术后第12天仍有轻微头痛属于正常恢复过程，不必过于担心。请注意观察：如果头痛突然加剧、伴呕吐或意识模糊，请立即就医。下周我们安排DSA复查，评估夹闭效果。",
+    original_draft_text: "王先生您好，动脉瘤夹闭术后第12天仍有轻微头痛属于正常恢复过程，不必过于担心。请注意观察：如果头痛突然加剧、伴呕吐或意识模糊，请立即就医。下周我们安排DSA复查，评估夹闭效果。",
+    cited_knowledge_ids: [7],
+    cited_rules: [{ id: 7, title: "术后头痛危险信号" }],
+    confidence: 0.92,
+    status: "generated",
+    ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
+    created_at: "2026-03-27T13:25:00",
+    patient_context: "前交通动脉瘤夹闭术后第12天",
+    time: "今天 13:25",
+    badge: "new",
+    rule_cited: "术后头痛危险信号",
+  },
+  {
+    id: 104,
+    patient_id: 5,
+    patient_name: "刘建国",
+    patient_message: "医生您好，我腰椎的问题能不能做腰椎穿刺检查一下？",
+    draft_text: "刘先生您好，腰椎管狭窄的诊断主要依靠MRI检查，目前您的MRI已经明确了L3/4、L4/5狭窄的情况。腰椎穿刺一般用于排除感染或测量脑脊液压力，对您目前的情况不是必要的检查。建议先继续保守治疗方案，4月10日来院评估疗效。",
+    original_draft_text: "刘先生您好，腰椎管狭窄的诊断主要依靠MRI检查，目前您的MRI已经明确了L3/4、L4/5狭窄的情况。腰椎穿刺一般用于排除感染或测量脑脊液压力，对您目前的情况不是必要的检查。建议先继续保守治疗方案，4月10日来院评估疗效。",
+    cited_knowledge_ids: [6],
+    cited_rules: [{ id: 6, title: "腰椎穿刺术后护理要点" }],
+    confidence: 0.88,
+    status: "generated",
+    ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
+    created_at: "2026-03-27T13:20:00",
+    patient_context: "腰椎管狭窄保守治疗中",
+    time: "今天 13:20",
+    badge: "new",
+    rule_cited: "腰椎穿刺术后护理要点",
+  },
+];
+
 // ── Mutable state (resets on page refresh) ──
 let patients = [...MOCK_PATIENTS];
 let records = [...MOCK_RECORDS];
 let tasks = [...MOCK_TASKS];
 let suggestions = [...MOCK_SUGGESTIONS];
 let knowledgeItems = [...MOCK_KNOWLEDGE_ITEMS];
+let patientMessages = [...MOCK_PATIENT_MESSAGES];
+let draftMessages = INITIAL_DRAFT_MESSAGES.map((draft) => ({
+  ...draft,
+  cited_knowledge_ids: [...(draft.cited_knowledge_ids || [])],
+  cited_rules: [...(draft.cited_rules || [])],
+}));
+let nextMockMessageId = 900;
 
 // ── Read operations ──
 
@@ -92,8 +174,13 @@ export async function getTemplateStatus() {
   return { templates: MOCK_SETTINGS_TEMPLATES, hasCustom: false };
 }
 
-export async function getPatientChat() {
-  return { messages: MOCK_PATIENT_MESSAGES };
+export async function getPatientChat(patientId) {
+  const filtered = patientId
+    ? patientMessages.filter((message) => String(message.patient_id) === String(patientId))
+    : patientMessages;
+  return {
+    messages: [...filtered].sort((a, b) => (a.created_at || "").localeCompare(b.created_at || "")),
+  };
 }
 
 export async function getPatientTimeline({ patientId }) {
@@ -393,7 +480,25 @@ export async function deleteTemplate() {
   return {};
 }
 
-export async function replyToPatient() {
+export async function replyToPatient(patientId, text) {
+  const patient = patients.find((item) => String(item.id) === String(patientId));
+  const createdAt = new Date().toISOString();
+  patientMessages = [
+    ...patientMessages,
+    {
+      id: nextMockMessageId++,
+      patient_id: Number(patientId),
+      patient_name: patient?.name || "患者",
+      content: text,
+      source: "doctor",
+      created_at: createdAt,
+    },
+  ];
+  draftMessages = draftMessages.map((draft) => (
+    String(draft.patient_id) === String(patientId) && draft.status !== "sent"
+      ? { ...draft, status: "sent", sent_at: createdAt }
+      : draft
+  ));
   return {};
 }
 
@@ -534,106 +639,59 @@ export async function getReviewQueue() {
   };
 }
 
-export async function fetchDrafts() {
-  // Real API: GET /api/manage/drafts → flat array of draft objects:
-  //   [{ id, patient_id, patient_name, patient_message, draft_text, original_draft_text,
-  //      cited_knowledge_ids, confidence, status, ai_disclosure, created_at }]
-  // The frontend groups into 3 arrays; keep that structure but add all real API fields.
+export async function fetchDrafts(_doctorId, { includeSent = false } = {}) {
+  const visibleDrafts = includeSent
+    ? draftMessages
+    : draftMessages.filter((draft) => draft.status !== "sent");
   return {
-    pending_messages: [
-      // Patient 1: 陈伟强 — 紧急，术后头痛加剧
-      {
-        id: 101,
-        patient_id: 1,
-        patient_name: "陈伟强",
-        patient_message: "张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？",
-        draft_text: "陈先生，您术后头痛加剧伴恶心需要高度重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果出现剧烈头痛、呕吐或意识不清，请立即拨打120。",
-        original_draft_text: "陈先生，您术后头痛加剧伴恶心需要高度重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果出现剧烈头痛、呕吐或意识不清，请立即拨打120。",
-        cited_knowledge_ids: [7],
-        cited_rules: [{ id: 7, title: "术后头痛危险信号" }],
-        confidence: 0.95,
-        status: "generated",
-        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
-        created_at: "2026-03-27T11:45:00",
-        patient_context: "右额叶脑膜瘤术后第7天",
-        time: "今天 11:45",
-        badge: "urgent",
-        rule_cited: "术后头痛危险信号",
-      },
-      // Patient 2: 李复诊 — 常规，问下次检查时间
-      {
-        id: 102,
-        patient_id: 2,
-        patient_name: "李复诊",
-        patient_message: "张医生，我想问下我下次检查是什么时候？需要做什么准备吗？",
-        draft_text: "李女士您好，根据您TIA的情况，明天需要做颈动脉超声检查，评估颈部血管情况。检查前无需空腹，正常饮食即可。同时还会安排头颅MRA检查。请按时服用阿司匹林和氯吡格雷，不要自行停药。",
-        original_draft_text: "李女士您好，根据您TIA的情况，明天需要做颈动脉超声检查，评估颈部血管情况。检查前无需空腹，正常饮食即可。同时还会安排头颅MRA检查。请按时服用阿司匹林和氯吡格雷，不要自行停药。",
-        cited_knowledge_ids: [5],
-        cited_rules: [{ id: 5, title: "TIA复查路径" }],
-        confidence: 0.90,
-        status: "generated",
-        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
-        created_at: "2026-03-27T13:10:00",
-        patient_context: "TIA首发48小时",
-        time: "今天 13:10",
-        badge: "new",
-        rule_cited: "TIA复查路径",
-      },
-      // Patient 3: 王明 — 安抚，术后轻微头痛
-      {
-        id: 103,
-        patient_id: 3,
-        patient_name: "王明",
-        patient_message: "张医生，我术后第12天了，今天还是有点隐隐头痛，这个正常吗？",
-        draft_text: "王先生您好，动脉瘤夹闭术后第12天仍有轻微头痛属于正常恢复过程，不必过于担心。请注意观察：如果头痛突然加剧、伴呕吐或意识模糊，请立即就医。下周我们安排DSA复查，评估夹闭效果。",
-        original_draft_text: "王先生您好，动脉瘤夹闭术后第12天仍有轻微头痛属于正常恢复过程，不必过于担心。请注意观察：如果头痛突然加剧、伴呕吐或意识模糊，请立即就医。下周我们安排DSA复查，评估夹闭效果。",
-        cited_knowledge_ids: [7],
-        cited_rules: [{ id: 7, title: "术后头痛危险信号" }],
-        confidence: 0.92,
-        status: "generated",
-        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
-        created_at: "2026-03-27T13:25:00",
-        patient_context: "前交通动脉瘤夹闭术后第12天",
-        time: "今天 13:25",
-        badge: "new",
-        rule_cited: "术后头痛危险信号",
-      },
-      // Patient 5: 刘建国 — 常规，问能不能做腰椎穿刺
-      {
-        id: 104,
-        patient_id: 5,
-        patient_name: "刘建国",
-        patient_message: "医生您好，我腰椎的问题能不能做腰椎穿刺检查一下？",
-        draft_text: "刘先生您好，腰椎管狭窄的诊断主要依靠MRI检查，目前您的MRI已经明确了L3/4、L4/5狭窄的情况。腰椎穿刺一般用于排除感染或测量脑脊液压力，对您目前的情况不是必要的检查。建议先继续保守治疗方案，4月10日来院评估疗效。",
-        original_draft_text: "刘先生您好，腰椎管狭窄的诊断主要依靠MRI检查，目前您的MRI已经明确了L3/4、L4/5狭窄的情况。腰椎穿刺一般用于排除感染或测量脑脊液压力，对您目前的情况不是必要的检查。建议先继续保守治疗方案，4月10日来院评估疗效。",
-        cited_knowledge_ids: [6],
-        cited_rules: [{ id: 6, title: "腰椎穿刺术后护理要点" }],
-        confidence: 0.88,
-        status: "generated",
-        ai_disclosure: "【此回复由AI辅助起草，经医生审核】",
-        created_at: "2026-03-27T13:20:00",
-        patient_context: "腰椎管狭窄保守治疗中",
-        time: "今天 13:20",
-        badge: "new",
-        rule_cited: "腰椎穿刺术后护理要点",
-      },
-    ],
+    pending_messages: visibleDrafts,
     upcoming_followups: [],
-    recently_sent: [
-      { id: "s1", patient_id: 4, patient_name: "张小红", task: "服药提醒 — 卡马西平按时服用", read_status: "已读", time: "昨天" },
-      { id: "s2", patient_id: 5, patient_name: "刘建国", task: "康复指导 — 腰背肌功能锻炼", read_status: "已读", time: "3月25日" },
-    ],
+    recently_sent: draftMessages
+      .filter((draft) => draft.status === "sent")
+      .map((draft) => ({
+        id: draft.id,
+        patient_id: draft.patient_id,
+        patient_name: draft.patient_name,
+        task: "回复消息",
+        read_status: "未读",
+        time: "刚刚",
+      })),
   };
 }
 
 export async function sendDraft(draftId) {
   // Real API: POST /api/manage/drafts/{draft_id}/send → { status: "ok", message_id: int }
   await new Promise((r) => setTimeout(r, 400));
-  return { status: "ok", message_id: 999 };
+  const draft = draftMessages.find((item) => String(item.id) === String(draftId));
+  const createdAt = new Date().toISOString();
+  if (draft) {
+    draftMessages = draftMessages.map((item) => (
+      String(item.id) === String(draftId)
+        ? { ...item, status: "sent", sent_at: createdAt }
+        : item
+    ));
+    patientMessages = [
+      ...patientMessages,
+      {
+        id: nextMockMessageId++,
+        patient_id: draft.patient_id,
+        patient_name: draft.patient_name,
+        content: draft.draft_text,
+        source: "doctor",
+        created_at: createdAt,
+      },
+    ];
+  }
+  return { status: "ok", message_id: nextMockMessageId - 1 };
 }
 export async function editDraft(draftId, _doctorId, editedText) {
   // Real API: PUT /api/manage/drafts/{draft_id}/edit → { status: "ok", teach_prompt: bool, edit_id: int|null }
   await new Promise((r) => setTimeout(r, 300));
+  draftMessages = draftMessages.map((draft) => (
+    String(draft.id) === String(draftId)
+      ? { ...draft, draft_text: editedText }
+      : draft
+  ));
   return { status: "ok", teach_prompt: false, edit_id: null };
 }
 export async function dismissDraft(draftId) {

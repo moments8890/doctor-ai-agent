@@ -1,62 +1,58 @@
-# Task Plan: Multi-Input AI App Research
+# Task Plan: MUI Primitive Standardization
 
 ## Goal
-Produce a current, source-backed comparison of multi-input support across specified medical, productivity AI, and Chinese super-app products, including modality support, voice/image/file UX, medical ambient-listening patterns, latency benchmarks, and best-practice recommendations using 2025-2026 web sources.
+Produce a concrete implementation plan to migrate thin shared UI primitives to public MUI components while preserving the current visual language and keeping domain-heavy doctor workflows custom.
 
 ## Current Phase
-Phase 3
+Phase 4
 
 ## Phases
 
-### Phase 1: Requirements & Discovery
-- [x] Understand user intent
-- [x] Identify constraints and requirements
-- [x] Document findings in findings.md
+### Phase 1: Inventory & Constraints
+- [x] Review the UX inventory in `docs/ux/component-matrix.html` and `docs/ux/UI-DESIGN.md`
+- [x] Read the current primitive implementations in `frontend/web/src/components/`
+- [x] Separate thin wrappers from domain-specific workflow components
 - **Status:** complete
 
-### Phase 2: Source Collection
-- [x] Gather current product pages, official help docs, app-store docs, and reliable reporting for each product
-- [x] Prioritize primary sources and note publication/update dates where available
-- [x] Capture findings in findings.md after each search batch
+### Phase 2: Public MUI Mapping
+- [x] Compare the primitive layer to current public MUI components
+- [x] Identify where MUI public components should replace hand-rolled wrappers
+- [x] Identify components that should remain custom
 - **Status:** complete
 
-### Phase 3: Synthesis
-- [ ] Build the cross-product comparison matrix
-- [ ] Extract medical-specific ambient listening and multimodal workflows
-- [ ] Summarize latency ranges and best practices
-- **Status:** in_progress
+### Phase 3: Rollback Strategy
+- [x] Define the rollback unit for the refactor
+- [x] Decide whether a runtime flag is necessary
+- [x] Define the visual verification loop before and after each batch
+- **Status:** complete
 
-### Phase 4: Verification
-- [ ] Cross-check unstable claims against multiple recent sources
-- [ ] Flag gaps or inference-based conclusions explicitly
-- [ ] Ensure all requested products are covered
-- **Status:** pending
-
-### Phase 5: Delivery
-- [ ] Deliver concise but comprehensive comparison with citations
-- [ ] Include limitations where evidence is incomplete
-- [ ] Provide links to sources used
-- **Status:** pending
+### Phase 4: Plan Authoring
+- [x] Write the repo plan document
+- [x] Update planning artifacts with decisions and file targets
+- [x] Prepare execution handoff options
+- **Status:** complete
 
 ## Key Questions
-1. Which requested products have officially documented support for each input modality?
-2. For voice, is the product using press-to-talk, tap-to-toggle, dictated text, or continuous/ambient listening?
-3. For image and file input, is handling inline, upload-based, OCR-assisted, or full multimodal vision analysis?
-4. For medical AI, what current evidence exists on production latency and clinical multimodal ingestion?
+1. Which shared components are only reimplementing standard button, list, chip, avatar, tab, dialog, or drawer behavior?
+2. Which components encode product workflow logic and therefore should stay custom?
+3. How do we stage the refactor so a visual mismatch can be reverted without backing out unrelated work?
+4. Which docs need to change so the component inventory matches the actual code after the refactor?
 
 ## Decisions Made
 | Decision | Rationale |
 |----------|-----------|
-| Use current web sources only | The user explicitly requested 2025-2026 data and these products change frequently |
-| Prefer official docs/product pages, then major reporting | Product capability claims are unstable; primary sources reduce hallucination risk |
-| Mark unsupported or unclear capabilities as "not clearly documented" | Avoid overstating features based on marketing inference |
+| Keep exported wrapper names stable in phase 1 | Limits call-site churn and makes rollback cheap |
+| Use only public MUI components, props, slots, and theme overrides | Avoids fragile dependence on internal MUI class structure |
+| Land one primitive family per commit | Makes visual rollback surgical instead of all-or-nothing |
+| Do not add a permanent feature flag up front | Wrapper isolation plus commit-level rollback is cheaper and simpler |
+| Keep `DiagnosisCard`, `FieldReviewCard`, `MessageTimeline`, `RecordCard`, `PageSkeleton`, and `SubpageHeader` custom | These are domain components, not generic primitives |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
 |-------|---------|------------|
-| None so far | 1 | N/A |
+| Existing planning files tracked an unrelated finished task | 1 | Reset planning artifacts for the current refactor-planning task |
 
 ## Notes
-- Update findings after each search batch
-- Re-read the plan before synthesis
-- Call out inference vs directly documented evidence
+- Visual comparison should run through `/debug/components` before and after each batch.
+- Manual QA must include at least one real page that uses each wrapper family, not just the showcase.
+- Docs drift already exists around `BottomSheet.jsx` and `TasksPage.jsx`; plan includes cleanup.

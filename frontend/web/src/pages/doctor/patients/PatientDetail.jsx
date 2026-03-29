@@ -1,7 +1,7 @@
 /**
  * 患者详情面板：可折叠个人信息、带计数的病历标签页、置顶操作栏。
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert, Box, Button, CircularProgress, Stack, Typography,
 } from "@mui/material";
@@ -22,7 +22,6 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExportSelectorDialog from "../../../components/ExportSelectorDialog";
 import ConfirmDialog from "../../../components/ConfirmDialog";
-import ReplyCard from "../../../components/doctor/ReplyCard";
 import { TYPE, ICON, COLOR } from "../../../theme";
 
 /* ── helpers ── */
@@ -348,121 +347,134 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
   return { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, load, handleDelete, handleExportPdf, handleExportReport };
 }
 
-/* ── DraftReplyCard — now delegates to ReplyCard ── */
-
 /* ── PatientChatPage ── */
 
 function PatientChatPage({ patientId, doctorId }) {
+  const { getPatientChat, replyToPatient, fetchDrafts, editDraft, sendDraft } = useApi();
   const navigate = useAppNavigate();
-  const { getPatientChat, replyToPatient, fetchDrafts } = useApi();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [replyText, setReplyText] = useState("");
-  const [sending, setSending] = useState(false);
   const [drafts, setDrafts] = useState([]);
   const [draftsLoading, setDraftsLoading] = useState(false);
+  const [open, setOpen] = useState(true);
+
+  const refreshMessages = useCallback(async () => {
+    if (!patientId) return;
+    const data = await getPatientChat(patientId);
+    const nextMessages = Array.isArray(data?.messages) ? data.messages : [];
+    nextMessages.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
+    setMessages(nextMessages);
+  }, [patientId, getPatientChat]);
+
+  const refreshDrafts = useCallback(async () => {
+    if (!patientId || !doctorId) return;
+    const data = await fetchDrafts(doctorId);
+    const allDrafts = Array.isArray(data) ? data : (data?.pending_messages || []);
+    const patientDrafts = allDrafts
+      .filter((draft) => String(draft.patient_id) === String(patientId))
+      .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+    setDrafts(patientDrafts);
+  }, [patientId, doctorId, fetchDrafts]);
 
   useEffect(() => {
     if (!patientId) return;
     setLoading(true);
-    getPatientChat(patientId)
-      .then(data => setMessages(data.messages || []))
+    refreshMessages()
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [patientId]);
+  }, [patientId, refreshMessages]);
 
-  // Fetch drafts for this patient
   useEffect(() => {
     if (!patientId || !doctorId) return;
     setDraftsLoading(true);
-    fetchDrafts(doctorId)
-      .then(data => {
-        // API returns { pending_messages: [...] } or a flat array
-        const allDrafts = Array.isArray(data) ? data : (data?.pending_messages || []);
-        const patientDrafts = allDrafts.filter(d => String(d.patient_id) === String(patientId));
-        setDrafts(patientDrafts);
-      })
+    refreshDrafts()
       .catch(() => setDrafts([]))
       .finally(() => setDraftsLoading(false));
-  }, [patientId, doctorId]);
+  }, [patientId, doctorId, refreshDrafts]);
 
-  async function handleReply() {
-    const text = replyText.trim();
-    if (!text || sending) return;
-    setSending(true);
-    try {
-      await replyToPatient(patientId, text);
-      setReplyText("");
-      // Refresh messages
-      const data = await getPatientChat(patientId);
-      setMessages(data.messages || []);
-    } catch {}
-    finally { setSending(false); }
+  async function handleDraftEdit(nextText, draft) {
+    if (!draft?.id) return;
+    await editDraft(draft.id, doctorId, nextText);
+    setDrafts((prev) => prev.map((item) => (
+      item.id === draft.id ? { ...item, draft_text: nextText } : item
+    )));
   }
 
-  function handleDraftSent(draftId) {
-    setDrafts(prev => prev.filter(d => d.id !== draftId));
-    // Refresh messages to show the sent reply
-    getPatientChat(patientId)
-      .then(data => setMessages(data.messages || []))
-      .catch(() => {});
+  async function handleDraftSend(draft) {
+    if (!draft?.id) return;
+    await sendDraft(draft.id, doctorId);
+    setDrafts((prev) => prev.filter((item) => item.id !== draft.id));
+    await refreshMessages();
   }
 
-  // Show only escalated/unhandled messages in triage summary
-  const escalated = messages.filter(m => m.source === "patient" || (m.ai_handled === false));
-  const hasMessages = messages.length > 0;
-  const hasDrafts = drafts.length > 0;
+  async function handleManualReply(nextText, draft) {
+    const text = nextText.trim();
+    if (!text) return;
+    await replyToPatient(patientId, text);
+    if (draft?.id) {
+      setDrafts((prev) => prev.filter((item) => item.id !== draft.id));
+    }
+    await Promise.allSettled([refreshMessages(), refreshDrafts()]);
+  }
+
+  const activeDraft = drafts[0] || null;
+  const timelineCount = messages.length + (activeDraft ? 1 : 0);
+  const hasContent = timelineCount > 0;
 
   return (
     <Box sx={{ bgcolor: "#fff", mb: 0.8 }}>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, pt: 1.5, pb: 0.5 }}>
+      <Box
+        onClick={() => setOpen((prev) => !prev)}
+        sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, pt: 1.6, pb: 1, cursor: "pointer" }}
+      >
         <Typography sx={{ fontWeight: 600, fontSize: TYPE.heading.fontSize, color: COLOR.text2 }}>
-          患者消息 {hasMessages && <Box component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 400 }}>({messages.length})</Box>}
+          患者消息
+          {timelineCount > 0 && (
+            <Box component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 400, ml: 0.5 }}>
+              ({timelineCount})
+            </Box>
+          )}
         </Typography>
-        {(loading || draftsLoading) && <CircularProgress size={14} sx={{ color: COLOR.success }} />}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+          {(loading || draftsLoading) && <CircularProgress size={14} sx={{ color: COLOR.success }} />}
+          <ExpandMoreIcon
+            sx={{
+              fontSize: ICON.md,
+              color: COLOR.text4,
+              transform: open ? "rotate(0deg)" : "rotate(-90deg)",
+              transition: "transform 0.16s ease",
+            }}
+          />
+        </Box>
       </Box>
 
-      {!loading && !hasMessages && !hasDrafts && (
-        <Box sx={{ px: 2, pb: 1.5 }}>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>暂无患者消息</Typography>
-        </Box>
-      )}
-
-      {!loading && (hasMessages || hasDrafts) && (
-        <>
-          {/* Timeline — shows latest 3 by default, unfold for all */}
-          <Box sx={{ px: 2, mb: 0.5 }}>
+      {open && (
+        <Box sx={{ px: 2, pb: 1.5, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+          {!loading && !hasContent ? (
+            <Box sx={{ pt: 1.2 }}>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>暂无患者消息</Typography>
+            </Box>
+          ) : (
             <MessageTimeline
-              messages={hasMessages ? messages : []}
+              messages={messages}
               maxHeight={400}
-              draft={drafts[0] ? {
-                text: drafts[0].draft_text || drafts[0].content || "",
-                rule_cited: drafts[0].rule_cited || (drafts[0].cited_rules?.[0]?.title) || null,
-                onEdit: () => navigate("/doctor/review?tab=replies"),
-                onSend: () => handleDraftSent?.(drafts[0]),
+              draft={activeDraft ? {
+                id: activeDraft.id,
+                status: activeDraft.status,
+                text: activeDraft.draft_text || activeDraft.content || "",
+                citedRules: activeDraft.cited_rules || [],
+                rule_cited: activeDraft.rule_cited || (activeDraft.cited_rules?.[0]?.title) || null,
               } : undefined}
-            />
-          </Box>
-
-          {/* Reply input */}
-          <Box sx={{ display: "flex", gap: 1, px: 2, py: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-            <Box component="input" value={replyText} onChange={e => setReplyText(e.target.value)}
-              placeholder="回复患者…"
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
-              style={{
-                flex: 1, border: "1px solid #e0e0e0", borderRadius: 6,
-                padding: "6px 10px", fontSize: 13, fontFamily: "inherit",
-                outline: "none",
+              onCitationClick={(rule) => {
+                if (!rule?.id) return;
+                navigate(`/doctor/settings/knowledge/${rule.id}`);
               }}
+              onSaveDraftEdit={handleDraftEdit}
+              onSendDraft={handleDraftSend}
+              onSendManualReply={handleManualReply}
             />
-            <Button size="small" disabled={!replyText.trim() || sending}
-              onClick={handleReply}
-              sx={{ color: COLOR.success, minWidth: "auto", fontSize: TYPE.secondary.fontSize }}>
-              {sending ? <CircularProgress size={14} /> : "发送"}
-            </Button>
-          </Box>
-        </>
+          )}
+        </Box>
       )}
     </Box>
   );

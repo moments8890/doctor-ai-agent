@@ -1321,7 +1321,7 @@ const CONFIG = {
   interview_summary:  { color: "#8e44ad", Icon: ChatOutlinedIcon },
 };
 const FALLBACK = { color: "#999", Icon: DescriptionOutlinedIcon };
-export default function RecordAvatar({ type, size = 36 }) {
+export default function RecordTypeAvatar({ type, size = 36 }) {
   const { color, Icon } = CONFIG[type] || FALLBACK;
   return (
     <Box sx={{

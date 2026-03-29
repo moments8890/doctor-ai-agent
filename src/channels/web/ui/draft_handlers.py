@@ -62,12 +62,13 @@ def _parse_cited_ids(raw: Optional[str]) -> list[int]:
 @router.get("/api/manage/drafts")
 async def list_pending_drafts(
     doctor_id: str = Query(default="web_doctor"),
+    include_sent: bool = Query(default=False),
     authorization: Optional[str] = Header(default=None),
 ):
-    """List pending drafts (generated or edited) for a doctor.
+    """List drafts for a doctor.
 
-    Joins with PatientMessage to include the original patient message text,
-    and with Patient to include the patient name.
+    By default returns pending (generated/edited). With include_sent=true,
+    also returns sent drafts for the completed view.
     """
     resolved = _resolve_ui_doctor_id(doctor_id, authorization)
     enforce_doctor_rate_limit(resolved, scope="ui.drafts")
@@ -78,6 +79,7 @@ async def list_pending_drafts(
                 MessageDraft,
                 PatientMessage.content.label("patient_message"),
                 Patient.name.label("patient_name"),
+                PatientMessage.triage_category.label("triage_category"),
             )
             .outerjoin(
                 PatientMessage,
@@ -89,10 +91,11 @@ async def list_pending_drafts(
             )
             .where(
                 MessageDraft.doctor_id == resolved,
-                MessageDraft.status.in_([
-                    DraftStatus.generated.value,
-                    DraftStatus.edited.value,
-                ]),
+                MessageDraft.status.in_(
+                    [DraftStatus.generated.value, DraftStatus.edited.value, DraftStatus.sent.value]
+                    if include_sent else
+                    [DraftStatus.generated.value, DraftStatus.edited.value]
+                ),
             )
             .order_by(MessageDraft.created_at.desc())
             .limit(50)
@@ -102,10 +105,10 @@ async def list_pending_drafts(
         # Collect all cited KB IDs across drafts and bulk-load titles
         all_cited_ids: set[int] = set()
         drafts_cited: list[tuple] = []
-        for draft, patient_message, patient_name in rows:
+        for draft, patient_message, patient_name, triage_category in rows:
             ids = _parse_cited_ids(draft.cited_knowledge_ids)
             all_cited_ids.update(ids)
-            drafts_cited.append((draft, patient_message, patient_name, ids))
+            drafts_cited.append((draft, patient_message, patient_name, triage_category, ids))
 
         kb_map: dict[int, str] = {}
         if all_cited_ids:
@@ -137,15 +140,17 @@ async def list_pending_drafts(
             "confidence": draft.confidence,
             "status": draft.status,
             "ai_disclosure": draft.ai_disclosure,
+            "badge": "urgent" if triage_cat == "urgent" else None,
+            "triage_category": triage_cat,
             "created_at": draft.created_at.isoformat() if draft.created_at else None,
         }
-        for draft, patient_message, patient_name, cited_ids in drafts_cited
+        for draft, patient_message, patient_name, triage_cat, cited_ids in drafts_cited
     ]
 
     # Also include escalated patient messages that have NO draft
     # (AI couldn't ground reply in doctor's knowledge)
     async with AsyncSessionLocal() as db:
-        drafted_msg_ids = {draft.source_message_id for draft, _, _, _ in drafts_cited if draft.source_message_id}
+        drafted_msg_ids = {draft.source_message_id for draft, _, _, _, _ in drafts_cited if draft.source_message_id}
         undrafted_stmt = (
             select(PatientMessage, Patient.name.label("patient_name"))
             .outerjoin(Patient, PatientMessage.patient_id == Patient.id)
@@ -300,37 +305,28 @@ async def send_draft(
     resolved = _resolve_ui_doctor_id(doctor_id, authorization)
     enforce_doctor_rate_limit(resolved, scope="ui.drafts.send")
 
+    # Validate draft exists and is sendable
     async with AsyncSessionLocal() as db:
         draft = await db.get(MessageDraft, draft_id)
         if draft is None or draft.doctor_id != resolved:
             raise HTTPException(status_code=404, detail="Draft not found")
         if draft.status not in (DraftStatus.generated.value, DraftStatus.edited.value):
             raise HTTPException(status_code=409, detail="Draft is not in a sendable state")
-
-        # Use edited_text if available, otherwise original draft_text
         reply_text = draft.edited_text or draft.draft_text
+        patient_id = int(draft.patient_id)
+        disclosure = draft.ai_disclosure
 
-        # Append AI disclosure label
-        full_text = f"{reply_text}\n\n{draft.ai_disclosure}"
+    # Use unified reply logic
+    from domain.patient_lifecycle.reply import send_doctor_reply
+    msg_id = await send_doctor_reply(
+        doctor_id=resolved,
+        patient_id=patient_id,
+        text=reply_text,
+        draft_id=draft_id,
+        ai_disclosure=disclosure,
+    )
 
-        # Create outbound patient message
-        msg = await save_patient_message(
-            db,
-            patient_id=int(draft.patient_id),
-            doctor_id=resolved,
-            content=full_text,
-            direction="outbound",
-            source="doctor",
-            sender_id=resolved,
-        )
-
-        # Mark draft as sent
-        draft.status = DraftStatus.sent.value
-        await db.commit()
-
-        log(f"[draft] sent draft {draft_id} as message {msg.id} for doctor={resolved}")
-
-    return {"status": "ok", "message_id": msg.id}
+    return {"status": "ok", "message_id": msg_id}
 
 
 # ── 4. Edit draft before sending ────────────────────────────────────────

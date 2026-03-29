@@ -122,7 +122,7 @@ const GROUPS = {
   DiagnosisCard:   { color: '#e8833a', bg: '#fff3e0', label: 'DiagnosisCard',    path: 'frontend/web/src/components/doctor/DiagnosisCard.jsx' },
   SheetDialog:     { color: '#6e7781', bg: '#eaeef2', label: 'SheetDialog',      path: 'frontend/web/src/components/SheetDialog.jsx' },
   VoiceInput:      { color: '#0e7c6b', bg: '#ddf5f0', label: 'VoiceInput',       path: 'frontend/web/src/components/VoiceInput.jsx' },
-  PatientAvatar:   { color: '#bf3989', bg: '#ffeff7', label: 'PatientAvatar',    path: 'frontend/web/src/components/PatientAvatar.jsx' },
+  NameAvatar:   { color: '#bf3989', bg: '#ffeff7', label: 'NameAvatar',    path: 'frontend/web/src/components/NameAvatar.jsx' },
   IconBadge:       { color: '#1a7f37', bg: '#dafbe1', label: 'IconBadge',        path: 'frontend/web/src/components/IconBadge.jsx' },
   _page:           { color: '#8c959f', bg: '#f0f2f4', label: 'Page-specific',    path: '' },
 };
@@ -135,19 +135,19 @@ const PAGES = [
     { name: 'CTAButtons', group: '_page', desc: '我的知识库 + 继续教AI' },
     { name: 'QuickActions', group: 'IconBadge', desc: '4 IconBadge + ListCard action rows' },
     { name: 'KnowledgeCard', group: 'KnowledgeCard', desc: 'Top 3 knowledge items (3-row)' },
-    { name: 'RecentActivity', group: 'PatientAvatar', desc: 'AI-processed list + avatars' },
+    { name: 'RecentActivity', group: 'NameAvatar', desc: 'AI-processed list + avatars' },
   ]},
   { id: 'patients', title: 'Patients', route: '/doctor/patients', img: 'page-screenshots/doctor-patients.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
     { name: 'SearchBar', group: '_page', desc: 'Patient name search', path: 'frontend/web/src/pages/doctor/PatientsPage.jsx' },
     { name: 'AITags (inline)', group: '_page', desc: 'AI status tags on patient rows', path: 'frontend/web/src/pages/doctor/PatientsPage.jsx' },
-    { name: 'PatientList', group: 'ListCard', desc: 'ListCard rows with PatientAvatar' },
+    { name: 'PatientList', group: 'ListCard', desc: 'ListCard rows with NameAvatar' },
     { name: 'PatientDetail link', group: '_page', desc: '-> PatientDetail column', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
   ]},
   { id: 'review-pending', title: '审核 · 门诊', route: '/doctor/review?tab=pending', img: 'page-screenshots/doctor-review.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title "审核"' },
     { name: 'FilterStatBar', group: '_page', desc: '门诊 / 回复 / 完成 (3 tabs)' },
-    { name: 'PendingReviewCard', group: 'PatientAvatar', desc: 'Diagnosis preview + citation chips + chevron' },
+    { name: 'PendingReviewCard', group: 'NameAvatar', desc: 'Diagnosis preview + citation chips + chevron' },
     { name: 'IconBadge', group: 'IconBadge', desc: 'Citation KB badges on cards' },
   ]},
   { id: 'review-replies', title: '审核 · 回复', route: '/doctor/review?tab=replies', img: 'page-screenshots/doctor-review-replies.png', blocks: [
@@ -192,7 +192,7 @@ const PAGES = [
   ]},
   { id: 'patient-detail', title: 'PatientDetail', route: '/doctor/patients/:id', img: 'page-screenshots/doctor-patients-1.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
-    { name: 'CollapsibleProfile', group: 'PatientAvatar', desc: 'Expandable patient info + avatar' },
+    { name: 'CollapsibleProfile', group: 'NameAvatar', desc: 'Expandable patient info + avatar' },
     { name: 'RecordCard', group: '_page', desc: 'Expandable record cards with structured fields' },
     { name: 'PendingReviewRow', group: '_page', desc: '→ links to 门诊 review' },
     { name: 'PatientMessages', group: '_page', desc: 'Recent messages list' },

@@ -53,7 +53,21 @@ async def generate_draft_reply(
 
     config = FOLLOWUP_REPLY_LAYERS
 
-    user_message = f"患者消息：{patient_message_text}"
+    # Look up patient name for the prompt
+    patient_name = ""
+    try:
+        from db.models.patient import Patient
+        async with AsyncSessionLocal() as name_db:
+            from sqlalchemy import select
+            row = (await name_db.execute(
+                select(Patient.name, Patient.gender).where(Patient.id == int(patient_id))
+            )).first()
+            if row:
+                patient_name = row.name or ""
+    except Exception:
+        pass
+
+    user_message = f"患者姓名：{patient_name}\n患者消息：{patient_message_text}"
     if is_red_flag:
         user_message += "\n\n⚠️ 注意：患者消息中包含危险信号，请使用就医建议模板回复。"
 

@@ -7,7 +7,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
 import { useApi } from "../api/ApiContext";
 import ListCard from "./ListCard";
-import PatientAvatar from "./PatientAvatar";
+import NameAvatar from "./NameAvatar";
 import SectionLabel from "./SectionLabel";
 import { TYPE, ICON, COLOR } from "../theme";
 
@@ -43,7 +43,7 @@ function PatientPickerRow({ patient, onClick }) {
   const timeStr = formatPatientTime(patient.updated_at || patient.created_at);
   return (
     <ListCard
-      avatar={<PatientAvatar name={patient.name} size={36} />}
+      avatar={<NameAvatar name={patient.name} size={36} />}
       title={patient.name}
       subtitle={getPatientSubtitle(patient)}
       right={timeStr ? <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{timeStr}</Typography> : null}

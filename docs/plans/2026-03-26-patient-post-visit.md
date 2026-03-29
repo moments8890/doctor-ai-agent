@@ -6,7 +6,7 @@
 
 **Architecture:** Two small backend fixes (return real data instead of nulls) + frontend-only changes in PatientPage.jsx (restructure record detail, add timeline toggle, redesign profile tab). One new ~20-line component (DateAvatar). Everything else reuses existing components.
 
-**Tech Stack:** Python/FastAPI (backend), React/MUI (frontend), existing components (ListCard, SectionLabel, StatusBadge, PatientAvatar)
+**Tech Stack:** Python/FastAPI (backend), React/MUI (frontend), existing components (ListCard, SectionLabel, StatusBadge, NameAvatar)
 
 ---
 
@@ -153,7 +153,7 @@ git commit -m "feat(patient): add doctor_name and doctor_specialty to /me endpoi
 
 - [ ] **Step 1: Create the component**
 
-Follow the `RecordAvatar` pattern — a small square avatar that shows month + day:
+Follow the `RecordTypeAvatar` pattern — a small square avatar that shows month + day:
 
 ```jsx
 import { Box, Typography } from "@mui/material";
@@ -228,7 +228,7 @@ Below the filter chips, conditionally render either the existing list or the tim
 
 ```jsx
 {recordView === "list" ? (
-  /* existing records.map with RecordAvatar — keep as-is */
+  /* existing records.map with RecordTypeAvatar — keep as-is */
 ) : (
   <Box sx={{ bgcolor: COLOR.white }}>
     {records.map(rec => {
@@ -265,7 +265,7 @@ import DateAvatar from "../../components/DateAvatar";
 
 Navigate to `http://localhost:5173/patient/records`. Verify:
 1. Filter chips "病历" and "时间线" appear
-2. "病历" shows the existing list with RecordAvatar
+2. "病历" shows the existing list with RecordTypeAvatar
 3. "时间线" shows the list with DateAvatar (month + day)
 4. Clicking a record in timeline view opens the detail
 
@@ -462,7 +462,7 @@ getPatientMe(token).then((data) => {
 
 - [ ] **Step 2: Replace the Profile tab content**
 
-Replace the existing Profile tab section (~lines 976-993) with the new design using ListCard, PatientAvatar, and SectionLabel:
+Replace the existing Profile tab section (~lines 976-993) with the new design using ListCard, NameAvatar, and SectionLabel:
 
 ```jsx
 {tab === "profile" && (
@@ -473,7 +473,7 @@ Replace the existing Profile tab section (~lines 976-993) with the new design us
         <SectionLabel>我的医生</SectionLabel>
         <Box sx={{ bgcolor: COLOR.white }}>
           <ListCard
-            avatar={<PatientAvatar name={doctorName} size={42} />}
+            avatar={<NameAvatar name={doctorName} size={42} />}
             title={doctorName}
             subtitle={doctorSpecialty || ""}
           />
@@ -485,7 +485,7 @@ Replace the existing Profile tab section (~lines 976-993) with the new design us
     <SectionLabel>我的信息</SectionLabel>
     <Box sx={{ bgcolor: COLOR.white }}>
       <ListCard
-        avatar={<PatientAvatar name={patientName || "?"} size={42} />}
+        avatar={<NameAvatar name={patientName || "?"} size={42} />}
         title={patientName || "患者"}
         subtitle={doctorId || ""}
       />
@@ -507,7 +507,7 @@ Replace the existing Profile tab section (~lines 976-993) with the new design us
 Add to the imports at the top of PatientPage.jsx (if not already present):
 ```jsx
 import ListCard from "../../components/ListCard";
-import PatientAvatar from "../../components/PatientAvatar";
+import NameAvatar from "../../components/NameAvatar";
 ```
 
 Note: `SectionLabel` should already be imported from Task 5. `COLOR` should already be imported from theme.

@@ -7,6 +7,7 @@ import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
@@ -98,14 +99,14 @@ export const RECORD_TYPE_LABEL = {
 export const NAV = [
   { key: "my-ai", label: "我的AI", icon: <AutoAwesomeOutlinedIcon fontSize="medium" /> },
   { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="medium" /> },
-  { key: "review", label: "门诊", icon: <LocalHospitalOutlinedIcon fontSize="medium" />, badgeKey: "review" },
+  { key: "review", label: "审核", icon: <FactCheckOutlinedIcon fontSize="medium" />, badgeKey: "review" },
   { key: "tasks", label: "任务", icon: <AssignmentTurnedInOutlinedIcon fontSize="medium" />, badgeKey: "tasks" },
 ];
 
 export const DESKTOP_NAV = [
   { key: "my-ai", label: "我的AI", icon: <AutoAwesomeOutlinedIcon fontSize="medium" /> },
   { key: "patients", label: "患者", icon: <PeopleOutlineIcon fontSize="medium" /> },
-  { key: "review", label: "门诊", icon: <LocalHospitalOutlinedIcon fontSize="medium" />, badgeKey: "review" },
+  { key: "review", label: "审核", icon: <FactCheckOutlinedIcon fontSize="medium" />, badgeKey: "review" },
   { key: "tasks", label: "任务", icon: <AssignmentTurnedInOutlinedIcon fontSize="medium" />, badgeKey: "tasks" },
   { key: "settings", label: "设置", icon: <SettingsOutlinedIcon fontSize="medium" /> },
 ];

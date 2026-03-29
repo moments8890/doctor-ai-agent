@@ -128,9 +128,9 @@ async def cmd_seed(config: Dict[str, Any], server: str) -> None:
 
     _save_state(state)
 
-    # --- Seed knowledge base ---
+    # --- Seed knowledge base (skip if already seeded) ---
     knowledge = config.get("knowledge", [])
-    if knowledge:
+    if knowledge and not state.get("kb_seeded"):
         logger.info("正在导入知识库 (%d 条) ...", len(knowledge))
         success_count = 0
         for idx, kb in enumerate(knowledge, 1):

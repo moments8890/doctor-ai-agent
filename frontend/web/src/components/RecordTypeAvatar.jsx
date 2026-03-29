@@ -1,5 +1,5 @@
 /**
- * RecordAvatar — colored icon for record type, shared by doctor and patient views.
+ * RecordTypeAvatar — colored icon for record type, shared by doctor and patient views.
  */
 import { Box } from "@mui/material";
 import { COLOR } from "../theme";
@@ -23,7 +23,7 @@ const CONFIG = {
 
 const FALLBACK = { color: "#999", Icon: DescriptionOutlinedIcon };
 
-export default function RecordAvatar({ type, size = 36 }) {
+export default function RecordTypeAvatar({ type, size = 36 }) {
   const { color, Icon } = CONFIG[type] || FALLBACK;
   return (
     <Box sx={{

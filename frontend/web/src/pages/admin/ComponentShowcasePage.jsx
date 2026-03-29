@@ -23,9 +23,9 @@ import FilterBar from "../../components/FilterBar";
 import ImportChoiceDialog from "../../components/ImportChoiceDialog";
 import ListCard from "../../components/ListCard";
 import NewItemCard from "../../components/NewItemCard";
-import PatientAvatar from "../../components/PatientAvatar";
+import NameAvatar from "../../components/NameAvatar";
 import PatientPickerDialog from "../../components/PatientPickerDialog";
-import RecordAvatar from "../../components/RecordAvatar";
+import RecordTypeAvatar from "../../components/RecordTypeAvatar";
 import RecordCard from "../../components/RecordCard";
 import RecordEditDialog from "../../components/RecordEditDialog";
 import RecordFields from "../../components/RecordFields";
@@ -385,12 +385,12 @@ export default function ComponentShowcasePage() {
         <Section title="ListCard (right)" file="ListCard.jsx">
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Data rows — custom right content:</Typography>
           <ListCard
-            avatar={<PatientAvatar name="陈伟强" size={36} />}
+            avatar={<NameAvatar name="陈伟强" size={36} />}
             title="陈伟强" subtitle="男 · 42岁 · 3份病历"
             right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>03-26</Typography>}
           />
           <ListCard
-            avatar={<PatientAvatar name="李复诊" size={36} />}
+            avatar={<NameAvatar name="李复诊" size={36} />}
             title="李复诊" subtitle="女 · 56岁 · 1份病历"
             right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>03-25</Typography>}
           />
@@ -448,17 +448,17 @@ export default function ComponentShowcasePage() {
           </Box>
         </Section>
 
-        <Section title="PatientAvatar" file="PatientAvatar.jsx">
+        <Section title="NameAvatar" file="NameAvatar.jsx">
           <Box sx={{ display: "flex", gap: 2 }}>
-            {["陈伟强", "李复诊", "王明", "张小红", "刘建国"].map(n => <PatientAvatar key={n} name={n} size={36} />)}
+            {["陈伟强", "李复诊", "王明", "张小红", "刘建国"].map(n => <NameAvatar key={n} name={n} size={36} />)}
           </Box>
         </Section>
 
-        <Section title="RecordAvatar" file="RecordAvatar.jsx">
+        <Section title="RecordTypeAvatar" file="RecordTypeAvatar.jsx">
           <Box sx={{ display: "flex", gap: 2 }}>
             {["visit", "lab", "imaging", "surgery", "interview_summary", "import"].map(t => (
               <Box key={t} sx={{ textAlign: "center" }}>
-                <RecordAvatar type={t} />
+                <RecordTypeAvatar type={t} />
                 <Typography sx={{ fontSize: 9, color: COLOR.text4, mt: 0.3 }}>{t}</Typography>
               </Box>
             ))}

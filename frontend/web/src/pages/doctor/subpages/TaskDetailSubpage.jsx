@@ -11,7 +11,7 @@
  */
 import { Box, Typography } from "@mui/material";
 import { TASK_TYPE_LABEL } from "../constants";
-import PatientAvatar from "../../../components/PatientAvatar";
+import NameAvatar from "../../../components/NameAvatar";
 import SubpageHeader from "../../../components/SubpageHeader";
 import AppButton from "../../../components/AppButton";
 import { TYPE, COLOR } from "../../../theme";
@@ -39,7 +39,7 @@ function PatientCard({ name, patientId, age, gender, onClick }) {
         cursor: onClick ? "pointer" : "default",
         "&:active": onClick ? { bgcolor: COLOR.surfaceAlt } : {},
       }}>
-      <PatientAvatar name={name} size={40} />
+      <NameAvatar name={name} size={40} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 600, color: COLOR.text1 }}>{name}</Typography>
         {subtitle && <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.2 }}>{subtitle}</Typography>}

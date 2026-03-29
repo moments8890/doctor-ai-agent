@@ -6,7 +6,7 @@
 
 **Architecture:** 3 new fields on the DoctorTask model (read_at, link_type, link_id). System chat messages inserted at 3 trigger points using the existing `save_patient_message()` function. Frontend renders `source="system"` messages as ListCard cards in the chat feed, with a Badge on the bottom nav.
 
-**Tech Stack:** Python/FastAPI + SQLAlchemy (backend), React/MUI (frontend), existing components (ListCard, RecordAvatar, Badge)
+**Tech Stack:** Python/FastAPI + SQLAlchemy (backend), React/MUI (frontend), existing components (ListCard, RecordTypeAvatar, Badge)
 
 ---
 
@@ -200,7 +200,7 @@ if (src === "system") {
   let avatar;
   let onTap;
   if (linkType === "record") {
-    avatar = <RecordAvatar type="visit" size={32} />;
+    avatar = <RecordTypeAvatar type="visit" size={32} />;
     onTap = () => navigate(`/patient/records/${linkId}`);
   } else if (linkType === "task") {
     avatar = (
@@ -242,7 +242,7 @@ Add to the MUI icon imports at the top of the file (if not already present):
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 ```
 
-`AssignmentOutlinedIcon` should already be imported (used in NAV_TABS). `ListCard`, `RecordAvatar`, `COLOR` should already be imported from previous tasks.
+`AssignmentOutlinedIcon` should already be imported (used in NAV_TABS). `ListCard`, `RecordTypeAvatar`, `COLOR` should already be imported from previous tasks.
 
 Check that the `navigate` function and `setTab` function are accessible inside the `renderMessage` closure. They should be — `renderMessage` is defined inside `ChatTab` which has both in scope.
 

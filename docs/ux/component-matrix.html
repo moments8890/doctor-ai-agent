@@ -209,9 +209,9 @@ th.page-col:hover { color: #07C160; }
 var IMG = 'page-screenshots/';
 
 var PAGES = [
-  { id: 'myai', label: 'MyAI', img: 'doctor-home.png', comps: ['SubpageHeader','IconBadge','ListCard','KnowledgeCard','PatientAvatar'] },
-  { id: 'patients', label: '患者', img: 'doctor-patients.png', comps: ['SubpageHeader','ListCard','PatientAvatar'] },
-  { id: 'review-pending', label: '审核·门诊', img: 'doctor-review.png', comps: ['SubpageHeader','PatientAvatar','IconBadge','EmptyState'] },
+  { id: 'myai', label: 'MyAI', img: 'doctor-home.png', comps: ['SubpageHeader','IconBadge','ListCard','KnowledgeCard','NameAvatar'] },
+  { id: 'patients', label: '患者', img: 'doctor-patients.png', comps: ['SubpageHeader','ListCard','NameAvatar'] },
+  { id: 'review-pending', label: '审核·门诊', img: 'doctor-review.png', comps: ['SubpageHeader','NameAvatar','IconBadge','EmptyState'] },
   { id: 'review-replies', label: '审核·回复', img: 'doctor-review-replies.png', comps: ['MessageItem','SheetDialog','EmptyState'] },
   { id: 'review-done', label: '审核·完成', img: 'doctor-review-completed.png', comps: ['ActionRow'] },
   { id: 'review-detail', label: '诊断审核', img: 'doctor-review-detail.png', comps: ['SubpageHeader','DiagnosisCard','IconBadge','SheetDialog'] },
@@ -219,14 +219,14 @@ var PAGES = [
   { id: 'tasks-done', label: '任务·已完成', img: 'doctor-tasks-completed.png', comps: ['ActionRow'] },
   { id: 'settings', label: '设置', img: 'doctor-settings.png', comps: ['SubpageHeader','ListCard'] },
   { id: 'knowledge', label: '知识库', img: 'doctor-settings-knowledge.png', comps: ['SubpageHeader','KnowledgeCard','IconBadge','ListCard','SheetDialog','EmptyState'] },
-  { id: 'patient-detail', label: '患者详情', img: 'doctor-patients-1.png', comps: ['SubpageHeader','PatientAvatar','MessageItem'] },
+  { id: 'patient-detail', label: '患者详情', img: 'doctor-patients-1.png', comps: ['SubpageHeader','NameAvatar','MessageItem'] },
   { id: 'interview', label: '新建病历', img: 'doctor-patients-new.png', comps: ['SubpageHeader','VoiceInput'] },
   { id: 'chat', label: 'AI对话', img: 'doctor-chat.png', comps: ['VoiceInput'] },
 ];
 
 var COMPONENTS = [
   'SubpageHeader','ListCard','ActionRow','KnowledgeCard','MessageItem',
-  'DiagnosisCard','IconBadge','SheetDialog','VoiceInput','PatientAvatar','EmptyState'
+  'DiagnosisCard','IconBadge','SheetDialog','VoiceInput','NameAvatar','EmptyState'
 ];
 
 // Build matrix table

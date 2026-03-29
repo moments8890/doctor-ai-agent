@@ -93,7 +93,7 @@ var COMPONENTS = [
   { id: 'c_icon_badge', label: 'IconBadge', type: 'component', gx: 0.60, gy: 0.50 },
   { id: 'c_sheet_dialog', label: 'SheetDialog', type: 'component', gx: 0.25, gy: 0.45 },
   { id: 'c_voice_input', label: 'VoiceInput', type: 'component', gx: 0.75, gy: 0.65 },
-  { id: 'c_patient_avatar', label: 'PatientAvatar', type: 'component', gx: 0.40, gy: 0.28 },
+  { id: 'c_patient_avatar', label: 'NameAvatar', type: 'component', gx: 0.40, gy: 0.28 },
   { id: 'c_empty_state', label: 'EmptyState', type: 'component', gx: 0.65, gy: 0.75 },
 ];
 
@@ -138,7 +138,7 @@ var EDGES = [
   // VoiceInput
   { from: 'p_interview', to: 'c_voice_input' },
   { from: 'p_chat', to: 'c_voice_input' },
-  // PatientAvatar
+  // NameAvatar
   { from: 'p_myai', to: 'c_patient_avatar' },
   { from: 'p_review_pending', to: 'c_patient_avatar' },
   { from: 'p_patient_detail', to: 'c_patient_avatar' },

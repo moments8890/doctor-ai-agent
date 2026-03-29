@@ -94,40 +94,47 @@ function patientRoutes(prefix, Provider) {
 export default function App() {
   const { accessToken, doctorId, setAuth } = useDoctorStore();
 
-  // Dev mode: auto-set doctor identity only if no real login session exists
+  // Dev mode: restore real login session if current session is synthetic (dev/mock)
+  const SYNTHETIC_TOKENS = ["dev-token", "mock-token"];
+  const SYNTHETIC_IDS = [DEV_DOCTOR_ID, "mock_doctor"];
+
+  function restoreRealSession() {
+    const state = useDoctorStore.getState();
+    const isSynthetic = !state.doctorId || !state.accessToken
+      || SYNTHETIC_TOKENS.includes(state.accessToken)
+      || SYNTHETIC_IDS.includes(state.doctorId);
+    if (!isSynthetic) return; // real session, don't touch
+
+    const savedId = localStorage.getItem("unified_auth_doctor_id");
+    const savedToken = localStorage.getItem("unified_auth_token");
+    const savedName = localStorage.getItem("unified_auth_name");
+    if (savedId && savedToken) {
+      state.setAuth(savedId, savedName || savedId, savedToken);
+    } else {
+      state.setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
+    }
+  }
+
   useEffect(() => {
     if (!DEV_MODE) return;
-    // Wait for zustand hydration, then check if we need a dev fallback
-    const unsub = useDoctorStore.persist.onFinishHydration(() => {
-      const state = useDoctorStore.getState();
-      if (!state.doctorId || state.accessToken === "dev-token") {
-        // No real session — check localStorage for unified auth token
-        const savedId = localStorage.getItem("unified_auth_doctor_id");
-        const savedToken = localStorage.getItem("unified_auth_token");
-        const savedName = localStorage.getItem("unified_auth_name");
-        if (savedId && savedToken) {
-          state.setAuth(savedId, savedName || savedId, savedToken);
-        } else {
-          state.setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
-        }
-      }
-    });
-    // If already hydrated (hot reload), trigger immediately
-    if (useDoctorStore.persist.hasHydrated()) {
-      const state = useDoctorStore.getState();
-      if (!state.doctorId || state.accessToken === "dev-token") {
-        const savedId = localStorage.getItem("unified_auth_doctor_id");
-        const savedToken = localStorage.getItem("unified_auth_token");
-        const savedName = localStorage.getItem("unified_auth_name");
-        if (savedId && savedToken) {
-          state.setAuth(savedId, savedName || savedId, savedToken);
-        } else {
-          state.setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
-        }
+    const unsub = useDoctorStore.persist.onFinishHydration(restoreRealSession);
+    if (useDoctorStore.persist.hasHydrated()) restoreRealSession();
+    return unsub;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the old useState initializer as a sync fallback for first render
+  useState(() => {
+    if (DEV_MODE && !doctorId) {
+      const savedId = localStorage.getItem("unified_auth_doctor_id");
+      const savedToken = localStorage.getItem("unified_auth_token");
+      const savedName = localStorage.getItem("unified_auth_name");
+      if (savedId && savedToken) {
+        setAuth(savedId, savedName || savedId, savedToken);
+      } else {
+        setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
       }
     }
-    return unsub;
-  }, []);
+  });
 
   // Absorb token handed off from WeChat Mini Program web-view via URL params.
   useState(() => {
@@ -174,7 +181,7 @@ export default function App() {
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/admin/:section" element={<AdminPage />} />
       {/* Component showcases — specific routes BEFORE debug wildcard */}
-      <Route path="/debug/components" element={<MobileFrame><ComponentShowcasePage /></MobileFrame>} />
+      <Route path="/debug/components" element={<MobileFrame><MockApiProvider><ComponentShowcasePage /></MockApiProvider></MobileFrame>} />
       <Route path="/debug/doctor-components" element={<MobileFrame><DoctorComponentShowcase /></MobileFrame>} />
       {/* Mock doctor app — same DoctorPage, mock API, auth required in prod */}
       {doctorRoutes("/debug/doctor", MockApiProvider)}

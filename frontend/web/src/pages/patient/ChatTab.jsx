@@ -32,7 +32,7 @@ import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNone
 import { usePatientApi } from "../../api/PatientApiContext";
 import DoctorBubble from "../../components/DoctorBubble";
 import ListCard from "../../components/ListCard";
-import RecordAvatar from "../../components/RecordAvatar";
+import RecordTypeAvatar from "../../components/RecordTypeAvatar";
 import { TYPE, ICON, COLOR } from "../../theme";
 import { LAST_SEEN_CHAT_KEY } from "./constants";
 
@@ -210,7 +210,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
       let avatar;
       let onTap;
       if (linkType === "record") {
-        avatar = <RecordAvatar type="visit" size={32} />;
+        avatar = <RecordTypeAvatar type="visit" size={32} />;
         onTap = () => navigate(`/patient/records/${linkId}`);
       } else if (linkType === "task") {
         avatar = (

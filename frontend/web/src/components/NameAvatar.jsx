@@ -1,5 +1,5 @@
 /**
- * 患者头像组件：根据患者姓名首字生成彩色圆形头像。
+ * 姓名头像组件：根据姓名首字生成彩色头像。
  */
 import { Box, Typography } from "@mui/material";
 import { COLOR } from "../theme";
@@ -13,7 +13,7 @@ export function nameColor(name) {
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
-export default function PatientAvatar({ name, size = 42 }) {
+export default function NameAvatar({ name, size = 42 }) {
   return (
     <Box sx={{
       width: size, height: size, borderRadius: "4px", flexShrink: 0,

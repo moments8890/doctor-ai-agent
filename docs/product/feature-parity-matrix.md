@@ -157,7 +157,7 @@
 | P3.5 | 我的健康时间线 / Health Timeline | **Done** | RecordsTab — chronological timeline grouped by month, vertical line with colored type dots, clickable to record detail |
 | P3.6 | 当前待办清单 / Patient To-Do List | **Done** | TasksTab — pending/completed split, checkbox, undo |
 | P3.7 | 当前用药清单 / Current Medications | **Defer** | Blocked by D3.5 (structured prescription data). Group: Structured Clinical Data |
-| P3.8 | 医生信息卡片 / Doctor Info Card | **Done** | ProfileTab — "我的医生" section with doctor name + specialty via PatientAvatar |
+| P3.8 | 医生信息卡片 / Doctor Info Card | **Done** | ProfileTab — "我的医生" section with doctor name + specialty via NameAvatar |
 
 ### Patient Notifications
 

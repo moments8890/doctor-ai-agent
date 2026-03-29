@@ -66,6 +66,7 @@ Source: [`src/pages/admin/ComponentShowcasePage.jsx`](../../frontend/web/src/pag
 | AskAIBar | [`src/components/AskAIBar.jsx`](../../frontend/web/src/components/AskAIBar.jsx) | Floating "问 AI" entry bar |
 | SuggestionChips | [`src/components/SuggestionChips.jsx`](../../frontend/web/src/components/SuggestionChips.jsx) | Quick-reply options above input |
 | DoctorBubble | [`src/components/DoctorBubble.jsx`](../../frontend/web/src/components/DoctorBubble.jsx) | Doctor reply message bubble |
+| MessageTimeline | [`src/components/MessageTimeline.jsx`](../../frontend/web/src/components/MessageTimeline.jsx) | Foldable left-rail patient-detail message timeline with inline draft actions |
 | VoiceInput | [`src/components/VoiceInput.jsx`](../../frontend/web/src/components/VoiceInput.jsx) | Press-to-talk voice input |
 
 ### Dialogs & Pickers
@@ -82,8 +83,8 @@ Source: [`src/pages/admin/ComponentShowcasePage.jsx`](../../frontend/web/src/pag
 | Component | File | Purpose |
 |-----------|------|---------|
 | StatusBadge | [`src/components/StatusBadge.jsx`](../../frontend/web/src/components/StatusBadge.jsx) | Colored status pill (高/中/低/急诊) |
-| PatientAvatar | [`src/components/PatientAvatar.jsx`](../../frontend/web/src/components/PatientAvatar.jsx) | Colored circle with surname |
-| RecordAvatar | [`src/components/RecordAvatar.jsx`](../../frontend/web/src/components/RecordAvatar.jsx) | Record type icon (visit/lab/imaging) |
+| NameAvatar | [`src/components/NameAvatar.jsx`](../../frontend/web/src/components/NameAvatar.jsx) | Colored initial avatar derived from a name |
+| RecordTypeAvatar | [`src/components/RecordTypeAvatar.jsx`](../../frontend/web/src/components/RecordTypeAvatar.jsx) | Record type icon (visit/lab/imaging) |
 
 ### Doctor-Specific Components
 | Component | File | Purpose |
@@ -270,7 +271,7 @@ template. The shared rules (cards, spacing, components) are in sections 4-6.
 |------|-----------|--------|
 | **首页** | [`/doctor`](http://localhost:5173/doctor) | Stat cards (2-col grid) → onboarding hint card → AI chat entry bar |
 | **患者** | [`/doctor/patients`](http://localhost:5173/doctor/patients) | Search bar → "新建患者" card → patient list rows |
-| **患者详情** | [`/doctor/patients/:id`](http://localhost:5173/doctor/patients) | Collapsible profile → record tabs → record cards → 患者消息 |
+| **患者详情** | [`/doctor/patients/:id`](http://localhost:5173/doctor/patients) | Collapsible profile → record tabs → record cards → foldable patient message timeline (latest 3 items by default) |
 | **对话** | [`/doctor/chat`](http://localhost:5173/doctor/chat) | Chat bubbles → quick command chips → input bar + mic |
 | **诊断审核** | [`/doctor/review/:id`](http://localhost:5173/doctor) | Record summary → diagnosis sections → sticky bottom bar |
 | **新建病历** | (interview) | Progress bar → conversation → carry-forward → input bar |
@@ -633,9 +634,9 @@ Used in: internal UI review, component QA, visual regression walkthroughs.
 - Unified page layout wrapper. Handles: SubpageHeader, list/detail split, mobile subpage override.
 - Props: `title`, `headerRight`, `listPane`, `detailPane`, `mobileView`
 
-### RecordAvatar
+### RecordTypeAvatar
 
-**File:** [`src/components/RecordAvatar.jsx`](../../frontend/web/src/components/RecordAvatar.jsx)
+**File:** [`src/components/RecordTypeAvatar.jsx`](../../frontend/web/src/components/RecordTypeAvatar.jsx)
 
 - Colored icon for record type (visit=green, lab=purple, imaging=blue, etc.)
 - Shared by doctor and patient views.

@@ -8,7 +8,7 @@
 import { useState, useRef } from "react";
 import { Box, Typography } from "@mui/material";
 import MicIcon from "@mui/icons-material/Mic";
-import PatientAvatar from "../PatientAvatar";
+import NameAvatar from "../NameAvatar";
 import StatusBadge from "../StatusBadge";
 import VoiceInput, { isVoiceSupported } from "../VoiceInput";
 import { useApi } from "../../api/ApiContext";
@@ -70,7 +70,7 @@ export default function MessageItem({ item, onSend, onTeachPrompt }) {
     <Box sx={{ px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" } }}>
       {/* Header: avatar + name + time + badge */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1 }}>
-        <PatientAvatar name={item.patient_name} size={32} />
+        <NameAvatar name={item.patient_name} size={32} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>
             {item.patient_name}

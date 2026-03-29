@@ -229,6 +229,7 @@ export const MOCK_CARRY_FORWARD = [
 
 export const MOCK_PATIENT_MESSAGES = [
   { id: 501, patient_id: 1, patient_name: "陈伟强", content: "张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？", source: "patient", triage_category: "escalation", created_at: "2026-03-27T08:30:00" },
+  { id: 504, patient_id: 1, patient_name: "陈伟强", content: "这个问题需要您的主治医生回复，我已通知医生。", source: "ai", triage_category: "escalation", created_at: "2026-03-27T08:31:00" },
   { id: 502, patient_id: 2, patient_name: "李复诊", content: "张医生，我想问下我下次检查是什么时候？需要做什么准备吗？", source: "patient", triage_category: "informational", created_at: "2026-03-27T09:15:00" },
   { id: 503, patient_id: 5, patient_name: "刘建国", content: "医生您好，我腰椎的问题能不能做腰椎穿刺检查一下？", source: "patient", triage_category: "informational", created_at: "2026-03-27T10:00:00" },
 ];

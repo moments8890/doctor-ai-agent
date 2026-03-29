@@ -1070,8 +1070,9 @@ export async function getReviewQueue(doctorId) {
   return request(`/api/manage/review/queue?doctor_id=${encodeURIComponent(doctorId)}`);
 }
 
-export async function fetchDrafts(doctorId) {
-  return request(`/api/manage/drafts?doctor_id=${encodeURIComponent(doctorId)}`);
+export async function fetchDrafts(doctorId, { includeSent = false } = {}) {
+  const params = `doctor_id=${encodeURIComponent(doctorId)}${includeSent ? "&include_sent=true" : ""}`;
+  return request(`/api/manage/drafts?${params}`);
 }
 
 export async function sendDraft(draftId, doctorId) {

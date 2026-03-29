@@ -32,7 +32,7 @@ Records tab shows a flat list. No chronological view.
 ### Design
 Add filter chips at the top of Records tab: **"病历"** (default, current list) and **"时间线"** (timeline view).
 
-Timeline view reuses `ListCard` with a **date avatar** instead of `RecordAvatar`:
+Timeline view reuses `ListCard` with a **date avatar** instead of `RecordTypeAvatar`:
 
 ```
 ┌────┐
@@ -47,7 +47,7 @@ Timeline view reuses `ListCard` with a **date avatar** instead of `RecordAvatar`
 
 ### Date Avatar Component: `DateAvatar`
 
-New tiny component (~20 lines). Follows `RecordAvatar` pattern:
+New tiny component (~20 lines). Follows `RecordTypeAvatar` pattern:
 - Props: `date: string` (ISO date), `size?: number` (default 36)
 - Renders: square rounded box (`borderRadius: "4px"`, `bgcolor: COLOR.surface`)
 - Top line: month in `TYPE.micro` (11px), `COLOR.text4`
@@ -76,7 +76,7 @@ None — reuses `GET /api/patient/records` list data.
 - Filter chip pattern from `TasksPage.jsx`
 
 ### New Components
-- `DateAvatar` — ~20 lines, follows RecordAvatar pattern
+- `DateAvatar` — ~20 lines, follows RecordTypeAvatar pattern
 
 ---
 
@@ -182,13 +182,13 @@ Uses `ListCard` for both cards (no chevron, no onClick):
 ```jsx
 <SectionLabel>我的医生</SectionLabel>
 <ListCard
-  avatar={<PatientAvatar name={doctorName} />}
+  avatar={<NameAvatar name={doctorName} />}
   title={doctorName}
   subtitle={doctorSpecialty || ""}
 />
 <SectionLabel>我的信息</SectionLabel>
 <ListCard
-  avatar={<PatientAvatar name={patientName} />}
+  avatar={<NameAvatar name={patientName} />}
   title={patientName}
   subtitle={doctorId}
 />
@@ -199,7 +199,7 @@ Add `doctor_name` and `doctor_specialty` to `GET /api/patient/me` response. The 
 
 ### Reused Components
 - `ListCard` — avatar + title + subtitle (no chevron)
-- `PatientAvatar` — colored initial circle (works for both doctor and patient names)
+- `NameAvatar` — colored initial circle (works for both doctor and patient names)
 - `SectionLabel` — group headers
 
 ### New Components
@@ -215,8 +215,8 @@ None.
 | `SectionLabel` | P3.7 sections, P3.8 groups | Section headers |
 | `StatusBadge` | P3.5 timeline, P3.7 diagnosis | Diagnosis status pill |
 | Inline FIELD_ORDER loop | P3.7 expandable section | Full 14-field NHC display (already in RecordDetailView) |
-| `PatientAvatar` | P3.8 doctor + patient cards | Colored initial circle |
-| `RecordAvatar` | P3.5 "病历" view (existing) | Record type icon |
+| `NameAvatar` | P3.8 doctor + patient cards | Colored initial circle |
+| `RecordTypeAvatar` | P3.5 "病历" view (existing) | Record type icon |
 
 | New Component | Lines | Purpose |
 |---------------|-------|---------|
@@ -243,7 +243,7 @@ None.
 - [x] No shadows, no gradients — flat only
 - [x] White cards on `#ededed` background
 - [x] Chinese-first labels
-- [x] Reuses existing components (ListCard, SectionLabel, StatusBadge, PatientAvatar, inline field rendering)
+- [x] Reuses existing components (ListCard, SectionLabel, StatusBadge, NameAvatar, inline field rendering)
 - [x] Mobile-first, 3-component page architecture (top bar + content + bottom nav)
 - [x] Empty sections hidden when no data
 - [x] Font sizes use only the 7 TYPE tokens

@@ -19,7 +19,7 @@ import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import EmptyState from "../../components/EmptyState";
-import PatientAvatar from "../../components/PatientAvatar";
+import NameAvatar from "../../components/NameAvatar";
 import SectionLabel from "../../components/SectionLabel";
 import ActionRow from "../../components/ActionRow";
 import SubpageHeader from "../../components/SubpageHeader";
@@ -127,7 +127,7 @@ function PendingReviewCard({ item, onNavigate }) {
           cursor: "pointer",
         }}
       >
-        <PatientAvatar name={item.patient_name || "?"} size={36} />
+        <NameAvatar name={item.patient_name || "?"} size={36} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
             <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>

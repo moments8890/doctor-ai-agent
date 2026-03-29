@@ -18,7 +18,7 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 import { usePatientApi } from "../../api/PatientApiContext";
 import ListCard from "../../components/ListCard";
 import NewItemCard from "../../components/NewItemCard";
-import RecordAvatar from "../../components/RecordAvatar";
+import RecordTypeAvatar from "../../components/RecordTypeAvatar";
 import DateAvatar from "../../components/DateAvatar";
 import StatusBadge from "../../components/StatusBadge";
 import { TYPE, COLOR } from "../../theme";
@@ -232,7 +232,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
             return (
               <ListCard
                 key={rec.id}
-                avatar={<RecordAvatar type={rec.record_type} />}
+                avatar={<RecordTypeAvatar type={rec.record_type} />}
                 title={typeLabel}
                 subtitle={preview}
                 right={

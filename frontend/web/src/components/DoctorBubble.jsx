@@ -1,7 +1,7 @@
 import React from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import PatientAvatar from "./PatientAvatar";
+import NameAvatar from "./NameAvatar";
 import { TYPE, COLOR } from "../theme";
 
 /**
@@ -11,7 +11,7 @@ import { TYPE, COLOR } from "../theme";
 export default function DoctorBubble({ doctorName, content, timestamp }) {
   return (
     <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1 }}>
-      <PatientAvatar name={doctorName || "医"} size={32} />
+      <NameAvatar name={doctorName || "医"} size={32} />
       <Box sx={{ maxWidth: "75%", display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
         {/* Doctor name label */}
         <Typography

@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 
 from db.crud import (
     delete_patient_for_doctor,
@@ -292,76 +292,24 @@ async def reply_to_patient(
     body: dict = {},
 ):
     """Doctor sends a direct reply to a patient."""
-    from db.crud.patient_message import save_patient_message
-    from db.models.message_draft import DraftStatus, MessageDraft
-
     resolved = _resolve_ui_doctor_id(doctor_id, authorization)
     enforce_doctor_rate_limit(resolved, scope="ui.patient_reply")
     text = (body.get("text") or "").strip()
     if not text:
         raise HTTPException(status_code=422, detail="Reply text is required")
 
-    stale_count = 0
-    async with AsyncSessionLocal() as db:
-        msg = await save_patient_message(
-            db,
-            patient_id=patient_id,
-            doctor_id=resolved,
-            content=text,
-            direction="outbound",
-            source="doctor",
-            sender_id=resolved,
-        )
-
-        # Mark any pending drafts for this patient as stale, since the doctor
-        # replied through the chat view rather than the draft review flow.
-        stale_stmt = (
-            select(MessageDraft)
-            .where(
-                MessageDraft.doctor_id == resolved,
-                MessageDraft.patient_id == str(patient_id),
-                MessageDraft.status.in_([
-                    DraftStatus.generated.value,
-                    DraftStatus.edited.value,
-                ]),
-            )
-        )
-        stale_drafts = (await db.execute(stale_stmt)).scalars().all()
-        for draft in stale_drafts:
-            draft.status = DraftStatus.stale.value
-        stale_count = len(stale_drafts)
-
-        # Mark inbound messages as handled (doctor has replied)
-        await db.execute(
-            update(PatientMessage)
-            .where(
-                PatientMessage.patient_id == patient_id,
-                PatientMessage.doctor_id == resolved,
-                PatientMessage.direction == "inbound",
-                PatientMessage.ai_handled == False,  # noqa: E712
-            )
-            .values(ai_handled=True)
-        )
-
-        if stale_count or True:  # always commit (inbound update)
-            await db.commit()
-
-    # Update last_activity_at for the patient
-    try:
-        from db.crud.patient import touch_patient_activity
-        async with AsyncSessionLocal() as _act_db:
-            await touch_patient_activity(_act_db, patient_id)
-    except Exception:
-        import logging as _logging
-        _logging.getLogger(__name__).warning(
-            "[reply_to_patient] failed to update last_activity_at | patient_id=%s", patient_id,
-        )
+    # Use unified reply logic
+    from domain.patient_lifecycle.reply import send_doctor_reply
+    msg_id = await send_doctor_reply(
+        doctor_id=resolved,
+        patient_id=patient_id,
+        text=text,
+    )
 
     safe_create_task(audit(resolved, "WRITE", "patient_reply", str(patient_id)))
     return {
         "ok": True,
-        "message_id": msg.id,
-        "stale_drafts": stale_count,
+        "message_id": msg_id,
     }
 
 

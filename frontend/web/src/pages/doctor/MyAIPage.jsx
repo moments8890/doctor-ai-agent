@@ -18,7 +18,7 @@ import SectionLabel from "../../components/SectionLabel";
 import ListCard from "../../components/ListCard";
 import KnowledgeCard from "../../components/KnowledgeCard";
 import AppButton from "../../components/AppButton";
-import PatientAvatar from "../../components/PatientAvatar";
+import NameAvatar from "../../components/NameAvatar";
 import IconBadge from "../../components/IconBadge";
 import { ICON_BADGES } from "./constants";
 import { TYPE, ICON, COLOR } from "../../theme";
@@ -379,7 +379,7 @@ export default function MyAIPage({ doctorId }) {
             return (
               <ListCard
                 key={item.id || idx}
-                avatar={<PatientAvatar name={item.patient_name || "?"} size={36} />}
+                avatar={<NameAvatar name={item.patient_name || "?"} size={36} />}
                 title={
                   <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
                     {item.patient_name || "患者"}

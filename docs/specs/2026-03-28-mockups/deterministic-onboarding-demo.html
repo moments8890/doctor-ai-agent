@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deterministic Onboarding Demo</title>
+<style>
+  :root {
+    --bg: #ededed;
+    --card: #ffffff;
+    --line: #e5e5e5;
+    --line-light: #f0f0f0;
+    --text-1: #1a1a1a;
+    --text-2: #333333;
+    --text-3: #666666;
+    --text-4: #999999;
+    --green: #07c160;
+    --green-light: #e7f7ee;
+    --amber: #f59e0b;
+    --amber-light: #fff7e6;
+    --blue: #576b95;
+    --danger: #d65745;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Noto Sans SC", "PingFang SC", -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(180deg, #f6f6f6 0%, #e8e8e8 100%);
+    color: var(--text-1);
+  }
+  .page {
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .hero {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  .panel {
+    background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(229,229,229,0.95);
+    border-radius: 18px;
+    padding: 20px;
+    backdrop-filter: blur(8px);
+  }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--text-4);
+    text-transform: uppercase;
+  }
+  h1 {
+    margin: 8px 0 10px;
+    font-size: 30px;
+    line-height: 1.15;
+  }
+  .lead {
+    color: var(--text-3);
+    font-size: 14px;
+    line-height: 1.7;
+    margin: 0;
+  }
+  .mission-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .mission {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    background: #fafafa;
+  }
+  .mission strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+  }
+  .mission span {
+    color: var(--text-3);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .step-btn {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--text-3);
+    padding: 10px 14px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .step-btn.active {
+    background: var(--green-light);
+    color: var(--green);
+    border-color: #bfe8cf;
+    font-weight: 600;
+  }
+  .story {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .notes h2 {
+    margin: 0 0 8px;
+    font-size: 20px;
+  }
+  .notes p {
+    color: var(--text-3);
+    font-size: 14px;
+    line-height: 1.7;
+    margin: 0 0 16px;
+  }
+  .notes ul {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--text-3);
+    font-size: 13px;
+    line-height: 1.75;
+  }
+  .stage {
+    display: none;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .stage.active {
+    display: flex;
+  }
+  .phone {
+    width: 375px;
+    min-height: 780px;
+    background: var(--bg);
+    border-radius: 26px;
+    border: 8px solid #161616;
+    overflow: hidden;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.16);
+    position: relative;
+  }
+  .topbar {
+    height: 48px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border-bottom: 0.5px solid #d9d9d9;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .action {
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--green);
+  }
+  .card {
+    background: #fff;
+    border-top: 0.5px solid var(--line);
+    border-bottom: 0.5px solid var(--line);
+    margin: 8px 0;
+  }
+  .pad { padding: 14px 16px; }
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-3);
+    padding: 16px 16px 6px;
+  }
+  .ai-row, .list-row, .check-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .ai-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    background: var(--green);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .meta {
+    font-size: 13px;
+    color: var(--text-4);
+    margin-top: 2px;
+  }
+  .stats {
+    display: flex;
+    border-top: 0.5px solid var(--line-light);
+    border-bottom: 0.5px solid var(--line-light);
+  }
+  .stat {
+    flex: 1;
+    text-align: center;
+    padding: 12px 8px;
+  }
+  .stat + .stat { border-left: 0.5px solid var(--line-light); }
+  .stat-num { font-size: 16px; font-weight: 600; }
+  .stat-label { font-size: 11px; color: var(--text-4); margin-top: 2px; }
+  .checklist {
+    border-radius: 12px;
+    background: #fafafa;
+    border: 1px solid var(--line);
+    margin: 12px 16px 16px;
+    overflow: hidden;
+  }
+  .check-head {
+    padding: 12px 14px;
+    background: var(--green-light);
+    border-bottom: 1px solid #d8efdf;
+  }
+  .check-head strong {
+    display: block;
+    font-size: 14px;
+  }
+  .check-head span {
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .check-row {
+    padding: 12px 14px;
+    border-bottom: 0.5px solid var(--line-light);
+    align-items: flex-start;
+  }
+  .check-row:last-child { border-bottom: none; }
+  .dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid #cfd4d8;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .dot.done {
+    background: var(--green);
+    border-color: var(--green);
+  }
+  .dot.active {
+    border-color: var(--amber);
+    background: var(--amber-light);
+  }
+  .row-main {
+    flex: 1;
+  }
+  .row-main strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .row-main span {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--text-4);
+    line-height: 1.45;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--text-3);
+    background: #fff;
+  }
+  .cta-row {
+    display: flex;
+    gap: 10px;
+    padding: 0 16px 16px;
+  }
+  .btn {
+    flex: 1;
+    min-height: 40px;
+    border-radius: 6px;
+    border: none;
+    background: var(--green);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn.secondary {
+    background: #fff;
+    color: var(--text-2);
+    border: 0.5px solid var(--line);
+  }
+  .sheet {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    background: #fff;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+    overflow: hidden;
+  }
+  .sheet-head {
+    padding: 16px;
+    border-bottom: 0.5px solid var(--line-light);
+  }
+  .sheet-title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .sheet-sub {
+    margin-top: 4px;
+    color: var(--text-3);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .impact {
+    padding: 12px 16px;
+    background: #fafafa;
+    border-bottom: 0.5px solid var(--line-light);
+  }
+  .impact-label {
+    font-size: 11px;
+    color: var(--text-4);
+    margin-bottom: 6px;
+  }
+  .impact-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .impact-tags span {
+    border-radius: 999px;
+    padding: 5px 10px;
+    background: var(--green-light);
+    color: var(--green);
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .sheet-actions {
+    padding: 14px 16px 16px;
+    display: grid;
+    gap: 10px;
+  }
+  .list-row {
+    padding: 13px 16px;
+    background: #fff;
+    border-bottom: 0.5px solid var(--line-light);
+  }
+  .list-row:last-child { border-bottom: none; }
+  .icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    background: var(--green-light);
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .icon-box.blue { background: #eef1f6; color: var(--blue); }
+  .icon-box.amber { background: var(--amber-light); color: var(--amber); }
+  .push {
+    display: flex;
+    gap: 10px;
+    padding: 10px 16px;
+    background: #fff;
+    border-bottom: 0.5px solid var(--line-light);
+  }
+  .push-badge {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--green);
+    background: var(--green-light);
+    border-radius: 999px;
+    padding: 3px 8px;
+    height: fit-content;
+  }
+  .patient-hero {
+    padding: 18px 18px 10px;
+    background: #fff;
+    border-bottom: 0.5px solid var(--line);
+  }
+  .patient-hero h3 {
+    margin: 0 0 6px;
+    font-size: 20px;
+  }
+  .patient-hero p {
+    margin: 0;
+    color: var(--text-3);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .bullet-card {
+    margin: 12px 16px;
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .bullet {
+    padding: 12px 14px;
+    border-bottom: 0.5px solid var(--line-light);
+    font-size: 13px;
+    color: var(--text-2);
+  }
+  .bullet:last-child { border-bottom: none; }
+  .progress {
+    margin: 8px 16px 12px;
+    background: #d9eeda;
+    border-radius: 999px;
+    height: 6px;
+    overflow: hidden;
+  }
+  .progress > div {
+    width: 46%;
+    height: 100%;
+    background: var(--green);
+  }
+  .chat-area {
+    padding: 12px 16px 130px;
+  }
+  .bubble {
+    max-width: 82%;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .bubble.ai { background: #fff; }
+  .bubble.user { background: #95ec69; margin-left: auto; }
+  .suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .input-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #f5f5f5;
+    border-top: 0.5px solid #d9d9d9;
+    padding: 10px 12px 18px;
+  }
+  .input-shell {
+    background: #fff;
+    border: 0.5px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--text-4);
+    font-size: 14px;
+  }
+  .success-card {
+    margin: 18px 16px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid var(--line);
+    padding: 18px 16px;
+  }
+  .success-card strong {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 6px;
+  }
+  .success-card p {
+    margin: 0 0 14px;
+    color: var(--text-3);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .review-highlight {
+    margin: 12px 16px;
+    background: #fff7e6;
+    border: 1px solid #f7dba0;
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .review-highlight strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .review-highlight span {
+    font-size: 12px;
+    color: var(--text-3);
+    line-height: 1.5;
+  }
+  @media (max-width: 1100px) {
+    .hero, .story { grid-template-columns: 1fr; }
+    .stage { justify-content: center; }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <div class="panel">
+        <div class="eyebrow">Product Mock</div>
+        <h1>Deterministic Discovery for Solo Doctors</h1>
+        <p class="lead">
+          This mock turns the current dashboard into a guided first-run path. The doctor is not asked to guess where to start. The app explicitly conducts them from <strong>teach the AI</strong> to <strong>diagnosis proof</strong>, <strong>reply proof</strong>, <strong>patient intake preview</strong>, and finally <strong>generated tasks</strong>.
+        </p>
+        <div class="mission-grid">
+          <div class="mission">
+            <strong>Mission 1 · 教 AI 一条规则</strong>
+            <span>Start from URL, file/image, or text. Save one rule, then immediately see where it will be used through deterministic examples.</span>
+          </div>
+          <div class="mission">
+            <strong>Mission 2 · 体验患者预问诊</strong>
+            <span>Preview the patient path directly from QR or doctor chat, then bridge back to doctor review and generated follow-up tasks.</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="eyebrow">Story Steps</div>
+        <div class="steps">
+          <button class="step-btn active" data-step="0">1. 我的AI 引导</button>
+          <button class="step-btn" data-step="1">2. 三种知识添加</button>
+          <button class="step-btn" data-step="2">3. 保存规则后</button>
+          <button class="step-btn" data-step="3">4. 诊断审核示例</button>
+          <button class="step-btn" data-step="4">5. 回复示例</button>
+          <button class="step-btn" data-step="5">6. QR / 聊天发起</button>
+          <button class="step-btn" data-step="6">7. 患者预问诊</button>
+          <button class="step-btn" data-step="7">8. 医生审核完成</button>
+          <button class="step-btn" data-step="8">9. 生成任务</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="story">
+      <div class="panel notes" id="notes"></div>
+      <div>
+        <div class="stage active" data-stage="0">
+          <div class="phone">
+            <div class="topbar"><span>我的AI</span><span class="action">设置</span></div>
+            <div class="card" style="margin-top:0;">
+              <div class="pad ai-row">
+                <div class="ai-box">AI</div>
+                <div style="flex:1;">
+                  <div style="font-size:16px;font-weight:600;">张医生AI</div>
+                  <div class="meta">神经外科 · 尚未完成首次体验</div>
+                </div>
+              </div>
+              <div class="stats">
+                <div class="stat"><div class="stat-num">0</div><div class="stat-label">已保存规则</div></div>
+                <div class="stat"><div class="stat-num">5</div><div class="stat-label">待体验路径</div></div>
+                <div class="stat"><div class="stat-num">0</div><div class="stat-label">已完成审核</div></div>
+              </div>
+            </div>
+
+            <div class="checklist">
+              <div class="check-head">
+                <strong>开始体验</strong>
+                <span>按顺序完成，系统会带你看懂 AI 如何工作</span>
+              </div>
+              <div class="check-row">
+                <div class="dot active"></div>
+                <div class="row-main">
+                  <strong>教 AI 一条规则</strong>
+                  <span>先让 AI 学会你的诊疗方法，再去看它如何被引用</span>
+                </div>
+                <div class="chip">现在开始</div>
+              </div>
+              <div class="check-row">
+                <div class="dot"></div>
+                <div class="row-main">
+                  <strong>看 AI 如何用于诊断审核</strong>
+                  <span>用一个 seeded 病例证明规则真的进了临床审核流程</span>
+                </div>
+              </div>
+              <div class="check-row">
+                <div class="dot"></div>
+                <div class="row-main">
+                  <strong>看 AI 如何用于患者回复</strong>
+                  <span>再用一个患者线程证明同一套知识也会影响沟通草稿</span>
+                </div>
+              </div>
+              <div class="check-row">
+                <div class="dot"></div>
+                <div class="row-main">
+                  <strong>体验患者预问诊</strong>
+                  <span>看患者扫码后会经历什么，以及如何回到你的审核队列</span>
+                </div>
+              </div>
+              <div class="check-row">
+                <div class="dot"></div>
+                <div class="row-main">
+                  <strong>看系统如何生成随访任务</strong>
+                  <span>完成审核后直接看到新任务，而不是猜测后台有没有做事</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-label">快捷入口</div>
+            <div class="card">
+              <div class="list-row">
+                <div class="icon-box">KB</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;">继续教AI</div>
+                  <div class="meta">上传文件、网址、语音或文本</div>
+                </div>
+              </div>
+              <div class="list-row">
+                <div class="icon-box blue">QR</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;">患者预问诊码</div>
+                  <div class="meta">患者扫码后先进入 AI 预问诊</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage" data-stage="1">
+          <div class="phone">
+            <div class="topbar"><span>继续教AI</span><span class="action">返回</span></div>
+            <div class="section-label">选择添加方式</div>
+            <div class="card" style="margin-top:0;">
+              <div class="list-row">
+                <div class="icon-box blue">URL</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;">网址导入</div>
+                  <div class="meta">抓取网页内容，AI 整理后预填到可编辑规则</div>
+                </div>
+                <div class="chip">预填</div>
+              </div>
+              <div class="list-row">
+                <div class="icon-box amber">IMG</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;">图片 / 文件导入</div>
+                  <div class="meta">OCR / 提取后预填，医生确认再保存</div>
+                </div>
+                <div class="chip">预填</div>
+              </div>
+              <div class="list-row">
+                <div class="icon-box">TXT</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;">直接输入</div>
+                  <div class="meta">给出一个规则草稿模板，医生可改写</div>
+                </div>
+                <div class="chip">预填</div>
+              </div>
+            </div>
+            <div class="section-label">统一落点</div>
+            <div class="card">
+              <div class="pad">
+                <div style="font-size:14px;font-weight:600;">AI 已帮你整理初稿</div>
+                <div class="meta" style="margin-top:6px;line-height:1.6;">
+                  无论从网址、图片/文件还是文本进入，最终都进入同一个可编辑保存页。医生理解的是“这是初稿，不是黑盒自动入库”。
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage" data-stage="2">
+          <div class="phone">
+            <div class="topbar"><span>添加知识</span><span class="action">完成</span></div>
+            <div class="pad">
+              <div style="font-size:14px;font-weight:600;margin-bottom:8px;">规则文本</div>
+              <div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;font-size:13px;line-height:1.7;color:var(--text-2);">
+                术后头痛如伴发热、呕吐、意识变化，优先考虑危险信号，建议尽快复诊或急诊评估。
+              </div>
+              <div class="cta-row" style="padding:16px 0 0;">
+                <div class="btn">已保存到知识库</div>
+              </div>
+            </div>
+            <div class="sheet">
+              <div class="sheet-head">
+                <div class="sheet-title">下一步看它如何生效</div>
+                <div class="sheet-sub">医生最关心的不是“存进去了没有”，而是“它会在哪里被用到”。</div>
+              </div>
+              <div class="impact">
+                <div class="impact-label">这条规则会影响</div>
+                <div class="impact-tags">
+                  <span>诊断审核</span>
+                  <span>患者回复</span>
+                </div>
+              </div>
+              <div class="sheet-actions">
+                <div class="btn">看诊断示例</div>
+                <div class="btn secondary">看回复示例</div>
+                <div class="btn secondary">返回我的AI</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage" data-stage="3">
+          <div class="phone">
+            <div class="topbar"><span>审核队列</span><span class="action">诊断</span></div>
+            <div class="push">
+              <div class="push-badge">规则已命中</div>
+              <div>
+                <div style="font-size:14px;font-weight:500;">术后头痛危险信号 · seeded 病例</div>
+                <div class="meta">保存规则后直接跳到这里，不让医生自己猜哪条病例能证明知识已生效</div>
+              </div>
+            </div>
+            <div class="section-label">病例输入来源</div>
+            <div class="card">
+              <div class="pad">
+                <div style="font-size:14px;font-weight:600;">诊断输入不是凭空生成</div>
+                <div class="meta" style="margin-top:6px;line-height:1.7;">
+                  来源 1 · 患者预问诊摘要：右侧头痛一周，昨晚呕吐一次，无肢体无力。<br>
+                  来源 2 · 医生聊天建档补充：术后第 10 天，家属提醒昨晚明显加重。
+                </div>
+              </div>
+            </div>
+            <div class="section-label">诊断审核示例</div>
+            <div class="card">
+              <div class="list-row">
+                <div class="icon-box amber">诊</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;">李阿姨 · 术后头痛伴呕吐</div>
+                  <div class="meta">AI 已基于预问诊摘要 + 医生建档信息生成诊断建议，并命中你刚保存的规则</div>
+                </div>
+                <div class="chip" style="color:var(--green);border-color:#bfe8cf;background:var(--green-light);">已引用规则</div>
+              </div>
+            </div>
+            <div class="review-highlight">
+              <strong>系统要帮医生自动定位“证明页”</strong>
+              <span>这一步不是普通队列浏览，而是把医生直接带到一个已命中新规则的审核病例，并同时说明输入来自哪里。</span>
+            </div>
+          </div>
+
+          <div class="phone">
+            <div class="topbar"><span>审核详情</span><span class="action">示例</span></div>
+            <div class="section-label">AI 诊断建议</div>
+            <div class="card">
+              <div class="pad">
+                <div style="font-size:15px;font-weight:600;">建议优先排除术后危险信号</div>
+                <div class="meta" style="margin-top:6px;line-height:1.6;">
+                  患者出现头痛伴呕吐，建议尽快复诊或急诊评估，先排除术后并发症或颅内压问题。
+                </div>
+              </div>
+            </div>
+            <div class="section-label">规则引用</div>
+            <div class="card">
+              <div class="pad">
+                <div class="chip" style="display:inline-flex;color:var(--green);border-color:#bfe8cf;background:var(--green-light);">来自你刚添加的规则</div>
+                <div class="meta" style="margin-top:10px;line-height:1.7;">
+                  术后头痛如伴发热、呕吐、意识变化，优先考虑危险信号，建议尽快复诊或急诊评估。
+                </div>
+              </div>
+            </div>
+            <div class="section-label">医生动作</div>
+            <div class="card">
+              <div class="pad">
+                <div style="font-size:14px;line-height:1.7;color:var(--text-2);">
+                  医生可以一键确认，也可以修改措辞。关键是这一步让医生看见：知识已经进入临床审核，而不是只存进知识库。
+                </div>
+              </div>
+            </div>
+            <div class="cta-row">
+              <div class="btn">确认建议</div>
+              <div class="btn secondary">修改后确认</div>
+              <div class="btn secondary">下一步看回复示例</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage" data-stage="4">
+          <div class="phone">
+            <div class="topbar"><span>回复审核</span><span class="action">待发送</span></div>
+            <div class="push">
+              <div class="push-badge">回复示例</div>
+              <div>
+                <div style="font-size:14px;font-weight:500;">患者随访消息已匹配到规则</div>
+                <div class="meta">保存规则后，也要立即证明它会影响患者沟通草稿</div>
+              </div>
+            </div>
+            <div class="section-label">患者原始输入</div>
+            <div class="chat-area">
+              <div class="bubble user">医生，我昨晚头痛更厉害，还吐了一次，要不要先观察？</div>
+              <div class="bubble user">目前没有手脚无力，就是怕跑医院太麻烦。</div>
+              <div class="bubble ai">系统先显示患者原始消息，再基于规则起草回复，医生可以看到输入和输出是一一对应的。</div>
+            </div>
+            <div class="section-label">草稿状态</div>
+            <div class="card">
+              <div class="list-row">
+                <div class="icon-box blue">回</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;">患者【李阿姨】回复草稿</div>
+                  <div class="meta">已生成 · 命中“术后头痛危险信号”规则</div>
+                </div>
+                <div class="chip" style="color:var(--green);border-color:#bfe8cf;background:var(--green-light);">已引用规则</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="phone">
+            <div class="topbar"><span>回复详情</span><span class="action">示例</span></div>
+            <div class="section-label">AI 回复草稿</div>
+            <div class="chat-area">
+              <div class="bubble ai">您好，头痛加重并伴随呕吐属于需要重视的危险信号，不建议仅在家观察。请尽快来院复诊，如持续加重或伴意识变化，请直接急诊。</div>
+            </div>
+            <div class="section-label">规则引用</div>
+            <div class="card">
+              <div class="pad">
+                <div class="chip" style="display:inline-flex;color:var(--green);border-color:#bfe8cf;background:var(--green-light);">引用知识库规则</div>
+                <div class="meta" style="margin-top:10px;line-height:1.7;">
+                  这里需要高亮告诉医生：这段措辞不是随意生成，而是来自你刚刚保存的临床沟通原则。
+                </div>
+              </div>
+            </div>
+            <div class="section-label">医生动作</div>
+            <div class="card">
+              <div class="pad">
+                <div style="font-size:14px;line-height:1.7;color:var(--text-2);">
+                  医生可以直接发送、微调后发送，或继续进入患者预问诊体验。这样知识添加后的两个证明页是连续的，而不是分散在系统深处。
+                </div>
+              </div>
+            </div>
+            <div class="cta-row">
+              <div class="btn">发送草稿</div>
+              <div class="btn secondary">修改后发送</div>
+              <div class="btn secondary">继续体验患者预问诊</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage" data-stage="5">
+          <div class="phone">
+            <div class="topbar"><span>我的二维码</span><span class="action">关闭</span></div>
+            <div class="pad" style="text-align:center;">
+              <div style="margin:6px auto 14px;width:212px;height:212px;border-radius:12px;border:1px solid var(--line);background:
+                linear-gradient(90deg,#fff 0 24px,#111 24px 36px,#fff 36px 48px,#111 48px 60px,#fff 60px 100%),
+                linear-gradient(#111 0 24px,#fff 24px 36px,#111 36px 48px,#fff 48px 60px,#111 60px 100%);
+                background-size: 26px 26px;"></div>
+              <div style="font-size:16px;font-weight:600;">张医生患者预问诊码</div>
+              <div class="meta" style="margin-top:6px;">患者扫码后不会先看通用门户，而是先进入 AI 预问诊</div>
+            </div>
+            <div class="sheet">
+              <div class="sheet-head">
+                <div class="sheet-title">患者入口必须可预览</div>
+                <div class="sheet-sub">除了“发给患者”，还应允许医生直接预览患者第一次看到的界面。</div>
+              </div>
+              <div class="sheet-actions">
+                <div class="btn">发给患者</div>
+                <div class="btn secondary">预览患者端</div>
+                <div class="btn secondary">复制链接</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="phone">
+            <div class="topbar"><span>医生对话</span><span class="action">患者管理</span></div>
+            <div class="section-label">聊天内建档并发起</div>
+            <div class="card" style="margin-top:0;">
+              <div class="pad">
+                <div style="font-size:15px;font-weight:600;">先建档，再发患者预问诊</div>
+                <div class="meta" style="margin-top:6px;line-height:1.7;">
+                  很多医生长期停留在聊天界面，因此不应要求他们先回到设置或我的AI，才能先建临时病历，再发起患者入口。
+                </div>
+              </div>
+            </div>
+            <div class="chat-area">
+              <div class="bubble user">为李阿姨建档并发一个预问诊链接</div>
+              <div class="bubble ai">已创建患者记录：李阿姨 / 术后复查 / 联系尾号 3812，并生成专属预问诊入口。</div>
+              <div class="suggestions">
+                <span class="chip">发送给患者</span>
+                <span class="chip">复制链接</span>
+                <span class="chip">预览患者端</span>
+              </div>
+            </div>
+            <div class="section-label">建档结果</div>
+            <div class="card">
+              <div class="list-row">
+                <div class="icon-box">档</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;">已创建临时病历：李阿姨</div>
+                  <div class="meta">来源：医生对话建档 · 下一步可发送预问诊入口</div>
+                </div>
+                <div class="chip">已建档</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage" data-stage="6">
+          <div class="phone">
+            <div class="topbar"><span>新建病历</span><span class="action">18%</span></div>
+            <div class="patient-hero">
+              <h3>约 2 分钟完成预问诊</h3>
+              <p>先告诉 AI 您哪里不舒服，它会逐步追问，最后整理成给医生审核的病历摘要。</p>
+            </div>
+            <div class="bullet-card">
+              <div class="bullet">1. 描述主要症状</div>
+              <div class="bullet">2. AI 追问补全病史</div>
+              <div class="bullet">3. 确认提交给医生</div>
+            </div>
+            <div class="cta-row">
+              <div class="btn">开始预问诊</div>
+            </div>
+          </div>
+
+          <div class="phone">
+            <div class="topbar"><span>新建病历</span><span class="action">46%</span></div>
+            <div class="progress"><div></div></div>
+            <div class="chat-area">
+              <div class="bubble ai">您好，我是张医生的 AI 助手。请先描述这次最主要的不舒服。</div>
+              <div class="bubble user">最近一周右侧头痛，昨晚还吐了一次。</div>
+              <div class="bubble ai">明白了。我继续补充几个关键问题，这样医生看到时会更完整。</div>
+              <div class="suggestions">
+                <span class="chip">昨晚最重</span>
+                <span class="chip">伴恶心呕吐</span>
+                <span class="chip">之前也发作过</span>
+              </div>
+              <div class="bubble ai">有没有发热、意识模糊，或者肢体无力？</div>
+            </div>
+            <div class="input-bar">
+              <div class="input-shell">请输入，或切换语音输入…</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage" data-stage="7">
+          <div class="phone">
+            <div class="topbar"><span>审核</span><span class="action">门诊</span></div>
+            <div class="push">
+              <div class="push-badge">刚生成</div>
+              <div>
+                <div style="font-size:14px;font-weight:500;">患者【李阿姨】已完成预问诊</div>
+                <div class="meta">从患者预问诊预览路径进入，已在你的队列中高亮</div>
+              </div>
+            </div>
+            <div class="section-label">待审核</div>
+            <div class="card">
+              <div class="list-row">
+                <div class="icon-box amber">诊</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;">李阿姨 · 右侧头痛伴呕吐</div>
+                  <div class="meta">待审核 · 刚刚由预问诊创建</div>
+                </div>
+                <div class="chip" style="color:var(--amber);border-color:#f3d391;background:var(--amber-light);">优先处理</div>
+              </div>
+            </div>
+            <div class="review-highlight">
+              <strong>患者入口必须接到医生审核页</strong>
+              <span>下一步不是让医生回到首页自己找，而是直接高亮这条新病例，并默认进入审核详情。</span>
+            </div>
+          </div>
+
+          <div class="phone">
+            <div class="topbar"><span>审核详情</span><span class="action">完成审核</span></div>
+            <div class="section-label">AI 摘要</div>
+            <div class="card">
+              <div class="pad">
+                <div style="font-size:15px;font-weight:600;">右侧头痛伴呕吐，建议排除危险信号</div>
+                <div class="meta" style="margin-top:6px;line-height:1.7;">
+                  AI 已整理为待审核病历摘要，并根据既有规则给出优先级建议。医生在这里确认或修改后完成审核。
+                </div>
+              </div>
+            </div>
+            <div class="section-label">审核动作</div>
+            <div class="card">
+              <div class="pad">
+                <div style="font-size:14px;line-height:1.7;color:var(--text-2);">
+                  一旦点“完成审核”，系统不只是结束当前页面，还应立即告诉医生后续已经生成了什么工作。
+                </div>
+              </div>
+            </div>
+            <div class="cta-row">
+              <div class="btn">完成审核</div>
+              <div class="btn secondary">修改后完成</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stage" data-stage="8">
+          <div class="phone">
+            <div class="topbar"><span>审核完成</span><span class="action">已通知</span></div>
+            <div class="success-card">
+              <strong>审核已完成，并生成 2 条随访任务</strong>
+              <p>这一步必须显式告诉医生系统已经做了后续工作，否则任务创建就只是后台行为，难以被感知。</p>
+              <div class="btn">查看任务</div>
+            </div>
+            <div class="review-highlight">
+              <strong>把“审核”变成“后续行动”</strong>
+              <span>完成审核后，系统同步显示患者通知和任务生成结果，让医生知道这一流程已经闭环。</span>
+            </div>
+          </div>
+
+          <div class="phone">
+            <div class="topbar"><span>任务</span><span class="action">今日新增</span></div>
+            <div class="push">
+              <div class="push-badge">2 条新任务</div>
+              <div>
+                <div style="font-size:14px;font-weight:500;">来自刚完成的诊断审核</div>
+                <div class="meta">任务页自动高亮这次审核产生的后续事项</div>
+              </div>
+            </div>
+            <div class="section-label">自动生成</div>
+            <div class="card">
+              <div class="list-row">
+                <div class="icon-box">访</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;">48 小时内回访头痛 / 呕吐变化</div>
+                  <div class="meta">患者：李阿姨 · 来源：诊断审核</div>
+                </div>
+                <div class="chip" style="color:var(--green);border-color:#bfe8cf;background:var(--green-light);">来自诊断审核</div>
+              </div>
+              <div class="list-row">
+                <div class="icon-box blue">通</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;">发送复诊提醒与危险信号说明</div>
+                  <div class="meta">患者：李阿姨 · 已同步患者通知</div>
+                </div>
+                <div class="chip" style="color:var(--blue);border-color:#c9d1e4;background:#eef2fb;">已通知患者</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const notes = [
+    {
+      title: "Step 1 · 我的AI 变成引导器",
+      body: "The doctor should not be asked to infer the product narrative from equal-weight dashboard cards. First-run mode turns 我的AI into an ordered mission checklist.",
+      bullets: [
+        "The checklist still starts from two entry missions, but it also reveals the three downstream proof steps.",
+        "Checklist items are stateful, not just decorative.",
+        "Normal dashboard can return after the missions are complete."
+      ]
+    },
+    {
+      title: "Step 2 · 三种知识添加方式都要可理解",
+      body: "Knowledge creation should feel assisted, not opaque. The doctor should see three explicit entry types and understand that all of them converge into the same editable draft before save.",
+      bullets: [
+        "网址导入 -> prefill editable rule.",
+        "图片 / 文件 -> OCR or extraction -> prefill editable rule.",
+        "直接输入 -> starter draft prefilled, doctor can rewrite."
+      ]
+    },
+    {
+      title: "Step 3 · 保存规则后不要直接返回",
+      body: "The current save flow answers “did it save?” but not “what does this do next?”. The mock adds a deterministic handoff sheet immediately after save.",
+      bullets: [
+        "Show where the rule will be used: 诊断审核 / 患者回复.",
+        "Open seeded examples directly from the save success state.",
+        "Make knowledge interaction causal, not just administrative."
+      ]
+    },
+    {
+      title: "Step 4 · 诊断审核必须是第一张证明页",
+      body: "After save, the product should open a seeded diagnosis review example directly. The doctor should not browse the queue to find a convincing case.",
+      bullets: [
+        "Show the case input provenance first: 患者预问诊摘要 and/or 医生聊天建档补充.",
+        "Highlight the exact suggestion that cites the new rule.",
+        "Let the doctor confirm or edit one recommendation.",
+        "The next CTA should continue to reply proof, not drop the flow."
+      ]
+    },
+    {
+      title: "Step 5 · 回复审核是第二张证明页",
+      body: "The doctor should then see that the same knowledge also shapes patient-facing communication. This proves the knowledge system is reused across both review and reply workflows.",
+      bullets: [
+        "Open a seeded patient thread directly in draft-review state.",
+        "Show the original patient message before showing the AI draft.",
+        "Highlight that the draft language came from the saved rule.",
+        "Use this screen to bridge into patient intake exploration."
+      ]
+    },
+    {
+      title: "Step 6 · QR 和聊天都要能发起患者入口",
+      body: "Patient onboarding should not depend on one surface. Doctors should be able to launch the same intake entry from QR sharing or directly inside doctor chat.",
+      bullets: [
+        "Keep 发给患者 / 预览患者端 / 复制链接 in the QR sheet.",
+        "Inside doctor chat, create the provisional patient record before generating the intake entry.",
+        "This prevents discovery from failing just because the doctor never leaves chat."
+      ]
+    },
+    {
+      title: "Step 7 · 患者端先看到预问诊，不是通用门户",
+      body: "For deterministic discovery, QR-first preview should land directly in the intake experience. The patient should understand the promise in one screen before entering the chat flow.",
+      bullets: [
+        "Short intro layer explains the 3-step process.",
+        "Then the patient lands in the existing guided interview.",
+        "This preserves the current intake surface while making the story legible."
+      ]
+    },
+    {
+      title: "Step 8 · 患者提交后必须回到医生审核",
+      body: "The patient submit success state should bridge back to doctor-side review. That closes the loop and proves the intake feature creates usable work for the doctor.",
+      bullets: [
+        "Review queue highlights the just-created case.",
+        "Doctor lands directly in a finalize-ready review detail.",
+        "This makes patient entry and doctor review one connected story."
+      ]
+    },
+    {
+      title: "Step 9 · 任务生成要变成可见结果",
+      body: "Task creation should be shown as the explicit consequence of review completion, not an invisible backend side effect.",
+      bullets: [
+        "Show a post-finalize bridge with 已生成 X 条随访任务.",
+        "Open the task page already filtered or highlighted.",
+        "Use provenance pills like 来自诊断审核 / 已通知患者 so the doctor sees the workflow is closed."
+      ]
+    }
+  ];
+
+  const noteEl = document.getElementById("notes");
+  const buttons = Array.from(document.querySelectorAll(".step-btn"));
+  const stages = Array.from(document.querySelectorAll(".stage"));
+
+  function renderNote(index) {
+    const item = notes[index];
+    noteEl.innerHTML = `
+      <div class="eyebrow">Why This Screen Exists</div>
+      <h2>${item.title}</h2>
+      <p>${item.body}</p>
+      <ul>${item.bullets.map((b) => `<li>${b}</li>`).join("")}</ul>
+    `;
+  }
+
+  function setStep(index) {
+    buttons.forEach((btn, i) => btn.classList.toggle("active", i === index));
+    stages.forEach((stage, i) => stage.classList.toggle("active", i === index));
+    renderNote(index);
+  }
+
+  buttons.forEach((btn, index) => {
+    btn.addEventListener("click", () => setStep(index));
+  });
+
+  renderNote(0);
+</script>
+</body>
+</html>

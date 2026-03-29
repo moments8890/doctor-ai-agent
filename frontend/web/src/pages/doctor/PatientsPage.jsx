@@ -24,7 +24,7 @@ import PageSkeleton from "../../components/PageSkeleton";
 import ListCard from "../../components/ListCard";
 import SectionLabel from "../../components/SectionLabel";
 import StatusBadge from "../../components/StatusBadge";
-import PatientAvatar from "../../components/PatientAvatar";
+import NameAvatar from "../../components/NameAvatar";
 import PatientDetail from "./patients/PatientDetail";
 import SubpageHeader from "../../components/SubpageHeader";
 import InterviewPage from "./InterviewPage";
@@ -55,15 +55,23 @@ function formatPatientTime(dateStr) {
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-/* Triage dot: urgent → red, symptom_report/side_effect → amber, others → hidden */
+/* Triage badge: urgent → red "紧急", symptom/side_effect → amber "待处理" */
 function TriageDot({ triageCategory }) {
   if (!triageCategory) return null;
   let color = null;
-  if (triageCategory === "urgent") color = COLOR.danger;
-  else if (triageCategory === "symptom_report" || triageCategory === "side_effect") color = COLOR.warning;
+  let label = null;
+  if (triageCategory === "urgent") { color = COLOR.danger; label = "紧急"; }
+  else if (triageCategory === "symptom_report" || triageCategory === "side_effect") { color = COLOR.warning; label = "待处理"; }
   if (!color) return null;
   return (
-    <Box component="span" sx={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", bgcolor: color, flexShrink: 0, ml: 0.5 }} />
+    <Box component="span" sx={{
+      display: "inline-block", fontSize: 10, fontWeight: 600,
+      px: 0.6, py: 0.1, borderRadius: "3px",
+      bgcolor: color, color: "#fff", lineHeight: 1.5,
+      flexShrink: 0, ml: 0.5,
+    }}>
+      {label}
+    </Box>
   );
 }
 
@@ -85,7 +93,7 @@ function PatientRow({ patient, aiTag, onClick }) {
   const triageCategory = patient.latest_triage_category || patient.triage_category;
   return (
     <ListCard
-      avatar={<PatientAvatar name={patient.name} size={36} />}
+      avatar={<NameAvatar name={patient.name} size={36} />}
       title={
         <Box component="span" sx={{ display: "inline-flex", alignItems: "center" }}>
           {patient.name}
@@ -113,7 +121,7 @@ function AIAttentionSection({ attention, navigate }) {
         {attention.patients.map((p, i) => (
           <ListCard
             key={p.patient_id || i}
-            avatar={<PatientAvatar name={p.patient_name || "?"} size={36} />}
+            avatar={<NameAvatar name={p.patient_name || "?"} size={36} />}
             title={p.patient_name || "患者"}
             subtitle={p.reason}
             onClick={() => p.patient_id ? navigate(`/doctor/patients/${p.patient_id}`) : undefined}
