@@ -114,12 +114,11 @@ body {
 <script>
 /* ── Color palette for shared component groups ── */
 const GROUPS = {
-  SubpageHeader:   { color: '#2da44e', bg: '#dafbe1', label: 'SubpageHeader',   path: 'frontend/web/src/components/common/SubpageHeader.jsx' },
-  ListCard:        { color: '#0969da', bg: '#ddf4ff', label: 'ListCard',         path: 'frontend/web/src/components/common/ListCard.jsx' },
-  FilterStatBar:   { color: '#bf5700', bg: '#fff1e5', label: 'FilterStatBar',    path: 'frontend/web/src/components/common/FilterStatBar.jsx' },
-  MessageItem:     { color: '#8250df', bg: '#fbefff', label: 'MessageItem',      path: 'frontend/web/src/components/chat/MessageItem.jsx' },
-  VoiceInput:      { color: '#0e7c6b', bg: '#ddf5f0', label: 'VoiceInput',       path: 'frontend/web/src/components/common/VoiceInput.jsx' },
-  PatientAvatar:   { color: '#bf3989', bg: '#ffeff7', label: 'PatientAvatar',    path: 'frontend/web/src/components/common/PatientAvatar.jsx' },
+  SubpageHeader:   { color: '#2da44e', bg: '#dafbe1', label: 'SubpageHeader',   path: 'frontend/web/src/components/SubpageHeader.jsx' },
+  ListCard:        { color: '#0969da', bg: '#ddf4ff', label: 'ListCard',         path: 'frontend/web/src/components/ListCard.jsx' },
+  ReplyCard:       { color: '#8250df', bg: '#fbefff', label: 'ReplyCard',        path: 'frontend/web/src/components/doctor/ReplyCard.jsx' },
+  VoiceInput:      { color: '#0e7c6b', bg: '#ddf5f0', label: 'VoiceInput',       path: 'frontend/web/src/components/VoiceInput.jsx' },
+  PatientAvatar:   { color: '#bf3989', bg: '#ffeff7', label: 'PatientAvatar',    path: 'frontend/web/src/components/PatientAvatar.jsx' },
   _page:           { color: '#8c959f', bg: '#f0f2f4', label: 'Page-specific',    path: '' },
 };
 
@@ -140,16 +139,25 @@ const PAGES = [
     { name: 'PatientList', group: 'ListCard', desc: 'ListCard rows with PatientAvatar' },
     { name: 'PatientDetail link', group: '_page', desc: '-> PatientDetail column', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
   ]},
-  { id: 'review', title: '门诊', route: '/doctor/review', img: 'page-screenshots/doctor-review.png', blocks: [
-    { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title' },
-    { name: 'FilterStatBar', group: 'FilterStatBar', desc: '门诊 / 回复 / 完成 (3 tabs)' },
-    { name: 'PendingReviewCard', group: 'PatientAvatar', desc: '门诊 tab: review cards + citation' },
-    { name: 'MessageItem', group: 'MessageItem', desc: '回复 tab: patient messages + AI drafts' },
-    { name: 'CompletedRow', group: '_page', desc: '完成 tab: confirmed/edited items', path: 'frontend/web/src/pages/doctor/ReviewQueuePage.jsx' },
+  { id: 'review-pending', title: '审核 · 门诊', route: '/doctor/review?tab=pending', img: 'page-screenshots/doctor-review.png', blocks: [
+    { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title "审核"' },
+    { name: 'FilterStatBar', group: '_page', desc: '门诊 / 回复 / 完成 (3 tabs)', path: 'frontend/web/src/pages/doctor/ReviewQueuePage.jsx' },
+    { name: 'PendingReviewCard', group: 'PatientAvatar', desc: 'Diagnosis preview + citation chips + chevron' },
+    { name: 'CaseMemoryCard', group: '_page', desc: 'Green card: similar case reference', path: 'frontend/web/src/pages/doctor/ReviewQueuePage.jsx' },
+  ]},
+  { id: 'review-replies', title: '审核 · 回复', route: '/doctor/review?tab=replies', img: 'page-screenshots/doctor-review-replies.png', blocks: [
+    { name: 'FilterStatBar', group: '_page', desc: '门诊 / 回复 / 完成 (3 tabs)' },
+    { name: 'MessageItem', group: '_page', desc: 'Patient message + AI draft + edit/send', path: 'frontend/web/src/components/doctor/MessageItem.jsx' },
+    { name: 'CitationChips', group: '_page', desc: 'KB rule citation badges on draft' },
+    { name: 'SendConfirmSheet', group: 'SheetDialog', desc: 'Confirm before sending reply' },
+  ]},
+  { id: 'review-completed', title: '审核 · 完成', route: '/doctor/review?tab=completed', img: 'page-screenshots/doctor-review-completed.png', blocks: [
+    { name: 'FilterStatBar', group: '_page', desc: '门诊 / 回复 / 完成 (3 tabs)' },
+    { name: 'CompletedRow', group: '_page', desc: 'Confirmed/edited items with chevron → patient detail', path: 'frontend/web/src/pages/doctor/ReviewQueuePage.jsx' },
   ]},
   { id: 'tasks', title: '任务', route: '/doctor/tasks', img: 'page-screenshots/doctor-tasks.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title' },
-    { name: 'FilterStatBar', group: 'FilterStatBar', desc: '待完成 / 已完成 (2 tabs)' },
+    { name: 'FilterStatBar', group: '_page', desc: '待完成 / 已完成 (2 tabs)', path: 'frontend/web/src/pages/doctor/TaskPage.jsx' },
     { name: 'ListCard (followups)', group: 'ListCard', desc: 'Followups + tasks (待完成 tab)' },
     { name: 'ListCard (sent)', group: 'ListCard', desc: 'Completed items (已完成 tab)' },
   ]},
@@ -180,11 +188,12 @@ const PAGES = [
     { name: 'RecordTabs + RecordCard', group: '_page', desc: 'History / notes tab switcher', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
     { name: 'PendingReviewRow', group: '_page', desc: '-> links to 门诊 review', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
     { name: 'PatientMessages', group: '_page', desc: 'Recent messages list', path: 'frontend/web/src/pages/doctor/patients/PatientDetail.jsx' },
+    { name: 'ReplyCard (inline)', group: 'ReplyCard', desc: 'AI draft reply inline in patient messages' },
   ]},
   { id: 'interview', title: 'Interview', route: '/doctor/patients/new', img: 'page-screenshots/doctor-patients-new.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
     { name: 'ProgressBar', group: '_page', desc: 'Multi-step progress indicator', path: 'frontend/web/src/pages/patient/InterviewPage.jsx' },
-    { name: 'ChatBubbles', group: 'MessageItem', desc: 'AI / patient chat bubbles' },
+    { name: 'ChatBubbles', group: '_page', desc: 'AI / patient chat bubbles' },
     { name: 'SuggestionChips', group: '_page', desc: 'Quick-reply options', path: 'frontend/web/src/pages/patient/InterviewPage.jsx' },
     { name: 'InputBar + VoiceInput', group: 'VoiceInput', desc: 'Text + voice input bar' },
     { name: 'ActionPanel', group: '_page', desc: 'Submit / next actions', path: 'frontend/web/src/pages/patient/InterviewPage.jsx' },
