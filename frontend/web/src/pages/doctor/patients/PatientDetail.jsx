@@ -17,6 +17,7 @@ import QRDialog from "../../../components/QRDialog";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { RECORD_TAB_GROUPS } from "../constants";
 import RecordCard, { formatRelativeDate } from "../../../components/RecordCard";
+import MessageTimeline from "../../../components/MessageTimeline";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExportSelectorDialog from "../../../components/ExportSelectorDialog";
@@ -450,56 +451,13 @@ function PatientChatPage({ patientId, doctorId }) {
 
       {!loading && (hasMessages || hasDrafts) && (
         <>
-          {/* Green conversation box */}
+          {/* Message timeline */}
           {hasMessages && (
-            <Box sx={{ mx: 1.5, mb: 0.5, border: `1px solid ${COLOR.primary}`, borderRadius: "8px", bgcolor: "#fff", overflow: "hidden" }}>
-              {!expanded && (
-                <Box sx={{ px: 1.5, py: 0.5 }}>
-                  {escalated.slice(-3).map(m => {
-                    const label = m.source === "patient" ? "患者" : (m.source === "doctor" ? "医生" : "AI");
-                    const labelColor = m.source === "patient" ? COLOR.accent : (m.source === "doctor" ? COLOR.success : COLOR.text4);
-                    return (
-                      <Box key={m.id} sx={{ display: "flex", py: 0.6, borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" } }}>
-                        <Typography sx={{ width: 36, flexShrink: 0, fontSize: TYPE.micro.fontSize, fontWeight: 600, color: labelColor, pt: 0.2 }}>{label}</Typography>
-                        <Typography sx={{ flex: 1, fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5 }} noWrap>{m.content}</Typography>
-                      </Box>
-                    );
-                  })}
-                </Box>
-              )}
-
-          {/* Full thread */}
-          {expanded && (
-            <Box sx={{ px: 1.5, pb: 0.5, maxHeight: 300, overflowY: "auto" }}>
-              {messages.map(m => {
-                const label = m.source === "patient" ? "患者" : (m.source === "doctor" ? "医生" : "AI");
-                const labelColor = m.source === "patient" ? COLOR.accent : (m.source === "doctor" ? COLOR.success : COLOR.text4);
-                const isAiDisclosure = (m.content || "").includes("AI辅助生成");
-                return (
-                  <Box key={m.id} sx={{ display: "flex", py: 0.8, borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" } }}>
-                    <Typography sx={{
-                      width: 36, flexShrink: 0, fontSize: TYPE.micro.fontSize, fontWeight: 600,
-                      color: labelColor, pt: 0.2,
-                    }}>
-                      {label}
-                    </Typography>
-                    <Box sx={{ flex: 1, minWidth: 0, pl: 0.5 }}>
-                      <Typography sx={{
-                        fontSize: TYPE.secondary.fontSize, color: isAiDisclosure ? COLOR.text4 : COLOR.text1,
-                        lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word",
-                        fontStyle: isAiDisclosure ? "italic" : "normal",
-                      }}>
-                        {m.content}
-                      </Typography>
-                      <Typography sx={{ fontSize: 10, color: COLOR.text4, mt: 0.2 }}>
-                        {m.created_at ? new Date(m.created_at).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
-                      </Typography>
-                    </Box>
-                  </Box>
-                );
-              })}
-            </Box>
-          )}
+            <Box sx={{ px: 2, mb: 0.5 }}>
+              <MessageTimeline
+                messages={expanded ? messages : escalated.slice(-3)}
+                maxHeight={expanded ? 300 : undefined}
+              />
             </Box>
           )}
 
