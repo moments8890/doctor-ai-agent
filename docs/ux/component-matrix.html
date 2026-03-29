@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Component Matrix — Page × Component</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #fff;
+  color: #1f2328;
+}
+
+.header {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
+  border-bottom: 1px solid #d0d7de;
+  padding: 12px 24px;
+}
+.header h1 { font-size: 18px; font-weight: 700; }
+.header p { font-size: 12px; color: #656d76; margin-top: 4px; }
+
+/* ── Matrix ── */
+.matrix-wrap {
+  overflow-x: auto;
+  padding: 16px 24px 24px;
+}
+table {
+  border-collapse: collapse;
+  font-size: 12px;
+  width: auto;
+}
+th, td {
+  padding: 6px 10px;
+  border: 1px solid #e5e5e5;
+  text-align: center;
+  white-space: nowrap;
+}
+th {
+  background: #f6f8fa;
+  font-weight: 600;
+  color: #1f2328;
+  position: sticky;
+  top: 56px;
+  z-index: 5;
+}
+th.row-header {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  background: #f6f8fa;
+  min-width: 130px;
+}
+th.corner {
+  position: sticky;
+  left: 0;
+  top: 56px;
+  z-index: 7;
+  background: #f6f8fa;
+}
+td.row-label {
+  text-align: left;
+  font-weight: 500;
+  color: #0969da;
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 3;
+  min-width: 130px;
+  cursor: pointer;
+}
+td.row-label:hover { color: #0550ae; text-decoration: underline; }
+td.dot { cursor: default; }
+.dot-on {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #07C160; display: inline-block;
+}
+.dot-off { color: #e5e5e5; }
+th.page-col {
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  padding: 10px 6px;
+  font-size: 11px;
+  min-width: 36px;
+  cursor: pointer;
+  color: #1a7f37;
+}
+th.page-col:hover { color: #07C160; }
+
+/* ── Filmstrip ── */
+.filmstrip-header {
+  padding: 16px 24px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2328;
+  border-top: 1px solid #e5e5e5;
+}
+.filmstrip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 8px 24px 24px;
+  scroll-snap-type: x mandatory;
+}
+.film-card {
+  flex-shrink: 0;
+  width: 180px;
+  scroll-snap-align: start;
+  cursor: pointer;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+.film-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.film-card.active { border-color: #07C160; box-shadow: 0 0 0 2px rgba(7,193,96,0.3); }
+.film-card img {
+  width: 100%;
+  height: 320px;
+  object-fit: cover;
+  object-position: top;
+  display: block;
+}
+.film-label {
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1f2328;
+  background: #f6f8fa;
+  text-align: center;
+}
+
+/* ── Detail panel ── */
+.detail {
+  padding: 16px 24px;
+  border-top: 1px solid #e5e5e5;
+  display: none;
+}
+.detail.show { display: block; }
+.detail h3 { font-size: 14px; margin-bottom: 8px; }
+.detail .comp-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.detail .comp-tag {
+  font-size: 11px; padding: 3px 10px; border-radius: 12px;
+  background: #ddf4ff; color: #0969da; font-weight: 500;
+}
+.detail .comp-tag.page-specific { background: #f0f2f4; color: #8c959f; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Component Matrix</h1>
+  <p>Pages × Shared Components. Green dot = page uses component. Click a page column or filmstrip card to see details.</p>
+</div>
+
+<div class="matrix-wrap" id="matrix-wrap"></div>
+
+<div class="filmstrip-header">Page Screenshots</div>
+<div class="filmstrip" id="filmstrip"></div>
+
+<div class="detail" id="detail">
+  <h3 id="detail-title"></h3>
+  <div class="comp-list" id="detail-comps"></div>
+</div>
+
+<script>
+var IMG = 'page-screenshots/';
+
+var PAGES = [
+  { id: 'myai', label: 'MyAI', img: 'doctor-home.png', comps: ['SubpageHeader','IconBadge','ListCard','KnowledgeCard','PatientAvatar'] },
+  { id: 'patients', label: '患者', img: 'doctor-patients.png', comps: ['SubpageHeader','ListCard','PatientAvatar'] },
+  { id: 'review-pending', label: '审核·门诊', img: 'doctor-review.png', comps: ['SubpageHeader','PatientAvatar','IconBadge','EmptyState'] },
+  { id: 'review-replies', label: '审核·回复', img: 'doctor-review-replies.png', comps: ['MessageItem','SheetDialog','EmptyState'] },
+  { id: 'review-done', label: '审核·完成', img: 'doctor-review-completed.png', comps: ['ActionRow'] },
+  { id: 'review-detail', label: '诊断审核', img: 'doctor-review-detail.png', comps: ['SubpageHeader','DiagnosisCard','IconBadge','SheetDialog'] },
+  { id: 'tasks-pending', label: '任务·待完成', img: 'doctor-tasks.png', comps: ['SubpageHeader','ActionRow','EmptyState'] },
+  { id: 'tasks-done', label: '任务·已完成', img: 'doctor-tasks-completed.png', comps: ['ActionRow'] },
+  { id: 'settings', label: '设置', img: 'doctor-settings.png', comps: ['SubpageHeader','ListCard'] },
+  { id: 'knowledge', label: '知识库', img: 'doctor-settings-knowledge.png', comps: ['SubpageHeader','KnowledgeCard','IconBadge','ListCard','SheetDialog','EmptyState'] },
+  { id: 'patient-detail', label: '患者详情', img: 'doctor-patients-1.png', comps: ['SubpageHeader','PatientAvatar','MessageItem'] },
+  { id: 'interview', label: '新建病历', img: 'doctor-patients-new.png', comps: ['SubpageHeader','VoiceInput'] },
+  { id: 'chat', label: 'AI对话', img: 'doctor-chat.png', comps: ['VoiceInput'] },
+];
+
+var COMPONENTS = [
+  'SubpageHeader','ListCard','ActionRow','KnowledgeCard','MessageItem',
+  'DiagnosisCard','IconBadge','SheetDialog','VoiceInput','PatientAvatar','EmptyState'
+];
+
+// Build matrix table
+var wrap = document.getElementById('matrix-wrap');
+var html = '<table><thead><tr><th class="corner">Component \\ Page</th>';
+PAGES.forEach(function(p) {
+  html += '<th class="page-col" data-page="' + p.id + '">' + p.label + '</th>';
+});
+html += '</tr></thead><tbody>';
+COMPONENTS.forEach(function(comp) {
+  html += '<tr><td class="row-label">' + comp + '</td>';
+  PAGES.forEach(function(p) {
+    var has = p.comps.indexOf(comp) >= 0;
+    html += '<td class="dot">' + (has ? '<span class="dot-on"></span>' : '<span class="dot-off">·</span>') + '</td>';
+  });
+  html += '</tr>';
+});
+html += '</tbody></table>';
+wrap.innerHTML = html;
+
+// Build filmstrip
+var strip = document.getElementById('filmstrip');
+PAGES.forEach(function(p) {
+  var card = document.createElement('div');
+  card.className = 'film-card';
+  card.dataset.page = p.id;
+  card.innerHTML = '<img src="' + IMG + p.img + '" alt="' + p.label + '"><div class="film-label">' + p.label + '</div>';
+  card.onclick = function() { showDetail(p); };
+  strip.appendChild(card);
+});
+
+// Column click
+document.querySelectorAll('th.page-col').forEach(function(th) {
+  th.onclick = function() {
+    var p = PAGES.find(function(pg) { return pg.id === th.dataset.page; });
+    if (p) showDetail(p);
+  };
+});
+
+// Show detail
+function showDetail(page) {
+  document.querySelectorAll('.film-card').forEach(function(c) { c.classList.toggle('active', c.dataset.page === page.id); });
+  var detail = document.getElementById('detail');
+  detail.classList.add('show');
+  document.getElementById('detail-title').textContent = page.label + ' — Components';
+  var compsHtml = '';
+  page.comps.forEach(function(c) {
+    compsHtml += '<span class="comp-tag">' + c + '</span>';
+  });
+  document.getElementById('detail-comps').innerHTML = compsHtml;
+  detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
+
+</body>
+</html>
