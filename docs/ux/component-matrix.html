@@ -72,6 +72,10 @@ td.row-label {
   cursor: pointer;
 }
 td.row-label:hover { color: #0550ae; text-decoration: underline; }
+td.row-label.active-comp { background: #ddf4ff; font-weight: 700; }
+th.page-col.highlighted { background: #dafbe1; color: #1a7f37; font-weight: 700; }
+.film-card.highlighted { border-color: #0969da; box-shadow: 0 0 0 2px rgba(9,105,218,0.3); }
+.film-card.dimmed { opacity: 0.3; }
 td.dot { cursor: default; }
 .dot-on {
   width: 14px; height: 14px; border-radius: 50%;
@@ -228,7 +232,7 @@ PAGES.forEach(function(p) {
 });
 html += '</tr></thead><tbody>';
 COMPONENTS.forEach(function(comp) {
-  html += '<tr><td class="row-label">' + comp + '</td>';
+  html += '<tr><td class="row-label" data-comp="' + comp + '">' + comp + '</td>';
   PAGES.forEach(function(p) {
     var has = p.comps.indexOf(comp) >= 0;
     html += '<td class="dot">' + (has ? '<span class="dot-on"></span>' : '<span class="dot-off">·</span>') + '</td>';
@@ -255,6 +259,39 @@ document.querySelectorAll('th.page-col').forEach(function(th) {
     var p = PAGES.find(function(pg) { return pg.id === th.dataset.page; });
     if (p) showDetail(p);
   };
+});
+
+// Component row click — highlight pages that use it
+var activeComp = null;
+document.addEventListener('click', function(e) {
+  var label = e.target.closest('.row-label');
+  if (label && label.dataset.comp) {
+    var comp = label.dataset.comp;
+    var isSame = activeComp === comp;
+    activeComp = isSame ? null : comp;
+
+    // Reset all highlights
+    document.querySelectorAll('.row-label').forEach(function(el) { el.classList.remove('active-comp'); });
+    document.querySelectorAll('th.page-col').forEach(function(el) { el.classList.remove('highlighted'); });
+    document.querySelectorAll('.film-card').forEach(function(el) { el.classList.remove('highlighted', 'dimmed'); });
+
+    if (!isSame) {
+      label.classList.add('active-comp');
+      // Find pages that use this component
+      var usingPages = {};
+      PAGES.forEach(function(p) { if (p.comps.indexOf(comp) >= 0) usingPages[p.id] = true; });
+      // Highlight column headers
+      document.querySelectorAll('th.page-col').forEach(function(el) {
+        if (usingPages[el.dataset.page]) el.classList.add('highlighted');
+      });
+      // Highlight filmstrip
+      document.querySelectorAll('.film-card').forEach(function(el) {
+        if (usingPages[el.dataset.page]) el.classList.add('highlighted');
+        else el.classList.add('dimmed');
+      });
+    }
+    return;
+  }
 });
 
 // Show detail
