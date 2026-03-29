@@ -50,6 +50,8 @@ Source: [`src/pages/admin/ComponentShowcasePage.jsx`](../../frontend/web/src/pag
 | CancelConfirm | [`src/components/CancelConfirm.jsx`](../../frontend/web/src/components/CancelConfirm.jsx) | Two-step cancel popup (确認\|返回) |
 | ConfirmDialog | [`src/components/ConfirmDialog.jsx`](../../frontend/web/src/components/ConfirmDialog.jsx) | Compact confirm/destructive dialog |
 | ActionPanel | [`src/components/ActionPanel.jsx`](../../frontend/web/src/components/ActionPanel.jsx) | Slide-up action sheet (camera, gallery, file, patient) |
+| DialogFooter | [`src/components/DialogFooter.jsx`](../../frontend/web/src/components/DialogFooter.jsx) | Standard 2-button footer for SheetDialog (cancel LEFT, primary RIGHT) |
+| Toast | [`src/components/Toast.jsx`](../../frontend/web/src/components/Toast.jsx) | Transient dark overlay message + `useToast` hook |
 
 ### Content Components
 | Component | File | Purpose |
@@ -108,7 +110,7 @@ Source: [`src/pages/admin/ComponentShowcasePage.jsx`](../../frontend/web/src/pag
 ### Theme & Tokens
 | File | Purpose |
 |------|---------|
-| [`src/theme.js`](../../frontend/web/src/theme.js) | `TYPE`, `ICON`, `COLOR` tokens + MUI theme |
+| [`src/theme.js`](../../frontend/web/src/theme.js) | `TYPE`, `ICON`, `COLOR`, `RADIUS` tokens + MUI theme |
 | [`src/api.js`](../../frontend/web/src/api.js) | All API functions |
 | [`src/store/doctorStore.js`](../../frontend/web/src/store/doctorStore.js) | Auth state (Zustand) |
 | [`src/pages/doctor/constants.jsx`](../../frontend/web/src/pages/doctor/constants.jsx) | Labels, enums, field definitions |
@@ -130,16 +132,20 @@ SaaS product. Every interaction should feel like messaging a trusted assistant.
 2. **Flat and clean** — No shadows, no gradients, no 3D effects. WeChat flat
    design: white cards on gray backgrounds, hairline borders, text hierarchy
    through size and weight only.
-3. **Mobile-first, mobile-only (for now)** — All views render as mobile layout.
-   Desktop shows a phone-shaped frame. Optimize for one-thumb operation.
+3. **Mobile-first** — All doctor/patient views render as mobile layout.
+   Desktop shows a phone-shaped frame. Do not add responsive breakpoints
+   to doctor/patient components. Optimize for one-thumb operation.
 4. **Scan, don't read** — Doctors have 30 seconds per patient. Use brief labels
    for scanning (card titles), full text for reading (expanded detail).
    Collapse by default, expand on tap.
-5. **Safety through layout** — Destructive actions (delete) always on the left,
-   constructive actions (save, confirm) always on the right. Red for danger,
-   green for go. No exceptions.
-6. **Consistent density** — Clinical data is dense. Use compact spacing (4px
-   base unit) but never sacrifice tap targets (min 44px touch area).
+5. **Primary always right** (WeChat convention) — Cancel/secondary always LEFT,
+   primary/confirm always RIGHT. Color communicates intent: red for danger,
+   green for go. Position never changes for destructive actions. Verified
+   against WeChat, iOS, Alipay, DingTalk, Material Design — all 5 platforms
+   put primary on the right.
+6. **Consistent density** — Clinical data is dense. Spacing uses MUI's 8px
+   grid with 4px half-step (only 0.5 increments: 0.5, 1, 1.5, 2, 2.5, 3).
+   Never sacrifice tap targets (min 44px touch area).
 7. **Chinese-first** — All UI text in Chinese. Preserve medical abbreviations
    (CT, MRI, NIHSS). No English UI labels except technical identifiers.
 
@@ -341,13 +347,18 @@ views hide it and show a back button instead.
 
 ### Semantic Colors
 
-| Color | Hex | Meaning | Where |
-|-------|-----|---------|-------|
-| **Green** | `#07C160` | Positive, primary, active, go | Buttons, nav, confirm, links |
-| **Red** | `#D65745` | Destructive, danger | Delete only. Never for emphasis. |
-| **Amber** | `#F59E0B` | Attention, pending, modified | 待审核 badge, edited items, 紧急 urgency |
-| **Accent blue** | `#576B95` | Secondary action, info | Edit (✎ 修改), WeChat link style |
-| **Gray** | `#999` | Neutral, inactive, metadata | Timestamps, labels, disabled |
+| Color | Hex | Token | Meaning | Where |
+|-------|-----|-------|---------|-------|
+| **Green** | `#07C160` | `COLOR.primary` | Positive, primary, active, go | Buttons, nav, confirm, clinical records |
+| **Red** | `#D65745` | `COLOR.danger` | Destructive, danger, high urgency | Delete, 高 urgency badge |
+| **Amber** | `#F59E0B` | `COLOR.warning` | Attention, pending, medium urgency | 待审核 badge, edited items, 中 urgency |
+| **Accent blue** | `#576B95` | `COLOR.accent` | Secondary action, diagnostics | Edit (✎ 修改), 检验/影像 records |
+| **Slate** | `#8993a4` | `COLOR.recordDoc` | Document records | 口述/导入 records |
+| **Gray** | `#999` | `COLOR.text4` | Neutral, inactive, low urgency | Timestamps, labels, 低 urgency |
+| **Link blue** | `#1565c0` | `COLOR.link` | Citations, references | Knowledge badge links |
+| **Hover green** | `#06a050` | `COLOR.primaryHover` | Button hover/active | Primary button press state |
+
+Each color also has a `*Light` variant for tinted backgrounds (e.g., `COLOR.dangerLight`).
 
 ### Background Colors
 
@@ -382,7 +393,7 @@ views hide it and show a back button instead.
 Import from `theme.js`. **Never hardcode font sizes.**
 
 ```jsx
-import { TYPE, ICON, COLOR } from "../../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 ```
 
 | Token | Size/Weight | Usage |
@@ -408,6 +419,68 @@ import { TYPE, ICON, COLOR } from "../../theme";
 | `hero` | 28px | SubpageHeader back chevron |
 | `display` | 48px | Empty state icons |
 
+### Border Radius (`RADIUS`)
+
+| Token | Size | Usage |
+|-------|------|-------|
+| `sm` | 4px | Buttons, cards, avatars, inputs, badges |
+| `md` | 8px | Containers, bubbles, icon boxes |
+| `lg` | 12px | Dialog paper, bottom sheets |
+| `pill` | 16px | Pills, chips, MobileFrame |
+
+Use `"50%"` for circles (dots, circular avatars). No token needed.
+
+### Spacing Grid
+
+All spacing uses MUI scale: `spacing(1)` = 8px. **Only 0.5 increments allowed.**
+
+| Value | Pixels | Usage |
+|-------|--------|-------|
+| 0.5 | 4px | Within-component gaps |
+| 1 | 8px | Between items in a list |
+| 1.5 | 12px | Section padding, card padding |
+| 2 | 16px | Between sections, page px |
+| 2.5 | 20px | Between major sections |
+| 3 | 24px | Page top/bottom |
+
+Do not use off-grid values (0.8, 1.2, 1.3, etc.). Snap to nearest 0.5.
+
+### Record Type Colors (minimal palette)
+
+3 colors for 7 record types. Grouped by medical meaning.
+
+| Group | Types | Token |
+|-------|-------|-------|
+| Clinical | 门诊, 问诊, 转诊 | `COLOR.primary` (#07C160) |
+| Diagnostics | 检验, 影像 | `COLOR.accent` (#576B95) |
+| Documents | 口述, 导入 | `COLOR.recordDoc` (#8993a4) |
+
+Record types are differentiated by icon + text label. Color indicates category.
+
+### Urgency Colors (no new tokens)
+
+| Level | Token | Hex |
+|-------|-------|-----|
+| 高 (high) | `COLOR.danger` | #D65745 |
+| 中 (medium) | `COLOR.warning` | #F59E0B |
+| 低 (low) | `COLOR.text4` | #999999 |
+
+### Patient Avatars
+
+Gray background + muted initial. **Color is reserved for status, not identity.**
+
+| Element | Token |
+|---------|-------|
+| Avatar background | `COLOR.borderLight` (#f0f0f0) |
+| Avatar initial | `COLOR.text4` (#999) |
+| Status dot: 待审核 | `COLOR.danger` (red) |
+| Status dot: 待回复 | `COLOR.warning` (amber) |
+| Status dot: 已完成 | `COLOR.primary` (green) |
+| No actionable status | No dot |
+
+Rationale: Research across WeChat, 好大夫, Epic shows colored avatars are noise
+in medical task UIs. Doctors identify patients by name, not avatar color.
+
 ---
 
 ## 6. Component Patterns
@@ -431,11 +504,23 @@ import { TYPE, ICON, COLOR } from "../../theme";
 Exceptions only with strong justification (e.g., "保存并诊断 →" on a primary CTA
 where the extra context prevents a wrong-action error).
 
-**Action button placement:** destructive left, constructive right. Always.
+**Action button placement (WeChat convention):**
+
+| Context | Layout | Rule |
+|---------|--------|------|
+| **Dialogs** | Equal-width grid | Cancel LEFT, primary RIGHT. Always. |
+| **Inline action bars** | Spread to edges | Secondary LEFT, primary RIGHT |
+| **3+ buttons or text > 4 chars** | Stacked vertically | Primary TOP, cancel BOTTOM |
+
+Destructive dialogs: same layout, primary button colored red. No position swap.
 
 ```
-[删除 (red)]  ───── spacer ─────  [编辑 (green)]
+Dialog:          [取消 (gray)]  [删除 (red)]
+Action bar:      [删除 (red)]  ──────  [编辑 (green)]
 ```
+
+**Files:** [`DialogFooter.jsx`](../../frontend/web/src/components/DialogFooter.jsx) (standard footer),
+[`ConfirmDialog.jsx`](../../frontend/web/src/components/ConfirmDialog.jsx) (confirm/cancel modal)
 
 ### Review Surfaces
 
@@ -707,17 +792,20 @@ Used in: internal UI review, component QA, visual regression walkthroughs.
 Two-step flow:
 1. User taps cancel/back → `CancelConfirm` popup appears
 2. User sees: "确认离开？未保存的内容将会丢失"
-3. Two buttons: **确认** (red text, left — discard and leave) | **返回** (green fill, right — continue working)
+3. Two buttons: **取消** (gray, left — stay and continue) | **离开** (red, right — discard and leave)
 
 ```
 ┌────────────────────────┐
 │     确认离开？          │
 │  未保存的内容将会丢失    │
 │                        │
-│  [确认]      [返回]     │
-│  red,left   green,right │
+│  [取消]      [离开]     │
+│  gray,left   red,right  │
 └────────────────────────┘
 ```
+
+Follows WeChat convention: primary action (even destructive) always on the right.
+Color (red) communicates danger. Cancel is always gray, always left.
 
 **When to use:** Any cancel/back that would lose unsaved data:
 - Interview in progress → back button
@@ -755,21 +843,40 @@ Two-step flow:
 
 Before submitting any UI change, verify:
 
-- [ ] Import `TYPE`, `ICON`, `COLOR` from theme — no hardcoded sizes or colors
-- [ ] Delete on left, actions on right — everywhere
-- [ ] Max 1 BarButton in top bar, max 2 characters
+**Tokens & Styling:**
+- [ ] Import `TYPE`, `ICON`, `COLOR`, `RADIUS` from theme — no hardcoded sizes, colors, or radii
+- [ ] Font sizes use only the 7 `TYPE` tokens
+- [ ] Border radius uses only `RADIUS.sm/md/lg/pill` (or `"50%"` for circles)
+- [ ] Spacing uses only MUI 0.5 increments (0.5, 1, 1.5, 2, 2.5, 3)
+- [ ] No hardcoded hex colors — use `COLOR.*` tokens
+- [ ] No shadows, no gradients — flat only
+
+**Buttons & Dialogs:**
+- [ ] Dialog buttons: cancel LEFT (gray), primary RIGHT. No position swap for danger.
+- [ ] Inline action bars: secondary LEFT, primary RIGHT (spread)
+- [ ] Max 1 BarButton in top bar, max 4 characters
+- [ ] Button text: prefer 2 characters, allow up to 4 with justification
+- [ ] Use `DialogFooter` for new SheetDialog footers
 - [ ] Deletion requires 2-tap confirmation
-- [ ] Cancel/back that discards work uses `CancelConfirm` popup (确认|返回)
-- [ ] Button text max 2 characters unless justified (保存, 取消, 确认, 删除, 返回)
+- [ ] Cancel/back that discards work uses `CancelConfirm` (取消|离开)
+
+**Components & State:**
+- [ ] Empty lists use `EmptyState` component (icon + title + subtitle)
+- [ ] Transient messages use `Toast`/`useToast`, not custom state + setTimeout
+- [ ] Patient avatars: gray bg (`COLOR.borderLight`) + muted initial (`COLOR.text4`)
+- [ ] Status dots on avatars use semantic colors (danger/warning/primary)
+- [ ] Record type colors use 3-color palette (primary/accent/recordDoc)
+- [ ] Urgency mapped to existing tokens (danger/warning/text4)
 - [ ] Review rows use text actions before filled buttons
 - [ ] Review pages have at most 1 strong green CTA
-- [ ] `/debug/components` contains all reusable components, including `components/doctor`
-- [ ] Showcase section navigation uses a compact dropdown/picker when groups become numerous
+
+**Layout:**
 - [ ] Content has bottom padding for nav clearance (`pb: 64px`)
 - [ ] Sticky bars don't overlap with bottom nav
-- [ ] Empty sections hidden when they add no value
-- [ ] Font sizes use only the 7 `TYPE` tokens
-- [ ] No shadows, no gradients — flat only
 - [ ] `position: absolute` (not fixed) for elements inside MobileFrame
-- [ ] Record field labels and values use same `TYPE.secondary` (13px)
+- [ ] No responsive breakpoints in doctor/patient components
+
+**Content:**
 - [ ] Chinese text for all UI. English for technical identifiers only.
+- [ ] MUI outlined icons only — no emoji, no Unicode symbols
+- [ ] Verify icon exists in installed MUI version before using

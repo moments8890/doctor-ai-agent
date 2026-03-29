@@ -17,6 +17,7 @@ import BarButton from "../../../components/BarButton";
 import AppButton from "../../../components/AppButton";
 import SheetDialog from "../../../components/SheetDialog";
 import VoiceInput, { isVoiceSupported } from "../../../components/VoiceInput";
+import Toast, { useToast } from "../../../components/Toast";
 import { useApi } from "../../../api/ApiContext";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
@@ -584,27 +585,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
         </Typography>
       </SheetDialog>
 
-      {/* Toast */}
-      {toast && (
-        <Box
-          sx={{
-            position: "fixed",
-            top: "20%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            bgcolor: "rgba(0,0,0,0.7)",
-            color: "#fff",
-            px: 3,
-            py: 1.5,
-            borderRadius: 2,
-            fontSize: TYPE.body.fontSize,
-            zIndex: 9999,
-            pointerEvents: "none",
-          }}
-        >
-          {toast}
-        </Box>
-      )}
+      <Toast message={toast} />
 
       <SheetDialog
         open={nextStepOpen}

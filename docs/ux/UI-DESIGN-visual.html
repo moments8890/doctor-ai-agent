@@ -86,7 +86,7 @@ tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(9, 105,
 .mockup-inner { background: #ededed; border-radius: 8px; padding: 8px; font-family: -apple-system, sans-serif; }
 .mock-list-card { background: #fff; border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; font-size: 12px; color: #333; margin-bottom: 4px; }
 .mock-list-card:last-child { margin-bottom: 0; }
-.mock-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0; }
+.mock-avatar { width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0; position: relative; }
 .mock-list-body { flex: 1; } .mock-list-title { font-weight: 600; color: #1a1a1a; font-size: 13px; }
 .mock-list-sub { color: #999; font-size: 11px; } .mock-chevron { color: #ccc; font-size: 14px; }
 .mock-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 500; border: 0.5px solid; }
@@ -116,7 +116,7 @@ tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(9, 105,
 <div class="header">
   <h1>UI Design Principles &amp; Component Guide</h1>
   <div class="subtitle">Interactive visual companion for the design system</div>
-  <div class="updated">Last updated 2026-03-27</div>
+  <div class="updated">Last updated 2026-03-29</div>
 </div>
 
 <!-- LIVE SHOWCASES (always visible) -->
@@ -175,6 +175,8 @@ tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(9, 105,
       <tr><td>CancelConfirm</td><td><span class="file-path" onclick="copyPath(this)">src/components/CancelConfirm.jsx</span></td><td>Two-step cancel popup</td></tr>
       <tr><td>ConfirmDialog</td><td><span class="file-path" onclick="copyPath(this)">src/components/ConfirmDialog.jsx</span></td><td>Compact confirm/destructive dialog</td></tr>
       <tr><td>ActionPanel</td><td><span class="file-path" onclick="copyPath(this)">src/components/ActionPanel.jsx</span></td><td>Slide-up action sheet</td></tr>
+      <tr><td>DialogFooter</td><td><span class="file-path" onclick="copyPath(this)">src/components/DialogFooter.jsx</span></td><td>Standard 2-button footer (cancel LEFT, primary RIGHT)</td></tr>
+      <tr><td>Toast</td><td><span class="file-path" onclick="copyPath(this)">src/components/Toast.jsx</span></td><td>Transient dark overlay message + useToast hook</td></tr>
     </table>
     <div class="cat-header"><span class="dot dot-green"></span> Content Components</div>
     <table>
@@ -208,7 +210,7 @@ tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(9, 105,
     <table>
       <tr><th>Component</th><th>File</th><th>Purpose</th></tr>
       <tr><td>StatusBadge</td><td><span class="file-path" onclick="copyPath(this)">src/components/StatusBadge.jsx</span></td><td>Colored status pill</td></tr>
-      <tr><td>NameAvatar</td><td><span class="file-path" onclick="copyPath(this)">src/components/NameAvatar.jsx</span></td><td>Colored initial avatar derived from a name</td></tr>
+      <tr><td>NameAvatar</td><td><span class="file-path" onclick="copyPath(this)">src/components/NameAvatar.jsx</span></td><td>Gray initial avatar (neutral bg, status dot for action)</td></tr>
       <tr><td>RecordTypeAvatar</td><td><span class="file-path" onclick="copyPath(this)">src/components/RecordTypeAvatar.jsx</span></td><td>Record type icon</td></tr>
     </table>
     <div class="cat-header"><span class="dot dot-purple"></span> Doctor-Specific</div>
@@ -233,7 +235,7 @@ tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(9, 105,
     <div class="cat-header"><span class="dot dot-orange"></span> Theme &amp; Tokens</div>
     <table>
       <tr><th>File</th><th>Purpose</th></tr>
-      <tr><td><span class="file-path" onclick="copyPath(this)">src/theme.js</span></td><td>TYPE, ICON, COLOR tokens + MUI theme</td></tr>
+      <tr><td><span class="file-path" onclick="copyPath(this)">src/theme.js</span></td><td>TYPE, ICON, COLOR, RADIUS tokens + MUI theme</td></tr>
       <tr><td><span class="file-path" onclick="copyPath(this)">src/api.js</span></td><td>All API functions</td></tr>
       <tr><td><span class="file-path" onclick="copyPath(this)">src/store/doctorStore.js</span></td><td>Auth state (Zustand)</td></tr>
       <tr><td><span class="file-path" onclick="copyPath(this)">src/pages/doctor/constants.jsx</span></td><td>Labels, enums, field definitions</td></tr>
@@ -252,10 +254,10 @@ tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(9, 105,
     <div class="principles-grid">
       <div class="principle-card"><div class="principle-num">1</div><div class="principle-body"><h4>Function over decoration</h4><p>No visual element without purpose. If it doesn't help the doctor treat patients faster, remove it.</p></div></div>
       <div class="principle-card"><div class="principle-num">2</div><div class="principle-body"><h4>Flat and clean</h4><p>No shadows, no gradients, no 3D effects. White cards on gray backgrounds, hairline borders.</p></div></div>
-      <div class="principle-card"><div class="principle-num">3</div><div class="principle-body"><h4>Mobile-first, mobile-only</h4><p>All views render as mobile layout. Desktop shows a phone-shaped frame. One-thumb operation.</p></div></div>
+      <div class="principle-card"><div class="principle-num">3</div><div class="principle-body"><h4>Mobile-first</h4><p>All doctor/patient views render as mobile layout. No responsive breakpoints. Desktop shows a phone frame.</p></div></div>
       <div class="principle-card"><div class="principle-num">4</div><div class="principle-body"><h4>Scan, don't read</h4><p>Doctors have 30 seconds per patient. Brief labels for scanning, full text on expand.</p></div></div>
-      <div class="principle-card"><div class="principle-num">5</div><div class="principle-body"><h4>Safety through layout</h4><p>Destructive left, constructive right. Red for danger, green for go. No exceptions.</p></div></div>
-      <div class="principle-card"><div class="principle-num">6</div><div class="principle-body"><h4>Consistent density</h4><p>4px base unit, compact spacing, but min 44px tap targets.</p></div></div>
+      <div class="principle-card"><div class="principle-num">5</div><div class="principle-body"><h4>Primary always right</h4><p>Cancel LEFT, primary RIGHT. Color = intent (red=danger, green=go). WeChat/iOS/Alipay convention.</p></div></div>
+      <div class="principle-card"><div class="principle-num">6</div><div class="principle-body"><h4>Consistent density</h4><p>MUI 8px grid, 4px half-step. Only 0.5 increments (0.5, 1, 1.5, 2, 2.5, 3). Min 44px tap targets.</p></div></div>
       <div class="principle-card"><div class="principle-num">7</div><div class="principle-body"><h4>Chinese-first</h4><p>All UI text in Chinese. Preserve medical abbreviations (CT, MRI, NIHSS).</p></div></div>
       <div class="principle-card"><div class="principle-num">8</div><div class="principle-body"><h4>Flat icons only</h4><p>MUI outlined icons only. Never emoji, Unicode symbols, or icon fonts.</p></div></div>
     </div>
@@ -318,11 +320,13 @@ tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(9, 105,
     <div class="swatch-group">
       <div class="swatch-group-label">Primary &amp; Semantic</div>
       <div class="swatch-row">
-        <div class="swatch"><div class="swatch-color" style="background:#07C160"></div><div class="swatch-info"><div class="hex">#07C160</div><div class="label">Green &mdash; primary, active, go</div></div></div>
-        <div class="swatch"><div class="swatch-color" style="background:#1B6EF3"></div><div class="swatch-info"><div class="hex">#1B6EF3</div><div class="label">Accent blue</div></div></div>
-        <div class="swatch"><div class="swatch-color" style="background:#576B95"></div><div class="swatch-info"><div class="hex">#576B95</div><div class="label">WeChat link blue</div></div></div>
-        <div class="swatch"><div class="swatch-color" style="background:#D65745"></div><div class="swatch-info"><div class="hex">#D65745</div><div class="label">Danger red &mdash; delete only</div></div></div>
-        <div class="swatch"><div class="swatch-color" style="background:#F59E0B"></div><div class="swatch-info"><div class="hex">#F59E0B</div><div class="label">Warning amber &mdash; pending</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#07C160"></div><div class="swatch-info"><div class="hex">COLOR.primary</div><div class="label">#07C160 &mdash; green, go, clinical records</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#576B95"></div><div class="swatch-info"><div class="hex">COLOR.accent</div><div class="label">#576B95 &mdash; edit links, diagnostics records</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#D65745"></div><div class="swatch-info"><div class="hex">COLOR.danger</div><div class="label">#D65745 &mdash; delete, high urgency</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#F59E0B"></div><div class="swatch-info"><div class="hex">COLOR.warning</div><div class="label">#F59E0B &mdash; pending, medium urgency</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#8993a4"></div><div class="swatch-info"><div class="hex">COLOR.recordDoc</div><div class="label">#8993a4 &mdash; document records</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#1565c0"></div><div class="swatch-info"><div class="hex">COLOR.link</div><div class="label">#1565c0 &mdash; citations, references</div></div></div>
+        <div class="swatch"><div class="swatch-color" style="background:#06a050"></div><div class="swatch-info"><div class="hex">COLOR.primaryHover</div><div class="label">#06a050 &mdash; button hover/active</div></div></div>
       </div>
     </div>
     <div class="swatch-group">
@@ -395,16 +399,21 @@ tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(9, 105,
     <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
   </div>
   <div class="section-body">
-    <p>Base unit: <strong>4px</strong>. All spacing values are multiples of 4.</p>
+    <p>MUI 8px grid with 4px half-step. <strong>Only 0.5 increments allowed.</strong></p>
     <div class="spacing-grid">
-      <div class="spacing-item"><div class="spacing-box" style="width:4px;height:24px"></div><div class="spacing-label">4px</div><div class="spacing-desc">Micro gap</div></div>
-      <div class="spacing-item"><div class="spacing-box" style="width:8px;height:24px"></div><div class="spacing-label">8px</div><div class="spacing-desc">Card gap</div></div>
-      <div class="spacing-item"><div class="spacing-box" style="width:12px;height:24px"></div><div class="spacing-label">12px</div><div class="spacing-desc">Card padding</div></div>
-      <div class="spacing-item"><div class="spacing-box" style="width:16px;height:24px"></div><div class="spacing-label">16px</div><div class="spacing-desc">Section gap</div></div>
-      <div class="spacing-item"><div class="spacing-box" style="width:20px;height:24px"></div><div class="spacing-label">20px</div><div class="spacing-desc">Large pad</div></div>
-      <div class="spacing-item"><div class="spacing-box" style="width:24px;height:24px"></div><div class="spacing-label">24px</div><div class="spacing-desc">Section margin</div></div>
-      <div class="spacing-item"><div class="spacing-box" style="width:48px;height:24px"></div><div class="spacing-label">48px</div><div class="spacing-desc">Top bar</div></div>
-      <div class="spacing-item"><div class="spacing-box" style="width:64px;height:24px"></div><div class="spacing-label">64px</div><div class="spacing-desc">Bottom nav</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:4px;height:24px"></div><div class="spacing-label">0.5 (4px)</div><div class="spacing-desc">Within-component</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:8px;height:24px"></div><div class="spacing-label">1 (8px)</div><div class="spacing-desc">Between items</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:12px;height:24px"></div><div class="spacing-label">1.5 (12px)</div><div class="spacing-desc">Section padding</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:16px;height:24px"></div><div class="spacing-label">2 (16px)</div><div class="spacing-desc">Between sections</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:20px;height:24px"></div><div class="spacing-label">2.5 (20px)</div><div class="spacing-desc">Major sections</div></div>
+      <div class="spacing-item"><div class="spacing-box" style="width:24px;height:24px"></div><div class="spacing-label">3 (24px)</div><div class="spacing-desc">Page top/bottom</div></div>
+    </div>
+    <h3 style="font-size: 0.95rem; margin: 20px 0 8px;">Border Radius (RADIUS tokens)</h3>
+    <div class="spacing-grid">
+      <div class="spacing-item"><div style="width:48px;height:32px;background:rgba(26,127,55,0.2);border:1px solid rgba(26,127,55,0.4);border-radius:4px"></div><div class="spacing-label">RADIUS.sm</div><div class="spacing-desc">4px &mdash; buttons, cards</div></div>
+      <div class="spacing-item"><div style="width:48px;height:32px;background:rgba(26,127,55,0.2);border:1px solid rgba(26,127,55,0.4);border-radius:8px"></div><div class="spacing-label">RADIUS.md</div><div class="spacing-desc">8px &mdash; containers</div></div>
+      <div class="spacing-item"><div style="width:48px;height:32px;background:rgba(26,127,55,0.2);border:1px solid rgba(26,127,55,0.4);border-radius:12px"></div><div class="spacing-label">RADIUS.lg</div><div class="spacing-desc">12px &mdash; dialogs</div></div>
+      <div class="spacing-item"><div style="width:48px;height:32px;background:rgba(26,127,55,0.2);border:1px solid rgba(26,127,55,0.4);border-radius:16px"></div><div class="spacing-label">RADIUS.pill</div><div class="spacing-desc">16px &mdash; pills, chips</div></div>
     </div>
     <table>
       <tr><th>Rule</th><th>Value</th></tr>
@@ -429,11 +438,11 @@ tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(9, 105,
         <h4>ListCard Anatomy</h4>
         <p class="muted" style="font-size:0.78rem">File: <span class="file-path" onclick="copyPath(this)">src/components/ListCard.jsx</span></p>
         <div class="mockup-inner">
-          <div class="mock-list-card"><div class="mock-avatar" style="background:#07C160">Li</div><div class="mock-list-body"><div class="mock-list-title">Li Fang</div><div class="mock-list-sub">F / 56y / Follow-up #1</div></div><div class="mock-chevron">&#8250;</div></div>
-          <div class="mock-list-card"><div class="mock-avatar" style="background:#576B95">Zh</div><div class="mock-list-body"><div class="mock-list-title">Zhang Wei</div><div class="mock-list-sub">M / 45y / Outpatient</div></div><div class="mock-chevron">&#8250;</div></div>
-          <div class="mock-list-card"><div class="mock-avatar" style="background:#D65745">Wa</div><div class="mock-list-body"><div class="mock-list-title">Wang Ming</div><div class="mock-list-sub">M / 72y / Emergency</div></div><div style="font-size:10px;color:#999">3h</div></div>
+          <div class="mock-list-card"><div class="mock-avatar" style="background:#f0f0f0;color:#999;position:relative">李<div style="position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:#D65745;border:1.5px solid #fff"></div></div><div class="mock-list-body"><div class="mock-list-title">李复诊</div><div class="mock-list-sub">女 / 42岁 / 脑梗死恢复期</div></div><div style="font-size:10px;color:#D65745;font-weight:500">待审核</div></div>
+          <div class="mock-list-card"><div class="mock-avatar" style="background:#f0f0f0;color:#999;position:relative">张<div style="position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:#F59E0B;border:1.5px solid #fff"></div></div><div class="mock-list-body"><div class="mock-list-title">张明</div><div class="mock-list-sub">男 / 68岁 / 帕金森病</div></div><div style="font-size:10px;color:#F59E0B;font-weight:500">待回复</div></div>
+          <div class="mock-list-card"><div class="mock-avatar" style="background:#f0f0f0;color:#999">王</div><div class="mock-list-body"><div class="mock-list-title">王建国</div><div class="mock-list-sub">男 / 56岁 / 高血压3级</div></div><div style="font-size:10px;color:#999">03-28</div></div>
         </div>
-        <p class="muted" style="font-size:0.75rem;margin-top:8px">48-56px height. Avatar (36px) + title + subtitle. Right: timestamp or chevron.</p>
+        <p class="muted" style="font-size:0.75rem;margin-top:8px">Gray avatar + initial. Status dot (red/amber/green) only when actionable. Color = meaning, not identity.</p>
       </div>
       <div class="mockup-card">
         <h4>RecordCard</h4>
@@ -481,12 +490,23 @@ tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(9, 105,
         <p class="muted" style="font-size:0.78rem"><span class="file-path" onclick="copyPath(this)">src/components/AppButton.jsx</span> / <span class="file-path" onclick="copyPath(this)">src/components/BarButton.jsx</span></p>
         <div class="mockup-inner" style="display:flex;flex-direction:column;gap:8px;padding:12px">
           <div style="display:flex;gap:8px;align-items:center">
-            <div style="background:#07C160;color:#fff;padding:8px 20px;border-radius:6px;font-size:12px;font-weight:600">Primary</div>
-            <div style="border:1px solid #ccc;color:#333;padding:8px 20px;border-radius:6px;font-size:12px;background:#fff">Secondary</div>
-            <div style="color:#D65745;font-size:12px;padding:8px 12px">Danger</div>
+            <div style="background:#07C160;color:#fff;padding:8px 20px;border-radius:4px;font-size:12px;font-weight:600">Primary</div>
+            <div style="border:1px solid #ccc;color:#333;padding:8px 20px;border-radius:4px;font-size:12px;background:#fff">Secondary</div>
+            <div style="color:#D65745;font-size:12px;padding:8px 12px">Danger text</div>
           </div>
-          <div style="display:flex;justify-content:space-between;background:#fff;padding:8px 12px;border-radius:6px;font-size:12px"><span style="color:#D65745">Delete</span><span style="color:#07C160">Edit</span></div>
-          <p style="font-size:10px;color:#666;margin:0;text-align:center">Destructive left, constructive right. Always.</p>
+          <p style="font-size:10px;color:#666;margin:4px 0 0;font-weight:600">Dialog footer (equal-width, WeChat convention):</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div style="border:1px solid #ccc;color:#666;padding:8px;border-radius:4px;font-size:12px;background:#fff;text-align:center">取消</div>
+            <div style="background:#07C160;color:#fff;padding:8px;border-radius:4px;font-size:12px;font-weight:600;text-align:center">保存</div>
+          </div>
+          <p style="font-size:10px;color:#666;margin:4px 0 0;font-weight:600">Destructive dialog:</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <div style="border:1px solid #ccc;color:#666;padding:8px;border-radius:4px;font-size:12px;background:#fff;text-align:center">取消</div>
+            <div style="background:#D65745;color:#fff;padding:8px;border-radius:4px;font-size:12px;font-weight:600;text-align:center">删除</div>
+          </div>
+          <p style="font-size:10px;color:#666;margin:4px 0 0;font-weight:600">Inline action bar (spread):</p>
+          <div style="display:flex;justify-content:space-between;background:#fff;padding:8px 12px;border-radius:4px;font-size:12px"><span style="color:#D65745">删除</span><span style="color:#07C160">编辑</span></div>
+          <p style="font-size:10px;color:#999;margin:0;text-align:center">Cancel LEFT, primary RIGHT. Always. Color = intent.</p>
         </div>
       </div>
       <div class="mockup-card">
@@ -561,7 +581,7 @@ tr:last-child td { border-bottom: none; } tr:hover td { background: rgba(9, 105,
 <!-- FOOTER -->
 <div class="footer">
   Source of truth: <span class="file-path" onclick="copyPath(this)">docs/ux/UI-DESIGN.md</span> &mdash; this HTML is a visual companion.<br>
-  Generated 2026-03-27.
+  Updated 2026-03-29. Refactoring decisions: button convention, RADIUS scale, spacing grid, avatar pattern, record type palette.
 </div>
 
 <script>

@@ -81,8 +81,42 @@ defined in `docs/dev/frontend-ui-audit.md`. This verifies features are
 functional (Level 1), usable (Level 2), and fit real workflows (Level 3).
 Save reports to `docs/qa/ui-audit-YYYY-MM-DD.md`.
 
+## Bulk Edit Rules
+
+Repetitive Edit/apply_patch loops across 3+ files are a **policy violation**
+unless the agent explains why the CLI tools below are unsafe for that change.
+
+**Tool selection by edit type:**
+- **AST-aware code refactor** (JSX props, call shapes, function signatures):
+  `sg -p 'old($A)' -r 'new($A)' -l tsx -U frontend/web/src/`
+- **Plain text / regex replacement** (renames, labels, comments, imports):
+  `fd -e jsx -e tsx -0 . frontend/web/src | xargs -0 sd 'old' 'new'`
+- **Formatting after bulk edits:**
+  - JS/JSX/TS/TSX: `npx biome format --write frontend/web/src/`
+  - Python: `ruff format src/`
+- **Linting autofix:**
+  - JS/JSX/TS/TSX: `npx biome check --fix frontend/web/src/`
+  - Python: `ruff check --fix src/`
+
+**Required workflow for all bulk edits:**
+1. **Preview** — `rg` or `sg scan` to confirm match count and candidate files
+2. **Rewrite** — one bulk command
+3. **Format** — `biome format --write` or `ruff format`
+4. **Verify** — `git diff --stat` + targeted `rg` for old/new patterns
+
+**Gotchas:**
+- `ast-grep` can miss if pattern is not valid parseable code or wrong `--lang`
+- `sd` replaces inside comments/strings unless file set is constrained
+- `fd` ignores `.gitignore`d and hidden files by default
+- Always use null-delimited pipelines: `fd -0 | xargs -0`
+- Test on one file first for complex `ast-grep` patterns before repo-wide run
+
+**When Edit is still correct:** changes to 1-2 files, or semantically complex
+edits that require reading surrounding context to decide what to change.
+
 ## Code Style
 
+- **In mermaid diagrams**, use `<br/>` for line breaks in node labels, never `\n`.
 - **Python 3.9 compatibility** — always use `from __future__ import annotations` at the top of new files; use `Optional[X]` not `X | None`, `Tuple[...]` not `tuple[...]`
 - **No auto-commit** — NEVER run `git commit` or `git add` unless the user explicitly says "commit". This is critical. Make code changes only — the user will commit when ready.
 - **Preserve medical abbreviations** — do not translate or expand STEMI, BNP, PCI, EGFR, ANC, HER2, EF, NYHA, ICD, etc.
@@ -273,4 +307,15 @@ for the user to ask — suggest when the trigger condition is met.
 | `/cso` | Security audit — secrets, dependencies, OWASP, LLM trust boundaries |
 | `/cleanup` | Dead code, unused imports, stale docs, oversized modules |
 | `/retro` | Monthly velocity and pattern review |
+
+## Codebase Learnings
+
+1. **Refactoring pattern** — before writing any code, create a plan that divides work into independent streams by directory/concern. Spawn sub-agents per stream with: owned directories, descriptive commits per logical change, no cross-scope edits. Review all changes together for import mismatches or interface contract breaks after agents complete.
+2. **Pre-deployment QA audit** — check Alembic heads vs SQLAlchemy models, hit every FastAPI endpoint with test payloads, run patient sim with 5 cases, grep for deleted-module imports, verify env vars in `.env.example`. Produce PASS/FAIL markdown report.
+3. **MUI icons** — verify the icon exists in the installed version before using. `FiberManualRecordIcon`, `RateReviewOutlinedIcon` are not available. Use CSS `Box` with `borderRadius: "50%"` for dots. Use `AssignmentOutlinedIcon` as a safe fallback.
+4. **Mock API data** — `src/api/mockApi.js` must include ALL fields the real backend returns, even if unused by current frontend. Missing `patient_id` caused navigation bugs. Mark display-only extras with `// display-only, not in real API`.
+5. **Git from project root** — always run `git add`/`git commit` from project root (`/Volumes/ORICO/Code/doctor-ai-agent`), not from `frontend/web/`. Paths resolve differently.
+6. **ASR in China** — Browser Web Speech API uses Google ASR (blocked in China). Use `ASR_PROVIDER` env var: `browser` for dev, `tencent` for China prod. See `src/services/asr/provider.py`.
+7. **Chinese text title extraction** — split on `：` (colon) before `。` (period). Max 20 chars for CJK. See `extract_title_from_text()` in `knowledge_crud.py`.
+8. **WeChat nav pattern** — bottom nav on 4 main tabs only (我的AI/患者/审核/随访). Subpages hide bottom nav and show ‹ back chevron. All back navigation uses `navigate(-1)`, never hardcoded paths. See UI-DESIGN.md §3C.
 
