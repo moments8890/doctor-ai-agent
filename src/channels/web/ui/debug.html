@@ -652,6 +652,10 @@ function switchTab(name) {
   currentTab = name;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
+  // Persist tab in URL hash so refresh remembers it
+  const url = new URL(window.location);
+  url.hash = name;
+  history.replaceState(null, '', url);
   loadCurrentTab(false);
 }
 
@@ -1293,6 +1297,14 @@ function latencyClass(ms) {
 // INIT
 // ============================================================
 (function init() {
+  // Restore tab from URL hash (e.g., #llm, #requests, #errors, #health)
+  const hash = window.location.hash.replace('#', '');
+  const validTabs = ['llm', 'requests', 'errors', 'health'];
+  if (hash && validTabs.includes(hash)) {
+    currentTab = hash;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === hash));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${hash}`));
+  }
   if (!getToken()) {
     showTokenModal();
   } else {
@@ -1300,6 +1312,12 @@ function latencyClass(ms) {
     loadCurrentTab(true);
   }
 })();
+
+// Handle back/forward navigation
+window.addEventListener('hashchange', () => {
+  const hash = window.location.hash.replace('#', '');
+  if (hash && hash !== currentTab) switchTab(hash);
+});
 </script>
 </body>
 </html>
