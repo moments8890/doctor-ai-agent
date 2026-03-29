@@ -153,16 +153,16 @@ const PAGES = [
   ]},
   { id: 'review-completed', title: '审核 · 完成', route: '/doctor/review?tab=completed', img: 'page-screenshots/doctor-review-completed.png', blocks: [
     { name: 'FilterStatBar', group: '_page', desc: '门诊 / 回复 / 完成 (3 tabs)' },
-    { name: 'CompletedRow', group: '_page', desc: 'Confirmed/edited items with chevron → patient detail', path: 'frontend/web/src/pages/doctor/ReviewQueuePage.jsx' },
+    { name: 'ActionRow', group: '_page', desc: 'Done checkbox + title + time → patient detail', path: 'frontend/web/src/components/ActionRow.jsx' },
   ]},
   { id: 'tasks-pending', title: '任务 · 待完成', route: '/doctor/tasks?tab=followups', img: 'page-screenshots/doctor-tasks.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title "任务"' },
     { name: 'FilterStatBar', group: '_page', desc: '待完成 / 已完成 (2 tabs)', path: 'frontend/web/src/pages/doctor/TaskPage.jsx' },
-    { name: 'TaskRow', group: 'ListCard', desc: 'IconBadge + title + due date, sorted by urgency', path: 'frontend/web/src/pages/doctor/TaskPage.jsx' },
+    { name: 'ActionRow', group: '_page', desc: 'Checkbox + title + due date, tap to toggle complete', path: 'frontend/web/src/components/ActionRow.jsx' },
   ]},
   { id: 'tasks-completed', title: '任务 · 已完成', route: '/doctor/tasks?tab=sent', img: 'page-screenshots/doctor-tasks-completed.png', blocks: [
     { name: 'FilterStatBar', group: '_page', desc: '待完成 / 已完成 (2 tabs)' },
-    { name: 'SentRow', group: 'ListCard', desc: 'Completed items with read status', path: 'frontend/web/src/pages/doctor/TaskPage.jsx' },
+    { name: 'ActionRow', group: '_page', desc: 'Done checkbox + title + time, tap to uncomplete', path: 'frontend/web/src/components/ActionRow.jsx' },
   ]},
   { id: 'settings', title: 'Settings', route: '/doctor/settings', img: 'page-screenshots/doctor-settings.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
