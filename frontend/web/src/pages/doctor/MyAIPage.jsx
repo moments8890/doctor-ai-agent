@@ -16,11 +16,26 @@ import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import SectionLabel from "../../components/SectionLabel";
 import ListCard from "../../components/ListCard";
+import KnowledgeCard from "../../components/KnowledgeCard";
 import AppButton from "../../components/AppButton";
 import PatientAvatar from "../../components/PatientAvatar";
 import IconBadge from "../../components/IconBadge";
 import { ICON_BADGES } from "./constants";
 import { TYPE, ICON, COLOR } from "../../theme";
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatRelativeDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  const now = new Date();
+  const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "今天";
+  if (diffDays === 1) return "昨天";
+  if (diffDays < 7) return `${diffDays}天前`;
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -322,17 +337,13 @@ export default function MyAIPage({ doctorId }) {
             </Box>
           )}
           {topRules.map((rule, idx) => (
-            <ListCard
+            <KnowledgeCard
               key={rule.id || idx}
-              avatar={<IconBadge config={ICON_BADGES.kb_doctor} />}
               title={rule.title || rule.content?.slice(0, 20) || "规则"}
-              subtitle={[rule.reference_count > 0 ? `引用${rule.reference_count}次` : null, rule.summary || rule.content?.slice(0, 40) || ""].filter(Boolean).join(" · ")}
-              right={
-                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: rule.status === "pending" ? COLOR.warning : COLOR.text4 }}>
-                  {rule.status === "pending" ? "待确认" : (rule.usage_label || "")}
-                </Typography>
-              }
-              chevron
+              summary={rule.summary || rule.content?.slice(0, 40) || ""}
+              referenceCount={rule.reference_count || 0}
+              source={rule.source}
+              date={rule.created_at ? formatRelativeDate(rule.created_at) : ""}
               onClick={() => navigate(`/doctor/settings/knowledge/${rule.id}`)}
               sx={idx === topRules.length - 1 ? { borderBottom: "none" } : {}}
             />

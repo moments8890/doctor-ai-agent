@@ -129,7 +129,7 @@ const PAGES = [
     { name: 'HeroIdentityCard', group: '_page', desc: 'AI name, avatar, stats row', path: 'frontend/web/src/pages/doctor/subpages/MyAISubpage.jsx' },
     { name: 'CTAButtons', group: '_page', desc: '我的知识库 + 继续教AI', path: 'frontend/web/src/pages/doctor/subpages/MyAISubpage.jsx' },
     { name: 'QuickActions', group: 'ListCard', desc: '4 ListCard action rows' },
-    { name: 'KnowledgePreview', group: '_page', desc: 'Top 3 knowledge rules', path: 'frontend/web/src/pages/doctor/subpages/MyAISubpage.jsx' },
+    { name: 'KnowledgeCard', group: '_page', desc: 'Top 3 knowledge items (3-row: title + summary + meta)', path: 'frontend/web/src/components/KnowledgeCard.jsx' },
     { name: 'RecentActivity', group: 'PatientAvatar', desc: 'AI-processed list + avatars' },
   ]},
   { id: 'patients', title: 'Patients', route: '/doctor/patients', img: 'page-screenshots/doctor-patients.png', blocks: [
@@ -182,7 +182,7 @@ const PAGES = [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back' },
     { name: 'StatsRow', group: '_page', desc: 'Total items + weekly citations', path: 'frontend/web/src/pages/doctor/subpages/KnowledgeSubpage.jsx' },
     { name: 'AddKnowledgeCard', group: 'ListCard', desc: '添加知识 entry row' },
-    { name: 'KnowledgeItemList', group: 'ListCard', desc: 'Expandable knowledge items' },
+    { name: 'KnowledgeCard', group: '_page', desc: 'Knowledge items (3-row: title + summary + meta)', path: 'frontend/web/src/components/KnowledgeCard.jsx' },
     { name: 'EmptyState', group: '_page', desc: 'No items placeholder', path: 'frontend/web/src/pages/doctor/subpages/KnowledgeSubpage.jsx' },
   ]},
   { id: 'patient-detail', title: 'PatientDetail', route: '/doctor/patients/:id', img: 'page-screenshots/doctor-patients-1.png', blocks: [
