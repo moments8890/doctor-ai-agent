@@ -452,12 +452,9 @@ function PatientChatPage({ patientId, doctorId }) {
       {!loading && (hasMessages || hasDrafts) && (
         <>
           {/* Message timeline */}
-          {hasMessages && (
+          {hasMessages && expanded && (
             <Box sx={{ px: 2, mb: 0.5 }}>
-              <MessageTimeline
-                messages={expanded ? messages : escalated.slice(-3)}
-                maxHeight={expanded ? 300 : undefined}
-              />
+              <MessageTimeline messages={messages} maxHeight={300} />
             </Box>
           )}
 
