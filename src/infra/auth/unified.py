@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 import jwt
@@ -23,7 +24,7 @@ def _secret() -> str:
     secret = os.environ.get("UNIFIED_AUTH_SECRET", "")
     if not secret:
         env = os.environ.get("ENVIRONMENT", "").strip().lower()
-        if env not in ("development", "dev", "test", ""):
+        if env not in ("development", "dev", "test"):
             raise RuntimeError("UNIFIED_AUTH_SECRET must be set in production.")
         secret = "dev-unified-secret-change-me"
     return secret
@@ -220,7 +221,7 @@ async def register_doctor(phone: str, name: str, year_of_birth: int, invite_code
 
         if code_row is None or not code_row.active:
             raise HTTPException(400, "邀请码无效")
-        if code_row.expires_at and code_row.expires_at < __import__("datetime").datetime.utcnow():
+        if code_row.expires_at and code_row.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
             raise HTTPException(400, "邀请码已过期")
         if code_row.max_uses > 0 and code_row.used_count >= code_row.max_uses:
             raise HTTPException(400, "邀请码已被使用")

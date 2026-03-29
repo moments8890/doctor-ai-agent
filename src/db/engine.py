@@ -52,13 +52,13 @@ _is_sqlite = DATABASE_URL.startswith("sqlite")
 if _is_sqlite:
     engine = create_async_engine(
         DATABASE_URL,
-        echo=False,
+        echo=os.environ.get("DB_ECHO", "false").lower() == "true",  # WARNING: logs SQL with params — may contain PHI. Dev/debug only.
         connect_args={"timeout": 30},
     )
 else:
     engine = create_async_engine(
         DATABASE_URL,
-        echo=False,
+        echo=os.environ.get("DB_ECHO", "false").lower() == "true",  # WARNING: logs SQL with params — may contain PHI. Dev/debug only.
         pool_size=int(os.environ.get("DB_POOL_SIZE", "20")),
         max_overflow=int(os.environ.get("DB_MAX_OVERFLOW", "10")),
         pool_recycle=int(os.environ.get("DB_POOL_RECYCLE", "3600")),
