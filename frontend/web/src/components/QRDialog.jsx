@@ -1,7 +1,7 @@
 import { Box, CircularProgress, Typography } from "@mui/material";
 import { QRCodeSVG } from "qrcode.react";
 import SheetDialog from "./SheetDialog";
-import AppButton from "./AppButton";
+import DialogFooter from "./DialogFooter";
 import { TYPE, COLOR, RADIUS } from "../theme";
 
 export default function QRDialog({ open, onClose, title, name, url, loading, error, onRegenerate }) {
@@ -12,9 +12,7 @@ export default function QRDialog({ open, onClose, title, name, url, loading, err
       title={title || "二维码"}
       desktopMaxWidth={360}
       footer={
-        <AppButton variant="secondary" size="md" fullWidth onClick={onRegenerate} disabled={loading}>
-          重新生成
-        </AppButton>
+        <DialogFooter showCancel={false} onConfirm={onRegenerate} confirmLabel="重新生成" confirmVariant="secondary" confirmDisabled={loading} />
       }
     >
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 2 }}>

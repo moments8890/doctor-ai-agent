@@ -21,6 +21,7 @@ import AppButton from "../../components/AppButton";
 import NameAvatar from "../../components/NameAvatar";
 import IconBadge from "../../components/IconBadge";
 import EmptyState from "../../components/EmptyState";
+import SectionLoading from "../../components/SectionLoading";
 import {
   ICON_BADGES,
   getOnboardingState,
@@ -432,7 +433,7 @@ export default function MyAIPage({ doctorId }) {
             avatar={<IconBadge config={ICON_BADGES.followup} />}
             title="处理随访"
             subtitle="患者消息可快速处理"
-            right={<InlineBadge count={followupBadge} color="#ef4444" />}
+            right={<InlineBadge count={followupBadge} color={COLOR.danger} />}
             chevron
             onClick={() => navigate("/doctor/review?tab=replies")}
           />
@@ -487,11 +488,7 @@ export default function MyAIPage({ doctorId }) {
               />
             </>
           )}
-          {loading && topRules.length === 0 && (
-            <Box sx={{ py: 3, display: "flex", justifyContent: "center" }}>
-              <CircularProgress size={20} sx={{ color: COLOR.text4 }} />
-            </Box>
-          )}
+          {loading && topRules.length === 0 && <SectionLoading />}
           {topRules.map((rule, idx) => (
             <KnowledgeCard
               key={rule.id || idx}
@@ -520,11 +517,7 @@ export default function MyAIPage({ doctorId }) {
           {recentActivity.length === 0 && !loading && (
             <EmptyState title="暂无AI处理记录" />
           )}
-          {loading && recentActivity.length === 0 && (
-            <Box sx={{ py: 3, display: "flex", justifyContent: "center" }}>
-              <CircularProgress size={20} sx={{ color: COLOR.text4 }} />
-            </Box>
-          )}
+          {loading && recentActivity.length === 0 && <SectionLoading />}
           {recentActivity.map((item, idx) => {
             const badge = activityBadge(item);
             const timeStr = formatActivityTime(item.timestamp);

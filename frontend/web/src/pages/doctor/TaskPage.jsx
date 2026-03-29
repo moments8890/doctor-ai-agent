@@ -15,6 +15,7 @@ import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import EmptyState from "../../components/EmptyState";
+import SectionLoading from "../../components/SectionLoading";
 import SectionLabel from "../../components/SectionLabel";
 import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
@@ -377,9 +378,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
 
         {/* Loading */}
         {loading && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-            <CircularProgress size={24} sx={{ color: COLOR.text4 }} />
-          </Box>
+          <SectionLoading py={6} />
         )}
 
         {/* Error */}

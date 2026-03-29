@@ -292,7 +292,7 @@ export default function VoiceInput({ onResult, onCancel }) {
         flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
         height: 40, borderRadius: RADIUS.sm, cursor: "pointer", userSelect: "none",
         bgcolor: recording ? (cancelled ? COLOR.danger : COLOR.primary) : COLOR.white,
-        border: recording ? "none" : "1px solid #e0e0e0",
+        border: recording ? "none" : `1px solid ${COLOR.border}`,
         transition: "background-color 0.15s",
       }}
     >

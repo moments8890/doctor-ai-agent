@@ -5,8 +5,8 @@
 import { useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { TYPE, ICON, COLOR, RADIUS } from "../theme";
-import AppButton from "./AppButton";
 import SheetDialog from "./SheetDialog";
+import DialogFooter from "./DialogFooter";
 
 const SECTIONS = [
   { key: "basicInfo",    apiKey: "basic",         label: "基本信息",   defaultChecked: true,  disabled: true },
@@ -81,16 +81,7 @@ export default function ExportSelectorDialog({ open, onClose, patientId, patient
       subtitle={patientName ? `患者：${patientName}` : undefined}
       desktopMinWidth={360}
       desktopMaxWidth={420}
-      footer={
-        <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-          <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
-            取消
-          </AppButton>
-          <AppButton variant="primary" size="md" fullWidth onClick={handleGenerate}>
-            生成PDF
-          </AppButton>
-        </Box>
-      }
+      footer={<DialogFooter onCancel={onClose} onConfirm={handleGenerate} confirmLabel="生成PDF" />}
     >
       {SECTIONS.map((sec, idx) => (
         <Box key={sec.key}>

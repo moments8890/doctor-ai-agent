@@ -2,6 +2,7 @@ import { Box, Typography } from "@mui/material";
 import { TYPE, COLOR, RADIUS } from "../theme";
 import AppButton from "./AppButton";
 import SheetDialog from "./SheetDialog";
+import DialogFooter from "./DialogFooter";
 
 export default function ImportChoiceDialog({ open, text, onImport, onChat, onClose }) {
   if (!text) return null;
@@ -14,27 +15,29 @@ export default function ImportChoiceDialog({ open, text, onImport, onChat, onClo
       subtitle={`共提取 ${text.length} 字`}
       desktopMaxWidth={460}
       footer={
-        <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-          <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
-            取消
-          </AppButton>
-          {onChat ? (
-            <AppButton variant="secondary" size="md" fullWidth onClick={() => onChat(text)}>
-              发送到聊天
+        <DialogFooter>
+          <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+            <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
+              取消
             </AppButton>
-          ) : (
-            <AppButton variant="primary" size="md" fullWidth onClick={() => onImport(text)}>
-              导入病历
-            </AppButton>
-          )}
-          {onChat ? (
-            <Box sx={{ gridColumn: "1 / -1" }}>
+            {onChat ? (
+              <AppButton variant="secondary" size="md" fullWidth onClick={() => onChat(text)}>
+                发送到聊天
+              </AppButton>
+            ) : (
               <AppButton variant="primary" size="md" fullWidth onClick={() => onImport(text)}>
                 导入病历
               </AppButton>
-            </Box>
-          ) : null}
-        </Box>
+            )}
+            {onChat ? (
+              <Box sx={{ gridColumn: "1 / -1" }}>
+                <AppButton variant="primary" size="md" fullWidth onClick={() => onImport(text)}>
+                  导入病历
+                </AppButton>
+              </Box>
+            ) : null}
+          </Box>
+        </DialogFooter>
       }
     >
         <Box sx={{ p: 1.5, borderRadius: RADIUS.sm, bgcolor: COLOR.borderLight, mb: 1 }}>

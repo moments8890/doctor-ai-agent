@@ -17,7 +17,7 @@ import SectionLabel from "../../../components/SectionLabel";
 import ListCard from "../../../components/ListCard";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import SheetDialog from "../../../components/SheetDialog";
-import AppButton from "../../../components/AppButton";
+import DialogFooter from "../../../components/DialogFooter";
 import IconBadge from "../../../components/IconBadge";
 import { useApi } from "../../../api/ApiContext";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
@@ -352,20 +352,14 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
         desktopMaxWidth={480}
         mobileMaxHeight="90vh"
         footer={
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <AppButton variant="secondary" size="md" sx={{ flex: 1 }} onClick={() => setEditOpen(false)}>
-              取消
-            </AppButton>
-            <AppButton
-              variant="primary"
-              size="md"
-              sx={{ flex: 1 }}
-              onClick={handleSaveEdit}
-              disabled={!editText.trim() || saving}
-            >
-              {saving ? "保存中…" : "保存"}
-            </AppButton>
-          </Box>
+          <DialogFooter
+            onCancel={() => setEditOpen(false)}
+            onConfirm={handleSaveEdit}
+            confirmLabel="保存"
+            confirmDisabled={!editText.trim() || saving}
+            confirmLoading={saving}
+            confirmLoadingLabel="保存中…"
+          />
         }
       >
         <TextField

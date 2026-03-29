@@ -31,7 +31,7 @@ const CollapsibleSection = forwardRef(function CollapsibleSection({ title, count
         sx={{
           display: "flex", alignItems: "center",
           px: 1.5, py: 1,
-          bgcolor: "#f0f0f0",
+          bgcolor: COLOR.borderLight,
           borderTop: `0.5px solid ${COLOR.border}`,
           borderBottom: `0.5px solid ${COLOR.border}`,
           cursor: "pointer", userSelect: "none",

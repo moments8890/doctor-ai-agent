@@ -7,8 +7,8 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import PageSkeleton from "../../../components/PageSkeleton";
 import SectionLabel from "../../../components/SectionLabel";
-import AppButton from "../../../components/AppButton";
 import ConfirmDialog from "../../../components/ConfirmDialog";
+import DialogFooter from "../../../components/DialogFooter";
 import SheetDialog from "../../../components/SheetDialog";
 import { useApi } from "../../../api/ApiContext";
 import { TYPE, ICON, COLOR } from "../../../theme";
@@ -35,10 +35,10 @@ function TemplateStatusCard({ loading, status }) {
 
   return (
     <>
-      <Box sx={{ bgcolor: "#fff", px: 2, py: 2, mb: 1 }}>
+      <Box sx={{ bgcolor: COLOR.white, px: 2, py: 2, mb: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Box sx={{ width: 44, height: 44, borderRadius: "10px", bgcolor: COLOR.successLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <UploadFileOutlinedIcon sx={{ color: "#07C160", fontSize: ICON.xl }} />
+            <UploadFileOutlinedIcon sx={{ color: COLOR.primary, fontSize: ICON.xl }} />
           </Box>
           <Box sx={{ flex: 1 }}>
             <Typography sx={{ fontWeight: 500, fontSize: TYPE.body.fontSize }}>门诊病历报告模板</Typography>
@@ -60,7 +60,7 @@ function TemplateStatusCard({ loading, status }) {
           </Box>
           {status?.has_template && (
             <Box sx={{ px: 1, py: 0.5, borderRadius: "10px", bgcolor: COLOR.successLight }}>
-              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#07C160", fontWeight: 600 }}>已自定义</Typography>
+              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 600 }}>已自定义</Typography>
             </Box>
           )}
         </Box>
@@ -74,18 +74,16 @@ function TemplateStatusCard({ loading, status }) {
         desktopMaxWidth={400}
         mobileMaxHeight="78vh"
         footer={
-          <AppButton variant="primary" size="md" fullWidth onClick={() => setPreviewOpen(false)}>
-            知道了
-          </AppButton>
+          <DialogFooter showCancel={false} onConfirm={() => setPreviewOpen(false)} confirmLabel="知道了" />
         }
       >
         <Box sx={{ maxHeight: 400, overflowY: "auto" }}>
           {STANDARD_TEMPLATE_FIELDS.map((f, i) => (
-            <Box key={f.key} sx={{ py: 1, borderTop: i > 0 ? "0.5px solid #f0f0f0" : "none" }}>
-              <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#1A1A1A", fontWeight: 500 }}>
+            <Box key={f.key} sx={{ py: 1, borderTop: i > 0 ? `0.5px solid ${COLOR.borderLight}` : "none" }}>
+              <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, fontWeight: 500 }}>
                 {i + 1}. {f.label}
               </Typography>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999", mt: 0.2 }}>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.2 }}>
                 {f.desc}
               </Typography>
             </Box>
@@ -98,22 +96,22 @@ function TemplateStatusCard({ loading, status }) {
 
 function TemplateActions({ status, uploading, deleting, fileRef, onDelete }) {
   return (
-    <Box sx={{ bgcolor: "#fff" }}>
+    <Box sx={{ bgcolor: COLOR.white }}>
       <Box onClick={() => fileRef.current?.click()}
         sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5,
-          borderBottom: status?.has_template ? "1px solid #f2f2f2" : "none",
+          borderBottom: status?.has_template ? `1px solid ${COLOR.borderLight}` : "none",
           cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}>
-        {uploading ? <CircularProgress size={18} sx={{ mr: 1.5, color: "#07C160" }} /> : <Box sx={{ width: 18, mr: 1.5 }} />}
-        <Typography sx={{ flex: 1, fontSize: TYPE.action.fontSize, color: uploading ? "#999" : "#07C160", fontWeight: 500 }}>
+        {uploading ? <CircularProgress size={18} sx={{ mr: 1.5, color: COLOR.primary }} /> : <Box sx={{ width: 18, mr: 1.5 }} />}
+        <Typography sx={{ flex: 1, fontSize: TYPE.action.fontSize, color: uploading ? COLOR.text4 : COLOR.primary, fontWeight: 500 }}>
           {uploading ? "上传中…" : status?.has_template ? "替换模板文件" : "上传模板文件"}
         </Typography>
-        <ArrowBackIcon sx={{ fontSize: ICON.sm, color: "#ccc", transform: "rotate(180deg)" }} />
+        <ArrowBackIcon sx={{ fontSize: ICON.sm, color: COLOR.text4, transform: "rotate(180deg)" }} />
       </Box>
       {status?.has_template && (
         <Box onClick={!deleting ? onDelete : undefined}
           sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, cursor: deleting ? "default" : "pointer", "&:active": { bgcolor: COLOR.surface } }}>
           {deleting ? <CircularProgress size={18} sx={{ mr: 1.5, color: COLOR.danger }} /> : <Box sx={{ width: 18, mr: 1.5 }} />}
-          <Typography sx={{ flex: 1, fontSize: TYPE.action.fontSize, color: deleting ? "#999" : COLOR.danger }}>
+          <Typography sx={{ flex: 1, fontSize: TYPE.action.fontSize, color: deleting ? COLOR.text4 : COLOR.danger }}>
             {deleting ? "删除中…" : "删除模板，恢复默认"}
           </Typography>
         </Box>

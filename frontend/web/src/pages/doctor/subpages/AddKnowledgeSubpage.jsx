@@ -18,6 +18,7 @@ import AppButton from "../../../components/AppButton";
 import SheetDialog from "../../../components/SheetDialog";
 import VoiceInput, { isVoiceSupported } from "../../../components/VoiceInput";
 import Toast, { useToast } from "../../../components/Toast";
+import CancelConfirm from "../../../components/CancelConfirm";
 import { useApi } from "../../../api/ApiContext";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
@@ -69,6 +70,9 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
   const voiceRecRef = useRef(null);
   const voiceTimerRef = useRef(null);
   const [voiceSeconds, setVoiceSeconds] = useState(0);
+
+  // ── Cancel confirmation state ──
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // ── Manual text processing state ──
   const [processing, setProcessing] = useState(false);
@@ -271,6 +275,15 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     }
   }
 
+  function handleBack() {
+    const hasWork = content.trim() || urlInput.trim() || previewOpen || textPreviewOpen;
+    if (hasWork) {
+      setShowCancelConfirm(true);
+    } else {
+      onBack();
+    }
+  }
+
   const formContent = (
     <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
       {error && (
@@ -453,7 +466,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     <>
       <PageSkeleton
         title="添加知识"
-        onBack={isMobile ? onBack : undefined}
+        onBack={isMobile ? handleBack : undefined}
         headerRight={
           <BarButton onClick={handleAdd} loading={adding || processing} disabled={!content.trim()}>
             添加
@@ -482,7 +495,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
               onClick={handleSaveExtracted}
               disabled={!editedText.trim() || saving}
             >
-              {saving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : "保存"}
+              {saving ? <CircularProgress size={16} sx={{ color: COLOR.white }} /> : "保存"}
             </AppButton>
           </Box>
         }
@@ -551,7 +564,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
               onClick={handleSaveProcessedText}
               disabled={!editedProcessedText.trim() || saving}
             >
-              {saving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : "保存"}
+              {saving ? <CircularProgress size={16} sx={{ color: COLOR.white }} /> : "保存"}
             </AppButton>
           </Box>
         }
@@ -586,6 +599,12 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
       </SheetDialog>
 
       <Toast message={toast} />
+
+      <CancelConfirm
+        open={showCancelConfirm}
+        onConfirm={() => { setShowCancelConfirm(false); onBack(); }}
+        onCancel={() => setShowCancelConfirm(false)}
+      />
 
       <SheetDialog
         open={nextStepOpen}

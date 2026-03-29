@@ -44,7 +44,7 @@ const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
 function QuickActions({ onNewInterview, onViewRecords }) {
   const actions = [
-    { label: "新问诊", subtitle: "AI帮您整理病情", icon: <AddIcon sx={{ fontSize: ICON.xl, color: "#07C160" }} />, onClick: onNewInterview },
+    { label: "新问诊", subtitle: "AI帮您整理病情", icon: <AddIcon sx={{ fontSize: ICON.xl, color: COLOR.primary }} />, onClick: onNewInterview },
     { label: "我的病历", subtitle: "查看历史记录", icon: <DescriptionOutlinedIcon sx={{ fontSize: ICON.xl, color: "#1B6EF3" }} />, onClick: onViewRecords },
   ];
   return (
@@ -52,7 +52,7 @@ function QuickActions({ onNewInterview, onViewRecords }) {
       {actions.map(a => (
         <Box key={a.label} onClick={a.onClick}
           sx={{
-            flex: 1, bgcolor: "#fff", borderRadius: RADIUS.md, p: 1.5,
+            flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.md, p: 1.5,
             display: "flex", alignItems: "center", gap: 1,
             cursor: "pointer", userSelect: "none",
             boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
@@ -64,8 +64,8 @@ function QuickActions({ onNewInterview, onViewRecords }) {
             {a.icon}
           </Box>
           <Box>
-            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: "#1A1A1A" }}>{a.label}</Typography>
-            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#999" }}>{a.subtitle}</Typography>
+            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>{a.label}</Typography>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{a.subtitle}</Typography>
           </Box>
         </Box>
       ))}
@@ -190,11 +190,11 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
         <Box key={msg.id || i} sx={{ display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1, mb: 1.5 }}>
           <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: "#5b9bd5",
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <PersonOutlineIcon sx={{ color: "#fff", fontSize: ICON.md }} />
+            <PersonOutlineIcon sx={{ color: COLOR.white, fontSize: ICON.md }} />
           </Box>
           <Box sx={{
             maxWidth: "75%", px: 1.5, py: 1, borderRadius: `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}`,
-            bgcolor: "#95ec69", color: "#333", fontSize: TYPE.body.fontSize, lineHeight: 1.7,
+            bgcolor: "#95ec69", color: COLOR.text2, fontSize: TYPE.body.fontSize, lineHeight: 1.7,
             whiteSpace: "pre-wrap", wordBreak: "break-word",
           }}>{msg.content}</Box>
         </Box>
@@ -247,9 +247,9 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
     // AI message (left aligned) — with triage enrichment
     return (
       <Box key={msg.id || i} sx={{ display: "flex", alignItems: "flex-end", gap: 1, mb: 1.5 }}>
-        <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: "#07C160",
+        <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: COLOR.primary,
           display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: ICON.md }} />
+          <SmartToyOutlinedIcon sx={{ color: COLOR.white, fontSize: ICON.md }} />
         </Box>
         <Box sx={{ maxWidth: "75%" }}>
           {msg.triage_category === "diagnosis_confirmation" && (
@@ -261,8 +261,8 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
           )}
           {msg.triage_category !== "diagnosis_confirmation" && (
             <Box sx={{
-              px: 1.5, py: 1, borderRadius: `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`, bgcolor: "#fff",
-              color: "#333", fontSize: TYPE.body.fontSize, lineHeight: 1.7,
+              px: 1.5, py: 1, borderRadius: `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`, bgcolor: COLOR.white,
+              color: COLOR.text2, fontSize: TYPE.body.fontSize, lineHeight: 1.7,
               whiteSpace: "pre-wrap", wordBreak: "break-word",
             }}>{msg.content}</Box>
           )}
@@ -288,7 +288,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
         {messages.map(renderMessage)}
         {sending && (
           <Box sx={{ display: "flex", justifyContent: "flex-start", mb: 1.5 }}>
-            <Box sx={{ px: 2, py: 1.5, borderRadius: 2, bgcolor: "#fff" }}><CircularProgress size={16} /></Box>
+            <Box sx={{ px: 2, py: 1.5, borderRadius: 2, bgcolor: COLOR.white }}><CircularProgress size={16} /></Box>
           </Box>
         )}
         <div ref={chatEndRef} />
@@ -296,9 +296,9 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
 
       {/* Input */}
       <Box component="form" onSubmit={handleSend}
-        sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5, bgcolor: "#f5f5f5", borderTop: "1px solid #ddd", flexShrink: 0 }}>
+        sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5, bgcolor: COLOR.surface, borderTop: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
         {voiceSupported && (
-          <IconButton onClick={() => setVoiceMode(v => !v)} sx={{ color: "#666", flexShrink: 0 }} aria-label={voiceMode ? "切换键盘" : "切换语音"}>
+          <IconButton onClick={() => setVoiceMode(v => !v)} sx={{ color: COLOR.text3, flexShrink: 0 }} aria-label={voiceMode ? "切换键盘" : "切换语音"}>
             {voiceMode ? <KeyboardOutlinedIcon /> : <MicNoneOutlinedIcon />}
           </IconButton>
         )}
@@ -309,9 +309,9 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
           />
         ) : (
           <TextField value={input} onChange={e => setInput(e.target.value)} placeholder="请输入…"
-            fullWidth size="small" sx={{ bgcolor: "#fff", borderRadius: 1 }} />
+            fullWidth size="small" sx={{ bgcolor: COLOR.white, borderRadius: 1 }} />
         )}
-        <IconButton type="submit" disabled={!input.trim() || sending} sx={{ color: "#07C160", flexShrink: 0 }} aria-label="发送"><SendIcon /></IconButton>
+        <IconButton type="submit" disabled={!input.trim() || sending} sx={{ color: COLOR.primary, flexShrink: 0 }} aria-label="发送"><SendIcon /></IconButton>
       </Box>
     </Box>
   );

@@ -1,14 +1,18 @@
 /**
- * TaskChecklist — renders a list of patient tasks with checkbox, title,
- * subtitle, due-date badge, urgency badge, and optional upload button.
+ * TaskChecklist — renders a list of patient tasks using ActionRow.
+ *
+ * Thin wrapper that maps task objects to ActionRow props, handling
+ * overdue detection, urgency badges, and upload buttons.
  *
  * Props:
  *  - tasks: array of task objects
  *  - onComplete: (taskId) => void — called when user checks a pending task
+ *  - onUndo: (taskId) => void — called when user unchecks a completed task
  *  - onUpload: (taskId) => void — called when user taps upload on workup tasks
  */
-import { Box, Typography } from "@mui/material";
-import { TYPE, COLOR } from "../theme";
+import { Box } from "@mui/material";
+import { COLOR } from "../theme";
+import ActionRow from "./ActionRow";
 import StatusBadge from "./StatusBadge";
 import AppButton from "./AppButton";
 
@@ -25,42 +29,11 @@ function formatDate(iso) {
 
 function isOverdue(dueAt) {
   if (!dueAt) return false;
-  try {
-    return new Date(dueAt) < new Date();
-  } catch {
-    return false;
-  }
+  try { return new Date(dueAt) < new Date(); } catch { return false; }
 }
 
 function isWorkupTask(taskType) {
   return taskType && (taskType.includes("lab_review") || taskType.includes("imaging"));
-}
-
-function CheckCircle({ completed }) {
-  if (completed) {
-    return (
-      <Box
-        sx={{
-          width: 20, height: 20, borderRadius: "50%",
-          bgcolor: COLOR.success, display: "flex",
-          alignItems: "center", justifyContent: "center", flexShrink: 0,
-        }}
-      >
-        {/* White checkmark */}
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </Box>
-    );
-  }
-  return (
-    <Box
-      sx={{
-        width: 20, height: 20, borderRadius: "50%",
-        border: `1.5px solid ${COLOR.border}`, flexShrink: 0,
-      }}
-    />
-  );
 }
 
 export default function TaskChecklist({ tasks, onComplete, onUndo, onUpload }) {
@@ -74,98 +47,29 @@ export default function TaskChecklist({ tasks, onComplete, onUndo, onUpload }) {
         const workup = isWorkupTask(task.task_type);
 
         return (
-          <Box
+          <ActionRow
             key={task.id}
-            sx={{
-              display: "flex", alignItems: "center", gap: "12px",
-              px: "12px", py: "8px",
-              borderBottom: `0.5px solid ${COLOR.borderLight}`,
-            }}
-          >
-            {/* Checkbox */}
-            <Box
-              onClick={
-                !completed && onComplete ? () => onComplete(task.id)
-                : completed && onUndo ? () => onUndo(task.id)
-                : undefined
-              }
-              sx={{ cursor: (!completed && onComplete) || (completed && onUndo) ? "pointer" : "default" }}
-            >
-              <CheckCircle completed={completed} />
-            </Box>
-
-            {/* Title + subtitle */}
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography
-                sx={{
-                  fontSize: TYPE.action.fontSize, fontWeight: 500,
-                  color: completed ? COLOR.text4 : COLOR.text1,
-                  textDecoration: completed ? "line-through" : "none",
-                  lineHeight: 1.4,
-                }}
-              >
-                {task.title}
-              </Typography>
-              {task.content && (
-                <Typography
-                  sx={{
-                    fontSize: TYPE.secondary.fontSize, fontWeight: 400, color: COLOR.text4,
-                    lineHeight: 1.4, mt: 0.2,
-                    overflow: "hidden", textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {task.content}
-                </Typography>
-              )}
-            </Box>
-
-            {/* Urgency badge for workup tasks */}
-            {workup && task.urgency && (
-              <StatusBadge
-                label={task.urgency}
-                colorMap={{ "\u7D27\u6025": COLOR.danger, "\u5E38\u89C4": COLOR.text4 }}
-              />
-            )}
-
-            {/* Due date badge */}
-            {task.due_at && !completed && (
-              <Typography
-                sx={{
-                  ...TYPE.caption,
-                  color: overdue ? COLOR.danger : COLOR.text4,
-                  fontWeight: overdue ? 500 : 400,
-                  flexShrink: 0,
-                }}
-              >
-                {formatDate(task.due_at)}
-              </Typography>
-            )}
-
-            {/* Completion date for done tasks */}
-            {completed && task.completed_at && (
-              <Typography
-                sx={{
-                  ...TYPE.caption,
-                  color: COLOR.success,
-                  flexShrink: 0,
-                }}
-              >
-                {formatDate(task.completed_at)}
-              </Typography>
-            )}
-
-            {/* Upload button for workup tasks */}
-            {workup && !completed && onUpload && (
-              <AppButton
-                variant="ghost"
-                size="sm"
-                onClick={() => onUpload(task.id)}
-              >
-                上传
-              </AppButton>
-            )}
-          </Box>
+            title={task.title}
+            subtitle={task.content}
+            done={completed}
+            overdue={overdue}
+            right={
+              completed && task.completed_at ? formatDate(task.completed_at)
+              : task.due_at && !completed ? formatDate(task.due_at)
+              : undefined
+            }
+            badge={workup && task.urgency ? (
+              <StatusBadge label={task.urgency} colorMap={{ "\u7D27\u6025": COLOR.danger, "\u5E38\u89C4": COLOR.text4 }} />
+            ) : undefined}
+            action={workup && !completed && onUpload ? (
+              <AppButton variant="ghost" size="sm" onClick={() => onUpload(task.id)}>上传</AppButton>
+            ) : undefined}
+            onToggle={
+              !completed && onComplete ? () => onComplete(task.id)
+              : completed && onUndo ? () => onUndo(task.id)
+              : undefined
+            }
+          />
         );
       })}
     </Box>

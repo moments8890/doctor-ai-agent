@@ -21,7 +21,7 @@ const CONFIG = {
   interview_summary:  { color: COLOR.primary, Icon: ChatOutlinedIcon },
 };
 
-const FALLBACK = { color: "#999", Icon: DescriptionOutlinedIcon };
+const FALLBACK = { color: COLOR.text4, Icon: DescriptionOutlinedIcon };
 
 export default function RecordTypeAvatar({ type, size = 36 }) {
   const { color, Icon } = CONFIG[type] || FALLBACK;

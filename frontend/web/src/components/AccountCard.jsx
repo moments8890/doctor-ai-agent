@@ -26,7 +26,7 @@ export default function AccountCard({ name, subtitle, color, rows }) {
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0, mr: 1.5,
         }}>
-          <Typography sx={{ color: "#fff", fontSize: ICON.xl, fontWeight: 600 }}>
+          <Typography sx={{ color: COLOR.white, fontSize: ICON.xl, fontWeight: 600 }}>
             {initial}
           </Typography>
         </Box>

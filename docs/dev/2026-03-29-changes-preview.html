@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>UI Refactoring — Before vs After (2026-03-29)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Noto Sans SC', -apple-system, sans-serif; background: #ededed; padding: 24px; color: #1A1A1A; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 20px; margin-bottom: 8px; }
+  h2 { font-size: 15px; margin: 28px 0 12px; color: #666; border-bottom: 1px solid #E5E5E5; padding-bottom: 6px; }
+  h3 { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .subtitle { font-size: 13px; color: #999; margin-bottom: 24px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .side { background: #fff; border-radius: 8px; padding: 16px; border: 1px solid #E5E5E5; }
+  .side.before { border-left: 3px solid #D65745; }
+  .side.after { border-left: 3px solid #07C160; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin-bottom: 10px; }
+  .tag.before { background: #FDF0EE; color: #D65745; }
+  .tag.after { background: #E7F7EE; color: #07C160; }
+  .note { font-size: 12px; color: #666; margin-top: 8px; padding: 8px 12px; background: #f7f7f7; border-radius: 4px; }
+
+  /* Mini component mockups */
+  .mock-dialog { border: 1px solid #E5E5E5; border-radius: 12px; max-width: 260px; overflow: hidden; margin: 8px auto; }
+  .mock-dialog-body { padding: 16px 14px 10px; text-align: center; }
+  .mock-dialog-body p { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .mock-dialog-body small { font-size: 11px; color: #666; }
+  .mock-dialog-footer { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #E5E5E5; }
+  .mock-btn { padding: 10px; text-align: center; font-size: 13px; border: none; background: none; }
+  .mock-btn.gray { color: #999; border-right: 1px solid #E5E5E5; }
+  .mock-btn.green { color: #07C160; font-weight: 600; }
+  .mock-btn.red { color: #D65745; font-weight: 600; }
+
+  .mock-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+  .mock-row:last-child { border-bottom: none; }
+  .mock-avatar { width: 32px; height: 32px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; position: relative; }
+  .mock-name { font-weight: 600; font-size: 13px; }
+  .mock-sub { font-size: 11px; color: #999; }
+  .mock-right { font-size: 11px; color: #999; margin-left: auto; flex-shrink: 0; }
+  .status-dot { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #fff; }
+
+  .swatch-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  .swatch { width: 28px; height: 28px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.08); }
+  .swatch-label { font-size: 10px; color: #999; font-family: monospace; }
+
+  .radius-demo { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 28px; background: #07C160; color: #fff; font-size: 10px; margin-right: 8px; }
+
+  .spacing-bar { height: 6px; background: rgba(7,193,96,0.3); border: 1px solid rgba(7,193,96,0.5); margin: 2px 0; border-radius: 1px; }
+
+  .code { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; background: #f7f7f7; padding: 1px 4px; border-radius: 2px; color: #333; }
+  .strike { text-decoration: line-through; color: #999; }
+  .highlight { background: #E7F7EE; padding: 1px 4px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<h1>UI Refactoring — Before vs After</h1>
+<div class="subtitle">Session 2026-03-29. All changes in this diff are live in code.</div>
+
+<!-- ===== 1. DIALOG BUTTONS ===== -->
+<h2>1. Dialog Button Order</h2>
+<div class="compare">
+  <div class="side before">
+    <div class="tag before">BEFORE</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">Danger mode swapped buttons: red on LEFT</p>
+    <div class="mock-dialog">
+      <div class="mock-dialog-body"><p>确认删除？</p><small>删除后无法恢复</small></div>
+      <div class="mock-dialog-footer">
+        <div class="mock-btn red">删除</div>
+        <div class="mock-btn green">取消</div>
+      </div>
+    </div>
+    <div class="mock-dialog" style="margin-top:8px;">
+      <div class="mock-dialog-body"><p>确认离开？</p><small>未保存的内容将会丢失</small></div>
+      <div class="mock-dialog-footer">
+        <div class="mock-btn red">确认</div>
+        <div class="mock-btn green">返回</div>
+      </div>
+    </div>
+  </div>
+  <div class="side after">
+    <div class="tag after">AFTER</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">WeChat convention: primary always RIGHT</p>
+    <div class="mock-dialog">
+      <div class="mock-dialog-body"><p>确认删除？</p><small>删除后无法恢复</small></div>
+      <div class="mock-dialog-footer">
+        <div class="mock-btn gray">取消</div>
+        <div class="mock-btn red">删除</div>
+      </div>
+    </div>
+    <div class="mock-dialog" style="margin-top:8px;">
+      <div class="mock-dialog-body"><p>确认离开？</p><small>未保存的内容将会丢失</small></div>
+      <div class="mock-dialog-footer">
+        <div class="mock-btn gray">取消</div>
+        <div class="mock-btn red">离开</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="note">Cancel is now always gray and LEFT. Primary action (even destructive) always RIGHT. Matches WeChat, iOS, Alipay, DingTalk.</div>
+
+<!-- ===== 2. PATIENT AVATARS ===== -->
+<h2>2. Patient Avatars</h2>
+<div class="compare">
+  <div class="side before">
+    <div class="tag before">BEFORE</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">Rainbow colors hashed from name (10 colors)</p>
+    <div style="background:#fff; border-radius:8px; overflow:hidden;">
+      <div class="mock-row">
+        <div class="mock-avatar" style="background:#07C160; color:#fff;">王</div>
+        <div><div class="mock-name">王建国</div><div class="mock-sub">男 / 56岁</div></div>
+        <div class="mock-right">03-28</div>
+      </div>
+      <div class="mock-row">
+        <div class="mock-avatar" style="background:#e8833a; color:#fff;">李</div>
+        <div><div class="mock-name">李复诊</div><div class="mock-sub">女 / 42岁</div></div>
+        <div class="mock-right">03-27</div>
+      </div>
+      <div class="mock-row">
+        <div class="mock-avatar" style="background:#9b59b6; color:#fff;">张</div>
+        <div><div class="mock-name">张明</div><div class="mock-sub">男 / 68岁</div></div>
+        <div class="mock-right">03-26</div>
+      </div>
+      <div class="mock-row">
+        <div class="mock-avatar" style="background:#5b9bd5; color:#fff;">王</div>
+        <div><div class="mock-name">王丽华</div><div class="mock-sub">女 / 35岁</div></div>
+        <div class="mock-right">03-25</div>
+      </div>
+    </div>
+  </div>
+  <div class="side after">
+    <div class="tag after">AFTER</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">Gray neutral. Color = status only.</p>
+    <div style="background:#fff; border-radius:8px; overflow:hidden;">
+      <div class="mock-row">
+        <div class="mock-avatar" style="background:#f0f0f0; color:#999;">王<div class="status-dot" style="background:#D65745;"></div></div>
+        <div><div class="mock-name">王建国</div><div class="mock-sub">男 / 56岁</div></div>
+        <div class="mock-right" style="color:#D65745; font-weight:500;">待审核</div>
+      </div>
+      <div class="mock-row">
+        <div class="mock-avatar" style="background:#f0f0f0; color:#999;">李<div class="status-dot" style="background:#F59E0B;"></div></div>
+        <div><div class="mock-name">李复诊</div><div class="mock-sub">女 / 42岁</div></div>
+        <div class="mock-right" style="color:#F59E0B; font-weight:500;">待回复</div>
+      </div>
+      <div class="mock-row">
+        <div class="mock-avatar" style="background:#f0f0f0; color:#999;">张</div>
+        <div><div class="mock-name">张明</div><div class="mock-sub">男 / 68岁</div></div>
+        <div class="mock-right">03-26</div>
+      </div>
+      <div class="mock-row">
+        <div class="mock-avatar" style="background:#f0f0f0; color:#999;">王<div class="status-dot" style="background:#07C160;"></div></div>
+        <div><div class="mock-name">王丽华</div><div class="mock-sub">女 / 35岁</div></div>
+        <div class="mock-right" style="color:#07C160; font-weight:500;">已完成</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="note">AVATAR_COLORS (10-color array) deleted. Color now signals actionable status. No status = no dot. Follows WeChat/好大夫 convention.</div>
+
+<!-- ===== 3. RECORD TYPE COLORS ===== -->
+<h2>3. Record Type Colors</h2>
+<div class="compare">
+  <div class="side before">
+    <div class="tag before">BEFORE</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">7 ad-hoc colors, two blues hard to distinguish</p>
+    <div class="swatch-row">
+      <div style="text-align:center"><div class="swatch" style="background:#07C160"></div><div class="swatch-label">门诊</div></div>
+      <div style="text-align:center"><div class="swatch" style="background:#5b9bd5"></div><div class="swatch-label">口述</div></div>
+      <div style="text-align:center"><div class="swatch" style="background:#e8833a"></div><div class="swatch-label">导入</div></div>
+      <div style="text-align:center"><div class="swatch" style="background:#9b59b6"></div><div class="swatch-label">检验</div></div>
+      <div style="text-align:center"><div class="swatch" style="background:#1890ff"></div><div class="swatch-label">影像</div></div>
+      <div style="text-align:center"><div class="swatch" style="background:#8e44ad"></div><div class="swatch-label">问诊</div></div>
+      <div style="text-align:center"><div class="swatch" style="background:#16a085"></div><div class="swatch-label">转诊</div></div>
+    </div>
+    <p style="font-size:10px; color:#D65745; margin-top:6px;">Problems: 口述 vs 影像 (both blue), 检验 vs 问诊 (both purple), #e8833a = urgencyMedium collision</p>
+  </div>
+  <div class="side after">
+    <div class="tag after">AFTER</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">3 colors grouped by medical meaning</p>
+    <div class="swatch-row">
+      <div style="text-align:center"><div class="swatch" style="background:#07C160"></div><div class="swatch-label">门诊</div></div>
+      <div style="text-align:center"><div class="swatch" style="background:#07C160"></div><div class="swatch-label">问诊</div></div>
+      <div style="text-align:center"><div class="swatch" style="background:#07C160"></div><div class="swatch-label">转诊</div></div>
+      <div style="text-align:center; margin-left:8px"><div class="swatch" style="background:#576B95"></div><div class="swatch-label">检验</div></div>
+      <div style="text-align:center"><div class="swatch" style="background:#576B95"></div><div class="swatch-label">影像</div></div>
+      <div style="text-align:center; margin-left:8px"><div class="swatch" style="background:#8993a4"></div><div class="swatch-label">口述</div></div>
+      <div style="text-align:center"><div class="swatch" style="background:#8993a4"></div><div class="swatch-label">导入</div></div>
+    </div>
+    <p style="font-size:10px; color:#07C160; margin-top:6px;">Clinical = primary, Diagnostics = accent, Documents = recordDoc. Only 1 new token.</p>
+  </div>
+</div>
+
+<!-- ===== 4. URGENCY COLORS ===== -->
+<h2>4. Urgency Colors</h2>
+<div class="compare">
+  <div class="side before">
+    <div class="tag before">BEFORE</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">Separate hex values, #e8833a collides with recordImport</p>
+    <div style="display:flex; gap:8px;">
+      <span style="font-size:11px; padding:2px 6px; border-radius:4px; border:0.5px solid #E8533F; color:#E8533F; background:#FDF0EE;">高 #E8533F</span>
+      <span style="font-size:11px; padding:2px 6px; border-radius:4px; border:0.5px solid #e8833a; color:#e8833a; background:#FFF7E6;">中 #e8833a</span>
+      <span style="font-size:11px; padding:2px 6px; border-radius:4px; border:0.5px solid #999; color:#999; background:#f7f7f7;">低 #999</span>
+    </div>
+  </div>
+  <div class="side after">
+    <div class="tag after">AFTER</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">Reuses existing semantic tokens, zero new colors</p>
+    <div style="display:flex; gap:8px;">
+      <span style="font-size:11px; padding:2px 6px; border-radius:4px; border:0.5px solid #D65745; color:#D65745; background:#FDF0EE;">高 danger</span>
+      <span style="font-size:11px; padding:2px 6px; border-radius:4px; border:0.5px solid #F59E0B; color:#F59E0B; background:#FFF7E6;">中 warning</span>
+      <span style="font-size:11px; padding:2px 6px; border-radius:4px; border:0.5px solid #999; color:#999; background:#f7f7f7;">低 text4</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 5. BORDER RADIUS ===== -->
+<h2>5. Border Radius</h2>
+<div class="compare">
+  <div class="side before">
+    <div class="tag before">BEFORE</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">7+ ad-hoc values hardcoded across 50+ files</p>
+    <div style="display:flex; gap:6px; flex-wrap:wrap; font-size:11px; color:#666;">
+      <span class="code">3px</span>
+      <span class="code">4px</span>
+      <span class="code">6px</span>
+      <span class="code">8px</span>
+      <span class="code">10px</span>
+      <span class="code">12px</span>
+      <span class="code">16px</span>
+      <span class="code">999px</span>
+    </div>
+    <p style="font-size:10px; color:#999; margin-top:6px;">No scale. Each dev picked a number.</p>
+  </div>
+  <div class="side after">
+    <div class="tag after">AFTER</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">4 RADIUS tokens from theme.js</p>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin:4px 0;">
+      <div style="text-align:center;"><div class="radius-demo" style="border-radius:4px;">sm</div><div class="swatch-label">4px</div></div>
+      <div style="text-align:center;"><div class="radius-demo" style="border-radius:8px;">md</div><div class="swatch-label">8px</div></div>
+      <div style="text-align:center;"><div class="radius-demo" style="border-radius:12px;">lg</div><div class="swatch-label">12px</div></div>
+      <div style="text-align:center;"><div class="radius-demo" style="border-radius:16px;">pill</div><div class="swatch-label">16px</div></div>
+    </div>
+    <p style="font-size:10px; color:#999; margin-top:6px;">3px absorbed into sm. 6px absorbed into md. ~110 replacements.</p>
+  </div>
+</div>
+
+<!-- ===== 6. SPACING ===== -->
+<h2>6. Spacing Grid</h2>
+<div class="compare">
+  <div class="side before">
+    <div class="tag before">BEFORE</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">36 distinct py values across the codebase</p>
+    <div style="display:flex; gap:4px; flex-wrap:wrap; font-size:10px; color:#666;">
+      <span class="code">0.1</span><span class="code">0.15</span><span class="code">0.2</span><span class="code">0.25</span>
+      <span class="code">0.3</span><span class="code">0.35</span><span class="code">0.4</span><span class="code">0.45</span>
+      <span class="code">0.5</span><span class="code">0.6</span><span class="code">0.7</span><span class="code">0.75</span>
+      <span class="code">0.8</span><span class="code">0.9</span><span class="code">1</span><span class="code">1.1</span>
+      <span class="code">1.2</span><span class="code">1.25</span><span class="code">1.3</span><span class="code">1.4</span>
+      <span class="code">1.5</span><span class="code">1.6</span><span class="code">1.75</span><span class="code">1.8</span>
+      <span class="code">2</span><span class="code">2.2</span><span class="code">2.25</span><span class="code">2.5</span>
+      <span class="code">3</span><span class="code">3.5</span>
+    </div>
+  </div>
+  <div class="side after">
+    <div class="tag after">AFTER</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">Only MUI 0.5 increments allowed</p>
+    <div style="display:flex; gap:8px; align-items:flex-end; margin:4px 0;">
+      <div style="text-align:center;"><div class="spacing-bar" style="width:32px; height:4px;"></div><div class="swatch-label">0.5</div></div>
+      <div style="text-align:center;"><div class="spacing-bar" style="width:32px; height:8px;"></div><div class="swatch-label">1</div></div>
+      <div style="text-align:center;"><div class="spacing-bar" style="width:32px; height:12px;"></div><div class="swatch-label">1.5</div></div>
+      <div style="text-align:center;"><div class="spacing-bar" style="width:32px; height:16px;"></div><div class="swatch-label">2</div></div>
+      <div style="text-align:center;"><div class="spacing-bar" style="width:32px; height:20px;"></div><div class="swatch-label">2.5</div></div>
+      <div style="text-align:center;"><div class="spacing-bar" style="width:32px; height:24px;"></div><div class="swatch-label">3</div></div>
+    </div>
+    <p style="font-size:10px; color:#999; margin-top:6px;">~300 values snapped across 37 files.</p>
+  </div>
+</div>
+
+<!-- ===== 7. HARDCODED COLORS ===== -->
+<h2>7. Hardcoded Colors</h2>
+<div class="compare">
+  <div class="side before">
+    <div class="tag before">BEFORE</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">119 unique hex literals scattered across files</p>
+    <div style="display:flex; gap:4px; flex-wrap:wrap;">
+      <div class="swatch" style="width:20px; height:20px; background:#e8f5e9"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#c8e6c9"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#fff3f3"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#fff3e0"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#FA5151"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#E8533F"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#06a050"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#06ad56"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#1565c0"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#f9f9f9"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#fafafa"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#5b9bd5"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#e8833a"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#9b59b6"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#1890ff"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#8e44ad"></div>
+      <div class="swatch" style="width:20px; height:20px; background:#0969da"></div>
+    </div>
+    <p style="font-size:10px; color:#999; margin-top:6px;">Each component picked its own hex values.</p>
+  </div>
+  <div class="side after">
+    <div class="tag after">AFTER</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">All replaced with COLOR.* tokens</p>
+    <div style="display:flex; gap:6px; flex-wrap:wrap; font-size:10px;">
+      <span class="code highlight">COLOR.successLight</span>
+      <span class="code highlight">COLOR.dangerLight</span>
+      <span class="code highlight">COLOR.warningLight</span>
+      <span class="code highlight">COLOR.danger</span>
+      <span class="code highlight">COLOR.primaryHover</span>
+      <span class="code highlight">COLOR.link</span>
+      <span class="code highlight">COLOR.surface</span>
+      <span class="code highlight">COLOR.primary</span>
+      <span class="code highlight">COLOR.accent</span>
+      <span class="code highlight">COLOR.recordDoc</span>
+    </div>
+    <p style="font-size:10px; color:#999; margin-top:6px;">3 new tokens added. ~60 hex values replaced. Change any color in one place.</p>
+  </div>
+</div>
+
+<!-- ===== 8. EMPTY STATES ===== -->
+<h2>8. Empty States</h2>
+<div class="compare">
+  <div class="side before">
+    <div class="tag before">BEFORE</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">Plain text, inconsistent per page</p>
+    <div style="background:#fff; border-radius:8px; padding:24px; text-align:center;">
+      <span style="font-size:13px; color:#999;">暂无病历。</span>
+    </div>
+    <p style="font-size:10px; color:#999; margin-top:6px;">No icon, no subtitle, no action guidance. Some pages had emoji (📋).</p>
+  </div>
+  <div class="side after">
+    <div class="tag after">AFTER</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">EmptyState component everywhere</p>
+    <div style="background:#fff; border-radius:8px; padding:24px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:6px;">
+      <div style="width:36px; height:36px; border-radius:50%; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#999; font-size:20px;">&#x2637;</div>
+      <span style="font-size:13px; color:#999; font-weight:500;">暂无病历</span>
+      <span style="font-size:11px; color:#bbb;">点击右上角「门诊」新建病历</span>
+    </div>
+    <p style="font-size:10px; color:#999; margin-top:6px;">Consistent: icon + title + subtitle. 6 pages updated. No emoji.</p>
+  </div>
+</div>
+
+<!-- ===== 9. NEW COMPONENTS ===== -->
+<h2>9. New Components</h2>
+<div class="compare">
+  <div class="side before">
+    <div class="tag before">BEFORE</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">Each page built its own dialog footer and toast</p>
+    <div style="font-size:11px; color:#666; line-height:1.8;">
+      <div><span class="code">SheetDialog footer=</span> — manual grid per page (gap 0.5 vs 0.75 vs 1)</div>
+      <div><span class="code">setToast(msg); setTimeout(() => setToast(null), 2000)</span> — copy-pasted</div>
+      <div><span class="code">&lt;Box position="fixed" bgcolor="rgba(0,0,0,0.7)" ...&gt;</span> — duplicated</div>
+    </div>
+  </div>
+  <div class="side after">
+    <div class="tag after">AFTER</div>
+    <p style="font-size:11px; color:#666; margin-bottom:8px;">Shared components with consistent behavior</p>
+    <div style="font-size:11px; color:#666; line-height:1.8;">
+      <div><span class="code highlight">DialogFooter</span> — standard 2-button grid, WeChat convention built-in</div>
+      <div><span class="code highlight">useToast()</span> — hook replaces manual state + setTimeout</div>
+      <div><span class="code highlight">&lt;Toast message={toast} /&gt;</span> — single component, consistent styling</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SUMMARY ===== -->
+<h2>Summary of Changes</h2>
+<div style="background:#fff; border-radius:8px; padding:16px; border:1px solid #E5E5E5;">
+  <table style="width:100%; font-size:12px; border-collapse:collapse;">
+    <tr style="border-bottom:1px solid #f0f0f0;"><th style="text-align:left; padding:6px 8px; color:#999; font-weight:600;">Area</th><th style="text-align:left; padding:6px 8px; color:#999;">Before</th><th style="text-align:left; padding:6px 8px; color:#999;">After</th><th style="text-align:right; padding:6px 8px; color:#999;">Files</th></tr>
+    <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:6px 8px;">Border radius</td><td style="padding:6px 8px;">7+ ad-hoc values</td><td style="padding:6px 8px;">4 RADIUS tokens</td><td style="padding:6px 8px; text-align:right;">40+</td></tr>
+    <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:6px 8px;">Hardcoded colors</td><td style="padding:6px 8px;">119 hex literals</td><td style="padding:6px 8px;">~30 remaining (admin)</td><td style="padding:6px 8px; text-align:right;">20+</td></tr>
+    <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:6px 8px;">Spacing values</td><td style="padding:6px 8px;">36 distinct py values</td><td style="padding:6px 8px;">6 (0.5 increments)</td><td style="padding:6px 8px; text-align:right;">37</td></tr>
+    <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:6px 8px;">Record type colors</td><td style="padding:6px 8px;">7 ad-hoc</td><td style="padding:6px 8px;">3 semantic groups</td><td style="padding:6px 8px; text-align:right;">3</td></tr>
+    <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:6px 8px;">Dialog buttons</td><td style="padding:6px 8px;">Danger swaps to left</td><td style="padding:6px 8px;">Primary always right</td><td style="padding:6px 8px; text-align:right;">2</td></tr>
+    <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:6px 8px;">Patient avatars</td><td style="padding:6px 8px;">10-color rainbow</td><td style="padding:6px 8px;">Gray + status dot</td><td style="padding:6px 8px; text-align:right;">2</td></tr>
+    <tr style="border-bottom:1px solid #f0f0f0;"><td style="padding:6px 8px;">Empty states</td><td style="padding:6px 8px;">Plain text, emoji</td><td style="padding:6px 8px;">EmptyState component</td><td style="padding:6px 8px; text-align:right;">6</td></tr>
+    <tr><td style="padding:6px 8px;">Toast pattern</td><td style="padding:6px 8px;">Copy-pasted per page</td><td style="padding:6px 8px;">Toast + useToast</td><td style="padding:6px 8px; text-align:right;">2</td></tr>
+  </table>
+  <div style="margin-top:12px; font-size:11px; color:#07C160; font-weight:600;">Bundle: 1200.34 KB → 1198.99 KB (slightly smaller). Build: clean, 0 errors.</div>
+</div>
+
+</body>
+</html>

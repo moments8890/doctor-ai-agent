@@ -10,7 +10,7 @@ import { TYPE, COLOR, RADIUS } from "../theme";
 
 const SOURCE_CONFIG = {
   patient: { label: "患者", color: "#5b9bd5" },
-  ai: { label: "AI", color: "#999" },
+  ai: { label: "AI", color: COLOR.text4 },
   doctor: { label: "医生", color: COLOR.primary },
 };
 

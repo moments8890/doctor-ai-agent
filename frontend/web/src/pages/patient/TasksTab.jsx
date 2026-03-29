@@ -12,6 +12,7 @@ import { usePatientApi } from "../../api/PatientApiContext";
 import TaskChecklist from "../../components/TaskChecklist";
 import SectionLabel from "../../components/SectionLabel";
 import EmptyState from "../../components/EmptyState";
+import SectionLoading from "../../components/SectionLoading";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 
 export default function TasksTab({ token }) {
@@ -44,7 +45,7 @@ export default function TasksTab({ token }) {
   }
 
   if (loading) {
-    return <Box display="flex" justifyContent="center" py={6}><CircularProgress size={20} /></Box>;
+    return <SectionLoading py={6} />;
   }
 
   if (tasks.length === 0) {

@@ -41,6 +41,7 @@ import ErrorBoundary from "../../components/ErrorBoundary";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SheetDialog from "../../components/SheetDialog";
 import AppButton from "../../components/AppButton";
+import DialogFooter from "../../components/DialogFooter";
 import SubpageHeader from "../../components/SubpageHeader";
 import BarButton from "../../components/BarButton";
 import SuggestionChips from "../../components/SuggestionChips";
@@ -49,9 +50,9 @@ import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 
 function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, onLogout }) {
   return (
-    <Box sx={{ width: 220, flexShrink: 0, borderRight: "0.5px solid #d9d9d9", backgroundColor: "#f7f7f7", display: "flex", flexDirection: "column", py: 2, px: 0 }}>
+    <Box sx={{ width: 220, flexShrink: 0, borderRight: `0.5px solid ${COLOR.border}`, backgroundColor: COLOR.surface, display: "flex", flexDirection: "column", py: 2, px: 0 }}>
       <Box sx={{ mb: 2, px: 2 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: "#07C160" }}>鲸鱼随行</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: COLOR.primary }}>鲸鱼随行</Typography>
         <Typography variant="caption" color="text.secondary">{doctorName || doctorId}</Typography>
       </Box>
       <Box component="nav" aria-label="主导航" sx={{ flex: 1 }}>
@@ -59,21 +60,21 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
           <Box key={item.key} component="button" type="button" onClick={() => onNav(item.key)}
             aria-current={activeSection === item.key ? "page" : undefined}
             sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1, cursor: "pointer", width: "100%", border: "none", textAlign: "left",
-              bgcolor: activeSection === item.key ? "#07C160" : "transparent",
-              color: activeSection === item.key ? "#fff" : "#999999",
-              "&:hover": { bgcolor: activeSection === item.key ? "#07C160" : "#f0f0f0" },
-              "&:focus-visible": { outline: "2px solid #07C160", outlineOffset: -2 },
+              bgcolor: activeSection === item.key ? COLOR.primary : "transparent",
+              color: activeSection === item.key ? COLOR.white : COLOR.text4,
+              "&:hover": { bgcolor: activeSection === item.key ? COLOR.primary : COLOR.borderLight },
+              "&:focus-visible": { outline: `2px solid ${COLOR.primary}`, outlineOffset: -2 },
               "&:active": { opacity: 0.8 } }}>
-            <Box sx={{ "& svg": { fontSize: ICON.lg, color: activeSection === item.key ? "#fff" : "#999999" } }}>
+            <Box sx={{ "& svg": { fontSize: ICON.lg, color: activeSection === item.key ? COLOR.white : COLOR.text4 } }}>
               {item.badgeKey && navBadge[item.badgeKey] > 0 ? <Badge badgeContent={navBadge[item.badgeKey]} color="error">{item.icon}</Badge> : item.icon}
             </Box>
             <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: activeSection === item.key ? 600 : 400, color: "inherit" }}>{item.label}</Typography>
           </Box>
         ))}
       </Box>
-      <Box component="button" type="button" onClick={onLogout} sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1, cursor: "pointer", width: "100%", border: "none", textAlign: "left", bgcolor: "transparent", color: "#999999", "&:hover": { bgcolor: "#f0f0f0" }, "&:focus-visible": { outline: "2px solid #07C160", outlineOffset: -2 }, "&:active": { opacity: 0.8 } }}>
-        <LogoutIcon fontSize="small" sx={{ color: "#999999" }} />
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#999999" }}>退出登录</Typography>
+      <Box component="button" type="button" onClick={onLogout} sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1, cursor: "pointer", width: "100%", border: "none", textAlign: "left", bgcolor: "transparent", color: COLOR.text4, "&:hover": { bgcolor: COLOR.borderLight }, "&:focus-visible": { outline: `2px solid ${COLOR.primary}`, outlineOffset: -2 }, "&:active": { opacity: 0.8 } }}>
+        <LogoutIcon fontSize="small" sx={{ color: COLOR.text4 }} />
+        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4 }}>退出登录</Typography>
       </Box>
     </Box>
   );
@@ -83,9 +84,9 @@ function MobileBottomNav({ activeSection, navBadge, onNav }) {
   // Chat is a subpage of my-ai on mobile — highlight 我的AI when in chat
   const navValue = activeSection === "chat" ? "my-ai" : activeSection;
   return (
-    <Box sx={{ flexShrink: 0, borderTop: "0.5px solid #d9d9d9", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ flexShrink: 0, borderTop: `0.5px solid ${COLOR.border}`, bgcolor: COLOR.surface }}>
       <BottomNavigationMui value={navValue} onChange={(_, val) => onNav(val)}
-        sx={{ height: 64, bgcolor: "#f7f7f7", paddingBottom: "env(safe-area-inset-bottom)", "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "8px", color: "#999999" }, "& .Mui-selected": { color: "#07C160" }, "& .Mui-selected .MuiBottomNavigationAction-label": { color: "#07C160", fontWeight: 600 } }}>
+        sx={{ height: 64, bgcolor: COLOR.surface, paddingBottom: "env(safe-area-inset-bottom)", "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "8px", color: COLOR.text4 }, "& .Mui-selected": { color: COLOR.primary }, "& .Mui-selected .MuiBottomNavigationAction-label": { color: COLOR.primary, fontWeight: 600 } }}>
         {NAV.map((item) => {
           const badgeCount = item.badgeKey ? (navBadge[item.badgeKey] || 0) : 0;
           return (
@@ -106,16 +107,7 @@ function OnboardingDialog({ open, name, saving, onChange, onSubmit, onClose }) {
       onClose={onClose}
       title="欢迎，请完成初始设置"
       desktopMaxWidth={360}
-      footer={
-        <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-          <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
-            取消
-          </AppButton>
-          <AppButton variant="primary" size="md" fullWidth disabled={!name.trim() || saving} loading={saving} loadingLabel="保存中..." onClick={onSubmit}>
-            完成设置
-          </AppButton>
-        </Box>
-      }
+      footer={<DialogFooter onCancel={onClose} onConfirm={onSubmit} confirmLabel="完成设置" confirmDisabled={!name.trim() || saving} confirmLoading={saving} confirmLoadingLabel="保存中..." />}
     >
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField label="您的姓名" value={name} onChange={(e) => onChange(e.target.value)} fullWidth autoFocus required />
@@ -208,22 +200,15 @@ function PreviewSummarySheet({ open, onClose, collected, progress, onConfirm, co
       title="确认预问诊信息"
       desktopMaxWidth={400}
       footer={(
-        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-          <AppButton variant="secondary" size="md" fullWidth onClick={onResumeInput || onClose}>
-            继续补充
-          </AppButton>
-          <AppButton
-            variant="primary"
-            size="md"
-            fullWidth
-            disabled={confirming}
-            loading={confirming}
-            loadingLabel="提交中…"
-            onClick={onConfirm}
-          >
-            提交
-          </AppButton>
-        </Box>
+        <DialogFooter
+          onCancel={onResumeInput || onClose}
+          cancelLabel="继续补充"
+          onConfirm={onConfirm}
+          confirmLabel="提交"
+          confirmDisabled={confirming}
+          confirmLoading={confirming}
+          confirmLoadingLabel="提交中…"
+        />
       )}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
@@ -481,7 +466,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
           sx={{
             height: 6,
             borderRadius: 3,
-            bgcolor: "#e0e0e0",
+            bgcolor: COLOR.border,
             "& .MuiLinearProgress-bar": { bgcolor: COLOR.primary, borderRadius: 3 },
           }}
         />
@@ -543,7 +528,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
             gap: 1,
             px: 2,
             py: 1,
-            bgcolor: "#f5f5f5",
+            bgcolor: COLOR.surface,
             borderTop: suggestions.length > 0 ? "none" : `0.5px solid ${COLOR.border}`,
             flexShrink: 0,
           }}
@@ -719,6 +704,8 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
 
   useEffect(() => {
     if (!doctorId) return;
+    const setupDoneKey = `onboarding_setup_done:${doctorId}`;
+    if (localStorage.getItem(setupDoneKey)) return;
     getDoctorProfile(doctorId).then((p) => { if (!p.onboarded) { setOnboardName(p.name || ""); setShowOnboarding(true); } }).catch(() => {});
   }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -750,8 +737,8 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
   async function handleOnboardSubmit() {
     if (!onboardName.trim() || onboardSaving) return;
     setOnboardSaving(true);
-    try { await updateDoctorProfile(doctorId, { name: onboardName.trim() }); setAuth(doctorId, onboardName.trim(), accessToken); setShowOnboarding(false); }
-    catch {} finally { setOnboardSaving(false); }
+    try { await updateDoctorProfile(doctorId, { name: onboardName.trim() }); setAuth(doctorId, onboardName.trim(), accessToken); localStorage.setItem(`onboarding_setup_done:${doctorId}`, "1"); setShowOnboarding(false); }
+    catch { localStorage.setItem(`onboarding_setup_done:${doctorId}`, "1"); setShowOnboarding(false); } finally { setOnboardSaving(false); }
   }
   return { pendingTaskCount, reviewCount, followupCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit };
 }
@@ -790,7 +777,7 @@ export default function DoctorPage() {
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: "100%", position: "relative", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: "100%", position: "relative", bgcolor: COLOR.surface }}>
       {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={navBadge} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
         {isReviewPage ? (

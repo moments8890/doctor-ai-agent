@@ -238,12 +238,7 @@ export default function ReviewPage({ recordId }) {
       .catch(() => {}); // silent fail — citations will show as unresolved
   }, [citedIds, doctorId, getKnowledgeBatch]);
 
-  useEffect(() => {
-    if (!doctorId) return;
-    if (source === "knowledge_proof") {
-      markOnboardingStep(doctorId, ONBOARDING_STEP.diagnosis);
-    }
-  }, [doctorId, source]);
+  // Step 2 onboarding: mark complete only when doctor finalizes review (not on page visit)
 
   /* ── Fetch record + suggestions on mount ─────────────────────────────────── */
 
@@ -349,6 +344,9 @@ export default function ReviewPage({ recordId }) {
     setFinalizing(true);
     try {
       const data = await finalizeReview(recordId, doctorId);
+      if (source === "knowledge_proof") {
+        markOnboardingStep(doctorId, ONBOARDING_STEP.diagnosis);
+      }
       const followUpTaskIds = data?.follow_up_task_ids || [];
       const isPreviewOnboardingFlow = source === "patient_preview";
       if (isPreviewOnboardingFlow && followUpTaskIds.length > 0) {

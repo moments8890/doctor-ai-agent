@@ -11,14 +11,14 @@
  */
 import { useState, useRef, useCallback } from "react";
 import { Box } from "@mui/material";
-import { TYPE, RADIUS } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../theme";
 
 export default function Toast({ message }) {
   if (!message) return null;
   return (
     <Box sx={{
       position: "fixed", top: "20%", left: "50%", transform: "translateX(-50%)",
-      bgcolor: "rgba(0,0,0,0.7)", color: "#fff", px: 3, py: 1.5,
+      bgcolor: "rgba(0,0,0,0.7)", color: COLOR.white, px: 3, py: 1.5,
       borderRadius: RADIUS.md, fontSize: TYPE.body.fontSize, zIndex: 9999,
       pointerEvents: "none",
     }}>

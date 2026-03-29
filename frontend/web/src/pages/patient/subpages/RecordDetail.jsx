@@ -19,6 +19,7 @@ import { usePatientApi } from "../../../api/PatientApiContext";
 import SubpageHeader from "../../../components/SubpageHeader";
 import SectionLabel from "../../../components/SectionLabel";
 import StatusBadge from "../../../components/StatusBadge";
+import SectionLoading from "../../../components/SectionLoading";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
 import {
   RECORD_TYPE_LABEL,
@@ -63,7 +64,7 @@ export default function RecordDetail({ recordId, token, onBack }) {
 
         {/* Loading spinner */}
         {loading && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}><CircularProgress size={20} /></Box>
+          <SectionLoading />
         )}
 
         {/* -- Action summary sections -- */}

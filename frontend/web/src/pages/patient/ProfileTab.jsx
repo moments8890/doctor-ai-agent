@@ -20,7 +20,7 @@ import { TYPE, COLOR } from "../../theme";
 
 export default function ProfileTab({ patientName, doctorName, doctorSpecialty, doctorId, onLogout }) {
   return (
-    <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
+    <Box sx={{ flex: 1, overflowY: "auto", bgcolor: COLOR.surfaceAlt }}>
       {/* Doctor info card */}
       {doctorName && (
         <>

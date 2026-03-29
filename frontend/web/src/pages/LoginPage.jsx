@@ -155,12 +155,12 @@ export default function LoginPage() {
       <Card sx={{ width: "100%", maxWidth: 400, borderRadius: RADIUS.md, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
         <CardContent sx={{ p: 3.5 }}>
           <Stack spacing={2.5} alignItems="center">
-            <MedicalServicesOutlinedIcon sx={{ fontSize: ICON.display, color: "#07C160" }} />
+            <MedicalServicesOutlinedIcon sx={{ fontSize: ICON.display, color: COLOR.primary }} />
             <Typography sx={{ fontWeight: 700, fontSize: TYPE.title.fontSize }}>AI 医疗助手</Typography>
 
             {/* Role tabs */}
             <Tabs value={tab} onChange={(_, v) => { setTab(v); setMode("login"); setError(""); setRoleChoices(null); }}
-              sx={{ width: "100%", "& .MuiTab-root": { flex: 1, fontSize: TYPE.body.fontSize, color: "#999" }, "& .Mui-selected": { color: "#07C160", fontWeight: 600 }, "& .MuiTabs-indicator": { bgcolor: "#07C160", height: 3 } }}>
+              sx={{ width: "100%", "& .MuiTab-root": { flex: 1, fontSize: TYPE.body.fontSize, color: COLOR.text4 }, "& .Mui-selected": { color: COLOR.primary, fontWeight: 600 }, "& .MuiTabs-indicator": { bgcolor: COLOR.primary, height: 3 } }}>
               <Tab label="医生" />
               <Tab label="患者" />
             </Tabs>
@@ -175,13 +175,13 @@ export default function LoginPage() {
                     placeholder="数字口令" fullWidth size="small" type="password" />
                   {error && <Typography variant="body2" color="error">{error}</Typography>}
                   <Button type="submit" variant="contained" fullWidth disabled={loading}
-                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: COLOR.primaryHover }, textTransform: "none", py: 1 }}>
+                    sx={{ bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover }, textTransform: "none", py: 1 }}>
                     {loading ? <CircularProgress size={16} /> : "登录"}
                   </Button>
                   <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ fontSize: TYPE.secondary.fontSize }}>
                     没有账号？
                     <Box component="span" onClick={() => { setMode("register"); setError(""); }}
-                      sx={{ color: "#07C160", cursor: "pointer", ml: 0.5 }}>
+                      sx={{ color: COLOR.primary, cursor: "pointer", ml: 0.5 }}>
                       {isDoctor ? "医生注册" : "患者注册"}
                     </Box>
                   </Typography>
@@ -197,7 +197,7 @@ export default function LoginPage() {
                 </Typography>
                 {roleChoices.map((r, i) => (
                   <Button key={i} variant="outlined" fullWidth onClick={() => handleRoleSelect(r)}
-                    sx={{ justifyContent: "flex-start", textTransform: "none", py: 1.5, borderColor: "#e5e5e5" }}>
+                    sx={{ justifyContent: "flex-start", textTransform: "none", py: 1.5, borderColor: COLOR.border }}>
                     <Stack>
                       <Typography fontWeight={600} sx={{ fontSize: TYPE.heading.fontSize }}>
                         {r.role === "doctor" ? "医生" : "患者"} — {r.name}
@@ -205,7 +205,7 @@ export default function LoginPage() {
                     </Stack>
                   </Button>
                 ))}
-                <Button size="small" onClick={() => setRoleChoices(null)} sx={{ color: "#999" }}>返回</Button>
+                <Button size="small" onClick={() => setRoleChoices(null)} sx={{ color: COLOR.text4 }}>返回</Button>
               </Stack>
             )}
 
@@ -224,13 +224,13 @@ export default function LoginPage() {
                     type="password" placeholder="设置数字口令" />
                   {error && <Typography variant="body2" color="error">{error}</Typography>}
                   <Button type="submit" variant="contained" fullWidth disabled={loading}
-                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: COLOR.primaryHover }, textTransform: "none", py: 1 }}>
+                    sx={{ bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover }, textTransform: "none", py: 1 }}>
                     {loading ? <CircularProgress size={16} /> : "注册"}
                   </Button>
                   <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ fontSize: TYPE.secondary.fontSize }}>
                     已有账号？
                     <Box component="span" onClick={() => { setMode("login"); setError(""); }}
-                      sx={{ color: "#07C160", cursor: "pointer", ml: 0.5 }}>
+                      sx={{ color: COLOR.primary, cursor: "pointer", ml: 0.5 }}>
                       返回登录
                     </Box>
                   </Typography>
@@ -264,13 +264,13 @@ export default function LoginPage() {
                     type="password" placeholder="设置数字口令" />
                   {error && <Typography variant="body2" color="error">{error}</Typography>}
                   <Button type="submit" variant="contained" fullWidth disabled={loading}
-                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: COLOR.primaryHover }, textTransform: "none", py: 1 }}>
+                    sx={{ bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover }, textTransform: "none", py: 1 }}>
                     {loading ? <CircularProgress size={16} /> : "注册"}
                   </Button>
                   <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ fontSize: TYPE.secondary.fontSize }}>
                     已有账号？
                     <Box component="span" onClick={() => { setMode("login"); setError(""); }}
-                      sx={{ color: "#07C160", cursor: "pointer", ml: 0.5 }}>
+                      sx={{ color: COLOR.primary, cursor: "pointer", ml: 0.5 }}>
                       返回登录
                     </Box>
                   </Typography>

@@ -83,7 +83,7 @@ function DeletePatientDialog({ open, patientName, deleting, onConfirm, onClose }
 
 function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen, onQRCode }) {
   return (
-    <Stack direction="row" spacing={2} sx={{ pt: 0.5, borderTop: "0.5px solid #f0f0f0" }} alignItems="center">
+    <Stack direction="row" spacing={2} sx={{ pt: 0.5, borderTop: `0.5px solid ${COLOR.borderLight}` }} alignItems="center">
       <Box onClick={onDeleteOpen}
         sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: COLOR.danger, fontSize: TYPE.secondary.fontSize, "&:active": { opacity: 0.6 } }}>
         <DeleteOutlineIcon sx={{ fontSize: ICON.sm }} />
@@ -91,18 +91,18 @@ function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExport
       </Box>
       <Box sx={{ flex: 1 }} />
       <Box onClick={onQRCode}
-        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: "#e8833a", fontSize: TYPE.secondary.fontSize, "&:active": { opacity: 0.6 } }}>
+        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: COLOR.recordDoc, fontSize: TYPE.secondary.fontSize, "&:active": { opacity: 0.6 } }}>
         <QrCode2OutlinedIcon sx={{ fontSize: ICON.sm }} />
         二维码
       </Box>
       <Box onClick={!exportingPdf && !exportingReport ? onExportPdf : undefined}
-        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingPdf ? "default" : "pointer", color: exportingPdf ? "#ccc" : "#07C160", fontSize: TYPE.secondary.fontSize }}>
-        {exportingPdf ? <CircularProgress size={12} sx={{ color: "#ccc" }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: ICON.sm }} />}
+        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingPdf ? "default" : "pointer", color: exportingPdf ? COLOR.text4 : COLOR.primary, fontSize: TYPE.secondary.fontSize }}>
+        {exportingPdf ? <CircularProgress size={12} sx={{ color: COLOR.text4 }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: ICON.sm }} />}
         导出PDF
       </Box>
       <Box onClick={!exportingPdf && !exportingReport ? onExportReport : undefined}
-        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingReport ? "default" : "pointer", color: exportingReport ? "#ccc" : "#5b9bd5", fontSize: TYPE.secondary.fontSize }}>
-        {exportingReport ? <CircularProgress size={12} sx={{ color: "#ccc" }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: ICON.sm }} />}
+        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingReport ? "default" : "pointer", color: exportingReport ? COLOR.text4 : COLOR.accent, fontSize: TYPE.secondary.fontSize }}>
+        {exportingReport ? <CircularProgress size={12} sx={{ color: COLOR.text4 }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: ICON.sm }} />}
         门诊报告
       </Box>
     </Stack>
@@ -132,15 +132,15 @@ function CollapsibleProfile({ patient, age, records, expanded, onToggle, exporti
     ].filter(Boolean).join(" · ");
 
     return (
-      <Box sx={{ bgcolor: "#fff", px: 2.5, pt: 2, pb: 1.5, mb: 1 }}>
+      <Box sx={{ bgcolor: COLOR.white, px: 2.5, pt: 2, pb: 1.5, mb: 1 }}>
         <Box onClick={onToggle} sx={{ display: "flex", alignItems: "center", cursor: "pointer", mb: 1 }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
               <Typography sx={{ fontWeight: 700, fontSize: TYPE.action.fontSize }}>{patient.name}</Typography>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>{summaryParts}</Typography>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{summaryParts}</Typography>
             </Box>
           </Box>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#07C160", flexShrink: 0, ml: 1 }}>展开 ▾</Typography>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, flexShrink: 0, ml: 1 }}>展开 ▾</Typography>
         </Box>
       </Box>
     );
@@ -151,16 +151,16 @@ function CollapsibleProfile({ patient, age, records, expanded, onToggle, exporti
   const birthStr = patient.year_of_birth ? `${patient.year_of_birth}年` : "—";
 
   return (
-    <Box sx={{ bgcolor: "#fff", px: 2.5, pt: 2, pb: 1.5, mb: 1 }}>
+    <Box sx={{ bgcolor: COLOR.white, px: 2.5, pt: 2, pb: 1.5, mb: 1 }}>
       {/* Header row — clickable to collapse */}
       <Box onClick={onToggle} sx={{ display: "flex", alignItems: "center", cursor: "pointer", mb: 1 }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontWeight: 700, fontSize: TYPE.title.fontSize }}>{patient.name}</Typography>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", mt: 0.5 }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.5 }}>
             {[genderStr, age ? `${age}岁` : null].filter(Boolean).join(" · ")}
           </Typography>
         </Box>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#07C160", flexShrink: 0, ml: 1 }}>收起 ▴</Typography>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, flexShrink: 0, ml: 1 }}>收起 ▴</Typography>
       </Box>
 
       {/* Stats row */}
@@ -171,18 +171,18 @@ function CollapsibleProfile({ patient, age, records, expanded, onToggle, exporti
           { label: "影像", value: stats.imagingCount },
           { label: "最近活动", value: activityStr },
         ].map((s) => (
-          <Typography key={s.label} sx={{ fontSize: TYPE.caption.fontSize, color: "#666" }}>
-            {s.label} <Box component="span" sx={{ fontWeight: 600, color: "#333" }}>{s.value}</Box>
+          <Typography key={s.label} sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3 }}>
+            {s.label} <Box component="span" sx={{ fontWeight: 600, color: COLOR.text2 }}>{s.value}</Box>
           </Typography>
         ))}
       </Box>
 
       {/* Demographics grid */}
-      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px", mb: 1, fontSize: TYPE.caption.fontSize, color: "#666" }}>
-        <Box>电话 <Box component="span" sx={{ color: "#333" }}>{maskPhone(patient.phone)}</Box></Box>
-        <Box>出生 <Box component="span" sx={{ color: "#333" }}>{birthStr}</Box></Box>
-        <Box>身份证 <Box component="span" sx={{ color: "#333" }}>{maskIdNumber(patient.id_number)}</Box></Box>
-        <Box>建档 <Box component="span" sx={{ color: "#333" }}>{createdStr}</Box></Box>
+      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px", mb: 1, fontSize: TYPE.caption.fontSize, color: COLOR.text3 }}>
+        <Box>电话 <Box component="span" sx={{ color: COLOR.text2 }}>{maskPhone(patient.phone)}</Box></Box>
+        <Box>出生 <Box component="span" sx={{ color: COLOR.text2 }}>{birthStr}</Box></Box>
+        <Box>身份证 <Box component="span" sx={{ color: COLOR.text2 }}>{maskIdNumber(patient.id_number)}</Box></Box>
+        <Box>建档 <Box component="span" sx={{ color: COLOR.text2 }}>{createdStr}</Box></Box>
       </Box>
 
       {/* Action bar */}
@@ -216,12 +216,12 @@ function StickyTopBar({ patient, isMobile, onStartInterview, onExportOpen }) {
     <Box sx={{
       position: "sticky", top: 0, zIndex: 2,
       display: "flex", alignItems: "center", height: 48,
-      px: 1.5, bgcolor: "#fff", borderBottom: "0.5px solid #e5e5e5",
+      px: 1.5, bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}`,
     }}>
       {isMobile && (
         <Box onClick={() => navigate("/doctor/patients")}
-          sx={{ display: "flex", alignItems: "center", cursor: "pointer", color: "#07C160", pr: 1, py: 1 }}>
-          <Typography sx={{ fontSize: TYPE.action.fontSize, color: "#07C160" }}>←</Typography>
+          sx={{ display: "flex", alignItems: "center", cursor: "pointer", color: COLOR.primary, pr: 1, py: 1 }}>
+          <Typography sx={{ fontSize: TYPE.action.fontSize, color: COLOR.primary }}>←</Typography>
         </Box>
       )}
       <Typography sx={{ fontWeight: 700, fontSize: TYPE.action.fontSize, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -229,15 +229,15 @@ function StickyTopBar({ patient, isMobile, onStartInterview, onExportOpen }) {
       </Typography>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
         <Box onClick={onStartInterview}
-          sx={{ fontSize: TYPE.secondary.fontSize, color: "#07C160", cursor: "pointer", "&:active": { opacity: 0.6 } }}>
+          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
           新建病历
         </Box>
         <Box onClick={onStartInterview}
-          sx={{ fontSize: TYPE.secondary.fontSize, color: "#07C160", cursor: "pointer", "&:active": { opacity: 0.6 } }}>
+          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
           问诊
         </Box>
         <Box onClick={onExportOpen}
-          sx={{ fontSize: TYPE.secondary.fontSize, color: "#999", cursor: "pointer", "&:active": { opacity: 0.6 } }}>
+          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
           导出
         </Box>
       </Box>
@@ -255,7 +255,7 @@ function PendingReviewRow({ record, onClick }) {
   const date = formatRelativeDate(record.created_at);
   const preview = record.structured?.chief_complaint || record.content || "（无记录内容）";
   return (
-    <Box onClick={onClick} sx={{ borderBottom: "1px solid #f2f2f2", cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}>
+    <Box onClick={onClick} sx={{ borderBottom: `1px solid ${COLOR.borderLight}`, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}>
       <Box sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.5 }}>
         <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: COLOR.warning, flexShrink: 0, mt: 0.5, mr: 1.5 }} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -275,10 +275,10 @@ function PendingReviewRow({ record, onClick }) {
                 </Typography>
               ))}
             </Box>
-            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#bbb", flexShrink: 0 }}>{date}</Typography>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, flexShrink: 0 }}>{date}</Typography>
           </Box>
           <Typography sx={{
-            fontSize: TYPE.secondary.fontSize, color: preview !== "（无记录内容）" ? "text.primary" : "#bbb",
+            fontSize: TYPE.secondary.fontSize, color: preview !== "（无记录内容）" ? "text.primary" : COLOR.text4,
             overflow: "hidden", display: "-webkit-box",
             WebkitLineClamp: 2, WebkitBoxOrient: "vertical", whiteSpace: "pre-wrap",
           }}>
@@ -296,10 +296,10 @@ function PendingReviewRow({ record, onClick }) {
 function RecordListSection({ loading, error, records, filteredRecords, activeTab, setActiveTab, setRecords, doctorId, load, highlightRecordId }) {
   const navigate = useAppNavigate();
   return (
-    <Box sx={{ bgcolor: "#fff", mb: 1 }}>
+    <Box sx={{ bgcolor: COLOR.white, mb: 1 }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, pt: 1.5, pb: 0.5 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: TYPE.heading.fontSize, color: "#333" }}>病历记录</Typography>
-        {loading && <CircularProgress size={14} sx={{ color: "#07C160" }} />}
+        <Typography sx={{ fontWeight: 600, fontSize: TYPE.heading.fontSize, color: COLOR.text2 }}>病历记录</Typography>
+        {loading && <CircularProgress size={14} sx={{ color: COLOR.primary }} />}
       </Box>
       <RecordTabs activeTab={activeTab} onChange={setActiveTab} records={records} />
       {error && <Box sx={{ px: 2, pb: 1 }}><Alert severity="error" action={<Button size="small" onClick={load}>重试</Button>}>{error}</Alert></Box>}
@@ -423,7 +423,7 @@ function PatientChatPage({ patientId, doctorId }) {
   const hasContent = timelineCount > 0;
 
   return (
-    <Box sx={{ bgcolor: "#fff", mb: 1 }}>
+    <Box sx={{ bgcolor: COLOR.white, mb: 1 }}>
       <Box
         onClick={() => setOpen((prev) => !prev)}
         sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, pt: 1.5, pb: 1, cursor: "pointer" }}
@@ -526,7 +526,7 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
   const filteredRecords = activeGroup?.types ? sortedRecords.filter((r) => activeGroup.types.includes(r.record_type)) : sortedRecords;
 
   return (
-    <Box sx={{ overflowY: "auto", height: "100%", bgcolor: "#ededed" }}>
+    <Box sx={{ overflowY: "auto", height: "100%", bgcolor: COLOR.surfaceAlt }}>
       <CollapsibleProfile
         patient={patient} age={age} records={records} expanded={expanded} onToggle={() => setExpanded((v) => !v)}
         exportingPdf={exportingPdf} exportingReport={exportingReport}

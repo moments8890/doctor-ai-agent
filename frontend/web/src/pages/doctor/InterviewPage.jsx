@@ -15,6 +15,7 @@ import KeyboardIcon from "@mui/icons-material/Keyboard";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
+import CancelConfirm from "../../components/CancelConfirm";
 import SuggestionChips from "../../components/SuggestionChips";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
 import ActionPanel from "../../components/ActionPanel";
@@ -32,13 +33,13 @@ function MsgBubble({ msg }) {
   const isUser = msg.role === "user";
   return (
     <Box sx={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: 1, px: 1.5 }}>
-      <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: isUser ? "#5b9bd5" : "#07C160",
+      <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: isUser ? "#5b9bd5" : COLOR.primary,
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        {isUser ? <LocalHospitalOutlinedIcon sx={{ color: "#fff", fontSize: ICON.md }} />
-                : <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: ICON.md }} />}
+        {isUser ? <LocalHospitalOutlinedIcon sx={{ color: COLOR.white, fontSize: ICON.md }} />
+                : <SmartToyOutlinedIcon sx={{ color: COLOR.white, fontSize: ICON.md }} />}
       </Box>
       <Box sx={{ maxWidth: "75%", px: 1.5, py: 1, borderRadius: isUser ? `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}` : `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`,
-        bgcolor: isUser ? "#95EC69" : "#fff", fontSize: TYPE.body.fontSize, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+        bgcolor: isUser ? "#95EC69" : COLOR.white, fontSize: TYPE.body.fontSize, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
         {msg.content}
       </Box>
     </Box>
@@ -104,6 +105,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
       .map(([field, value]) => ({ field, label: FIELD_LABELS[field] || field, value }));
   });
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -338,19 +340,22 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <SubpageHeader title="新建病历" onBack={handleCancel}
-        right={<Typography variant="caption" sx={{ color: "#07C160", fontWeight: 500 }}>
+      <SubpageHeader title="新建病历" onBack={() => {
+          const hasWork = session.sessionId || messages.length > 1 || input.trim();
+          hasWork ? setShowCancelConfirm(true) : handleCancel();
+        }}
+        right={<Typography variant="caption" sx={{ color: COLOR.primary, fontWeight: 500 }}>
           {session.progress.pct || 0}%
         </Typography>} />
 
       {/* Progress bar + missing fields + confirm */}
-      <Box sx={{ px: 1.5, py: 0.5, bgcolor: "#fff", borderBottom: "1px solid #e0e0e0" }}>
+      <Box sx={{ px: 1.5, py: 0.5, bgcolor: COLOR.white, borderBottom: `1px solid ${COLOR.border}` }}>
         <LinearProgress variant="determinate"
           value={session.progress.pct || 0}
-          sx={{ height: 6, borderRadius: 3, bgcolor: "#e0e0e0",
-            "& .MuiLinearProgress-bar": { bgcolor: "#07C160", borderRadius: 3 } }} />
+          sx={{ height: 6, borderRadius: 3, bgcolor: COLOR.border,
+            "& .MuiLinearProgress-bar": { bgcolor: COLOR.primary, borderRadius: 3 } }} />
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 0.5 }}>
-          <Typography variant="caption" sx={{ color: session.status === "ready_for_confirm" ? "#2e7d32" : "#999" }}>
+          <Typography variant="caption" sx={{ color: session.status === "ready_for_confirm" ? "#2e7d32" : COLOR.text4 }}>
             {session.status === "ready_for_confirm" ? "信息已完整，可以生成病历了" :
              session.sessionId ? `${session.progress.pct || 0}%` : ""}
           </Typography>
@@ -359,8 +364,8 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
               variant={session.status === "ready_for_confirm" ? "contained" : "text"}
               disableElevation
               sx={session.status === "ready_for_confirm"
-                ? { bgcolor: "#07C160", "&:hover": { bgcolor: COLOR.primaryHover }, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
-                : { color: "#999", fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
+                ? { bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover }, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
+                : { color: COLOR.text4, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
               }
               onClick={() => setShowCompleteDialog(true)} disabled={loading}>
               完成
@@ -376,7 +381,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
           if (empty.length === 0) return null;
           return (
             <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, mt: 0.5 }}>
-              <Typography variant="caption" sx={{ color: "#999", mr: 0.5, flexShrink: 0 }}>待补充：</Typography>
+              <Typography variant="caption" sx={{ color: COLOR.text4, mr: 0.5, flexShrink: 0 }}>待补充：</Typography>
               {empty.map((text, i) => (
                 <Box key={i} sx={{
                   display: { xs: i >= 3 ? "none" : "inline-flex", md: i >= 5 ? "none" : "inline-flex" },
@@ -386,12 +391,12 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
                 </Box>
               ))}
               {empty.length > 3 && (
-                <Typography variant="caption" sx={{ color: "#999", display: { xs: "inline", md: "none" }, fontSize: "11px" }}>
+                <Typography variant="caption" sx={{ color: COLOR.text4, display: { xs: "inline", md: "none" }, fontSize: "11px" }}>
                   +{empty.length - 3}
                 </Typography>
               )}
               {empty.length > 5 && (
-                <Typography variant="caption" sx={{ color: "#999", display: { xs: "none", md: "inline" }, fontSize: "11px" }}>
+                <Typography variant="caption" sx={{ color: COLOR.text4, display: { xs: "none", md: "inline" }, fontSize: "11px" }}>
                   +{empty.length - 5}
                 </Typography>
               )}
@@ -434,7 +439,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
       )}
 
       {/* Messages */}
-      <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: 1.5, bgcolor: "#ededed" }}>
+      <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: 1.5, bgcolor: COLOR.surfaceAlt }}>
         {messages.map((msg, idx) => <MsgBubble key={idx} msg={msg} />)}
         {loading && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2 }}>
@@ -447,7 +452,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
 
 
       {session.status === "draft_created" && (
-        <Box sx={{ px: 1.5, py: 1, borderTop: "1px solid #e0e0e0", bgcolor: "#f0f9f0",
+        <Box sx={{ px: 1.5, py: 1, borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.primaryLight,
           display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Typography variant="caption" sx={{ color: "#2e7d32" }}>
             草稿已生成
@@ -470,7 +475,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
       {session.status !== "draft_created" && (
         <>
           {voiceMode && (
-            <Box sx={{ px: 2, py: 1, borderTop: "1px solid #d9d9d9", bgcolor: "#f5f5f5" }}>
+            <Box sx={{ px: 2, py: 1, borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface }}>
               <VoiceInput
                 onResult={(text) => { setInput((prev) => prev ? prev + text : text); setVoiceMode(false); }}
                 onCancel={() => setVoiceMode(false)}
@@ -478,22 +483,22 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
             </Box>
           )}
           {!voiceMode && (
-            <Box sx={{ borderTop: "1px solid #d9d9d9", bgcolor: "#f5f5f5", px: 1, py: 1,
+            <Box sx={{ borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, px: 1, py: 1,
               display: "flex", alignItems: "flex-end", gap: 0.5 }}>
               {/* Voice toggle */}
               {voiceSupported && (
-                <IconButton onClick={() => setVoiceMode(true)} sx={{ color: "#999", p: 1 }}>
+                <IconButton onClick={() => setVoiceMode(true)} sx={{ color: COLOR.text4, p: 1 }}>
                   <MicIcon sx={{ fontSize: 22 }} />
                 </IconButton>
               )}
               {/* Text input with suggestion chips */}
-              <Box sx={{ flex: 1, bgcolor: "#fff", borderRadius: RADIUS.sm, px: 1, py: 0.5,
+              <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1, py: 0.5,
                 display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>
                 {selectedSuggestions.map((s, i) => (
                   <Box key={i} sx={{
                     display: "inline-flex", alignItems: "center", gap: 0.5,
                     px: 1, py: 0.5, borderRadius: RADIUS.lg, fontSize: TYPE.secondary.fontSize,
-                    bgcolor: COLOR.successLight, color: "#07C160", fontWeight: 500, flexShrink: 0,
+                    bgcolor: COLOR.successLight, color: COLOR.primary, fontWeight: 500, flexShrink: 0,
                   }}>
                     {s}
                     <Box component="span"
@@ -513,13 +518,13 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
                 />
               </Box>
               {/* Action panel toggle (camera, gallery, file) */}
-              <IconButton onClick={() => setActionPanelOpen(true)} sx={{ color: "#999", p: 1 }}>
+              <IconButton onClick={() => setActionPanelOpen(true)} sx={{ color: COLOR.text4, p: 1 }}>
                 <AddCircleOutlineIcon sx={{ fontSize: 24 }} />
               </IconButton>
               {/* Send button */}
               <IconButton onClick={() => handleSend()} disabled={loading || (!input.trim() && selectedSuggestions.length === 0)}
-                sx={{ bgcolor: "#07C160", color: "#fff", p: 1, borderRadius: "50%",
-                  "&:hover": { bgcolor: COLOR.primaryHover }, "&.Mui-disabled": { bgcolor: "#ccc", color: "#fff" } }}>
+                sx={{ bgcolor: COLOR.primary, color: COLOR.white, p: 1, borderRadius: "50%",
+                  "&:hover": { bgcolor: COLOR.primaryHover }, "&.Mui-disabled": { bgcolor: COLOR.text4, color: COLOR.white } }}>
                 <SendOutlinedIcon fontSize="small" />
               </IconButton>
             </Box>
@@ -543,6 +548,12 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
       />
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mx: 1, mb: 0.5 }}>{error}</Alert>}
+
+      <CancelConfirm
+        open={showCancelConfirm}
+        onConfirm={() => { setShowCancelConfirm(false); handleCancel(); }}
+        onCancel={() => setShowCancelConfirm(false)}
+      />
 
       {/* Interview complete dialog — preview fields + save/diagnose */}
       <InterviewCompleteDialog

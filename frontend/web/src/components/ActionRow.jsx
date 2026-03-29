@@ -1,7 +1,8 @@
 /**
  * ActionRow — unified task/action item row with pending/done states.
  *
- * Replaces: TaskRow, ScheduledRow, SentRow (TaskPage), CompletedRow (ReviewQueuePage).
+ * Replaces: TaskRow, ScheduledRow, SentRow (TaskPage), CompletedRow (ReviewQueuePage),
+ *           and TaskChecklist rows (patient TasksTab).
  *
  * Props:
  *   title     — main text
@@ -10,13 +11,17 @@
  *   done      — checked state (green check vs empty circle)
  *   edited    — uses warning color for check (modified items)
  *   urgent    — uses warning color for right text
+ *   overdue   — uses danger color for right text
  *   icon      — custom left element (overrides checkbox)
+ *   badge     — ReactNode rendered between content and right (e.g., StatusBadge)
+ *   action    — ReactNode rendered after right (e.g., upload button)
  *   onClick   — row tap handler (adds chevron)
  *   onToggle  — checkbox tap handler (animated complete/uncomplete)
  *
  * @example
  *   <ActionRow title="术后复查CT" subtitle="..." right="2026-03-27" onToggle={...} onClick={...} />
  *   <ActionRow title="三叉神经痛" subtitle="已确认" done right="昨天" onClick={...} />
+ *   <ActionRow title="复查血常规" right="04-05" overdue badge={<StatusBadge ... />} action={<AppButton>上传</AppButton>} />
  */
 import { useState } from "react";
 import { Box, Typography } from "@mui/material";
@@ -25,7 +30,7 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import { TYPE, COLOR } from "../theme";
 
-export default function ActionRow({ title, subtitle, right, done = false, edited = false, urgent = false, onClick, onToggle, icon, sx }) {
+export default function ActionRow({ title, subtitle, right, done = false, edited = false, urgent = false, overdue = false, onClick, onToggle, icon, badge, action, sx }) {
   const [toggling, setToggling] = useState(false);
 
   const handleToggle = (e) => {
@@ -94,17 +99,23 @@ export default function ActionRow({ title, subtitle, right, done = false, edited
         )}
       </Box>
 
+      {/* Badge (e.g., StatusBadge for urgency) */}
+      {badge}
+
       {/* Right: date/label */}
       {right && (
         <Typography sx={{
           fontSize: TYPE.caption.fontSize,
-          color: urgent ? COLOR.warning : COLOR.text4,
-          fontWeight: urgent ? 500 : 400,
+          color: overdue ? COLOR.danger : urgent ? COLOR.warning : done ? COLOR.primary : COLOR.text4,
+          fontWeight: overdue || urgent ? 500 : 400,
           flexShrink: 0, whiteSpace: "nowrap",
         }}>
           {right}
         </Typography>
       )}
+
+      {/* Action (e.g., upload button) */}
+      {action}
 
       {/* Chevron for clickable rows */}
       {onClick && !dimmed && (

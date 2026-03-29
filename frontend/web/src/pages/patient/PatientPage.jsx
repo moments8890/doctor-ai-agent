@@ -30,6 +30,7 @@ import RecordsTab from "./RecordsTab";
 import TasksTab from "./TasksTab";
 import ProfileTab from "./ProfileTab";
 import InterviewPage from "./InterviewPage";
+import { COLOR } from "../../theme";
 
 const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
@@ -169,7 +170,7 @@ export default function PatientPage() {
       <BottomNavigation value={tab} onChange={(_, v) => setTab(v)} showLabels
         sx={{
           flexShrink: 0, height: 56,
-          borderTop: "1px solid #ddd", bgcolor: "#f5f5f5",
+          borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface,
           paddingBottom: "env(safe-area-inset-bottom)",
         }}>
         {NAV_TABS.map(t => (
@@ -179,7 +180,7 @@ export default function PatientPage() {
                 ? <Badge badgeContent={unreadCount} color="error">{t.icon}</Badge>
                 : t.icon
             }
-            sx={{ "&.Mui-selected": { color: "#07C160" } }} />
+            sx={{ "&.Mui-selected": { color: COLOR.primary } }} />
         ))}
       </BottomNavigation>
     </Box>

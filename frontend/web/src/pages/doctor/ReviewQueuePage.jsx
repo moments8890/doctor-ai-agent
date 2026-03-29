@@ -19,12 +19,14 @@ import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import EmptyState from "../../components/EmptyState";
+import SectionLoading from "../../components/SectionLoading";
 import NameAvatar from "../../components/NameAvatar";
 import SectionLabel from "../../components/SectionLabel";
 import ActionRow from "../../components/ActionRow";
 import SubpageHeader from "../../components/SubpageHeader";
 import SheetDialog from "../../components/SheetDialog";
 import AppButton from "../../components/AppButton";
+import DialogFooter from "../../components/DialogFooter";
 import ReplyCard from "../../components/doctor/ReplyCard";
 import { TYPE, COLOR, RADIUS } from "../../theme";
 import { markOnboardingStep, ONBOARDING_STEP } from "./constants";
@@ -139,7 +141,7 @@ function PendingReviewCard({ item, onNavigate }) {
               sx={{
                 fontSize: 10, fontWeight: 600,
                 borderRadius: RADIUS.sm, px: 0.5, py: 0.5,
-                bgcolor: urgencyColor, color: "#fff",
+                bgcolor: urgencyColor, color: COLOR.white,
                 lineHeight: 1.5,
               }}
             >
@@ -206,7 +208,7 @@ function PendingReviewCard({ item, onNavigate }) {
       {hasCaseMemory && (
         <Box sx={{
           mx: 2, mb: 1,
-          bgcolor: "#f0faf4", borderRadius: RADIUS.md,
+          bgcolor: COLOR.primaryLight, borderRadius: RADIUS.md,
           padding: "10px 12px",
         }}>
           <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>
@@ -287,12 +289,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    if (!doctorId) return;
-    if (source === "reply_proof") {
-      markOnboardingStep(doctorId, ONBOARDING_STEP.reply);
-    }
-  }, [doctorId, source]);
+  // Step 3 onboarding: mark complete only when doctor sends a reply (not on page visit)
 
   function handleNavigate(item) {
     navigate(`/doctor/review/${item.record_id}`);
@@ -303,6 +300,9 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
     setSending(true);
     try {
       await (api.sendDraft || (() => Promise.resolve()))(confirmItem.id, doctorId);
+      if (source === "reply_proof") {
+        markOnboardingStep(doctorId, ONBOARDING_STEP.reply);
+      }
       setDrafts((prev) => prev.filter((m) => m.id !== confirmItem.id));
       setConfirmItem(null);
     } catch {
@@ -380,9 +380,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
 
         {/* Loading */}
         {loading && (
-          <Box sx={{ p: 3, textAlign: "center" }}>
-            <CircularProgress size={20} />
-          </Box>
+          <SectionLoading />
         )}
 
         {/* Pending items */}
@@ -485,7 +483,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
 
         {/* Bottom disclaimer */}
         <Box sx={{ py: 2, textAlign: "center" }}>
-          <Typography sx={{ fontSize: 10, color: "#c0c0c0" }}>
+          <Typography sx={{ fontSize: 10, color: COLOR.text4 }}>
             AI建议仅供参考，请结合临床判断
           </Typography>
         </Box>
@@ -498,14 +496,14 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
         title="确认发送"
         desktopMaxWidth={400}
         footer={
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <AppButton variant="secondary" size="md" sx={{ flex: 1 }} onClick={() => setConfirmItem(null)}>
-              取消
-            </AppButton>
-            <AppButton variant="primary" size="md" sx={{ flex: 1 }} onClick={handleSendDraft} disabled={sending}>
-              {sending ? "发送中..." : "发送"}
-            </AppButton>
-          </Box>
+          <DialogFooter
+            onCancel={() => setConfirmItem(null)}
+            onConfirm={handleSendDraft}
+            confirmLabel="发送"
+            confirmDisabled={sending}
+            confirmLoading={sending}
+            confirmLoadingLabel="发送中..."
+          />
         }
       >
         {confirmItem && (

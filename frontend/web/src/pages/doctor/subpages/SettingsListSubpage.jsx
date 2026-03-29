@@ -27,22 +27,22 @@ function SettingsRow({ icon, label, sublabel, onClick, danger }) {
     <Box onClick={onClick} sx={{
       display: "flex", alignItems: "center", px: 2, py: 1.5,
       cursor: onClick ? "pointer" : "default",
-      borderBottom: "0.5px solid #f0f0f0",
+      borderBottom: `0.5px solid ${COLOR.borderLight}`,
       "&:active": onClick ? { bgcolor: COLOR.surface } : {},
     }}>
       <Box sx={{
         width: 36, height: 36, borderRadius: RADIUS.sm,
-        bgcolor: danger ? "#fef2f2" : "#f0faf4",
+        bgcolor: danger ? COLOR.dangerLight : COLOR.primaryLight,
         display: "flex", alignItems: "center", justifyContent: "center",
         flexShrink: 0, mr: 1.5,
       }}>
         {icon}
       </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: TYPE.action.fontSize, color: danger ? COLOR.danger : "#111" }}>{label}</Typography>
+        <Typography sx={{ fontSize: TYPE.action.fontSize, color: danger ? COLOR.danger : COLOR.text1 }}>{label}</Typography>
         {sublabel && <Typography variant="caption" color="text.secondary">{sublabel}</Typography>}
       </Box>
-      {onClick && !danger && <ArrowBackIcon sx={{ fontSize: ICON.sm, color: "#ccc", transform: "rotate(180deg)" }} />}
+      {onClick && !danger && <ArrowBackIcon sx={{ fontSize: ICON.sm, color: COLOR.text4, transform: "rotate(180deg)" }} />}
     </Box>
   );
 }
@@ -62,13 +62,13 @@ function BulkExportRow({ status, progress, onClick }) {
     <Box onClick={generating ? undefined : onClick} sx={{
       display: "flex", alignItems: "center", px: 2, py: 1.5,
       cursor: generating ? "default" : "pointer",
-      borderBottom: "0.5px solid #f0f0f0",
+      borderBottom: `0.5px solid ${COLOR.borderLight}`,
       "&:active": generating ? {} : { bgcolor: COLOR.surface },
       opacity: generating ? 0.75 : 1,
     }}>
       <Box sx={{
         width: 36, height: 36, borderRadius: RADIUS.sm,
-        bgcolor: failed ? "#fef2f2" : "#f0f0fa",
+        bgcolor: failed ? COLOR.dangerLight : "#f0f0fa",
         display: "flex", alignItems: "center", justifyContent: "center",
         flexShrink: 0, mr: 1.5,
       }}>
@@ -78,10 +78,10 @@ function BulkExportRow({ status, progress, onClick }) {
         }
       </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: TYPE.action.fontSize, color: failed ? COLOR.danger : "#111" }}>导出全部数据</Typography>
+        <Typography sx={{ fontSize: TYPE.action.fontSize, color: failed ? COLOR.danger : COLOR.text1 }}>导出全部数据</Typography>
         <Typography variant="caption" color="text.secondary">{sublabel}</Typography>
       </Box>
-      {!generating && !failed && <ArrowBackIcon sx={{ fontSize: ICON.sm, color: "#ccc", transform: "rotate(180deg)" }} />}
+      {!generating && !failed && <ArrowBackIcon sx={{ fontSize: ICON.sm, color: COLOR.text4, transform: "rotate(180deg)" }} />}
     </Box>
   );
 }
@@ -109,7 +109,7 @@ export default function SettingsListSubpage({
   children,
 }) {
   const content = (
-    <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
+    <Box sx={{ flex: 1, overflowY: "auto", bgcolor: COLOR.surfaceAlt }}>
       <SectionLabel>账户</SectionLabel>
       <AccountCard
         name={doctorName || doctorId}
@@ -123,7 +123,7 @@ export default function SettingsListSubpage({
       />
 
       <SectionLabel>工具</SectionLabel>
-      <Box sx={{ bgcolor: "#fff" }}>
+      <Box sx={{ bgcolor: COLOR.white }}>
         <SettingsRow icon={<UploadFileOutlinedIcon sx={{ color: COLOR.primary, fontSize: ICON.lg }} />}
           label="报告模板" sublabel="自定义门诊病历报告格式" onClick={onTemplate} />
         <SettingsRow icon={<MenuBookOutlinedIcon sx={{ color: "#5b9bd5", fontSize: ICON.lg }} />}
@@ -134,10 +134,10 @@ export default function SettingsListSubpage({
       </Box>
 
       <SectionLabel>通用</SectionLabel>
-      <Box sx={{ bgcolor: "#fff" }}>
-        <SettingsRow icon={<InfoOutlinedIcon sx={{ color: "#999", fontSize: ICON.lg }} />}
+      <Box sx={{ bgcolor: COLOR.white }}>
+        <SettingsRow icon={<InfoOutlinedIcon sx={{ color: COLOR.text4, fontSize: ICON.lg }} />}
           label="关于" sublabel="版本信息" onClick={onAbout} />
-        <SettingsRow icon={<PolicyOutlinedIcon sx={{ color: "#999", fontSize: ICON.lg }} />}
+        <SettingsRow icon={<PolicyOutlinedIcon sx={{ color: COLOR.text4, fontSize: ICON.lg }} />}
           label="隐私政策" sublabel="数据使用与保护" onClick={onPrivacy} />
       </Box>
 
@@ -145,8 +145,8 @@ export default function SettingsListSubpage({
         <>
           <SectionLabel>账户操作</SectionLabel>
           <Box onClick={onLogout} sx={{
-            bgcolor: "#fff", py: 1.5, textAlign: "center", cursor: "pointer",
-            borderBottom: "0.5px solid #f0f0f0", "&:active": { bgcolor: COLOR.surface },
+            bgcolor: COLOR.white, py: 1.5, textAlign: "center", cursor: "pointer",
+            borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:active": { bgcolor: COLOR.surface },
           }}>
             <Typography sx={{ fontSize: TYPE.action.fontSize, color: COLOR.danger }}>退出登录</Typography>
           </Box>

@@ -148,7 +148,7 @@ export default function PatientPickerDialog({ open, onClose, doctorId, onSelect 
             "& .MuiOutlinedInput-root": {
               borderRadius: RADIUS.sm,
               bgcolor: COLOR.white,
-              "& fieldset": { borderColor: "#e0e0e0" },
+              "& fieldset": { borderColor: COLOR.border },
               "&.Mui-focused fieldset": { borderColor: COLOR.primary },
             },
           }}

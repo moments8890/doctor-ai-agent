@@ -165,12 +165,12 @@ export default function InterviewPage({ token, onBack, onLogout }) {
       />
 
       {/* Progress bar */}
-      <Box sx={{ px: 2, py: 0.5, bgcolor: "#fff", borderBottom: "1px solid #f0f0f0" }}>
+      <Box sx={{ px: 2, py: 0.5, bgcolor: COLOR.white, borderBottom: `1px solid ${COLOR.borderLight}` }}>
         <LinearProgress variant="determinate"
           value={progress.total ? (progress.filled / progress.total) * 100 : 0}
-          sx={{ height: 6, borderRadius: 3, bgcolor: "#e0e0e0",
-            "& .MuiLinearProgress-bar": { bgcolor: "#07C160", borderRadius: 3 } }} />
-        <Typography variant="caption" sx={{ color: "#999", mt: 0.5, display: "block" }}>
+          sx={{ height: 6, borderRadius: 3, bgcolor: COLOR.border,
+            "& .MuiLinearProgress-bar": { bgcolor: COLOR.primary, borderRadius: 3 } }} />
+        <Typography variant="caption" sx={{ color: COLOR.text4, mt: 0.5, display: "block" }}>
           {progress.total ? Math.round((progress.filled / progress.total) * 100) : 0}%
         </Typography>
       </Box>
@@ -181,15 +181,15 @@ export default function InterviewPage({ token, onBack, onLogout }) {
           <Box key={i} sx={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", mb: 1.5 }}>
             <Box sx={{
               maxWidth: "80%", px: 2, py: 1.5, borderRadius: 2,
-              bgcolor: msg.role === "user" ? "#95ec69" : "#fff",
-              color: "#333", fontSize: "0.9rem", lineHeight: 1.6,
+              bgcolor: msg.role === "user" ? "#95ec69" : COLOR.white,
+              color: COLOR.text2, fontSize: "0.9rem", lineHeight: 1.6,
               whiteSpace: "pre-wrap", wordBreak: "break-word",
             }}>{msg.content}</Box>
           </Box>
         ))}
         {sending && (
           <Box sx={{ display: "flex", justifyContent: "flex-start", mb: 1.5 }}>
-            <Box sx={{ px: 2, py: 1.5, borderRadius: 2, bgcolor: "#fff" }}><CircularProgress size={16} /></Box>
+            <Box sx={{ px: 2, py: 1.5, borderRadius: 2, bgcolor: COLOR.white }}><CircularProgress size={16} /></Box>
           </Box>
         )}
         <div ref={chatEndRef} />
@@ -209,11 +209,11 @@ export default function InterviewPage({ token, onBack, onLogout }) {
       {/* Input with selected chips */}
       {canInput && (
         <Box component="form" onSubmit={handleSend}
-          sx={{ display: "flex", alignItems: "flex-end", gap: 1, px: 2, py: 1, bgcolor: "#f5f5f5",
-            borderTop: suggestions.length > 0 ? "none" : "1px solid #ddd", flexShrink: 0 }}>
+          sx={{ display: "flex", alignItems: "flex-end", gap: 1, px: 2, py: 1, bgcolor: COLOR.surface,
+            borderTop: suggestions.length > 0 ? "none" : `1px solid ${COLOR.border}`, flexShrink: 0 }}>
           {voiceSupported && (
             <IconButton onClick={() => setVoiceMode(v => !v)}
-              sx={{ color: "#666", flexShrink: 0, alignSelf: "center" }}
+              sx={{ color: COLOR.text3, flexShrink: 0, alignSelf: "center" }}
               aria-label={voiceMode ? "切换键盘" : "切换语音"}>
               {voiceMode ? <KeyboardOutlinedIcon /> : <MicNoneOutlinedIcon />}
             </IconButton>
@@ -226,7 +226,7 @@ export default function InterviewPage({ token, onBack, onLogout }) {
                     <Box key={i} sx={{
                       display: "inline-flex", alignItems: "center", gap: 0.5,
                       px: 1, py: 0.5, borderRadius: RADIUS.lg, fontSize: TYPE.secondary.fontSize,
-                      bgcolor: COLOR.successLight, color: "#07C160", fontWeight: 500, flexShrink: 0,
+                      bgcolor: COLOR.successLight, color: COLOR.primary, fontWeight: 500, flexShrink: 0,
                     }}>
                       {s}
                       <Box component="span"
@@ -244,13 +244,13 @@ export default function InterviewPage({ token, onBack, onLogout }) {
               />
             </Box>
           ) : (
-            <Box sx={{ flex: 1, bgcolor: "#fff", borderRadius: RADIUS.md, border: "1px solid #e0e0e0",
+            <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.md, border: `1px solid ${COLOR.border}`,
               px: 1, py: 0.5, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>
               {selectedSuggestions.map((s, i) => (
                 <Box key={i} sx={{
                   display: "inline-flex", alignItems: "center", gap: 0.5,
                   px: 1, py: 0.5, borderRadius: RADIUS.lg, fontSize: TYPE.secondary.fontSize,
-                  bgcolor: COLOR.successLight, color: "#07C160", fontWeight: 500,
+                  bgcolor: COLOR.successLight, color: COLOR.primary, fontWeight: 500,
                   flexShrink: 0,
                 }}>
                   {s}
@@ -270,14 +270,14 @@ export default function InterviewPage({ token, onBack, onLogout }) {
             </Box>
           )}
           <IconButton type="submit" disabled={(!input.trim() && selectedSuggestions.length === 0) || sending}
-            sx={{ color: "#07C160", flexShrink: 0, alignSelf: "center" }}>
+            sx={{ color: COLOR.primary, flexShrink: 0, alignSelf: "center" }}>
             <SendIcon />
           </IconButton>
         </Box>
       )}
       {status === "confirmed" && (
-        <Box sx={{ px: 2, py: 2, bgcolor: "#f5f5f5", textAlign: "center", flexShrink: 0 }}>
-          <Button variant="contained" onClick={onBack} sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: COLOR.primaryHover } }}>返回病历</Button>
+        <Box sx={{ px: 2, py: 2, bgcolor: COLOR.surface, textAlign: "center", flexShrink: 0 }}>
+          <Button variant="contained" onClick={onBack} sx={{ bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover } }}>返回病历</Button>
         </Box>
       )}
 

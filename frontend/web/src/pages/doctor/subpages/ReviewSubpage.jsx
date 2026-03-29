@@ -186,7 +186,7 @@ export default function ReviewSubpage({
               {finalizing ? "提交中..." : "完成审核"}
             </Button>
           </Box>
-          <Typography sx={{ fontSize: 10, color: "#c0c0c0", textAlign: "center", mt: 0.5 }}>
+          <Typography sx={{ fontSize: 10, color: COLOR.text4, textAlign: "center", mt: 0.5 }}>
             AI建议仅供参考
           </Typography>
         </Box>

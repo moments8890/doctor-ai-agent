@@ -26,6 +26,7 @@ import SectionLabel from "../../components/SectionLabel";
 import StatusBadge from "../../components/StatusBadge";
 import NameAvatar from "../../components/NameAvatar";
 import EmptyState from "../../components/EmptyState";
+import SectionLoading from "../../components/SectionLoading";
 import PatientDetail from "./patients/PatientDetail";
 import SubpageHeader from "../../components/SubpageHeader";
 import InterviewPage from "./InterviewPage";
@@ -68,7 +69,7 @@ function TriageDot({ triageCategory }) {
     <Box component="span" sx={{
       display: "inline-block", fontSize: 10, fontWeight: 600,
       px: 0.5, py: 0.5, borderRadius: RADIUS.sm,
-      bgcolor: color, color: "#fff", lineHeight: 1.5,
+      bgcolor: color, color: COLOR.white, lineHeight: 1.5,
       flexShrink: 0, ml: 0.5,
     }}>
       {label}
@@ -102,7 +103,7 @@ function PatientRow({ patient, aiTag, onClick }) {
         </Box>
       }
       subtitle={subtitle}
-      right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>{timeStr}</Typography>}
+      right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{timeStr}</Typography>}
       onClick={onClick}
     />
   );
@@ -143,34 +144,34 @@ function AIAttentionSection({ attention, navigate }) {
 
 function ImportCard({ importing, importError, onFileClick, onChatClick }) {
   return (
-    <Box sx={{ bgcolor: "#f7f7f7", borderBottom: "1px solid #e5e5e5" }}>
+    <Box sx={{ bgcolor: COLOR.surface, borderBottom: `1px solid ${COLOR.border}` }}>
       <Box sx={{ px: 2, py: 0.5 }}>
-        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#aaa", fontWeight: 600, letterSpacing: 0.3 }}>导入患者</Typography>
+        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, fontWeight: 600, letterSpacing: 0.3 }}>导入患者</Typography>
       </Box>
       <Box onClick={onFileClick}
-        sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1, bgcolor: "#fff",
-          borderBottom: "1px solid #f2f2f2", cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
-          "&:hover": { bgcolor: "#f5f5f5" }, "&:active": { bgcolor: "#ebebeb" } }}>
+        sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1, bgcolor: COLOR.white,
+          borderBottom: `1px solid ${COLOR.borderLight}`, cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
+          "&:hover": { bgcolor: COLOR.surface }, "&:active": { bgcolor: COLOR.surfaceAlt } }}>
         <Box sx={{ width: 36, height: 36, borderRadius: RADIUS.md, bgcolor: COLOR.successLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          {importing ? <CircularProgress size={18} sx={{ color: "#07C160" }} /> : <UploadFileOutlinedIcon sx={{ fontSize: ICON.lg, color: "#07C160" }} />}
+          {importing ? <CircularProgress size={18} sx={{ color: COLOR.primary }} /> : <UploadFileOutlinedIcon sx={{ fontSize: ICON.lg, color: COLOR.primary }} />}
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 500 }}>{importing ? "解析中…" : "上传 PDF / 图片"}</Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#aaa" }}>出院小结、检验报告、门诊病历</Typography>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>出院小结、检验报告、门诊病历</Typography>
         </Box>
-        <KeyboardArrowDownIcon sx={{ fontSize: ICON.md, color: "#ccc", transform: "rotate(-90deg)" }} />
+        <KeyboardArrowDownIcon sx={{ fontSize: ICON.md, color: COLOR.text4, transform: "rotate(-90deg)" }} />
       </Box>
       <Box onClick={onChatClick}
-        sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1, bgcolor: "#fff",
-          cursor: "pointer", "&:hover": { bgcolor: "#f5f5f5" }, "&:active": { bgcolor: "#ebebeb" } }}>
-        <Box sx={{ width: 36, height: 36, borderRadius: RADIUS.md, bgcolor: "#e3f2fd", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <ChatOutlinedIcon sx={{ fontSize: ICON.lg, color: "#1976d2" }} />
+        sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1, bgcolor: COLOR.white,
+          cursor: "pointer", "&:hover": { bgcolor: COLOR.surface }, "&:active": { bgcolor: COLOR.surfaceAlt } }}>
+        <Box sx={{ width: 36, height: 36, borderRadius: RADIUS.md, bgcolor: COLOR.accentLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <ChatOutlinedIcon sx={{ fontSize: ICON.lg, color: COLOR.accent }} />
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 500 }}>粘贴微信聊天记录</Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#aaa" }}>在聊天框直接粘贴，自动提取创建</Typography>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>在聊天框直接粘贴，自动提取创建</Typography>
         </Box>
-        <KeyboardArrowDownIcon sx={{ fontSize: ICON.md, color: "#ccc", transform: "rotate(-90deg)" }} />
+        <KeyboardArrowDownIcon sx={{ fontSize: ICON.md, color: COLOR.text4, transform: "rotate(-90deg)" }} />
       </Box>
       {importError && (
         <Box sx={{ px: 2, py: 1, bgcolor: COLOR.dangerLight }}>
@@ -185,7 +186,7 @@ function SearchBar({ patients, search, nlResults, nlLoading, onChange, onSubmit 
   const q = search.trim();
   const showNlBtn = q && isNLQuery(q) && nlResults === null;
   return (
-    <Box sx={{ px: 1.5, py: 1, borderBottom: "0.5px solid #f0f0f0", bgcolor: "#ededed" }}>
+    <Box sx={{ px: 1.5, py: 1, borderBottom: `0.5px solid ${COLOR.borderLight}`, bgcolor: COLOR.surfaceAlt }}>
       <TextField
         size="small" fullWidth
         placeholder={`搜索患者${patients.length > 0 ? ` (共${patients.length}人)` : ""}，或用自然语言描述`}
@@ -200,18 +201,18 @@ function SearchBar({ patients, search, nlResults, nlLoading, onChange, onSubmit 
           ),
           endAdornment: showNlBtn ? (
             <InputAdornment position="end">
-              <Box onClick={onSubmit} sx={{ fontSize: TYPE.micro.fontSize, color: "#07C160", cursor: "pointer", whiteSpace: "nowrap", pr: 0.5 }}>
+              <Box onClick={onSubmit} sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, cursor: "pointer", whiteSpace: "nowrap", pr: 0.5 }}>
                 智能搜索
               </Box>
             </InputAdornment>
           ) : null,
         }}
-        sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.sm, bgcolor: "#fff" } }}
+        sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.sm, bgcolor: COLOR.white } }}
       />
       {nlResults !== null && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, pt: 0.5 }}>
-          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#888" }}>智能搜索结果 ({nlResults.length}人)</Typography>
-          <Box onClick={() => onChange("")} sx={{ fontSize: TYPE.micro.fontSize, color: "#07C160", cursor: "pointer" }}>清除</Box>
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>智能搜索结果 ({nlResults.length}人)</Typography>
+          <Box onClick={() => onChange("")} sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, cursor: "pointer" }}>清除</Box>
         </Box>
       )}
     </Box>
@@ -248,12 +249,12 @@ function PatientListPane({ patients, loading, error, search, nlResults, nlLoadin
     <>
       <SearchBar patients={patients} search={search} nlResults={nlResults} nlLoading={nlLoading} onChange={onSearchChange} onSubmit={onSearchSubmit} />
       {error && <Alert severity="error" action={<Button size="small" onClick={onLoad}>重试</Button>}>{error}</Alert>}
-      <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
-        {loading && <Box sx={{ p: 2, textAlign: "center" }}><CircularProgress size={20} /></Box>}
+      <Box sx={{ flex: 1, overflowY: "auto", bgcolor: COLOR.surfaceAlt }}>
+        {loading && <SectionLoading py={2} />}
         {!loading && !search.trim() && <NewItemCard title="新建患者" subtitle="添加新的患者档案" onClick={onStartInterview} />}
         <input ref={importFileRef} type="file" hidden accept=".pdf,image/jpeg,image/png,image/webp" onChange={onFileInputChange} />
         {!loading && (
-          <SectionLabel sx={{ bgcolor: "#f7f7f7", borderTop: "0.5px solid #f0f0f0", borderBottom: "0.5px solid #f0f0f0" }}>
+          <SectionLabel sx={{ bgcolor: COLOR.surface, borderTop: `0.5px solid ${COLOR.borderLight}`, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
             最近 · {filtered.length}位患者
           </SectionLabel>
         )}
@@ -339,7 +340,7 @@ function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selec
 
 function MobilePatientDetailView({ selectedPatient, doctorId, navigate, onStartInterview }) {
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#ededed" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
       <Box sx={{ flex: 1, overflow: "hidden" }}>
         <PatientDetail patient={selectedPatient} doctorId={doctorId} onStartInterview={onStartInterview} />
       </Box>
@@ -386,7 +387,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
 
   // Mobile subpage override: interview or patient detail
   const mobileSubpage = isMobile && interviewActive ? (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surface }}>
       <InterviewPage doctorId={doctorId}
         sessionId={chatInterviewSessionId}
         patientContext={interviewPatient}
@@ -395,7 +396,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
         onCancel={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); navigate(-1); }} />
     </Box>
   ) : isMobile && selectedId ? (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "#f7f7f7" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surface }}>
       <SubpageHeader title={selectedPatient?.name || ""} onBack={() => navigate(-1)}
         right={
           <BarButton onClick={handleStartInterview}>门诊</BarButton>

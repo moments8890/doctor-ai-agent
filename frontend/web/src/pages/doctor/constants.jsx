@@ -149,9 +149,9 @@ export const DIAGNOSIS_STATUS_LABEL = {
 };
 
 export const DIAGNOSIS_STATUS_COLOR = {
-  pending: "#1890ff",
-  completed: "#07C160",
-  confirmed: "#999",
+  pending: COLOR.accent,
+  completed: COLOR.primary,
+  confirmed: COLOR.text4,
   failed: COLOR.danger,
 };
 
@@ -309,7 +309,7 @@ export const ICON_BADGES = {
 
   // Knowledge sources
   kb_doctor:    { icon: EditNoteOutlinedIcon, bg: COLOR.primary },
-  kb_ai:        { icon: SmartToyOutlinedIcon, bg: "#999" },
+  kb_ai:        { icon: SmartToyOutlinedIcon, bg: COLOR.text4 },
   kb_upload:    { icon: DescriptionOutlinedIcon, bg: COLOR.primary },
   kb_url:       { icon: LinkOutlinedIcon, bg: COLOR.accent },
   kb_add:       { icon: AddCircleOutlineIcon, bg: COLOR.primary },
@@ -323,7 +323,7 @@ export const ICON_BADGES = {
   ai:           { icon: SmartToyOutlinedIcon, bg: COLOR.primary },
   doctor:       { icon: LocalHospitalOutlinedIcon, bg: COLOR.accent },
   patient:      { icon: PersonOutlineIcon, bg: COLOR.accent },
-  notification: { icon: NotificationsNoneOutlinedIcon, bg: "#f0f0f0", color: "#999" },
+  notification: { icon: NotificationsNoneOutlinedIcon, bg: COLOR.borderLight, color: COLOR.text4 },
 
   // Record types
   rec_visit:     { icon: LocalHospitalOutlinedIcon, bg: COLOR.primary },

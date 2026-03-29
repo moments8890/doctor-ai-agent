@@ -38,7 +38,7 @@ const STATUS_LABEL = {
 function badgeColor(value) {
   if (value === "急诊" || value === "紧急" || value === "高") return COLOR.danger;
   if (value === "中" || value === "常规") return "#e8833a";
-  if (value === "低" || value === "观察") return "#999";
+  if (value === "低" || value === "观察") return COLOR.text4;
   if (value === "药物") return COLOR.primary;
   return COLOR.text4;
 }
@@ -48,7 +48,7 @@ function badgeColor(value) {
 function MetaBadge({ value }) {
   if (!value) return null;
   const c = badgeColor(value);
-  const bgMap = { [COLOR.danger]: COLOR.dangerLight, "#e8833a": "#FFF7E6", "#999": "#f5f5f5" };
+  const bgMap = { [COLOR.danger]: COLOR.dangerLight, "#e8833a": COLOR.warningLight, [COLOR.text4]: COLOR.surface };
   const bg = bgMap[c] || "#f0faf4";
   return (
     <Box
@@ -317,7 +317,7 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
                     onClick={(e) => { e.stopPropagation(); setCitationItem(item); }}
                     sx={{
                       fontSize: 10, fontWeight: 500,
-                      color: COLOR.link, bgcolor: "#e3f2fd",
+                      color: COLOR.link, bgcolor: COLOR.accentLight,
                       px: 1, py: 0.5, borderRadius: RADIUS.sm,
                       whiteSpace: "nowrap", flexShrink: 0, lineHeight: 1.4,
                       cursor: "pointer", maxWidth: 120,

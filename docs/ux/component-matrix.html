@@ -1,235 +1,318 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Component Matrix — Page × Component</title>
+<title>Component Matrix — Visual Catalog + Page Usage</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #fff;
-  color: #1f2328;
-}
+body { font-family: 'Noto Sans SC', -apple-system, sans-serif; background: #fff; color: #1f2328; }
 
 .header {
   position: sticky; top: 0; z-index: 10;
   background: rgba(255,255,255,0.95); backdrop-filter: blur(8px);
-  border-bottom: 1px solid #d0d7de;
-  padding: 12px 24px;
+  padding: 12px 24px 0;
 }
-.header h1 { font-size: 18px; font-weight: 700; }
-.header p { font-size: 12px; color: #656d76; margin-top: 4px; }
+.header h1 { font-size: 16px; font-weight: 600; text-align: center; color: #1A1A1A; }
+.header p { font-size: 12px; color: #999; margin-top: 4px; text-align: center; }
+/* FilterBar-style tabs: count on top, label below, amber active bar */
+.tab-bar { display: flex; margin-top: 8px; border-bottom: 0.5px solid #f0f0f0; }
+.tab {
+  flex: 1; text-align: center; padding: 8px 0 10px; cursor: pointer;
+  border-bottom: 3px solid transparent; margin-bottom: -0.5px;
+}
+.tab-count { font-size: 16px; font-weight: 700; color: #999; line-height: 1.3; }
+.tab-label { font-size: 12px; color: #999; margin-top: 2px; }
+.tab:hover .tab-count { color: #666; }
+.tab:hover .tab-label { color: #666; }
+.tab.active .tab-count { color: #F59E0B; }
+.tab.active .tab-label { color: #1A1A1A; font-weight: 600; }
+.tab.active { border-bottom-color: #F59E0B; }
+
+/* ── Catalog ── */
+.catalog { padding: 16px 24px; display: none; }
+.catalog.show { display: block; }
+.cat-section { margin-bottom: 24px; }
+.cat-title { font-size: 13px; font-weight: 700; color: #656d76; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.cat-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+.cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.comp-card {
+  border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.comp-card:hover { border-color: #07C160; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.comp-card.active { border-color: #07C160; box-shadow: 0 0 0 2px rgba(7,193,96,0.3); }
+.comp-preview { padding: 12px; background: #ededed; min-height: 48px; display: flex; align-items: center; justify-content: center; }
+.comp-meta { padding: 8px 12px; background: #fff; border-top: 1px solid #f0f0f0; }
+.comp-name { font-size: 12px; font-weight: 700; color: #1f2328; }
+.comp-file { font-size: 10px; color: #0969da; font-family: monospace; margin-top: 2px; }
+.comp-pages { font-size: 10px; color: #656d76; margin-top: 3px; }
+.comp-pages strong { color: #07C160; }
+
+/* ── Mini component mockups (inside .comp-preview) ── */
+.m { font-family: 'Noto Sans SC', sans-serif; }
+.m-row { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 4px; padding: 6px 8px; width: 100%; font-size: 11px; }
+.m-avatar { width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+.m-body { flex: 1; min-width: 0; }
+.m-title { font-size: 11px; font-weight: 600; color: #1A1A1A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-sub { font-size: 9px; color: #999; }
+.m-right { font-size: 9px; color: #999; flex-shrink: 0; }
+.m-btn { display: inline-flex; align-items: center; justify-content: center; padding: 4px 12px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+.m-btn-primary { background: #07C160; color: #fff; }
+.m-btn-secondary { background: #fff; color: #333; border: 1px solid #ccc; }
+.m-btn-danger { background: #fff; color: #D65745; border: 1px solid #D65745; }
+.m-dialog { background: #fff; border-radius: 12px; padding: 12px; width: 100%; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+.m-dialog-title { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+.m-dialog-msg { font-size: 10px; color: #666; margin-bottom: 8px; }
+.m-dialog-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.m-badge { display: inline-block; font-size: 9px; font-weight: 500; padding: 1px 5px; border-radius: 4px; border: 0.5px solid; }
+.m-empty { text-align: center; padding: 8px; color: #999; font-size: 10px; }
+.m-spinner { width: 16px; height: 16px; border: 2px solid #e5e5e5; border-top-color: #999; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.m-toast { background: rgba(0,0,0,0.7); color: #fff; padding: 4px 12px; border-radius: 8px; font-size: 10px; }
+.m-header { display: flex; align-items: center; gap: 6px; background: #fff; border-radius: 4px; padding: 6px 8px; width: 100%; border-bottom: 0.5px solid #d9d9d9; }
+.m-header-back { font-size: 14px; color: #333; }
+.m-header-title { flex: 1; text-align: center; font-size: 12px; font-weight: 600; }
+.m-header-action { font-size: 11px; color: #07C160; }
+.m-section-label { font-size: 9px; font-weight: 600; color: #666; letter-spacing: 0.3px; padding: 4px 0; }
+.m-chip { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: 500; }
+.m-chip-active { background: #07C160; color: #fff; }
+.m-chip-inactive { background: #fff; color: #999; border: 1px solid #ccc; }
+.m-record { background: #fff; border-radius: 4px; padding: 6px 8px; width: 100%; font-size: 10px; border-left: 3px solid #07C160; }
+.m-voice { display: flex; align-items: center; gap: 4px; background: #fff; border-radius: 4px; padding: 6px 10px; color: #999; font-size: 10px; }
+.m-voice-dot { width: 8px; height: 8px; border-radius: 50%; background: #D65745; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.m-timeline { display: flex; gap: 6px; width: 100%; }
+.m-timeline-rail { width: 2px; background: #f0f0f0; flex-shrink: 0; min-height: 40px; }
+.m-timeline-content { flex: 1; }
+.m-bubble { background: #fff; border-radius: 6px; padding: 4px 8px; font-size: 10px; color: #333; margin-bottom: 4px; }
+.m-filter { display: flex; gap: 4px; background: #fff; border-radius: 4px; padding: 4px 6px; width: 100%; }
+.m-diag { background: #fff; border-radius: 4px; padding: 6px 8px; width: 100%; border-left: 3px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+.m-diag-title { font-size: 11px; font-weight: 600; }
+.m-diag-status { font-size: 9px; color: #999; }
+.m-action-row { display: flex; align-items: center; gap: 6px; background: #fff; border-radius: 4px; padding: 6px 8px; width: 100%; }
+.m-checkbox { width: 14px; height: 14px; border: 1.5px solid #ccc; border-radius: 50%; flex-shrink: 0; }
+.m-checkbox.checked { background: #07C160; border-color: #07C160; }
 
 /* ── Matrix ── */
-.matrix-wrap {
-  overflow-x: auto;
-  padding: 16px 24px 24px;
-}
-table {
-  border-collapse: collapse;
-  font-size: 12px;
-  width: auto;
-}
-th, td {
-  padding: 6px 10px;
-  border: 1px solid #e5e5e5;
-  text-align: center;
-  white-space: nowrap;
-}
-th {
-  background: #f6f8fa;
-  font-weight: 600;
-  color: #1f2328;
-  position: sticky;
-  top: 56px;
-  z-index: 5;
-}
-th.row-header {
-  text-align: left;
-  position: sticky;
-  left: 0;
-  z-index: 6;
-  background: #f6f8fa;
-  min-width: 130px;
-}
-th.corner {
-  position: sticky;
-  left: 0;
-  top: 56px;
-  z-index: 7;
-  background: #f6f8fa;
-}
-td.row-label {
-  text-align: left;
-  font-weight: 500;
-  color: #0969da;
-  position: sticky;
-  left: 0;
-  background: #fff;
-  z-index: 3;
-  min-width: 130px;
-  cursor: pointer;
-}
+.matrix-section { padding: 16px 24px 24px; display: none; }
+.matrix-section.show { display: block; }
+.matrix-wrap { overflow-x: auto; }
+table { border-collapse: collapse; font-size: 12px; width: auto; }
+th, td { padding: 6px 10px; border: 1px solid #e5e5e5; text-align: center; white-space: nowrap; }
+th { background: #f6f8fa; font-weight: 600; color: #1f2328; position: sticky; top: 72px; z-index: 5; }
+th.corner { position: sticky; left: 0; top: 72px; z-index: 7; background: #f6f8fa; }
+td.row-label { text-align: left; font-weight: 500; color: #0969da; position: sticky; left: 0; background: #fff; z-index: 3; min-width: 160px; cursor: pointer; }
 td.row-label:hover { color: #0550ae; text-decoration: underline; }
 td.row-label.active-comp { background: #ddf4ff; font-weight: 700; }
-th.page-col.highlighted { background: #dafbe1; color: #1a7f37; font-weight: 700; }
-.film-card.highlighted { border-color: #0969da; box-shadow: 0 0 0 2px rgba(9,105,218,0.3); }
-.film-card.dimmed { opacity: 0.3; }
-td.dot { cursor: default; }
-.dot-on {
-  width: 14px; height: 14px; border-radius: 50%;
-  background: #07C160; display: inline-block;
-}
-.dot-off { color: #e5e5e5; }
-th.page-col {
-  writing-mode: vertical-lr;
-  text-orientation: mixed;
-  padding: 10px 6px;
-  font-size: 11px;
-  min-width: 36px;
-  cursor: pointer;
-  color: #1a7f37;
-}
+th.page-col { writing-mode: vertical-lr; text-orientation: mixed; padding: 10px 6px; font-size: 11px; min-width: 36px; cursor: pointer; color: #1a7f37; }
 th.page-col:hover { color: #07C160; }
+th.page-col.highlighted { background: #dafbe1; color: #1a7f37; font-weight: 700; }
+td.dot { cursor: default; }
+.dot-on { width: 14px; height: 14px; border-radius: 50%; background: #07C160; display: inline-block; }
+.dot-off { color: #e5e5e5; }
 
-/* ── Filmstrip ── */
-.filmstrip-header {
-  padding: 16px 24px 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2328;
-  border-top: 1px solid #e5e5e5;
-}
-.filmstrip {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-  gap: 8px;
-  padding: 8px 24px 16px;
-}
-.film-card {
-  cursor: pointer;
-  border: 1px solid #e5e5e5;
-  border-radius: 6px;
-  overflow: hidden;
-  transition: box-shadow 0.15s;
-}
-.film-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
-.film-card.active { border-color: #07C160; box-shadow: 0 0 0 2px rgba(7,193,96,0.3); }
-.film-card img {
-  width: 100%;
-  height: 160px;
-  object-fit: cover;
-  object-position: top;
-  display: block;
-}
-.film-label {
-  padding: 4px 4px;
-  font-size: 9px;
-  font-weight: 600;
-  color: #1f2328;
-  background: #f6f8fa;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ── Detail panel (row 2: expanded view) ── */
-.detail {
-  padding: 16px 24px;
-  border-top: 1px solid #e5e5e5;
-  display: none;
-}
-.detail.show { display: flex; flex-direction: row-reverse; gap: 24px; align-items: flex-start; }
-.detail-header { flex: 1; min-width: 200px; }
-.detail h3 { font-size: 16px; margin-bottom: 10px; }
-.detail .comp-list { display: flex; flex-direction: column; gap: 0; }
-.detail .comp-tag {
-  font-size: 12px; padding: 8px 12px;
-  background: #fff; color: #0969da; font-weight: 500;
-  border-left: 3px solid #0969da;
-  border-bottom: 1px solid #f0f0f0;
-  cursor: pointer;
-}
-.detail .comp-tag:hover { background: #f6f8fa; }
-.detail .comp-tag:last-child { border-bottom: none; }
-.detail-screenshot {
-  flex-shrink: 0;
-  width: 200px;
-  border: 1px solid #e5e5e5;
-  border-radius: 8px;
-  overflow: hidden;
-  cursor: pointer;
-}
-.detail-screenshot img {
-  width: 100%;
-  display: block;
-}
-.detail-screenshot:empty { display: none; }
-
-/* ── Lightbox ── */
-.lightbox {
-  display: none; position: fixed; inset: 0; z-index: 100;
-  background: rgba(0,0,0,0.85); align-items: center;
-  justify-content: center; cursor: pointer;
-}
-.lightbox.active { display: flex; }
-.lightbox img {
-  max-width: 90vw; max-height: 90vh; border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-}
+.footer { text-align: center; padding: 24px; color: #656d76; font-size: 11px; border-top: 1px solid #e5e5e5; margin-top: 24px; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>Component Matrix</h1>
-  <p>Pages × Shared Components. Green dot = page uses component. Click a page column or filmstrip card to see details.</p>
-</div>
-
-<div class="matrix-wrap" id="matrix-wrap"></div>
-
-<div class="detail" id="detail">
-  <div class="detail-header">
-    <h3 id="detail-title"></h3>
-    <div class="comp-list" id="detail-comps"></div>
+  <h1>Component System</h1>
+  <p>Visual catalog + page usage matrix. Updated 2026-03-29.</p>
+  <div class="tab-bar">
+    <div class="tab active" onclick="showTab('catalog', this)">
+      <div class="tab-count" id="tab-catalog-count">35</div>
+      <div class="tab-label">组件目录</div>
+    </div>
+    <div class="tab" onclick="showTab('matrix', this)">
+      <div class="tab-count" id="tab-matrix-count">18</div>
+      <div class="tab-label">使用矩阵</div>
+    </div>
   </div>
-  <div class="detail-screenshot" id="detail-screenshot"></div>
 </div>
 
-<div class="filmstrip-header">All Pages</div>
-<div class="filmstrip" id="filmstrip"></div>
+<div class="catalog show" id="catalog"></div>
+<div class="matrix-section" id="matrix-section">
+  <div class="matrix-wrap" id="matrix-wrap"></div>
+</div>
 
-<div class="lightbox" id="lightbox" onclick="this.classList.remove('active')">
-  <img id="lb-img" src="">
+<div class="footer">
+  Source: <code>frontend/web/src/components/</code> and <code>frontend/web/src/components/doctor/</code>.
+  Click any component card to see which pages use it.
 </div>
 
 <script>
-var IMG = 'page-screenshots/';
-
+// ── Data ──
 var PAGES = [
-  { id: 'myai', label: 'MyAI', img: 'doctor-home.png', comps: ['SubpageHeader','IconBadge','ListCard','KnowledgeCard','NameAvatar'] },
-  { id: 'patients', label: '患者', img: 'doctor-patients.png', comps: ['SubpageHeader','ListCard','NameAvatar'] },
-  { id: 'review-pending', label: '审核·门诊', img: 'doctor-review.png', comps: ['SubpageHeader','NameAvatar','IconBadge','EmptyState'] },
-  { id: 'review-replies', label: '审核·回复', img: 'doctor-review-replies.png', comps: ['MessageItem','SheetDialog','EmptyState'] },
-  { id: 'review-done', label: '审核·完成', img: 'doctor-review-completed.png', comps: ['ActionRow'] },
-  { id: 'review-detail', label: '诊断审核', img: 'doctor-review-detail.png', comps: ['SubpageHeader','DiagnosisCard','IconBadge','SheetDialog'] },
-  { id: 'tasks-pending', label: '任务·待完成', img: 'doctor-tasks.png', comps: ['SubpageHeader','ActionRow','EmptyState'] },
-  { id: 'tasks-done', label: '任务·已完成', img: 'doctor-tasks-completed.png', comps: ['ActionRow'] },
-  { id: 'settings', label: '设置', img: 'doctor-settings.png', comps: ['SubpageHeader','ListCard'] },
-  { id: 'knowledge', label: '知识库', img: 'doctor-settings-knowledge.png', comps: ['SubpageHeader','KnowledgeCard','IconBadge','ListCard','SheetDialog','EmptyState'] },
-  { id: 'patient-detail', label: '患者详情', img: 'doctor-patients-1.png', comps: ['SubpageHeader','NameAvatar','MessageItem'] },
-  { id: 'interview', label: '新建病历', img: 'doctor-patients-new.png', comps: ['SubpageHeader','VoiceInput'] },
-  { id: 'chat', label: 'AI对话', img: 'doctor-chat.png', comps: ['VoiceInput'] },
+  { id: 'myai', label: 'MyAI', comps: ['SubpageHeader','IconBadge','ListCard','KnowledgeCard','NameAvatar','SectionLabel','AppButton','EmptyState','SectionLoading'] },
+  { id: 'patients', label: '患者', comps: ['SubpageHeader','ListCard','NameAvatar','SectionLabel','StatusBadge','NewItemCard','PageSkeleton','EmptyState','SectionLoading','AskAIBar','BarButton'] },
+  { id: 'patient-detail', label: '患者详情', comps: ['RecordCard','RecordEditDialog','MessageTimeline','ExportSelectorDialog','ConfirmDialog','EmptyState','FilterBar','QRDialog'] },
+  { id: 'chat', label: 'AI对话', comps: ['SubpageHeader','VoiceInput','ActionPanel','ConfirmDialog','SheetDialog','DialogFooter','AppButton','PatientPickerDialog','ImportChoiceDialog','RecordFields','BarButton'] },
+  { id: 'interview', label: '新建病历', comps: ['SubpageHeader','VoiceInput','CancelConfirm','SuggestionChips','ActionPanel','ImportChoiceDialog','FieldReviewCard','InterviewCompleteDialog'] },
+  { id: 'review-queue', label: '审核队列', comps: ['SubpageHeader','NameAvatar','ActionRow','SectionLabel','SheetDialog','DialogFooter','EmptyState','SectionLoading','ReplyCard'] },
+  { id: 'review-detail', label: '诊断审核', comps: ['AppButton','Toast','DiagnosisCard','SubpageHeader','BarButton','CollapsibleSection','InlineEditor'] },
+  { id: 'tasks', label: '任务', comps: ['SubpageHeader','ActionRow','SectionLabel','SheetDialog','AppButton','EmptyState','SectionLoading'] },
+  { id: 'settings', label: '设置', comps: ['SubpageHeader','SheetDialog','DialogFooter','ConfirmDialog','AppButton','PageSkeleton'] },
+  { id: 'knowledge', label: '知识库', comps: ['PageSkeleton','ListCard','KnowledgeCard','EmptyState','AppButton','IconBadge'] },
+  { id: 'knowledge-detail', label: '知识详情', comps: ['PageSkeleton','SectionLabel','ListCard','ConfirmDialog','SheetDialog','DialogFooter','IconBadge'] },
+  { id: 'add-knowledge', label: '添加知识', comps: ['PageSkeleton','AppButton','SheetDialog','VoiceInput','Toast','CancelConfirm','BarButton'] },
+  { id: 'templates', label: '模板管理', comps: ['PageSkeleton','SectionLabel','ConfirmDialog','SheetDialog','DialogFooter'] },
+  { id: 'doctor-shell', label: '医生Shell', comps: ['ErrorBoundary','ConfirmDialog','SheetDialog','DialogFooter','AppButton','SubpageHeader','SuggestionChips','VoiceInput','BarButton'] },
+  { id: 'settings-list', label: '设置列表', comps: ['AccountCard','PageSkeleton','SectionLabel'] },
+  { id: 'patient-profile', label: '患者·我的', comps: ['AccountCard'] },
+  { id: 'patient-records', label: '患者·病历', comps: ['ListCard','NewItemCard','RecordTypeAvatar','DateAvatar','StatusBadge','EmptyState','SectionLoading'] },
+  { id: 'patient-tasks', label: '患者·任务', comps: ['TaskChecklist','SectionLabel','EmptyState','SectionLoading'] },
+  { id: 'patient-chat', label: '患者·聊天', comps: ['VoiceInput','DoctorBubble','ListCard','RecordTypeAvatar'] },
+  { id: 'patient-interview', label: '患者·问诊', comps: ['SubpageHeader','VoiceInput','SuggestionChips','SheetDialog','ConfirmDialog','AppButton'] },
 ];
 
-var COMPONENTS = [
-  'SubpageHeader','ListCard','ActionRow','KnowledgeCard','MessageItem',
-  'DiagnosisCard','IconBadge','SheetDialog','VoiceInput','NameAvatar','EmptyState'
+// Component catalog with visual mockups and metadata
+var CATALOG = [
+  { section: 'Layout & Structure', color: '#576B95', items: [
+    { name: 'SubpageHeader', file: 'SubpageHeader.jsx',
+      html: '<div class="m-header"><span class="m-header-back">&#8249;</span><span class="m-header-title">诊断审核</span><span class="m-header-action">完成</span></div>' },
+    { name: 'PageSkeleton', file: 'PageSkeleton.jsx',
+      html: '<div style="display:flex;flex-direction:column;width:100%;height:52px;background:#f7f7f7;border-radius:4px;overflow:hidden"><div style="display:flex;align-items:center;gap:6px;background:#fff;padding:4px 8px;border-bottom:0.5px solid #d9d9d9"><span style="font-size:12px;color:#333">&#8249;</span><span style="flex:1;text-align:center;font-size:10px;font-weight:600">知识库</span><span style="font-size:9px;color:#07C160">添加</span></div><div style="flex:1;padding:4px 6px"><div style="background:#fff;border-radius:3px;height:8px;margin-bottom:3px;width:80%"></div><div style="background:#fff;border-radius:3px;height:8px;width:60%"></div></div></div>' },
+    { name: 'SectionLabel', file: 'SectionLabel.jsx',
+      html: '<div style="width:100%;text-align:left"><div class="m-section-label">最近 · 5位患者</div></div>' },
+    { name: 'FilterBar', file: 'FilterBar.jsx',
+      html: '<div style="display:flex;width:100%;background:#fff;border-radius:4px;border-bottom:1px solid #e5e5e5"><div style="flex:1;text-align:center;padding:6px 0 8px;border-bottom:3px solid #F59E0B"><div style="font-size:14px;font-weight:700;color:#F59E0B">2</div><div style="font-size:10px;color:#1A1A1A">门诊</div></div><div style="flex:1;text-align:center;padding:6px 0 8px"><div style="font-size:14px;font-weight:700;color:#999">4</div><div style="font-size:10px;color:#999">回复</div></div><div style="flex:1;text-align:center;padding:6px 0 8px"><div style="font-size:14px;font-weight:700;color:#999">3</div><div style="font-size:10px;color:#999">完成</div></div></div>' },
+    { name: 'ErrorBoundary', file: 'ErrorBoundary.jsx',
+      html: '<div style="text-align:center;padding:8px;color:#D65745;font-size:10px;background:#fff;border-radius:4px">Something went wrong<br><span style="color:#07C160;font-size:9px">Retry</span></div>' },
+    { name: 'CollapsibleSection', file: 'CollapsibleSection.jsx',
+      html: '<div style="width:100%"><div style="display:flex;justify-content:space-between;align-items:center;background:#f6f8fa;padding:4px 8px;border-radius:4px;font-size:10px"><span style="font-weight:600;color:#666">诊断建议 (3)</span><span style="color:#999;font-size:12px">&#8964;</span></div><div style="padding:4px 8px;font-size:9px;color:#666;border-left:2px solid #f0f0f0;margin:2px 0 2px 8px">高血压2级...</div></div>' },
+    { name: 'BarButton', file: 'BarButton.jsx',
+      html: '<div style="display:flex;align-items:center;gap:6px;background:#fff;border-radius:4px;padding:4px 8px"><span style="font-size:11px;color:#07C160">清空</span><span style="color:#ccc">|</span><span style="font-size:11px;color:#07C160">完成</span></div>' },
+  ]},
+  { section: 'Content Cards', color: '#07C160', items: [
+    { name: 'ListCard', file: 'ListCard.jsx',
+      html: '<div class="m-row"><div class="m-avatar" style="background:#f0f0f0;color:#999">李</div><div class="m-body"><div class="m-title">李复诊</div><div class="m-sub">女 · 42岁 · 脑梗死</div></div><div class="m-right">&#8250;</div></div>' },
+    { name: 'ActionRow', file: 'ActionRow.jsx',
+      html: '<div style="width:100%"><div class="m-action-row" style="margin-bottom:2px"><div class="m-checkbox checked"></div><div class="m-body"><div class="m-title" style="font-size:10px">复查血常规</div><div class="m-sub">已于昨日完成</div></div><div class="m-right" style="color:#07C160">03-28</div></div><div class="m-action-row"><div class="m-checkbox"></div><div class="m-body"><div class="m-title" style="font-size:10px">术后复查CT</div><div class="m-sub">排除术后出血</div></div><span class="m-badge" style="color:#D65745;border-color:#D65745;font-size:8px">紧急</span><div class="m-right" style="color:#D65745;font-weight:500">04-01</div><div class="m-btn m-btn-secondary" style="font-size:8px;padding:2px 6px">上传</div></div></div>' },
+    { name: 'KnowledgeCard', file: 'KnowledgeCard.jsx',
+      html: '<div class="m-row"><div class="m-avatar" style="background:#E7F7EE;color:#07C160;font-size:12px">&#x270E;</div><div class="m-body"><div class="m-title" style="font-size:10px">高血压分级用药规则</div><div class="m-sub">3级首选ARB+CCB联合</div><div class="m-sub" style="color:#07C160">引用 5 次</div></div><div class="m-right">&#8250;</div></div>' },
+    { name: 'RecordCard', file: 'RecordCard.jsx',
+      html: '<div class="m-record"><div style="display:flex;justify-content:space-between"><span style="font-size:10px;font-weight:600">门诊记录</span><span style="font-size:9px;color:#999">03-28</span></div><div style="font-size:9px;color:#666;margin-top:2px">头痛3天, 伴眩晕</div></div>' },
+    { name: 'NewItemCard', file: 'NewItemCard.jsx',
+      html: '<div class="m-row" style="border:1px dashed #ccc;justify-content:center;color:#07C160;font-size:11px;font-weight:600">+ 新建患者</div>' },
+    { name: 'AccountCard', file: 'AccountCard.jsx',
+      html: '<div class="m-row"><div class="m-avatar" style="background:#07C160;color:#fff;width:36px;height:36px;font-size:14px">张</div><div class="m-body"><div class="m-title">张医生</div><div class="m-sub">神经内科 · ID 12345</div><div style="display:flex;gap:8px;margin-top:3px;font-size:9px;color:#666"><span>电话 138****1234</span><span>建档 03-01</span></div></div></div>' },
+    { name: 'DetailCard', file: 'DetailCard.jsx',
+      html: '<div style="background:#fff;border-radius:4px;padding:6px 8px;width:100%;font-size:9px"><div style="font-weight:600;font-size:10px;margin-bottom:4px">任务详情</div><div style="display:grid;grid-template-columns:40px 1fr;gap:2px 8px;color:#666"><span style="color:#999">类型</span><span>复查</span><span style="color:#999">截止</span><span>04-05</span></div></div>' },
+  ]},
+  { section: 'Avatars & Badges', color: '#8993a4', items: [
+    { name: 'NameAvatar', file: 'NameAvatar.jsx',
+      html: '<div style="display:flex;gap:8px;align-items:center"><div class="m-avatar" style="background:#f0f0f0;color:#999;position:relative">王<div style="position:absolute;top:-2px;right:-2px;width:7px;height:7px;border-radius:50%;background:#D65745;border:1.5px solid #fff"></div></div><div style="font-size:10px;color:#666">Gray + status dot</div></div>' },
+    { name: 'IconBadge', file: 'IconBadge.jsx',
+      html: '<div style="display:flex;gap:6px"><div class="m-avatar" style="background:#E7F7EE;color:#07C160;font-size:14px">&#x2695;</div><div class="m-avatar" style="background:#EEF1F6;color:#576B95;font-size:14px">&#x2697;</div><div class="m-avatar" style="background:#f0f0f0;color:#8993a4;font-size:14px">&#x270E;</div></div>' },
+    { name: 'StatusBadge', file: 'StatusBadge.jsx',
+      html: '<div style="display:flex;gap:4px"><span class="m-badge" style="color:#D65745;border-color:#D65745">高</span><span class="m-badge" style="color:#F59E0B;border-color:#F59E0B">中</span><span class="m-badge" style="color:#999;border-color:#ccc">低</span></div>' },
+    { name: 'RecordTypeAvatar', file: 'RecordTypeAvatar.jsx',
+      html: '<div style="display:flex;gap:6px"><div class="m-avatar" style="background:#07C160;color:#fff;font-size:10px">门诊</div><div class="m-avatar" style="background:#576B95;color:#fff;font-size:10px">检验</div><div class="m-avatar" style="background:#8993a4;color:#fff;font-size:10px">口述</div></div>' },
+    { name: 'DateAvatar', file: 'DateAvatar.jsx',
+      html: '<div class="m-avatar" style="background:#f0f0f0;color:#666;flex-direction:column;font-size:8px;line-height:1.2;width:32px;height:32px"><div style="font-weight:600;font-size:11px">28</div><div>Mar</div></div>' },
+  ]},
+  { section: 'Dialogs & Actions', color: '#F59E0B', items: [
+    { name: 'SheetDialog', file: 'SheetDialog.jsx',
+      html: '<div class="m-dialog" style="border-radius:12px 12px 0 0"><div style="width:24px;height:3px;border-radius:2px;background:#ccc;margin:0 auto 6px"></div><div class="m-dialog-title">选择导出内容</div><div class="m-dialog-msg">勾选需要包含的字段</div></div>' },
+    { name: 'ConfirmDialog', file: 'ConfirmDialog.jsx',
+      html: '<div class="m-dialog"><div class="m-dialog-title">确认删除？</div><div class="m-dialog-msg">删除后无法恢复</div><div class="m-dialog-btns"><div class="m-btn m-btn-secondary">取消</div><div class="m-btn m-btn-danger">删除</div></div></div>' },
+    { name: 'CancelConfirm', file: 'CancelConfirm.jsx',
+      html: '<div class="m-dialog"><div class="m-dialog-title">确认离开？</div><div class="m-dialog-msg">未保存的内容将会丢失</div><div class="m-dialog-btns"><div class="m-btn m-btn-secondary">取消</div><div class="m-btn m-btn-danger">离开</div></div></div>' },
+    { name: 'DialogFooter', file: 'DialogFooter.jsx',
+      html: '<div class="m-dialog-btns" style="width:100%"><div class="m-btn m-btn-secondary">取消</div><div class="m-btn m-btn-primary">保存</div></div>' },
+    { name: 'AppButton', file: 'AppButton.jsx',
+      html: '<div style="display:flex;gap:6px"><div class="m-btn m-btn-primary">保存</div><div class="m-btn m-btn-secondary">取消</div><div class="m-btn m-btn-danger">删除</div></div>' },
+    { name: 'ActionPanel', file: 'ActionPanel.jsx',
+      html: '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;width:100%"><div style="text-align:center"><div class="m-avatar" style="background:#E7F7EE;color:#07C160;font-size:14px;margin:0 auto 2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg></div><div style="font-size:8px;color:#666">拍照</div></div><div style="text-align:center"><div class="m-avatar" style="background:#E7F7EE;color:#07C160;font-size:14px;margin:0 auto 2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div><div style="font-size:8px;color:#666">相册</div></div><div style="text-align:center"><div class="m-avatar" style="background:#EEF1F6;color:#576B95;font-size:14px;margin:0 auto 2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div style="font-size:8px;color:#666">文件</div></div><div style="text-align:center"><div class="m-avatar" style="background:#EEF1F6;color:#576B95;font-size:14px;margin:0 auto 2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div style="font-size:8px;color:#666">患者</div></div></div>' },
+  ]},
+  { section: 'Dialog Consumers', color: '#D65745', items: [
+    { name: 'ExportSelectorDialog', file: 'ExportSelectorDialog.jsx',
+      html: '<div class="m-dialog"><div class="m-dialog-title">导出PDF</div><div style="text-align:left;font-size:9px;margin:4px 0"><div>&#x2611; 主诉</div><div>&#x2611; 现病史</div><div style="color:#ccc">&#x2610; 家族史</div></div><div class="m-dialog-btns"><div class="m-btn m-btn-secondary">取消</div><div class="m-btn m-btn-primary">生成PDF</div></div></div>' },
+    { name: 'ImportChoiceDialog', file: 'ImportChoiceDialog.jsx',
+      html: '<div class="m-dialog"><div class="m-dialog-title">导入内容</div><div class="m-dialog-msg">检测到病历文本</div><div class="m-dialog-btns"><div class="m-btn m-btn-secondary">取消</div><div class="m-btn m-btn-primary">创建病历</div></div></div>' },
+    { name: 'PatientPickerDialog', file: 'PatientPickerDialog.jsx',
+      html: '<div class="m-dialog"><div class="m-dialog-title">选择患者</div><div style="margin:4px 0;padding:4px;background:#f0f0f0;border-radius:4px;font-size:9px;color:#999">搜索患者...</div></div>' },
+    { name: 'QRDialog', file: 'QRDialog.jsx',
+      html: '<div class="m-dialog"><div class="m-dialog-title">预问诊二维码</div><div style="width:48px;height:48px;background:#f0f0f0;border-radius:4px;margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:16px;color:#999">QR</div></div>' },
+  ]},
+  { section: 'Chat & Input', color: '#07C160', items: [
+    { name: 'VoiceInput', file: 'VoiceInput.jsx',
+      html: '<div class="m-voice"><div class="m-voice-dot"></div><span>录音中... 0:03</span></div>' },
+    { name: 'SuggestionChips', file: 'SuggestionChips.jsx',
+      html: '<div style="display:flex;gap:4px;flex-wrap:wrap"><span class="m-chip m-chip-inactive" style="font-size:9px">头痛</span><span class="m-chip m-chip-active" style="font-size:9px">眩晕</span><span class="m-chip m-chip-inactive" style="font-size:9px">恶心</span></div>' },
+    { name: 'DoctorBubble', file: 'DoctorBubble.jsx',
+      html: '<div style="display:flex;gap:6px;align-items:flex-start;width:100%"><div class="m-avatar" style="background:#f0f0f0;color:#999;width:24px;height:24px;font-size:9px;border-radius:50%">张</div><div><div style="font-size:8px;color:#999;margin-bottom:2px">张医生 14:30</div><div style="background:#fff;border-radius:0 8px 8px 8px;padding:6px 8px;font-size:10px;color:#333;max-width:140px">建议复查血常规，注意监测血压变化</div></div></div>' },
+    { name: 'MessageTimeline', file: 'MessageTimeline.jsx',
+      html: '<div style="width:100%;background:#fff;border-radius:4px;padding:8px"><div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:10px"><span style="font-weight:600">患者消息 (3)</span><span style="color:#999">&#8964;</span></div><div style="display:flex;gap:6px"><div style="display:flex;flex-direction:column;align-items:center;width:14px;flex-shrink:0;padding-top:2px"><div style="width:8px;height:8px;border-radius:50%;background:#576B95"></div><div style="width:1.5px;flex:1;background:#f0f0f0;margin:2px 0"></div><div style="width:8px;height:8px;border-radius:50%;background:#999"></div><div style="width:1.5px;flex:1;background:#f0f0f0;margin:2px 0"></div><div style="width:8px;height:8px;border-radius:50%;border:2px solid #07C160;box-sizing:border-box"></div></div><div style="flex:1;min-width:0"><div style="margin-bottom:4px"><div style="font-size:8px;color:#576B95">患者 03/27</div><div style="font-size:9px;color:#333">头痛比昨天厉害了</div></div><div style="margin-bottom:4px"><div style="font-size:8px;color:#999">AI 03/27</div><div style="font-size:9px;color:#666">已通知医生</div></div><div><div style="font-size:8px;color:#07C160">AI草回复 · 待发送</div><div style="background:#f7f7f7;border-radius:4px;padding:4px 6px;font-size:9px;color:#333;margin-top:2px">请尽快做头颅CT...<div style="margin-top:2px"><span style="font-size:8px;color:#D65745;background:#FDF0EE;padding:1px 4px;border-radius:2px">引用: 术后头痛</span></div></div><div style="display:flex;justify-content:flex-end;gap:6px;margin-top:3px;font-size:8px"><span style="color:#999">修改</span><span style="color:#07C160;font-weight:600">发送 ></span></div></div></div></div></div>' },
+    { name: 'RecordFields', file: 'RecordFields.jsx',
+      html: '<div style="font-size:9px;width:100%"><div style="display:flex;gap:8px;padding:2px 0;border-bottom:1px solid #f0f0f0"><span style="color:#999;min-width:36px">主诉</span><span style="color:#333">头痛3天</span></div><div style="display:flex;gap:8px;padding:2px 0"><span style="color:#999;min-width:36px">现病史</span><span style="color:#333">3天前无明显诱因...</span></div></div>' },
+    { name: 'InlineEditor', file: 'InlineEditor.jsx',
+      html: '<div style="width:100%;background:#fff;border:1px solid #07C160;border-radius:4px;padding:6px"><div style="font-size:9px;color:#333;margin-bottom:4px;min-height:20px">高血压2级，建议ARB+CCB...</div><div style="display:flex;justify-content:space-between;font-size:9px"><span style="color:#D65745">删除</span><div style="display:flex;gap:8px"><span style="color:#999">取消</span><span style="color:#07C160;font-weight:600">保存</span></div></div></div>' },
+    { name: 'RecordEditDialog', file: 'RecordEditDialog.jsx',
+      html: '<div class="m-dialog"><div class="m-dialog-title">编辑病历</div><div style="text-align:left;font-size:9px;margin:4px 0"><div style="margin-bottom:3px"><span style="color:#999">主诉</span><div style="border:1px solid #e5e5e5;border-radius:3px;padding:2px 4px;margin-top:1px;color:#333">头痛3天</div></div><div><span style="color:#999">现病史</span><div style="border:1px solid #e5e5e5;border-radius:3px;padding:2px 4px;margin-top:1px;color:#333">3天前...</div></div></div></div>' },
+  ]},
+  { section: 'Doctor-Specific', color: '#576B95', items: [
+    { name: 'DiagnosisCard', file: 'doctor/DiagnosisCard.jsx',
+      html: '<div class="m-diag"><div><div class="m-diag-title">高血压2级</div><div style="margin-top:2px"><span class="m-badge" style="color:#D65745;border-color:#D65745;font-size:8px">高</span></div></div><div class="m-diag-status">待处理</div></div>' },
+    { name: 'FieldReviewCard', file: 'doctor/FieldReviewCard.jsx',
+      html: '<div style="background:#fff;border-radius:4px;padding:6px 8px;width:100%"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px"><span style="font-weight:600">病史沿用</span><span style="color:#07C160;font-size:9px">展开 &#9662;</span></div><div style="font-size:9px;color:#666">主诉: 头痛3天 <span style="color:#07C160">&#10003; 沿用</span></div></div>' },
+    { name: 'InterviewCompleteDialog', file: 'doctor/InterviewCompleteDialog.jsx',
+      html: '<div class="m-dialog"><div class="m-dialog-title">病历预览</div><div style="font-size:9px;color:#666;margin:4px 0">主诉: 头痛3天<br>现病史: 3天前无明显诱因...</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px"><div class="m-btn m-btn-secondary" style="font-size:9px">返回</div><div class="m-btn m-btn-secondary" style="font-size:9px">保存</div></div><div class="m-btn m-btn-primary" style="width:100%;margin-top:4px;font-size:9px">保存并诊断 &#8594;</div></div>' },
+    { name: 'MessageItem', file: 'doctor/MessageItem.jsx',
+      html: '<div style="background:#fff;border-radius:4px;padding:6px 8px;width:100%"><div style="display:flex;align-items:center;gap:4px;margin-bottom:3px"><div style="width:6px;height:6px;border-radius:50%;background:#576B95"></div><div style="font-size:9px;color:#576B95">患者 03/27</div></div><div style="font-size:10px;color:#333;margin-bottom:3px">头痛加重，需要急诊吗？</div><div style="background:#f7f7f7;border-radius:4px;padding:4px 6px;font-size:9px;color:#07C160">AI草稿: 建议做CT检查...</div></div>' },
+    { name: 'ReplyCard', file: 'doctor/ReplyCard.jsx',
+      html: '<div style="background:#fff;border-radius:4px;padding:8px;width:100%"><div style="font-size:10px;color:#333;margin-bottom:4px">头还是很疼，需要复查吗</div><div style="background:#f7f7f7;border-radius:4px;padding:5px 6px;font-size:9px;color:#333;margin-bottom:4px">请尽快复查血常规...<div style="margin-top:3px"><span style="font-size:8px;color:#D65745;background:#FDF0EE;padding:1px 4px;border-radius:2px">引用: 术后复查</span></div></div><div style="display:flex;justify-content:flex-end;gap:8px;font-size:9px"><span style="color:#999">修改</span><span style="color:#07C160;font-weight:600">发送 &#8250;</span></div></div>' },
+  ]},
+  { section: 'State & Feedback', color: '#999', items: [
+    { name: 'EmptyState', file: 'EmptyState.jsx',
+      html: '<div class="m-empty"><div style="font-size:20px;color:#ccc;margin-bottom:4px">&#x2637;</div><div style="font-weight:500">暂无病历</div><div style="font-size:9px;color:#bbb">点击右上角新建</div></div>' },
+    { name: 'SectionLoading', file: 'SectionLoading.jsx',
+      html: '<div style="display:flex;justify-content:center;padding:12px"><div class="m-spinner"></div></div>' },
+    { name: 'Toast', file: 'Toast.jsx',
+      html: '<div style="display:flex;justify-content:center"><div class="m-toast">已保存到知识库</div></div>' },
+    { name: 'TaskChecklist', file: 'TaskChecklist.jsx',
+      html: '<div style="width:100%;font-size:9px;color:#999;text-align:center;padding:4px">Thin wrapper — maps task[] to ActionRow props<br>(overdue, urgency badge, upload button)</div>' },
+    { name: 'AskAIBar', file: 'AskAIBar.jsx',
+      html: '<div class="m-row" style="justify-content:flex-start;gap:8px"><div class="m-avatar" style="background:#07C160;color:#fff;width:22px;height:22px;font-size:10px;border-radius:4px">AI</div><span style="font-size:10px;color:#999">问 AI 任何问题...</span></div>' },
+  ]},
 ];
 
-// Build matrix table
+// ── Build component catalog ──
+var catalogEl = document.getElementById('catalog');
+var compPageCount = {};
+CATALOG.forEach(function(sec) {
+  sec.items.forEach(function(item) {
+    var count = 0;
+    PAGES.forEach(function(p) { if (p.comps.indexOf(item.name) >= 0) count++; });
+    compPageCount[item.name] = count;
+  });
+});
+
+CATALOG.forEach(function(sec) {
+  var html = '<div class="cat-section">';
+  html += '<div class="cat-title"><span class="dot" style="background:' + sec.color + '"></span>' + sec.section + '</div>';
+  html += '<div class="cat-grid">';
+  sec.items.forEach(function(item) {
+    var pages = [];
+    PAGES.forEach(function(p) { if (p.comps.indexOf(item.name) >= 0) pages.push(p.label); });
+    html += '<div class="comp-card" data-comp="' + item.name + '" onclick="selectComp(\'' + item.name + '\')">';
+    html += '<div class="comp-preview">' + item.html + '</div>';
+    html += '<div class="comp-meta">';
+    html += '<div class="comp-name">' + item.name + '</div>';
+    html += '<div class="comp-file">src/components/' + item.file + '</div>';
+    html += '<div class="comp-pages">Used in <strong>' + compPageCount[item.name] + '</strong> pages: ' + pages.join(', ') + '</div>';
+    html += '</div></div>';
+  });
+  html += '</div></div>';
+  catalogEl.innerHTML += html;
+});
+
+// ── Build matrix ──
+var COMPONENTS = [];
+CATALOG.forEach(function(sec) { sec.items.forEach(function(item) { COMPONENTS.push(item.name); }); });
+
 var wrap = document.getElementById('matrix-wrap');
 var html = '<table><thead><tr><th class="corner">Component \\ Page</th>';
 PAGES.forEach(function(p) {
@@ -240,90 +323,56 @@ COMPONENTS.forEach(function(comp) {
   html += '<tr><td class="row-label" data-comp="' + comp + '">' + comp + '</td>';
   PAGES.forEach(function(p) {
     var has = p.comps.indexOf(comp) >= 0;
-    html += '<td class="dot">' + (has ? '<span class="dot-on"></span>' : '<span class="dot-off">·</span>') + '</td>';
+    html += '<td class="dot">' + (has ? '<span class="dot-on"></span>' : '<span class="dot-off">&middot;</span>') + '</td>';
   });
   html += '</tr>';
 });
 html += '</tbody></table>';
 wrap.innerHTML = html;
 
-// Build filmstrip
-var strip = document.getElementById('filmstrip');
-PAGES.forEach(function(p) {
-  var card = document.createElement('div');
-  card.className = 'film-card';
-  card.dataset.page = p.id;
-  card.innerHTML = '<img src="' + IMG + p.img + '" alt="' + p.label + '"><div class="film-label">' + p.label + '</div>';
-  card.onclick = function() { showDetail(p); };
-  strip.appendChild(card);
-});
-
-// Column click
-document.querySelectorAll('th.page-col').forEach(function(th) {
-  th.onclick = function() {
-    var p = PAGES.find(function(pg) { return pg.id === th.dataset.page; });
-    if (p) showDetail(p);
-  };
-});
-
-// Component row click — highlight pages that use it
+// ── Interactions ──
 var activeComp = null;
+
+function selectComp(comp) {
+  var isSame = activeComp === comp;
+  activeComp = isSame ? null : comp;
+  // Reset
+  document.querySelectorAll('.comp-card').forEach(function(el) { el.classList.remove('active'); });
+  document.querySelectorAll('.row-label').forEach(function(el) { el.classList.remove('active-comp'); });
+  document.querySelectorAll('th.page-col').forEach(function(el) { el.classList.remove('highlighted'); });
+  if (!isSame) {
+    document.querySelectorAll('.comp-card[data-comp="' + comp + '"]').forEach(function(el) { el.classList.add('active'); });
+    document.querySelectorAll('.row-label[data-comp="' + comp + '"]').forEach(function(el) { el.classList.add('active-comp'); });
+    var usingPages = {};
+    PAGES.forEach(function(p) { if (p.comps.indexOf(comp) >= 0) usingPages[p.id] = true; });
+    document.querySelectorAll('th.page-col').forEach(function(el) {
+      if (usingPages[el.dataset.page]) el.classList.add('highlighted');
+    });
+  }
+}
+
+// Matrix row click -> select comp
 document.addEventListener('click', function(e) {
   var label = e.target.closest('.row-label');
   if (label && label.dataset.comp) {
-    var comp = label.dataset.comp;
-    var isSame = activeComp === comp;
-    activeComp = isSame ? null : comp;
-
-    // Reset all highlights
-    document.querySelectorAll('.row-label').forEach(function(el) { el.classList.remove('active-comp'); });
-    document.querySelectorAll('th.page-col').forEach(function(el) { el.classList.remove('highlighted'); });
-    document.querySelectorAll('.film-card').forEach(function(el) { el.classList.remove('highlighted', 'dimmed'); });
-
-    if (!isSame) {
-      label.classList.add('active-comp');
-      // Find pages that use this component
-      var usingPages = {};
-      PAGES.forEach(function(p) { if (p.comps.indexOf(comp) >= 0) usingPages[p.id] = true; });
-      // Highlight column headers
-      document.querySelectorAll('th.page-col').forEach(function(el) {
-        if (usingPages[el.dataset.page]) el.classList.add('highlighted');
-      });
-      // Highlight filmstrip
-      document.querySelectorAll('.film-card').forEach(function(el) {
-        if (usingPages[el.dataset.page]) el.classList.add('highlighted');
-        else el.classList.add('dimmed');
-      });
-    }
-    return;
+    selectComp(label.dataset.comp);
+    // Scroll catalog card into view
+    var card = document.querySelector('.comp-card[data-comp="' + label.dataset.comp + '"]');
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 });
 
-// Show detail
-function showDetail(page) {
-  document.querySelectorAll('.film-card').forEach(function(c) { c.classList.toggle('active', c.dataset.page === page.id); });
-  var detail = document.getElementById('detail');
-  detail.classList.add('show');
-  document.getElementById('detail-title').textContent = page.label + ' — Components';
-  var compsHtml = '';
-  page.comps.forEach(function(c) {
-    compsHtml += '<span class="comp-tag">' + c + '</span>';
-  });
-  document.getElementById('detail-comps').innerHTML = compsHtml;
-  // Screenshot in detail panel
-  var ssEl = document.getElementById('detail-screenshot');
-  ssEl.innerHTML = '<img src="' + IMG + page.img + '" alt="' + page.label + '">';
-  ssEl.onclick = function() {
-    document.getElementById('lb-img').src = IMG + page.img;
-    document.getElementById('lightbox').classList.add('active');
-  };
-  detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+// Tab switching
+function showTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  el.classList.add('active');
+  document.getElementById('catalog').classList.toggle('show', tab === 'catalog');
+  document.getElementById('matrix-section').classList.toggle('show', tab === 'matrix');
 }
 
-// Lightbox close on Escape
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') document.getElementById('lightbox').classList.remove('active');
-});
+// Set dynamic counts
+document.getElementById('tab-catalog-count').textContent = COMPONENTS.length;
+document.getElementById('tab-matrix-count').textContent = PAGES.length;
 </script>
 
 </body>

@@ -213,7 +213,7 @@ function CompletedReplyRow({ item, onClick }) {
         </Box>
       )}
       {item.draft_text && (
-        <Box sx={{ bgcolor: "#f0faf0", borderRadius: RADIUS.md, px: 1.2, py: 0.6, ml: 5.5, fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>
+        <Box sx={{ bgcolor: COLOR.primaryLight, borderRadius: RADIUS.md, px: 1.2, py: 0.6, ml: 5.5, fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>
           医生: {item.draft_text.length > 50 ? item.draft_text.slice(0, 50) + "..." : item.draft_text}
         </Box>
       )}
@@ -454,7 +454,7 @@ function DiagnosisReviewCard({ item, onClick }) {
             </Typography>
             <Box component="span" sx={{
               fontSize: 10, fontWeight: 600, borderRadius: RADIUS.sm,
-              px: 0.6, py: 0.1, bgcolor: urgencyColor, color: "#fff", lineHeight: 1.5,
+              px: 0.6, py: 0.1, bgcolor: urgencyColor, color: COLOR.white, lineHeight: 1.5,
             }}>
               {urgencyLabel}
             </Box>

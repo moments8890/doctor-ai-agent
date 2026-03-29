@@ -21,6 +21,7 @@ import NewItemCard from "../../components/NewItemCard";
 import RecordTypeAvatar from "../../components/RecordTypeAvatar";
 import DateAvatar from "../../components/DateAvatar";
 import EmptyState from "../../components/EmptyState";
+import SectionLoading from "../../components/SectionLoading";
 import StatusBadge from "../../components/StatusBadge";
 import { TYPE, COLOR, RADIUS } from "../../theme";
 import { RECORD_TYPE_LABEL, formatDate } from "./constants";
@@ -96,14 +97,14 @@ function TimelineView({ records, navigate }) {
                   <Box sx={{
                     position: "absolute", left: -24, top: 6,
                     width: 12, height: 12, borderRadius: "50%",
-                    bgcolor: dotColor, border: "2px solid #fff",
+                    bgcolor: dotColor, border: `2px solid ${COLOR.white}`,
                     boxShadow: `0 0 0 1.5px ${dotColor}40`,
                     zIndex: 1,
                   }} />
 
                   {/* Card */}
                   <Box sx={{
-                    bgcolor: "#fff", borderRadius: RADIUS.md, px: 1.5, py: 1,
+                    bgcolor: COLOR.white, borderRadius: RADIUS.md, px: 1.5, py: 1,
                     border: `0.5px solid ${COLOR.borderLight}`,
                   }}>
                     {/* Top row: type + date */}
@@ -178,7 +179,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
   }
 
   if (loading) {
-    return <Box display="flex" justifyContent="center" py={6}><CircularProgress size={20} /></Box>;
+    return <SectionLoading py={6} />;
   }
 
   return (
@@ -190,7 +191,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
       {records.length > 0 && (
         <>
           <Box sx={{ px: 2, py: 1 }}>
-            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#999" }}>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
               最近 · {records.length}份病历
             </Typography>
           </Box>
@@ -218,7 +219,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
       {records.length === 0 ? (
         <EmptyState title="暂无病历记录" subtitle="点击上方「新建病历」开始预问诊" />
       ) : recordView === "list" ? (
-        <Box sx={{ bgcolor: "#fff" }}>
+        <Box sx={{ bgcolor: COLOR.white }}>
           {records.map(rec => {
             const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
             const chief = rec.structured?.chief_complaint;

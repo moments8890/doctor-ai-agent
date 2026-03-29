@@ -16,6 +16,7 @@ import AppButton from "../../components/AppButton";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import PageSkeleton from "../../components/PageSkeleton";
 import SheetDialog from "../../components/SheetDialog";
+import DialogFooter from "../../components/DialogFooter";
 import SubpageHeader from "../../components/SubpageHeader";
 import { QRCodeSVG } from "qrcode.react";
 import KnowledgeSubpage from "./subpages/KnowledgeSubpage";
@@ -37,24 +38,7 @@ function NameDialog({ open, nameInput, nameSaving, nameError, onChange, onSave, 
       title="设置昵称"
       subtitle="AI 助手将用此姓名称呼您，例如「好的，张医生」"
       desktopMaxWidth={360}
-      footer={
-        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-          <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
-            取消
-          </AppButton>
-          <AppButton
-            variant="primary"
-            size="md"
-            fullWidth
-            disabled={nameSaving}
-            loading={nameSaving}
-            loadingLabel="保存中…"
-            onClick={onSave}
-          >
-            保存
-          </AppButton>
-        </Box>
-      }
+      footer={<DialogFooter onCancel={onClose} onConfirm={onSave} confirmLabel="保存" confirmLoading={nameSaving} confirmLoadingLabel="保存中…" confirmDisabled={nameSaving} />}
     >
       <TextField
         fullWidth
@@ -82,24 +66,7 @@ function SpecialtyDialog({ open, specialtyInput, specialtySaving, specialtyError
       onClose={onClose}
       title="科室专业"
       desktopMaxWidth={380}
-      footer={
-        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-          <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
-            取消
-          </AppButton>
-          <AppButton
-            variant="primary"
-            size="md"
-            fullWidth
-            disabled={specialtySaving}
-            loading={specialtySaving}
-            loadingLabel="保存中…"
-            onClick={onSave}
-          >
-            保存
-          </AppButton>
-        </Box>
-      }
+      footer={<DialogFooter onCancel={onClose} onConfirm={onSave} confirmLabel="保存" confirmLoading={specialtySaving} confirmLoadingLabel="保存中…" confirmDisabled={specialtySaving} />}
     >
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 0.5, mb: 2 }}>
         {SPECIALTY_OPTIONS.map((s) => (
@@ -112,8 +79,8 @@ function SpecialtyDialog({ open, specialtyInput, specialtySaving, specialtyError
               borderRadius: "999px",
               cursor: "pointer",
               fontSize: TYPE.secondary.fontSize,
-              bgcolor: specialtyInput === s ? "#07C160" : "#f2f2f2",
-              color: specialtyInput === s ? "#fff" : "#555",
+              bgcolor: specialtyInput === s ? COLOR.primary : COLOR.surface,
+              color: specialtyInput === s ? COLOR.white : COLOR.text3,
               fontWeight: specialtyInput === s ? 600 : 400,
             }}
           >
