@@ -133,6 +133,7 @@ class InterviewResponse:
     status: str
     missing: List[str] = None
     suggestions: List[str] = None
+    ready_to_review: bool = False
     patient_name: Optional[str] = None
     patient_gender: Optional[str] = None
     patient_age: Optional[str] = None
