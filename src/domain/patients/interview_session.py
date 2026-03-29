@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from db.engine import AsyncSessionLocal
@@ -40,7 +40,7 @@ async def create_session(
     from db.models.interview_session import InterviewSessionDB
 
     session_id = str(uuid.uuid4())
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     collected = initial_fields or {}
     conversation: List[Dict[str, Any]] = []
@@ -142,7 +142,7 @@ async def save_session(session: InterviewSession) -> None:
         row.collected = json.dumps(session.collected, ensure_ascii=False)
         row.conversation = json.dumps(session.conversation, ensure_ascii=False)
         row.turn_count = session.turn_count
-        row.updated_at = datetime.utcnow()
+        row.updated_at = datetime.now(timezone.utc)
         await db.commit()
 
 

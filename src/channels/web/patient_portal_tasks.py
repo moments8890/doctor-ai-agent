@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Header, HTTPException
@@ -129,7 +129,7 @@ async def complete_patient_task(
             raise HTTPException(status_code=404, detail="Task not found")
 
         task.status = "completed"
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(task)
 
@@ -170,7 +170,7 @@ async def uncomplete_patient_task(
             raise HTTPException(status_code=404, detail="Task not found")
 
         task.status = "pending"
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(task)
 
@@ -227,7 +227,7 @@ async def confirm_upload_result(
             raise HTTPException(status_code=404, detail="Record not found")
 
         task.status = "completed"
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(task)
 
