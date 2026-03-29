@@ -1072,7 +1072,6 @@ function renderLayerSection(layer, sectionId, defaultOpen) {
                 layer.label.startsWith('L5') ? '#8bc34a' :
                 isL6 ? '#2196f3' : '#aaa';
   const openClass = defaultOpen ? ' open' : '';
-  const openStyle = defaultOpen ? ' style="display:block;"' : '';
   return `
     <div class="msg-section">
       <div class="msg-role-header" onclick="toggleMsgSection('${sectionId}')">
@@ -1080,7 +1079,7 @@ function renderLayerSection(layer, sectionId, defaultOpen) {
         <span style="font-size:11px;color:var(--text-muted);">${layer.content.length} chars</span>
         <span class="msg-toggle" id="arrow-${sectionId}">${defaultOpen ? '▾' : '▸'}</span>
       </div>
-      <div class="msg-content${openClass}" id="${sectionId}"${openStyle}>${escHtml(layer.content)}</div>
+      <div class="msg-content${openClass}" id="${sectionId}">${escHtml(layer.content)}</div>
     </div>`;
 }
 
@@ -1200,7 +1199,7 @@ function buildLlmCard(c, cid) {
             <span style="font-size:11px;color:var(--text-muted);">${outputText.length} chars</span>
             <span class="msg-toggle" id="arrow-out-${cid}">▾</span>
           </div>
-          <div class="msg-content open" id="out-${cid}" style="display:block;">${escHtml(outputText)}</div>
+          <div class="msg-content open" id="out-${cid}">${escHtml(outputText)}</div>
         </div>
       </div>`;
   }
