@@ -14,8 +14,7 @@
  *  - onLogout: () => void
  */
 import { Box, Typography } from "@mui/material";
-import ListCard from "../../components/ListCard";
-import PatientAvatar from "../../components/PatientAvatar";
+import AccountCard from "../../components/AccountCard";
 import SectionLabel from "../../components/SectionLabel";
 import { TYPE, COLOR } from "../../theme";
 
@@ -26,25 +25,21 @@ export default function ProfileTab({ patientName, doctorName, doctorSpecialty, d
       {doctorName && (
         <>
           <SectionLabel>我的医生</SectionLabel>
-          <Box sx={{ bgcolor: COLOR.white }}>
-            <ListCard
-              avatar={<PatientAvatar name={doctorName} size={42} />}
-              title={doctorName}
-              subtitle={doctorSpecialty || ""}
-            />
-          </Box>
+          <AccountCard
+            name={doctorName}
+            subtitle={doctorSpecialty || ""}
+            color="#5b9bd5"
+          />
         </>
       )}
 
       {/* Patient info card */}
       <SectionLabel>我的信息</SectionLabel>
-      <Box sx={{ bgcolor: COLOR.white }}>
-        <ListCard
-          avatar={<PatientAvatar name={patientName || "?"} size={42} />}
-          title={patientName || "患者"}
-          subtitle={doctorId || ""}
-        />
-      </Box>
+      <AccountCard
+        name={patientName || "患者"}
+        subtitle={doctorId || ""}
+        color={COLOR.primary}
+      />
 
       {/* Logout */}
       <Box sx={{ mt: 1 }}>

@@ -15,6 +15,7 @@ import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
+import AccountCard from "../../../components/AccountCard";
 import PageSkeleton from "../../../components/PageSkeleton";
 import SectionLabel from "../../../components/SectionLabel";
 import { TYPE, ICON, COLOR } from "../../../theme";
@@ -46,45 +47,6 @@ function SettingsRow({ icon, label, sublabel, onClick, danger }) {
   );
 }
 
-/* ── AccountBlock — doctor avatar + name + info ── */
-
-function AccountBlock({ doctorId, doctorName, specialty, clinicName, bio, onClinicTap, onBioTap }) {
-  return (
-    <Box sx={{ bgcolor: "#fff" }}>
-      <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.8, borderBottom: "0.5px solid #f0f0f0" }}>
-        <Box sx={{
-          width: 52, height: 52, borderRadius: "4px", bgcolor: COLOR.primary,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          flexShrink: 0, mr: 1.5,
-        }}>
-          <Typography sx={{ color: "#fff", fontSize: ICON.xl, fontWeight: 600 }}>
-            {(doctorName || doctorId || "?").slice(-1)}
-          </Typography>
-        </Box>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: TYPE.title.fontSize }}>{doctorName || doctorId}</Typography>
-          <Typography variant="caption" color="text.secondary">{doctorId}</Typography>
-        </Box>
-      </Box>
-      <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0" }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#111", flex: 1 }}>昵称</Typography>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#999", mr: 0.8 }}>{doctorName || "未设置"}</Typography>
-      </Box>
-      <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0" }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#111", flex: 1 }}>科室专业</Typography>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#999", mr: 0.8 }}>{specialty || "未设置"}</Typography>
-      </Box>
-      <Box onClick={onClinicTap} sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0", cursor: onClinicTap ? "pointer" : "default", "&:active": onClinicTap ? { bgcolor: "#f9f9f9" } : {} }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#111", flex: 1 }}>诊所/医院</Typography>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#999", mr: 0.8 }}>{clinicName || "未设置"}</Typography>
-      </Box>
-      <Box onClick={onBioTap} sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderTop: "0.5px solid #f0f0f0", cursor: onBioTap ? "pointer" : "default", "&:active": onBioTap ? { bgcolor: "#f9f9f9" } : {} }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#111", flex: 1 }}>简介</Typography>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#999", mr: 0.8 }} noWrap>{bio || "未设置"}</Typography>
-      </Box>
-    </Box>
-  );
-}
 
 /* ── BulkExportRow — shows spinner + progress while generating ── */
 
@@ -149,7 +111,16 @@ export default function SettingsListSubpage({
   const content = (
     <Box sx={{ flex: 1, overflowY: "auto", bgcolor: "#ededed" }}>
       <SectionLabel>账户</SectionLabel>
-      <AccountBlock doctorId={doctorId} doctorName={doctorName} specialty={specialty} clinicName={clinicName} bio={bio} onClinicTap={onClinicTap} onBioTap={onBioTap} />
+      <AccountCard
+        name={doctorName || doctorId}
+        subtitle={doctorId}
+        rows={[
+          { label: "昵称", value: doctorName },
+          { label: "科室专业", value: specialty },
+          { label: "诊所/医院", value: clinicName, onClick: onClinicTap },
+          { label: "简介", value: bio, onClick: onBioTap },
+        ]}
+      />
 
       <SectionLabel>工具</SectionLabel>
       <Box sx={{ bgcolor: "#fff" }}>
