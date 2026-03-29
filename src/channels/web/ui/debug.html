@@ -975,10 +975,13 @@ function parseSystemLayers(text) {
   // Known section patterns (order matters — first match wins)
   const markers = [
     { label: 'L1 Identity & Safety', pattern: /^# Role: 医生AI临床助手/m },
-    { label: 'L2 Specialty', pattern: /^# .{2,20}专科知识/m },
-    { label: 'L3 Intent Rules', pattern: /^(?:# Role:|# 意图|\/no_think)/m },
+    { label: 'L1 Safety', pattern: /^## Safety/m },
+    { label: 'L2 Specialty', pattern: /^# .{2,20}(?:专科|专业)(?:知识|领域)/m },
+    { label: 'L3 Intent Rules', pattern: /^(?:# Role: 患者预问诊|# 意图|\/no_think|# 你是.*病历|# 请根据)/m },
+    { label: 'L3 JSON Schema', pattern: /^As a genius expert/m },
     { label: 'L4 Doctor Knowledge', pattern: /^【医生知识库】|^\[KB-/m },
-    { label: 'L5 Patient Context', pattern: /^## 当前状态/m },
+    { label: 'L5 Patient Context', pattern: /^## 当前状态|^## 患者信息/m },
+    { label: 'L5 Conversation', pattern: /^## 对话记录|^## 预问诊对话/m },
   ];
 
   // Find all marker positions
@@ -1203,11 +1206,12 @@ function parseErrorLine(raw) {
       timestamp: obj.timestamp || obj.ts || '',
       event: obj.event || obj.message || obj.msg || raw,
       trace_id: obj.trace_id || obj.traceId || null,
+      doctor_id: obj.doctor_id || null,
       level: obj.level || 'error',
       extra: obj,
     };
   } catch {
-    return { timestamp: '', event: raw, trace_id: null, level: 'error', extra: null };
+    return { timestamp: '', event: raw, trace_id: null, doctor_id: null, level: 'error', extra: null };
   }
 }
 
@@ -1221,15 +1225,22 @@ function renderErrors() {
     return;
   }
 
-  container.innerHTML = lines.slice().reverse().map(raw => {
+  container.innerHTML = lines.slice().reverse().map((raw, i) => {
     const p = parseErrorLine(raw);
     const traceLink = p.trace_id
       ? `<span class="error-trace-link" onclick="gotoTrace('${escHtml(p.trace_id)}')" title="View trace">${escHtml(p.trace_id.slice(0, 8))}</span>`
       : '';
-    return `<div class="error-line">
-      <span class="ts" style="margin-right:8px;">${escHtml(fmtTs(p.timestamp))}</span>
-      <span class="error-event">${escHtml(p.event)}</span>
-      ${traceLink ? `<span style="margin-left:8px;">${traceLink}</span>` : ''}
+    const eid = `err-${i}`;
+    const hasDetail = raw.length > 120;
+    return `<div class="row-card" style="border-left:3px solid var(--red);">
+      <div class="row-header" ${hasDetail ? `onclick="toggleRowBody('body-${eid}')"` : ''} style="cursor:${hasDetail ? 'pointer' : 'default'};">
+        <span class="badge" style="background:rgba(244,67,54,0.2);color:#f44336;">ERROR</span>
+        <span style="flex:1;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(p.event.slice(0, 100))}</span>
+        ${traceLink ? `<span style="margin-left:8px;">${traceLink}</span>` : ''}
+        ${p.doctor_id ? `<span style="font-size:11px;color:var(--text-muted);">${escHtml(p.doctor_id)}</span>` : ''}
+        <span class="ts">${escHtml(fmtTs(p.timestamp))}</span>
+      </div>
+      ${hasDetail ? `<div class="row-body" id="body-${eid}"><pre style="white-space:pre-wrap;font-size:11px;color:var(--text-dim);margin:0;">${escHtml(raw)}</pre></div>` : ''}
     </div>`;
   }).join('');
 }
