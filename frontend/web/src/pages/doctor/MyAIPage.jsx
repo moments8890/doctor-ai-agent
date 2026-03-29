@@ -76,14 +76,7 @@ function InlineBadge({ count, color = COLOR.warning }) {
   );
 }
 
-function RuleDot({ color = COLOR.primary }) {
-  return (
-    <Box sx={{
-      width: 6, height: 6, borderRadius: "50%", bgcolor: color,
-      flexShrink: 0, mt: "7px",
-    }} />
-  );
-}
+// RuleDot removed — knowledge preview now uses ListCard + IconBadge
 
 // ── Activity helpers ─────────────────────────────────────────────────────────
 
@@ -329,29 +322,20 @@ export default function MyAIPage({ doctorId }) {
             </Box>
           )}
           {topRules.map((rule, idx) => (
-            <Box
+            <ListCard
               key={rule.id || idx}
+              avatar={<IconBadge config={ICON_BADGES.kb_doctor} />}
+              title={rule.title || rule.content?.slice(0, 20) || "规则"}
+              subtitle={rule.summary || rule.content?.slice(0, 40) || ""}
+              right={
+                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: rule.status === "pending" ? COLOR.warning : COLOR.text4 }}>
+                  {rule.status === "pending" ? "待确认" : (rule.usage_label || "")}
+                </Typography>
+              }
+              chevron
               onClick={() => navigate(`/doctor/settings/knowledge/${rule.id}`)}
-              sx={{
-                display: "flex", alignItems: "flex-start", gap: 1.2,
-                px: 2, py: 1.5, cursor: "pointer",
-                borderBottom: idx < topRules.length - 1 ? `0.5px solid ${COLOR.borderLight}` : "none",
-                "&:active": { bgcolor: COLOR.surface },
-              }}
-            >
-              <RuleDot color={rule.status === "pending" ? COLOR.warning : COLOR.primary} />
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>
-                  {rule.title || rule.content?.slice(0, 20) || "规则"}
-                </Typography>
-                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.2, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {rule.summary || rule.content?.slice(0, 40) || ""}
-                </Typography>
-              </Box>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: rule.status === "pending" ? COLOR.warning : COLOR.text4, flexShrink: 0 }}>
-                {rule.status === "pending" ? "待确认" : (rule.usage_label || "")}
-              </Typography>
-            </Box>
+              sx={idx === topRules.length - 1 ? { borderBottom: "none" } : {}}
+            />
           ))}
         </Box>
 
