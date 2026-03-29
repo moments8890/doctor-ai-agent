@@ -21,13 +21,7 @@ import SheetDialog from "../../components/SheetDialog";
 import ActionRow from "../../components/ActionRow";
 import { TYPE, COLOR } from "../../theme";
 
-// ── Task type badge mapping ──
-const TASK_TYPE_BADGE = {
-  follow_up: ICON_BADGES.task_follow_up,
-  medication: ICON_BADGES.task_medication,
-  checkup: ICON_BADGES.task_checkup,
-  general: ICON_BADGES.task_general,
-};
+// Task type badge mapping removed — ActionRow uses checkbox instead of IconBadge
 
 // ── Summary stat component ──
 function SummaryStat({ value, label, sublabel, color, onClick }) {
