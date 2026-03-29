@@ -326,7 +326,7 @@ export default function MyAIPage({ doctorId }) {
               key={rule.id || idx}
               avatar={<IconBadge config={ICON_BADGES.kb_doctor} />}
               title={rule.title || rule.content?.slice(0, 20) || "规则"}
-              subtitle={rule.summary || rule.content?.slice(0, 40) || ""}
+              subtitle={[rule.reference_count > 0 ? `引用${rule.reference_count}次` : null, rule.summary || rule.content?.slice(0, 40) || ""].filter(Boolean).join(" · ")}
               right={
                 <Typography sx={{ fontSize: TYPE.caption.fontSize, color: rule.status === "pending" ? COLOR.warning : COLOR.text4 }}>
                   {rule.status === "pending" ? "待确认" : (rule.usage_label || "")}
