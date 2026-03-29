@@ -54,7 +54,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
   const [llmProcessed, setLlmProcessed] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [toast, showToast] = useToast();
   const [nextStepOpen, setNextStepOpen] = useState(false);
   const [savedRuleTitle, setSavedRuleTitle] = useState("");
   const [routingProof, setRoutingProof] = useState(false);
@@ -208,11 +208,6 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     setEditedText("");
     setSourceFilename("");
     setLlmProcessed(false);
-  }
-
-  function showToast(msg) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2000);
   }
 
   async function handleSaveProcessedText() {

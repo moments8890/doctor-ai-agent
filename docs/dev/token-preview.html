@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Design Token Preview — doctor-ai-agent</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Noto Sans SC', -apple-system, sans-serif; background: #ededed; padding: 24px; color: #1A1A1A; }
+  h1 { font-size: 20px; margin-bottom: 16px; }
+  h2 { font-size: 16px; margin: 24px 0 12px; color: #666; }
+  h3 { font-size: 13px; margin: 16px 0 8px; color: #999; text-transform: uppercase; letter-spacing: 1px; }
+  .section { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+  .row:last-child { border-bottom: none; }
+  .swatch { width: 40px; height: 40px; border-radius: 4px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); }
+  .swatch.circle { border-radius: 50%; }
+  .info { flex: 1; }
+  .token { font-size: 13px; font-weight: 600; font-family: 'SF Mono', 'Menlo', monospace; }
+  .hex { font-size: 12px; color: #999; font-family: 'SF Mono', 'Menlo', monospace; }
+  .usage { font-size: 12px; color: #666; margin-top: 2px; }
+  .radius-demo { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 40px; background: #07C160; color: #fff; font-size: 11px; font-weight: 500; }
+  .radius-row { display: flex; gap: 16px; flex-wrap: wrap; padding: 12px 0; }
+  .radius-item { text-align: center; }
+  .radius-label { font-size: 11px; color: #999; margin-top: 4px; font-family: 'SF Mono', 'Menlo', monospace; }
+  .comparison { display: flex; gap: 24px; margin: 12px 0; }
+  .comp-group { flex: 1; }
+  .comp-group h4 { font-size: 12px; color: #999; margin-bottom: 8px; }
+  .mini-swatch { display: inline-block; width: 24px; height: 24px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.08); vertical-align: middle; margin-right: 6px; }
+  .arrow { color: #07C160; font-weight: 600; margin: 0 8px; }
+  .dialog-demo { border: 1px solid #E5E5E5; border-radius: 12px; max-width: 320px; overflow: hidden; margin: 12px 0; }
+  .dialog-body { padding: 24px 20px 16px; text-align: center; }
+  .dialog-body p { font-size: 14px; color: #1A1A1A; margin-bottom: 4px; font-weight: 600; }
+  .dialog-body small { font-size: 13px; color: #666; }
+  .dialog-footer { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #E5E5E5; }
+  .dialog-btn { padding: 12px; text-align: center; font-size: 15px; cursor: pointer; border: none; background: none; }
+  .dialog-btn.secondary { color: #999; border-right: 1px solid #E5E5E5; }
+  .dialog-btn.primary { color: #07C160; font-weight: 600; }
+  .dialog-btn.danger { color: #D65745; font-weight: 600; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 5px; border-radius: 4px; margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<h1>Design Token Preview</h1>
+
+<!-- ===== EXISTING COLORS ===== -->
+<div class="section">
+  <h2>Existing COLOR tokens (already in theme.js)</h2>
+
+  <h3>Semantic</h3>
+  <div class="row"><div class="swatch" style="background:#07C160"></div><div class="info"><div class="token">COLOR.primary</div><div class="hex">#07C160</div><div class="usage">Buttons, nav active, confirm, links</div></div></div>
+  <div class="row"><div class="swatch" style="background:#E7F7EE"></div><div class="info"><div class="token">COLOR.primaryLight</div><div class="hex">#E7F7EE</div><div class="usage">Primary tinted background</div></div></div>
+  <div class="row"><div class="swatch" style="background:#576B95"></div><div class="info"><div class="token">COLOR.accent</div><div class="hex">#576B95</div><div class="usage">Secondary action, edit links</div></div></div>
+  <div class="row"><div class="swatch" style="background:#EEF1F6"></div><div class="info"><div class="token">COLOR.accentLight</div><div class="hex">#EEF1F6</div><div class="usage">Accent tinted background</div></div></div>
+  <div class="row"><div class="swatch" style="background:#D65745"></div><div class="info"><div class="token">COLOR.danger</div><div class="hex">#D65745</div><div class="usage">Destructive actions, delete</div></div></div>
+  <div class="row"><div class="swatch" style="background:#FDF0EE"></div><div class="info"><div class="token">COLOR.dangerLight</div><div class="hex">#FDF0EE</div><div class="usage">Danger tinted background</div></div></div>
+  <div class="row"><div class="swatch" style="background:#F59E0B"></div><div class="info"><div class="token">COLOR.warning</div><div class="hex">#F59E0B</div><div class="usage">Attention, pending, edited</div></div></div>
+  <div class="row"><div class="swatch" style="background:#FFF7E6"></div><div class="info"><div class="token">COLOR.warningLight</div><div class="hex">#FFF7E6</div><div class="usage">Warning tinted background</div></div></div>
+  <div class="row"><div class="swatch" style="background:#07C160"></div><div class="info"><div class="token">COLOR.success</div><div class="hex">#07C160</div><div class="usage">= primary</div></div></div>
+  <div class="row"><div class="swatch" style="background:#E7F7EE"></div><div class="info"><div class="token">COLOR.successLight</div><div class="hex">#E7F7EE</div><div class="usage">= primaryLight</div></div></div>
+
+  <h3>Text</h3>
+  <div class="row"><div class="swatch" style="background:#1A1A1A"></div><div class="info"><div class="token">COLOR.text1</div><div class="hex">#1A1A1A</div><div class="usage">Names, headings, primary content</div></div></div>
+  <div class="row"><div class="swatch" style="background:#333333"></div><div class="info"><div class="token">COLOR.text2</div><div class="hex">#333333</div><div class="usage">Body text, field values</div></div></div>
+  <div class="row"><div class="swatch" style="background:#666666"></div><div class="info"><div class="token">COLOR.text3</div><div class="hex">#666666</div><div class="usage">Descriptions, reasoning</div></div></div>
+  <div class="row"><div class="swatch" style="background:#999999"></div><div class="info"><div class="token">COLOR.text4</div><div class="hex">#999999</div><div class="usage">Labels, metadata, timestamps</div></div></div>
+
+  <h3>Surface & Border</h3>
+  <div class="row"><div class="swatch" style="background:#ffffff; border: 1px solid #E5E5E5"></div><div class="info"><div class="token">COLOR.white</div><div class="hex">#ffffff</div><div class="usage">Card backgrounds</div></div></div>
+  <div class="row"><div class="swatch" style="background:#f7f7f7"></div><div class="info"><div class="token">COLOR.surface</div><div class="hex">#f7f7f7</div><div class="usage">Nav bar, action bars</div></div></div>
+  <div class="row"><div class="swatch" style="background:#ededed"></div><div class="info"><div class="token">COLOR.surfaceAlt</div><div class="hex">#ededed</div><div class="usage">Page background</div></div></div>
+  <div class="row"><div class="swatch" style="background:#E5E5E5"></div><div class="info"><div class="token">COLOR.border</div><div class="hex">#E5E5E5</div><div class="usage">Card borders, section dividers</div></div></div>
+  <div class="row"><div class="swatch" style="background:#f0f0f0"></div><div class="info"><div class="token">COLOR.borderLight</div><div class="hex">#f0f0f0</div><div class="usage">Hairline row dividers</div></div></div>
+</div>
+
+<!-- ===== RECORD TYPE COLORS: COMPARISON ===== -->
+<div class="section">
+  <h2>Record Type Colors — Option A: Current (ad-hoc)</h2>
+  <div class="usage" style="margin-bottom: 12px;">Current colors: random saturations, two blues hard to distinguish, no grouping logic</div>
+
+  <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#07C160; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">门诊<br>#07C160</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#5b9bd5; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">口述<br>#5b9bd5</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#e8833a; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">导入<br>#e8833a</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#9b59b6; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">检验<br>#9b59b6</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#1890ff; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">影像<br>#1890ff</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#8e44ad; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">问诊<br>#8e44ad</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#16a085; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">转诊<br>#16a085</div>
+    </div>
+  </div>
+  <div class="usage" style="color: #D65745;">Problems: two blues (口述 vs 影像), two purples (检验 vs 问诊), mixed saturation, orange = urgencyMedium collision</div>
+</div>
+
+<div class="section">
+  <h2>Record Type Colors — Option B: Grouped by medical meaning</h2>
+  <div class="usage" style="margin-bottom: 12px;">4 hue families, uniform saturation (~55%), uniform lightness (~55%). Quiet category labels, not alerts.</div>
+
+  <h3 style="color: #07C160;">Clinical (doctor-patient interaction)</h3>
+  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#07C160; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">门诊<br>#07C160<br>= primary</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#36b37e; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">问诊<br>#36b37e<br>green-teal</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#00a38d; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">转诊<br>#00a38d<br>teal</div>
+    </div>
+  </div>
+
+  <h3 style="color: #2b7de9;">Diagnostics (tests & imaging)</h3>
+  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#2b7de9; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">检验<br>#2b7de9<br>blue</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#7c5cc4; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">影像<br>#7c5cc4<br>indigo</div>
+    </div>
+  </div>
+
+  <h3 style="color: #8993a4;">Documents (records & imports)</h3>
+  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#8993a4; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">口述<br>#8993a4<br>slate</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#a68b6b; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">导入<br>#a68b6b<br>warm gray</div>
+    </div>
+  </div>
+
+  <div class="usage" style="color: #07C160; margin-top: 8px;">Benefits: no collisions with urgency, grouped by meaning, each record distinguishable, quieter than alerts</div>
+</div>
+
+<div class="section">
+  <h2>Record Type Colors — Option C: Minimal (3 colors for 7 types) SELECTED</h2>
+  <div class="usage" style="margin-bottom: 12px;">Fewest colors. Types within a group share color, differentiated by icon only.</div>
+
+  <h3>Blue variant comparison for diagnostics (检验, 影像)</h3>
+  <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#2b7de9; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">#2b7de9<br>medium blue</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#4a9eff; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">#4a9eff<br>lighter blue</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#5ba8f5; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">#5ba8f5<br>soft blue</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#6cb4f0; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">#6cb4f0<br>sky blue</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#1890ff; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">#1890ff<br>Ant Design blue<br>(current imaging)</div>
+    </div>
+    <div style="text-align: center;">
+      <div class="swatch" style="background:#576B95; margin: 0 auto;"></div>
+      <div class="radius-label" style="margin-top:4px;">#576B95<br>= COLOR.accent<br>(WeChat link blue)</div>
+    </div>
+  </div>
+
+  <h3>Final 3-color palette options</h3>
+  <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 12px;">
+    <div>
+      <div class="usage" style="margin-bottom:8px; font-weight:600;">C1: with #4a9eff (lighter)</div>
+      <div style="display: flex; gap: 8px;">
+        <div style="text-align: center;">
+          <div class="swatch" style="background:#07C160; margin: 0 auto;"></div>
+          <div class="radius-label" style="margin-top:4px;">clinical<br>#07C160</div>
+        </div>
+        <div style="text-align: center;">
+          <div class="swatch" style="background:#4a9eff; margin: 0 auto;"></div>
+          <div class="radius-label" style="margin-top:4px;">diagnostics<br>#4a9eff</div>
+        </div>
+        <div style="text-align: center;">
+          <div class="swatch" style="background:#8993a4; margin: 0 auto;"></div>
+          <div class="radius-label" style="margin-top:4px;">documents<br>#8993a4</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="usage" style="margin-bottom:8px; font-weight:600;">C2: with #5ba8f5 (soft)</div>
+      <div style="display: flex; gap: 8px;">
+        <div style="text-align: center;">
+          <div class="swatch" style="background:#07C160; margin: 0 auto;"></div>
+          <div class="radius-label" style="margin-top:4px;">clinical<br>#07C160</div>
+        </div>
+        <div style="text-align: center;">
+          <div class="swatch" style="background:#5ba8f5; margin: 0 auto;"></div>
+          <div class="radius-label" style="margin-top:4px;">diagnostics<br>#5ba8f5</div>
+        </div>
+        <div style="text-align: center;">
+          <div class="swatch" style="background:#8993a4; margin: 0 auto;"></div>
+          <div class="radius-label" style="margin-top:4px;">documents<br>#8993a4</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="usage" style="margin-bottom:8px; font-weight:600;">C3: reuse COLOR.accent (WeChat blue)</div>
+      <div style="display: flex; gap: 8px;">
+        <div style="text-align: center;">
+          <div class="swatch" style="background:#07C160; margin: 0 auto;"></div>
+          <div class="radius-label" style="margin-top:4px;">clinical<br>#07C160</div>
+        </div>
+        <div style="text-align: center;">
+          <div class="swatch" style="background:#576B95; margin: 0 auto;"></div>
+          <div class="radius-label" style="margin-top:4px;">diagnostics<br>#576B95</div>
+        </div>
+        <div style="text-align: center;">
+          <div class="swatch" style="background:#8993a4; margin: 0 auto;"></div>
+          <div class="radius-label" style="margin-top:4px;">documents<br>#8993a4</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="usage">C3 adds zero new colors (reuses COLOR.accent). C1/C2 add one new blue that's friendlier than the current #1890ff.</div>
+</div>
+
+<!-- ===== IN-CONTEXT: MINIMAL WITH BLUE VARIANTS ===== -->
+<div class="section">
+  <h2>In Context — Minimal record list (36px avatars)</h2>
+
+  <div style="max-width: 380px;">
+    <h3>C1: #4a9eff (lighter blue)</h3>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#07C160; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x2695;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">门诊记录</div><div style="font-size:12px; color:#999;">2026-03-28 · 初诊</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#8993a4; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x270E;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">口述记录</div><div style="font-size:12px; color:#999;">2026-03-27 · 补充说明</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#4a9eff; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x2697;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">血常规</div><div style="font-size:12px; color:#999;">2026-03-25 · 检验</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#4a9eff; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x25A3;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">头颅CT</div><div style="font-size:12px; color:#999;">2026-03-24 · 影像</div></div>
+    </div>
+
+    <h3 style="margin-top: 20px;">C3: COLOR.accent / #576B95 (WeChat blue)</h3>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#07C160; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x2695;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">门诊记录</div><div style="font-size:12px; color:#999;">2026-03-28 · 初诊</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#8993a4; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x270E;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">口述记录</div><div style="font-size:12px; color:#999;">2026-03-27 · 补充说明</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#576B95; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x2697;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">血常规</div><div style="font-size:12px; color:#999;">2026-03-25 · 检验</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#576B95; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x25A3;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">头颅CT</div><div style="font-size:12px; color:#999;">2026-03-24 · 影像</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== RECORD TYPE IN-CONTEXT PREVIEW ===== -->
+<div class="section">
+  <h2>In Context — Record list with avatar</h2>
+  <div class="usage" style="margin-bottom: 12px;">How record types look at actual 36px avatar size</div>
+
+  <div style="max-width: 380px;">
+    <h3>Option A (current)</h3>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#07C160; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x2695;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">门诊记录</div><div style="font-size:12px; color:#999;">2026-03-28</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#5b9bd5; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x270E;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">口述记录</div><div style="font-size:12px; color:#999;">2026-03-27</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#9b59b6; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x2697;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">血常规</div><div style="font-size:12px; color:#999;">2026-03-25</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#1890ff; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x25A3;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">头颅CT</div><div style="font-size:12px; color:#999;">2026-03-24</div></div>
+    </div>
+
+    <h3 style="margin-top: 20px;">Option B (grouped)</h3>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#07C160; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x2695;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">门诊记录</div><div style="font-size:12px; color:#999;">2026-03-28</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#8993a4; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x270E;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">口述记录</div><div style="font-size:12px; color:#999;">2026-03-27</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#2b7de9; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x2697;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">血常规</div><div style="font-size:12px; color:#999;">2026-03-25</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#7c5cc4; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x25A3;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">头颅CT</div><div style="font-size:12px; color:#999;">2026-03-24</div></div>
+    </div>
+
+    <h3 style="margin-top: 20px;">Option C (minimal — 3 colors)</h3>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#07C160; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x2695;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">门诊记录</div><div style="font-size:12px; color:#999;">2026-03-28</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#8993a4; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x270E;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">口述记录</div><div style="font-size:12px; color:#999;">2026-03-27</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#2b7de9; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x2697;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">血常规</div><div style="font-size:12px; color:#999;">2026-03-25</div></div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0;">
+      <div style="width:36px; height:36px; border-radius:4px; background:#2b7de9; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;">&#x25A3;</div>
+      <div style="flex:1;"><div style="font-size:14px; font-weight:600;">头颅CT</div><div style="font-size:12px; color:#999;">2026-03-24</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== URGENCY COLORS: REVISED ===== -->
+<div class="section">
+  <h2>NEW — Urgency Colors (revised)</h2>
+  <div class="usage" style="margin-bottom: 12px;">Reuses existing semantic colors. No new reds or oranges.</div>
+
+  <div class="row">
+    <div class="swatch" style="background:#D65745"></div>
+    <div class="info">
+      <div class="token">COLOR.danger</div><div class="hex">#D65745</div>
+      <div class="usage">高 — High urgency (reuse existing danger) <span class="badge" style="background:#FDF0EE; color:#D65745; border: 0.5px solid #D65745;">高</span></div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="swatch" style="background:#F59E0B"></div>
+    <div class="info">
+      <div class="token">COLOR.warning</div><div class="hex">#F59E0B</div>
+      <div class="usage">中 — Medium urgency (reuse existing warning) <span class="badge" style="background:#FFF7E6; color:#F59E0B; border: 0.5px solid #F59E0B;">中</span></div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="swatch" style="background:#999999"></div>
+    <div class="info">
+      <div class="token">COLOR.text4</div><div class="hex">#999999</div>
+      <div class="usage">低 — Low urgency (reuse existing text4) <span class="badge" style="background:#f7f7f7; color:#999999; border: 0.5px solid #999999;">低</span></div>
+    </div>
+  </div>
+
+  <div class="usage" style="margin-top: 12px; color: #07C160;">No new urgency tokens needed. Map to existing: high=danger, medium=warning, low=text4</div>
+</div>
+
+<!-- ===== NEW COLORS: MISC ===== -->
+<div class="section">
+  <h2>NEW — Other Colors</h2>
+
+  <div class="row"><div class="swatch" style="background:#06a050"></div><div class="info"><div class="token">COLOR.primaryHover</div><div class="hex">#06a050</div><div class="usage">Primary button hover/active state</div></div></div>
+  <div class="row"><div class="swatch" style="background:#1565c0"></div><div class="info"><div class="token">COLOR.link</div><div class="hex">#1565c0</div><div class="usage">Citation badges, knowledge references</div></div></div>
+</div>
+
+<!-- ===== *LIGHT COLOR ALIGNMENT ===== -->
+<div class="section">
+  <h2>Light Color Alignment — code snaps to tokens</h2>
+  <div class="usage" style="margin-bottom: 12px;">Existing tokens stay. Code changes to use them instead of ad-hoc values.</div>
+
+  <div class="comparison">
+    <div class="comp-group">
+      <h4>Code currently uses</h4>
+      <div class="row"><div class="swatch" style="background:#e8f5e9"></div><div class="info"><div class="hex">#e8f5e9</div></div></div>
+      <div class="row"><div class="swatch" style="background:#fff3f3"></div><div class="info"><div class="hex">#fff3f3</div></div></div>
+      <div class="row"><div class="swatch" style="background:#fff3e0"></div><div class="info"><div class="hex">#fff3e0</div></div></div>
+    </div>
+    <div class="comp-group">
+      <h4>Snaps to token</h4>
+      <div class="row"><div class="swatch" style="background:#E7F7EE"></div><div class="info"><div class="token">COLOR.successLight</div><div class="hex">#E7F7EE</div></div></div>
+      <div class="row"><div class="swatch" style="background:#FDF0EE"></div><div class="info"><div class="token">COLOR.dangerLight</div><div class="hex">#FDF0EE</div></div></div>
+      <div class="row"><div class="swatch" style="background:#FFF7E6"></div><div class="info"><div class="token">COLOR.warningLight</div><div class="hex">#FFF7E6</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RADIUS ===== -->
+<div class="section">
+  <h2>NEW — RADIUS Scale (4 values)</h2>
+
+  <div class="radius-row">
+    <div class="radius-item">
+      <div class="radius-demo" style="border-radius: 4px;">按钮</div>
+      <div class="radius-label">RADIUS.sm = 4px</div>
+      <div class="usage" style="font-size:11px; color:#999; margin-top:2px;">Buttons, cards, avatars,<br>inputs, badges (absorbs 3px)</div>
+    </div>
+    <div class="radius-item">
+      <div class="radius-demo" style="border-radius: 8px;">容器</div>
+      <div class="radius-label">RADIUS.md = 8px</div>
+      <div class="usage" style="font-size:11px; color:#999; margin-top:2px;">Containers, bubbles,<br>icon boxes (absorbs 6px)</div>
+    </div>
+    <div class="radius-item">
+      <div class="radius-demo" style="border-radius: 12px;">对话框</div>
+      <div class="radius-label">RADIUS.lg = 12px</div>
+      <div class="usage" style="font-size:11px; color:#999; margin-top:2px;">Dialog paper,<br>bottom sheets</div>
+    </div>
+    <div class="radius-item">
+      <div class="radius-demo" style="border-radius: 16px;">标签</div>
+      <div class="radius-label">RADIUS.pill = 16px</div>
+      <div class="usage" style="font-size:11px; color:#999; margin-top:2px;">Pills, chips,<br>MobileFrame</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DIALOG BUTTON CONVENTION ===== -->
+<div class="section">
+  <h2>Dialog Button Convention (WeChat standard)</h2>
+  <div class="usage" style="margin-bottom: 12px;">Primary always RIGHT, cancel always LEFT. Color = intent.</div>
+
+  <h3>Normal confirm</h3>
+  <div class="dialog-demo">
+    <div class="dialog-body">
+      <p>确认保存？</p>
+    </div>
+    <div class="dialog-footer">
+      <button class="dialog-btn secondary">取消</button>
+      <button class="dialog-btn primary">保存</button>
+    </div>
+  </div>
+
+  <h3>Destructive confirm</h3>
+  <div class="dialog-demo">
+    <div class="dialog-body">
+      <p>确认删除？</p>
+      <small>删除后无法恢复</small>
+    </div>
+    <div class="dialog-footer">
+      <button class="dialog-btn secondary">取消</button>
+      <button class="dialog-btn danger">删除</button>
+    </div>
+  </div>
+
+  <h3>Discard unsaved (CancelConfirm)</h3>
+  <div class="dialog-demo">
+    <div class="dialog-body">
+      <p>确认离开？</p>
+      <small>未保存的内容将会丢失</small>
+    </div>
+    <div class="dialog-footer">
+      <button class="dialog-btn secondary">取消</button>
+      <button class="dialog-btn danger">离开</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SPACING ===== -->
+<div class="section">
+  <h2>Spacing Grid — MUI 0.5 increments only</h2>
+  <div class="usage" style="margin-bottom: 16px;">All spacing uses MUI scale: spacing(1) = 8px. Only 0.5 increments allowed.</div>
+
+  <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;">
+    <div style="text-align: center;">
+      <div style="width: 40px; background: #07C160; opacity: 0.3; height: 4px;"></div>
+      <div class="radius-label" style="margin-top: 4px;">0.5<br><span style="color:#999">4px</span></div>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 40px; background: #07C160; opacity: 0.4; height: 8px;"></div>
+      <div class="radius-label" style="margin-top: 4px;">1<br><span style="color:#999">8px</span></div>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 40px; background: #07C160; opacity: 0.5; height: 12px;"></div>
+      <div class="radius-label" style="margin-top: 4px;">1.5<br><span style="color:#999">12px</span></div>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 40px; background: #07C160; opacity: 0.6; height: 16px;"></div>
+      <div class="radius-label" style="margin-top: 4px;">2<br><span style="color:#999">16px</span></div>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 40px; background: #07C160; opacity: 0.7; height: 20px;"></div>
+      <div class="radius-label" style="margin-top: 4px;">2.5<br><span style="color:#999">20px</span></div>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 40px; background: #07C160; opacity: 0.8; height: 24px;"></div>
+      <div class="radius-label" style="margin-top: 4px;">3<br><span style="color:#999">24px</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PATIENT LIST AVATAR OPTIONS ===== -->
+<div class="section">
+  <h2>Patient List — Avatar Options</h2>
+  <div class="usage" style="margin-bottom: 16px;">Same data, four different identity treatments. Which scans fastest?</div>
+
+  <div style="max-width: 400px;">
+
+    <!-- Option 1: Current (solid color) -->
+    <h3>Option 1: Current — Solid color initials (DingTalk/Feishu style)</h3>
+    <div style="background: #fff; border: 1px solid #E5E5E5; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="width:36px; height:36px; border-radius:4px; background:#07C160; display:flex; align-items:center; justify-content:center; color:#fff; font-size:15px; font-weight:600; flex-shrink:0;">王</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">王建国</span>
+            <span style="font-size:11px; color:#999;">03-28</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">男 · 56岁 · 高血压3级</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="width:36px; height:36px; border-radius:4px; background:#e8833a; display:flex; align-items:center; justify-content:center; color:#fff; font-size:15px; font-weight:600; flex-shrink:0;">李</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">李复诊</span>
+            <span style="font-size:11px; color:#999;">03-27</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">女 · 42岁 · 脑梗死恢复期</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="width:36px; height:36px; border-radius:4px; background:#9b59b6; display:flex; align-items:center; justify-content:center; color:#fff; font-size:15px; font-weight:600; flex-shrink:0;">张</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">张明</span>
+            <span style="font-size:11px; color:#999;">03-26</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">男 · 68岁 · 帕金森病</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px;">
+        <div style="width:36px; height:36px; border-radius:4px; background:#5b9bd5; display:flex; align-items:center; justify-content:center; color:#fff; font-size:15px; font-weight:600; flex-shrink:0;">王</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">王丽华</span>
+            <span style="font-size:11px; color:#999;">03-25</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">女 · 35岁 · 偏头痛</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 2: Pastel -->
+    <h3>Option 2: Soft pastel + dark initial</h3>
+    <div style="background: #fff; border: 1px solid #E5E5E5; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="width:36px; height:36px; border-radius:4px; background:#E7F7EE; display:flex; align-items:center; justify-content:center; color:#07C160; font-size:15px; font-weight:600; flex-shrink:0;">王</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">王建国</span>
+            <span style="font-size:11px; color:#999;">03-28</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">男 · 56岁 · 高血压3级</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="width:36px; height:36px; border-radius:4px; background:#EEF1F6; display:flex; align-items:center; justify-content:center; color:#576B95; font-size:15px; font-weight:600; flex-shrink:0;">李</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">李复诊</span>
+            <span style="font-size:11px; color:#999;">03-27</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">女 · 42岁 · 脑梗死恢复期</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="width:36px; height:36px; border-radius:4px; background:#FFF7E6; display:flex; align-items:center; justify-content:center; color:#D4900A; font-size:15px; font-weight:600; flex-shrink:0;">张</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">张明</span>
+            <span style="font-size:11px; color:#999;">03-26</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">男 · 68岁 · 帕金森病</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px;">
+        <div style="width:36px; height:36px; border-radius:4px; background:#F3F0FF; display:flex; align-items:center; justify-content:center; color:#7c5cc4; font-size:15px; font-weight:600; flex-shrink:0;">王</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">王丽华</span>
+            <span style="font-size:11px; color:#999;">03-25</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">女 · 35岁 · 偏头痛</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 3: Gray placeholder -->
+    <h3>Option 3: Gray placeholder — no color (WeChat default / 好大夫 style)</h3>
+    <div style="background: #fff; border: 1px solid #E5E5E5; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="width:36px; height:36px; border-radius:4px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#999; font-size:15px; font-weight:600; flex-shrink:0;">王</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">王建国</span>
+            <span style="font-size:11px; color:#999;">03-28</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">男 · 56岁 · 高血压3级</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="width:36px; height:36px; border-radius:4px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#999; font-size:15px; font-weight:600; flex-shrink:0;">李</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">李复诊</span>
+            <span style="font-size:11px; color:#999;">03-27</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">女 · 42岁 · 脑梗死恢复期</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="width:36px; height:36px; border-radius:4px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#999; font-size:15px; font-weight:600; flex-shrink:0;">张</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">张明</span>
+            <span style="font-size:11px; color:#999;">03-26</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">男 · 68岁 · 帕金森病</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px;">
+        <div style="width:36px; height:36px; border-radius:4px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#999; font-size:15px; font-weight:600; flex-shrink:0;">王</div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">王丽华</span>
+            <span style="font-size:11px; color:#999;">03-25</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">女 · 35岁 · 偏头痛</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 4: No avatar -->
+    <h3>Option 4: No avatar — text only (Epic / dense clinical style)</h3>
+    <div style="background: #fff; border: 1px solid #E5E5E5; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">王建国</span>
+            <span style="font-size:11px; color:#999;">03-28</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">男 · 56岁 · 高血压3级</div>
+        </div>
+        <div style="color:#ccc; font-size:16px; flex-shrink:0;">&#x203A;</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">李复诊</span>
+            <span style="font-size:11px; color:#999;">03-27</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">女 · 42岁 · 脑梗死恢复期</div>
+        </div>
+        <div style="color:#ccc; font-size:16px; flex-shrink:0;">&#x203A;</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">张明</span>
+            <span style="font-size:11px; color:#999;">03-26</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">男 · 68岁 · 帕金森病</div>
+        </div>
+        <div style="color:#ccc; font-size:16px; flex-shrink:0;">&#x203A;</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px;">
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">王丽华</span>
+            <span style="font-size:11px; color:#999;">03-25</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">女 · 35岁 · 偏头痛</div>
+        </div>
+        <div style="color:#ccc; font-size:16px; flex-shrink:0;">&#x203A;</div>
+      </div>
+    </div>
+
+    <!-- Option 3 + status -->
+    <h3>Option 3 + status dot — gray avatar, color reserved for meaning</h3>
+    <div class="usage" style="margin-bottom: 8px;">Color only appears when there's something actionable (pending review, overdue task)</div>
+    <div style="background: #fff; border: 1px solid #E5E5E5; border-radius: 8px; overflow: hidden; margin-bottom: 20px;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="position:relative; flex-shrink:0;">
+          <div style="width:36px; height:36px; border-radius:4px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#999; font-size:15px; font-weight:600;">王</div>
+          <div style="position:absolute; top:-3px; right:-3px; width:10px; height:10px; border-radius:50%; background:#D65745; border:2px solid #fff;"></div>
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">王建国</span>
+            <span style="font-size:11px; color:#D65745; font-weight:500;">待审核</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">男 · 56岁 · 高血压3级</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="position:relative; flex-shrink:0;">
+          <div style="width:36px; height:36px; border-radius:4px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#999; font-size:15px; font-weight:600;">李</div>
+          <div style="position:absolute; top:-3px; right:-3px; width:10px; height:10px; border-radius:50%; background:#F59E0B; border:2px solid #fff;"></div>
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">李复诊</span>
+            <span style="font-size:11px; color:#F59E0B; font-weight:500;">待回复</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">女 · 42岁 · 脑梗死恢复期</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f0;">
+        <div style="flex-shrink:0;">
+          <div style="width:36px; height:36px; border-radius:4px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#999; font-size:15px; font-weight:600;">张</div>
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">张明</span>
+            <span style="font-size:11px; color:#999;">03-26</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">男 · 68岁 · 帕金森病</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px;">
+        <div style="position:relative; flex-shrink:0;">
+          <div style="width:36px; height:36px; border-radius:4px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#999; font-size:15px; font-weight:600;">王</div>
+          <div style="position:absolute; top:-3px; right:-3px; width:10px; height:10px; border-radius:50%; background:#07C160; border:2px solid #fff;"></div>
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; font-weight:600;">王丽华</span>
+            <span style="font-size:11px; color:#07C160; font-weight:500;">已完成</span>
+          </div>
+          <div style="font-size:13px; color:#999; margin-top:2px;">女 · 35岁 · 偏头痛</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

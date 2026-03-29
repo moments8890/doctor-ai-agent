@@ -24,6 +24,7 @@ import { getPreferredOnboardingRule, resolveReplyProofDestination } from "./onbo
 import ReviewSubpage from "./subpages/ReviewSubpage";
 import { TYPE, COLOR } from "../../theme";
 import AppButton from "../../components/AppButton";
+import Toast, { useToast } from "../../components/Toast";
 
 /* ── NHC field order for collapsible record summary ────────────────────────── */
 
