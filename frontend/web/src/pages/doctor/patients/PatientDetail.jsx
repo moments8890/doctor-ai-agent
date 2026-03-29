@@ -421,11 +421,25 @@ function PatientChatPage({ patientId, doctorId }) {
 
   return (
     <Box ref={msgSectionRef} sx={{ bgcolor: "#fff", mb: 0.8 }}>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, pt: 1.5, pb: 0.5 }}>
+      {/* Header: 患者消息 (N) + expand toggle */}
+      <Box
+        onClick={() => (hasMessages || hasDrafts) ? setExpanded(v => !v) : undefined}
+        sx={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          px: 2, pt: 1.5, pb: 0.5,
+          cursor: (hasMessages || hasDrafts) ? "pointer" : "default",
+          "&:active": (hasMessages || hasDrafts) ? { opacity: 0.6 } : {},
+        }}
+      >
         <Typography sx={{ fontWeight: 600, fontSize: TYPE.heading.fontSize, color: COLOR.text2 }}>
           患者消息 {hasMessages && <Box component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 400 }}>({messages.length})</Box>}
         </Typography>
-        {(loading || draftsLoading) && <CircularProgress size={14} sx={{ color: COLOR.success }} />}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          {(loading || draftsLoading) && <CircularProgress size={14} sx={{ color: COLOR.success }} />}
+          {(hasMessages || hasDrafts) && (
+            <Typography sx={{ fontSize: 12, color: COLOR.text4 }}>{expanded ? "▴" : "▾"}</Typography>
+          )}
+        </Box>
       </Box>
 
       {!loading && !hasMessages && !hasDrafts && (
@@ -435,8 +449,8 @@ function PatientChatPage({ patientId, doctorId }) {
       )}
 
       {!loading && (hasMessages || hasDrafts) && (
-        <>
-          {/* Triage summary — escalated messages only */}
+        <Box sx={{ mx: 1.5, mb: 1, border: `1px solid ${COLOR.primary}`, borderRadius: "8px", bgcolor: "#fff", overflow: "hidden" }}>
+          {/* Content inside green-bordered box */}
           {!expanded && escalated.length > 0 && (
             <Box sx={{ px: 2, pb: 1 }}>
               {escalated.slice(-3).map(m => (
@@ -467,19 +481,9 @@ function PatientChatPage({ patientId, doctorId }) {
             </Box>
           )}
 
-          {/* Expand toggle */}
-          {hasMessages && (
-            <Box onClick={() => setExpanded(v => !v)}
-              sx={{ px: 2, py: 0.8, cursor: "pointer", borderTop: "0.5px solid #f0f0f0" }}>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.success, textAlign: "center" }}>
-                {expanded ? "收起对话 ▴" : `查看完整对话 (${messages.length}) ▾`}
-              </Typography>
-            </Box>
-          )}
-
           {/* Full thread */}
           {expanded && (
-            <Box sx={{ mx: 1.5, mb: 1, px: 1, pb: 0.5, maxHeight: 300, overflowY: "auto", bgcolor: "#f0faf4", borderRadius: "8px", border: `0.5px solid ${COLOR.primaryLight || "#d4edda"}` }}>
+            <Box sx={{ px: 1.5, pb: 0.5, maxHeight: 300, overflowY: "auto" }}>
               {messages.map(m => {
                 const label = m.source === "patient" ? "患者" : (m.source === "doctor" ? "医生" : "AI");
                 const labelColor = m.source === "patient" ? COLOR.accent : (m.source === "doctor" ? COLOR.success : COLOR.text4);
@@ -538,7 +542,7 @@ function PatientChatPage({ patientId, doctorId }) {
               </Button>
             </Box>
           )}
-        </>
+        </Box>
       )}
     </Box>
   );
