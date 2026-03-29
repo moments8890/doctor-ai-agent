@@ -8,8 +8,8 @@
  */
 import { Box, Typography } from "@mui/material";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
-import { TYPE, ICON, COLOR } from "../../../theme";
+// ChevronRightOutlinedIcon removed — ListCard handles chevron
+import { TYPE, COLOR } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import ListCard from "../../../components/ListCard";
 import EmptyState from "../../../components/EmptyState";
@@ -91,84 +91,21 @@ function KnowledgeRow({ item, onClick }) {
   const rawText = item.text || item.content || "";
   const title = item.title && item.title.length <= 25 ? item.title : extractShortTitle(rawText);
   const summary = item.summary || (rawText.startsWith(title) ? rawText.slice(title.length).replace(/^[：:\s]+/, "").slice(0, 50) : rawText.slice(0, 50));
-  const usageCount = item._usageCount || 0;
-  const lastUsed = item._lastUsed;
+  const usageCount = item._usageCount || item.reference_count || 0;
 
-  // Build meta parts
-  const metaParts = [];
-  if (usageCount > 0) metaParts.push(`引用${usageCount}次`);
-  if (lastUsed) metaParts.push(`最近${formatRelativeDate(lastUsed)}`);
-  const metaText = metaParts.join(" \u00B7 ");
+  const subtitleParts = [];
+  if (usageCount > 0) subtitleParts.push(`引用${usageCount}次`);
+  if (summary) subtitleParts.push(summary);
+  const subtitle = subtitleParts.join(" · ");
 
   return (
-    <Box
+    <ListCard
+      avatar={<IconBadge config={ICON_BADGES.kb_doctor} />}
+      title={title || "untitled"}
+      subtitle={subtitle}
+      chevron
       onClick={onClick}
-      sx={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 1,
-        px: 2,
-        py: 1.5,
-        bgcolor: COLOR.white,
-        borderBottom: `0.5px solid ${COLOR.borderLight}`,
-        cursor: "pointer",
-        userSelect: "none",
-        WebkitUserSelect: "none",
-        minHeight: 44,
-        "&:active": { bgcolor: COLOR.surface },
-      }}
-    >
-      {/* Green active dot */}
-      <Box sx={{ pt: 0.7, flexShrink: 0 }}>
-        <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: COLOR.primary, flexShrink: 0 }} />
-      </Box>
-
-      {/* Content */}
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography
-          sx={{
-            fontSize: TYPE.body.fontSize,
-            fontWeight: 500,
-            color: COLOR.text1,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {title || "untitled"}
-        </Typography>
-        {summary && (
-          <Typography
-            sx={{
-              fontSize: TYPE.secondary.fontSize,
-              color: COLOR.text3,
-              mt: 0.25,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {summary}
-          </Typography>
-        )}
-        {metaText && (
-          <Typography
-            sx={{
-              fontSize: TYPE.caption.fontSize,
-              color: COLOR.text4,
-              mt: 0.25,
-            }}
-          >
-            {metaText}
-          </Typography>
-        )}
-      </Box>
-
-      {/* Chevron */}
-      <Box sx={{ pt: 0.5, flexShrink: 0 }}>
-        <ChevronRightOutlinedIcon sx={{ fontSize: ICON.sm, color: COLOR.text4 }} />
-      </Box>
-    </Box>
+    />
   );
 }
 
