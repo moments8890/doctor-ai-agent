@@ -72,30 +72,61 @@ function TaskCheckbox({ checked, onToggle }) {
   );
 }
 
+function CompletableRow({ title, subtitle, right, onClick, onComplete }) {
+  const [completing, setCompleting] = useState(false);
+
+  const handleToggle = () => {
+    setCompleting(true);
+    setTimeout(() => onComplete?.(), 600);
+  };
+
+  return (
+    <Box sx={{
+      opacity: completing ? 0.4 : 1,
+      transition: "opacity 0.5s ease",
+    }}>
+      <ListCard
+        avatar={<TaskCheckbox checked={completing} onToggle={handleToggle} />}
+        title={
+          <Box component="span" sx={{
+            textDecoration: completing ? "line-through" : "none",
+            color: completing ? COLOR.text4 : COLOR.text1,
+            transition: "all 0.3s ease",
+          }}>
+            {title}
+          </Box>
+        }
+        subtitle={subtitle}
+        right={right}
+        onClick={completing ? undefined : onClick}
+      />
+    </Box>
+  );
+}
+
 function ScheduledRow({ item, onComplete }) {
   const navigate = useAppNavigate();
   return (
-    <ListCard
-      avatar={<TaskCheckbox checked={false} onToggle={() => onComplete?.(item)} />}
+    <CompletableRow
       title={`${item.patient_name} · ${item.task}`}
       subtitle={item.detail}
       right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: item.soon ? COLOR.warning : COLOR.text4, fontWeight: item.soon ? 500 : 400 }}>{item.due_label}</Typography>}
       onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
+      onComplete={() => onComplete?.(item)}
     />
   );
 }
 
 function TaskRow({ item, onComplete }) {
   const navigate = useAppNavigate();
-  const badge = TASK_TYPE_BADGE[item.task_type] || ICON_BADGES.task_general;
   const dueLabel = item.due_at ? item.due_at.slice(0, 10) : "";
   return (
-    <ListCard
-      avatar={<TaskCheckbox checked={false} onToggle={() => onComplete?.(item)} />}
+    <CompletableRow
       title={item.title || "任务"}
       subtitle={item.content}
       right={dueLabel ? <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{dueLabel}</Typography> : null}
       onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
+      onComplete={() => onComplete?.(item)}
     />
   );
 }
