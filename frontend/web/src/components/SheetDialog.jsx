@@ -1,6 +1,6 @@
 import { Box, Dialog, Typography } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { TYPE, COLOR } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../theme";
 
 export default function SheetDialog({
   open,
@@ -39,7 +39,7 @@ export default function SheetDialog({
               left: 0,
               right: 0,
               m: 0,
-              borderRadius: "12px 12px 0 0",
+              borderRadius: `${RADIUS.lg} ${RADIUS.lg} 0 0`,
               width: "100%",
               maxHeight: mobileMaxHeight,
               ...paperSx,
@@ -56,7 +56,7 @@ export default function SheetDialog({
     >
       <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
         {isMobile && showHandle ? (
-          <Box sx={{ display: "flex", justifyContent: "center", pt: 1.2, pb: 0.5 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", pt: 1, pb: 0.5 }}>
             <Box sx={{ width: 36, height: 4, borderRadius: 2, bgcolor: COLOR.border }} />
           </Box>
         ) : null}

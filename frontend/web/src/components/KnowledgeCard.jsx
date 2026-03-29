@@ -55,8 +55,8 @@ export default function KnowledgeCard({ title, summary, referenceCount = 0, sour
     <Box
       onClick={onClick}
       sx={{
-        display: "flex", alignItems: "center", gap: 1.2,
-        px: 2, py: 1.25,
+        display: "flex", alignItems: "center", gap: 1,
+        px: 2, py: 1.5,
         bgcolor: COLOR.white,
         borderBottom: `0.5px solid ${COLOR.borderLight}`,
         cursor: onClick ? "pointer" : "default",
@@ -80,7 +80,7 @@ export default function KnowledgeCard({ title, summary, referenceCount = 0, sour
         {summary && (
           <Typography sx={{
             fontSize: TYPE.caption.fontSize, color: COLOR.text3,
-            mt: 0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            mt: 0.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             lineHeight: 1.4,
           }}>
             {summary}
@@ -91,7 +91,7 @@ export default function KnowledgeCard({ title, summary, referenceCount = 0, sour
         {metaText && (
           <Typography sx={{
             fontSize: TYPE.micro.fontSize, color: COLOR.text4,
-            mt: 0.2,
+            mt: 0.5,
           }}>
             {metaText}
           </Typography>

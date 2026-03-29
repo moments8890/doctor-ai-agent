@@ -13,7 +13,7 @@
  */
 import { Box } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import { TYPE, ICON, COLOR } from "../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../theme";
 
 export default function SuggestionChips({ items, selected = [], onToggle, onDismiss, disabled = false }) {
   if (!items || items.length === 0) return null;
@@ -21,7 +21,7 @@ export default function SuggestionChips({ items, selected = [], onToggle, onDism
   return (
     <Box sx={{
       display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5,
-      px: 1.5, py: 0.8,
+      px: 1.5, py: 1,
       borderTop: `1px solid ${COLOR.border}`,
       bgcolor: COLOR.surface,
       flexShrink: 0,
@@ -37,11 +37,11 @@ export default function SuggestionChips({ items, selected = [], onToggle, onDism
             sx={{
               display: "inline-flex",
               alignItems: "center",
-              px: 1.2,
+              px: 1,
               py: 0.5,
               border: "1px solid",
               borderColor: isSelected ? COLOR.primary : COLOR.border,
-              borderRadius: "16px",
+              borderRadius: RADIUS.pill,
               cursor: disabled ? "default" : "pointer",
               fontSize: TYPE.secondary.fontSize,
               fontFamily: "inherit",

@@ -11,7 +11,7 @@ import AppButton from "../../../components/AppButton";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import SheetDialog from "../../../components/SheetDialog";
 import { useApi } from "../../../api/ApiContext";
-import { TYPE, ICON } from "../../../theme";
+import { TYPE, ICON, COLOR } from "../../../theme";
 
 const STANDARD_TEMPLATE_FIELDS = [
   { key: "department", label: "科别", desc: "就诊科室名称" },
@@ -35,9 +35,9 @@ function TemplateStatusCard({ loading, status }) {
 
   return (
     <>
-      <Box sx={{ bgcolor: "#fff", px: 2, py: 2, mb: 0.8 }}>
+      <Box sx={{ bgcolor: "#fff", px: 2, py: 2, mb: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Box sx={{ width: 44, height: 44, borderRadius: "10px", bgcolor: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Box sx={{ width: 44, height: 44, borderRadius: "10px", bgcolor: COLOR.successLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <UploadFileOutlinedIcon sx={{ color: "#07C160", fontSize: ICON.xl }} />
           </Box>
           <Box sx={{ flex: 1 }}>
@@ -59,7 +59,7 @@ function TemplateStatusCard({ loading, status }) {
             )}
           </Box>
           {status?.has_template && (
-            <Box sx={{ px: 1, py: 0.3, borderRadius: "10px", bgcolor: "#e8f5e9" }}>
+            <Box sx={{ px: 1, py: 0.5, borderRadius: "10px", bgcolor: COLOR.successLight }}>
               <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#07C160", fontWeight: 600 }}>已自定义</Typography>
             </Box>
           )}
@@ -100,9 +100,9 @@ function TemplateActions({ status, uploading, deleting, fileRef, onDelete }) {
   return (
     <Box sx={{ bgcolor: "#fff" }}>
       <Box onClick={() => fileRef.current?.click()}
-        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.6,
+        sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5,
           borderBottom: status?.has_template ? "1px solid #f2f2f2" : "none",
-          cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+          cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}>
         {uploading ? <CircularProgress size={18} sx={{ mr: 1.5, color: "#07C160" }} /> : <Box sx={{ width: 18, mr: 1.5 }} />}
         <Typography sx={{ flex: 1, fontSize: TYPE.action.fontSize, color: uploading ? "#999" : "#07C160", fontWeight: 500 }}>
           {uploading ? "上传中…" : status?.has_template ? "替换模板文件" : "上传模板文件"}
@@ -111,9 +111,9 @@ function TemplateActions({ status, uploading, deleting, fileRef, onDelete }) {
       </Box>
       {status?.has_template && (
         <Box onClick={!deleting ? onDelete : undefined}
-          sx={{ display: "flex", alignItems: "center", px: 2, py: 1.6, cursor: deleting ? "default" : "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
-          {deleting ? <CircularProgress size={18} sx={{ mr: 1.5, color: "#FA5151" }} /> : <Box sx={{ width: 18, mr: 1.5 }} />}
-          <Typography sx={{ flex: 1, fontSize: TYPE.action.fontSize, color: deleting ? "#999" : "#FA5151" }}>
+          sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, cursor: deleting ? "default" : "pointer", "&:active": { bgcolor: COLOR.surface } }}>
+          {deleting ? <CircularProgress size={18} sx={{ mr: 1.5, color: COLOR.danger }} /> : <Box sx={{ width: 18, mr: 1.5 }} />}
+          <Typography sx={{ flex: 1, fontSize: TYPE.action.fontSize, color: deleting ? "#999" : COLOR.danger }}>
             {deleting ? "删除中…" : "删除模板，恢复默认"}
           </Typography>
         </Box>

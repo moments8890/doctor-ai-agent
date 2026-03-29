@@ -44,7 +44,7 @@ export default function ProfileTab({ patientName, doctorName, doctorSpecialty, d
       {/* Logout */}
       <Box sx={{ mt: 1 }}>
         <Box onClick={onLogout}
-          sx={{ bgcolor: COLOR.white, py: 1.5, textAlign: "center", cursor: "pointer", "&:active": { bgcolor: "#f9f9f9" } }}>
+          sx={{ bgcolor: COLOR.white, py: 1.5, textAlign: "center", cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}>
           <Typography sx={{ fontSize: TYPE.action.fontSize, color: COLOR.danger }}>退出登录</Typography>
         </Box>
       </Box>

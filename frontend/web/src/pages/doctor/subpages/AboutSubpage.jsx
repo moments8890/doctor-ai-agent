@@ -4,12 +4,12 @@
 import { Box, Typography } from "@mui/material";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import PageSkeleton from "../../../components/PageSkeleton";
-import { TYPE, ICON, COLOR } from "../../../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../../../theme";
 
 export default function AboutSubpage({ onBack, isMobile }) {
   const content = (
     <Box sx={{ flex: 1, overflowY: "auto", p: 3, textAlign: "center" }}>
-      <Box sx={{ width: 64, height: 64, borderRadius: "16px", bgcolor: COLOR.primary, display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2 }}>
+      <Box sx={{ width: 64, height: 64, borderRadius: RADIUS.pill, bgcolor: COLOR.primary, display: "flex", alignItems: "center", justifyContent: "center", mx: "auto", mb: 2 }}>
         <LocalHospitalOutlinedIcon sx={{ color: COLOR.white, fontSize: ICON.display }} />
       </Box>
       <Typography sx={{ fontWeight: 700, fontSize: TYPE.title.fontSize, mb: 0.5 }}>AI 医疗助手</Typography>

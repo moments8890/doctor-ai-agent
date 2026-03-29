@@ -18,7 +18,7 @@ import { TYPE, COLOR } from "../../../theme";
 
 const SECTIONS = [
   { key: "differential", label: "鉴别诊断", color: "#e8833a" },
-  { key: "workup",       label: "检查建议", color: "#E8533F" },
+  { key: "workup",       label: "检查建议", color: COLOR.danger },
   { key: "treatment",    label: "治疗方向", color: "#1a7f37" },
 ];
 
@@ -29,19 +29,19 @@ function InlineAddForm({ onSubmit, onCancel }) {
   const [detail, setDetail] = useState("");
 
   return (
-    <Box sx={{ px: 2, pb: 1.25, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+    <Box sx={{ px: 2, pb: 1.5, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
       <TextField
         fullWidth size="small" placeholder="建议内容"
         value={content} onChange={(e) => setContent(e.target.value)}
-        sx={{ mt: 1.1, mb: 0.8, "& .MuiInputBase-root": { fontSize: TYPE.secondary.fontSize, bgcolor: "#fafafa" } }}
+        sx={{ mt: 1, mb: 1, "& .MuiInputBase-root": { fontSize: TYPE.secondary.fontSize, bgcolor: COLOR.surface } }}
       />
       <TextField
         fullWidth size="small" placeholder="详细说明（可选）"
         value={detail} onChange={(e) => setDetail(e.target.value)}
         multiline minRows={1} maxRows={3}
-        sx={{ mb: 0.8, "& .MuiInputBase-root": { fontSize: TYPE.caption.fontSize, bgcolor: "#fafafa" } }}
+        sx={{ mb: 1, "& .MuiInputBase-root": { fontSize: TYPE.caption.fontSize, bgcolor: COLOR.surface } }}
       />
-      <Box sx={{ display: "flex", gap: 2.2, justifyContent: "flex-end" }}>
+      <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
         <Box onClick={onCancel}
           sx={{ minHeight: 32, display: "inline-flex", alignItems: "center", fontSize: TYPE.body.fontSize, color: COLOR.text4, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
           取消
@@ -71,13 +71,13 @@ function SuggestionSection({ sectionKey, label, items, expandedIds, onToggle, on
   return (
     <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
       {/* Section header */}
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, px: 2, py: 1.2, borderLeft: color ? `3px solid ${color}` : "none" }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, px: 2, py: 1, borderLeft: color ? `3px solid ${color}` : "none" }}>
         <Box sx={{ minWidth: 0 }}>
           <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>{label}</Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.2 }}>{decidedCount}/{total} 已处理</Typography>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.5 }}>{decidedCount}/{total} 已处理</Typography>
         </Box>
         <Box onClick={() => setAdding((prev) => !prev)}
-          sx={{ fontSize: TYPE.caption.fontSize, color: adding ? COLOR.text4 : COLOR.primary, cursor: "pointer", whiteSpace: "nowrap", pt: 0.2, "&:active": { opacity: 0.6 } }}>
+          sx={{ fontSize: TYPE.caption.fontSize, color: adding ? COLOR.text4 : COLOR.primary, cursor: "pointer", whiteSpace: "nowrap", pt: 0.5, "&:active": { opacity: 0.6 } }}>
           {adding ? "取消" : "添加"}
         </Box>
       </Box>
@@ -165,7 +165,7 @@ export default function ReviewSubpage({
         <Box sx={{
           position: "absolute", bottom: 0, left: 0, right: 0,
           bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`,
-          px: 2, pt: 0.9, pb: 1,
+          px: 2, pt: 1, pb: 1,
           paddingBottom: "calc(8px + env(safe-area-inset-bottom))",
         }}>
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -178,7 +178,7 @@ export default function ReviewSubpage({
               sx={{
                 bgcolor: COLOR.primary, color: COLOR.white,
                 fontSize: TYPE.body.fontSize, fontWeight: 600,
-                minHeight: 36, px: 2.2, py: 0, borderRadius: 1,
+                minHeight: 36, px: 2, py: 0, borderRadius: 1,
                 "&:hover": { bgcolor: COLOR.primary },
                 "&:disabled": { bgcolor: COLOR.border, color: COLOR.text4 },
               }}
@@ -186,7 +186,7 @@ export default function ReviewSubpage({
               {finalizing ? "提交中..." : "完成审核"}
             </Button>
           </Box>
-          <Typography sx={{ fontSize: 10, color: "#c0c0c0", textAlign: "center", mt: 0.6 }}>
+          <Typography sx={{ fontSize: 10, color: "#c0c0c0", textAlign: "center", mt: 0.5 }}>
             AI建议仅供参考
           </Typography>
         </Box>

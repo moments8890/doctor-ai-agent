@@ -19,7 +19,7 @@ import SectionLabel from "../../components/SectionLabel";
 import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
 import ActionRow from "../../components/ActionRow";
-import { TYPE, COLOR } from "../../theme";
+import { TYPE, COLOR, RADIUS } from "../../theme";
 import { markOnboardingStep, ONBOARDING_STEP } from "./constants";
 
 // Task type badge mapping removed — ActionRow uses checkbox instead of IconBadge
@@ -83,8 +83,8 @@ function SendConfirmSheet({ open, onClose, item, onConfirm, sending }) {
       {/* Draft text */}
       <Box sx={{
         bgcolor: COLOR.surface,
-        borderRadius: "6px",
-        px: 1.5, py: 1.2, mb: 1.5,
+        borderRadius: RADIUS.md,
+        px: 1.5, py: 1, mb: 1.5,
       }}>
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.6 }}>
           {item.draft_text}
@@ -109,13 +109,13 @@ function SendConfirmSheet({ open, onClose, item, onConfirm, sending }) {
                 sx={{
                   fontSize: 11,
                   color: COLOR.primary,
-                  bgcolor: "#e8f5e9",
+                  bgcolor: COLOR.successLight,
                   px: 1,
-                  py: 0.3,
-                  borderRadius: "4px",
+                  py: 0.5,
+                  borderRadius: RADIUS.sm,
                   cursor: "pointer",
                   fontWeight: 500,
-                  "&:hover": { bgcolor: "#c8e6c9" },
+                  "&:hover": { bgcolor: COLOR.successLight },
                 }}
               >
                 {rule.title}
@@ -143,6 +143,7 @@ const VALID_TABS = new Set(["followups", "sent"]);
 
 export default function TaskPage({ doctorId, urlSubpage }) {
   const api = useApi();
+  const navigate = useAppNavigate();
   const params = new URLSearchParams(window.location.search);
   const origin = params.get("origin") || "";
   const highlightTaskIds = new Set(
@@ -354,7 +355,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
       <SubpageHeader title="任务" />
       <Box sx={{ flex: 1, overflow: "auto", pb: "80px" }}>
         {origin === "patient_submit" && (
-          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.25 }}>
+          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 15 }}>
             <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
               已创建审核任务
             </Typography>
@@ -364,7 +365,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
           </Box>
         )}
         {origin === "review_finalize" && (
-          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.25 }}>
+          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 15 }}>
             <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
               已生成随访任务
             </Typography>
@@ -417,7 +418,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                       onClick={() => handleFilter(tab.key)}
                       sx={{
                         flex: 1, textAlign: "center",
-                        py: 1.2, cursor: "pointer", userSelect: "none",
+                        py: 1, cursor: "pointer", userSelect: "none",
                         borderBottom: active ? `2px solid ${tab.activeColor}` : "2px solid transparent",
                         transition: "border-color 0.15s ease",
                         "&:active": { opacity: 0.5 },
@@ -439,7 +440,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                       </Typography>
                     </Box>
                     {i < arr.length - 1 && (
-                      <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.8 }} />
+                      <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 1 }} />
                     )}
                   </Box>
                 );

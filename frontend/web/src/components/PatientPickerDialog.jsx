@@ -9,7 +9,7 @@ import { useApi } from "../api/ApiContext";
 import ListCard from "./ListCard";
 import NameAvatar from "./NameAvatar";
 import SectionLabel from "./SectionLabel";
-import { TYPE, ICON, COLOR } from "../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../theme";
 
 function formatPatientTime(dateStr) {
   if (!dateStr) return "";
@@ -122,7 +122,7 @@ export default function PatientPickerDialog({ open, onClose, doctorId, onSelect 
       fullScreen={fullScreen}
       fullWidth
       maxWidth="xs"
-      PaperProps={{ sx: { borderRadius: fullScreen ? 0 : "4px", display: "flex", flexDirection: "column", maxHeight: "80vh", bgcolor: COLOR.surfaceAlt } }}
+      PaperProps={{ sx: { borderRadius: fullScreen ? 0 : RADIUS.sm, display: "flex", flexDirection: "column", maxHeight: "80vh", bgcolor: COLOR.surfaceAlt } }}
     >
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
         <Typography sx={{ fontWeight: 600, fontSize: TYPE.title.fontSize }}>选择患者</Typography>
@@ -146,7 +146,7 @@ export default function PatientPickerDialog({ open, onClose, doctorId, onSelect 
           }}
           sx={{
             "& .MuiOutlinedInput-root": {
-              borderRadius: "4px",
+              borderRadius: RADIUS.sm,
               bgcolor: COLOR.white,
               "& fieldset": { borderColor: "#e0e0e0" },
               "&.Mui-focused fieldset": { borderColor: COLOR.primary },

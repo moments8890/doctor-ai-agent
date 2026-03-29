@@ -25,10 +25,11 @@ import ListCard from "../../components/ListCard";
 import SectionLabel from "../../components/SectionLabel";
 import StatusBadge from "../../components/StatusBadge";
 import NameAvatar from "../../components/NameAvatar";
+import EmptyState from "../../components/EmptyState";
 import PatientDetail from "./patients/PatientDetail";
 import SubpageHeader from "../../components/SubpageHeader";
 import InterviewPage from "./InterviewPage";
-import { TYPE, ICON, COLOR } from "../../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 
 function groupPatients(list) {
   const groups = {};
@@ -66,7 +67,7 @@ function TriageDot({ triageCategory }) {
   return (
     <Box component="span" sx={{
       display: "inline-block", fontSize: 10, fontWeight: 600,
-      px: 0.6, py: 0.1, borderRadius: "3px",
+      px: 0.5, py: 0.5, borderRadius: RADIUS.sm,
       bgcolor: color, color: "#fff", lineHeight: 1.5,
       flexShrink: 0, ml: 0.5,
     }}>
@@ -147,10 +148,10 @@ function ImportCard({ importing, importError, onFileClick, onChatClick }) {
         <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#aaa", fontWeight: 600, letterSpacing: 0.3 }}>导入患者</Typography>
       </Box>
       <Box onClick={onFileClick}
-        sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.2, bgcolor: "#fff",
+        sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1, bgcolor: "#fff",
           borderBottom: "1px solid #f2f2f2", cursor: "pointer", userSelect: "none", WebkitUserSelect: "none",
           "&:hover": { bgcolor: "#f5f5f5" }, "&:active": { bgcolor: "#ebebeb" } }}>
-        <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Box sx={{ width: 36, height: 36, borderRadius: RADIUS.md, bgcolor: COLOR.successLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           {importing ? <CircularProgress size={18} sx={{ color: "#07C160" }} /> : <UploadFileOutlinedIcon sx={{ fontSize: ICON.lg, color: "#07C160" }} />}
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -160,9 +161,9 @@ function ImportCard({ importing, importError, onFileClick, onChatClick }) {
         <KeyboardArrowDownIcon sx={{ fontSize: ICON.md, color: "#ccc", transform: "rotate(-90deg)" }} />
       </Box>
       <Box onClick={onChatClick}
-        sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.2, bgcolor: "#fff",
+        sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1, bgcolor: "#fff",
           cursor: "pointer", "&:hover": { bgcolor: "#f5f5f5" }, "&:active": { bgcolor: "#ebebeb" } }}>
-        <Box sx={{ width: 36, height: 36, borderRadius: "8px", bgcolor: "#e3f2fd", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <Box sx={{ width: 36, height: 36, borderRadius: RADIUS.md, bgcolor: "#e3f2fd", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <ChatOutlinedIcon sx={{ fontSize: ICON.lg, color: "#1976d2" }} />
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -172,8 +173,8 @@ function ImportCard({ importing, importError, onFileClick, onChatClick }) {
         <KeyboardArrowDownIcon sx={{ fontSize: ICON.md, color: "#ccc", transform: "rotate(-90deg)" }} />
       </Box>
       {importError && (
-        <Box sx={{ px: 2, py: 0.8, bgcolor: "#fff3f3" }}>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#FA5151" }}>{importError}</Typography>
+        <Box sx={{ px: 2, py: 1, bgcolor: COLOR.dangerLight }}>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.danger }}>{importError}</Typography>
         </Box>
       )}
     </Box>
@@ -205,7 +206,7 @@ function SearchBar({ patients, search, nlResults, nlLoading, onChange, onSubmit 
             </InputAdornment>
           ) : null,
         }}
-        sx={{ "& .MuiOutlinedInput-root": { borderRadius: "4px", bgcolor: "#fff" } }}
+        sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.sm, bgcolor: "#fff" } }}
       />
       {nlResults !== null && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, pt: 0.5 }}>
@@ -232,12 +233,7 @@ function PatientList({ filtered, search, selectedId, isMobile, navigate, onStart
   }
   if (!filtered.length) {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 4, gap: 1 }}>
-        <Typography variant="body2" color="text.disabled">暂无患者档案</Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
-          点击"新建患者"或在聊天中创建
-        </Typography>
-      </Box>
+      <EmptyState title="暂无患者档案" subtitle={'点击"新建患者"或在聊天中创建'} />
     );
   }
   return filtered.map((p) => (

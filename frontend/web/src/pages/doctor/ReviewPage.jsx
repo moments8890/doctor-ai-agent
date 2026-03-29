@@ -15,12 +15,12 @@ import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { useDoctorStore } from "../../store/doctorStore";
 import {
-  ONBOARDING_EXAMPLES,
   STRUCTURED_FIELD_LABELS,
   getOnboardingState,
   markOnboardingStep,
   ONBOARDING_STEP,
 } from "./constants";
+import { getPreferredOnboardingRule, resolveReplyProofDestination } from "./onboardingProofs";
 import ReviewSubpage from "./subpages/ReviewSubpage";
 import { TYPE, COLOR } from "../../theme";
 import AppButton from "../../components/AppButton";
@@ -50,7 +50,7 @@ function RecordSummary({ record }) {
     <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
       <Box
         onClick={() => setExpanded((v) => !v)}
-        sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, px: 2, py: 1.25, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}
+        sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, px: 2, py: 1.5, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}
       >
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
@@ -126,7 +126,7 @@ function LoadingSkeleton() {
 function FlowBanner({ title, subtitle }) {
   if (!title) return null;
   return (
-    <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.25 }}>
+    <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.5 }}>
       <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
         {title}
       </Typography>
@@ -142,7 +142,7 @@ function FlowBanner({ title, subtitle }) {
 function FlowBannerActions({ children }) {
   if (!children) return null;
   return (
-    <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.1 }}>
+    <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1 }}>
       {children}
     </Box>
   );
@@ -159,7 +159,7 @@ function InputProvenanceCard({ record }) {
   const summaryText = structured.chief_complaint || record.chief_complaint || record.content || "（无记录内容）";
   return (
     <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-      <Box sx={{ px: 2, py: 1.1, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
+      <Box sx={{ px: 2, py: 1, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
         <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
           病例输入来源
         </Typography>
@@ -188,7 +188,17 @@ function InputProvenanceCard({ record }) {
 
 export default function ReviewPage({ recordId }) {
   const navigate = useAppNavigate();
-  const { getSuggestions, decideSuggestion, addSuggestion, triggerDiagnosis, finalizeReview, getTaskRecord, getKnowledgeBatch, fetchDrafts } = useApi();
+  const {
+    getSuggestions,
+    decideSuggestion,
+    addSuggestion,
+    triggerDiagnosis,
+    finalizeReview,
+    getTaskRecord,
+    getKnowledgeBatch,
+    fetchDrafts,
+    ensureOnboardingExamples,
+  } = useApi();
   const { doctorId } = useDoctorStore();
 
   const [record, setRecord] = useState(null);
@@ -197,7 +207,7 @@ export default function ReviewPage({ recordId }) {
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
   const [openingReplyProof, setOpeningReplyProof] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [toast, showToast] = useToast();
   const [knowledgeMap, setKnowledgeMap] = useState({});
   const pollRef = useRef(null);
   const params = new URLSearchParams(window.location.search);
@@ -364,25 +374,19 @@ export default function ReviewPage({ recordId }) {
     if (openingReplyProof) return;
     setOpeningReplyProof(true);
     try {
-      const drafts = await (fetchDrafts || (() => Promise.resolve({ pending_messages: [] })))(doctorId, { includeSent: true });
-      const items = Array.isArray(drafts) ? drafts : (drafts?.pending_messages || []);
-      const activeDrafts = items.filter((row) => row.status !== "sent");
-      const item = activeDrafts.find((row) => row.rule_cited === savedRuleTitle)
-        || activeDrafts.find((row) => (row.cited_rules || []).some((rule) => rule.title === savedRuleTitle))
-        || activeDrafts.find((row) => ONBOARDING_EXAMPLES.ruleTitles.includes(row.rule_cited))
-        || activeDrafts.find((row) => ONBOARDING_EXAMPLES.replyPatientNames.includes(row.patient_name))
-        || activeDrafts.find((row) => row.draft_text)
-        || activeDrafts[0];
-      navigate(`/doctor/review?tab=replies&source=reply_proof${item?.id ? `&highlight_draft=${item.id}` : ""}`);
+      const { preferredRuleId, preferredRuleTitle } = getPreferredOnboardingRule(doctorId, {
+        preferredRuleTitle: savedRuleTitle,
+      });
+      const destination = await resolveReplyProofDestination({ fetchDrafts, ensureOnboardingExamples }, doctorId, {
+        preferredRuleId,
+        preferredRuleTitle,
+      });
+      navigate(destination);
     } finally {
       setOpeningReplyProof(false);
     }
   }
 
-  function showToast(msg) {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2000);
-  }
 
   /* ── Derived state ───────────────────────────────────────────────────────── */
 
@@ -446,7 +450,7 @@ export default function ReviewPage({ recordId }) {
 
         {/* Trigger button: no suggestions, record NOT pending review */}
         {!loading && !hasSuggestions && !isPendingReview && (
-          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 2.25, textAlign: "center" }}>
+          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 2.5, textAlign: "center" }}>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mb: 1 }}>
               可生成 AI 诊断建议
             </Typography>
@@ -460,17 +464,7 @@ export default function ReviewPage({ recordId }) {
         )}
       </ReviewSubpage>
 
-      {/* Toast */}
-      {toast && (
-        <Box sx={{
-          position: "fixed", top: "20%", left: "50%", transform: "translateX(-50%)",
-          bgcolor: "rgba(0,0,0,0.7)", color: "#fff", px: 3, py: 1.5,
-          borderRadius: 2, fontSize: TYPE.body.fontSize, zIndex: 9999,
-          pointerEvents: "none",
-        }}>
-          {toast}
-        </Box>
-      )}
+      <Toast message={toast} />
     </>
   );
 }

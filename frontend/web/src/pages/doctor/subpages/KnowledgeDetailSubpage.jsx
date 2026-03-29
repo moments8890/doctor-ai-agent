@@ -11,7 +11,7 @@ import { Box, Button, TextField, Typography } from "@mui/material";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
-import { TYPE, COLOR } from "../../../theme";
+import { TYPE, COLOR, RADIUS } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import SectionLabel from "../../../components/SectionLabel";
 import ListCard from "../../../components/ListCard";
@@ -199,7 +199,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
                 <Box sx={{
                   fontSize: TYPE.micro.fontSize, fontWeight: 500,
                   color: COLOR.accent, bgcolor: COLOR.accentLight,
-                  px: 0.8, py: 0.1, borderRadius: "4px",
+                  px: 1, py: 0.5, borderRadius: RADIUS.sm,
                 }}>
                   {category}
                 </Box>
@@ -269,7 +269,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
                       key={u.id || idx}
                       avatar={
                         <Box sx={{
-                          width: 36, height: 36, borderRadius: "6px", flexShrink: 0,
+                          width: 36, height: 36, borderRadius: RADIUS.md, flexShrink: 0,
                           bgcolor: COLOR.surfaceAlt,
                           display: "flex", alignItems: "center", justifyContent: "center",
                           fontSize: 16,
@@ -376,7 +376,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
           size="small"
           value={editText}
           onChange={(e) => setEditText(e.target.value)}
-          sx={{ "& .MuiOutlinedInput-root": { borderRadius: "6px" } }}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.md } }}
         />
         <Typography sx={{ fontSize: TYPE.caption.fontSize, color: editText.length > 3000 ? COLOR.danger : COLOR.text4, mt: 0.5, textAlign: "right" }}>
           {editText.length}/3000

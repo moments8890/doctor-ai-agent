@@ -45,7 +45,7 @@ export default function InterviewCompleteDialog({ open, fields, fieldCount, onSa
       mobileMaxHeight="75vh"
       contentSx={{ pb: 1, maxHeight: "60vh" }}
       footer={
-        <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
           <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>返回</AppButton>
           <AppButton variant="secondary" size="md" fullWidth onClick={onSave}>保存</AppButton>
           <Box sx={{ gridColumn: "1 / -1" }}>
@@ -61,7 +61,7 @@ export default function InterviewCompleteDialog({ open, fields, fieldCount, onSa
         )}
 
         {entries.map(({ key, label, value }) => (
-          <Box key={key} sx={{ py: 0.8, borderBottom: `1px solid ${COLOR.borderLight}` }}>
+          <Box key={key} sx={{ py: 1, borderBottom: `1px solid ${COLOR.borderLight}` }}>
             <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.3 }}>
               {label}
             </Typography>

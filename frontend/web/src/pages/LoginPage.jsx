@@ -20,7 +20,7 @@ import {
   unifiedListDoctors, setWebToken,
 } from "../api";
 import { useDoctorStore } from "../store/doctorStore";
-import { TYPE, ICON } from "../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../theme";
 
 const STORAGE_KEY = "unified_auth_token";
 const STORAGE_ROLE_KEY = "unified_auth_role";
@@ -150,9 +150,9 @@ export default function LoginPage() {
   return (
     <Box sx={{
       minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", px: 2,
-      bgcolor: "#fafafa",
+      bgcolor: COLOR.surface,
     }}>
-      <Card sx={{ width: "100%", maxWidth: 400, borderRadius: "6px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
+      <Card sx={{ width: "100%", maxWidth: 400, borderRadius: RADIUS.md, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
         <CardContent sx={{ p: 3.5 }}>
           <Stack spacing={2.5} alignItems="center">
             <MedicalServicesOutlinedIcon sx={{ fontSize: ICON.display, color: "#07C160" }} />
@@ -175,7 +175,7 @@ export default function LoginPage() {
                     placeholder="数字口令" fullWidth size="small" type="password" />
                   {error && <Typography variant="body2" color="error">{error}</Typography>}
                   <Button type="submit" variant="contained" fullWidth disabled={loading}
-                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" }, textTransform: "none", py: 1.2 }}>
+                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: COLOR.primaryHover }, textTransform: "none", py: 1 }}>
                     {loading ? <CircularProgress size={16} /> : "登录"}
                   </Button>
                   <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ fontSize: TYPE.secondary.fontSize }}>
@@ -224,7 +224,7 @@ export default function LoginPage() {
                     type="password" placeholder="设置数字口令" />
                   {error && <Typography variant="body2" color="error">{error}</Typography>}
                   <Button type="submit" variant="contained" fullWidth disabled={loading}
-                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" }, textTransform: "none", py: 1.2 }}>
+                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: COLOR.primaryHover }, textTransform: "none", py: 1 }}>
                     {loading ? <CircularProgress size={16} /> : "注册"}
                   </Button>
                   <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ fontSize: TYPE.secondary.fontSize }}>
@@ -264,7 +264,7 @@ export default function LoginPage() {
                     type="password" placeholder="设置数字口令" />
                   {error && <Typography variant="body2" color="error">{error}</Typography>}
                   <Button type="submit" variant="contained" fullWidth disabled={loading}
-                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" }, textTransform: "none", py: 1.2 }}>
+                    sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: COLOR.primaryHover }, textTransform: "none", py: 1 }}>
                     {loading ? <CircularProgress size={16} /> : "注册"}
                   </Button>
                   <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ fontSize: TYPE.secondary.fontSize }}>

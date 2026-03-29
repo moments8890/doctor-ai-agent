@@ -27,7 +27,7 @@ import AddKnowledgeSubpage from "./subpages/AddKnowledgeSubpage";
 import { useDoctorStore } from "../../store/doctorStore";
 import SettingsListSubpage from "./subpages/SettingsListSubpage";
 import { SPECIALTY_OPTIONS, setOnboardingState } from "./constants";
-import { TYPE, ICON, COLOR } from "../../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 
 function NameDialog({ open, nameInput, nameSaving, nameError, onChange, onSave, onClose }) {
   return (
@@ -38,7 +38,7 @@ function NameDialog({ open, nameInput, nameSaving, nameError, onChange, onSave, 
       subtitle="AI 助手将用此姓名称呼您，例如「好的，张医生」"
       desktopMaxWidth={360}
       footer={
-        <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
           <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
             取消
           </AppButton>
@@ -67,7 +67,7 @@ function NameDialog({ open, nameInput, nameSaving, nameError, onChange, onSave, 
         sx={{ mt: 0.5 }}
       />
       {nameError ? (
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#FA5151", mt: 0.75 }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.danger, mt: 1 }}>
           {nameError}
         </Typography>
       ) : null}
@@ -83,7 +83,7 @@ function SpecialtyDialog({ open, specialtyInput, specialtySaving, specialtyError
       title="科室专业"
       desktopMaxWidth={380}
       footer={
-        <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
           <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
             取消
           </AppButton>
@@ -101,13 +101,13 @@ function SpecialtyDialog({ open, specialtyInput, specialtySaving, specialtyError
         </Box>
       }
     >
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.8, mt: 0.5, mb: 2 }}>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 0.5, mb: 2 }}>
         {SPECIALTY_OPTIONS.map((s) => (
           <Box
             key={s}
             onClick={() => onChange(s)}
             sx={{
-              px: 1.4,
+              px: 1.5,
               py: 0.5,
               borderRadius: "999px",
               cursor: "pointer",
@@ -129,7 +129,7 @@ function SpecialtyDialog({ open, specialtyInput, specialtySaving, specialtyError
         onChange={(e) => onChange(e.target.value)}
       />
       {specialtyError ? (
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#FA5151", mt: 0.75 }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.danger, mt: 1 }}>
           {specialtyError}
         </Typography>
       ) : null}
@@ -430,7 +430,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
             <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
               为患者生成专属入口
             </Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.4, lineHeight: 1.6 }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.5, lineHeight: 1.6 }}>
               先建档，再生成可分享的预问诊链接。患者扫码后将直接进入 AI 预问诊。
             </Typography>
             <TextField
@@ -440,9 +440,9 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
               value={qrPatientName}
               onChange={(e) => setQrPatientName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleGenerateQR(); }}
-              sx={{ mt: 1.25 }}
+              sx={{ mt: 1.5 }}
             />
-            <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "1fr", mt: 1.25 }}>
+            <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "1fr", mt: 1.5 }}>
               <AppButton
                 variant="primary"
                 size="md"
@@ -467,16 +467,16 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
 
           {qrUrl && (
             <Box sx={{ mt: 1.5, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, p: 2, textAlign: "center" }}>
-              <Box sx={{ display: "inline-flex", p: 2.5, bgcolor: COLOR.white, borderRadius: "12px", border: `0.5px solid ${COLOR.border}` }}>
+              <Box sx={{ display: "inline-flex", p: 2.5, bgcolor: COLOR.white, borderRadius: RADIUS.lg, border: `0.5px solid ${COLOR.border}` }}>
                 <QRCodeSVG value={qrUrl} size={220} level="M" />
               </Box>
-              <Typography sx={{ mt: 1.25, fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+              <Typography sx={{ mt: 1.5, fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.text1 }}>
                 {qrPatientName.trim()}
               </Typography>
-              <Typography sx={{ mt: 0.45, fontSize: TYPE.caption.fontSize, color: COLOR.text4, lineHeight: 1.6 }}>
+              <Typography sx={{ mt: 0.5, fontSize: TYPE.caption.fontSize, color: COLOR.text4, lineHeight: 1.6 }}>
                 患者扫码后将进入 AI 预问诊，确认提交后自动创建审核任务。
               </Typography>
-              <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "repeat(2, minmax(0, 1fr))", mt: 1.5 }}>
+              <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0, 1fr))", mt: 1.5 }}>
                 <AppButton variant="secondary" size="md" fullWidth onClick={handleCopyQRLink}>
                   {qrCopied ? "已复制" : "复制"}
                 </AppButton>

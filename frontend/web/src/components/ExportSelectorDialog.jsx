@@ -4,7 +4,7 @@
  */
 import { useState } from "react";
 import { Box, Typography } from "@mui/material";
-import { TYPE, ICON, COLOR } from "../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../theme";
 import AppButton from "./AppButton";
 import SheetDialog from "./SheetDialog";
 
@@ -100,8 +100,8 @@ export default function ExportSelectorDialog({ open, onClose, patientId, patient
             sx={{
               display: "flex",
               alignItems: "center",
-              gap: 1.2,
-              py: 1.4,
+              gap: 1,
+              py: 1.5,
               cursor: sec.disabled ? "default" : "pointer",
               "&:active": sec.disabled ? {} : { opacity: 0.6 },
             }}
@@ -116,15 +116,15 @@ export default function ExportSelectorDialog({ open, onClose, patientId, patient
           </Box>
 
           {sec.hasRange && sections[sec.key] && (
-            <Box sx={{ display: "flex", gap: 0.8, pb: 1.2, pl: 4.2 }}>
+            <Box sx={{ display: "flex", gap: 1, pb: 1, pl: 4 }}>
               {VISIT_RANGE_OPTS.map((opt) => (
                 <Box
                   key={opt.value}
                   onClick={() => setVisitRange(opt.value)}
                   sx={{
-                    px: 1.4,
-                    py: 0.35,
-                    borderRadius: "4px",
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: RADIUS.sm,
                     cursor: "pointer",
                     fontSize: TYPE.caption.fontSize,
                     bgcolor: visitRange === opt.value ? COLOR.primary : COLOR.borderLight,

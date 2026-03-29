@@ -2,7 +2,7 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 import { QRCodeSVG } from "qrcode.react";
 import SheetDialog from "./SheetDialog";
 import AppButton from "./AppButton";
-import { TYPE, COLOR } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../theme";
 
 export default function QRDialog({ open, onClose, title, name, url, loading, error, onRegenerate }) {
   return (
@@ -25,7 +25,7 @@ export default function QRDialog({ open, onClose, title, name, url, loading, err
             {error}
           </Typography>
         ) : url ? (
-          <Box sx={{ p: 2, bgcolor: COLOR.white, borderRadius: "8px", border: `1px solid ${COLOR.borderLight}` }}>
+          <Box sx={{ p: 2, bgcolor: COLOR.white, borderRadius: RADIUS.md, border: `1px solid ${COLOR.borderLight}` }}>
             <QRCodeSVG value={url} size={200} level="M" />
           </Box>
         ) : null}

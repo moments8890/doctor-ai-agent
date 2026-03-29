@@ -11,7 +11,6 @@ import { useEffect, useState, useRef } from "react";
 import {
   Box,
   Button,
-  Chip,
   CircularProgress,
   IconButton,
   LinearProgress,
@@ -29,7 +28,8 @@ import SuggestionChips from "../../components/SuggestionChips";
 import SheetDialog from "../../components/SheetDialog";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import AppButton from "../../components/AppButton";
-import { TYPE } from "../../theme";
+import BarButton from "../../components/BarButton";
+import { TYPE, COLOR, RADIUS } from "../../theme";
 import { FIELD_LABELS, PAGE_LAYOUT } from "./constants";
 
 export default function InterviewPage({ token, onBack, onLogout }) {
@@ -48,8 +48,12 @@ export default function InterviewPage({ token, onBack, onLogout }) {
   const [suggestions, setSuggestions] = useState([]);
   const [selectedSuggestions, setSelectedSuggestions] = useState([]);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [reviewReady, setReviewReady] = useState(false);
+  const [reviewHintShown, setReviewHintShown] = useState(false);
   const voiceSupported = isVoiceSupported();
   const chatEndRef = useRef(null);
+  const canSupplement = reviewReady && status !== "confirmed";
+  const canInput = status === "interviewing" || canSupplement;
 
   useEffect(() => {
     (async () => {
@@ -60,6 +64,13 @@ export default function InterviewPage({ token, onBack, onLogout }) {
         setProgress(data.progress);
         setStatus(data.status);
         setMessages([{ role: "assistant", content: data.reply }]);
+        if (data.ready_to_review || data.status === "reviewing") {
+          setReviewReady(true);
+          if (!reviewHintShown) {
+            setReviewHintShown(true);
+            setTimeout(() => setShowSummary(true), 300);
+          }
+        }
       } catch (err) {
         if (err.status === 401) console.warn("auth expired");
         setMessages([{ role: "assistant", content: "无法启动问诊，请稍后重试。" }]);
@@ -80,7 +91,7 @@ export default function InterviewPage({ token, onBack, onLogout }) {
     const parts = [...selectedSuggestions];
     if (input.trim()) parts.push(input.trim());
     const text = parts.join("，");
-    if (!text || sending || status !== "interviewing") return;
+    if (!text || sending || !canInput) return;
     setInput("");
     setSuggestions([]);
     setSelectedSuggestions([]);
@@ -94,7 +105,13 @@ export default function InterviewPage({ token, onBack, onLogout }) {
       setStatus(data.status);
       setSuggestions(data.suggestions || []);
       setSelectedSuggestions([]);
-      if (data.status === "reviewing") setTimeout(() => setShowSummary(true), 800);
+      if (data.ready_to_review || data.status === "reviewing") {
+        setReviewReady(true);
+        if (!reviewHintShown) {
+          setReviewHintShown(true);
+          setTimeout(() => setShowSummary(true), 800);
+        }
+      }
     } catch (err) {
       if (err.status === 401) { console.warn("auth expired"); return; }
       setMessages(prev => [...prev, { role: "assistant", content: "系统繁忙，请稍后重试。" }]);
@@ -120,15 +137,30 @@ export default function InterviewPage({ token, onBack, onLogout }) {
     onBack();
   }
 
+  function handleResumeInput() {
+    setShowSummary(false);
+    setStatus("interviewing");
+  }
+
   const allFields = ["chief_complaint", "present_illness", "past_history", "allergy_history", "family_history", "personal_history", "marital_reproductive"];
 
   return (
     <Box sx={PAGE_LAYOUT}>
+      {/*
+        UI-DESIGN.md requires top-bar actions to be a single text-only BarButton.
+        Keep progress/readiness in that slot instead of ad hoc chips.
+      */}
       <SubpageHeader title="新建病历" onBack={() => status === "confirmed" ? onBack() : setShowExitDialog(true)}
         right={
-          <Chip label={`${progress.total ? Math.round((progress.filled / progress.total) * 100) : 0}%`} size="small"
-            color={status === "reviewing" ? "success" : "default"}
-            onClick={() => setShowSummary(true)} sx={{ cursor: "pointer" }} />
+          status === "confirmed" ? null : (
+            <BarButton
+              onClick={reviewReady ? () => setShowSummary(true) : undefined}
+              disabled={!reviewReady}
+              color={reviewReady ? COLOR.primary : COLOR.text4}
+            >
+              {reviewReady ? "提交" : `${progress.total ? Math.round((progress.filled / progress.total) * 100) : 0}%`}
+            </BarButton>
+          )
         }
       />
 
@@ -138,7 +170,7 @@ export default function InterviewPage({ token, onBack, onLogout }) {
           value={progress.total ? (progress.filled / progress.total) * 100 : 0}
           sx={{ height: 6, borderRadius: 3, bgcolor: "#e0e0e0",
             "& .MuiLinearProgress-bar": { bgcolor: "#07C160", borderRadius: 3 } }} />
-        <Typography variant="caption" sx={{ color: "#999", mt: 0.3, display: "block" }}>
+        <Typography variant="caption" sx={{ color: "#999", mt: 0.5, display: "block" }}>
           {progress.total ? Math.round((progress.filled / progress.total) * 100) : 0}%
         </Typography>
       </Box>
@@ -164,7 +196,7 @@ export default function InterviewPage({ token, onBack, onLogout }) {
       </Box>
 
       {/* Suggestion chips — floating above input */}
-      {status === "interviewing" && !sending && suggestions.length > 0 && (
+      {canInput && !sending && suggestions.length > 0 && (
         <SuggestionChips
           items={suggestions}
           selected={selectedSuggestions}
@@ -175,7 +207,7 @@ export default function InterviewPage({ token, onBack, onLogout }) {
       )}
 
       {/* Input with selected chips */}
-      {status === "interviewing" && (
+      {canInput && (
         <Box component="form" onSubmit={handleSend}
           sx={{ display: "flex", alignItems: "flex-end", gap: 1, px: 2, py: 1, bgcolor: "#f5f5f5",
             borderTop: suggestions.length > 0 ? "none" : "1px solid #ddd", flexShrink: 0 }}>
@@ -192,14 +224,14 @@ export default function InterviewPage({ token, onBack, onLogout }) {
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                   {selectedSuggestions.map((s, i) => (
                     <Box key={i} sx={{
-                      display: "inline-flex", alignItems: "center", gap: 0.3,
-                      px: 1, py: 0.2, borderRadius: "12px", fontSize: TYPE.secondary.fontSize,
-                      bgcolor: "#e8f5e9", color: "#07C160", fontWeight: 500, flexShrink: 0,
+                      display: "inline-flex", alignItems: "center", gap: 0.5,
+                      px: 1, py: 0.5, borderRadius: RADIUS.lg, fontSize: TYPE.secondary.fontSize,
+                      bgcolor: COLOR.successLight, color: "#07C160", fontWeight: 500, flexShrink: 0,
                     }}>
                       {s}
                       <Box component="span"
                         onClick={(e) => { e.stopPropagation(); setSelectedSuggestions(prev => prev.filter(x => x !== s)); }}
-                        sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, ml: 0.2, "&:active": { opacity: 0.5 } }}>
+                        sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, ml: 0.5, "&:active": { opacity: 0.5 } }}>
                         ×
                       </Box>
                     </Box>
@@ -212,19 +244,19 @@ export default function InterviewPage({ token, onBack, onLogout }) {
               />
             </Box>
           ) : (
-            <Box sx={{ flex: 1, bgcolor: "#fff", borderRadius: "6px", border: "1px solid #e0e0e0",
+            <Box sx={{ flex: 1, bgcolor: "#fff", borderRadius: RADIUS.md, border: "1px solid #e0e0e0",
               px: 1, py: 0.5, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>
               {selectedSuggestions.map((s, i) => (
                 <Box key={i} sx={{
-                  display: "inline-flex", alignItems: "center", gap: 0.3,
-                  px: 1, py: 0.2, borderRadius: "12px", fontSize: TYPE.secondary.fontSize,
-                  bgcolor: "#e8f5e9", color: "#07C160", fontWeight: 500,
+                  display: "inline-flex", alignItems: "center", gap: 0.5,
+                  px: 1, py: 0.5, borderRadius: RADIUS.lg, fontSize: TYPE.secondary.fontSize,
+                  bgcolor: COLOR.successLight, color: "#07C160", fontWeight: 500,
                   flexShrink: 0,
                 }}>
                   {s}
                   <Box component="span"
                     onClick={(e) => { e.stopPropagation(); setSelectedSuggestions(prev => prev.filter(x => x !== s)); }}
-                    sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, ml: 0.2, "&:active": { opacity: 0.5 } }}>
+                    sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, ml: 0.5, "&:active": { opacity: 0.5 } }}>
                     ×
                   </Box>
                 </Box>
@@ -233,7 +265,7 @@ export default function InterviewPage({ token, onBack, onLogout }) {
                 onChange={e => setInput(e.target.value)}
                 placeholder={selectedSuggestions.length > 0 ? "" : "请输入…"}
                 sx={{ flex: 1, minWidth: 60, border: "none", outline: "none",
-                  fontSize: TYPE.body.fontSize, fontFamily: "inherit", bgcolor: "transparent", p: 0.3 }}
+                  fontSize: TYPE.body.fontSize, fontFamily: "inherit", bgcolor: "transparent", p: 0.5 }}
               />
             </Box>
           )}
@@ -245,22 +277,22 @@ export default function InterviewPage({ token, onBack, onLogout }) {
       )}
       {status === "confirmed" && (
         <Box sx={{ px: 2, py: 2, bgcolor: "#f5f5f5", textAlign: "center", flexShrink: 0 }}>
-          <Button variant="contained" onClick={onBack} sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" } }}>返回病历</Button>
+          <Button variant="contained" onClick={onBack} sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: COLOR.primaryHover } }}>返回病历</Button>
         </Box>
       )}
 
       {/* Summary dialog */}
       <SheetDialog
         open={showSummary}
-        onClose={() => setShowSummary(false)}
+        onClose={handleResumeInput}
         title="已收集信息"
         desktopMaxWidth={400}
         footer={
-          <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: (status === "reviewing" || progress.filled >= 2) ? "repeat(2, minmax(0, 1fr))" : "1fr" }}>
-            <AppButton variant="secondary" size="md" fullWidth onClick={() => setShowSummary(false)}>
-              关闭
+          <Box sx={{ display: "grid", gap: 0.5, gridTemplateColumns: status === "reviewing" ? "repeat(2, minmax(0, 1fr))" : "1fr" }}>
+            <AppButton variant="secondary" size="md" fullWidth onClick={handleResumeInput}>
+              继续补充
             </AppButton>
-            {(status === "reviewing" || progress.filled >= 2) && (
+            {status === "reviewing" && (
               <AppButton
                 variant="primary"
                 size="md"
@@ -270,7 +302,7 @@ export default function InterviewPage({ token, onBack, onLogout }) {
                 loadingLabel="提交中…"
                 onClick={handleConfirm}
               >
-                {progress.filled >= progress.total ? "确认提交" : `提交 (${progress.filled}/${progress.total})`}
+                确认提交
               </AppButton>
             )}
           </Box>

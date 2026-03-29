@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { TYPE, COLOR } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../theme";
 import AppButton from "./AppButton";
 import SheetDialog from "./SheetDialog";
 
@@ -37,7 +37,7 @@ export default function ImportChoiceDialog({ open, text, onImport, onChat, onClo
         </Box>
       }
     >
-        <Box sx={{ p: 1.5, borderRadius: "4px", bgcolor: COLOR.borderLight, mb: 1 }}>
+        <Box sx={{ p: 1.5, borderRadius: RADIUS.sm, bgcolor: COLOR.borderLight, mb: 1 }}>
           <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", fontSize: TYPE.secondary.fontSize, color: COLOR.text3, lineHeight: 1.8 }}>
             {preview}
           </Typography>

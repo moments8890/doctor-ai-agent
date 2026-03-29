@@ -20,8 +20,9 @@ import ListCard from "../../components/ListCard";
 import NewItemCard from "../../components/NewItemCard";
 import RecordTypeAvatar from "../../components/RecordTypeAvatar";
 import DateAvatar from "../../components/DateAvatar";
+import EmptyState from "../../components/EmptyState";
 import StatusBadge from "../../components/StatusBadge";
-import { TYPE, COLOR } from "../../theme";
+import { TYPE, COLOR, RADIUS } from "../../theme";
 import { RECORD_TYPE_LABEL, formatDate } from "./constants";
 import RecordDetail from "./subpages/RecordDetail";
 
@@ -102,11 +103,11 @@ function TimelineView({ records, navigate }) {
 
                   {/* Card */}
                   <Box sx={{
-                    bgcolor: "#fff", borderRadius: "8px", px: 1.5, py: 1,
+                    bgcolor: "#fff", borderRadius: RADIUS.md, px: 1.5, py: 1,
                     border: `0.5px solid ${COLOR.borderLight}`,
                   }}>
                     {/* Top row: type + date */}
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.3 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
                       <Typography sx={{ fontSize: TYPE.caption.fontSize, color: dotColor, fontWeight: 600 }}>
                         {typeLabel}
                       </Typography>
@@ -119,7 +120,7 @@ function TimelineView({ records, navigate }) {
                     {preview && (
                       <Typography sx={{
                         fontSize: TYPE.body.fontSize, fontWeight: 500, color: COLOR.text1,
-                        lineHeight: 1.4, mb: 0.3,
+                        lineHeight: 1.4, mb: 0.5,
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       }}>
                         {preview}
@@ -193,13 +194,13 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
               最近 · {records.length}份病历
             </Typography>
           </Box>
-          <Box sx={{ display: "flex", gap: 0.8, px: 2, py: 1 }}>
+          <Box sx={{ display: "flex", gap: 1, px: 2, py: 1 }}>
             {[{ key: "list", label: "病历" }, { key: "timeline", label: "时间线" }].map(v => (
               <Box
                 key={v.key}
                 onClick={() => setRecordView(v.key)}
                 sx={{
-                  px: 1.5, py: 0.4, borderRadius: "4px", cursor: "pointer",
+                  px: 1.5, py: 0.5, borderRadius: RADIUS.sm, cursor: "pointer",
                   fontSize: TYPE.secondary.fontSize, fontWeight: recordView === v.key ? 600 : 400,
                   bgcolor: recordView === v.key ? COLOR.primary : COLOR.white,
                   color: recordView === v.key ? COLOR.white : COLOR.text3,
@@ -215,12 +216,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
 
       {/* Record list */}
       {records.length === 0 ? (
-        <Box sx={{ textAlign: "center", py: 6 }}>
-          <Typography color="text.secondary">暂无病历记录</Typography>
-          <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: "block" }}>
-            点击上方「新建病历」开始预问诊
-          </Typography>
-        </Box>
+        <EmptyState title="暂无病历记录" subtitle="点击上方「新建病历」开始预问诊" />
       ) : recordView === "list" ? (
         <Box sx={{ bgcolor: "#fff" }}>
           {records.map(rec => {
@@ -236,7 +232,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
                 title={typeLabel}
                 subtitle={preview}
                 right={
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     {dsLabel && (
                       <StatusBadge label={dsLabel} colorMap={_DC} fallbackColor={COLOR.text4} />
                     )}

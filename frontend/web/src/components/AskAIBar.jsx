@@ -3,7 +3,7 @@
  * Sits just above the bottom nav on mobile, bottom of content on desktop.
  */
 import { Box, Typography } from "@mui/material";
-import { TYPE, COLOR } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../theme";
 
 export default function AskAIBar({ onClick }) {
   return (
@@ -11,7 +11,7 @@ export default function AskAIBar({ onClick }) {
       onClick={onClick}
       sx={{
         mx: 1.5, mb: 1.5, px: 1.5, py: 1,
-        bgcolor: COLOR.white, borderRadius: "4px",
+        bgcolor: COLOR.white, borderRadius: RADIUS.sm,
         display: "flex", alignItems: "center", gap: 1,
         border: `0.5px solid ${COLOR.border}`,
         cursor: "pointer",
@@ -19,7 +19,7 @@ export default function AskAIBar({ onClick }) {
       }}
     >
       <Box sx={{
-        width: 28, height: 28, borderRadius: "4px", bgcolor: COLOR.success,
+        width: 28, height: 28, borderRadius: RADIUS.sm, bgcolor: COLOR.success,
         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
       }}>
         <Typography sx={{ color: COLOR.white, fontSize: TYPE.micro.fontSize, fontWeight: "bold" }}>AI</Typography>

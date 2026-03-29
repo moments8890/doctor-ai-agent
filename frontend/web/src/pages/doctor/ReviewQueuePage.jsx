@@ -26,7 +26,7 @@ import SubpageHeader from "../../components/SubpageHeader";
 import SheetDialog from "../../components/SheetDialog";
 import AppButton from "../../components/AppButton";
 import ReplyCard from "../../components/doctor/ReplyCard";
-import { TYPE, COLOR } from "../../theme";
+import { TYPE, COLOR, RADIUS } from "../../theme";
 import { markOnboardingStep, ONBOARDING_STEP } from "./constants";
 
 /* ── Case memory helpers ──────────────────────────────────────────────────── */
@@ -72,7 +72,7 @@ function FilterStatBar({ summary, filter, onFilter }) {
             <Box
               onClick={() => onFilter(tab.key)}
               sx={{
-                flex: 1, textAlign: "center", py: 1.25,
+                flex: 1, textAlign: "center", py: 1.5,
                 cursor: "pointer", userSelect: "none",
                 borderBottom: active ? `2px solid ${tab.activeColor}` : "2px solid transparent",
                 transition: "border-color 0.15s ease",
@@ -87,7 +87,7 @@ function FilterStatBar({ summary, filter, onFilter }) {
                 {tab.count ?? 0}
               </Typography>
               <Typography sx={{
-                fontSize: TYPE.micro.fontSize, mt: 0.25,
+                fontSize: TYPE.micro.fontSize, mt: 0.5,
                 color: active ? COLOR.text2 : COLOR.text4,
                 fontWeight: active ? 500 : 400,
               }}>
@@ -95,7 +95,7 @@ function FilterStatBar({ summary, filter, onFilter }) {
               </Typography>
             </Box>
             {i < tabs.length - 1 && (
-              <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.8 }} />
+              <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 1 }} />
             )}
           </Box>
         );
@@ -124,13 +124,13 @@ function PendingReviewCard({ item, onNavigate }) {
       <Box
         onClick={() => onNavigate?.(item)}
         sx={{
-          display: "flex", alignItems: "center", gap: 1.2, mb: 1,
+          display: "flex", alignItems: "center", gap: 1, mb: 1,
           cursor: "pointer",
         }}
       >
         <NameAvatar name={item.patient_name || "?"} size={36} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>
               {item.patient_name}
             </Typography>
@@ -138,7 +138,7 @@ function PendingReviewCard({ item, onNavigate }) {
               component="span"
               sx={{
                 fontSize: 10, fontWeight: 600,
-                borderRadius: "3px", px: 0.6, py: 0.1,
+                borderRadius: RADIUS.sm, px: 0.5, py: 0.5,
                 bgcolor: urgencyColor, color: "#fff",
                 lineHeight: 1.5,
               }}
@@ -159,9 +159,9 @@ function PendingReviewCard({ item, onNavigate }) {
         sx={{
           px: 1.5, py: 1,
           bgcolor: COLOR.surface,
-          borderRadius: "6px",
+          borderRadius: RADIUS.md,
           cursor: "pointer",
-          mb: 0.75,
+          mb: 1,
         }}
       >
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 400, color: COLOR.text1, mb: 0.5 }}>
@@ -173,7 +173,7 @@ function PendingReviewCard({ item, onNavigate }) {
       </Box>
 
       {/* Citation line */}
-      <Box sx={{ px: 2, mb: 0.75 }}>
+      <Box sx={{ px: 2, mb: 1 }}>
         {hasCitation ? (
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>
             引用了你的规则：
@@ -205,8 +205,8 @@ function PendingReviewCard({ item, onNavigate }) {
       {/* Case memory card */}
       {hasCaseMemory && (
         <Box sx={{
-          mx: 2, mb: 0.75,
-          bgcolor: "#f0faf4", borderRadius: "6px",
+          mx: 2, mb: 1,
+          bgcolor: "#f0faf4", borderRadius: RADIUS.md,
           padding: "10px 12px",
         }}>
           <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>
@@ -355,7 +355,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
 
       <Box sx={{ flex: 1, overflow: "auto" }}>
         {source === "reply_proof" && (
-          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.25 }}>
+          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.5 }}>
             <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
               示例患者回复
             </Typography>

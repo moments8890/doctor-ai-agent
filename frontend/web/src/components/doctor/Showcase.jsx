@@ -33,7 +33,7 @@ function Group({ title, count, defaultOpen = false, children }) {
     <Box sx={{ mb: 2 }}>
       <Box onClick={() => setOpen(!open)} sx={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        py: 1.2, px: 1.5, bgcolor: COLOR.white, borderRadius: 1, cursor: "pointer",
+        py: 1, px: 1.5, bgcolor: COLOR.white, borderRadius: 1, cursor: "pointer",
         border: `1px solid ${COLOR.border}`, "&:active": { bgcolor: COLOR.surface },
       }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

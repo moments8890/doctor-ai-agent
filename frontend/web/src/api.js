@@ -754,6 +754,16 @@ export async function createOnboardingPatientEntry(doctorId, { patientName, gend
   });
 }
 
+export async function ensureOnboardingExamples(doctorId, { knowledgeItemId } = {}) {
+  const payload = { doctor_id: doctorId };
+  if (knowledgeItemId != null) payload.knowledge_item_id = knowledgeItemId;
+  return request("/api/manage/onboarding/examples", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Patient portal API (uses X-Patient-Token header, not doctor Bearer token)
 // ---------------------------------------------------------------------------

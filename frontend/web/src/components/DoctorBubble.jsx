@@ -2,7 +2,7 @@ import React from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import NameAvatar from "./NameAvatar";
-import { TYPE, COLOR } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../theme";
 
 /**
  * Chat bubble for doctor direct-replies shown in the patient chat (主页 tab).
@@ -30,7 +30,7 @@ export default function DoctorBubble({ doctorName, content, timestamp }) {
           sx={{
             bgcolor: COLOR.white,
             border: `0.5px solid ${COLOR.success}`,
-            borderRadius: "4px 4px 4px 0",
+            borderRadius: `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`,
             ...TYPE.body,
             lineHeight: 1.7,
             color: COLOR.text1,

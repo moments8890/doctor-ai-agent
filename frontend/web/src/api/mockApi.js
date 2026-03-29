@@ -368,6 +368,16 @@ export async function createOnboardingPatientEntry(_doctorId, { patientName, gen
   };
 }
 
+export async function ensureOnboardingExamples() {
+  return {
+    status: "ok",
+    knowledge_item_id: 7,
+    diagnosis_record_id: 102,
+    reply_draft_id: 101,
+    reply_message_id: 201,
+  };
+}
+
 // ── Complex flows (canned responses) ──
 
 export async function sendChat(payload) {
@@ -468,6 +478,7 @@ export async function interviewStart(token) {
     collected: {},
     progress: { filled: 0, total: 7 },
     status: "interviewing",
+    ready_to_review: false,
     resumed: false,
   };
 }
@@ -527,6 +538,7 @@ export async function interviewTurn(_token, sessionId, text) {
     collected,
     progress,
     status,
+    ready_to_review: status === "reviewing",
     suggestions,
     missing_fields: [],
     complete: status === "reviewing",

@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { TYPE, COLOR } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../theme";
 
 export default function DateAvatar({ date, size = 36 }) {
   const d = new Date(date);
@@ -8,7 +8,7 @@ export default function DateAvatar({ date, size = 36 }) {
 
   return (
     <Box sx={{
-      width: size, height: size, borderRadius: "4px", bgcolor: COLOR.surface,
+      width: size, height: size, borderRadius: RADIUS.sm, bgcolor: COLOR.surface,
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
       flexShrink: 0,
     }}>

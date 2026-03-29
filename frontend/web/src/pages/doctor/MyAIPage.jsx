@@ -20,13 +20,19 @@ import KnowledgeCard from "../../components/KnowledgeCard";
 import AppButton from "../../components/AppButton";
 import NameAvatar from "../../components/NameAvatar";
 import IconBadge from "../../components/IconBadge";
+import EmptyState from "../../components/EmptyState";
 import {
   ICON_BADGES,
   getOnboardingState,
   isOnboardingStepDone,
   ONBOARDING_STEP,
 } from "./constants";
-import { TYPE, ICON, COLOR } from "../../theme";
+import {
+  getPreferredOnboardingRule,
+  resolveDiagnosisProofDestination,
+  resolveReplyProofDestination,
+} from "./onboardingProofs";
+import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,7 +53,7 @@ function formatRelativeDate(dateStr) {
 function AIAvatar({ size = 44 }) {
   return (
     <Box sx={{
-      width: size, height: size, borderRadius: "6px", flexShrink: 0,
+      width: size, height: size, borderRadius: RADIUS.md, flexShrink: 0,
       bgcolor: COLOR.primary,
       display: "flex", alignItems: "center", justifyContent: "center",
     }}>
@@ -64,7 +70,7 @@ function StatColumn({ value, label, onClick }) {
       <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 600, color: COLOR.text1 }}>
         {value ?? <Skeleton width={20} sx={{ mx: "auto" }} />}
       </Typography>
-      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mt: 0.2 }}>
+      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mt: 0.5 }}>
         {label}
       </Typography>
     </Box>
@@ -74,7 +80,7 @@ function StatColumn({ value, label, onClick }) {
 function QuickActionIcon({ bg, children }) {
   return (
     <Box sx={{
-      width: 36, height: 36, borderRadius: "6px", flexShrink: 0,
+      width: 36, height: 36, borderRadius: RADIUS.md, flexShrink: 0,
       bgcolor: bg, display: "flex", alignItems: "center", justifyContent: "center",
       color: COLOR.white, fontSize: 16,
     }}>
@@ -88,7 +94,7 @@ function InlineBadge({ count, color = COLOR.warning }) {
   return (
     <Box sx={{
       fontSize: TYPE.micro.fontSize, fontWeight: 500, color: COLOR.white,
-      bgcolor: color, borderRadius: "8px", px: 0.75, minWidth: 16, textAlign: "center",
+      bgcolor: color, borderRadius: RADIUS.md, px: 1, minWidth: 16, textAlign: "center",
       lineHeight: "18px",
     }}>
       {count}
@@ -118,8 +124,8 @@ function ChecklistPill({ done, locked, current }) {
         fontWeight: 600,
         color,
         bgcolor: bg,
-        px: 0.9,
-        py: 0.25,
+        px: 1,
+        py: 0.5,
         borderRadius: "999px",
         whiteSpace: "nowrap",
       }}
@@ -254,6 +260,25 @@ export default function MyAIPage({ doctorId }) {
   const doneReply = isOnboardingStepDone(onboarding, ONBOARDING_STEP.reply);
   const donePreview = isOnboardingStepDone(onboarding, ONBOARDING_STEP.patientPreview);
   const doneTasks = isOnboardingStepDone(onboarding, ONBOARDING_STEP.followupTask);
+
+  async function handleOpenDiagnosisProof() {
+    const { preferredRuleId, preferredRuleTitle } = getPreferredOnboardingRule(doctorId);
+    const destination = await resolveDiagnosisProofDestination(api, doctorId, {
+      preferredRuleId,
+      preferredRuleTitle,
+    });
+    navigate(destination);
+  }
+
+  async function handleOpenReplyProof() {
+    const { preferredRuleId, preferredRuleTitle } = getPreferredOnboardingRule(doctorId);
+    const destination = await resolveReplyProofDestination(api, doctorId, {
+      preferredRuleId,
+      preferredRuleTitle,
+    });
+    navigate(destination);
+  }
+
   const checklistRows = [
     {
       key: ONBOARDING_STEP.knowledge,
@@ -273,7 +298,7 @@ export default function MyAIPage({ doctorId }) {
       done: doneDiagnosis,
       locked: !doneKnowledge,
       current: doneKnowledge && !doneDiagnosis,
-      onClick: () => navigate("/doctor/review?tab=pending&source=knowledge_proof"),
+      onClick: handleOpenDiagnosisProof,
     },
     {
       key: ONBOARDING_STEP.reply,
@@ -283,7 +308,7 @@ export default function MyAIPage({ doctorId }) {
       done: doneReply,
       locked: !doneDiagnosis,
       current: doneKnowledge && doneDiagnosis && !doneReply,
-      onClick: () => navigate("/doctor/review?tab=replies&source=reply_proof"),
+      onClick: handleOpenReplyProof,
     },
     {
       key: ONBOARDING_STEP.patientPreview,
@@ -324,13 +349,13 @@ export default function MyAIPage({ doctorId }) {
         {/* ── A. Hero Identity Card ──────────────────────────────── */}
         <Box sx={{ bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}` }}>
           {/* Identity row */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.75, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 2, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
             <AIAvatar />
             <Box sx={{ flex: 1 }}>
               <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 600, color: COLOR.text1 }}>
                 {aiName}
               </Typography>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.2 }}>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.5 }}>
                 {knowledgeCount > 0 ? `已学会 ${knowledgeCount} 条知识` : "尚未添加知识"}
               </Typography>
             </Box>
@@ -338,7 +363,7 @@ export default function MyAIPage({ doctorId }) {
               onClick={() => navigate("/doctor/settings")}
               sx={{
                 display: "flex", alignItems: "center", gap: 0.5,
-                cursor: "pointer", px: 1, py: 0.5, borderRadius: "8px",
+                cursor: "pointer", px: 1, py: 0.5, borderRadius: RADIUS.md,
                 "&:active": { bgcolor: COLOR.surfaceAlt },
               }}
             >
@@ -358,7 +383,7 @@ export default function MyAIPage({ doctorId }) {
 
           {/* Onboarding hint when no knowledge yet */}
           {!loading && knowledgeCount === 0 && (
-            <Box sx={{ px: 2, py: 1.2 }}>
+            <Box sx={{ px: 2, py: 1 }}>
               <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.5 }}>
                 上传你的诊疗规则或常用模板后，它才会按你的方法工作
               </Typography>
@@ -366,7 +391,7 @@ export default function MyAIPage({ doctorId }) {
           )}
 
           {/* CTA row */}
-          <Box sx={{ display: "flex", gap: 1.2, px: 2, py: 1.5 }}>
+          <Box sx={{ display: "flex", gap: 1, px: 2, py: 1.5 }}>
             <AppButton
               variant="primary" size="md" fullWidth
               onClick={() => navigate("/doctor/settings/knowledge")}
@@ -493,11 +518,7 @@ export default function MyAIPage({ doctorId }) {
         </Box>
         <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
           {recentActivity.length === 0 && !loading && (
-            <Box sx={{ py: 3, textAlign: "center" }}>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>
-                暂无AI处理记录
-              </Typography>
-            </Box>
+            <EmptyState title="暂无AI处理记录" />
           )}
           {loading && recentActivity.length === 0 && (
             <Box sx={{ py: 3, display: "flex", justifyContent: "center" }}>
@@ -516,8 +537,8 @@ export default function MyAIPage({ doctorId }) {
                     {item.patient_name || "患者"}
                     <Box component="span" sx={{
                       fontSize: TYPE.micro.fontSize, fontWeight: 500, color: COLOR.white,
-                      bgcolor: badge.color, borderRadius: "4px", px: 0.6, py: 0.1,
-                      lineHeight: "16px", ml: 0.3, flexShrink: 0,
+                      bgcolor: badge.color, borderRadius: RADIUS.sm, px: 0.5, py: 0.5,
+                      lineHeight: "16px", ml: 0.5, flexShrink: 0,
                     }}>
                       {badge.label}
                     </Box>

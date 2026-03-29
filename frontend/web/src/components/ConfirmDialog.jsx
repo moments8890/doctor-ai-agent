@@ -1,5 +1,5 @@
 import { Box, Dialog, Typography } from "@mui/material";
-import { TYPE, COLOR } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../theme";
 import AppButton from "./AppButton";
 
 export default function ConfirmDialog({
@@ -25,7 +25,7 @@ export default function ConfirmDialog({
 
   const cancelButton = showCancel ? (
     <AppButton
-      variant={danger ? "primary" : "secondary"}
+      variant="secondary"
       size="md"
       fullWidth
       disabled={cancelDisabled}
@@ -49,9 +49,7 @@ export default function ConfirmDialog({
     </AppButton>
   );
 
-  const orderedButtons = danger
-    ? [confirmButton, cancelButton].filter(Boolean)
-    : [cancelButton, confirmButton].filter(Boolean);
+  const orderedButtons = [cancelButton, confirmButton].filter(Boolean);
 
   return (
     <Dialog
@@ -59,7 +57,7 @@ export default function ConfirmDialog({
       onClose={closeHandler}
       maxWidth="xs"
       fullWidth
-      PaperProps={{ sx: { borderRadius: "12px", m: 1, width: "calc(100% - 16px)", maxWidth } }}
+      PaperProps={{ sx: { borderRadius: RADIUS.lg, m: 1, width: "calc(100% - 16px)", maxWidth } }}
     >
       <Box sx={{ p: 2.5, textAlign: "center" }}>
         {title && (

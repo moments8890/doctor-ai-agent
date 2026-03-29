@@ -33,7 +33,7 @@ import { usePatientApi } from "../../api/PatientApiContext";
 import DoctorBubble from "../../components/DoctorBubble";
 import ListCard from "../../components/ListCard";
 import RecordTypeAvatar from "../../components/RecordTypeAvatar";
-import { TYPE, ICON, COLOR } from "../../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { LAST_SEEN_CHAT_KEY } from "./constants";
 
 const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
@@ -52,14 +52,14 @@ function QuickActions({ onNewInterview, onViewRecords }) {
       {actions.map(a => (
         <Box key={a.label} onClick={a.onClick}
           sx={{
-            flex: 1, bgcolor: "#fff", borderRadius: "8px", p: 1.5,
-            display: "flex", alignItems: "center", gap: 1.2,
+            flex: 1, bgcolor: "#fff", borderRadius: RADIUS.md, p: 1.5,
+            display: "flex", alignItems: "center", gap: 1,
             cursor: "pointer", userSelect: "none",
             boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-            "&:active": { bgcolor: "#f9f9f9" },
+            "&:active": { bgcolor: COLOR.surface },
           }}>
-          <Box sx={{ width: 36, height: 36, borderRadius: "8px",
-            bgcolor: a.label === "新问诊" ? "#e8f5e9" : "#E8F0FE",
+          <Box sx={{ width: 36, height: 36, borderRadius: RADIUS.md,
+            bgcolor: a.label === "新问诊" ? COLOR.successLight : "#E8F0FE",
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             {a.icon}
           </Box>
@@ -188,12 +188,12 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
     if (src === "patient") {
       return (
         <Box key={msg.id || i} sx={{ display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1, mb: 1.5 }}>
-          <Box sx={{ width: 32, height: 32, borderRadius: "4px", bgcolor: "#5b9bd5",
+          <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: "#5b9bd5",
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <PersonOutlineIcon sx={{ color: "#fff", fontSize: ICON.md }} />
           </Box>
           <Box sx={{
-            maxWidth: "75%", px: 1.5, py: 1, borderRadius: "4px 4px 0 4px",
+            maxWidth: "75%", px: 1.5, py: 1, borderRadius: `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}`,
             bgcolor: "#95ec69", color: "#333", fontSize: TYPE.body.fontSize, lineHeight: 1.7,
             whiteSpace: "pre-wrap", wordBreak: "break-word",
           }}>{msg.content}</Box>
@@ -214,7 +214,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
         onTap = () => navigate(`/patient/records/${linkId}`);
       } else if (linkType === "task") {
         avatar = (
-          <Box sx={{ width: 32, height: 32, borderRadius: "4px", bgcolor: COLOR.primaryLight,
+          <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: COLOR.primaryLight,
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <AssignmentOutlinedIcon sx={{ fontSize: 16, color: COLOR.primary }} />
           </Box>
@@ -222,7 +222,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
         onTap = () => navigate("/patient/tasks");
       } else {
         avatar = (
-          <Box sx={{ width: 32, height: 32, borderRadius: "4px", bgcolor: COLOR.surface,
+          <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: COLOR.surface,
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <NotificationsNoneOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4 }} />
           </Box>
@@ -238,7 +238,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
             subtitle={onTap ? "点击查看" : undefined}
             chevron={!!onTap}
             onClick={onTap}
-            sx={{ borderLeft: `3px solid ${COLOR.primary}`, borderRadius: "4px" }}
+            sx={{ borderLeft: `3px solid ${COLOR.primary}`, borderRadius: RADIUS.sm }}
           />
         </Box>
       );
@@ -247,13 +247,13 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
     // AI message (left aligned) — with triage enrichment
     return (
       <Box key={msg.id || i} sx={{ display: "flex", alignItems: "flex-end", gap: 1, mb: 1.5 }}>
-        <Box sx={{ width: 32, height: 32, borderRadius: "4px", bgcolor: "#07C160",
+        <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: "#07C160",
           display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: ICON.md }} />
         </Box>
         <Box sx={{ maxWidth: "75%" }}>
           {msg.triage_category === "diagnosis_confirmation" && (
-            <Box sx={{ mb: 0.5, px: 1.5, py: 0.8, borderRadius: "4px 4px 4px 0", bgcolor: "#e8f5e9", border: "0.5px solid #c8e6c9" }}>
+            <Box sx={{ mb: 0.5, px: 1.5, py: 1, borderRadius: `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`, bgcolor: COLOR.successLight, border: `0.5px solid ${COLOR.successLight}` }}>
               <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.success, fontWeight: 500 }}>
                 {msg.content}
               </Typography>
@@ -261,13 +261,13 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
           )}
           {msg.triage_category !== "diagnosis_confirmation" && (
             <Box sx={{
-              px: 1.5, py: 1, borderRadius: "4px 4px 4px 0", bgcolor: "#fff",
+              px: 1.5, py: 1, borderRadius: `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`, bgcolor: "#fff",
               color: "#333", fontSize: TYPE.body.fontSize, lineHeight: 1.7,
               whiteSpace: "pre-wrap", wordBreak: "break-word",
             }}>{msg.content}</Box>
           )}
           {msg.triage_category === "urgent" && (
-            <Box sx={{ mt: 0.5, px: 1.5, py: 0.5, borderRadius: "6px", bgcolor: COLOR.dangerLight, border: `0.5px solid ${COLOR.danger}` }}>
+            <Box sx={{ mt: 0.5, px: 1.5, py: 0.5, borderRadius: RADIUS.md, bgcolor: COLOR.dangerLight, border: `0.5px solid ${COLOR.danger}` }}>
               <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.danger, fontWeight: 500 }}>
                 紧急情况，请立即就近就医
               </Typography>

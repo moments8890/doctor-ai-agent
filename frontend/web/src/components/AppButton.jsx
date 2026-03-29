@@ -15,7 +15,7 @@
  * of AppButton — the app's default pattern is colored text, not filled buttons.
  */
 import { Box, CircularProgress } from "@mui/material";
-import { TYPE, BUTTON, COLOR } from "../theme";
+import { TYPE, BUTTON, COLOR, RADIUS } from "../theme";
 
 const VARIANT_STYLES = {
   primary:   { bgcolor: COLOR.primary, color: COLOR.white, fontWeight: 600 },
@@ -24,7 +24,7 @@ const VARIANT_STYLES = {
 };
 
 const SIZE_STYLES = {
-  lg: { minHeight: BUTTON.largeHeight, py: 1.1, px: 2.5, fontSize: TYPE.action.fontSize, borderRadius: "4px", lineHeight: 1.25 },
+  lg: { minHeight: BUTTON.largeHeight, py: 1, px: 2.5, fontSize: TYPE.action.fontSize, borderRadius: RADIUS.sm, lineHeight: 1.25 },
   md: { minHeight: BUTTON.compactHeight, py: BUTTON.compactPaddingY, px: BUTTON.compactPaddingX, fontSize: BUTTON.compactFontSize, borderRadius: BUTTON.compactRadius, lineHeight: BUTTON.compactLineHeight },
   sm: { minHeight: BUTTON.compactHeight, py: BUTTON.compactPaddingY, px: BUTTON.compactPaddingX, fontSize: BUTTON.compactFontSize, borderRadius: BUTTON.compactRadius, lineHeight: BUTTON.compactLineHeight },
 };
@@ -43,7 +43,7 @@ export default function AppButton({
     <Box
       onClick={!isDisabled ? onClick : undefined}
       sx={{
-        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 0.8,
+        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 1,
         textAlign: "center", cursor: isDisabled ? "default" : "pointer",
         whiteSpace: "normal", wordBreak: "break-word", maxWidth: "100%",
         opacity: isDisabled ? 0.5 : 1,

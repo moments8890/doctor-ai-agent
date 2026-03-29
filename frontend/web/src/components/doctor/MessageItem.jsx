@@ -13,7 +13,7 @@ import StatusBadge from "../StatusBadge";
 import VoiceInput, { isVoiceSupported } from "../VoiceInput";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
-import { TYPE, COLOR } from "../../theme";
+import { TYPE, COLOR, RADIUS } from "../../theme";
 
 const BADGE_COLOR_MAP = {
   "新消息": COLOR.warning,
@@ -69,7 +69,7 @@ export default function MessageItem({ item, onSend, onTeachPrompt }) {
   return (
     <Box sx={{ px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" } }}>
       {/* Header: avatar + name + time + badge */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
         <NameAvatar name={item.patient_name} size={32} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>
@@ -88,8 +88,8 @@ export default function MessageItem({ item, onSend, onTeachPrompt }) {
       {item.patient_message && (
         <Box sx={{
           bgcolor: COLOR.surface,
-          borderRadius: "6px",
-          px: 1.5, py: 1.2, mb: 1,
+          borderRadius: RADIUS.md,
+          px: 1.5, py: 1, mb: 1,
           fontSize: TYPE.secondary.fontSize,
           color: COLOR.text2,
           lineHeight: 1.5,
@@ -103,8 +103,8 @@ export default function MessageItem({ item, onSend, onTeachPrompt }) {
         <Box sx={{
           bgcolor: "#fff8e1",
           border: `0.5px solid #ffcc02`,
-          borderRadius: "6px",
-          px: 1.5, py: 1.2, mb: 1,
+          borderRadius: RADIUS.md,
+          px: 1.5, py: 1, mb: 1,
         }}>
           <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#b28704", fontWeight: 500, mb: 0.5 }}>
             AI未找到可引用的知识条目，无法起草回复
@@ -118,7 +118,7 @@ export default function MessageItem({ item, onSend, onTeachPrompt }) {
               placeholder="请手动输入回复..."
               sx={{
                 width: "100%", minHeight: 80,
-                border: `1px solid ${COLOR.border}`, borderRadius: "4px",
+                border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
                 p: 1, fontSize: TYPE.secondary.fontSize, color: COLOR.text2,
                 lineHeight: 1.5, resize: "vertical", fontFamily: "inherit",
                 outline: "none", "&:focus": { borderColor: COLOR.primary },
@@ -137,8 +137,8 @@ export default function MessageItem({ item, onSend, onTeachPrompt }) {
         <Box sx={{
           bgcolor: COLOR.white,
           border: `0.5px solid ${COLOR.border}`,
-          borderRadius: "6px",
-          px: 1.5, py: 1.2, mb: 1,
+          borderRadius: RADIUS.md,
+          px: 1.5, py: 1, mb: 1,
         }}>
           <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>
             AI按你的话术起草
@@ -155,7 +155,7 @@ export default function MessageItem({ item, onSend, onTeachPrompt }) {
                   onFocus={(e) => { const ta = e.target; ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; }}
                   sx={{
                     flex: 1, minHeight: 120,
-                    border: `1px solid ${COLOR.border}`, borderRadius: "4px",
+                    border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
                     p: 1, fontSize: TYPE.secondary.fontSize, color: COLOR.text2,
                     lineHeight: 1.5, resize: "vertical", fontFamily: "inherit",
                     outline: "none", overflow: "hidden",
@@ -178,7 +178,7 @@ export default function MessageItem({ item, onSend, onTeachPrompt }) {
                 )}
               </Box>
               {showVoice && (
-                <Box sx={{ mt: 0.8 }}>
+                <Box sx={{ mt: 1 }}>
                   <VoiceInput
                     onResult={(text) => { setEditText((prev) => prev ? prev + text : text); setShowVoice(false); }}
                     onCancel={() => setShowVoice(false)}
@@ -193,16 +193,16 @@ export default function MessageItem({ item, onSend, onTeachPrompt }) {
           )}
 
           {item.cited_rules?.length > 0 && !editing && (
-            <Box sx={{ mt: 0.8, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
               {item.cited_rules.map((rule) => (
                 <Box
                   key={rule.id}
                   component="span"
                   onClick={() => navigate(`/doctor/settings/knowledge/${rule.id}`)}
                   sx={{
-                    fontSize: 11, color: COLOR.primary, bgcolor: "#e8f5e9",
-                    px: 1, py: 0.3, borderRadius: "4px",
-                    cursor: "pointer", "&:hover": { bgcolor: "#c8e6c9" },
+                    fontSize: 11, color: COLOR.primary, bgcolor: COLOR.successLight,
+                    px: 1, py: 0.5, borderRadius: RADIUS.sm,
+                    cursor: "pointer", "&:hover": { bgcolor: COLOR.successLight },
                   }}
                 >
                   引用: {rule.title}

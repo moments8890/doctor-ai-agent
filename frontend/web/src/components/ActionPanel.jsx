@@ -3,7 +3,7 @@ import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
 import PhotoLibraryOutlinedIcon from "@mui/icons-material/PhotoLibraryOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import PersonSearchOutlinedIcon from "@mui/icons-material/PersonSearchOutlined";
-import { TYPE, ICON, COLOR } from "../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../theme";
 
 const actions = [
   { key: "camera", label: "拍照", Icon: CameraAltOutlinedIcon, color: COLOR.primary },
@@ -30,7 +30,7 @@ export default function ActionPanel({ open, onClose, onAction }) {
             left: 0,
             right: 0,
             bgcolor: COLOR.white,
-            borderRadius: "12px 12px 0 0",
+            borderRadius: `${RADIUS.lg} ${RADIUS.lg} 0 0`,
             pb: 2.5,
           }}
         >
@@ -56,7 +56,7 @@ export default function ActionPanel({ open, onClose, onAction }) {
                   sx={{
                     width: 56,
                     height: 56,
-                    borderRadius: "4px",
+                    borderRadius: RADIUS.sm,
                     bgcolor: color,
                     display: "flex",
                     alignItems: "center",

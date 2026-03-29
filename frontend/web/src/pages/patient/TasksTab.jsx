@@ -11,7 +11,8 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 import { usePatientApi } from "../../api/PatientApiContext";
 import TaskChecklist from "../../components/TaskChecklist";
 import SectionLabel from "../../components/SectionLabel";
-import { ICON } from "../../theme";
+import EmptyState from "../../components/EmptyState";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 
 export default function TasksTab({ token }) {
   const { getPatientTasks, completePatientTask, uncompletePatientTask } = usePatientApi();
@@ -48,13 +49,7 @@ export default function TasksTab({ token }) {
 
   if (tasks.length === 0) {
     return (
-      <Box sx={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-        <Typography sx={{ fontSize: ICON.display, color: "#ccc", mb: 1 }}>📋</Typography>
-        <Typography color="text.disabled" sx={{ fontWeight: 500 }}>暂无任务</Typography>
-        <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5 }}>
-          医生安排的复查、用药提醒将显示在这里
-        </Typography>
-      </Box>
+      <EmptyState icon={<AssignmentOutlinedIcon />} title="暂无任务" subtitle="医生安排的复查、用药提醒将显示在这里" />
     );
   }
 

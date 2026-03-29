@@ -26,7 +26,7 @@ import StatusBadge from "../StatusBadge";
 import VoiceInput, { isVoiceSupported } from "../VoiceInput";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
-import { TYPE, COLOR } from "../../theme";
+import { TYPE, COLOR, RADIUS } from "../../theme";
 
 const BADGE_COLOR_MAP = {
   "新消息": COLOR.warning,
@@ -43,8 +43,8 @@ function PatientMessageBubble({ message, sx }) {
   return (
     <Box sx={{
       bgcolor: COLOR.surface,
-      borderRadius: "6px",
-      px: 1.5, py: 1.2, mb: 1,
+      borderRadius: RADIUS.md,
+      px: 1.5, py: 1, mb: 1,
       fontSize: TYPE.secondary.fontSize,
       color: COLOR.text2,
       lineHeight: 1.5,
@@ -58,16 +58,16 @@ function PatientMessageBubble({ message, sx }) {
 function CitationTags({ rules, navigate }) {
   if (!rules?.length) return null;
   return (
-    <Box sx={{ mt: 0.8, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+    <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
       {rules.map((rule) => (
         <Box
           key={rule.id}
           component="span"
           onClick={() => navigate(`/doctor/settings/knowledge/${rule.id}`)}
           sx={{
-            fontSize: 11, color: COLOR.primary, bgcolor: "#e8f5e9",
-            px: 1, py: 0.3, borderRadius: "4px",
-            cursor: "pointer", "&:hover": { bgcolor: "#c8e6c9" },
+            fontSize: 11, color: COLOR.primary, bgcolor: COLOR.successLight,
+            px: 1, py: 0.5, borderRadius: RADIUS.sm,
+            cursor: "pointer", "&:hover": { bgcolor: COLOR.successLight },
           }}
         >
           引用: {rule.title}
@@ -82,8 +82,8 @@ function NoDraftNotice({ editing, editText, setEditText, textareaRef, compact })
     <Box sx={{
       bgcolor: "#fff8e1",
       border: "0.5px solid #ffcc02",
-      borderRadius: "6px",
-      px: 1.5, py: 1.2,
+      borderRadius: RADIUS.md,
+      px: 1.5, py: 1,
       ...(compact ? {} : { mb: 1 }),
     }}>
       <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#b28704", fontWeight: 500, mb: editing ? 0.5 : (compact ? 0 : 0.5) }}>
@@ -98,7 +98,7 @@ function NoDraftNotice({ editing, editText, setEditText, textareaRef, compact })
           placeholder="请手动输入回复..."
           sx={{
             width: "100%", minHeight: 80,
-            border: `1px solid ${COLOR.border}`, borderRadius: "4px",
+            border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
             p: 1, fontSize: TYPE.secondary.fontSize, color: COLOR.text2,
             lineHeight: 1.5, resize: "vertical", fontFamily: "inherit",
             outline: "none", "&:focus": { borderColor: COLOR.primary },
@@ -119,8 +119,8 @@ function DraftCard({ item, editing, editText, setEditText, textareaRef, showVoic
     <Box sx={{
       bgcolor: COLOR.white,
       border: `0.5px solid ${COLOR.border}`,
-      borderRadius: "6px",
-      px: 1.5, py: 1.2,
+      borderRadius: RADIUS.md,
+      px: 1.5, py: 1,
       ...(compact ? {} : { mb: 1 }),
     }}>
       <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>
@@ -138,7 +138,7 @@ function DraftCard({ item, editing, editText, setEditText, textareaRef, showVoic
               onFocus={(e) => { const ta = e.target; ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; }}
               sx={{
                 flex: 1, minHeight: compact ? 100 : 120,
-                border: `1px solid ${COLOR.border}`, borderRadius: "4px",
+                border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm,
                 p: 1, fontSize: TYPE.secondary.fontSize, color: COLOR.text2,
                 lineHeight: 1.5, resize: "vertical", fontFamily: "inherit",
                 outline: "none", overflow: "hidden",
@@ -162,7 +162,7 @@ function DraftCard({ item, editing, editText, setEditText, textareaRef, showVoic
             )}
           </Box>
           {!compact && showVoice && (
-            <Box sx={{ mt: 0.8 }}>
+            <Box sx={{ mt: 1 }}>
               <VoiceInput
                 onResult={(text) => { setEditText((prev) => prev ? prev + text : text); setShowVoice(false); }}
                 onCancel={() => setShowVoice(false)}
@@ -195,7 +195,7 @@ function CompletedReplyRow({ item, onClick }) {
         "&:last-child": { borderBottom: "none" },
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 0.8 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
         <NameAvatar name={item.patient_name} size={32} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500 }}>
@@ -208,12 +208,12 @@ function CompletedReplyRow({ item, onClick }) {
         <ChevronRightOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4, flexShrink: 0 }} />
       </Box>
       {item.patient_message && (
-        <Box sx={{ bgcolor: COLOR.surface, borderRadius: "6px", px: 1.2, py: 0.6, mb: 0.4, ml: 5.5, fontSize: TYPE.secondary.fontSize, color: COLOR.text3 }}>
+        <Box sx={{ bgcolor: COLOR.surface, borderRadius: RADIUS.md, px: 1.2, py: 0.6, mb: 0.4, ml: 5.5, fontSize: TYPE.secondary.fontSize, color: COLOR.text3 }}>
           患者: {item.patient_message.length > 50 ? item.patient_message.slice(0, 50) + "..." : item.patient_message}
         </Box>
       )}
       {item.draft_text && (
-        <Box sx={{ bgcolor: "#f0faf0", borderRadius: "6px", px: 1.2, py: 0.6, ml: 5.5, fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>
+        <Box sx={{ bgcolor: "#f0faf0", borderRadius: RADIUS.md, px: 1.2, py: 0.6, ml: 5.5, fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>
           医生: {item.draft_text.length > 50 ? item.draft_text.slice(0, 50) + "..." : item.draft_text}
         </Box>
       )}
@@ -297,16 +297,16 @@ function PendingReplyCard({ item, mode, onSent, onTeachPrompt }) {
     // No-draft: simplified display
     if (isNoDraft) {
       return (
-        <Box sx={{ mx: 2, mb: 1.2 }}>
-          <PatientMessageBubble message={item.patient_message} sx={{ mb: 0.8, py: 1 }} />
+        <Box sx={{ mx: 2, mb: 1 }}>
+          <PatientMessageBubble message={item.patient_message} sx={{ mb: 1, py: 1 }} />
           <NoDraftNotice editing={false} compact />
         </Box>
       );
     }
 
     return (
-      <Box sx={{ mx: 2, mb: 1.2 }}>
-        <PatientMessageBubble message={item.patient_message} sx={{ mb: 0.8, py: 1 }} />
+      <Box sx={{ mx: 2, mb: 1 }}>
+        <PatientMessageBubble message={item.patient_message} sx={{ mb: 1, py: 1 }} />
 
         <DraftCard
           item={item}
@@ -321,7 +321,7 @@ function PendingReplyCard({ item, mode, onSent, onTeachPrompt }) {
         />
 
         {/* Action row */}
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 0.8 }}>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 1 }}>
           {editing ? (
             <>
               <Typography onClick={handleCancel}
@@ -354,7 +354,7 @@ function PendingReplyCard({ item, mode, onSent, onTeachPrompt }) {
   return (
     <Box sx={{ px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" } }}>
       {/* Header: avatar + name + time + badge */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
         <NameAvatar name={item.patient_name} size={32} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>
@@ -444,16 +444,16 @@ function DiagnosisReviewCard({ item, onClick }) {
       {/* Header — same layout as pending reply */}
       <Box
         onClick={onClick}
-        sx={{ display: "flex", alignItems: "center", gap: 1.2, mb: 1, cursor: "pointer" }}
+        sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1, cursor: "pointer" }}
       >
         <NameAvatar name={item.patient_name || "?"} size={36} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>
               {item.patient_name}
             </Typography>
             <Box component="span" sx={{
-              fontSize: 10, fontWeight: 600, borderRadius: "3px",
+              fontSize: 10, fontWeight: 600, borderRadius: RADIUS.sm,
               px: 0.6, py: 0.1, bgcolor: urgencyColor, color: "#fff", lineHeight: 1.5,
             }}>
               {urgencyLabel}
@@ -468,8 +468,8 @@ function DiagnosisReviewCard({ item, onClick }) {
 
       {/* Diagnosis preview — same bubble style as patient message */}
       <Box onClick={onClick} sx={{
-        px: 1.5, py: 1, bgcolor: COLOR.surface, borderRadius: "6px",
-        cursor: "pointer", mb: 0.75,
+        px: 1.5, py: 1, bgcolor: COLOR.surface, borderRadius: RADIUS.md,
+        cursor: "pointer", mb: 1,
       }}>
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 400, color: COLOR.text1, mb: 0.5 }}>
           {item.section_label || item.section}：{item.content}
@@ -487,9 +487,9 @@ function DiagnosisReviewCard({ item, onClick }) {
       {hasCitation ? (
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
           <Box component="span" onClick={() => navigate("/doctor/settings/knowledge")} sx={{
-            fontSize: 11, color: COLOR.primary, bgcolor: "#e8f5e9",
-            px: 1, py: 0.3, borderRadius: "4px",
-            cursor: "pointer", "&:hover": { bgcolor: "#c8e6c9" },
+            fontSize: 11, color: COLOR.primary, bgcolor: COLOR.successLight,
+            px: 1, py: 0.5, borderRadius: RADIUS.sm,
+            cursor: "pointer", "&:hover": { bgcolor: COLOR.successLight },
           }}>
             引用: {item.rule_cited}
           </Box>

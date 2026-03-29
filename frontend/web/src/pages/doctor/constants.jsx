@@ -28,6 +28,7 @@ import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
+import { COLOR } from "../../theme";
 
 export const TASK_TYPE_LABEL = {
   follow_up:   "随访",
@@ -111,10 +112,6 @@ export const DESKTOP_NAV = [
   { key: "settings", label: "设置", icon: <SettingsOutlinedIcon fontSize="medium" /> },
 ];
 
-export const AVATAR_COLORS = [
-  "#07C160", "#5b9bd5", "#e8833a", "#9b59b6", "#FA5151",
-  "#16a085", "#d35400", "#8e44ad", "#2980b9", "#c0392b",
-];
 
 export const LABEL_PRESET_COLORS = [
   "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6",
@@ -155,7 +152,7 @@ export const DIAGNOSIS_STATUS_COLOR = {
   pending: "#1890ff",
   completed: "#07C160",
   confirmed: "#999",
-  failed: "#FA5151",
+  failed: COLOR.danger,
 };
 
 export const STRUCTURED_FIELD_LABELS = {
@@ -217,6 +214,7 @@ export const ONBOARDING_STEP = {
 const DEFAULT_ONBOARDING_STATE = {
   steps: {},
   lastSavedRuleTitle: "",
+  lastSavedRuleId: null,
   lastSavedRuleAt: "",
   lastPreviewPatientId: null,
   lastPreviewPatientName: "",
@@ -300,45 +298,46 @@ export const TASK_FILTER_CHIPS = [
 
 // ── Icon badge configs (used with <IconBadge config={...} />) ──────────────
 // All avatar-style icons share the same visual treatment: icon in colored box.
+// Palette: 4 colors — COLOR.primary (green), COLOR.accent (blue), COLOR.recordDoc (slate), COLOR.danger (red)
 
 export const ICON_BADGES = {
   // Quick actions (MyAI page)
-  qr_code:      { icon: QrCode2OutlinedIcon, bg: "#07C160" },
-  review:       { icon: CheckCircleOutlineIcon, bg: "#e8833a" },
-  followup:     { icon: ChatOutlinedIcon, bg: "#0969da" },
-  new_record:   { icon: ContentPasteOutlinedIcon, bg: "#07C160" },
+  qr_code:      { icon: QrCode2OutlinedIcon, bg: COLOR.primary },
+  review:       { icon: CheckCircleOutlineIcon, bg: COLOR.accent },
+  followup:     { icon: ChatOutlinedIcon, bg: COLOR.accent },
+  new_record:   { icon: ContentPasteOutlinedIcon, bg: COLOR.primary },
 
   // Knowledge sources
-  kb_doctor:    { icon: EditNoteOutlinedIcon, bg: "#07C160" },
+  kb_doctor:    { icon: EditNoteOutlinedIcon, bg: COLOR.primary },
   kb_ai:        { icon: SmartToyOutlinedIcon, bg: "#999" },
-  kb_upload:    { icon: DescriptionOutlinedIcon, bg: "#07C160" },
-  kb_url:       { icon: LinkOutlinedIcon, bg: "#0969da" },
-  kb_add:       { icon: AddCircleOutlineIcon, bg: "#07C160" },
+  kb_upload:    { icon: DescriptionOutlinedIcon, bg: COLOR.primary },
+  kb_url:       { icon: LinkOutlinedIcon, bg: COLOR.accent },
+  kb_add:       { icon: AddCircleOutlineIcon, bg: COLOR.primary },
 
   // Knowledge add page
-  upload:       { icon: UploadFileOutlinedIcon, bg: "#07C160" },
-  camera:       { icon: CameraAltOutlinedIcon, bg: "#07C160" },
-  url:          { icon: LinkOutlinedIcon, bg: "#0969da" },
+  upload:       { icon: UploadFileOutlinedIcon, bg: COLOR.primary },
+  camera:       { icon: CameraAltOutlinedIcon, bg: COLOR.primary },
+  url:          { icon: LinkOutlinedIcon, bg: COLOR.accent },
 
   // Chat avatars
-  ai:           { icon: SmartToyOutlinedIcon, bg: "#07C160" },
-  doctor:       { icon: LocalHospitalOutlinedIcon, bg: "#5b9bd5" },
-  patient:      { icon: PersonOutlineIcon, bg: "#5b9bd5" },
+  ai:           { icon: SmartToyOutlinedIcon, bg: COLOR.primary },
+  doctor:       { icon: LocalHospitalOutlinedIcon, bg: COLOR.accent },
+  patient:      { icon: PersonOutlineIcon, bg: COLOR.accent },
   notification: { icon: NotificationsNoneOutlinedIcon, bg: "#f0f0f0", color: "#999" },
 
   // Record types
-  rec_visit:     { icon: LocalHospitalOutlinedIcon, bg: "#07C160" },
-  rec_dictation: { icon: MicNoneOutlinedIcon, bg: "#5b9bd5" },
-  rec_import:    { icon: FileUploadOutlinedIcon, bg: "#e8833a" },
-  rec_lab:       { icon: BiotechOutlinedIcon, bg: "#9b59b6" },
-  rec_imaging:   { icon: MonitorHeartOutlinedIcon, bg: "#1890ff" },
-  rec_surgery:   { icon: LocalHospitalOutlinedIcon, bg: "#FA5151" },
-  rec_interview: { icon: ChatOutlinedIcon, bg: "#8e44ad" },
+  rec_visit:     { icon: LocalHospitalOutlinedIcon, bg: COLOR.primary },
+  rec_dictation: { icon: MicNoneOutlinedIcon, bg: COLOR.recordDoc },
+  rec_import:    { icon: FileUploadOutlinedIcon, bg: COLOR.recordDoc },
+  rec_lab:       { icon: BiotechOutlinedIcon, bg: COLOR.accent },
+  rec_imaging:   { icon: MonitorHeartOutlinedIcon, bg: COLOR.accent },
+  rec_surgery:   { icon: LocalHospitalOutlinedIcon, bg: COLOR.danger },
+  rec_interview: { icon: ChatOutlinedIcon, bg: COLOR.primary },
 
   // Task types
-  task_follow_up:  { icon: EventRepeatOutlinedIcon, bg: "#07C160" },
-  task_medication: { icon: MedicationOutlinedIcon, bg: "#5b9bd5" },
-  task_checkup:    { icon: BiotechOutlinedIcon, bg: "#e8833a" },
-  task_general:    { icon: AssignmentOutlinedIcon, bg: "#8e44ad" },
-  task_imaging:    { icon: MonitorHeartOutlinedIcon, bg: "#1890ff" },
+  task_follow_up:  { icon: EventRepeatOutlinedIcon, bg: COLOR.primary },
+  task_medication: { icon: MedicationOutlinedIcon, bg: COLOR.accent },
+  task_checkup:    { icon: BiotechOutlinedIcon, bg: COLOR.accent },
+  task_general:    { icon: AssignmentOutlinedIcon, bg: COLOR.recordDoc },
+  task_imaging:    { icon: MonitorHeartOutlinedIcon, bg: COLOR.accent },
 };

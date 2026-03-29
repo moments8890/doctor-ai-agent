@@ -14,9 +14,9 @@ import RecordEditDialog from "./RecordEditDialog";
 import { TYPE, ICON, COLOR } from "../theme";
 
 const RECORD_DOT_COLORS = {
-  visit: COLOR.primary, dictation: "#5b9bd5", import: "#e8833a",
-  lab: "#9b59b6", imaging: "#1890ff", surgery: COLOR.danger,
-  referral: "#16a085", interview_summary: "#8e44ad",
+  visit: COLOR.primary, dictation: COLOR.recordDoc, import: COLOR.recordDoc,
+  lab: COLOR.accent, imaging: COLOR.accent, surgery: COLOR.danger,
+  referral: COLOR.primary, interview_summary: COLOR.primary,
 };
 
 const SOAP_FIELD_ORDER = [
@@ -30,9 +30,9 @@ function StructuredFields({ structured }) {
   const filled = SOAP_FIELD_ORDER.filter(k => structured[k]);
   if (filled.length === 0) return null;
   return (
-    <Box sx={{ mt: 0.8, borderRadius: 1, border: `1px solid ${COLOR.borderLight}`, overflow: "hidden" }}>
+    <Box sx={{ mt: 1, borderRadius: 1, border: `1px solid ${COLOR.borderLight}`, overflow: "hidden" }}>
       {filled.map((key, i) => (
-        <Box key={key} sx={{ display: "flex", gap: 1.5, px: 1.5, py: 0.8,
+        <Box key={key} sx={{ display: "flex", gap: 1.5, px: 1.5, py: 1,
           borderTop: i > 0 ? `1px solid ${COLOR.borderLight}` : "none" }}>
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, fontWeight: 400, flexShrink: 0, minWidth: 60 }}>
             {STRUCTURED_FIELD_LABELS[key]}
@@ -67,18 +67,18 @@ function RecordCardHeader({ current, expanded, dotColor }) {
   // Collapsed preview: show chief_complaint or first line of content
   const preview = structured.chief_complaint || current.content || "（无记录内容）";
   return (
-    <Box sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.3, cursor: "pointer", "&:active": { bgcolor: COLOR.surfaceAlt } }}>
-      <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: dotColor, flexShrink: 0, mt: 0.7, mr: 1.4 }} />
+    <Box sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.5, cursor: "pointer", "&:active": { bgcolor: COLOR.surfaceAlt } }}>
+      <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: dotColor, flexShrink: 0, mt: 0.5, mr: 1.5 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 0.3 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, flexWrap: "wrap" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 0.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
             {current.record_type && (
               <Typography sx={{ fontSize: TYPE.caption.fontSize, color: dotColor, fontWeight: 600 }}>
                 {RECORD_TYPE_LABEL[current.record_type] || current.record_type}
               </Typography>
             )}
             {(Array.isArray(current.tags) ? current.tags : []).map((tag, i) => (
-              <Typography key={i} sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, bgcolor: COLOR.surfaceAlt, px: 0.6, borderRadius: 0.5 }}>
+              <Typography key={i} sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, bgcolor: COLOR.surfaceAlt, px: 0.5, borderRadius: 0.5 }}>
                 {tag}
               </Typography>
             ))}
@@ -101,7 +101,7 @@ function RecordCardHeader({ current, expanded, dotColor }) {
           </Typography>
         )}
       </Box>
-      <Box sx={{ ml: 1, flexShrink: 0, display: "flex", alignItems: "center", mt: 0.2 }}>
+      <Box sx={{ ml: 1, flexShrink: 0, display: "flex", alignItems: "center", mt: 0.5 }}>
         {expanded ? <ExpandLessIcon sx={{ fontSize: ICON.md, color: COLOR.text4 }} /> : <ExpandMoreIcon sx={{ fontSize: ICON.md, color: COLOR.text4 }} />}
       </Box>
     </Box>

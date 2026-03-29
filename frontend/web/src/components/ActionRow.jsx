@@ -46,8 +46,8 @@ export default function ActionRow({ title, subtitle, right, done = false, edited
     <Box
       onClick={dimmed ? undefined : onClick}
       sx={{
-        display: "flex", alignItems: "center", gap: 1.2,
-        px: 2, py: 1.25,
+        display: "flex", alignItems: "center", gap: 1,
+        px: 2, py: 1.5,
         borderBottom: `0.5px solid ${COLOR.borderLight}`,
         cursor: onClick && !dimmed ? "pointer" : "default",
         "&:active": onClick && !dimmed ? { bgcolor: COLOR.surface } : {},
@@ -87,7 +87,7 @@ export default function ActionRow({ title, subtitle, right, done = false, edited
         {subtitle && (
           <Typography sx={{
             fontSize: TYPE.caption.fontSize, color: done ? COLOR.text4 : COLOR.text3,
-            mt: 0.15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            mt: 0.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {subtitle}
           </Typography>

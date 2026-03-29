@@ -42,9 +42,10 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import SheetDialog from "../../components/SheetDialog";
 import AppButton from "../../components/AppButton";
 import SubpageHeader from "../../components/SubpageHeader";
+import BarButton from "../../components/BarButton";
 import SuggestionChips from "../../components/SuggestionChips";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
-import { TYPE, ICON, COLOR } from "../../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 
 function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, onLogout }) {
   return (
@@ -57,7 +58,7 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
         {DESKTOP_NAV.map((item) => (
           <Box key={item.key} component="button" type="button" onClick={() => onNav(item.key)}
             aria-current={activeSection === item.key ? "page" : undefined}
-            sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer", width: "100%", border: "none", textAlign: "left",
+            sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1, cursor: "pointer", width: "100%", border: "none", textAlign: "left",
               bgcolor: activeSection === item.key ? "#07C160" : "transparent",
               color: activeSection === item.key ? "#fff" : "#999999",
               "&:hover": { bgcolor: activeSection === item.key ? "#07C160" : "#f0f0f0" },
@@ -70,7 +71,7 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
           </Box>
         ))}
       </Box>
-      <Box component="button" type="button" onClick={onLogout} sx={{ display: "flex", alignItems: "center", gap: 1.2, px: 2, py: 1.2, cursor: "pointer", width: "100%", border: "none", textAlign: "left", bgcolor: "transparent", color: "#999999", "&:hover": { bgcolor: "#f0f0f0" }, "&:focus-visible": { outline: "2px solid #07C160", outlineOffset: -2 }, "&:active": { opacity: 0.8 } }}>
+      <Box component="button" type="button" onClick={onLogout} sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1, cursor: "pointer", width: "100%", border: "none", textAlign: "left", bgcolor: "transparent", color: "#999999", "&:hover": { bgcolor: "#f0f0f0" }, "&:focus-visible": { outline: "2px solid #07C160", outlineOffset: -2 }, "&:active": { opacity: 0.8 } }}>
         <LogoutIcon fontSize="small" sx={{ color: "#999999" }} />
         <Typography sx={{ fontSize: TYPE.body.fontSize, color: "#999999" }}>退出登录</Typography>
       </Box>
@@ -160,12 +161,12 @@ function PreviewIntroCard({ patientName }) {
       }}
     >
       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
-        <InfoOutlinedIcon sx={{ fontSize: 18, color: COLOR.primary, mt: 0.1 }} />
+        <InfoOutlinedIcon sx={{ fontSize: 18, color: COLOR.primary, mt: 0.5 }} />
         <Box sx={{ flex: 1 }}>
           <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
             患者端预览
           </Typography>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.4, lineHeight: 1.6 }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.5, lineHeight: 1.6 }}>
             {patientName || "患者"} 将看到一个 2 分钟左右的 AI 预问诊流程：
             描述症状，接受追问，确认后提交给医生审核。
           </Typography>
@@ -182,8 +183,8 @@ function PreviewMessageBubble({ role, content }) {
       <Box
         sx={{
           maxWidth: "82%",
-          px: 1.75,
-          py: 1.25,
+          px: 2,
+          py: 1.5,
           borderRadius: 2,
           bgcolor: isUser ? "#95EC69" : COLOR.white,
           color: COLOR.text2,
@@ -199,17 +200,17 @@ function PreviewMessageBubble({ role, content }) {
   );
 }
 
-function PreviewSummarySheet({ open, onClose, collected, progress, onConfirm, confirming }) {
+function PreviewSummarySheet({ open, onClose, collected, progress, onConfirm, confirming, onResumeInput }) {
   return (
     <SheetDialog
       open={open}
-      onClose={onClose}
+      onClose={onResumeInput || onClose}
       title="确认预问诊信息"
       desktopMaxWidth={400}
       footer={(
-        <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-          <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>
-            返回
+        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <AppButton variant="secondary" size="md" fullWidth onClick={onResumeInput || onClose}>
+            继续补充
           </AppButton>
           <AppButton
             variant="primary"
@@ -225,7 +226,7 @@ function PreviewSummarySheet({ open, onClose, collected, progress, onConfirm, co
         </Box>
       )}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 1.25 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
         <Chip
           size="small"
           label={`${progress.filled}/${progress.total}`}
@@ -239,12 +240,12 @@ function PreviewSummarySheet({ open, onClose, collected, progress, onConfirm, co
         <Box
           key={field}
           sx={{
-            py: 0.9,
+            py: 1,
             borderBottom: `0.5px solid ${COLOR.borderLight}`,
             "&:last-child": { borderBottom: "none" },
           }}
         >
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.2 }}>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.5 }}>
             {PREVIEW_FIELD_LABELS[field]}
           </Typography>
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.6 }}>
@@ -274,7 +275,7 @@ function PreviewSuccessCard({ patientName, reviewTaskId, onViewReview, onViewTas
       <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.5, lineHeight: 1.6 }}>
         {patientName || "患者"} 的预问诊信息已经提交，系统已创建审核任务 #{reviewTaskId || "—"}。
       </Typography>
-      <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "repeat(2, minmax(0, 1fr))", mt: 1.25 }}>
+      <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0, 1fr))", mt: 1.5 }}>
         <AppButton variant="secondary" size="md" fullWidth onClick={onViewTasks}>
           查看任务
         </AppButton>
@@ -319,6 +320,10 @@ function PatientPreviewPage({ doctorId, previewId }) {
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(null);
   const [openingReview, setOpeningReview] = useState(false);
+  const [reviewReady, setReviewReady] = useState(false);
+  const [reviewHintShown, setReviewHintShown] = useState(false);
+  const canSupplement = reviewReady && !submitted;
+  const canInput = !submitted && (status === "interviewing" || canSupplement);
 
   useEffect(() => {
     if (!token) {
@@ -335,6 +340,13 @@ function PatientPreviewPage({ doctorId, previewId }) {
         setProgress(data.progress || { filled: 0, total: 7 });
         setStatus(data.status || "interviewing");
         setMessages([{ role: "assistant", content: data.reply }]);
+        if (data.ready_to_review || data.status === "reviewing") {
+          setReviewReady(true);
+          if (!reviewHintShown) {
+            setReviewHintShown(true);
+            setTimeout(() => setShowSummary(true), 300);
+          }
+        }
       } catch (err) {
         if (cancelled) return;
         setError(err?.message || "无法启动患者预问诊。");
@@ -357,7 +369,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
     const parts = [...selectedSuggestions];
     if (input.trim()) parts.push(input.trim());
     const text = parts.join("，");
-    if (!text || sending || status !== "interviewing") return;
+    if (!text || sending || !canInput) return;
     setInput("");
     setSuggestions([]);
     setSelectedSuggestions([]);
@@ -370,8 +382,12 @@ function PatientPreviewPage({ doctorId, previewId }) {
       setProgress(data.progress || { filled: 0, total: 7 });
       setStatus(data.status || "interviewing");
       setSuggestions(data.suggestions || []);
-      if (data.status === "reviewing") {
-        setTimeout(() => setShowSummary(true), 500);
+      if (data.ready_to_review || data.status === "reviewing") {
+        setReviewReady(true);
+        if (!reviewHintShown) {
+          setReviewHintShown(true);
+          setTimeout(() => setShowSummary(true), 500);
+        }
       }
     } catch (err) {
       setMessages((prev) => [...prev, { role: "assistant", content: err?.message || "系统繁忙，请稍后重试。" }]);
@@ -431,25 +447,34 @@ function PatientPreviewPage({ doctorId, previewId }) {
     navigate(`/doctor/tasks?tab=followups&highlight_task_ids=${submitted.review_id}&origin=patient_submit`);
   }
 
+  function handleResumeInput() {
+    setShowSummary(false);
+    setStatus("interviewing");
+  }
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
+      {/*
+        Top-bar action follows UI-DESIGN.md: single text-only BarButton, max 2 Chinese chars.
+        Progress is shown as a disabled bar action until the interview is ready to submit.
+      */}
       <SubpageHeader
         title="患者端预览"
         onBack={() => (status === "confirmed" ? navigate(-1) : setShowExitDialog(true))}
-        right={(
-          <Chip
-            size="small"
-            label={submitted ? "已提交" : `${progress.total ? Math.round((progress.filled / progress.total) * 100) : 0}%`}
-            sx={{
-              bgcolor: submitted ? COLOR.primaryLight : COLOR.surface,
-              color: submitted ? COLOR.primary : COLOR.text4,
-              fontWeight: 600,
-            }}
-          />
-        )}
+        right={
+          submitted ? null : (
+            <BarButton
+              onClick={reviewReady ? () => setShowSummary(true) : undefined}
+              disabled={!reviewReady}
+              color={reviewReady ? COLOR.primary : COLOR.text4}
+            >
+              {reviewReady ? "提交" : `${progress.total ? Math.round((progress.filled / progress.total) * 100) : 0}%`}
+            </BarButton>
+          )
+        }
       />
 
-      <Box sx={{ px: 2, py: 0.75, bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
+      <Box sx={{ px: 2, py: 1, bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
         <LinearProgress
           variant="determinate"
           value={progress.total ? (progress.filled / progress.total) * 100 : 0}
@@ -460,7 +485,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
             "& .MuiLinearProgress-bar": { bgcolor: COLOR.primary, borderRadius: 3 },
           }}
         />
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.4 }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.5 }}>
           {submitted ? "预问诊已提交" : `患者侧流程进度 ${progress.filled}/${progress.total}`}
         </Typography>
       </Box>
@@ -481,7 +506,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
             ))}
             {sending && (
               <Box sx={{ display: "flex", justifyContent: "flex-start", mb: 1.5 }}>
-                <Box sx={{ px: 1.75, py: 1.25, borderRadius: 2, bgcolor: COLOR.white }}>
+                <Box sx={{ px: 2, py: 1.5, borderRadius: 2, bgcolor: COLOR.white }}>
                   <CircularProgress size={16} />
                 </Box>
               </Box>
@@ -500,7 +525,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
         )}
       </Box>
 
-      {status === "interviewing" && !submitted && suggestions.length > 0 && (
+      {canInput && suggestions.length > 0 && (
         <SuggestionChips
           items={suggestions}
           selected={selectedSuggestions}
@@ -510,7 +535,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
         />
       )}
 
-      {status === "interviewing" && !submitted && (
+      {canInput && (
         <Box
           sx={{
             display: "flex",
@@ -546,7 +571,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
               sx={{
                 flex: 1,
                 bgcolor: COLOR.white,
-                borderRadius: "6px",
+                borderRadius: RADIUS.md,
                 border: `1px solid ${COLOR.border}`,
                 px: 1,
                 py: 0.5,
@@ -563,10 +588,10 @@ function PatientPreviewPage({ doctorId, previewId }) {
                   sx={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: 0.35,
+                    gap: 0.5,
                     px: 1,
-                    py: 0.2,
-                    borderRadius: "12px",
+                    py: 0.5,
+                    borderRadius: RADIUS.lg,
                     fontSize: TYPE.secondary.fontSize,
                     bgcolor: COLOR.primaryLight,
                     color: COLOR.primary,
@@ -602,7 +627,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
                   fontSize: TYPE.body.fontSize,
                   fontFamily: "inherit",
                   bgcolor: "transparent",
-                  p: 0.3,
+                  p: 0.5,
                 }}
               />
             </Box>
@@ -619,11 +644,12 @@ function PatientPreviewPage({ doctorId, previewId }) {
 
       <PreviewSummarySheet
         open={showSummary}
-        onClose={() => setShowSummary(false)}
+        onClose={handleResumeInput}
         collected={collected}
         progress={progress}
         onConfirm={handleConfirm}
         confirming={confirming}
+        onResumeInput={handleResumeInput}
       />
 
       <ConfirmDialog

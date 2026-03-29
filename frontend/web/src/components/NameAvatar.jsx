@@ -1,26 +1,14 @@
-/**
- * 姓名头像组件：根据姓名首字生成彩色头像。
- */
 import { Box, Typography } from "@mui/material";
-import { COLOR } from "../theme";
-import { AVATAR_COLORS } from "../pages/doctor/constants";
-
-export function nameColor(name) {
-  let h = 0;
-  for (let i = 0; i < (name || "").length; i++) {
-    h = (h * 31 + name.charCodeAt(i)) & 0xffff;
-  }
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
+import { COLOR, RADIUS } from "../theme";
 
 export default function NameAvatar({ name, size = 42 }) {
   return (
     <Box sx={{
-      width: size, height: size, borderRadius: "4px", flexShrink: 0,
-      bgcolor: nameColor(name),
+      width: size, height: size, borderRadius: RADIUS.sm, flexShrink: 0,
+      bgcolor: COLOR.borderLight,
       display: "flex", alignItems: "center", justifyContent: "center",
     }}>
-      <Typography sx={{ color: COLOR.white, fontSize: size * 0.42, fontWeight: 600, lineHeight: 1 }}>
+      <Typography sx={{ color: COLOR.text4, fontSize: size * 0.42, fontWeight: 600, lineHeight: 1 }}>
         {(name || "?")[0]}
       </Typography>
     </Box>

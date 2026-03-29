@@ -35,11 +35,11 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import SheetDialog from "../../components/SheetDialog";
 import AppButton from "../../components/AppButton";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
-import { TYPE, ICON } from "../../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 
 function MsgAvatar({ isUser, size = 40 }) {
   return (
-    <Box sx={{ width: size, height: size, borderRadius: "4px", flexShrink: 0, mb: 0.5,
+    <Box sx={{ width: size, height: size, borderRadius: RADIUS.sm, flexShrink: 0, mb: 0.5,
       bgcolor: isUser ? "#5b9bd5" : "#07C160",
       display: "flex", alignItems: "center", justifyContent: "center" }}>
       {isUser
@@ -70,13 +70,13 @@ function TasksCard({ tasks }) {
 /* ── Data Cards (rendered below AI reply bubble) ── */
 
 const cardRowSx = {
-  display: "flex", alignItems: "center", gap: 1, py: 0.8,
+  display: "flex", alignItems: "center", gap: 1, py: 1,
   borderBottom: "1px solid #f5f5f5", cursor: "pointer",
   "&:last-child": { borderBottom: "none" },
-  "&:active": { bgcolor: "#fafafa" },
+  "&:active": { bgcolor: COLOR.surface },
 };
 const cardIconSx = (bg) => ({
-  width: 28, height: 28, borderRadius: "6px", bgcolor: bg,
+  width: 28, height: 28, borderRadius: RADIUS.md, bgcolor: bg,
   display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
 });
 
@@ -87,7 +87,7 @@ function PatientCards({ patients, onNavigate, max = 5 }) {
     <Box sx={{ mt: 1, borderTop: "1px solid #e5e5e5", pt: 0.5 }}>
       {shown.map((p) => (
         <Box key={p.id} sx={cardRowSx} onClick={() => onNavigate(`/doctor/patients/${p.id}`)}>
-          <Box sx={cardIconSx("#e3f2fd")}><PersonOutlineIcon sx={{ fontSize: 16, color: "#1565c0" }} /></Box>
+          <Box sx={cardIconSx("#e3f2fd")}><PersonOutlineIcon sx={{ fontSize: 16, color: COLOR.link }} /></Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 600, color: "#333" }} noWrap>{p.name}</Typography>
             <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#999" }} noWrap>
@@ -114,7 +114,7 @@ function RecordCards({ records, onNavigate, max = 5 }) {
     <Box sx={{ mt: 1, borderTop: "1px solid #e5e5e5", pt: 0.5 }}>
       {shown.map((r, i) => (
         <Box key={r.id || i} sx={cardRowSx} onClick={() => r.patient_id ? onNavigate(`/doctor/patients/${r.patient_id}`) : null}>
-          <Box sx={cardIconSx("#e8f5e9")}><DescriptionOutlinedIcon sx={{ fontSize: 16, color: "#07C160" }} /></Box>
+          <Box sx={cardIconSx(COLOR.successLight)}><DescriptionOutlinedIcon sx={{ fontSize: 16, color: "#07C160" }} /></Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 600, color: "#333" }} noWrap>
               {r.patient_name || "患者"} · {r.chief_complaint || r.record_type || "病历"}
@@ -143,7 +143,7 @@ function TaskCards({ tasks, onNavigate, max = 5 }) {
     <Box sx={{ mt: 1, borderTop: "1px solid #e5e5e5", pt: 0.5 }}>
       {shown.map((tk) => (
         <Box key={tk.id} sx={cardRowSx} onClick={() => tk.patient_id ? onNavigate(`/doctor/patients/${tk.patient_id}`) : onNavigate("/doctor/tasks")}>
-          <Box sx={cardIconSx("#fff3e0")}><AssignmentOutlinedIcon sx={{ fontSize: 16, color: "#e8833a" }} /></Box>
+          <Box sx={cardIconSx(COLOR.warningLight)}><AssignmentOutlinedIcon sx={{ fontSize: 16, color: "#e8833a" }} /></Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 600, color: "#333" }} noWrap>
               {typeLabels[tk.task_type] || "任务"} · {tk.title || "未命名"}
@@ -178,7 +178,7 @@ function DataCards({ viewPayload, onNavigate }) {
 /* Minimal markdown styles scoped to AI message bubbles */
 const mdStyles = {
   "& p": { m: 0, lineHeight: 1.7 },
-  "& p + p": { mt: 0.8 },
+  "& p + p": { mt: 1 },
   "& strong": { fontWeight: 600 },
   "& hr": { border: "none", borderTop: "1px solid #e5e5e5", my: 1 },
   "& ul, & ol": { m: 0, pl: 2.5 },
@@ -191,13 +191,13 @@ function MsgBubble({ msg, onQuickSend, onNavigate }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isUser = msg.role === "user";
-  const bubbleRadius = isUser ? "4px 4px 0 4px" : "4px 4px 4px 0";
+  const bubbleRadius = isUser ? `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}` : `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`;
   const bgColor = isUser ? "#95EC69" : "#fff";
   const textColor = "#111111";
   const hasPending = !isUser && /确认保存/.test(msg.content);
 
   return (
-    <Box sx={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: isMobile ? 1 : 1.2, px: isMobile ? 1.5 : 2 }}>
+    <Box sx={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: 1, px: isMobile ? 1.5 : 2 }}>
       <MsgAvatar isUser={isUser} size={40} />
       <Box sx={{ maxWidth: isMobile ? "72%" : "min(70%, 600px)", display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
         <Box sx={{ position: "relative", px: isMobile ? "12px" : "14px", py: isMobile ? "9px" : "10px", borderRadius: bubbleRadius, bgcolor: bgColor, boxShadow: "none",
@@ -211,7 +211,7 @@ function MsgBubble({ msg, onQuickSend, onNavigate }) {
             <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: isMobile ? 1.8 : 1.7, color: textColor }}>
               {msg.actionLabel && (
                 <Box component="span" sx={{ display: "inline-flex", alignItems: "center", backgroundColor: "rgba(0,0,0,0.06)",
-                  px: 0.8, py: 0.1, borderRadius: "2px", fontSize: TYPE.caption.fontSize, color: "#555", mr: 0.8, verticalAlign: "middle" }}>
+                  px: 1, py: 0.5, borderRadius: "2px", fontSize: TYPE.caption.fontSize, color: "#555", mr: 1, verticalAlign: "middle" }}>
                   {msg.actionLabel}
                 </Box>
               )}
@@ -228,7 +228,7 @@ function MsgBubble({ msg, onQuickSend, onNavigate }) {
           {hasPending && onQuickSend && (
             <Stack direction="row" spacing={1} sx={{ mt: 1.5, pt: 1, borderTop: "1px solid #e5e5e5" }}>
               <Button size="small" variant="contained" disableElevation
-                sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: "#06a050" }, textTransform: "none", fontSize: TYPE.secondary.fontSize, borderRadius: 1 }}
+                sx={{ bgcolor: "#07C160", "&:hover": { bgcolor: COLOR.primaryHover }, textTransform: "none", fontSize: TYPE.secondary.fontSize, borderRadius: 1 }}
                 onClick={() => onQuickSend("确认")}>
                 确认保存
               </Button>
@@ -240,7 +240,7 @@ function MsgBubble({ msg, onQuickSend, onNavigate }) {
             </Stack>
           )}
         </Box>
-        <Typography sx={{ mt: isMobile ? 0.3 : 0.4, px: 0.5, color: isMobile ? "#888" : "#aaa", fontSize: TYPE.micro.fontSize }}>
+        <Typography sx={{ mt: 0.5, px: 0.5, color: isMobile ? "#888" : "#aaa", fontSize: TYPE.micro.fontSize }}>
           {msg.ts}
         </Typography>
       </Box>
@@ -254,10 +254,10 @@ function LoadingBubble({ isMobile }) {
   }
   return (
     <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, px: 1.5 }}>
-      <Box sx={{ width: 40, height: 40, borderRadius: "4px", bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <Box sx={{ width: 40, height: 40, borderRadius: RADIUS.sm, bgcolor: "#07C160", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         <SmartToyOutlinedIcon sx={{ color: "#fff", fontSize: ICON.lg }} />
       </Box>
-      <Box sx={{ px: "12px", py: "10px", borderRadius: "4px 4px 4px 0", bgcolor: "#fff", boxShadow: "none", display: "flex", alignItems: "center", gap: 0.5 }}>
+      <Box sx={{ px: "12px", py: "10px", borderRadius: `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`, bgcolor: "#fff", boxShadow: "none", display: "flex", alignItems: "center", gap: 0.5 }}>
         {[0, 1, 2].map((i) => (
           <Box key={i} sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: "#aaa", animation: "dotPulse 1.4s ease-in-out infinite", animationDelay: `${i * 0.2}s`, "@keyframes dotPulse": { "0%, 80%, 100%": { opacity: 0.3, transform: "scale(0.8)" }, "40%": { opacity: 1, transform: "scale(1)" } } }} />
         ))}
@@ -268,7 +268,7 @@ function LoadingBubble({ isMobile }) {
 
 function QuickCommandBar({ activeChip, onSelect }) {
   return (
-    <Box sx={{ px: 1.5, pt: 1, pb: 0.8, borderTop: "0.5px solid #e0e0e0", backgroundColor: "#f7f7f7", display: "flex", gap: 1, flexWrap: "wrap" }}>
+    <Box sx={{ px: 1.5, pt: 1, pb: 1, borderTop: "0.5px solid #e0e0e0", backgroundColor: "#f7f7f7", display: "flex", gap: 1, flexWrap: "wrap" }}>
       {QUICK_COMMANDS.map((cmd) => {
         const isActive = activeChip?.key === cmd.key;
         const isDisabled = cmd.disabled;
@@ -278,8 +278,8 @@ function QuickCommandBar({ activeChip, onSelect }) {
             disabled={isDisabled}
             title={isDisabled ? "即将上线" : undefined}
             sx={{
-              display: "inline-flex", alignItems: "center", px: 1.5, py: 0.6,
-              border: "none", borderRadius: "4px", cursor: isDisabled ? "default" : "pointer",
+              display: "inline-flex", alignItems: "center", px: 1.5, py: 0.5,
+              border: "none", borderRadius: RADIUS.sm, cursor: isDisabled ? "default" : "pointer",
               fontSize: TYPE.secondary.fontSize, fontFamily: "inherit", whiteSpace: "nowrap",
               backgroundColor: isActive ? "#07C160" : "#fff",
               color: isActive ? "#fff" : "#333",
@@ -341,25 +341,25 @@ function ChipInput({ activeChip, onRemoveChip, input, onInput, onSend, loading, 
         </Typography>
       )}
       {voiceMode ? (
-        <Box sx={{ px: 1, py: 0.8 }}>
+        <Box sx={{ px: 1, py: 1 }}>
           <VoiceInput onResult={onVoiceResult} onCancel={onVoiceCancel} />
         </Box>
       ) : (
-        <Stack direction="row" alignItems="center" sx={{ px: 1, py: 0.8, gap: 0.5 }}>
+        <Stack direction="row" alignItems="center" sx={{ px: 1, py: 1, gap: 0.5 }}>
           {isMobile && (
-            <IconButton size="small" onClick={onActionPanelOpen} disabled={isProcessing} sx={{ color: "#07C160", p: 1.1 }}>
+            <IconButton size="small" onClick={onActionPanelOpen} disabled={isProcessing} sx={{ color: "#07C160", p: 1 }}>
               <AddCircleOutlineIcon />
             </IconButton>
           )}
-          <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 0.8, flexWrap: "nowrap",
-            backgroundColor: "#fff", borderRadius: "4px", px: 1.2, py: 0.8, minHeight: 36 }}>
+          <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap",
+            backgroundColor: "#fff", borderRadius: RADIUS.sm, px: 1, py: 1, minHeight: 36 }}>
             {activeChip && (
-              <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.3, backgroundColor: "#f0f0f0",
-                color: "#333", px: 1, py: 0.25, borderRadius: "3px", fontSize: TYPE.caption.fontSize, whiteSpace: "nowrap",
+              <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, backgroundColor: "#f0f0f0",
+                color: "#333", px: 1, py: 0.5, borderRadius: RADIUS.sm, fontSize: TYPE.caption.fontSize, whiteSpace: "nowrap",
                 border: "1px solid #ddd", flexShrink: 0 }}>
                 {activeChip.label}
                 <Box component="span" onClick={onRemoveChip}
-                  sx={{ color: "#999", ml: 0.3, cursor: "pointer", fontSize: TYPE.micro.fontSize, lineHeight: 1, "&:hover": { color: "#666" } }}>
+                  sx={{ color: "#999", ml: 0.5, cursor: "pointer", fontSize: TYPE.micro.fontSize, lineHeight: 1, "&:hover": { color: "#666" } }}>
                   ✕
                 </Box>
               </Box>
@@ -384,12 +384,12 @@ function ChipInput({ activeChip, onRemoveChip, input, onInput, onSend, loading, 
           )}
           {isMobile && voiceSupported && !input.trim() && !activeChip ? (
             <IconButton onClick={onVoiceToggle}
-              sx={{ color: "#666", p: 1.2, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
+              sx={{ color: "#666", p: 1, flexShrink: 0, minWidth: 44, minHeight: 44 }}>
               <MicNoneOutlinedIcon fontSize="small" />
             </IconButton>
           ) : (
             <IconButton onClick={onSend} disabled={loading || (!input.trim() && !activeChip)}
-              sx={{ bgcolor: "#07C160", color: "#fff", p: 1.2, borderRadius: "50%", "&:hover": { bgcolor: "#06ad56" }, flexShrink: 0, minWidth: 44, minHeight: 44, "&.Mui-disabled": { bgcolor: "#ccc", color: "#fff" } }}>
+              sx={{ bgcolor: "#07C160", color: "#fff", p: 1, borderRadius: "50%", "&:hover": { bgcolor: COLOR.primaryHover }, flexShrink: 0, minWidth: 44, minHeight: 44, "&.Mui-disabled": { bgcolor: "#ccc", color: "#fff" } }}>
               <SendOutlinedIcon fontSize="small" />
             </IconButton>
           )}
@@ -511,7 +511,7 @@ function PatientEntrySheet({ open, entry, copying, onCopy, onPreview, onClose })
       title="已建档并生成入口"
       desktopMaxWidth={380}
       footer={(
-        <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+        <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
           <AppButton variant="secondary" size="md" fullWidth onClick={onCopy}>
             {copying ? "已复制" : "复制"}
           </AppButton>
@@ -524,15 +524,15 @@ function PatientEntrySheet({ open, entry, copying, onCopy, onPreview, onClose })
       <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: "#333" }}>
         {entry.patient_name}
       </Typography>
-      <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#666", mt: 0.6, lineHeight: 1.6 }}>
+      <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#666", mt: 0.5, lineHeight: 1.6 }}>
         已先完成患者建档，再生成可分享的预问诊入口。可以直接预览患者端，或复制链接发给患者。
       </Typography>
       <Box
         sx={{
-          mt: 1.25,
-          p: 1.1,
+          mt: 1.5,
+          p: 1,
           bgcolor: "#f7f7f7",
-          borderRadius: "6px",
+          borderRadius: RADIUS.md,
           border: "0.5px solid #e5e5e5",
         }}
       >

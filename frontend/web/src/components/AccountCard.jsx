@@ -11,7 +11,7 @@
  *  - rows: [{ label, value, onClick? }] (optional info rows below avatar)
  */
 import { Box, Typography } from "@mui/material";
-import { TYPE, ICON, COLOR } from "../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../theme";
 
 export default function AccountCard({ name, subtitle, color, rows }) {
   const initial = (name || "?").slice(-1);
@@ -20,9 +20,9 @@ export default function AccountCard({ name, subtitle, color, rows }) {
   return (
     <Box sx={{ bgcolor: COLOR.white }}>
       {/* Avatar + name row */}
-      <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.8, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
+      <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 2, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
         <Box sx={{
-          width: 52, height: 52, borderRadius: "4px", bgcolor: bg,
+          width: 52, height: 52, borderRadius: RADIUS.sm, bgcolor: bg,
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0, mr: 1.5,
         }}>
@@ -46,7 +46,7 @@ export default function AccountCard({ name, subtitle, color, rows }) {
             borderBottom: `0.5px solid ${COLOR.borderLight}`,
             "&:last-child": { borderBottom: "none" },
             cursor: row.onClick ? "pointer" : "default",
-            "&:active": row.onClick ? { bgcolor: "#f9f9f9" } : {},
+            "&:active": row.onClick ? { bgcolor: COLOR.surface } : {},
           }}
         >
           <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, flex: 1 }}>{row.label}</Typography>

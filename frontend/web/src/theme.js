@@ -26,6 +26,15 @@ const ICON = {
   display: 48,  // empty state, about page, login splash
 };
 
+// ── Border-radius scale (4 levels) ──────────────────────────────────
+// Change here → affects all corner rounding. Do not use hardcoded borderRadius.
+const RADIUS = {
+  sm:   "4px",   // buttons, cards, avatars, inputs, badges
+  md:   "8px",   // containers, bubbles, icon boxes
+  lg:   "12px",  // dialog paper, bottom sheets
+  pill: "16px",  // pills, chips, MobileFrame
+};
+
 const BUTTON = {
   compactHeight: 36,
   compactFontSize: TYPE.body.fontSize,
@@ -57,9 +66,14 @@ const COLOR = {
   surface:      "#f7f7f7",
   surfaceAlt:   "#ededed",
   white:        "#ffffff",
+  // Record type groups (minimal 3-color palette)
+  recordDoc:    "#8993a4",   // document records: dictation, import
+  // Interaction states
+  primaryHover: "#06a050",   // button hover/active
+  link:         "#1565c0",   // citation badges, knowledge references
 };
 
-export { TYPE, ICON, BUTTON, COLOR };
+export { TYPE, ICON, BUTTON, COLOR, RADIUS };
 
 // Shared theme options (palette, typography, components) — used by both app and admin themes
 const sharedThemeOptions = {
@@ -79,7 +93,7 @@ const sharedThemeOptions = {
     },
   },
   shape: {
-    borderRadius: 4,
+    borderRadius: parseInt(RADIUS.sm),
   },
   wechat: {
     userBubble: "#95EC69",
@@ -116,12 +130,12 @@ const sharedThemeOptions = {
       styleOverrides: { root: { boxShadow: "none" } },
     },
     MuiCard: {
-      styleOverrides: { root: { borderRadius: 4 } },
+      styleOverrides: { root: { borderRadius: parseInt(RADIUS.sm) } },
     },
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: BUTTON.compactRadius,
+          borderRadius: RADIUS.sm,
           minHeight: BUTTON.compactHeight,
           padding: `${BUTTON.compactPaddingY} ${BUTTON.compactPaddingX}`,
           fontSize: BUTTON.compactFontSize,
@@ -150,7 +164,7 @@ const sharedThemeOptions = {
     },
     MuiDialog: {
       defaultProps: { container: getDialogContainer },
-      styleOverrides: { paper: { borderRadius: 12 } },
+      styleOverrides: { paper: { borderRadius: parseInt(RADIUS.lg) } },
     },
   },
 };

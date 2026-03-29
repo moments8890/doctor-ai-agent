@@ -23,7 +23,7 @@ export default function RecordFields({ record }) {
         {record.content || "—"}
       </Typography>
       {tags.length > 0 && (
-        <Stack direction="row" spacing={0.6} flexWrap="wrap" sx={{ mt: 1.2 }}>
+        <Stack direction="row" spacing={0.5} flexWrap="wrap" sx={{ mt: 1 }}>
           {tags.map((tag, i) => (
             <Chip key={i} label={tag} size="small" variant="outlined" sx={{ fontSize: TYPE.micro.fontSize }} />
           ))}

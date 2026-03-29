@@ -9,7 +9,7 @@ import { useState, useRef, useEffect } from "react";
 import { Box, Typography } from "@mui/material";
 import MicIcon from "@mui/icons-material/Mic";
 import VoiceInput, { isVoiceSupported } from "./VoiceInput";
-import { TYPE, COLOR } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../theme";
 
 export default function InlineEditor({ value, onSave, onCancel, onDelete }) {
   const [text, setText] = useState(value);
@@ -39,7 +39,7 @@ export default function InlineEditor({ value, onSave, onCancel, onDelete }) {
           sx={{
             flex: 1, boxSizing: "border-box", fontFamily: "inherit",
             fontSize: TYPE.body.fontSize, color: COLOR.text2, lineHeight: 1.55,
-            p: 1, border: `1px solid ${COLOR.primary}`, borderRadius: "4px",
+            p: 1, border: `1px solid ${COLOR.primary}`, borderRadius: RADIUS.sm,
             bgcolor: COLOR.surfaceAlt, resize: "none", overflow: "hidden", outline: "none",
           }}
           rows={1}
@@ -60,7 +60,7 @@ export default function InlineEditor({ value, onSave, onCancel, onDelete }) {
         )}
       </Box>
       {showVoice && (
-        <Box sx={{ mt: 0.8 }}>
+        <Box sx={{ mt: 1 }}>
           <VoiceInput
             onResult={(transcript) => {
               setText((prev) => prev ? prev + transcript : transcript);
@@ -70,7 +70,7 @@ export default function InlineEditor({ value, onSave, onCancel, onDelete }) {
           />
         </Box>
       )}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 0.75 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
         {onDelete ? (
           <Typography onClick={onDelete}
             sx={{ fontSize: TYPE.body.fontSize, color: COLOR.danger, cursor: "pointer", "&:active": { opacity: 0.5 } }}>

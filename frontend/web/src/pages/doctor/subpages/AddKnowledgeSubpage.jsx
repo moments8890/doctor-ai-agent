@@ -18,9 +18,14 @@ import AppButton from "../../../components/AppButton";
 import SheetDialog from "../../../components/SheetDialog";
 import VoiceInput, { isVoiceSupported } from "../../../components/VoiceInput";
 import { useApi } from "../../../api/ApiContext";
-import { TYPE, COLOR } from "../../../theme";
+import { TYPE, COLOR, RADIUS } from "../../../theme";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
-import { markOnboardingStep, ONBOARDING_STEP, ONBOARDING_EXAMPLES } from "../constants";
+import { markOnboardingStep, ONBOARDING_STEP } from "../constants";
+import {
+  getPreferredOnboardingRule,
+  resolveDiagnosisProofDestination,
+  resolveReplyProofDestination,
+} from "../onboardingProofs";
 
 const PREFILL_URL = "https://example.com/neurosurgery/post-op-headache-followup";
 const PREFILL_TEXT = "术后头痛加重伴恶心呕吐时，优先排除迟发性颅内血肿或脑水肿，并尽快安排头颅CT。";
@@ -82,10 +87,11 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     return firstLine.trim().slice(0, 18);
   }
 
-  function handleKnowledgeSaved(text) {
+  function handleKnowledgeSaved(text, knowledgeItemId = null) {
     const title = deriveRuleTitle(text);
     markOnboardingStep(doctorId, ONBOARDING_STEP.knowledge, {
       lastSavedRuleTitle: title,
+      lastSavedRuleId: knowledgeItemId,
       lastSavedRuleAt: new Date().toISOString(),
     });
     if (onboardingMode) {
@@ -123,8 +129,8 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     setAdding(true);
     setError("");
     try {
-      await addKnowledgeItem(doctorId, trimmed);
-      handleKnowledgeSaved(trimmed);
+      const result = await addKnowledgeItem(doctorId, trimmed);
+      handleKnowledgeSaved(trimmed, result?.id || null);
     } catch (e) {
       setError(e.message || "添加失败");
     } finally {
@@ -185,10 +191,10 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     setError("");
     try {
       const isUrl = sourceFilename.startsWith("http://") || sourceFilename.startsWith("https://");
-      await uploadKnowledgeSave(doctorId, trimmed, isUrl ? "url" : sourceFilename, isUrl ? { sourceUrl: sourceFilename } : {});
+      const result = await uploadKnowledgeSave(doctorId, trimmed, isUrl ? "url" : sourceFilename, isUrl ? { sourceUrl: sourceFilename } : {});
       setPreviewOpen(false);
       showToast("已保存到知识库");
-      setTimeout(() => handleKnowledgeSaved(trimmed), 600);
+      setTimeout(() => handleKnowledgeSaved(trimmed, result?.id || null), 600);
     } catch (e) {
       setError(e.message || "保存失败");
     } finally {
@@ -215,10 +221,10 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     setSaving(true);
     setError("");
     try {
-      await addKnowledgeItem(doctorId, trimmed);
+      const result = await addKnowledgeItem(doctorId, trimmed);
       setTextPreviewOpen(false);
       showToast("已保存到知识库");
-      setTimeout(() => handleKnowledgeSaved(trimmed), 600);
+      setTimeout(() => handleKnowledgeSaved(trimmed, result?.id || null), 600);
     } catch (e) {
       setError(e.message || "保存失败");
     } finally {
@@ -237,19 +243,15 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     if (routingProof) return;
     setRoutingProof(true);
     try {
-      const queue = await (api.getReviewQueue || (() => Promise.resolve({ pending: [] })))(doctorId);
-      const preferredRule = savedRuleTitle || "";
-      const item = (queue?.pending || []).find((row) => row.rule_cited === preferredRule)
-        || (queue?.pending || []).find((row) => ONBOARDING_EXAMPLES.ruleTitles.includes(row.rule_cited))
-        || (queue?.pending || []).find((row) => ONBOARDING_EXAMPLES.diagnosisPatientNames.includes(row.patient_name))
-        || (queue?.pending || []).find((row) => row.rule_cited)
-        || (queue?.pending || [])[0];
+      const { preferredRuleId, preferredRuleTitle } = getPreferredOnboardingRule(doctorId, {
+        preferredRuleTitle: savedRuleTitle || "",
+      });
+      const destination = await resolveDiagnosisProofDestination(api, doctorId, {
+        preferredRuleId,
+        preferredRuleTitle,
+      });
       setNextStepOpen(false);
-      if (item?.record_id) {
-        navigate(`/doctor/review/${item.record_id}?source=knowledge_proof&highlight_record=${item.record_id}`);
-      } else {
-        navigate("/doctor/review?tab=pending&source=knowledge_proof");
-      }
+      navigate(destination);
     } finally {
       setRoutingProof(false);
     }
@@ -259,22 +261,15 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     if (routingProof) return;
     setRoutingProof(true);
     try {
-      const drafts = await (api.fetchDrafts || (() => Promise.resolve({ pending_messages: [] })))(doctorId, { includeSent: true });
-      const items = Array.isArray(drafts) ? drafts : (drafts?.pending_messages || []);
-      const activeDrafts = items.filter((row) => row.status !== "sent");
-      const preferredRule = savedRuleTitle || "";
-      const item = activeDrafts.find((row) => row.rule_cited === preferredRule)
-        || activeDrafts.find((row) => (row.cited_rules || []).some((rule) => rule.title === preferredRule))
-        || activeDrafts.find((row) => ONBOARDING_EXAMPLES.ruleTitles.includes(row.rule_cited))
-        || activeDrafts.find((row) => ONBOARDING_EXAMPLES.replyPatientNames.includes(row.patient_name))
-        || activeDrafts.find((row) => row.draft_text)
-        || activeDrafts[0];
+      const { preferredRuleId, preferredRuleTitle } = getPreferredOnboardingRule(doctorId, {
+        preferredRuleTitle: savedRuleTitle || "",
+      });
+      const destination = await resolveReplyProofDestination(api, doctorId, {
+        preferredRuleId,
+        preferredRuleTitle,
+      });
       setNextStepOpen(false);
-      if (item?.id) {
-        navigate(`/doctor/review?tab=replies&source=reply_proof&highlight_draft=${item.id}`);
-      } else {
-        navigate("/doctor/review?tab=replies&source=reply_proof");
-      }
+      navigate(destination);
     } finally {
       setRoutingProof(false);
     }
@@ -293,7 +288,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
         <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1, mb: 1 }}>
           上传文件
         </Typography>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 1.2 }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 1 }}>
           支持 PDF、Word、TXT 文件或拍照，AI 会自动提取并整理内容
         </Typography>
         <input
@@ -317,7 +312,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
             size="md"
             onClick={handleFileButtonClick}
             disabled={uploading}
-            sx={{ display: "inline-flex", alignItems: "center", gap: 0.8 }}
+            sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}
           >
             {uploading ? (
               <>
@@ -336,7 +331,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
             size="md"
             onClick={() => cameraInputRef.current?.click()}
             disabled={uploading}
-            sx={{ display: "inline-flex", alignItems: "center", gap: 0.8 }}
+            sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}
           >
             <CameraAltOutlinedIcon sx={{ fontSize: 18 }} />
             拍照
@@ -351,7 +346,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
               setLlmProcessed(true);
               setPreviewOpen(true);
             }}
-            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, mt: 0.8, cursor: "pointer" }}
+            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, mt: 1, cursor: "pointer" }}
           >
             使用示例文件内容 ›
           </Typography>
@@ -363,7 +358,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
         <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1, mb: 1 }}>
           从网页导入
         </Typography>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 1.2 }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 1 }}>
           粘贴网址，AI 会自动提取并整理网页内容
         </Typography>
         <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
@@ -374,7 +369,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleFetchUrl(); }}
-            sx={{ "& .MuiOutlinedInput-root": { borderRadius: "6px" } }}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.md } }}
           />
           <AppButton
             variant="secondary"
@@ -419,7 +414,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
           placeholder="用自然语言描述您的临床经验、诊断规则、问诊策略等"
           value={content}
           onChange={(e) => setContent(e.target.value)}
-          sx={{ "& .MuiOutlinedInput-root": { borderRadius: "6px" } }}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.md } }}
         />
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 0.5 }}>
           <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, flex: 1 }}>
@@ -497,7 +492,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
         }
       >
         {/* Source filename */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mb: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
           <UploadFileOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4 }} />
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, flex: 1, minWidth: 0 }} noWrap>
             {sourceFilename}
@@ -507,11 +502,11 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
               sx={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 0.3,
-                px: 0.8,
-                py: 0.2,
-                borderRadius: "3px",
-                bgcolor: "#E8F5E9",
+                gap: 0.5,
+                px: 1,
+                py: 0.5,
+                borderRadius: RADIUS.sm,
+                bgcolor: COLOR.successLight,
                 flexShrink: 0,
               }}
             >
@@ -532,7 +527,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
           size="small"
           value={editedText}
           onChange={(e) => setEditedText(e.target.value)}
-          sx={{ "& .MuiOutlinedInput-root": { borderRadius: "6px" } }}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.md } }}
         />
 
         {/* Character count */}
@@ -568,8 +563,8 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
         {textLlmProcessed && (
           <Box
             sx={{
-              display: "inline-flex", alignItems: "center", gap: 0.3,
-              px: 0.8, py: 0.2, borderRadius: "3px", bgcolor: "#E8F5E9",
+              display: "inline-flex", alignItems: "center", gap: 0.5,
+              px: 1, py: 0.5, borderRadius: RADIUS.sm, bgcolor: COLOR.successLight,
               mb: 1.5,
             }}
           >
@@ -587,7 +582,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
           size="small"
           value={editedProcessedText}
           onChange={(e) => setEditedProcessedText(e.target.value)}
-          sx={{ "& .MuiOutlinedInput-root": { borderRadius: "6px" } }}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.md } }}
         />
         <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.5, textAlign: "right" }}>
           {editedProcessedText.length} 字
@@ -622,7 +617,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
         title="已保存到知识库"
         desktopMaxWidth={400}
         footer={
-          <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "1fr" }}>
+          <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "1fr" }}>
             <AppButton variant="primary" size="md" fullWidth onClick={handleOpenDiagnosisProof} disabled={routingProof}>
               看诊断示例
             </AppButton>
@@ -638,7 +633,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
         <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
           {savedRuleTitle || "新规则"}
         </Typography>
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.6, lineHeight: 1.6 }}>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.5, lineHeight: 1.6 }}>
           接下来直接看两个确定会出现的场景：一个诊断审核示例，一个患者回复示例。
           医生第一次上手时不需要自己猜下一步。
         </Typography>

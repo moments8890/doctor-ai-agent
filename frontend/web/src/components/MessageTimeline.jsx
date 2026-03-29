@@ -6,7 +6,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
-import { TYPE, COLOR } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../theme";
 
 const SOURCE_CONFIG = {
   patient: { label: "患者", color: "#5b9bd5" },
@@ -48,8 +48,8 @@ function TimelineSeparator({ color, outlined = false, showConnector, connectorCo
         flexDirection: "column",
         alignItems: "center",
         alignSelf: "stretch",
-        pt: 0.35,
-        mr: 1.25,
+        pt: 0.5,
+        mr: 1.5,
       }}
     >
       <Box
@@ -68,7 +68,7 @@ function TimelineSeparator({ color, outlined = false, showConnector, connectorCo
             width: `${CONNECTOR_WIDTH}px`,
             flex: 1,
             minHeight: 16,
-            mt: 0.45,
+            mt: 0.5,
             borderRadius: `${CONNECTOR_WIDTH}px`,
             bgcolor: connectorColor,
           }}
@@ -106,8 +106,8 @@ function TimelineNode({ message, showConnector }) {
 
   return (
     <TimelineRow color={cfg.color} showConnector={showConnector}>
-      <Box sx={{ pt: 0.05 }}>
-        <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.8, flexWrap: "wrap" }}>
+      <Box sx={{ pt: 0.5 }}>
+        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, flexWrap: "wrap" }}>
           <Typography sx={{ fontSize: TYPE.caption.fontSize, color: cfg.color, fontWeight: 600 }}>
             {cfg.label}
           </Typography>
@@ -122,7 +122,7 @@ function TimelineNode({ message, showConnector }) {
             color: isAiDisclosure ? COLOR.text4 : (message.source === "ai" ? COLOR.text3 : COLOR.text1),
             fontStyle: isAiDisclosure ? "italic" : "normal",
             lineHeight: 1.6,
-            mt: 0.35,
+            mt: 0.5,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
           }}
@@ -207,17 +207,17 @@ function DraftTimelineNode({
       showConnector={showConnector}
       connectorColor={isManualReply ? "#f0d38a" : "#cfe8d6"}
     >
-      <Box sx={{ pt: 0.05 }}>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, fontWeight: 600, mb: 0.55 }}>
+      <Box sx={{ pt: 0.5 }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, fontWeight: 600, mb: 0.5 }}>
           {isManualReply ? "待手动回复" : "AI起草回复 · 待发送"}
         </Typography>
 
         <Box
           sx={{
             bgcolor: isManualReply ? "#fff8e1" : "#f5fbf6",
-            borderRadius: "8px",
+            borderRadius: RADIUS.md,
             px: 1.5,
-            py: 1.3,
+            py: 1.5,
             border: isManualReply ? "0.5px solid #f0d38a" : "0.5px solid #e4f2e7",
           }}
         >
@@ -239,7 +239,7 @@ function DraftTimelineNode({
                 minHeight: 108,
                 p: 1,
                 border: `1px solid ${COLOR.border}`,
-                borderRadius: "6px",
+                borderRadius: RADIUS.md,
                 boxSizing: "border-box",
                 resize: "none",
                 bgcolor: COLOR.surface,
@@ -280,14 +280,14 @@ function DraftTimelineNode({
                     sx={{
                       display: "inline-block",
                       px: 1,
-                      py: 0.25,
-                      bgcolor: "#e8f5e9",
-                      borderRadius: "4px",
+                      py: 0.5,
+                      bgcolor: COLOR.successLight,
+                      borderRadius: RADIUS.sm,
                       fontSize: TYPE.micro.fontSize,
                       color: COLOR.primary,
                       fontWeight: 500,
                       cursor: isClickable ? "pointer" : "default",
-                      "&:hover": isClickable ? { bgcolor: "#c8e6c9" } : undefined,
+                      "&:hover": isClickable ? { bgcolor: COLOR.successLight } : undefined,
                     }}
                   >
                     引用: {rule?.title || draft.rule_cited}
@@ -297,7 +297,7 @@ function DraftTimelineNode({
             </Box>
           )}
 
-          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 1.1 }}>
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 1 }}>
             {editing ? (
               <>
                 <Typography
@@ -391,7 +391,7 @@ export default function MessageTimeline({
 
   return (
     <Box sx={{ maxHeight, overflowY: maxHeight ? "auto" : undefined }}>
-      <Box sx={{ pt: 0.75, pr: 0.25 }}>
+      <Box sx={{ pt: 1, pr: 0.5 }}>
         {hasMore && (
           <TimelineRow color={COLOR.text4} outlined showConnector={hasItemsBelowToggle}>
             <Typography
@@ -401,7 +401,7 @@ export default function MessageTimeline({
                 color: showAll ? COLOR.text4 : COLOR.primary,
                 cursor: "pointer",
                 userSelect: "none",
-                pt: 0.05,
+                pt: 0.5,
               }}
             >
               {showAll ? "收起更早消息 ▴" : `查看更早 ${hiddenCount} 条消息 ▾`}

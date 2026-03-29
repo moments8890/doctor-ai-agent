@@ -18,7 +18,7 @@ import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
 import AccountCard from "../../../components/AccountCard";
 import PageSkeleton from "../../../components/PageSkeleton";
 import SectionLabel from "../../../components/SectionLabel";
-import { TYPE, ICON, COLOR } from "../../../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../../../theme";
 
 /* ── SettingsRow — icon-adorned navigation row ── */
 
@@ -28,10 +28,10 @@ function SettingsRow({ icon, label, sublabel, onClick, danger }) {
       display: "flex", alignItems: "center", px: 2, py: 1.5,
       cursor: onClick ? "pointer" : "default",
       borderBottom: "0.5px solid #f0f0f0",
-      "&:active": onClick ? { bgcolor: "#f9f9f9" } : {},
+      "&:active": onClick ? { bgcolor: COLOR.surface } : {},
     }}>
       <Box sx={{
-        width: 36, height: 36, borderRadius: "4px",
+        width: 36, height: 36, borderRadius: RADIUS.sm,
         bgcolor: danger ? "#fef2f2" : "#f0faf4",
         display: "flex", alignItems: "center", justifyContent: "center",
         flexShrink: 0, mr: 1.5,
@@ -39,7 +39,7 @@ function SettingsRow({ icon, label, sublabel, onClick, danger }) {
         {icon}
       </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: TYPE.action.fontSize, color: danger ? "#FA5151" : "#111" }}>{label}</Typography>
+        <Typography sx={{ fontSize: TYPE.action.fontSize, color: danger ? COLOR.danger : "#111" }}>{label}</Typography>
         {sublabel && <Typography variant="caption" color="text.secondary">{sublabel}</Typography>}
       </Box>
       {onClick && !danger && <ArrowBackIcon sx={{ fontSize: ICON.sm, color: "#ccc", transform: "rotate(180deg)" }} />}
@@ -63,22 +63,22 @@ function BulkExportRow({ status, progress, onClick }) {
       display: "flex", alignItems: "center", px: 2, py: 1.5,
       cursor: generating ? "default" : "pointer",
       borderBottom: "0.5px solid #f0f0f0",
-      "&:active": generating ? {} : { bgcolor: "#f9f9f9" },
+      "&:active": generating ? {} : { bgcolor: COLOR.surface },
       opacity: generating ? 0.75 : 1,
     }}>
       <Box sx={{
-        width: 36, height: 36, borderRadius: "4px",
+        width: 36, height: 36, borderRadius: RADIUS.sm,
         bgcolor: failed ? "#fef2f2" : "#f0f0fa",
         display: "flex", alignItems: "center", justifyContent: "center",
         flexShrink: 0, mr: 1.5,
       }}>
         {generating
           ? <CircularProgress size={18} sx={{ color: "#7b61ff" }} />
-          : <FileDownloadOutlinedIcon sx={{ color: failed ? "#FA5151" : "#7b61ff", fontSize: ICON.lg }} />
+          : <FileDownloadOutlinedIcon sx={{ color: failed ? COLOR.danger : "#7b61ff", fontSize: ICON.lg }} />
         }
       </Box>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: TYPE.action.fontSize, color: failed ? "#FA5151" : "#111" }}>导出全部数据</Typography>
+        <Typography sx={{ fontSize: TYPE.action.fontSize, color: failed ? COLOR.danger : "#111" }}>导出全部数据</Typography>
         <Typography variant="caption" color="text.secondary">{sublabel}</Typography>
       </Box>
       {!generating && !failed && <ArrowBackIcon sx={{ fontSize: ICON.sm, color: "#ccc", transform: "rotate(180deg)" }} />}
@@ -146,9 +146,9 @@ export default function SettingsListSubpage({
           <SectionLabel>账户操作</SectionLabel>
           <Box onClick={onLogout} sx={{
             bgcolor: "#fff", py: 1.5, textAlign: "center", cursor: "pointer",
-            borderBottom: "0.5px solid #f0f0f0", "&:active": { bgcolor: "#f9f9f9" },
+            borderBottom: "0.5px solid #f0f0f0", "&:active": { bgcolor: COLOR.surface },
           }}>
-            <Typography sx={{ fontSize: TYPE.action.fontSize, color: "#FA5151" }}>退出登录</Typography>
+            <Typography sx={{ fontSize: TYPE.action.fontSize, color: COLOR.danger }}>退出登录</Typography>
           </Box>
         </>
       )}

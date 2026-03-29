@@ -13,7 +13,7 @@
  */
 import { useState, useRef, useEffect } from "react";
 import { Box, Typography } from "@mui/material";
-import { TYPE, BUTTON, COLOR } from "../../theme";
+import { TYPE, BUTTON, COLOR, RADIUS } from "../../theme";
 import AppButton from "../AppButton";
 
 function InlineActionBar({ actions }) {
@@ -23,7 +23,7 @@ function InlineActionBar({ actions }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "flex-end",
-        gap: 2.2,
+        gap: 2,
       }}
     >
       {actions.map(({ key, icon, label, color, onClick, disabled }) => (
@@ -35,7 +35,7 @@ function InlineActionBar({ actions }) {
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "flex-end",
-            gap: 0.45,
+            gap: 0.5,
             fontSize: BUTTON.compactFontSize,
             lineHeight: BUTTON.compactLineHeight,
             fontWeight: 500,
@@ -113,7 +113,7 @@ export default function FieldReviewCard({
       {/* Header — tappable to toggle */}
       <Box onClick={() => setCollapsed(!collapsed)} sx={{
         display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-        px: 2, py: 1.2, cursor: "pointer",
+        px: 2, py: 1, cursor: "pointer",
         "&:active": { bgcolor: COLOR.surface },
       }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -121,7 +121,7 @@ export default function FieldReviewCard({
             {title}
           </Typography>
           {subtitle && (
-            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.25 }}>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.5 }}>
               {subtitle}
             </Typography>
           )}
@@ -154,14 +154,14 @@ export default function FieldReviewCard({
                       sx={{
                         width: "100%", boxSizing: "border-box", fontFamily: "inherit",
                         fontSize: TYPE.body.fontSize, color: COLOR.text2, lineHeight: 1.5,
-                        p: 1, border: `1px solid ${COLOR.border}`, borderRadius: "4px", bgcolor: COLOR.surfaceAlt,
+                        p: 1, border: `1px solid ${COLOR.border}`, borderRadius: RADIUS.sm, bgcolor: COLOR.surfaceAlt,
                         resize: "none", overflow: "hidden", outline: "none",
                         "&:focus": { borderColor: COLOR.primary },
                       }}
                       rows={1}
                       onFocus={(e) => { e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
                     />
-                    <Box sx={{ mt: 0.75 }}>
+                    <Box sx={{ mt: 1 }}>
                       <InlineActionBar
                         actions={[
                           { key: "cancel", icon: "✗", label: "取消", color: COLOR.text4, onClick: handleCancelEdit },
@@ -172,7 +172,7 @@ export default function FieldReviewCard({
                   </Box>
                 ) : (
                   /* ── Display mode ── */
-                  <Box sx={{ display: "grid", gap: 0.75 }}>
+                  <Box sx={{ display: "grid", gap: 1 }}>
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontSize: TYPE.caption.fontSize, fontWeight: 500, color: COLOR.text4, mb: 0.2 }}>
                         {item.label}
@@ -181,7 +181,7 @@ export default function FieldReviewCard({
                         {item.value}
                       </Typography>
                     </Box>
-                    <Box sx={{ mt: 0.25 }}>
+                    <Box sx={{ mt: 0.5 }}>
                       <InlineActionBar
                         actions={[
                           {
@@ -211,7 +211,7 @@ export default function FieldReviewCard({
 
           {/* Footer: dismiss all (left) | confirm all (right) */}
           {items.length > 1 && (
-            <Box sx={{ px: 2, pt: 1, pb: 1.25, borderTop: `0.5px solid ${COLOR.borderLight}`, display: "grid", gap: 0.5, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+            <Box sx={{ px: 2, pt: 1, pb: 1.5, borderTop: `0.5px solid ${COLOR.borderLight}`, display: "grid", gap: 0.5, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
               <AppButton variant="secondary" size="sm" fullWidth disabled={disabled} onClick={onDismissAll}>
                 {dismissAllLabel}
               </AppButton>

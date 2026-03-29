@@ -35,7 +35,7 @@ function PatientCard({ name, patientId, age, gender, onClick }) {
     <Box onClick={onClick}
       sx={{
         display: "flex", alignItems: "center", gap: 1.5,
-        bgcolor: COLOR.white, px: 2, py: 1.5, mb: 0.8,
+        bgcolor: COLOR.white, px: 2, py: 1.5, mb: 1,
         cursor: onClick ? "pointer" : "default",
         "&:active": onClick ? { bgcolor: COLOR.surfaceAlt } : {},
       }}>
@@ -68,7 +68,7 @@ function LinkedRecordCard({ record, onClick }) {
   return (
     <Box onClick={onClick}
       sx={{
-        bgcolor: COLOR.white, px: 2, py: 1.5, mb: 0.8,
+        bgcolor: COLOR.white, px: 2, py: 1.5, mb: 1,
         cursor: onClick ? "pointer" : "default",
         "&:active": onClick ? { bgcolor: COLOR.surfaceAlt } : {},
       }}>
@@ -128,7 +128,7 @@ export default function TaskDetailSubpage({
         )}
 
         {/* Task info rows */}
-        <Box sx={{ bgcolor: COLOR.white, mb: 0.8 }}>
+        <Box sx={{ bgcolor: COLOR.white, mb: 1 }}>
           <InfoRow label="类型" value={typeLabel} />
           <InfoRow label="状态" value={statusLabel} />
           {task.due_at && (
@@ -140,7 +140,7 @@ export default function TaskDetailSubpage({
           )}
           {task.content && (
             <Box sx={{ px: 2, py: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.3 }}>备注</Typography>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.5 }}>备注</Typography>
               <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
                 {task.content}
               </Typography>
@@ -155,7 +155,7 @@ export default function TaskDetailSubpage({
 
         {/* Recent records — when task has patient but no linked record */}
         {!record && recentRecords.length > 0 && (
-          <Box sx={{ bgcolor: COLOR.white, mb: 0.8 }}>
+          <Box sx={{ bgcolor: COLOR.white, mb: 1 }}>
             <Box sx={{ px: 2, py: 1, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
               <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>最近病历</Typography>
             </Box>
@@ -172,7 +172,7 @@ export default function TaskDetailSubpage({
           position: "absolute", bottom: 0, left: 0, right: 0,
           bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`,
           display: "flex", alignItems: "center", gap: 1,
-          px: 2, py: 1.2,
+          px: 2, py: 1,
           paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
         }}>
           <Typography onClick={() => onPostpone?.(task.id)}

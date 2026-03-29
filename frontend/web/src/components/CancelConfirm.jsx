@@ -4,15 +4,16 @@
  * Every cancel/back action that would discard user work must go through
  * this component. Prevents accidental loss of unsaved changes.
  *
- * Step 1: User taps cancel/back → this popup appears
- * Step 2: User confirms "确认" to discard, or "返回" to continue working
+ * Layout (WeChat convention — primary action always RIGHT):
+ *  LEFT:  "取消" (gray)  — stay and continue working
+ *  RIGHT: "离开" (red)   — discard and leave
  *
  * Props:
  *  - open: boolean
  *  - title: string (default: "确认离开？")
  *  - message: string (default: "未保存的内容将会丢失")
- *  - confirmLabel: string (default: "确认")
- *  - cancelLabel: string (default: "返回")
+ *  - confirmLabel: string (default: "离开") — destructive action, shown RIGHT in red
+ *  - cancelLabel: string (default: "取消") — safe action, shown LEFT in gray
  *  - onConfirm: () => void — executes the cancel/discard
  *  - onCancel: () => void — dismisses popup, user continues working
  */
@@ -22,8 +23,8 @@ export default function CancelConfirm({
   open,
   title = "确认离开？",
   message = "未保存的内容将会丢失",
-  confirmLabel = "确认",
-  cancelLabel = "返回",
+  confirmLabel = "离开",
+  cancelLabel = "取消",
   onConfirm,
   onCancel,
 }) {

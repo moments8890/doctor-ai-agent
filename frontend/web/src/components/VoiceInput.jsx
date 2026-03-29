@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Box, Typography } from "@mui/material";
 import MicIcon from "@mui/icons-material/Mic";
-import { TYPE, ICON, COLOR } from "../theme";
+import { TYPE, ICON, COLOR, RADIUS } from "../theme";
 
 const BrowserSpeechRecognition = typeof window !== "undefined"
   ? (window.SpeechRecognition || window.webkitSpeechRecognition)
@@ -290,7 +290,7 @@ export default function VoiceInput({ onResult, onCancel }) {
       onMouseMove={(e) => { if (recording) handleMove(e.clientY); }}
       sx={{
         flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-        height: 40, borderRadius: "4px", cursor: "pointer", userSelect: "none",
+        height: 40, borderRadius: RADIUS.sm, cursor: "pointer", userSelect: "none",
         bgcolor: recording ? (cancelled ? COLOR.danger : COLOR.primary) : COLOR.white,
         border: recording ? "none" : "1px solid #e0e0e0",
         transition: "background-color 0.15s",

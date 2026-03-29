@@ -18,7 +18,7 @@
  */
 import { useState } from "react";
 import { Box, Typography, TextField } from "@mui/material";
-import { TYPE, BUTTON, COLOR } from "../../theme";
+import { TYPE, BUTTON, COLOR, RADIUS } from "../../theme";
 import InlineEditor from "../InlineEditor";
 import SheetDialog from "../SheetDialog";
 
@@ -36,7 +36,7 @@ const STATUS_LABEL = {
 /* ── Badge pill color logic ────────────────────────────────────────────────── */
 
 function badgeColor(value) {
-  if (value === "急诊" || value === "紧急" || value === "高") return "#E8533F";
+  if (value === "急诊" || value === "紧急" || value === "高") return COLOR.danger;
   if (value === "中" || value === "常规") return "#e8833a";
   if (value === "低" || value === "观察") return "#999";
   if (value === "药物") return COLOR.primary;
@@ -48,7 +48,7 @@ function badgeColor(value) {
 function MetaBadge({ value }) {
   if (!value) return null;
   const c = badgeColor(value);
-  const bgMap = { "#E8533F": "#FFF1F0", "#e8833a": "#FFF7E6", "#999": "#f5f5f5" };
+  const bgMap = { [COLOR.danger]: COLOR.dangerLight, "#e8833a": "#FFF7E6", "#999": "#f5f5f5" };
   const bg = bgMap[c] || "#f0faf4";
   return (
     <Box
@@ -58,9 +58,9 @@ function MetaBadge({ value }) {
         fontWeight: 500,
         color: c,
         bgcolor: bg,
-        px: 0.8,
-        py: 0.15,
-        borderRadius: "3px",
+        px: 1,
+        py: 0.5,
+        borderRadius: RADIUS.sm,
         whiteSpace: "nowrap",
         flexShrink: 0,
         lineHeight: 1.4,
@@ -98,7 +98,7 @@ function TextAction({ icon, label, color, onClick }) {
       sx={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 0.45,
+        gap: 0.5,
         minHeight: BUTTON.compactHeight,
         fontSize: BUTTON.compactFontSize,
         lineHeight: BUTTON.compactLineHeight,
@@ -119,7 +119,7 @@ function TextAction({ icon, label, color, onClick }) {
 /** Three-button action row: 排除 (left) | 修改 (center) | 确认 (right) */
 function ActionRow({ onConfirm, onReject, onEdit }) {
   return (
-    <Box sx={{ px: 2, pb: 1.25, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <Box sx={{ px: 2, pb: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
       <Typography component="span" onClick={(e) => { e.stopPropagation(); onReject?.(); }}
         sx={{ fontSize: TYPE.body.fontSize, color: COLOR.danger, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
         排除
@@ -142,7 +142,7 @@ function ActionRow({ onConfirm, onReject, onEdit }) {
 function RejectMode({ onSubmit, onCancel }) {
   const [reason, setReason] = useState("");
   return (
-    <Box sx={{ px: 2, pb: 1.25 }}>
+    <Box sx={{ px: 2, pb: 1.5 }}>
       <TextField
         fullWidth
         size="small"
@@ -159,7 +159,7 @@ function RejectMode({ onSubmit, onCancel }) {
           },
         }}
       />
-      <Box sx={{ mt: 0.75, display: "flex", justifyContent: "flex-end", gap: 2.2 }}>
+      <Box sx={{ mt: 1, display: "flex", justifyContent: "flex-end", gap: 2 }}>
         <TextAction icon="↩" label="返回" color={COLOR.text4} onClick={onCancel} />
         <TextAction icon="✗" label="确认排除" color={COLOR.danger} onClick={() => onSubmit(reason)} />
       </Box>
@@ -283,7 +283,7 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
         onClick={onToggle}
         sx={{
           px: 2,
-          py: 1.2,
+          py: 1,
           cursor: "pointer",
           "&:active": { bgcolor: COLOR.surface },
           opacity: isRejected ? 0.5 : 1,
@@ -291,7 +291,7 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
       >
         <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5 }}>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.6, flexWrap: "wrap" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap" }}>
               <Typography
                 sx={{
                   fontSize: TYPE.action.fontSize,
@@ -317,8 +317,8 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
                     onClick={(e) => { e.stopPropagation(); setCitationItem(item); }}
                     sx={{
                       fontSize: 10, fontWeight: 500,
-                      color: "#1565c0", bgcolor: "#e3f2fd",
-                      px: 0.8, py: 0.15, borderRadius: "3px",
+                      color: COLOR.link, bgcolor: "#e3f2fd",
+                      px: 1, py: 0.5, borderRadius: RADIUS.sm,
                       whiteSpace: "nowrap", flexShrink: 0, lineHeight: 1.4,
                       cursor: "pointer", maxWidth: 120,
                       overflow: "hidden", textOverflow: "ellipsis",
@@ -340,7 +340,7 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
         <Box>
           {/* Reasoning / detail text — tinted card for visual separation */}
           {detail && mode === null && (
-            <Box sx={{ mx: 2, mb: 0.5, px: 1.5, py: 1, bgcolor: COLOR.surfaceAlt, borderRadius: "6px" }}>
+            <Box sx={{ mx: 2, mb: 0.5, px: 1.5, py: 1, bgcolor: COLOR.surfaceAlt, borderRadius: RADIUS.md }}>
               <Typography
                 component="div"
                 sx={{
@@ -357,7 +357,7 @@ export default function DiagnosisCard({ suggestion, onDecide, expanded, onToggle
 
           {/* Mode: edit */}
           {mode === "edit" && (
-            <Box sx={{ px: 2, pb: 1.25 }}>
+            <Box sx={{ px: 2, pb: 1.5 }}>
               <InlineEditor
                 value={suggestion.edited_text || detail || content}
                 onSave={handleEditSave}

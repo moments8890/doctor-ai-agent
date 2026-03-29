@@ -19,7 +19,7 @@ import { usePatientApi } from "../../../api/PatientApiContext";
 import SubpageHeader from "../../../components/SubpageHeader";
 import SectionLabel from "../../../components/SectionLabel";
 import StatusBadge from "../../../components/StatusBadge";
-import { TYPE, COLOR } from "../../../theme";
+import { TYPE, COLOR, RADIUS } from "../../../theme";
 import {
   RECORD_TYPE_LABEL,
   FIELD_LABELS,
@@ -73,8 +73,8 @@ export default function RecordDetail({ recordId, token, onBack }) {
             {diagStatus && (
               <>
                 <SectionLabel>诊断</SectionLabel>
-                <Box sx={{ bgcolor: COLOR.white, borderRadius: "4px", px: 1.5, py: 1.2 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                <Box sx={{ bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1.5, py: 1 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     {(diagStatus === "confirmed" || diagStatus === "completed") && structured?.diagnosis ? (
                       <Typography sx={{ ...TYPE.body, color: COLOR.text1, flex: 1 }}>
                         {structured.diagnosis}
@@ -98,7 +98,7 @@ export default function RecordDetail({ recordId, token, onBack }) {
             {treatmentPlan?.medications?.length > 0 && (
               <>
                 <SectionLabel>用药方案</SectionLabel>
-                <Box sx={{ bgcolor: COLOR.white, borderRadius: "4px", px: 1.5 }}>
+                <Box sx={{ bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1.5 }}>
                   {treatmentPlan.medications.map((med, i) => (
                     <Box key={i} sx={{
                       display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -123,7 +123,7 @@ export default function RecordDetail({ recordId, token, onBack }) {
             {treatmentPlan?.follow_up && (
               <>
                 <SectionLabel>随访计划</SectionLabel>
-                <Box sx={{ bgcolor: COLOR.white, borderRadius: "4px", px: 1.5, py: 1.2 }}>
+                <Box sx={{ bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1.5, py: 1 }}>
                   <Typography sx={{ ...TYPE.body, color: COLOR.text1, lineHeight: 1.6 }}>
                     {treatmentPlan.follow_up}
                   </Typography>
@@ -135,7 +135,7 @@ export default function RecordDetail({ recordId, token, onBack }) {
             {treatmentPlan?.lifestyle && (
               <>
                 <SectionLabel>生活建议</SectionLabel>
-                <Box sx={{ bgcolor: COLOR.white, borderRadius: "4px", px: 1.5, py: 1.2 }}>
+                <Box sx={{ bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1.5, py: 1 }}>
                   <Typography sx={{ ...TYPE.body, color: COLOR.text1, lineHeight: 1.6 }}>
                     {treatmentPlan.lifestyle}
                   </Typography>
@@ -157,7 +157,7 @@ export default function RecordDetail({ recordId, token, onBack }) {
 
         {/* -- Full structured record -- */}
         {!loading && (!hasSummary || showFullRecord) && (
-          <Box sx={{ bgcolor: COLOR.white, borderRadius: "4px", px: 1.5, py: 0.5 }}>
+          <Box sx={{ bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1.5, py: 0.5 }}>
             {FIELD_ORDER.map((key) => {
               const val = structured[key];
               if (!val) return null;

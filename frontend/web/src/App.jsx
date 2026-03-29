@@ -19,6 +19,7 @@ import { isMiniApp } from "./utils/env";
 
 import Box from "@mui/material/Box";
 import { MOBILE_FRAME_CONTAINER_ID } from "./utils/dialogContainer";
+import { RADIUS } from "./theme";
 
 const DEV_MODE = import.meta.env.DEV; // true in `vite dev`, false in `vite build`
 
@@ -49,7 +50,7 @@ function MobileFrame({ children }) {
           // Pick the smaller of: width-driven height vs height-driven height
           height: "min(calc(90vw * 19.5 / 9), 95vh)",
           maxWidth: 480,
-          borderRadius: "16px",
+          borderRadius: RADIUS.pill,
           boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
           // Creates a new containing block for position:fixed children
           // so they stay inside the frame instead of viewport
@@ -61,18 +62,10 @@ function MobileFrame({ children }) {
     </Box>
   );
 }
-const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "dev_clean_doctor";
+const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "test_doctor";
 const DEV_DOCTOR_NAME = import.meta.env.VITE_DEV_DOCTOR_NAME || "";
-const ONBOARDING_STORAGE_PREFIX = "doctor_onboarding_state:v1";
-const LEGACY_SYNTHETIC_IDS = ["test_doctor", "web_doctor"];
-
-function clearSyntheticOnboardingState(doctorId) {
-  if (!doctorId) return;
-  localStorage.removeItem(`${ONBOARDING_STORAGE_PREFIX}:${doctorId}`);
-}
 
 function applySyntheticDevSession(setAuth) {
-  [DEV_DOCTOR_ID, ...LEGACY_SYNTHETIC_IDS].forEach(clearSyntheticOnboardingState);
   setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_NAME, "dev-token");
 }
 
@@ -109,7 +102,7 @@ export default function App() {
 
   // Dev mode: restore real login session if current session is synthetic (dev/mock)
   const SYNTHETIC_TOKENS = ["dev-token", "mock-token"];
-  const SYNTHETIC_IDS = [DEV_DOCTOR_ID, "mock_doctor", ...LEGACY_SYNTHETIC_IDS];
+  const SYNTHETIC_IDS = [DEV_DOCTOR_ID, "mock_doctor"];
 
   function restoreRealSession() {
     const state = useDoctorStore.getState();

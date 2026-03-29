@@ -8,7 +8,7 @@
  *  - sx: additional sx overrides
  */
 import { Box } from "@mui/material";
-import { TYPE, COLOR } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../theme";
 
 export default function StatusBadge({ label, colorMap, fallbackColor = COLOR.text4, sx }) {
   const color = colorMap?.[label] ?? fallbackColor;
@@ -17,15 +17,15 @@ export default function StatusBadge({ label, colorMap, fallbackColor = COLOR.tex
       component="span"
       sx={{
         display: "inline-block",
-        px: 0.8,
-        py: 0.1,
-        borderRadius: "4px",
+        px: 1,
+        py: 0.5,
+        borderRadius: RADIUS.sm,
         border: `1px solid ${color}`,
         color,
         fontSize: TYPE.micro.fontSize,
         fontWeight: 600,
         lineHeight: 1.6,
-        ml: 0.8,
+        ml: 1,
         flexShrink: 0,
         ...sx,
       }}
