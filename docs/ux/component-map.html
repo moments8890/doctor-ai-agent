@@ -155,11 +155,14 @@ const PAGES = [
     { name: 'FilterStatBar', group: '_page', desc: '门诊 / 回复 / 完成 (3 tabs)' },
     { name: 'CompletedRow', group: '_page', desc: 'Confirmed/edited items with chevron → patient detail', path: 'frontend/web/src/pages/doctor/ReviewQueuePage.jsx' },
   ]},
-  { id: 'tasks', title: '任务', route: '/doctor/tasks', img: 'page-screenshots/doctor-tasks.png', blocks: [
-    { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title' },
+  { id: 'tasks-pending', title: '任务 · 待完成', route: '/doctor/tasks?tab=followups', img: 'page-screenshots/doctor-tasks.png', blocks: [
+    { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title "任务"' },
     { name: 'FilterStatBar', group: '_page', desc: '待完成 / 已完成 (2 tabs)', path: 'frontend/web/src/pages/doctor/TaskPage.jsx' },
-    { name: 'ListCard (followups)', group: 'ListCard', desc: 'Followups + tasks (待完成 tab)' },
-    { name: 'ListCard (sent)', group: 'ListCard', desc: 'Completed items (已完成 tab)' },
+    { name: 'TaskRow', group: 'ListCard', desc: 'IconBadge + title + due date, sorted by urgency', path: 'frontend/web/src/pages/doctor/TaskPage.jsx' },
+  ]},
+  { id: 'tasks-completed', title: '任务 · 已完成', route: '/doctor/tasks?tab=sent', img: 'page-screenshots/doctor-tasks-completed.png', blocks: [
+    { name: 'FilterStatBar', group: '_page', desc: '待完成 / 已完成 (2 tabs)' },
+    { name: 'SentRow', group: 'ListCard', desc: 'Completed items with read status', path: 'frontend/web/src/pages/doctor/TaskPage.jsx' },
   ]},
   { id: 'settings', title: 'Settings', route: '/doctor/settings', img: 'page-screenshots/doctor-settings.png', blocks: [
     { name: 'SubpageHeader', group: 'SubpageHeader', desc: 'Page title + back nav' },
