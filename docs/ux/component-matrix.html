@@ -131,20 +131,45 @@ th.page-col:hover { color: #07C160; }
   white-space: nowrap;
 }
 
-/* ── Detail panel ── */
+/* ── Detail panel (row 2: expanded view) ── */
 .detail {
   padding: 16px 24px;
   border-top: 1px solid #e5e5e5;
   display: none;
 }
-.detail.show { display: block; }
-.detail h3 { font-size: 14px; margin-bottom: 8px; }
+.detail.show { display: flex; gap: 24px; align-items: flex-start; }
+.detail-header { flex: 1; min-width: 200px; }
+.detail h3 { font-size: 16px; margin-bottom: 10px; }
 .detail .comp-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .detail .comp-tag {
   font-size: 11px; padding: 3px 10px; border-radius: 12px;
   background: #ddf4ff; color: #0969da; font-weight: 500;
 }
-.detail .comp-tag.page-specific { background: #f0f2f4; color: #8c959f; }
+.detail-screenshot {
+  flex-shrink: 0;
+  width: 200px;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.detail-screenshot img {
+  width: 100%;
+  display: block;
+}
+.detail-screenshot:empty { display: none; }
+
+/* ── Lightbox ── */
+.lightbox {
+  display: none; position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.85); align-items: center;
+  justify-content: center; cursor: pointer;
+}
+.lightbox.active { display: flex; }
+.lightbox img {
+  max-width: 90vw; max-height: 90vh; border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
 </style>
 </head>
 <body>
@@ -156,12 +181,19 @@ th.page-col:hover { color: #07C160; }
 
 <div class="matrix-wrap" id="matrix-wrap"></div>
 
-<div class="filmstrip-header">Page Screenshots</div>
+<div class="detail" id="detail">
+  <div class="detail-header">
+    <h3 id="detail-title"></h3>
+    <div class="comp-list" id="detail-comps"></div>
+  </div>
+  <div class="detail-screenshot" id="detail-screenshot"></div>
+</div>
+
+<div class="filmstrip-header">All Pages</div>
 <div class="filmstrip" id="filmstrip"></div>
 
-<div class="detail" id="detail">
-  <h3 id="detail-title"></h3>
-  <div class="comp-list" id="detail-comps"></div>
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('active')">
+  <img id="lb-img" src="">
 </div>
 
 <script>
@@ -236,8 +268,20 @@ function showDetail(page) {
     compsHtml += '<span class="comp-tag">' + c + '</span>';
   });
   document.getElementById('detail-comps').innerHTML = compsHtml;
+  // Screenshot in detail panel
+  var ssEl = document.getElementById('detail-screenshot');
+  ssEl.innerHTML = '<img src="' + IMG + page.img + '" alt="' + page.label + '">';
+  ssEl.onclick = function() {
+    document.getElementById('lb-img').src = IMG + page.img;
+    document.getElementById('lightbox').classList.add('active');
+  };
   detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
+
+// Lightbox close on Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') document.getElementById('lightbox').classList.remove('active');
+});
 </script>
 
 </body>
