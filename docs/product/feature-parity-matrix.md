@@ -96,7 +96,7 @@
 | D4.3 | 推荐检查 / Recommended Workup | **Done** | SuggestionSection groups by `workup`; urgency badges (常规/紧急/急诊) |
 | D4.4 | 治疗建议 / Treatment Suggestions | **Done** | SuggestionSection groups by `treatment`; intervention badges (药物/手术/观察/转诊) |
 | D4.5 | 危险信号检测 / Red Flag Detection | **Defer** | Backend returns red_flags in diagnosis; needs doctor-curated specialty rules + ADR 0022 knowledge base first. Group: Clinical Safety & Emergency |
-| D4.6 | 诊断审核工作流 / Review Workflow | **Done** | ReviewPage.jsx — 5 decision states (pending/confirmed/rejected/edited/custom), inline edit, finalize. Route `/doctor/review/:recordId` active |
+| D4.6 | 诊断审核工作流 / Review Workflow | **Done** | ReviewPage.jsx — 5 decision states (pending/confirmed/rejected/edited/custom), provenance-first input summary, finalize bridge to generated follow-up tasks. Route `/doctor/review/:recordId` active |
 | D4.7 | 诊断原理和病例参考 / Case References | **Defer** | Similar case matching inline in review page. embedding.py removed — needs new lightweight approach (Ollama embeddings, LLM-based, or keyword matching) |
 | D4.8 | 医学术语知识库 / Knowledge Base Management | **Done** | KnowledgeSubpage — view/add/delete items across 5 categories |
 | D4.9 | 病例库管理 / Case History Management | **Cut** | Redundant — patient list + patient detail already serves as case library; D4.7 surfaces relevant cases inline |
@@ -106,7 +106,7 @@
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
 | D5.1 | 任务系统 / Task Management | **Done** | TasksPage — filter chips, date groups, status actions, snooze |
-| D5.2 | 任务创建 / Task Creation | **Done** | CreateTask dialog + chat-driven + auto from diagnosis |
+| D5.2 | 任务创建 / Task Creation | **Done** | CreateTask dialog + chat-driven + patient submit auto-creates review task + review finalize auto-creates follow-up tasks |
 | D5.3 | 任务提醒与通知 / Task Notifications | **Backend only** | Backend sends WeChat notifications via APScheduler; no doctor preference UI |
 | D5.4 | 医生→患者消息回复 / Doctor Reply to Patient | **Done** | PatientDetail chat panel with `replyToPatient`; reply marks inbound as ai_handled + drafts as stale |
 | D5.5 | 患者消息分类 / Patient Message Triage | **Done** | Triage color dots in patient list + PatientDetail; draft reply pipeline with cited_rules; undrafted message notice; no dedicated triage dashboard (handled inline) |
@@ -115,7 +115,7 @@
 
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
-| D6.1 | 我的二维码 / QR Code Generator | **Done** | QRDialog.jsx with `qrcode.react`; `generateQRToken` API; accessible from SettingsPage |
+| D6.1 | 我的二维码 / QR Code Generator | **Done** | SettingsPage now creates patient entry first, then exposes shareable QR/link plus doctor-side patient preview |
 | D6.2 | 设置页面 / Settings Hub | **Done** | SettingsPage — profile, template, KB, QR code, about, logout |
 | D6.3 | AI助手定制 / AI Assistant Customization | **Done** | Knowledge base IS the AI customization: single bucket, all items fed to all LLM calls, document upload with LLM processing, citation tracking. No separate "style settings" needed — doctors control AI behavior through knowledge items. |
 | D6.4 | 文档上传与管理 / Document Upload & Management | **Done** | Upload PDF/DOCX/TXT → LLM processes → doctor previews → save. Citations via [KB-{id}] in diagnosis. 5 categories killed → single bucket. Dead embedding code removed. QA: 7/7 pass |
@@ -203,3 +203,4 @@
 | 2026-03-27 | Triaged 14 remaining items: **Build** 4 (P2.3, D6.7, D6.4, D4.7), **Defer** 9 in 3 groups (Structured Clinical Data, Clinical Safety & Emergency, Active Notifications), **Cut** 1 (D4.9 — redundant with patient list + D4.7) |
 | 2026-03-27 | Implemented 3 build items: **P2.3** (patient voice input, QA 6/6), **D6.7** (bulk data export + single-patient section filtering, QA 5/5), **D6.4** (document upload + LLM processing + citation display + kill 5 categories + remove dead embedding code, QA 7/7). Score: 43→46 done (66%→71%). 1 build item remaining: D4.7 |
 | 2026-03-28 | **D2.5** done (triage color dots in patient list), **D5.5** done (draft reply pipeline + cited_rules + undrafted notice). Teaching loop, KB source footer, file storage, demo sim engine, followup_reply prompt rewrite, tab badge fixes, session persistence fix. Score: 51→53 done (78%→82%) |
+| 2026-03-28 | Deterministic onboarding MVP shipped: 我的AI checklist, knowledge proof routing, doctor-chat/QR patient entry, doctor-side patient preview, patient-submit review-task bridge, and review-finalize follow-up-task bridge |

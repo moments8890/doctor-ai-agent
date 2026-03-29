@@ -6,7 +6,7 @@ with custom entries before the record is finalized.
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
@@ -21,10 +21,12 @@ from db.crud.suggestions import (
     update_decision,
 )
 from db.crud.patient_message import save_patient_message
+from db.models import DoctorTask, Patient
 from db.engine import AsyncSessionLocal
 from db.models.ai_suggestion import AISuggestion, SuggestionDecision, SuggestionSection
 from db.models.records import MedicalRecordDB, RecordStatus
 from domain.knowledge.teaching import log_doctor_edit, should_prompt_teaching
+from domain.tasks.from_record import generate_tasks_from_record
 from utils.log import log, safe_create_task
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
@@ -296,6 +298,7 @@ async def finalize_review(
     resolved = _resolve_ui_doctor_id(body.doctor_id, authorization)
     await _get_record_or_404(record_id, resolved)
 
+    follow_up_task_ids: List[int] = []
     async with AsyncSessionLocal() as db:
         rec = (
             await db.execute(
@@ -376,5 +379,49 @@ async def finalize_review(
         except Exception:
             log(f"[diagnosis] failed to send notification for record {rec.id}", level="warning", exc_info=True)
 
+    # Create or reuse doctor-approved follow-up tasks from the finalized plan.
+    try:
+        async with AsyncSessionLocal() as task_db:
+            existing_tasks = (
+                await task_db.execute(
+                    select(DoctorTask.id)
+                    .where(
+                        DoctorTask.doctor_id == resolved,
+                        DoctorTask.record_id == record_id,
+                        DoctorTask.task_type != "review",
+                        DoctorTask.status == "pending",
+                    )
+                    .order_by(DoctorTask.id.asc())
+                )
+            ).scalars().all()
+        if existing_tasks:
+            follow_up_task_ids = list(existing_tasks)
+        elif rec.patient_id:
+            patient_name = ""
+            async with AsyncSessionLocal() as patient_db:
+                if rec.patient_id:
+                    patient_name = (
+                        await patient_db.execute(
+                            select(Patient.name)
+                            .where(Patient.id == rec.patient_id, Patient.doctor_id == resolved)
+                            .limit(1)
+                        )
+                    ).scalar_one_or_none() or ""
+            follow_up_task_ids = await generate_tasks_from_record(
+                doctor_id=resolved,
+                patient_id=rec.patient_id,
+                record_id=record_id,
+                orders_followup=rec.orders_followup,
+                treatment_plan=rec.treatment_plan,
+                patient_name=patient_name,
+            )
+    except Exception as exc:
+        log(f"[diagnosis] follow-up task generation failed for record {record_id}: {exc}", level="warning")
+
     log(f"[diagnosis] record {record_id} finalized by {resolved} — wrote {n_accepted} accepted items to record")
-    return {"status": "completed", "record_id": record_id}
+    return {
+        "status": "completed",
+        "record_id": record_id,
+        "follow_up_task_ids": follow_up_task_ids,
+        "follow_up_task_count": len(follow_up_task_ids),
+    }

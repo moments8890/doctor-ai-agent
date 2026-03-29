@@ -20,6 +20,7 @@ import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
 import ActionRow from "../../components/ActionRow";
 import { TYPE, COLOR } from "../../theme";
+import { markOnboardingStep, ONBOARDING_STEP } from "./constants";
 
 // Task type badge mapping removed — ActionRow uses checkbox instead of IconBadge
 
@@ -142,6 +143,14 @@ const VALID_TABS = new Set(["followups", "sent"]);
 
 export default function TaskPage({ doctorId, urlSubpage }) {
   const api = useApi();
+  const params = new URLSearchParams(window.location.search);
+  const origin = params.get("origin") || "";
+  const highlightTaskIds = new Set(
+    (params.get("highlight_task_ids") || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)
+  );
   const [data, setData] = useState(null);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -192,6 +201,13 @@ export default function TaskPage({ doctorId, urlSubpage }) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (!doctorId) return;
+    if (origin === "review_finalize") {
+      markOnboardingStep(doctorId, ONBOARDING_STEP.followupTask);
+    }
+  }, [doctorId, origin]);
 
   const pendingMessages = data?.pending_messages || [];
   const upcomingFollowups = data?.upcoming_followups || [];
@@ -295,7 +311,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
     // Call API if available
     try {
       const patchTask = api.patchTask || (() => Promise.resolve());
-      await patchTask(item.id, { status: "completed" });
+      await patchTask(item.id, doctorId, "completed");
     } catch { /* silent */ }
   };
 
@@ -317,7 +333,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
     }));
     try {
       const patchTask = api.patchTask || (() => Promise.resolve());
-      await patchTask(item.id, { status: "pending" });
+      await patchTask(item.id, doctorId, "pending");
     } catch { /* silent */ }
   };
 
@@ -337,6 +353,26 @@ export default function TaskPage({ doctorId, urlSubpage }) {
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
       <SubpageHeader title="任务" />
       <Box sx={{ flex: 1, overflow: "auto", pb: "80px" }}>
+        {origin === "patient_submit" && (
+          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.25 }}>
+            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+              已创建审核任务
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.45, lineHeight: 1.6 }}>
+              患者完成预问诊后，系统会先创建一条审核任务，提醒医生查看新病例。
+            </Typography>
+          </Box>
+        )}
+        {origin === "review_finalize" && (
+          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.25 }}>
+            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+              已生成随访任务
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.45, lineHeight: 1.6 }}>
+              医生完成审核后，系统会根据最终确认的医嘱和随访计划生成后续任务。
+            </Typography>
+          </Box>
+        )}
 
         {/* Loading */}
         {loading && (
@@ -424,6 +460,9 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                       urgent={item.soon}
                       onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
                       onToggle={() => handleCompleteTask(item)}
+                      sx={highlightTaskIds.has(String(item.id))
+                        ? { bgcolor: "#fffef5", borderLeft: `3px solid ${COLOR.primary}` }
+                        : undefined}
                     />
                   ))}
                 </Box>
@@ -444,6 +483,9 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                       done
                       onClick={() => s.patient_id ? navigate(`/doctor/patients/${s.patient_id}`) : undefined}
                       onToggle={() => handleUncompleteTask(s)}
+                      sx={highlightTaskIds.has(String(s.id))
+                        ? { bgcolor: "#fffef5", borderLeft: `3px solid ${COLOR.primary}` }
+                        : undefined}
                     />
                   ))}
                 </Box>

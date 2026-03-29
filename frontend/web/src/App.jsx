@@ -61,7 +61,20 @@ function MobileFrame({ children }) {
     </Box>
   );
 }
-const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "test_doctor";
+const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "dev_clean_doctor";
+const DEV_DOCTOR_NAME = import.meta.env.VITE_DEV_DOCTOR_NAME || "";
+const ONBOARDING_STORAGE_PREFIX = "doctor_onboarding_state:v1";
+const LEGACY_SYNTHETIC_IDS = ["test_doctor", "web_doctor"];
+
+function clearSyntheticOnboardingState(doctorId) {
+  if (!doctorId) return;
+  localStorage.removeItem(`${ONBOARDING_STORAGE_PREFIX}:${doctorId}`);
+}
+
+function applySyntheticDevSession(setAuth) {
+  [DEV_DOCTOR_ID, ...LEGACY_SYNTHETIC_IDS].forEach(clearSyntheticOnboardingState);
+  setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_NAME, "dev-token");
+}
 
 function RequireAuth({ children }) {
   const { accessToken } = useDoctorStore();
@@ -96,7 +109,7 @@ export default function App() {
 
   // Dev mode: restore real login session if current session is synthetic (dev/mock)
   const SYNTHETIC_TOKENS = ["dev-token", "mock-token"];
-  const SYNTHETIC_IDS = [DEV_DOCTOR_ID, "mock_doctor"];
+  const SYNTHETIC_IDS = [DEV_DOCTOR_ID, "mock_doctor", ...LEGACY_SYNTHETIC_IDS];
 
   function restoreRealSession() {
     const state = useDoctorStore.getState();
@@ -108,10 +121,14 @@ export default function App() {
     const savedId = localStorage.getItem("unified_auth_doctor_id");
     const savedToken = localStorage.getItem("unified_auth_token");
     const savedName = localStorage.getItem("unified_auth_name");
-    if (savedId && savedToken) {
+    const savedIsSynthetic = Boolean(savedId && savedToken) && (
+      SYNTHETIC_TOKENS.includes(savedToken)
+      || SYNTHETIC_IDS.includes(savedId)
+    );
+    if (savedId && savedToken && !savedIsSynthetic) {
       state.setAuth(savedId, savedName || savedId, savedToken);
     } else {
-      state.setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
+      applySyntheticDevSession(state.setAuth);
     }
   }
 
@@ -128,10 +145,14 @@ export default function App() {
       const savedId = localStorage.getItem("unified_auth_doctor_id");
       const savedToken = localStorage.getItem("unified_auth_token");
       const savedName = localStorage.getItem("unified_auth_name");
-      if (savedId && savedToken) {
+      const savedIsSynthetic = Boolean(savedId && savedToken) && (
+        SYNTHETIC_TOKENS.includes(savedToken)
+        || SYNTHETIC_IDS.includes(savedId)
+      );
+      if (savedId && savedToken && !savedIsSynthetic) {
         setAuth(savedId, savedName || savedId, savedToken);
       } else {
-        setAuth(DEV_DOCTOR_ID, DEV_DOCTOR_ID, "dev-token");
+        applySyntheticDevSession(setAuth);
       }
     }
   });

@@ -1,12 +1,12 @@
 # Plan: Deterministic Onboarding MVP
 
-**Goal:** Ship the smallest frontend-first onboarding flow that deterministically shows doctors how to teach the AI, how that knowledge appears in diagnosis review and reply review, how patient intake starts from QR or doctor chat, and how review completion produces follow-up tasks.
+**Goal:** Ship the smallest onboarding flow that deterministically shows doctors how to teach the AI, how that knowledge appears in diagnosis review and reply review, how patient intake starts from QR or doctor chat, and how both review-task creation and approved follow-up task creation become visible.
 
-**Spec:** [../specs/2026-03-28-deterministic-onboarding-discovery-design.md](../specs/2026-03-28-deterministic-onboarding-discovery-design.md)
+**Spec:** [../../specs/2026-03-28-deterministic-onboarding-discovery-design.md](../../specs/2026-03-28-deterministic-onboarding-discovery-design.md)
 
-**Mock:** [../specs/2026-03-28-mockups/deterministic-onboarding-demo.html](../specs/2026-03-28-mockups/deterministic-onboarding-demo.html)
+**Mock:** [../../specs/2026-03-28-mockups/deterministic-onboarding-demo.html](../../specs/2026-03-28-mockups/deterministic-onboarding-demo.html)
 
-**Status:** Draft
+**Status:** ✅ DONE (implemented 2026-03-28)
 
 ---
 
@@ -17,13 +17,15 @@
 - `frontend/web/src/pages/doctor/subpages/KnowledgeSubpage.jsx` — optional onboarding affordances for “体验示例”
 - `frontend/web/src/components/QRDialog.jsx` — add explanatory copy and patient preview actions
 - `frontend/web/src/pages/doctor/ChatPage.jsx` — add doctor-chat patient record creation shortcut before intake link generation
-- `frontend/web/src/pages/patient/PatientPage.jsx` — support preview / QR-first routing into intake-first mode
-- `frontend/web/src/pages/patient/InterviewPage.jsx` — add intro framing and success CTA back to doctor review
+- `frontend/web/src/pages/doctor/PatientPreviewPage.jsx` — NEW: doctor-side mini patient page that acts like patient intake preview
+- `frontend/web/src/pages/patient/InterviewPage.jsx` — extract or adapt reusable intake UI for doctor-side preview shell
 - `frontend/web/src/pages/doctor/ReviewQueuePage.jsx` — highlight seeded diagnosis/reply examples and patient-submit case
 - `frontend/web/src/pages/doctor/ReviewPage.jsx` — surface input provenance and post-finalize task bridge
 - `frontend/web/src/pages/doctor/TaskPage.jsx` — highlight generated tasks from just-finalized review
 - `frontend/web/src/api.js` or equivalent API helper if route helpers/query wrappers are needed
 - `frontend/web/src/pages/doctor/constants.jsx` or a new onboarding constants file — centralize seeded example keys and labels
+- `src/channels/web/ui/doctor_onboarding_handlers.py` — NEW: deterministic doctor-chat provisional patient creation + intake entry helper
+- `src/channels/web/ui/diagnosis_handlers.py` — return or create approved follow-up tasks on review finalize
 - `scripts/demo_sim.py` or demo fixture source — ensure stable seeded cases exist for diagnosis, reply, intake, and task proof
 
 ---
@@ -50,15 +52,17 @@ flowchart LR
 
 ## Smallest Shippable Scope
 
-1. Frontend-only onboarding layer with deterministic deep links and highlight states.
+1. Frontend onboarding layer with deterministic deep links and highlight states.
 2. Seeded example contract for four showcase objects:
    - one diagnosis review example
    - one reply review example
    - one patient intake preview path
-   - one review-finalize to task-generation example
-3. No schema changes in MVP.
-4. No prompt changes in MVP.
-5. No notification preferences UI in MVP.
+   - one patient-submit to review-task example
+   - one review-finalize to approved follow-up-task example
+3. Small backend helpers are allowed in MVP where the current contract is missing.
+4. No schema changes in MVP.
+5. No prompt changes in MVP.
+6. No notification preferences UI in MVP.
 
 ---
 
@@ -124,26 +128,37 @@ flowchart LR
    - 预览患者端
    - 复制链接
 2. In `ChatPage.jsx`, add a shortcut that first creates a provisional patient record, then creates the same intake entry.
-3. The doctor-chat flow should visibly show that the patient record exists before link generation.
+3. Add a small deterministic backend helper for chat onboarding instead of relying on free-form chat routing.
+4. The doctor-chat flow should visibly show that the patient record exists before link generation.
 
-### Step 7: Make patient preview intake-first
+### Step 7: Replace patient-shell preview with a doctor-side mini patient page
 
-1. In `PatientPage.jsx`, recognize QR preview / onboarding mode and land directly in intake intro.
-2. In `InterviewPage.jsx`, add a short intro layer and keep the existing guided interview.
-3. After submit, show `去医生端看审核结果`.
-4. That CTA should return to a highlighted review item, not a generic landing page.
+1. Add `PatientPreviewPage.jsx` under doctor routes instead of previewing through the real patient shell.
+2. Reuse `InterviewPage.jsx` UI where possible, but keep preview-specific navigation in the doctor app.
+3. The preview page should simulate the patient-first experience without polluting real patient local storage or auth state.
+4. After submit, show `去医生端看审核结果`.
+5. That CTA should return to a highlighted review item, not a generic landing page.
 
-### Step 8: Bridge review completion to generated tasks
+### Step 8: Show both task moments explicitly
+
+1. After patient intake submit, explicitly surface that a `review` task has been created.
+2. The doctor-side bridge should highlight:
+   - the new pending-review record
+   - the linked review task
+3. This uses the current patient interview confirm behavior and does not require new task logic.
+
+### Step 9: Bridge review completion to approved follow-up tasks
 
 1. After review finalize, show a success bridge with:
-   - 已生成 X 条随访任务
+   - 已生成 X 条已确认随访任务
    - 查看任务
 2. In `TaskPage.jsx`, highlight the generated task rows with provenance pills such as:
    - 来自诊断审核
    - 已通知患者
-3. Mark task discovery complete only after the doctor lands on the highlighted task view.
+3. This step requires `review/finalize` to create or return doctor-approved follow-up tasks, rather than only completing the record.
+4. Mark task discovery complete only after the doctor lands on the highlighted task view.
 
-### Step 9: Seed deterministic example data
+### Step 10: Seed deterministic example data
 
 1. Ensure `demo_sim.py` or fixture seeding creates stable showcase objects.
 2. Each showcase object should have a stable lookup key, not only a human-readable title.
@@ -157,9 +172,9 @@ flowchart LR
 1. `MyAIPage.jsx`
 2. `AddKnowledgeSubpage.jsx`
 3. `ReviewPage.jsx` / `ReviewQueuePage.jsx`
-4. `QRDialog.jsx` + `ChatPage.jsx`
-5. `PatientPage.jsx` + `InterviewPage.jsx`
-6. `TaskPage.jsx`
+4. doctor-chat onboarding helper + `QRDialog.jsx` + `ChatPage.jsx`
+5. `PatientPreviewPage.jsx` + `InterviewPage.jsx`
+6. `diagnosis_handlers.py` finalize task contract + `TaskPage.jsx`
 7. Seeded demo data contract
 
 This order preserves the proof chain:
@@ -179,12 +194,15 @@ knowledge -> diagnosis -> reply -> patient intake -> review -> task.
    Some proof UI may fit better in `ReviewQueuePage.jsx`, some in `ReviewPage.jsx`. Keep the MVP simple: queue for highlighting, detail page for provenance and proof actions.
 
 4. **Doctor-chat record creation contract**
-   If chat does not already have a lightweight patient-creation primitive, the frontend may need a temporary mocked action or a small backend helper.
+   MVP now explicitly includes this. It should use a small deterministic backend helper, not LLM chat routing.
 
-5. **Patient preview routing**
-   Preview mode must not break normal patient navigation or login assumptions.
+5. **Doctor-side mini patient page**
+   Reusing patient UI inside doctor routes is safer, but the component boundary may need cleanup if `InterviewPage.jsx` is tightly coupled to patient auth/context.
 
-6. **Task highlighting**
+6. **Approved follow-up task generation on review finalize**
+   This is not supported by the current backend contract. MVP now requires a small backend change in `review/finalize`.
+
+7. **Task highlighting**
    If `TaskPage.jsx` lacks route-driven filter/highlight state, a minimal query-param-based highlight contract may be required.
 
 ---
@@ -192,11 +210,13 @@ knowledge -> diagnosis -> reply -> patient intake -> review -> task.
 ## Cascading Impact
 
 1. **DB schema** — None for MVP. A later persisted onboarding state may require a doctor preference field.
-2. **ORM models & Pydantic schemas** — None for MVP unless chat-based provisional record creation lacks an existing payload shape.
-3. **API endpoints** — Prefer none for MVP. Optional later additions: seeded-example lookup helper, chat-based provisional patient record helper, or explicit task-highlight query support.
-4. **Domain logic** — Minimal. Existing workflows should remain unchanged; only entry-point routing and visibility improve.
+2. **ORM models & Pydantic schemas** — Add only if the new doctor-chat onboarding helper or review-finalize task response needs explicit request/response models.
+3. **API endpoints** — MVP now likely needs two small additions:
+   - doctor-chat provisional patient creation + intake entry helper
+   - review-finalize response extended to create/return approved follow-up task IDs or count
+4. **Domain logic** — Small backend additions for chat onboarding helper and approved follow-up task generation on review finalize.
 5. **Prompt files** — None.
-6. **Frontend** — Primary impact across doctor onboarding, knowledge add flow, review surfaces, QR/chat entry, patient preview, and task highlighting.
+6. **Frontend** — Primary impact across doctor onboarding, knowledge add flow, review surfaces, QR/chat entry, doctor-side patient preview, and task highlighting.
 7. **Configuration** — None unless seeded example IDs are externalized into config.
 8. **Existing tests** — Frontend route assumptions and any debug/demo fixtures may need updates; no new unit tests required in MVP.
 9. **Cleanup** — Down-rank or remove equal-weight first-run affordances that compete with the new checklist.

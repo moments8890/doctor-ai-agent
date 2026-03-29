@@ -19,7 +19,7 @@
  */
 import { useState, useRef } from "react";
 import { Box, Typography } from "@mui/material";
-import MicIcon from "@mui/icons-material/Mic";
+import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import NameAvatar from "../NameAvatar";
 import StatusBadge from "../StatusBadge";
@@ -157,7 +157,7 @@ function DraftCard({ item, editing, editText, setEditText, textareaRef, showVoic
                   "&:active": { opacity: 0.6 },
                 }}
               >
-                <MicIcon sx={{ fontSize: 18, color: showVoice ? COLOR.primary : COLOR.text4 }} />
+                <MicNoneOutlinedIcon sx={{ fontSize: 18, color: showVoice ? COLOR.primary : COLOR.text4 }} />
               </Box>
             )}
           </Box>

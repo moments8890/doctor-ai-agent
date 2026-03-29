@@ -178,6 +178,7 @@ export const STRUCTURED_FIELD_LABELS = {
 export const Action = {
   DAILY_SUMMARY:    "daily_summary",
   CREATE_RECORD:    "create_record",
+  START_PATIENT_ONBOARDING: "start_patient_onboarding",
   QUERY_PATIENT:    "query_patient",
   QUERY_RECORDS:    "query_records",
   UPDATE_RECORD:    "update_record",
@@ -191,9 +192,90 @@ export const Action = {
 export const QUICK_COMMANDS = [
   { key: Action.DAILY_SUMMARY, label: "今日摘要",  autoSend: true },
   { key: Action.CREATE_RECORD, label: "新增病历",  autoSend: false },
+  { key: Action.START_PATIENT_ONBOARDING, label: "发预问诊", autoSend: false },
   { key: Action.QUERY_PATIENT, label: "查询患者",  autoSend: false, allowEmpty: true },
   { key: Action.DIAGNOSIS,     label: "诊断建议",  autoSend: false, disabled: true },
 ];
+
+export const ONBOARDING_EXAMPLES = {
+  diagnosisPatientNames: ["陈伟强", "李复诊"],
+  replyPatientNames: ["陈伟强", "李复诊", "王明"],
+  ruleTitles: ["术后头痛危险信号", "TIA复查路径"],
+};
+
+const ONBOARDING_STORAGE_PREFIX = "doctor_onboarding_state:v1";
+
+export const ONBOARDING_STEP = {
+  knowledge: "knowledge",
+  diagnosis: "diagnosis",
+  reply: "reply",
+  patientPreview: "patient_preview",
+  reviewTask: "review_task",
+  followupTask: "followup_task",
+};
+
+const DEFAULT_ONBOARDING_STATE = {
+  steps: {},
+  lastSavedRuleTitle: "",
+  lastSavedRuleAt: "",
+  lastPreviewPatientId: null,
+  lastPreviewPatientName: "",
+  lastPreviewToken: "",
+  lastReviewRecordId: null,
+  lastReviewTaskId: null,
+  lastFollowUpTaskIds: [],
+};
+
+function onboardingStorageKey(doctorId) {
+  return `${ONBOARDING_STORAGE_PREFIX}:${doctorId || "anon"}`;
+}
+
+export function getOnboardingState(doctorId) {
+  if (!doctorId) return { ...DEFAULT_ONBOARDING_STATE };
+  try {
+    const raw = localStorage.getItem(onboardingStorageKey(doctorId));
+    if (!raw) return { ...DEFAULT_ONBOARDING_STATE };
+    return { ...DEFAULT_ONBOARDING_STATE, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_ONBOARDING_STATE };
+  }
+}
+
+export function setOnboardingState(doctorId, patch) {
+  if (!doctorId) return { ...DEFAULT_ONBOARDING_STATE };
+  const prev = getOnboardingState(doctorId);
+  const next = {
+    ...prev,
+    ...(typeof patch === "function" ? patch(prev) : patch),
+  };
+  localStorage.setItem(onboardingStorageKey(doctorId), JSON.stringify(next));
+  return next;
+}
+
+export function markOnboardingStep(doctorId, step, meta = {}) {
+  const timestamp = new Date().toISOString();
+  return setOnboardingState(doctorId, (prev) => ({
+    ...prev,
+    ...meta,
+    steps: {
+      ...(prev.steps || {}),
+      [step]: timestamp,
+    },
+  }));
+}
+
+export function isOnboardingStepDone(state, step) {
+  return Boolean(state?.steps?.[step]);
+}
+
+export function getLastSavedRuleTitle(doctorId) {
+  return getOnboardingState(doctorId).lastSavedRuleTitle || "";
+}
+
+export function clearOnboardingState(doctorId) {
+  if (!doctorId) return;
+  localStorage.removeItem(onboardingStorageKey(doctorId));
+}
 
 export const SPECIALTY_OPTIONS = [
   "神经外科", "神经内科", "心内科", "内科", "外科",
@@ -260,4 +342,3 @@ export const ICON_BADGES = {
   task_general:    { icon: AssignmentOutlinedIcon, bg: "#8e44ad" },
   task_imaging:    { icon: MonitorHeartOutlinedIcon, bg: "#1890ff" },
 };
-

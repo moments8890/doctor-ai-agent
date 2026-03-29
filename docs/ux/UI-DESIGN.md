@@ -246,7 +246,7 @@ chrome. Only the content area changes between pages.
 
 | Page | ‹ | Title | Action |
 |------|---|-------|--------|
-| 首页 | — | 首页 | — |
+| 我的AI | — | 我的AI | — |
 | 患者 | — | 患者 | — |
 | 患者详情 | ‹ | 李复诊 | 门诊 |
 | 对话 | ‹ | 对话工作区 | 清空 |
@@ -254,6 +254,7 @@ chrome. Only the content area changes between pages.
 | 新建病历 | ‹ | 新建病历 | 46% |
 | 任务 | — | 任务 | — |
 | 设置 | — | 设置 | — |
+| 患者端预览 | ‹ | 患者端预览 | 57% |
 
 ---
 
@@ -269,14 +270,15 @@ template. The shared rules (cards, spacing, components) are in sections 4-6.
 
 | Page | Screenshot | Layout |
 |------|-----------|--------|
-| **首页** | [`/doctor`](http://localhost:5173/doctor) | Stat cards (2-col grid) → onboarding hint card → AI chat entry bar |
+| **我的AI** | [`/doctor`](http://localhost:5173/doctor) | AI身份卡 → deterministic onboarding checklist → quick actions → knowledge preview → recent AI activity |
 | **患者** | [`/doctor/patients`](http://localhost:5173/doctor/patients) | Search bar → "新建患者" card → patient list rows |
 | **患者详情** | [`/doctor/patients/:id`](http://localhost:5173/doctor/patients) | Collapsible profile → record tabs → record cards → foldable patient message timeline (latest 3 items by default) |
 | **对话** | [`/doctor/chat`](http://localhost:5173/doctor/chat) | Chat bubbles → quick command chips → input bar + mic |
-| **诊断审核** | [`/doctor/review/:id`](http://localhost:5173/doctor) | Record summary → diagnosis sections → sticky bottom bar |
+| **诊断审核** | [`/doctor/review/:id`](http://localhost:5173/doctor) | Flow banner → input provenance card → record summary → diagnosis sections → sticky bottom bar |
 | **新建病历** | (interview) | Progress bar → conversation → carry-forward → input bar |
-| **任务** | [`/doctor/tasks`](http://localhost:5173/doctor/tasks) | Filter chips → "新建任务" card → task list |
-| **设置** | [`/doctor/settings`](http://localhost:5173/doctor/settings) | Profile → tools (模板, 知识库) → general → 退出登录 |
+| **任务** | [`/doctor/tasks`](http://localhost:5173/doctor/tasks) | Flow banner (when routed) → filter tabs → highlighted review/follow-up task rows |
+| **设置** | [`/doctor/settings`](http://localhost:5173/doctor/settings) | Profile → tools (模板, 知识库, 预问诊入口) → general → 退出登录 |
+| **患者端预览** | [`/doctor/preview/:id`](http://localhost:5173/doctor/preview/1) | Intro card → progress bar → patient-style chat → summary sheet → submit success bridge |
 
 **Shared content rules:**
 
@@ -294,7 +296,7 @@ template. The shared rules (cards, spacing, components) are in sections 4-6.
 ```
 ┌─────────────────────────────────────┐
 │   ✦        👤        ☑        ✉    │  64px
-│  我的AI    患者      审核      随访   │  + safe-area-inset
+│  我的AI    患者      审核      任务   │  + safe-area-inset
 └─────────────────────────────────────┘
 ```
 
@@ -306,14 +308,14 @@ template. The shared rules (cards, spacing, components) are in sections 4-6.
 | **Active** | Green icon + text `#07C160`, fontWeight 600 |
 | **Inactive** | Gray icon + text `#999` |
 | **Labels** | 10px (MUI default) |
-| **Badge** | Red dot + count on 审核 and 随访 when pending |
+| **Badge** | Red dot + count on 审核 and 任务 when pending |
 | **Visibility** | **Main tabs only.** Hidden on subpages. See rule below. |
 
 **Main tab vs subpage rule (WeChat pattern):**
 
 | Page type | Bottom nav | Top bar | Examples |
 |-----------|-----------|---------|----------|
-| **Main tab** | ✅ Visible | Title only, no back | 我的AI, 患者, 审核, 随访 |
+| **Main tab** | ✅ Visible | Title only, no back | 我的AI, 患者, 审核, 任务 |
 | **Subpage** | ❌ Hidden | ‹ back + title (+ optional action) | 设置, 知识库, 患者详情, 诊断审核, 任务详情 |
 
 A **subpage** is any view pushed onto the navigation stack from a main tab.
@@ -330,7 +332,7 @@ views hide it and show a back button instead.
 | 我的AI | my-ai |
 | 患者 | patient list |
 | 审核 | review queue |
-| 随访 | followup list |
+| 任务 | task list |
 | 设置 | settings, subpages |
 
 ---

@@ -516,6 +516,7 @@ red_flags: List[str]                        # urgent findings requiring immediat
 | `POST /api/records/chat` | `channels/web/chat.py` | Doctor chat -> agent pipeline |
 | `POST /api/records/interview/*` | `channels/web/doctor_interview.py` | Interview turn, confirm, cancel |
 | `GET/POST/DELETE /api/manage/*` | `channels/web/ui/` | Admin: knowledge, profile, patients |
+| `POST /api/manage/onboarding/patient-entry` | `channels/web/ui/doctor_profile_handlers.py` | Create or reuse patient, then return deterministic portal + preview entry |
 | `GET /api/manage/knowledge/file/{path}` | `channels/web/ui/knowledge_handlers.py` | Serve uploaded original file (auth-checked) |
 | `POST /api/manage/drafts/{draft_id}/save-as-rule` | `channels/web/ui/draft_handlers.py` | Teaching loop: convert draft edit into KB rule |
 | `GET/POST/PUT/DELETE /api/tasks/*` | `channels/web/tasks.py` | Task CRUD |
@@ -569,7 +570,8 @@ stateDiagram-v2
 Tasks can be created via:
 - **UI:** doctor fills form directly (no LLM)
 - **Chat:** routing LLM -> `intent=create_task` -> handler creates task
-- **Diagnosis auto:** review LLM includes `suggested_tasks` in output, auto-created when doctor confirms review
+- **Patient intake confirm:** patient pre-consultation confirm creates a linked `review` task for the doctor
+- **Review finalize:** `domain/tasks/from_record.py` extracts approved follow-up tasks from confirmed `orders_followup` + `treatment_plan`
 
 ### Scheduling
 

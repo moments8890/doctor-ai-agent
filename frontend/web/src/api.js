@@ -741,6 +741,19 @@ export async function generateQRToken(role, doctorId, patientId) {
   });
 }
 
+export async function createOnboardingPatientEntry(doctorId, { patientName, gender, age } = {}) {
+  return request("/api/manage/onboarding/patient-entry", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      doctor_id: doctorId,
+      patient_name: patientName,
+      gender: gender || null,
+      age: age ?? null,
+    }),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Patient portal API (uses X-Patient-Token header, not doctor Bearer token)
 // ---------------------------------------------------------------------------

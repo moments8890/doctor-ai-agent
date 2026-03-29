@@ -10,12 +10,11 @@ import {
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import { useApi } from "../../api/ApiContext";
-import { generateQRToken, startBulkExport, getBulkExportStatus, downloadBulkExport } from "../../api";
+import { startBulkExport, getBulkExportStatus, downloadBulkExport } from "../../api";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import AppButton from "../../components/AppButton";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import PageSkeleton from "../../components/PageSkeleton";
-import QRDialog from "../../components/QRDialog";
 import SheetDialog from "../../components/SheetDialog";
 import SubpageHeader from "../../components/SubpageHeader";
 import { QRCodeSVG } from "qrcode.react";
@@ -27,7 +26,7 @@ import TemplateSubpage from "./subpages/TemplateSubpage";
 import AddKnowledgeSubpage from "./subpages/AddKnowledgeSubpage";
 import { useDoctorStore } from "../../store/doctorStore";
 import SettingsListSubpage from "./subpages/SettingsListSubpage";
-import { SPECIALTY_OPTIONS } from "./constants";
+import { SPECIALTY_OPTIONS, setOnboardingState } from "./constants";
 import { TYPE, ICON, COLOR } from "../../theme";
 
 function NameDialog({ open, nameInput, nameSaving, nameError, onChange, onSave, onClose }) {
@@ -273,18 +272,50 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { doctorName, setAuth, accessToken } = useDoctorStore();
+  const api = useApi();
   const { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty, clinicName, setClinicName, bio, setBio, clinicDialogOpen, setClinicDialogOpen, clinicInput, setClinicInput, clinicSaving, handleSaveClinic, bioDialogOpen, setBioDialogOpen, bioInput, setBioInput, bioSaving, handleSaveBio } = useSettingsState({ doctorId, doctorName, accessToken, setAuth });
 
-  const [qrOpen, setQrOpen] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
   const [qrError, setQrError] = useState("");
   const [qrLoading, setQrLoading] = useState(false);
+  const [qrPatientName, setQrPatientName] = useState("");
+  const [qrPreviewPath, setQrPreviewPath] = useState("");
+  const [qrCopied, setQrCopied] = useState(false);
 
   async function handleGenerateQR() {
-    setQrLoading(true); setQrError(""); setQrOpen(true);
-    try { const data = await generateQRToken("doctor"); setQrUrl(data.url); }
+    const patientName = qrPatientName.trim();
+    if (!patientName) return;
+    setQrLoading(true);
+    setQrError("");
+    setQrCopied(false);
+    try {
+      const createEntry = api.createOnboardingPatientEntry || (() => Promise.reject(new Error("缺少预问诊入口接口")));
+      const data = await createEntry(doctorId, { patientName });
+      setQrUrl(data.portal_url || "");
+      const previewParams = new URLSearchParams({
+        patient_token: data.portal_token || "",
+        patient_name: data.patient_name || patientName,
+      });
+      setQrPreviewPath(`/doctor/preview/${data.patient_id}?${previewParams.toString()}`);
+      setOnboardingState(doctorId, {
+        lastPreviewPatientId: data.patient_id,
+        lastPreviewPatientName: data.patient_name || patientName,
+        lastPreviewToken: data.portal_token || "",
+      });
+    }
     catch (e) { setQrUrl(""); setQrError(e.message || "生成失败"); }
     finally { setQrLoading(false); }
+  }
+
+  async function handleCopyQRLink() {
+    if (!qrUrl) return;
+    try {
+      await navigator.clipboard.writeText(qrUrl);
+      setQrCopied(true);
+      setTimeout(() => setQrCopied(false), 1800);
+    } catch {
+      setQrCopied(false);
+    }
   }
 
   /* ── Bulk export ── */
@@ -391,29 +422,76 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
 
   // QR subpage — full-page view, auto-generate on mount
   if (subpage === "qr") {
-    if (!qrUrl && !qrLoading && !qrError) handleGenerateQR();
     return (
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
         <SubpageHeader title="患者预问诊码" onBack={goBack} />
-        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", bgcolor: COLOR.surfaceAlt, gap: 2, px: 3 }}>
-          {qrLoading ? (
-            <CircularProgress size={24} />
-          ) : qrError ? (
-            <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.danger, textAlign: "center" }}>{qrError}</Typography>
-          ) : qrUrl ? (
-            <Box sx={{ p: 3, bgcolor: COLOR.white, borderRadius: "12px", border: `0.5px solid ${COLOR.border}` }}>
-              <QRCodeSVG value={qrUrl} size={220} level="M" />
+        <Box sx={{ flex: 1, overflowY: "auto", bgcolor: COLOR.surfaceAlt, px: 2, py: 2 }}>
+          <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, p: 1.5 }}>
+            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+              为患者生成专属入口
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.4, lineHeight: 1.6 }}>
+              先建档，再生成可分享的预问诊链接。患者扫码后将直接进入 AI 预问诊。
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="请输入患者姓名，例如：李阿姨"
+              value={qrPatientName}
+              onChange={(e) => setQrPatientName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleGenerateQR(); }}
+              sx={{ mt: 1.25 }}
+            />
+            <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "1fr", mt: 1.25 }}>
+              <AppButton
+                variant="primary"
+                size="md"
+                fullWidth
+                disabled={!qrPatientName.trim() || qrLoading}
+                loading={qrLoading}
+                loadingLabel="生成中…"
+                onClick={handleGenerateQR}
+              >
+                生成入口
+              </AppButton>
+            </Box>
+          </Box>
+
+          {qrError ? (
+            <Box sx={{ mt: 1.5, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, p: 1.5 }}>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.danger }}>
+                {qrError}
+              </Typography>
             </Box>
           ) : null}
-          <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.text1 }}>
-            {doctorName || doctorId}
-          </Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, textAlign: "center" }}>
-            患者扫码后可自助填写病史，AI将按你的方法进行预问诊
-          </Typography>
-          <AppButton variant="secondary" size="md" onClick={handleGenerateQR} disabled={qrLoading}>
-            重新生成
-          </AppButton>
+
+          {qrUrl && (
+            <Box sx={{ mt: 1.5, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, p: 2, textAlign: "center" }}>
+              <Box sx={{ display: "inline-flex", p: 2.5, bgcolor: COLOR.white, borderRadius: "12px", border: `0.5px solid ${COLOR.border}` }}>
+                <QRCodeSVG value={qrUrl} size={220} level="M" />
+              </Box>
+              <Typography sx={{ mt: 1.25, fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+                {qrPatientName.trim()}
+              </Typography>
+              <Typography sx={{ mt: 0.45, fontSize: TYPE.caption.fontSize, color: COLOR.text4, lineHeight: 1.6 }}>
+                患者扫码后将进入 AI 预问诊，确认提交后自动创建审核任务。
+              </Typography>
+              <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "repeat(2, minmax(0, 1fr))", mt: 1.5 }}>
+                <AppButton variant="secondary" size="md" fullWidth onClick={handleCopyQRLink}>
+                  {qrCopied ? "已复制" : "复制"}
+                </AppButton>
+                <AppButton
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  disabled={!qrPreviewPath}
+                  onClick={() => qrPreviewPath && navigate(qrPreviewPath)}
+                >
+                  预览
+                </AppButton>
+              </Box>
+            </Box>
+          )}
         </Box>
       </Box>
     );
@@ -441,7 +519,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
       onBioTap={() => { setBioInput(bio); setBioDialogOpen(true); }}
       onTemplate={() => goSub("template")}
       onKnowledge={() => goSub("knowledge")}
-      onQRCode={() => handleGenerateQR()}
+      onQRCode={() => goSub("qr")}
       onBulkExport={handleBulkExportClick}
       bulkExportStatus={bulkExportStatus}
       bulkExportProgress={bulkExportProgress}
@@ -468,9 +546,6 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
             fullWidth size="small" multiline minRows={3} autoFocus />
         </Box>
       </SheetDialog>
-      <QRDialog open={qrOpen} onClose={() => setQrOpen(false)} title="我的二维码"
-        name={doctorName || doctorId} url={qrUrl} loading={qrLoading} error={qrError}
-        onRegenerate={handleGenerateQR} />
       <ConfirmDialog
         open={bulkExportConfirmOpen}
         onClose={() => setBulkExportConfirmOpen(false)}

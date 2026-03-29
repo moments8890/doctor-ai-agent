@@ -2,7 +2,9 @@
 
 > **Mock HTML:** [2026-03-28-mockups/deterministic-onboarding-demo.html](2026-03-28-mockups/deterministic-onboarding-demo.html)
 >
-> Status: Draft mock for product discussion
+> Status: Completed implementation reference
+>
+> Completed: 2026-03-28
 >
 > Goal: Make solo doctor discovery deterministic for three core questions:
 > 1. How do I teach the AI?
@@ -45,9 +47,10 @@ The app should guide the doctor through a deterministic proof chain:
 - create one rule
 - see it cited in diagnosis review
 - see it cited in reply review
-- preview patient intake
+- preview patient intake inside a doctor-side mini patient page
+- see patient submit create a review task
 - return to doctor review
-- see review completion produce tasks
+- see review completion produce approved follow-up tasks
 
 The intended first-run order is:
 1. 我的AI 引导
@@ -56,9 +59,9 @@ The intended first-run order is:
 4. 诊断审核示例
 5. 回复示例
 6. QR / 聊天发起
-7. 患者预问诊
-8. 医生审核完成
-9. 生成任务
+7. 医生端患者预览
+8. 提交后审核任务
+9. 审核完成随访任务
 
 ### Knowledge Addition Entry Types
 
@@ -94,12 +97,11 @@ flowchart LR
     I --> J[Checklist marks knowledge proof complete]
     J --> K[Checklist: 体验患者预问诊]
     K --> L[QR dialog or doctor-chat record creation]
-    L --> M[Patient preview lands in InterviewPage intro]
-    M --> N[Patient completes guided intake]
-    N --> O[Success CTA: 去医生端看审核结果]
-    O --> P[Doctor review queue opens highlighted case]
-    P --> Q[Doctor finalizes review]
-    Q --> R[Task page opens with generated tasks highlighted]
+    L --> M[Doctor-side mini patient page]
+    M --> N[Previewed patient completes guided intake]
+    N --> O[Review task + pending-review record are highlighted]
+    O --> P[Doctor finalizes review]
+    P --> Q[Approved follow-up tasks are highlighted]
 ```
 
 ## Key Screens
@@ -175,19 +177,24 @@ The QR dialog should explain the downstream patient experience and expose:
 - `发给患者`
 - `预览患者端`
 
-`预览患者端` should open the patient intake experience directly, not the generic
-chat tab.
+`预览患者端` in MVP should open a doctor-side mini patient page that simulates
+the patient intake experience, not the real patient shell.
 
 ### 5. Patient intake as focused first-run flow
 
-The patient preview should begin with a simple intro layer:
+The patient preview should begin inside a doctor-side mini patient page with a
+simple intro layer:
 - 约 2 分钟完成预问诊
 - 描述症状
 - AI 追问补全病史
 - 确认提交给医生
 
-After submit, success should bridge back to doctor-side review:
-- `去医生端看审核结果`
+After submit, the first visible result should be:
+- `已创建审核任务`
+- `查看审核任务`
+
+This makes the first task moment legible: patient submit creates a doctor
+review task before any follow-up execution tasks exist.
 
 ### 6. Review finalize must bridge to generated tasks
 
@@ -195,11 +202,13 @@ Once the doctor returns from patient intake to review the newly created case,
 the flow should not end at “审核完成”.
 
 It should explicitly surface:
-- `已生成 X 条随访任务`
+- `已生成 X 条已确认随访任务`
 - `查看任务`
 
-This is what makes task creation legible as a product behavior rather than an
-invisible backend side effect.
+This is the second task moment. It should be clearly separated from the earlier
+review-task creation so doctors can distinguish:
+- patient submit -> review task
+- doctor finalize -> approved follow-up tasks
 
 ## Additional Missing Workflows
 

@@ -8,7 +8,8 @@ rule stays in effect for normal development sessions.
 **Opt-in TDD**: invoke `/tdd` to activate test-driven development for a session.
 This overrides the default and enables red-green-refactor cycles.
 
-**Pre-push gate**: invoke `/test-gate` before pushing to validate no regressions.
+**Pre-push gate**: `/test-gate` is the policy name, not a checked-in repo command.
+In this repo, run the commands in **Standard Validation Path** directly.
 
 ## Test Classification
 
@@ -45,11 +46,11 @@ bash scripts/test.sh <mode>
 | Mode | What it runs | When to use |
 |------|-------------|-------------|
 | `unit` | `tests/core/` (mocked, no server) | After modifying domain logic or CRUD |
-| `integration` | `tests/integration/test_text_pipeline.py` | Default gate for code changes |
-| `integration-full` | All of `tests/integration/` | Prompt, routing, or pipeline changes |
-| `chatlog-half` | Chatlog E2E replay (half dataset) | Routing or wording changes |
-| `chatlog-full` | Chatlog E2E replay (full dataset) | Major workflow changes |
-| `hero-loop` | Benchmark gate | Pre-release validation |
+| `integration` | Legacy wrapper for removed `tests/integration/test_text_pipeline.py` | Stale, do not use in fresh clones |
+| `integration-full` | All of `tests/integration/` | Current backend integration gate |
+| `chatlog-half` | Chatlog E2E replay (half dataset) | Requires local dataset fixture under `e2e/fixtures/data/` |
+| `chatlog-full` | Chatlog E2E replay (full dataset) | Requires local dataset fixture under `e2e/fixtures/data/` |
+| `hero-loop` | Benchmark gate | Requires local dataset fixture + saved baseline |
 | `all` | Integration tests | Quick full check |
 
 ### Frontend Tests
@@ -78,8 +79,8 @@ Reports written to `reports/patient_sim/` and `reports/doctor_sim/`.
 For normal code changes (no TDD):
 
 ```bash
-bash scripts/test.sh integration
-bash scripts/test.sh chatlog-half
+cd frontend/web && npm run build
+bash scripts/test.sh integration-full
 ```
 
 For TDD sessions (after `/tdd`):
@@ -87,23 +88,40 @@ For TDD sessions (after `/tdd`):
 ```bash
 # Unit tests run during TDD cycle automatically
 # Then validate integration before push:
-bash scripts/test.sh integration
+bash scripts/test.sh integration-full
 ```
 
-Escalate to `integration-full` or `chatlog-full` when changes affect
-LLM routing, structuring, or multi-turn workflow behavior.
+If local benchmark fixtures are installed under `e2e/fixtures/data/`, add:
+
+```bash
+./cli.py start --port 8001 --no-frontend &
+bash scripts/test.sh hero-loop
+```
+
+Escalate to `chatlog-full` only when the dataset fixture is present and the
+change affects LLM routing, structuring, or multi-turn workflow behavior.
+
+## Current Repo Caveats
+
+- `bash scripts/test.sh integration` is stale. It still points to removed file
+  `tests/integration/test_text_pipeline.py`.
+- `bash scripts/test.sh chatlog-half`, `chatlog-full`, and `hero-loop` need
+  local benchmark fixtures under `e2e/fixtures/data/` plus any saved baseline
+  expected by `scripts/benchmark_gate.sh`.
+- For a clean clone without benchmark assets, the reliable checked-in gate is:
+  frontend build + `bash scripts/test.sh integration-full`.
 
 ## Change-Type Matrix
 
 | Change type | Run |
 |------------|-----|
 | Domain logic (structuring, triage, PDF, knowledge) | `/tdd` + unit tests |
-| Prompt-only | integration + chatlog if wording/routing may shift |
-| Routing / context-assembly | `integration-full` + chatlog |
+| Prompt-only | `integration-full`, add benchmark/chatlog only if dataset is installed |
+| Routing / context-assembly | `integration-full`, add benchmark/chatlog only if dataset is installed |
 | Structuring | integration tests hitting record creation paths |
 | Session / state | core + integration if state crosses request boundaries |
 | Schema | targeted integration for affected write/read paths |
-| Frontend components | Vitest (`npm test` in `frontend/web/`) |
+| Frontend components | `npm run build` and Vitest (`npm test` in `frontend/web/`) |
 | Pre-push (any change) | `/test-gate` |
 
 ## Medical Safety Testing
@@ -132,7 +150,7 @@ For code touching clinical data, these assertion patterns apply:
 | Skill | Purpose | When to use |
 |-------|---------|-------------|
 | `/tdd` | Activate TDD mode for session | Before implementing deterministic code |
-| `/test-gate` | Pre-push validation gate | Before `git push` |
+| `/test-gate` | Policy alias for the direct commands above | Before `git push` |
 | `/sim` | Patient/doctor simulation | After agent behavior changes |
 | `/prompt-surgeon` | Prompt edit with eval | After modifying prompt files |
 

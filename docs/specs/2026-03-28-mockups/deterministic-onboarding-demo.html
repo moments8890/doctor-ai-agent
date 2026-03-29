@@ -526,7 +526,7 @@
           </div>
           <div class="mission">
             <strong>Mission 2 · 体验患者预问诊</strong>
-            <span>Preview the patient path directly from QR or doctor chat, then bridge back to doctor review and generated follow-up tasks.</span>
+            <span>Preview the patient path inside a doctor-side mini patient page, then bridge to the review task first and approved follow-up tasks later.</span>
           </div>
         </div>
       </div>
@@ -539,9 +539,9 @@
           <button class="step-btn" data-step="3">4. 诊断审核示例</button>
           <button class="step-btn" data-step="4">5. 回复示例</button>
           <button class="step-btn" data-step="5">6. QR / 聊天发起</button>
-          <button class="step-btn" data-step="6">7. 患者预问诊</button>
-          <button class="step-btn" data-step="7">8. 医生审核完成</button>
-          <button class="step-btn" data-step="8">9. 生成任务</button>
+          <button class="step-btn" data-step="6">7. 医生端患者预览</button>
+          <button class="step-btn" data-step="7">8. 提交后审核任务</button>
+          <button class="step-btn" data-step="8">9. 审核完成随访任务</button>
         </div>
       </div>
     </div>
@@ -598,7 +598,7 @@
                 <div class="dot"></div>
                 <div class="row-main">
                   <strong>体验患者预问诊</strong>
-                  <span>看患者扫码后会经历什么，以及如何回到你的审核队列</span>
+                  <span>先在医生端迷你患者页中预览患者体验，再回到你的审核任务与审核队列</span>
                 </div>
               </div>
               <div class="check-row">
@@ -898,7 +898,16 @@
 
         <div class="stage" data-stage="6">
           <div class="phone">
-            <div class="topbar"><span>新建病历</span><span class="action">18%</span></div>
+            <div class="topbar"><span>患者预览（医生端）</span><span class="action">预览模式</span></div>
+            <div class="section-label">不是进入真实患者壳</div>
+            <div class="card" style="margin-top:0;">
+              <div class="pad">
+                <div style="font-size:14px;font-weight:600;">医生端迷你患者页</div>
+                <div class="meta" style="margin-top:6px;line-height:1.7;">
+                  这里复用患者预问诊体验，但仍停留在医生应用内。不会污染真实患者 token、登录态或本地存储。
+                </div>
+              </div>
+            </div>
             <div class="patient-hero">
               <h3>约 2 分钟完成预问诊</h3>
               <p>先告诉 AI 您哪里不舒服，它会逐步追问，最后整理成给医生审核的病历摘要。</p>
@@ -914,7 +923,7 @@
           </div>
 
           <div class="phone">
-            <div class="topbar"><span>新建病历</span><span class="action">46%</span></div>
+            <div class="topbar"><span>患者预览（医生端）</span><span class="action">46%</span></div>
             <div class="progress"><div></div></div>
             <div class="chat-area">
               <div class="bubble ai">您好，我是张医生的 AI 助手。请先描述这次最主要的不舒服。</div>
@@ -935,15 +944,39 @@
 
         <div class="stage" data-stage="7">
           <div class="phone">
-            <div class="topbar"><span>审核</span><span class="action">门诊</span></div>
+            <div class="topbar"><span>提交成功</span><span class="action">已建任务</span></div>
+            <div class="success-card">
+              <strong>预问诊已提交，并创建 1 条审核任务</strong>
+              <p>第一类任务出现在这里：患者提交后，系统立即为医生创建审核任务，同时生成待审核病历。</p>
+              <div class="btn">查看审核任务</div>
+            </div>
             <div class="push">
-              <div class="push-badge">刚生成</div>
+              <div class="push-badge">审核任务</div>
               <div>
-                <div style="font-size:14px;font-weight:500;">患者【李阿姨】已完成预问诊</div>
-                <div class="meta">从患者预问诊预览路径进入，已在你的队列中高亮</div>
+                <div style="font-size:14px;font-weight:500;">任务：审阅患者【李阿姨】预问诊记录</div>
+                <div class="meta">这不是随访任务，而是 patient submit 直接创建的 review task</div>
               </div>
             </div>
-            <div class="section-label">待审核</div>
+            <div class="review-highlight">
+              <strong>先看见审核任务，再看见审核页</strong>
+              <span>这样医生能理解“患者提交”带来的第一件事，是系统生成了一个明确的审核待办。</span>
+            </div>
+          </div>
+
+          <div class="phone">
+            <div class="topbar"><span>任务 / 审核</span><span class="action">刚创建</span></div>
+            <div class="section-label">审核任务</div>
+            <div class="card">
+              <div class="list-row">
+                <div class="icon-box blue">任</div>
+                <div style="flex:1;">
+                  <div style="font-size:14px;">审阅患者【李阿姨】预问诊记录</div>
+                  <div class="meta">任务类型：review · 来源：患者提交</div>
+                </div>
+                <div class="chip" style="color:var(--blue);border-color:#c9d1e4;background:#eef2fb;">已创建审核任务</div>
+              </div>
+            </div>
+            <div class="section-label">待审核病历</div>
             <div class="card">
               <div class="list-row">
                 <div class="icon-box amber">诊</div>
@@ -955,11 +988,13 @@
               </div>
             </div>
             <div class="review-highlight">
-              <strong>患者入口必须接到医生审核页</strong>
-              <span>下一步不是让医生回到首页自己找，而是直接高亮这条新病例，并默认进入审核详情。</span>
+              <strong>任务和病历要同时可见</strong>
+              <span>审核任务解释“系统帮你创建了什么待办”，待审核病历解释“这条待办具体对应哪份临床输入”。</span>
             </div>
           </div>
+        </div>
 
+        <div class="stage" data-stage="8">
           <div class="phone">
             <div class="topbar"><span>审核详情</span><span class="action">完成审核</span></div>
             <div class="section-label">AI 摘要</div>
@@ -967,7 +1002,7 @@
               <div class="pad">
                 <div style="font-size:15px;font-weight:600;">右侧头痛伴呕吐，建议排除危险信号</div>
                 <div class="meta" style="margin-top:6px;line-height:1.7;">
-                  AI 已整理为待审核病历摘要，并根据既有规则给出优先级建议。医生在这里确认或修改后完成审核。
+                  医生确认或修改后，这次审核才会进入第二个任务时刻：生成 doctor-approved follow-up tasks。
                 </div>
               </div>
             </div>
@@ -975,7 +1010,7 @@
             <div class="card">
               <div class="pad">
                 <div style="font-size:14px;line-height:1.7;color:var(--text-2);">
-                  一旦点“完成审核”，系统不只是结束当前页面，还应立即告诉医生后续已经生成了什么工作。
+                  这里的任务不是 patient submit 时的 review task，而是基于医生确认后的方案，生成已确认的随访/提醒任务。
                 </div>
               </div>
             </div>
@@ -984,32 +1019,18 @@
               <div class="btn secondary">修改后完成</div>
             </div>
           </div>
-        </div>
 
-        <div class="stage" data-stage="8">
           <div class="phone">
             <div class="topbar"><span>审核完成</span><span class="action">已通知</span></div>
             <div class="success-card">
-              <strong>审核已完成，并生成 2 条随访任务</strong>
-              <p>这一步必须显式告诉医生系统已经做了后续工作，否则任务创建就只是后台行为，难以被感知。</p>
+              <strong>审核已完成，并生成 2 条已确认随访任务</strong>
+              <p>第二类任务出现在这里：这些任务来自医生确认后的治疗/随访方案，而不是患者提交时自动产生的审核待办。</p>
               <div class="btn">查看任务</div>
             </div>
             <div class="review-highlight">
-              <strong>把“审核”变成“后续行动”</strong>
-              <span>完成审核后，系统同步显示患者通知和任务生成结果，让医生知道这一流程已经闭环。</span>
+              <strong>把审核完成和后续执行分开讲清楚</strong>
+              <span>这样医生能区分两个时刻：患者提交产生审核任务，医生完成审核后产生随访执行任务。</span>
             </div>
-          </div>
-
-          <div class="phone">
-            <div class="topbar"><span>任务</span><span class="action">今日新增</span></div>
-            <div class="push">
-              <div class="push-badge">2 条新任务</div>
-              <div>
-                <div style="font-size:14px;font-weight:500;">来自刚完成的诊断审核</div>
-                <div class="meta">任务页自动高亮这次审核产生的后续事项</div>
-              </div>
-            </div>
-            <div class="section-label">自动生成</div>
             <div class="card">
               <div class="list-row">
                 <div class="icon-box">访</div>
@@ -1093,30 +1114,30 @@
       ]
     },
     {
-      title: "Step 7 · 患者端先看到预问诊，不是通用门户",
-      body: "For deterministic discovery, QR-first preview should land directly in the intake experience. The patient should understand the promise in one screen before entering the chat flow.",
+      title: "Step 7 · 用医生端迷你患者页做预览",
+      body: "MVP should not reuse the real patient shell for preview. The preview belongs inside the doctor app so it can demonstrate the patient experience without mutating real patient auth or local storage state.",
       bullets: [
-        "Short intro layer explains the 3-step process.",
-        "Then the patient lands in the existing guided interview.",
-        "This preserves the current intake surface while making the story legible."
+        "Reuse the intake UI, but keep preview-specific navigation on the doctor side.",
+        "Make the preview mode explicit with a visible label.",
+        "This is a doctor demo surface, not a production patient entry shell."
       ]
     },
     {
-      title: "Step 8 · 患者提交后必须回到医生审核",
-      body: "The patient submit success state should bridge back to doctor-side review. That closes the loop and proves the intake feature creates usable work for the doctor.",
+      title: "Step 8 · 患者提交先产生审核任务",
+      body: "The first task moment happens when the patient submits intake. The product should explicitly show that a review task was created, not jump straight to follow-up execution tasks.",
       bullets: [
-        "Review queue highlights the just-created case.",
-        "Doctor lands directly in a finalize-ready review detail.",
-        "This makes patient entry and doctor review one connected story."
+        "Show the newly created review task explicitly.",
+        "Also show the linked pending-review record.",
+        "This explains what the system created before the doctor even starts review."
       ]
     },
     {
-      title: "Step 9 · 任务生成要变成可见结果",
-      body: "Task creation should be shown as the explicit consequence of review completion, not an invisible backend side effect.",
+      title: "Step 9 · 审核完成再产生已确认随访任务",
+      body: "The second task moment happens after doctor review completion. These are approved follow-up tasks derived from the confirmed plan, and they should be clearly distinguished from the earlier review task.",
       bullets: [
-        "Show a post-finalize bridge with 已生成 X 条随访任务.",
-        "Open the task page already filtered or highlighted.",
-        "Use provenance pills like 来自诊断审核 / 已通知患者 so the doctor sees the workflow is closed."
+        "Show a post-finalize bridge with 已生成 X 条已确认随访任务.",
+        "Keep provenance labels like 来自诊断审核 / 已通知患者.",
+        "This makes the two task moments legible instead of collapsing them into one."
       ]
     }
   ];

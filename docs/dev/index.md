@@ -24,12 +24,14 @@ How to develop, test, and deploy.
 | Doc | Covers |
 |-----|--------|
 | [../deploy/tecenet-deployment/index.md](../deploy/tecenet-deployment/index.md) | Tencent Cloud deployment (8-step guide: prerequisites → go-live) |
-| [mvp-release-checklist.md](mvp-release-checklist.md) | Release gate: unit tests, hero-loop benchmark, integration, coverage |
+| [mvp-release-checklist.md](mvp-release-checklist.md) | Release gate: frontend build, integration suite, optional benchmark gate when local dataset assets are installed |
 
 ## Quick Reference
 
 - **Dev server:** `./cli.py start` (port 8000)
 - **Test server:** `./cli.py start --port 8001 --no-frontend`
-- **Run tests:** `bash scripts/test.sh <mode>` (unit, integration, chatlog-half, chatlog-full)
+- **Frontend smoke:** `cd frontend/web && npm run build`
+- **Backend integration:** `bash scripts/test.sh integration-full`
+- **Benchmark gate:** `bash scripts/test.sh hero-loop` only when `e2e/fixtures/data/` and `reports/baseline/` are installed locally
 - **Patient sim:** `python scripts/run_patient_sim.py --server http://127.0.0.1:8001`
 - **LAN inference:** set `OLLAMA_BASE_URL=http://192.168.0.123:11434` in `config/runtime.json`

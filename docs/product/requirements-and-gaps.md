@@ -7,6 +7,7 @@
 > - ADR 0017 (Patient Onboarding): **✅ Implemented** — QR token endpoint + unified auth + QRDialog
 > - ADR 0018 (Clinical Decision Support): **✅ Implemented** — full diagnosis pipeline + review UI
 > - ADR 0022 (Knowledge Base): **✅ Implemented** — manual KB CRUD + document upload + LLM processing + citation
+> - Deterministic doctor onboarding: **✅ Implemented** — 我的AI checklist, knowledge proof routing, doctor-side patient preview, review-task and follow-up-task bridges
 > - ADR 0019 (External AI): NOT STARTED. ADR 0020 (Bidirectional): PARTIAL. ADR 0021 (Outcome Tracking): NOT STARTED.
 > - Phases are **concurrent**, not sequential — Phases 1-3 are substantially on main.
 > - File paths in Phase 0 section are stale; see `docs/architecture.md` for current module map.

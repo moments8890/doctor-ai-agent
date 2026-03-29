@@ -14,9 +14,16 @@ import { Box, Skeleton, Typography } from "@mui/material";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { useDoctorStore } from "../../store/doctorStore";
-import { STRUCTURED_FIELD_LABELS } from "./constants";
+import {
+  ONBOARDING_EXAMPLES,
+  STRUCTURED_FIELD_LABELS,
+  getOnboardingState,
+  markOnboardingStep,
+  ONBOARDING_STEP,
+} from "./constants";
 import ReviewSubpage from "./subpages/ReviewSubpage";
 import { TYPE, COLOR } from "../../theme";
+import AppButton from "../../components/AppButton";
 
 /* ── NHC field order for collapsible record summary ────────────────────────── */
 
@@ -116,11 +123,72 @@ function LoadingSkeleton() {
   );
 }
 
+function FlowBanner({ title, subtitle }) {
+  if (!title) return null;
+  return (
+    <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.25 }}>
+      <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+        {title}
+      </Typography>
+      {subtitle && (
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.45, lineHeight: 1.6 }}>
+          {subtitle}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+function FlowBannerActions({ children }) {
+  if (!children) return null;
+  return (
+    <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.1 }}>
+      {children}
+    </Box>
+  );
+}
+
+function InputProvenanceCard({ record }) {
+  if (!record) return null;
+  const structured = record.structured || {};
+  const sourceLabel = record.record_type === "interview_summary"
+    ? "患者预问诊摘要"
+    : record.record_type === "import"
+      ? "导入病历"
+      : "医生病历记录";
+  const summaryText = structured.chief_complaint || record.chief_complaint || record.content || "（无记录内容）";
+  return (
+    <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+      <Box sx={{ px: 2, py: 1.1, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
+        <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+          病例输入来源
+        </Typography>
+      </Box>
+      <Box sx={{ px: 2, py: 1 }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.25 }}>
+          来源
+        </Typography>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.6 }}>
+          {sourceLabel}
+        </Typography>
+      </Box>
+      <Box sx={{ px: 2, py: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.25 }}>
+          关键信息
+        </Typography>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.6 }}>
+          {summaryText}
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
 /* ── Main component ────────────────────────────────────────────────────────── */
 
 export default function ReviewPage({ recordId }) {
   const navigate = useAppNavigate();
-  const { getSuggestions, decideSuggestion, addSuggestion, triggerDiagnosis, finalizeReview, getTaskRecord, getKnowledgeBatch } = useApi();
+  const { getSuggestions, decideSuggestion, addSuggestion, triggerDiagnosis, finalizeReview, getTaskRecord, getKnowledgeBatch, fetchDrafts } = useApi();
   const { doctorId } = useDoctorStore();
 
   const [record, setRecord] = useState(null);
@@ -128,9 +196,15 @@ export default function ReviewPage({ recordId }) {
   const [expandedIds, setExpandedIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
+  const [openingReplyProof, setOpeningReplyProof] = useState(false);
   const [toast, setToast] = useState(null);
   const [knowledgeMap, setKnowledgeMap] = useState({});
   const pollRef = useRef(null);
+  const params = new URLSearchParams(window.location.search);
+  const source = params.get("source") || "";
+  const reviewTaskId = params.get("review_task_id") || "";
+  const onboarding = getOnboardingState(doctorId);
+  const savedRuleTitle = onboarding.lastSavedRuleTitle || "";
 
   /* ── Fetch cited knowledge items when suggestions change ─────────────────── */
 
@@ -152,6 +226,13 @@ export default function ReviewPage({ recordId }) {
       })
       .catch(() => {}); // silent fail — citations will show as unresolved
   }, [citedIds, doctorId, getKnowledgeBatch]);
+
+  useEffect(() => {
+    if (!doctorId) return;
+    if (source === "knowledge_proof") {
+      markOnboardingStep(doctorId, ONBOARDING_STEP.diagnosis);
+    }
+  }, [doctorId, source]);
 
   /* ── Fetch record + suggestions on mount ─────────────────────────────────── */
 
@@ -256,12 +337,45 @@ export default function ReviewPage({ recordId }) {
     if (finalizing) return;
     setFinalizing(true);
     try {
-      await finalizeReview(recordId, doctorId);
+      const data = await finalizeReview(recordId, doctorId);
+      const followUpTaskIds = data?.follow_up_task_ids || [];
+      const isPreviewOnboardingFlow = source === "patient_preview";
+      if (isPreviewOnboardingFlow && followUpTaskIds.length > 0) {
+        markOnboardingStep(doctorId, ONBOARDING_STEP.followupTask, {
+          lastFollowUpTaskIds: followUpTaskIds,
+        });
+      }
       showToast("审核完成");
-      setTimeout(() => navigate(-1), 600);
+      setTimeout(() => {
+        if (isPreviewOnboardingFlow && followUpTaskIds.length > 0) {
+          const highlight = followUpTaskIds.join(",");
+          navigate(`/doctor/tasks?tab=followups&highlight_task_ids=${highlight}&origin=review_finalize`);
+          return;
+        }
+        navigate(-1);
+      }, 600);
     } catch {
       showToast("提交失败");
       setFinalizing(false);
+    }
+  }
+
+  async function handleOpenReplyProof() {
+    if (openingReplyProof) return;
+    setOpeningReplyProof(true);
+    try {
+      const drafts = await (fetchDrafts || (() => Promise.resolve({ pending_messages: [] })))(doctorId, { includeSent: true });
+      const items = Array.isArray(drafts) ? drafts : (drafts?.pending_messages || []);
+      const activeDrafts = items.filter((row) => row.status !== "sent");
+      const item = activeDrafts.find((row) => row.rule_cited === savedRuleTitle)
+        || activeDrafts.find((row) => (row.cited_rules || []).some((rule) => rule.title === savedRuleTitle))
+        || activeDrafts.find((row) => ONBOARDING_EXAMPLES.ruleTitles.includes(row.rule_cited))
+        || activeDrafts.find((row) => ONBOARDING_EXAMPLES.replyPatientNames.includes(row.patient_name))
+        || activeDrafts.find((row) => row.draft_text)
+        || activeDrafts[0];
+      navigate(`/doctor/review?tab=replies&source=reply_proof${item?.id ? `&highlight_draft=${item.id}` : ""}`);
+    } finally {
+      setOpeningReplyProof(false);
     }
   }
 
@@ -274,6 +388,16 @@ export default function ReviewPage({ recordId }) {
 
   const hasSuggestions = suggestions && suggestions.length > 0;
   const isPendingReview = record?.review_status === "pending_review" || record?.status === "pending_review";
+  const bannerTitle = source === "knowledge_proof"
+    ? "示例诊断审核"
+    : source === "patient_preview"
+      ? "患者预问诊已提交"
+      : "";
+  const bannerSubtitle = source === "knowledge_proof"
+    ? (savedRuleTitle ? `你刚保存的规则“${savedRuleTitle}”会在类似场景中影响 AI 的审核建议。` : "这里展示的是一个带来源信息的审核示例。")
+    : source === "patient_preview"
+      ? `该病例来自患者预问诊提交，审核完成后会生成随访任务。${reviewTaskId ? ` 当前审核任务 #${reviewTaskId}` : ""}`
+      : "";
 
   /* ── Render ──────────────────────────────────────────────────────────────── */
 
@@ -291,6 +415,26 @@ export default function ReviewPage({ recordId }) {
         finalizing={finalizing}
         knowledgeMap={knowledgeMap}
       >
+        <FlowBanner title={bannerTitle} subtitle={bannerSubtitle} />
+
+        {source === "knowledge_proof" && (
+          <FlowBannerActions>
+            <AppButton
+              variant="secondary"
+              size="md"
+              fullWidth
+              disabled={openingReplyProof}
+              loading={openingReplyProof}
+              loadingLabel="打开中…"
+              onClick={handleOpenReplyProof}
+            >
+              下一步：看回复示例
+            </AppButton>
+          </FlowBannerActions>
+        )}
+
+        <InputProvenanceCard record={record} />
+
         {/* Record summary — always shown if record loaded */}
         <RecordSummary record={record} />
 

@@ -23,6 +23,11 @@ git fetch --no-tags origin main
 
 ## 2. MVP hero-loop benchmark
 
+This gate is only runnable when the local benchmark assets are installed:
+
+- dataset files under `e2e/fixtures/data/`
+- at least one saved baseline under `reports/baseline/`
+
 ```bash
 bash scripts/test.sh hero-loop
 ```
@@ -44,12 +49,14 @@ Runs against the dedicated `:8001` benchmark server. Produces
 | Fatal error rate | Must be 0 |
 
 Regression in any of these dimensions is a **release blocker**.
+If the benchmark assets are missing in the local clone, mark the release as
+**benchmark-blocked by missing fixtures**, not product-green.
 
 ## 3. Integration tests (when LLM pipeline changed)
 
 ```bash
-INTEGRATION_SERVER_URL=http://127.0.0.1:8001 \
-  bash scripts/test.sh integration-full
+./cli.py start --port 8001 --no-frontend &
+bash scripts/test.sh integration-full
 ```
 
 - [ ] No new failures vs previous run
@@ -92,8 +99,9 @@ bash scripts/save_baseline.sh
 
 | Gate | Command | When |
 |---|---|---|
-| Unit tests | `bash scripts/test.sh unit` | Every push |
+| Frontend smoke | `cd frontend/web && npm run build` | Every push |
+| Unit tests | `bash scripts/test.sh unit` | Deterministic/domain-heavy changes |
 | Diff-cover | `.venv/bin/diff-cover ...` | Every push |
-| Hero-loop benchmark | `bash scripts/test.sh hero-loop` | Every push |
-| Integration tests | `bash scripts/test.sh integration-full` | LLM pipeline changes |
-| Save baseline | `bash scripts/save_baseline.sh` | After passing all gates |
+| Hero-loop benchmark | `bash scripts/test.sh hero-loop` | When local benchmark dataset + baseline are installed |
+| Integration tests | `bash scripts/test.sh integration-full` | Every push that changes backend/LLM workflow |
+| Save baseline | `bash scripts/save_baseline.sh` | After a passing benchmark run |

@@ -27,6 +27,7 @@ import SheetDialog from "../../components/SheetDialog";
 import AppButton from "../../components/AppButton";
 import ReplyCard from "../../components/doctor/ReplyCard";
 import { TYPE, COLOR } from "../../theme";
+import { markOnboardingStep, ONBOARDING_STEP } from "./constants";
 
 /* ── Case memory helpers ──────────────────────────────────────────────────── */
 
@@ -257,6 +258,9 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   const [loading, setLoading] = useState(true);
   const [confirmItem, setConfirmItem] = useState(null);
   const [sending, setSending] = useState(false);
+  const params = new URLSearchParams(window.location.search);
+  const source = params.get("source") || "";
+  const highlightDraftId = params.get("highlight_draft") || "";
 
   const load = useCallback(async () => {
     if (!doctorId) return;
@@ -282,6 +286,13 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   }, [doctorId, getReviewQueue, api]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!doctorId) return;
+    if (source === "reply_proof") {
+      markOnboardingStep(doctorId, ONBOARDING_STEP.reply);
+    }
+  }, [doctorId, source]);
 
   function handleNavigate(item) {
     navigate(`/doctor/review/${item.record_id}`);
@@ -343,6 +354,27 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
       <SubpageHeader title="审核" />
 
       <Box sx={{ flex: 1, overflow: "auto" }}>
+        {source === "reply_proof" && (
+          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.25 }}>
+            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+              示例患者回复
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.45, lineHeight: 1.6 }}>
+              先看患者原始消息，再看 AI 起草的回复。你可以直接修改后发送。
+            </Typography>
+            <Box sx={{ mt: 1 }}>
+              <AppButton
+                variant="secondary"
+                size="md"
+                fullWidth
+                onClick={() => navigate("/doctor/settings/qr?onboarding=1")}
+              >
+                下一步：体验患者预问诊
+              </AppButton>
+            </Box>
+          </Box>
+        )}
+
         {/* Filter stat bar */}
         <FilterStatBar summary={summary} filter={filter} onFilter={handleFilter} />
 
@@ -393,13 +425,19 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
               borderBottom: `0.5px solid ${COLOR.border}`,
             }}>
               {activeDrafts.map((msg) => (
-                <ReplyCard
+                <Box
                   key={msg.id}
-                  item={msg}
-                  mode="pending"
-                  doctorId={doctorId}
-                  onSent={(item) => setConfirmItem(item)}
-                />
+                  sx={String(msg.id) === highlightDraftId
+                    ? { bgcolor: "#fffef5", borderLeft: `3px solid ${COLOR.primary}` }
+                    : undefined}
+                >
+                  <ReplyCard
+                    item={msg}
+                    mode="pending"
+                    doctorId={doctorId}
+                    onSent={(item) => setConfirmItem(item)}
+                  />
+                </Box>
               ))}
             </Box>
           </>

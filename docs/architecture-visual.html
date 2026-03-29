@@ -1461,7 +1461,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
         <tr class="row-purple">
           <td>Diagnosis confirmed</td>
           <td><code>run_diagnosis()</code></td>
-          <td>LLM generates differentials &rarr; saves to ai_suggestions &rarr; auto-creates tasks &rarr; logs KB citations</td>
+          <td>LLM generates differentials &rarr; saves to ai_suggestions &rarr; logs KB citations; follow-up tasks are created only after doctor review finalize</td>
           <td><span class="file-path" onclick="copyPath(this)">src/domain/diagnosis_pipeline.py</span></td>
         </tr>
         <tr class="row-orange">
@@ -1557,7 +1557,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
       <div class="pipeline-step">
         <div class="pipeline-dot pipeline-dot-gray">5</div>
         <div class="pipeline-label">Record</div>
-        <div class="pipeline-sublabel">+ review task</div>
+        <div class="pipeline-sublabel">+ review task / onboarding bridge</div>
       </div>
     </div>
 

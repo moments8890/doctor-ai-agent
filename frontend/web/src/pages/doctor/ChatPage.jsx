@@ -32,6 +32,8 @@ import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import BarButton from "../../components/BarButton";
 import SubpageHeader from "../../components/SubpageHeader";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import SheetDialog from "../../components/SheetDialog";
+import AppButton from "../../components/AppButton";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { TYPE, ICON } from "../../theme";
 
@@ -500,6 +502,48 @@ function ClearDialog({ open, onClear, onClose }) {
   );
 }
 
+function PatientEntrySheet({ open, entry, copying, onCopy, onPreview, onClose }) {
+  if (!entry) return null;
+  return (
+    <SheetDialog
+      open={open}
+      onClose={onClose}
+      title="已建档并生成入口"
+      desktopMaxWidth={380}
+      footer={(
+        <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+          <AppButton variant="secondary" size="md" fullWidth onClick={onCopy}>
+            {copying ? "已复制" : "复制"}
+          </AppButton>
+          <AppButton variant="primary" size="md" fullWidth onClick={onPreview}>
+            预览
+          </AppButton>
+        </Box>
+      )}
+    >
+      <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: "#333" }}>
+        {entry.patient_name}
+      </Typography>
+      <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#666", mt: 0.6, lineHeight: 1.6 }}>
+        已先完成患者建档，再生成可分享的预问诊入口。可以直接预览患者端，或复制链接发给患者。
+      </Typography>
+      <Box
+        sx={{
+          mt: 1.25,
+          p: 1.1,
+          bgcolor: "#f7f7f7",
+          borderRadius: "6px",
+          border: "0.5px solid #e5e5e5",
+        }}
+      >
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: "#666", lineHeight: 1.5, wordBreak: "break-all" }}>
+          {entry.portal_url}
+        </Typography>
+      </Box>
+    </SheetDialog>
+  );
+}
+
 function useChatEffects({ externalInput, onExternalInputConsumed, autoSendText, onAutoSendConsumed, setInput, sendText }) {
   const autoSentRef = useRef("");
   useEffect(() => {
@@ -552,7 +596,7 @@ function useDailySummary({ doctorId, sendText, ready }) {
 }
 
 export default function ChatPage({ doctorId, onMessageCountChange, externalInput, onExternalInputConsumed, onPatientCreated, autoSendText, onAutoSendConsumed, onContextCleared, onStartPatientInterview, onBack, hideHeader }) {
-  const { importToInterview, extractFileForChat, textToInterview } = useApi();
+  const { importToInterview, extractFileForChat, textToInterview, createOnboardingPatientEntry } = useApi();
   const navigate = useAppNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -569,6 +613,8 @@ export default function ChatPage({ doctorId, onMessageCountChange, externalInput
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
   const fileDocInputRef = useRef(null);
+  const [patientEntryInfo, setPatientEntryInfo] = useState(null);
+  const [patientEntryCopying, setPatientEntryCopying] = useState(false);
 
   const { input, setInput, loading, setLoading, failedText, setFailedText, messages, setMessages, bottomRef, onClear, sendText } =
     useChatState({ doctorId, onMessageCountChange, onPatientCreated, onStartPatientInterview, onContextCleared });
@@ -641,6 +687,37 @@ export default function ChatPage({ doctorId, onMessageCountChange, externalInput
     const text = input.trim();
     const cmd = QUICK_COMMANDS.find(c => c.key === activeChip?.key);
     if (activeChip && !cmd?.autoSend && !text && !cmd?.allowEmpty) return;
+    if (activeChip?.key === Action.START_PATIENT_ONBOARDING) {
+      if (!text || typeof createOnboardingPatientEntry !== "function") return;
+      setLoading(true);
+      setMessages((prev) => [...prev, { role: "user", content: text, ts: nowTs(), actionLabel: activeChip?.label || null }]);
+      setInput("");
+      setActiveChip(null);
+      createOnboardingPatientEntry(doctorId, { patientName: text })
+        .then((data) => {
+          const patientName = data.patient_name || text;
+          const previewPath = `/doctor/preview/${data.patient_id}?${new URLSearchParams({
+            patient_token: data.portal_token || "",
+            patient_name: patientName,
+          }).toString()}`;
+          setMessages((prev) => [...prev, {
+            role: "assistant",
+            content: `已为${patientName}建档，并生成预问诊入口。现在可以预览患者端，或复制链接发给患者。`,
+            ts: nowTs(),
+          }]);
+          setPatientEntryInfo({ ...data, previewPath });
+          onPatientCreated?.();
+        })
+        .catch((error) => {
+          setMessages((prev) => [...prev, {
+            role: "assistant",
+            content: error?.message || "患者建档失败，请稍后重试。",
+            ts: nowTs(),
+          }]);
+        })
+        .finally(() => setLoading(false));
+      return;
+    }
     sendText(text || activeChip?.label || "", activeChip?.key || null, activeChip?.label || null);
     setInput("");
     setActiveChip(null);
@@ -707,6 +784,27 @@ export default function ChatPage({ doctorId, onMessageCountChange, externalInput
         }}
         onChat={(text) => { setImportChoice(null); sendText(text); }}
         onClose={() => setImportChoice(null)} />
+      <PatientEntrySheet
+        open={!!patientEntryInfo}
+        entry={patientEntryInfo}
+        copying={patientEntryCopying}
+        onCopy={async () => {
+          if (!patientEntryInfo?.portal_url) return;
+          try {
+            await navigator.clipboard.writeText(patientEntryInfo.portal_url);
+            setPatientEntryCopying(true);
+            setTimeout(() => setPatientEntryCopying(false), 1800);
+          } catch {
+            setPatientEntryCopying(false);
+          }
+        }}
+        onPreview={() => {
+          if (!patientEntryInfo?.previewPath) return;
+          setPatientEntryInfo(null);
+          navigate(patientEntryInfo.previewPath);
+        }}
+        onClose={() => setPatientEntryInfo(null)}
+      />
     </Box>
   );
 }

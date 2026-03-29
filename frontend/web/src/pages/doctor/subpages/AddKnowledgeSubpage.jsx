@@ -5,7 +5,7 @@
  *   1. Text input — type content directly, saved with addKnowledgeItem()
  *   2. File upload — extract text from PDF/DOCX/TXT, preview & edit, then save
  */
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Alert, Box, CircularProgress, TextField, Typography } from "@mui/material";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
@@ -19,9 +19,19 @@ import SheetDialog from "../../../components/SheetDialog";
 import VoiceInput, { isVoiceSupported } from "../../../components/VoiceInput";
 import { useApi } from "../../../api/ApiContext";
 import { TYPE, COLOR } from "../../../theme";
+import { useAppNavigate } from "../../../hooks/useAppNavigate";
+import { markOnboardingStep, ONBOARDING_STEP, ONBOARDING_EXAMPLES } from "../constants";
+
+const PREFILL_URL = "https://example.com/neurosurgery/post-op-headache-followup";
+const PREFILL_TEXT = "术后头痛加重伴恶心呕吐时，优先排除迟发性颅内血肿或脑水肿，并尽快安排头颅CT。";
+const PREFILL_FILE_NAME = "示例术后头痛处理单.jpg";
+const PREFILL_FILE_TEXT = "术后头痛处理单\n\n开颅术后若出现头痛加重、恶心呕吐、肢体无力或意识改变，需优先排除迟发性颅内血肿、脑水肿或感染。建议尽快完成头颅CT，并结合生命体征与神经系统查体评估。";
 
 export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
-  const { addKnowledgeItem, uploadKnowledgeExtract, uploadKnowledgeSave, processKnowledgeText, fetchKnowledgeUrl } = useApi();
+  const api = useApi();
+  const { addKnowledgeItem, uploadKnowledgeExtract, uploadKnowledgeSave, processKnowledgeText, fetchKnowledgeUrl } = api;
+  const navigate = useAppNavigate();
+  const onboardingMode = new URLSearchParams(window.location.search).get("onboarding") === "1";
 
   // ── Text input state ──
   const [content, setContent] = useState("");
@@ -40,6 +50,9 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
   const [showVoice, setShowVoice] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+  const [nextStepOpen, setNextStepOpen] = useState(false);
+  const [savedRuleTitle, setSavedRuleTitle] = useState("");
+  const [routingProof, setRoutingProof] = useState(false);
 
   // ── URL fetch state ──
   const [urlInput, setUrlInput] = useState("");
@@ -57,6 +70,31 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
   const [processedText, setProcessedText] = useState("");
   const [editedProcessedText, setEditedProcessedText] = useState("");
   const [textLlmProcessed, setTextLlmProcessed] = useState(false);
+
+  useEffect(() => {
+    if (!onboardingMode) return;
+    setUrlInput((prev) => prev || PREFILL_URL);
+    setContent((prev) => prev || PREFILL_TEXT);
+  }, [onboardingMode]);
+
+  function deriveRuleTitle(text) {
+    const firstLine = (text || "").split("\n").find((line) => line.trim()) || "新规则";
+    return firstLine.trim().slice(0, 18);
+  }
+
+  function handleKnowledgeSaved(text) {
+    const title = deriveRuleTitle(text);
+    markOnboardingStep(doctorId, ONBOARDING_STEP.knowledge, {
+      lastSavedRuleTitle: title,
+      lastSavedRuleAt: new Date().toISOString(),
+    });
+    if (onboardingMode) {
+      setSavedRuleTitle(title);
+      setNextStepOpen(true);
+      return;
+    }
+    onBack();
+  }
 
   // ── Text input submit ──
   async function handleAdd() {
@@ -86,7 +124,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     setError("");
     try {
       await addKnowledgeItem(doctorId, trimmed);
-      onBack();
+      handleKnowledgeSaved(trimmed);
     } catch (e) {
       setError(e.message || "添加失败");
     } finally {
@@ -150,7 +188,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
       await uploadKnowledgeSave(doctorId, trimmed, isUrl ? "url" : sourceFilename, isUrl ? { sourceUrl: sourceFilename } : {});
       setPreviewOpen(false);
       showToast("已保存到知识库");
-      setTimeout(() => onBack(), 600);
+      setTimeout(() => handleKnowledgeSaved(trimmed), 600);
     } catch (e) {
       setError(e.message || "保存失败");
     } finally {
@@ -180,7 +218,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
       await addKnowledgeItem(doctorId, trimmed);
       setTextPreviewOpen(false);
       showToast("已保存到知识库");
-      setTimeout(() => onBack(), 600);
+      setTimeout(() => handleKnowledgeSaved(trimmed), 600);
     } catch (e) {
       setError(e.message || "保存失败");
     } finally {
@@ -193,6 +231,53 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     setProcessedText("");
     setEditedProcessedText("");
     setTextLlmProcessed(false);
+  }
+
+  async function handleOpenDiagnosisProof() {
+    if (routingProof) return;
+    setRoutingProof(true);
+    try {
+      const queue = await (api.getReviewQueue || (() => Promise.resolve({ pending: [] })))(doctorId);
+      const preferredRule = savedRuleTitle || "";
+      const item = (queue?.pending || []).find((row) => row.rule_cited === preferredRule)
+        || (queue?.pending || []).find((row) => ONBOARDING_EXAMPLES.ruleTitles.includes(row.rule_cited))
+        || (queue?.pending || []).find((row) => ONBOARDING_EXAMPLES.diagnosisPatientNames.includes(row.patient_name))
+        || (queue?.pending || []).find((row) => row.rule_cited)
+        || (queue?.pending || [])[0];
+      setNextStepOpen(false);
+      if (item?.record_id) {
+        navigate(`/doctor/review/${item.record_id}?source=knowledge_proof&highlight_record=${item.record_id}`);
+      } else {
+        navigate("/doctor/review?tab=pending&source=knowledge_proof");
+      }
+    } finally {
+      setRoutingProof(false);
+    }
+  }
+
+  async function handleOpenReplyProof() {
+    if (routingProof) return;
+    setRoutingProof(true);
+    try {
+      const drafts = await (api.fetchDrafts || (() => Promise.resolve({ pending_messages: [] })))(doctorId, { includeSent: true });
+      const items = Array.isArray(drafts) ? drafts : (drafts?.pending_messages || []);
+      const activeDrafts = items.filter((row) => row.status !== "sent");
+      const preferredRule = savedRuleTitle || "";
+      const item = activeDrafts.find((row) => row.rule_cited === preferredRule)
+        || activeDrafts.find((row) => (row.cited_rules || []).some((rule) => rule.title === preferredRule))
+        || activeDrafts.find((row) => ONBOARDING_EXAMPLES.ruleTitles.includes(row.rule_cited))
+        || activeDrafts.find((row) => ONBOARDING_EXAMPLES.replyPatientNames.includes(row.patient_name))
+        || activeDrafts.find((row) => row.draft_text)
+        || activeDrafts[0];
+      setNextStepOpen(false);
+      if (item?.id) {
+        navigate(`/doctor/review?tab=replies&source=reply_proof&highlight_draft=${item.id}`);
+      } else {
+        navigate("/doctor/review?tab=replies&source=reply_proof");
+      }
+    } finally {
+      setRoutingProof(false);
+    }
   }
 
   const formContent = (
@@ -257,6 +342,20 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
             拍照
           </AppButton>
         </Box>
+        {onboardingMode && (
+          <Typography
+            onClick={() => {
+              setSourceFilename(PREFILL_FILE_NAME);
+              setExtractedText(PREFILL_FILE_TEXT);
+              setEditedText(PREFILL_FILE_TEXT);
+              setLlmProcessed(true);
+              setPreviewOpen(true);
+            }}
+            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, mt: 0.8, cursor: "pointer" }}
+          >
+            使用示例文件内容 ›
+          </Typography>
+        )}
       </Box>
 
       {/* URL fetch section */}
@@ -516,6 +615,34 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
           {toast}
         </Box>
       )}
+
+      <SheetDialog
+        open={nextStepOpen}
+        onClose={() => setNextStepOpen(false)}
+        title="已保存到知识库"
+        desktopMaxWidth={400}
+        footer={
+          <Box sx={{ display: "grid", gap: 0.75, gridTemplateColumns: "1fr" }}>
+            <AppButton variant="primary" size="md" fullWidth onClick={handleOpenDiagnosisProof} disabled={routingProof}>
+              看诊断示例
+            </AppButton>
+            <AppButton variant="secondary" size="md" fullWidth onClick={handleOpenReplyProof} disabled={routingProof}>
+              看回复示例
+            </AppButton>
+            <AppButton variant="secondary" size="md" fullWidth onClick={() => navigate("/doctor")}>
+              返回我的AI
+            </AppButton>
+          </Box>
+        }
+      >
+        <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+          {savedRuleTitle || "新规则"}
+        </Typography>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.6, lineHeight: 1.6 }}>
+          接下来直接看两个确定会出现的场景：一个诊断审核示例，一个患者回复示例。
+          医生第一次上手时不需要自己猜下一步。
+        </Typography>
+      </SheetDialog>
     </>
   );
 }

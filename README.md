@@ -54,12 +54,13 @@ export TENCENT_LKEAP_API_KEY="<your_tencent_lkeap_key>"
 
 3. Validate behavior
 ```bash
-bash scripts/test.sh integration
+cd frontend/web && npm run build
+bash scripts/test.sh integration-full
 
-# E2E chatlog replay targets port 8001 (not the default 8000 dev server).
-# Start a dedicated backend instance on 8001 first:
+# Benchmark / chatlog gates need local dataset files under e2e/fixtures/data/
+# plus a dedicated backend instance on 8001.
 ./cli.py start --port 8001 --no-frontend &
-bash scripts/test.sh chatlog-half
+bash scripts/test.sh hero-loop
 ```
 
 Current MVP policy: skip unit tests during normal development unless you are
@@ -76,14 +77,17 @@ python scripts/seed_db.py --reset --import
 ## Common Validation Modes
 
 - `unit`
-- `integration`
 - `integration-full`
 - `chatlog-half`
 - `chatlog-full`
+- `hero-loop`
 - `all`
 
 `unit` still exists, but it is not the default development gate in the current
 MVP phase.
+`integration` is a stale legacy wrapper and should not be used in fresh clones.
+`chatlog-*` and `hero-loop` require local benchmark fixtures under
+`e2e/fixtures/data/`.
 
 ## Source of Truth — 5 Canonical Entrypoints
 
@@ -148,8 +152,13 @@ Open in browser for draggable diagrams, hover tooltips, and filter controls.
 
 3. 验证行为
 ```bash
-bash scripts/test.sh integration
-bash scripts/test.sh chatlog-half
+cd frontend/web && npm run build
+bash scripts/test.sh integration-full
+
+# Benchmark / chatlog 门槛依赖 e2e/fixtures/data/ 下的本地数据集，
+# 并且需要单独的 8001 测试服务。
+./cli.py start --port 8001 --no-frontend &
+bash scripts/test.sh hero-loop
 ```
 
 当前 MVP 阶段默认跳过单元测试；只有在明确做测试工作时才运行或修改单元测试。
@@ -165,13 +174,15 @@ python scripts/seed_db.py --reset --import
 ## 常用验证模式
 
 - `unit`
-- `integration`
 - `integration-full`
 - `chatlog-half`
 - `chatlog-full`
+- `hero-loop`
 - `all`
 
 `unit` 仍然可用，但在当前 MVP 阶段不作为默认开发门槛。
+`integration` 现在是遗留包装器，新的 clone 不要再用。
+`chatlog-*` 和 `hero-loop` 依赖 `e2e/fixtures/data/` 下的本地基准数据集。
 
 ## 权威文档 — 5 个入口
 

@@ -100,6 +100,7 @@ let draftMessages = INITIAL_DRAFT_MESSAGES.map((draft) => ({
   cited_rules: [...(draft.cited_rules || [])],
 }));
 let nextMockMessageId = 900;
+let previewSessions = {};
 
 // ── Read operations ──
 
@@ -338,6 +339,35 @@ export async function updateDoctorProfile(doctorId, data) {
   return { ...data };
 }
 
+export async function createOnboardingPatientEntry(_doctorId, { patientName, gender, age } = {}) {
+  const trimmedName = (patientName || "").trim();
+  if (!trimmedName) throw new Error("patient_name is required");
+  let patient = patients.find((item) => item.name === trimmedName);
+  let created = false;
+  if (!patient) {
+    patient = {
+      id: Math.max(0, ...patients.map((p) => Number(p.id) || 0)) + 1,
+      name: trimmedName,
+      gender: gender || null,
+      year_of_birth: age ? new Date().getFullYear() - age : null,
+      created_at: new Date().toISOString(),
+      last_activity_at: null,
+      record_count: 0,
+    };
+    patients = [patient, ...patients];
+    created = true;
+  }
+  return {
+    status: "ok",
+    patient_id: patient.id,
+    patient_name: patient.name,
+    created,
+    portal_token: `mock-patient-${patient.id}`,
+    portal_url: `http://localhost:5173/patient?token=mock-patient-${patient.id}`,
+    expires_in_days: 30,
+  };
+}
+
 // ── Complex flows (canned responses) ──
 
 export async function sendChat(payload) {
@@ -422,6 +452,169 @@ export async function doctorInterviewCancel() {
   return {};
 }
 
+export async function interviewStart(token) {
+  const patientId = Number(String(token || "").split("-").pop()) || 1;
+  const patient = patients.find((item) => Number(item.id) === patientId);
+  const sessionId = `preview-${patientId}`;
+  previewSessions[sessionId] = {
+    patientId,
+    patientName: patient?.name || "患者",
+    turn: 0,
+    collected: {},
+  };
+  return {
+    session_id: sessionId,
+    reply: `您好，我是医生的AI助手。请先说说${patient?.name || "患者"}这次最不舒服的症状。`,
+    collected: {},
+    progress: { filled: 0, total: 7 },
+    status: "interviewing",
+    resumed: false,
+  };
+}
+
+export async function interviewTurn(_token, sessionId, text) {
+  const session = previewSessions[sessionId] || {
+    patientId: 1,
+    patientName: "患者",
+    turn: 0,
+    collected: {},
+  };
+  const nextTurn = session.turn + 1;
+  let reply = "我已经记录下来，请继续补充。";
+  let suggestions = [];
+  let progress = { filled: Math.min(nextTurn * 2, 7), total: 7 };
+  let status = "interviewing";
+  let collected = { ...(session.collected || {}) };
+
+  if (nextTurn === 1) {
+    collected = {
+      ...collected,
+      chief_complaint: text || "术后头痛伴恶心",
+      present_illness: "头痛逐渐加重，伴间断恶心呕吐。",
+    };
+    reply = "头痛持续多久了？有没有呕吐、肢体无力或说话含糊？";
+    suggestions = ["伴恶心呕吐", "无肢体无力", "今天加重"];
+    progress = { filled: 2, total: 7 };
+  } else if (nextTurn === 2) {
+    collected = {
+      ...collected,
+      past_history: "近期有开颅手术史。",
+      allergy_history: "否认明确药物过敏。",
+      family_history: "无特殊。",
+    };
+    reply = "既往做过什么手术？平时有高血压、糖尿病或长期用药吗？";
+    suggestions = ["术后第7天", "平时血压偏高", "无糖尿病"];
+    progress = { filled: 5, total: 7 };
+  } else {
+    collected = {
+      ...collected,
+      personal_history: "无吸烟饮酒嗜好。",
+      marital_reproductive: "已婚。",
+    };
+    reply = "好的，我已整理完主要信息。请确认后提交给医生审核。";
+    progress = { filled: 7, total: 7 };
+    status = "reviewing";
+  }
+
+  previewSessions[sessionId] = {
+    ...session,
+    turn: nextTurn,
+    collected,
+  };
+
+  return {
+    reply,
+    collected,
+    progress,
+    status,
+    suggestions,
+    missing_fields: [],
+    complete: status === "reviewing",
+  };
+}
+
+export async function interviewConfirm(token, sessionId) {
+  const patientId = Number(String(token || "").split("-").pop()) || 1;
+  const patient = patients.find((item) => Number(item.id) === patientId) || patients[0];
+  const session = previewSessions[sessionId] || {};
+  const recordId = Math.max(0, ...records.map((r) => Number(r.id) || 0)) + 1;
+  const reviewId = Math.max(0, ...tasks.map((t) => Number(t.id) || 0)) + 1;
+  const createdAt = new Date().toISOString();
+  const chiefComplaint = session.collected?.chief_complaint || "术后头痛伴恶心";
+  records = [
+    {
+      id: recordId,
+      patient_id: patient.id,
+      patient_name: patient.name,
+      record_type: "interview_summary",
+      status: "pending_review",
+      created_at: createdAt,
+      chief_complaint: chiefComplaint,
+      structured: {
+        chief_complaint: chiefComplaint,
+        present_illness: session.collected?.present_illness || "头痛逐渐加重，伴恶心呕吐。",
+        past_history: session.collected?.past_history || "近期有开颅手术史。",
+        allergy_history: session.collected?.allergy_history || "否认明确药物过敏。",
+        family_history: session.collected?.family_history || "无特殊。",
+        personal_history: session.collected?.personal_history || "无吸烟饮酒嗜好。",
+        marital_reproductive: session.collected?.marital_reproductive || "已婚。",
+      },
+      content: `主诉：${chiefComplaint}\n现病史：${session.collected?.present_illness || "头痛逐渐加重，伴恶心呕吐。"}`,
+    },
+    ...records,
+  ];
+  tasks = [
+    {
+      id: reviewId,
+      doctor_id: "mock_doctor",
+      patient_id: patient.id,
+      record_id: recordId,
+      task_type: "review",
+      title: `审阅患者【${patient.name}】预问诊记录`,
+      content: "患者已完成预问诊，请审阅病历记录。",
+      status: "pending",
+      due_at: null,
+      created_at: createdAt,
+      target: "doctor",
+    },
+    ...tasks,
+  ];
+  suggestions = [
+    {
+      id: Math.max(0, ...suggestions.map((s) => Number(s.id) || 0)) + 1,
+      record_id: recordId,
+      section: "differential",
+      content: "术后颅内血肿或脑水肿",
+      detail: "患者预问诊提示术后头痛加重伴恶心呕吐，需尽快排除术后并发症。",
+      confidence: "高",
+      urgency: "urgent",
+      decision: null,
+      cited_knowledge_ids: [7],
+    },
+    {
+      id: Math.max(0, ...suggestions.map((s) => Number(s.id) || 0)) + 2,
+      record_id: recordId,
+      section: "workup",
+      content: "尽快完成头颅CT平扫",
+      detail: "必要时结合生命体征和神经系统查体。",
+      urgency: "urgent",
+      decision: null,
+      cited_knowledge_ids: [7],
+    },
+    ...suggestions,
+  ];
+  return {
+    status: "confirmed",
+    record_id: recordId,
+    review_id: reviewId,
+    message: "您的预问诊信息已提交给医生，请等待医生审阅。",
+  };
+}
+
+export async function interviewCancel() {
+  return { status: "abandoned" };
+}
+
 export async function confirmCarryForward() {
   return {};
 }
@@ -434,8 +627,61 @@ export async function triggerDiagnosis() {
   return { status: "pending" };
 }
 
-export async function finalizeReview() {
-  return { status: "reviewed" };
+export async function finalizeReview(recordId) {
+  const record = records.find((item) => Number(item.id) === Number(recordId));
+  const patientId = record?.patient_id || 1;
+  const patientName = patients.find((item) => Number(item.id) === Number(patientId))?.name || "患者";
+  records = records.map((item) => (
+    Number(item.id) === Number(recordId) ? { ...item, status: "completed" } : item
+  ));
+  const existingIds = tasks
+    .filter((task) => Number(task.record_id) === Number(recordId) && task.task_type !== "review" && task.status === "pending")
+    .map((task) => task.id);
+  if (existingIds.length > 0) {
+    return {
+      status: "completed",
+      record_id: Number(recordId),
+      follow_up_task_ids: existingIds,
+      follow_up_task_count: existingIds.length,
+    };
+  }
+  const firstId = Math.max(0, ...tasks.map((t) => Number(t.id) || 0)) + 1;
+  const createdAt = new Date().toISOString();
+  const newTasks = [
+    {
+      id: firstId,
+      doctor_id: "mock_doctor",
+      patient_id: patientId,
+      record_id: Number(recordId),
+      task_type: "follow_up",
+      title: `${patientName} 3天内复查症状变化`,
+      content: "观察头痛、恶心是否继续加重。",
+      status: "pending",
+      due_at: "2026-03-30T09:00:00",
+      created_at: createdAt,
+      target: "doctor",
+    },
+    {
+      id: firstId + 1,
+      doctor_id: "mock_doctor",
+      patient_id: patientId,
+      record_id: Number(recordId),
+      task_type: "checkup",
+      title: `${patientName} 预约头颅CT复查`,
+      content: "结合复诊情况安排影像复查。",
+      status: "pending",
+      due_at: "2026-03-31T09:00:00",
+      created_at: createdAt,
+      target: "doctor",
+    },
+  ];
+  tasks = [...newTasks, ...tasks];
+  return {
+    status: "completed",
+    record_id: Number(recordId),
+    follow_up_task_ids: newTasks.map((item) => item.id),
+    follow_up_task_count: newTasks.length,
+  };
 }
 
 export async function clearContext() {
