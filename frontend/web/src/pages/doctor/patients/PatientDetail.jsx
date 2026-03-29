@@ -479,7 +479,7 @@ function PatientChatPage({ patientId, doctorId }) {
 
           {/* Full thread */}
           {expanded && (
-            <Box sx={{ px: 2, pb: 1, maxHeight: 300, overflowY: "auto" }}>
+            <Box sx={{ mx: 1.5, mb: 1, px: 1, pb: 0.5, maxHeight: 300, overflowY: "auto", bgcolor: "#f0faf4", borderRadius: "8px", border: `0.5px solid ${COLOR.primaryLight || "#d4edda"}` }}>
               {messages.map(m => {
                 const label = m.source === "patient" ? "患者" : (m.source === "doctor" ? "医生" : "AI");
                 const labelColor = m.source === "patient" ? COLOR.accent : (m.source === "doctor" ? COLOR.success : COLOR.text4);
