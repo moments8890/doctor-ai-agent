@@ -1225,9 +1225,10 @@ function renderHealth() {
     html += healthMetricCard('Overall', overall.toUpperCase(), overall === 'ok' ? 'val-green' : 'val-red', '');
 
     Object.entries(checks).forEach(([k, v]) => {
-      const st = typeof v === 'object' ? (v.status || 'unknown') : String(v);
+      const isOk = typeof v === 'object' ? v.ok : v;
+      const st = isOk === true ? 'ok' : isOk === false ? 'error' : String(v.status || v || 'unknown');
       const cls = st === 'ok' ? 'val-green' : st === 'warn' ? 'val-yellow' : 'val-red';
-      html += healthMetricCard(k, st.toUpperCase(), cls, '');
+      html += healthMetricCard(k, st.toUpperCase(), cls, v.error || '');
     });
   } else {
     html += healthMetricCard('Status', 'N/A', 'val-gray', 'Could not reach /healthz');
@@ -1240,9 +1241,9 @@ function renderHealth() {
     html += '<div class="section-header">Latency (recent requests)</div>';
     html += '<div class="health-grid">';
     const s = obs.summary;
-    html += healthMetricCard('p50', s.p50 != null ? `${Math.round(s.p50)}ms` : '—', latencyClass(s.p50), '');
-    html += healthMetricCard('p95', s.p95 != null ? `${Math.round(s.p95)}ms` : '—', latencyClass(s.p95), '');
-    html += healthMetricCard('p99', s.p99 != null ? `${Math.round(s.p99)}ms` : '—', latencyClass(s.p99), '');
+    html += healthMetricCard('p50', s.p50_ms != null ? `${Math.round(s.p50_ms)}ms` : '—', latencyClass(s.p50_ms), '');
+    html += healthMetricCard('p95', s.p95_ms != null ? `${Math.round(s.p95_ms)}ms` : '—', latencyClass(s.p95_ms), '');
+    html += healthMetricCard('p99', s.p99_ms != null ? `${Math.round(s.p99_ms)}ms` : '—', latencyClass(s.p99_ms), '');
     html += healthMetricCard('Count', s.count != null ? String(s.count) : '0', 'val-blue', 'requests measured');
     html += '</div>';
   }
