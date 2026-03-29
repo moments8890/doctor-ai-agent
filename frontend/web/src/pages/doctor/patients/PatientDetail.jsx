@@ -451,19 +451,19 @@ function PatientChatPage({ patientId, doctorId }) {
 
       {!loading && (hasMessages || hasDrafts) && (
         <>
-          {/* Message timeline */}
-          {hasMessages && expanded && (
+          {/* Message timeline with inline draft */}
+          {expanded && (
             <Box sx={{ px: 2, mb: 0.5 }}>
-              <MessageTimeline messages={messages} maxHeight={300} />
-            </Box>
-          )}
-
-          {/* Draft reply cards — outside green box */}
-          {hasDrafts && (
-            <Box sx={{ mx: 1.5, mb: 0.5 }}>
-              {drafts.map(d => (
-                <ReplyCard key={d.id} item={d} mode="inline" doctorId={doctorId} onSent={handleDraftSent} />
-              ))}
+              <MessageTimeline
+                messages={hasMessages ? messages : []}
+                maxHeight={300}
+                draft={drafts[0] ? {
+                  text: drafts[0].draft_text || drafts[0].content || "",
+                  rule_cited: drafts[0].rule_cited || (drafts[0].cited_rules?.[0]?.title) || null,
+                  onEdit: () => navigate(`/doctor/review?tab=replies`),
+                  onSend: () => handleDraftSent?.(drafts[0]),
+                } : undefined}
+              />
             </Box>
           )}
 

@@ -61,7 +61,13 @@ function TimelineNode({ m, isLast }) {
   );
 }
 
-export default function MessageTimeline({ messages, maxHeight, defaultExpanded = false }) {
+/**
+ * Props:
+ *  - messages: [{ id, source, content, created_at }]
+ *  - draft: { text, rule_cited, onEdit, onSend } (optional — renders as last timeline node)
+ *  - maxHeight, defaultExpanded
+ */
+export default function MessageTimeline({ messages, draft, maxHeight, defaultExpanded = false }) {
   const [showAll, setShowAll] = useState(defaultExpanded);
 
   if (!messages || messages.length === 0) return null;
@@ -111,8 +117,49 @@ export default function MessageTimeline({ messages, maxHeight, defaultExpanded =
 
         {/* Message nodes */}
         {visibleMessages.map((m, i) => (
-          <TimelineNode key={m.id || i} m={m} isLast={i === visibleMessages.length - 1} />
+          <TimelineNode key={m.id || i} m={m} isLast={!draft && i === visibleMessages.length - 1} />
         ))}
+
+        {/* AI draft node — green outline dot */}
+        {draft && (
+          <Box sx={{ position: "relative", pb: 0.5 }}>
+            <Box sx={{
+              position: "absolute", left: -20, top: 3,
+              width: 8, height: 8, borderRadius: "50%",
+              border: `2px solid ${COLOR.primary}`, bgcolor: "#fff",
+            }} />
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 600 }}>
+              AI起草回复 · 待发送
+            </Typography>
+            <Typography sx={{
+              fontSize: TYPE.secondary.fontSize, color: COLOR.text1,
+              lineHeight: 1.6, mt: 0.3, pl: 1,
+            }}>
+              {draft.text}
+            </Typography>
+            {draft.rule_cited && (
+              <Box sx={{
+                display: "inline-block", mt: 0.5, ml: 1, px: 1, py: 0.2,
+                bgcolor: "#e8f5e9", borderRadius: "4px",
+                fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500,
+              }}>
+                引用: {draft.rule_cited}
+              </Box>
+            )}
+            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 0.5 }}>
+              {draft.onEdit && (
+                <Typography onClick={draft.onEdit} sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
+                  修改
+                </Typography>
+              )}
+              {draft.onSend && (
+                <Typography onClick={draft.onSend} sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
+                  发送 ›
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        )}
       </Box>
     </Box>
   );
