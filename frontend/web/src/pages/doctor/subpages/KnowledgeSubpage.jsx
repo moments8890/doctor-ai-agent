@@ -12,6 +12,7 @@ import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import { TYPE, COLOR } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import ListCard from "../../../components/ListCard";
+import KnowledgeCard from "../../../components/KnowledgeCard";
 import EmptyState from "../../../components/EmptyState";
 import AppButton from "../../../components/AppButton";
 import IconBadge from "../../../components/IconBadge";
@@ -92,18 +93,15 @@ function KnowledgeRow({ item, onClick }) {
   const title = item.title && item.title.length <= 25 ? item.title : extractShortTitle(rawText);
   const summary = item.summary || (rawText.startsWith(title) ? rawText.slice(title.length).replace(/^[：:\s]+/, "").slice(0, 50) : rawText.slice(0, 50));
   const usageCount = item._usageCount || item.reference_count || 0;
-
-  const subtitleParts = [];
-  if (usageCount > 0) subtitleParts.push(`引用${usageCount}次`);
-  if (summary) subtitleParts.push(summary);
-  const subtitle = subtitleParts.join(" · ");
+  const date = item.created_at ? formatRelativeDate(item.created_at) : "";
 
   return (
-    <ListCard
-      avatar={<IconBadge config={ICON_BADGES.kb_doctor} />}
+    <KnowledgeCard
       title={title || "untitled"}
-      subtitle={subtitle}
-      chevron
+      summary={summary}
+      referenceCount={usageCount}
+      source={item.source}
+      date={date}
       onClick={onClick}
     />
   );
