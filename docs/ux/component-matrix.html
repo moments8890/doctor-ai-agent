@@ -144,11 +144,16 @@ th.page-col:hover { color: #07C160; }
 .detail.show { display: flex; flex-direction: row-reverse; gap: 24px; align-items: flex-start; }
 .detail-header { flex: 1; min-width: 200px; }
 .detail h3 { font-size: 16px; margin-bottom: 10px; }
-.detail .comp-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.detail .comp-list { display: flex; flex-direction: column; gap: 0; }
 .detail .comp-tag {
-  font-size: 11px; padding: 3px 10px; border-radius: 12px;
-  background: #ddf4ff; color: #0969da; font-weight: 500;
+  font-size: 12px; padding: 8px 12px;
+  background: #fff; color: #0969da; font-weight: 500;
+  border-left: 3px solid #0969da;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
 }
+.detail .comp-tag:hover { background: #f6f8fa; }
+.detail .comp-tag:last-child { border-bottom: none; }
 .detail-screenshot {
   flex-shrink: 0;
   width: 200px;
