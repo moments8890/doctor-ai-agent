@@ -21,6 +21,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExportSelectorDialog from "../../../components/ExportSelectorDialog";
 import ConfirmDialog from "../../../components/ConfirmDialog";
+import ReplyCard from "../../../components/doctor/ReplyCard";
 import { TYPE, ICON, COLOR } from "../../../theme";
 
 /* ── helpers ── */
@@ -346,165 +347,7 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
   return { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, load, handleDelete, handleExportPdf, handleExportReport };
 }
 
-/* ── DraftReplyCard ── */
-
-function DraftReplyCard({ draft, doctorId, onSent }) {
-  const { editDraft, sendDraft } = useApi();
-  const navigate = useAppNavigate();
-  const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState(draft.draft_text || "");
-  const [saving, setSaving] = useState(false);
-  const [sendingDraft, setSendingDraft] = useState(false);
-  const textareaRef = useRef(null);
-
-  const handleStartEdit = () => {
-    setEditText(draft.draft_text || "");
-    setEditing(true);
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-        textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
-      }
-    }, 0);
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await editDraft(draft.id, doctorId, editText);
-      draft.draft_text = editText;
-      setEditing(false);
-    } catch {} finally { setSaving(false); }
-  };
-
-  const handleCancel = () => {
-    setEditText(draft.draft_text || "");
-    setEditing(false);
-  };
-
-  const handleSend = async () => {
-    setSendingDraft(true);
-    try {
-      await sendDraft(draft.id, doctorId);
-      onSent?.(draft.id);
-    } catch {} finally { setSendingDraft(false); }
-  };
-
-  // No-draft notice (AI couldn't generate)
-  if (!draft.draft_text && draft.status === "no_draft") {
-    return (
-      <Box sx={{ mx: 2, mb: 1.2 }}>
-        {/* Patient message context */}
-        {draft.patient_message && (
-          <Box sx={{ bgcolor: COLOR.surface, borderRadius: "6px", px: 1.5, py: 1, mb: 0.8, fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5 }}>
-            {draft.patient_message}
-          </Box>
-        )}
-        <Box sx={{ bgcolor: "#fff8e1", border: "0.5px solid #ffcc02", borderRadius: "6px", px: 1.5, py: 1.2 }}>
-          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#b28704", fontWeight: 500 }}>
-            AI未找到可引用的知识条目，无法起草回复
-          </Typography>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.3 }}>
-            请手动回复此消息，或添加相关知识条目后重新生成
-          </Typography>
-        </Box>
-      </Box>
-    );
-  }
-
-  return (
-    <Box sx={{ mx: 2, mb: 1.2 }}>
-      {/* Patient message context */}
-      {draft.patient_message && (
-        <Box sx={{ bgcolor: COLOR.surface, borderRadius: "6px", px: 1.5, py: 1, mb: 0.8, fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5 }}>
-          {draft.patient_message}
-        </Box>
-      )}
-
-      {/* AI draft card */}
-      <Box sx={{ bgcolor: COLOR.white, border: `0.5px solid ${COLOR.border}`, borderRadius: "6px", px: 1.5, py: 1.2 }}>
-        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>
-          AI按你的话术起草
-        </Typography>
-
-        {editing ? (
-          <Box
-            component="textarea"
-            ref={textareaRef}
-            value={editText}
-            onChange={(e) => {
-              setEditText(e.target.value);
-              const ta = e.target;
-              ta.style.height = "auto";
-              ta.style.height = ta.scrollHeight + "px";
-            }}
-            onFocus={(e) => {
-              const ta = e.target;
-              ta.style.height = "auto";
-              ta.style.height = ta.scrollHeight + "px";
-            }}
-            sx={{
-              width: "100%", minHeight: 100,
-              border: `1px solid ${COLOR.border}`, borderRadius: "4px",
-              p: 1, fontSize: TYPE.secondary.fontSize, color: COLOR.text2,
-              lineHeight: 1.5, resize: "vertical", fontFamily: "inherit",
-              outline: "none", overflow: "hidden",
-              "&:focus": { borderColor: COLOR.primary },
-            }}
-          />
-        ) : (
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5, whiteSpace: "pre-line" }}>
-            {draft.draft_text}
-          </Typography>
-        )}
-
-        {/* Citation tags */}
-        {draft.cited_rules?.length > 0 && !editing && (
-          <Box sx={{ mt: 0.8, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-            {draft.cited_rules.map((rule) => (
-              <Box key={rule.id} component="span"
-                onClick={() => navigate(`/doctor/settings/knowledge/${rule.id}`)}
-                sx={{
-                  fontSize: 11, color: COLOR.primary, bgcolor: "#e8f5e9",
-                  px: 1, py: 0.3, borderRadius: "4px", cursor: "pointer",
-                  "&:hover": { bgcolor: "#c8e6c9" },
-                }}>
-                引用: {rule.title}
-              </Box>
-            ))}
-          </Box>
-        )}
-
-        {/* Action row */}
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 0.8 }}>
-          {editing ? (
-            <>
-              <Typography onClick={handleCancel}
-                sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer", userSelect: "none", "&:active": { opacity: 0.5 } }}>
-                取消
-              </Typography>
-              <Typography onClick={!saving ? handleSave : undefined}
-                sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: saving ? "default" : "pointer", userSelect: "none", opacity: saving ? 0.5 : 1, "&:active": saving ? {} : { opacity: 0.5 } }}>
-                {saving ? "保存中..." : "保存"}
-              </Typography>
-            </>
-          ) : (
-            <>
-              <Typography onClick={handleStartEdit}
-                sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.accent, cursor: "pointer", userSelect: "none", "&:active": { opacity: 0.5 } }}>
-                修改
-              </Typography>
-              <Typography onClick={!sendingDraft ? handleSend : undefined}
-                sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: sendingDraft ? "default" : "pointer", userSelect: "none", opacity: sendingDraft ? 0.5 : 1, "&:active": sendingDraft ? {} : { opacity: 0.5 } }}>
-                {sendingDraft ? "发送中..." : "发送 ›"}
-              </Typography>
-            </>
-          )}
-        </Box>
-      </Box>
-    </Box>
-  );
-}
+/* ── DraftReplyCard — now delegates to ReplyCard ── */
 
 /* ── PatientChatPage ── */
 
@@ -512,7 +355,7 @@ function PatientChatPage({ patientId, doctorId }) {
   const { getPatientChat, replyToPatient, fetchDrafts } = useApi();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(() => new URLSearchParams(window.location.search).get("expand") === "messages");
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [drafts, setDrafts] = useState([]);
@@ -535,7 +378,7 @@ function PatientChatPage({ patientId, doctorId }) {
       .then(data => {
         // API returns { pending_messages: [...] } or a flat array
         const allDrafts = Array.isArray(data) ? data : (data?.pending_messages || []);
-        const patientDrafts = allDrafts.filter(d => d.patient_id === patientId);
+        const patientDrafts = allDrafts.filter(d => String(d.patient_id) === String(patientId));
         setDrafts(patientDrafts);
       })
       .catch(() => setDrafts([]))
@@ -569,8 +412,15 @@ function PatientChatPage({ patientId, doctorId }) {
   const hasMessages = messages.length > 0;
   const hasDrafts = drafts.length > 0;
 
+  const msgSectionRef = useRef(null);
+  useEffect(() => {
+    if (expanded && new URLSearchParams(window.location.search).get("expand") === "messages") {
+      setTimeout(() => msgSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+    }
+  }, [expanded]);
+
   return (
-    <Box sx={{ bgcolor: "#fff", mb: 0.8 }}>
+    <Box ref={msgSectionRef} sx={{ bgcolor: "#fff", mb: 0.8 }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, pt: 1.5, pb: 0.5 }}>
         <Typography sx={{ fontWeight: 600, fontSize: TYPE.heading.fontSize, color: COLOR.text2 }}>
           患者消息 {hasMessages && <Box component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 400 }}>({messages.length})</Box>}
@@ -612,7 +462,7 @@ function PatientChatPage({ patientId, doctorId }) {
           {!expanded && hasDrafts && (
             <Box sx={{ py: 0.5 }}>
               {drafts.map(d => (
-                <DraftReplyCard key={d.id} draft={d} doctorId={doctorId} onSent={handleDraftSent} />
+                <ReplyCard key={d.id} item={d} mode="inline" doctorId={doctorId} onSent={handleDraftSent} />
               ))}
             </Box>
           )}
@@ -655,7 +505,7 @@ function PatientChatPage({ patientId, doctorId }) {
           {expanded && hasDrafts && (
             <Box sx={{ py: 0.5, borderTop: "0.5px solid #f0f0f0" }}>
               {drafts.map(d => (
-                <DraftReplyCard key={d.id} draft={d} doctorId={doctorId} onSent={handleDraftSent} />
+                <ReplyCard key={d.id} item={d} mode="inline" doctorId={doctorId} onSent={handleDraftSent} />
               ))}
             </Box>
           )}
