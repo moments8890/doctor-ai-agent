@@ -17,6 +17,7 @@ import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import EmptyState from "../../components/EmptyState";
+import ListCard from "../../components/ListCard";
 import PatientAvatar from "../../components/PatientAvatar";
 import SectionLabel from "../../components/SectionLabel";
 import AppButton from "../../components/AppButton";
@@ -354,102 +355,41 @@ function _MessageItemRemoved_DEAD({ item, onSend, onEdit, onTeachPrompt }) {
 function ScheduledRow({ item }) {
   const navigate = useAppNavigate();
   return (
-    <Box
+    <ListCard
+      avatar={<AccessTimeOutlinedIcon sx={{ fontSize: 20, color: COLOR.text4 }} />}
+      title={`${item.patient_name} · ${item.task}`}
+      subtitle={item.detail}
+      right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: item.soon ? COLOR.warning : COLOR.text4, fontWeight: item.soon ? 500 : 400 }}>{item.due_label}</Typography>}
       onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
-      sx={{
-        display: "flex", alignItems: "center", gap: 1.2,
-        px: 2, py: 1.2,
-        borderBottom: `0.5px solid ${COLOR.borderLight}`,
-        "&:last-child": { borderBottom: "none" },
-        cursor: "pointer",
-        "&:active": { bgcolor: "#f5f5f5" },
-      }}>
-      <AccessTimeOutlinedIcon sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4, flexShrink: 0 }} />
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>
-          {item.patient_name} · {item.task}
-        </Typography>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: "1px" }}>
-          {item.detail}
-        </Typography>
-      </Box>
-      <Typography sx={{
-        fontSize: TYPE.caption.fontSize,
-        color: item.soon ? COLOR.warning : COLOR.text4,
-        fontWeight: item.soon ? 500 : 400,
-        flexShrink: 0,
-      }}>
-        {item.due_label}
-      </Typography>
-    </Box>
+    />
   );
 }
 
-// ── Task reminder row ──
 function TaskRow({ item }) {
   const navigate = useAppNavigate();
   const badge = TASK_TYPE_BADGE[item.task_type] || ICON_BADGES.task_general;
-  const dueLabel = item.due_at
-    ? item.due_at.replace("T", " ").slice(0, 10)
-    : "";
+  const dueLabel = item.due_at ? item.due_at.slice(0, 10) : "";
   return (
-    <Box
+    <ListCard
+      avatar={<IconBadge config={badge} />}
+      title={item.title || "任务"}
+      subtitle={item.content}
+      right={dueLabel ? <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{dueLabel}</Typography> : null}
       onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
-      sx={{
-        display: "flex", alignItems: "center", gap: 1.2,
-        px: 2, py: 1.2,
-        borderBottom: `0.5px solid ${COLOR.borderLight}`,
-        "&:last-child": { borderBottom: "none" },
-        cursor: item.patient_id ? "pointer" : "default",
-        "&:active": item.patient_id ? { bgcolor: "#f5f5f5" } : {},
-      }}>
-      <IconBadge config={badge} />
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>
-          {item.title || "任务"}
-        </Typography>
-        {item.content && (
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: "1px" }} noWrap>
-            {item.content}
-          </Typography>
-        )}
-      </Box>
-      {dueLabel && (
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, flexShrink: 0 }}>
-          {dueLabel}
-        </Typography>
-      )}
-    </Box>
+    />
   );
 }
 
-// ── Recently sent row ──
 function SentRow({ item }) {
   const navigate = useAppNavigate();
   return (
-    <Box
+    <ListCard
+      avatar={<CheckOutlinedIcon sx={{ fontSize: 20, color: COLOR.primary }} />}
+      title={`${item.patient_name} · ${item.task}`}
+      subtitle={`已发送 · 患者${item.read_status}`}
+      right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{item.time}</Typography>}
       onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
-      sx={{
-        display: "flex", alignItems: "center", gap: 1.2,
-        px: 2, py: 1.2,
-        borderBottom: `0.5px solid ${COLOR.borderLight}`,
-        "&:last-child": { borderBottom: "none" },
-        cursor: "pointer",
-        "&:active": { bgcolor: "#f5f5f5" },
-      }}>
-      <CheckOutlinedIcon sx={{ fontSize: TYPE.body.fontSize, color: COLOR.primary, flexShrink: 0 }} />
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4 }}>
-          {item.patient_name} · {item.task}
-        </Typography>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: "1px" }}>
-          已发送 · 患者{item.read_status}
-        </Typography>
-      </Box>
-      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, flexShrink: 0 }}>
-        {item.time}
-      </Typography>
-    </Box>
+    />
   );
 }
 
