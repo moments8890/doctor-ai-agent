@@ -140,7 +140,7 @@
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
 | P2.1 | AI引导预问诊采访 / AI-Guided Interview | **Done** | InterviewPage — 7 clinical fields, progress bar, session resume, suggestion chips |
-| P2.2 | 患者预问诊确认预览 / Interview Review | **Done** | Confirm/cancel in interview with collected field summary |
+| P2.2 | 患者预问诊确认预览 / Interview Review | **Done** | Required fields complete -> backend emits `ready_to_review`, frontend exits questioning and shows `确认提交 / 继续补充` summary UI |
 | P2.3 | 语音输入 (患者端) / Voice Input (Patient) | **Done** | VoiceInput.jsx reused in patient InterviewPage + ChatTab. WeChat-style mic toggle left of input. QA: 6/6 pass |
 | P2.4 | 文字输入 / Text Input | **Done** | Text input in interview + chat |
 | P2.5 | 患者上传医疗文件 / Patient File Upload | **Done** | `patientUpload` API wired |

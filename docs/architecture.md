@@ -529,7 +529,7 @@ red_flags: List[str]                        # urgent findings requiring immediat
 
 | Route | Handler | Description |
 |-------|---------|-------------|
-| `POST /api/patient/interview/*` | `channels/web/patient_interview_routes.py` | Patient pre-consultation interview |
+| `POST /api/patient/interview/*` | `channels/web/patient_interview_routes.py` | Patient pre-consultation interview. Turn/start/current responses emit `ready_to_review` when required fields are complete so the frontend can end questioning and show explicit confirm-or-continue UI. |
 | `POST /api/patient/chat` | `channels/web/patient_portal.py` | Patient triage pipeline |
 | `GET /api/patient/*` | `channels/web/patient_portal.py` | Patient records, auth |
 

@@ -15,6 +15,79 @@
 - After reading this file, load `AGENTS.md` and use that as the operative
   instruction set.
 
+## Session Hygiene
+
+- After finishing a self-contained task, suggest a fresh session (`/clear` or
+  new terminal), especially before starting unrelated work.
+- Suggest `/compact` when the task changes phase (exploration → implementation,
+  bug A → bug B, backend → frontend), when old context is no longer needed, or
+  around 30-50 turns in a continuing session.
+- Strongly suggest reset for marathon sessions or when re-summarizing old context.
+- **NEVER call `/compact` yourself** — only suggest it. The user decides when to
+  compact.
+
+## Subagent Rules (CRITICAL for performance)
+
+- **Default max 2 parallel agents.** Use 1 when tasks share files, context, or
+  rate-limited tools. 3+ requires explicit user approval.
+- **Soft budget: ~20-30 tool calls per agent.** If an agent exceeds ~15 calls
+  without converging on a concrete result, stop and reassess approach.
+- **Bulk mechanical edits use CLI tools, not Edit loops** — see Bulk Edit Rules
+  below.
+- **Use cheaper models for low-risk mechanical tasks** (`model: "haiku"` for
+  renames, search-replace, formatting). Reserve sonnet/opus for semantically
+  complex or high-consequence work.
+- **Prefer inline work** unless a subtask is clearly independent, non-blocking,
+  and substantial enough to justify delegation.
+- **Never spawn agents for:** single-file edits, trivial lookups, simple search
+  tasks, or validation-only busywork a single command can confirm.
+- **Never delegate the critical path** — if the next step depends on the result,
+  do it inline.
+- **Pre-spawn test** — before spawning, confirm all three:
+  1. Is this independent? 2. Is it non-blocking? 3. Would inline slow the main path?
+  If not all true, don't spawn.
+- **Each agent must have:** concrete goal, owned files, explicit non-goals, and
+  expected output format. Vague prompts cause exploration bloat.
+- **One exploration owner** per subproblem — never let multiple agents duplicate
+  repo discovery.
+- **Stop conditions:** terminate agents that are retrying, reopening the same
+  files, or bouncing between search/edit/verify without convergence.
+- **No recursive delegation** — agents must not spawn more agents.
+- **Close agents promptly** after completion. No idle agents kept alive.
+
+## Bulk Edit Rules
+
+Repetitive Edit/apply_patch loops across 3+ files are a **policy violation**
+unless the agent explains why the CLI tools below are unsafe for that change.
+
+**Tool selection by edit type:**
+- **AST-aware code refactor** (JSX props, call shapes, function signatures):
+  `sg -p 'old($A)' -r 'new($A)' -l tsx -U frontend/web/src/`
+- **Plain text / regex replacement** (renames, labels, comments, imports):
+  `fd -e jsx -e tsx -0 . frontend/web/src | xargs -0 sd 'old' 'new'`
+- **Formatting after bulk edits:**
+  - JS/JSX/TS/TSX: `npx biome format --write frontend/web/src/`
+  - Python: `ruff format src/`
+- **Linting autofix:**
+  - JS/JSX/TS/TSX: `npx biome check --fix frontend/web/src/`
+  - Python: `ruff check --fix src/`
+
+**Required workflow for all bulk edits:**
+1. **Preview** — `rg` or `sg scan` to confirm match count and candidate files
+2. **Rewrite** — one bulk command
+3. **Format** — `biome format --write` or `ruff format`
+4. **Verify** — `git diff --stat` + targeted `rg` for old/new patterns
+
+**Gotchas:**
+- `ast-grep` can miss if pattern is not valid parseable code or wrong `--lang`
+- `sd` replaces inside comments/strings unless file set is constrained
+- `fd` ignores `.gitignore`d and hidden files by default
+- Always use null-delimited pipelines: `fd -0 | xargs -0`
+- Test on one file first for complex `ast-grep` patterns before repo-wide run
+
+**When Edit is still correct:** changes to 1-2 files, or semantically complex
+edits that require reading surrounding context to decide what to change.
+
 ## Code Style
 
 - In mermaid diagrams, use `<br/>` for line breaks in node labels, never `\n`.
