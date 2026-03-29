@@ -449,37 +449,24 @@ function PatientChatPage({ patientId, doctorId }) {
       )}
 
       {!loading && (hasMessages || hasDrafts) && (
-        <Box sx={{ mx: 1.5, mb: 1, border: `1px solid ${COLOR.primary}`, borderRadius: "8px", bgcolor: "#fff", overflow: "hidden" }}>
-          {/* Content inside green-bordered box */}
-          {!expanded && escalated.length > 0 && (
-            <Box sx={{ px: 2, pb: 1 }}>
-              {escalated.slice(-3).map(m => (
-                <Box key={m.id} sx={{ py: 0.5, borderBottom: "0.5px solid #f5f5f5", display: "flex", gap: 0.8, alignItems: "baseline" }}>
-                  <Box sx={{
-                    width: 6, height: 6, borderRadius: "50%", flexShrink: 0, mt: 0.8,
-                    bgcolor: m.triage_category === "urgent" ? COLOR.danger : (m.source === "patient" ? COLOR.accent : COLOR.success),
-                  }} />
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5 }} noWrap>
-                      {m.content}
-                    </Typography>
-                    <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-                      {m.created_at ? new Date(m.created_at).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
-                    </Typography>
-                  </Box>
+        <>
+          {/* Green conversation box */}
+          {hasMessages && (
+            <Box sx={{ mx: 1.5, mb: 0.5, border: `1px solid ${COLOR.primary}`, borderRadius: "8px", bgcolor: "#fff", overflow: "hidden" }}>
+              {!expanded && (
+                <Box sx={{ px: 1.5, py: 0.5 }}>
+                  {escalated.slice(-3).map(m => {
+                    const label = m.source === "patient" ? "患者" : (m.source === "doctor" ? "医生" : "AI");
+                    const labelColor = m.source === "patient" ? COLOR.accent : (m.source === "doctor" ? COLOR.success : COLOR.text4);
+                    return (
+                      <Box key={m.id} sx={{ display: "flex", py: 0.6, borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" } }}>
+                        <Typography sx={{ width: 36, flexShrink: 0, fontSize: TYPE.micro.fontSize, fontWeight: 600, color: labelColor, pt: 0.2 }}>{label}</Typography>
+                        <Typography sx={{ flex: 1, fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.5 }} noWrap>{m.content}</Typography>
+                      </Box>
+                    );
+                  })}
                 </Box>
-              ))}
-            </Box>
-          )}
-
-          {/* Draft reply cards — shown between triage summary and expand toggle when collapsed */}
-          {!expanded && hasDrafts && (
-            <Box sx={{ py: 0.5 }}>
-              {drafts.map(d => (
-                <ReplyCard key={d.id} item={d} mode="inline" doctorId={doctorId} onSent={handleDraftSent} />
-              ))}
-            </Box>
-          )}
+              )}
 
           {/* Full thread */}
           {expanded && (
@@ -513,19 +500,21 @@ function PatientChatPage({ patientId, doctorId }) {
               })}
             </Box>
           )}
+            </Box>
+          )}
 
-          {/* Draft reply cards — shown after messages when expanded */}
-          {expanded && hasDrafts && (
-            <Box sx={{ py: 0.5, borderTop: "0.5px solid #f0f0f0" }}>
+          {/* Draft reply cards — outside green box */}
+          {hasDrafts && (
+            <Box sx={{ mx: 1.5, mb: 0.5 }}>
               {drafts.map(d => (
                 <ReplyCard key={d.id} item={d} mode="inline" doctorId={doctorId} onSent={handleDraftSent} />
               ))}
             </Box>
           )}
 
-          {/* Reply input */}
+          {/* Reply input — outside green box */}
           {expanded && (
-            <Box sx={{ display: "flex", gap: 1, px: 2, py: 1, borderTop: "0.5px solid #f0f0f0" }}>
+            <Box sx={{ display: "flex", gap: 1, px: 2, py: 1 }}>
               <Box component="input" value={replyText} onChange={e => setReplyText(e.target.value)}
                 placeholder="回复患者…"
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
@@ -542,7 +531,7 @@ function PatientChatPage({ patientId, doctorId }) {
               </Button>
             </Box>
           )}
-        </Box>
+        </>
       )}
     </Box>
   );
