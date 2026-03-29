@@ -131,16 +131,25 @@ function TaskRow({ item, onComplete }) {
   );
 }
 
-function SentRow({ item }) {
+function SentRow({ item, onUncomplete }) {
   const navigate = useAppNavigate();
+  const [uncompleting, setUncompleting] = useState(false);
+
+  const handleUncomplete = () => {
+    setUncompleting(true);
+    setTimeout(() => onUncomplete?.(item), 400);
+  };
+
   return (
-    <ListCard
-      avatar={<CheckOutlinedIcon sx={{ fontSize: 20, color: COLOR.primary }} />}
-      title={`${item.patient_name} · ${item.task}`}
-      subtitle={`已发送 · 患者${item.read_status}`}
-      right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{item.time}</Typography>}
-      onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
-    />
+    <Box sx={{ opacity: uncompleting ? 0.4 : 1, transition: "opacity 0.3s ease" }}>
+      <ListCard
+        avatar={<TaskCheckbox checked={!uncompleting} onToggle={handleUncomplete} />}
+        title={`${item.patient_name} · ${item.task}`}
+        subtitle={item.read_status || "已完成"}
+        right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{item.time}</Typography>}
+        onClick={uncompleting ? undefined : () => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
+      />
+    </Box>
   );
 }
 
@@ -398,6 +407,28 @@ export default function TaskPage({ doctorId, urlSubpage }) {
     } catch { /* silent */ }
   };
 
+  const handleUncompleteTask = async (item) => {
+    // Move from completed back to pending tasks
+    const pendingItem = {
+      id: item.id,
+      title: item.task || item.title || "任务",
+      content: "",
+      patient_name: item.patient_name,
+      patient_id: item.patient_id,
+      task_type: "general",
+      due_at: null,
+    };
+    setData((prev) => ({
+      ...prev,
+      tasks: [pendingItem, ...(prev?.tasks || [])],
+      recently_sent: (prev?.recently_sent || []).filter((s) => s.id !== item.id),
+    }));
+    try {
+      const patchTask = api.patchTask || (() => Promise.resolve());
+      await patchTask(item.id, { status: "pending" });
+    } catch { /* silent */ }
+  };
+
   const handleFilter = (key) => {
     const next = filter === key ? "followups" : key;
     setFilter(next);
@@ -506,7 +537,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
               <>
                 <SectionLabel>已完成</SectionLabel>
                 <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-                  {recentlySent.map((s) => <SentRow key={s.id} item={s} />)}
+                  {recentlySent.map((s) => <SentRow key={s.id} item={s} onUncomplete={handleUncompleteTask} />)}
                 </Box>
               </>
             )}
