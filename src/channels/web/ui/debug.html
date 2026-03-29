@@ -789,10 +789,12 @@ function toggleRowBody(id) {
   if (el) el.classList.toggle('open');
 }
 
-function toggleMsgSection(id) {
+function toggleMsgSection(evt, id) {
+  if (evt) evt.stopPropagation();
   const el = document.getElementById(id);
   if (!el) return;
   const isOpen = el.classList.toggle('open');
+  el.style.display = isOpen ? 'block' : 'none';
   const arrow = document.getElementById('arrow-' + id);
   if (arrow) arrow.textContent = isOpen ? '▾' : '▸';
 }
@@ -1074,7 +1076,7 @@ function renderLayerSection(layer, sectionId, defaultOpen) {
   const openClass = defaultOpen ? ' open' : '';
   return `
     <div class="msg-section">
-      <div class="msg-role-header" onclick="toggleMsgSection('${sectionId}')">
+      <div class="msg-role-header" onclick="toggleMsgSection(event,'${sectionId}')">
         <span class="msg-role-label" style="color:${color};">${escHtml(layer.label)}</span>
         <span style="font-size:11px;color:var(--text-muted);">${layer.content.length} chars</span>
         <span class="msg-toggle" id="arrow-${sectionId}">${defaultOpen ? '▾' : '▸'}</span>
@@ -1160,7 +1162,7 @@ function buildLlmCard(c, cid) {
       const hid = `sec-${cid}-${sectionIdx++}`;
       inputHtml += `
         <div class="msg-section">
-          <div class="msg-role-header" onclick="toggleMsgSection('${hid}')">
+          <div class="msg-role-header" onclick="toggleMsgSection(event,'${hid}')">
             <span class="msg-role-label" style="color:#9c27b0;">Conversation History</span>
             <span style="font-size:11px;color:var(--text-muted);">${historyMsgs.length} turns</span>
             <span class="msg-toggle" id="arrow-${hid}">▸</span>
@@ -1194,7 +1196,7 @@ function buildLlmCard(c, cid) {
     outputHtml = `
       <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);">
         <div class="msg-section">
-          <div class="msg-role-header" onclick="toggleMsgSection('out-${cid}')">
+          <div class="msg-role-header" onclick="toggleMsgSection(event,'out-${cid}')">
             <span class="msg-role-label" style="color:var(--green);font-weight:bold;">OUTPUT</span>
             <span style="font-size:11px;color:var(--text-muted);">${outputText.length} chars</span>
             <span class="msg-toggle" id="arrow-out-${cid}">▾</span>
