@@ -353,10 +353,10 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
 /* ── PatientChatPage ── */
 
 function PatientChatPage({ patientId, doctorId }) {
+  const navigate = useAppNavigate();
   const { getPatientChat, replyToPatient, fetchDrafts } = useApi();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(() => new URLSearchParams(window.location.search).get("expand") === "messages");
   const [replyText, setReplyText] = useState("");
   const [sending, setSending] = useState(false);
   const [drafts, setDrafts] = useState([]);
@@ -413,34 +413,14 @@ function PatientChatPage({ patientId, doctorId }) {
   const hasMessages = messages.length > 0;
   const hasDrafts = drafts.length > 0;
 
-  const msgSectionRef = useRef(null);
-  useEffect(() => {
-    if (expanded && new URLSearchParams(window.location.search).get("expand") === "messages") {
-      setTimeout(() => msgSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
-    }
-  }, [expanded]);
-
   return (
-    <Box ref={msgSectionRef} sx={{ bgcolor: "#fff", mb: 0.8 }}>
-      {/* Header: 患者消息 (N) + expand toggle */}
-      <Box
-        onClick={() => (hasMessages || hasDrafts) ? setExpanded(v => !v) : undefined}
-        sx={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          px: 2, pt: 1.5, pb: 0.5,
-          cursor: (hasMessages || hasDrafts) ? "pointer" : "default",
-          "&:active": (hasMessages || hasDrafts) ? { opacity: 0.6 } : {},
-        }}
-      >
+    <Box sx={{ bgcolor: "#fff", mb: 0.8 }}>
+      {/* Header */}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 2, pt: 1.5, pb: 0.5 }}>
         <Typography sx={{ fontWeight: 600, fontSize: TYPE.heading.fontSize, color: COLOR.text2 }}>
           患者消息 {hasMessages && <Box component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 400 }}>({messages.length})</Box>}
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          {(loading || draftsLoading) && <CircularProgress size={14} sx={{ color: COLOR.success }} />}
-          {(hasMessages || hasDrafts) && (
-            <Typography sx={{ fontSize: 12, color: COLOR.text4 }}>{expanded ? "▴" : "▾"}</Typography>
-          )}
-        </Box>
+        {(loading || draftsLoading) && <CircularProgress size={14} sx={{ color: COLOR.success }} />}
       </Box>
 
       {!loading && !hasMessages && !hasDrafts && (
@@ -451,41 +431,37 @@ function PatientChatPage({ patientId, doctorId }) {
 
       {!loading && (hasMessages || hasDrafts) && (
         <>
-          {/* Message timeline with inline draft */}
-          {expanded && (
-            <Box sx={{ px: 2, mb: 0.5 }}>
-              <MessageTimeline
-                messages={hasMessages ? messages : []}
-                maxHeight={300}
-                draft={drafts[0] ? {
-                  text: drafts[0].draft_text || drafts[0].content || "",
-                  rule_cited: drafts[0].rule_cited || (drafts[0].cited_rules?.[0]?.title) || null,
-                  onEdit: () => navigate(`/doctor/review?tab=replies`),
-                  onSend: () => handleDraftSent?.(drafts[0]),
-                } : undefined}
-              />
-            </Box>
-          )}
+          {/* Timeline — shows latest 3 by default, unfold for all */}
+          <Box sx={{ px: 2, mb: 0.5 }}>
+            <MessageTimeline
+              messages={hasMessages ? messages : []}
+              maxHeight={400}
+              draft={drafts[0] ? {
+                text: drafts[0].draft_text || drafts[0].content || "",
+                rule_cited: drafts[0].rule_cited || (drafts[0].cited_rules?.[0]?.title) || null,
+                onEdit: () => navigate("/doctor/review?tab=replies"),
+                onSend: () => handleDraftSent?.(drafts[0]),
+              } : undefined}
+            />
+          </Box>
 
-          {/* Reply input — outside green box */}
-          {expanded && (
-            <Box sx={{ display: "flex", gap: 1, px: 2, py: 1 }}>
-              <Box component="input" value={replyText} onChange={e => setReplyText(e.target.value)}
-                placeholder="回复患者…"
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
-                style={{
-                  flex: 1, border: "1px solid #e0e0e0", borderRadius: 6,
-                  padding: "6px 10px", fontSize: 13, fontFamily: "inherit",
-                  outline: "none",
-                }}
-              />
-              <Button size="small" disabled={!replyText.trim() || sending}
-                onClick={handleReply}
-                sx={{ color: COLOR.success, minWidth: "auto", fontSize: TYPE.secondary.fontSize }}>
-                {sending ? <CircularProgress size={14} /> : "发送"}
-              </Button>
-            </Box>
-          )}
+          {/* Reply input */}
+          <Box sx={{ display: "flex", gap: 1, px: 2, py: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+            <Box component="input" value={replyText} onChange={e => setReplyText(e.target.value)}
+              placeholder="回复患者…"
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
+              style={{
+                flex: 1, border: "1px solid #e0e0e0", borderRadius: 6,
+                padding: "6px 10px", fontSize: 13, fontFamily: "inherit",
+                outline: "none",
+              }}
+            />
+            <Button size="small" disabled={!replyText.trim() || sending}
+              onClick={handleReply}
+              sx={{ color: COLOR.success, minWidth: "auto", fontSize: TYPE.secondary.fontSize }}>
+              {sending ? <CircularProgress size={14} /> : "发送"}
+            </Button>
+          </Box>
         </>
       )}
     </Box>
