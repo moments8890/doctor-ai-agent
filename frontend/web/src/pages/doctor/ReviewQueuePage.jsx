@@ -13,8 +13,6 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
@@ -23,10 +21,11 @@ import { useAppNavigate } from "../../hooks/useAppNavigate";
 import EmptyState from "../../components/EmptyState";
 import PatientAvatar from "../../components/PatientAvatar";
 import SectionLabel from "../../components/SectionLabel";
+import ActionRow from "../../components/ActionRow";
 import SubpageHeader from "../../components/SubpageHeader";
 import SheetDialog from "../../components/SheetDialog";
 import AppButton from "../../components/AppButton";
-import MessageItem from "../../components/doctor/MessageItem";
+import ReplyCard from "../../components/doctor/ReplyCard";
 import { TYPE, COLOR } from "../../theme";
 
 /* ── Case memory helpers ──────────────────────────────────────────────────── */
@@ -54,9 +53,9 @@ const SECTION_LABEL = {
 
 function FilterStatBar({ summary, filter, onFilter }) {
   const tabs = [
-    { key: "pending", label: "待审核", count: summary.pending, activeColor: COLOR.warning },
-    { key: "replies", label: "待回复", count: summary.replies, activeColor: COLOR.danger },
-    { key: "completed", label: "已完成", count: summary.completed, activeColor: COLOR.primary },
+    { key: "pending", label: "门诊", count: summary.pending, activeColor: COLOR.warning },
+    { key: "replies", label: "回复", count: summary.replies, activeColor: COLOR.danger },
+    { key: "completed", label: "完成", count: summary.completed, activeColor: COLOR.primary },
   ];
   return (
     <Box sx={{
@@ -115,55 +114,53 @@ function PendingReviewCard({ item, onNavigate }) {
 
   return (
     <Box sx={{
+      px: 2, py: 1.5,
       borderBottom: `0.5px solid ${COLOR.borderLight}`,
       bgcolor: COLOR.white,
       "&:last-child": { borderBottom: "none" },
     }}>
-      {/* Header: avatar + name + time + urgency */}
+      {/* Header: avatar + name + badge + time — same layout as ReplyCard */}
       <Box
         onClick={() => onNavigate?.(item)}
         sx={{
-          display: "flex", alignItems: "center", gap: 1.25,
-          px: 2, pt: 1.5, pb: 0.5,
+          display: "flex", alignItems: "center", gap: 1.2, mb: 1,
           cursor: "pointer",
         }}
       >
-        <PatientAvatar name={item.patient_name || "?"} size={32} />
+        <PatientAvatar name={item.patient_name || "?"} size={36} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 400, color: COLOR.text1 }}>
-            {item.patient_name}
-          </Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+            <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>
+              {item.patient_name}
+            </Typography>
+            <Box
+              component="span"
+              sx={{
+                fontSize: 10, fontWeight: 600,
+                borderRadius: "3px", px: 0.6, py: 0.1,
+                bgcolor: urgencyColor, color: "#fff",
+                lineHeight: 1.5,
+              }}
+            >
+              {urgencyLabel}
+            </Box>
+          </Box>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.1 }}>
             {item.time}
           </Typography>
-        </Box>
-        <Box
-          component="span"
-          sx={{
-            fontSize: TYPE.micro.fontSize,
-            fontWeight: 500,
-            borderRadius: "3px",
-            px: 0.6,
-            border: `0.5px solid ${urgencyColor}`,
-            color: urgencyColor,
-            lineHeight: 1.6,
-            flexShrink: 0,
-          }}
-        >
-          {urgencyLabel}
         </Box>
         <ChevronRightOutlinedIcon sx={{ fontSize: 18, color: COLOR.text4, flexShrink: 0 }} />
       </Box>
 
-      {/* Diagnosis preview gray card */}
+      {/* Diagnosis preview — same card style as ReplyCard's message bubble */}
       <Box
         onClick={() => onNavigate?.(item)}
         sx={{
-          mx: 2, mt: 0.75, mb: 0.75,
           px: 1.5, py: 1,
           bgcolor: COLOR.surface,
           borderRadius: "6px",
           cursor: "pointer",
+          mb: 0.75,
         }}
       >
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 400, color: COLOR.text1, mb: 0.5 }}>
@@ -225,13 +222,10 @@ function PendingReviewCard({ item, onNavigate }) {
   );
 }
 
-/* ── Completed row ────────────────────────────────────────────────────────── */
+/* ── Completed row — uses shared ActionRow ──────────────────────────────── */
 
 function CompletedRow({ item, onClick }) {
   const isEdited = item.decision === "edited";
-  const checkColor = isEdited ? COLOR.warning : COLOR.primary;
-  const CheckIcon = isEdited ? EditOutlinedIcon : CheckOutlinedIcon;
-
   const detailText = (() => {
     if (isEdited && item.detail) return `已修改 · ${item.detail}`;
     if (item.rule_count > 0) return `已确认 · 引用了你的 ${item.rule_count} 条规则`;
@@ -239,28 +233,14 @@ function CompletedRow({ item, onClick }) {
   })();
 
   return (
-    <Box
+    <ActionRow
+      title={`${item.patient_name} · ${item.content}`}
+      subtitle={detailText}
+      right={item.time}
+      done
+      edited={isEdited}
       onClick={onClick}
-      sx={{
-        display: "flex", alignItems: "center", gap: 1.25,
-        px: 2, py: 1.25,
-        borderBottom: `0.5px solid ${COLOR.borderLight}`,
-        cursor: onClick ? "pointer" : "default",
-        "&:active": onClick ? { bgcolor: COLOR.surface } : {},
-        "&:last-child": { borderBottom: "none" },
-      }}
-    >
-      <CheckIcon sx={{ fontSize: TYPE.body.fontSize, color: checkColor, flexShrink: 0 }} />
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text3 }}>
-          {item.patient_name} · {item.content}
-        </Typography>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.15 }}>
-          {detailText}
-        </Typography>
-      </Box>
-      <ChevronRightOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4, flexShrink: 0 }} />
-    </Box>
+    />
   );
 }
 
@@ -287,7 +267,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
           ? getReviewQueue(doctorId)
           : Promise.resolve({ pending: [], completed: [] }),
         typeof api.fetchDrafts === "function"
-          ? api.fetchDrafts(doctorId).catch(() => ({}))
+          ? api.fetchDrafts(doctorId, { includeSent: true }).catch(() => ({}))
           : Promise.resolve({}),
       ]);
       setQueue(reviewData || { pending: [], completed: [] });
@@ -324,8 +304,24 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   /* ── Render ─────────────────────────────────────────────────────────────── */
 
   const pending = queue?.pending || [];
-  const completed = queue?.completed || [];
-  const summary = { pending: pending.length, replies: drafts.length, completed: completed.length };
+  const reviewCompleted = queue?.completed || [];
+  // Merge sent drafts into the completed list
+  const sentDrafts = drafts.filter(d => d.status === "sent").map(d => ({
+    id: `draft_${d.id}`,
+    type: "reply",
+    patient_name: d.patient_name,
+    patient_id: d.patient_id,
+    patient_message: d.patient_message,
+    draft_text: d.draft_text,
+    content: d.patient_message ? d.patient_message.slice(0, 40) : "已回复",
+    description: `已回复`,
+    created_at: d.created_at,
+  }));
+  // Also include undrafted items that were handled (doctor replied manually)
+  const completed = [...reviewCompleted, ...sentDrafts]
+    .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+  const activeDrafts = drafts.filter(d => d.status !== "sent");
+  const summary = { pending: pending.length, replies: activeDrafts.length, completed: completed.length };
   const tabFromUrl = new URLSearchParams(window.location.search).get("tab");
   const initialTab = tabFromUrl && REVIEW_TABS.has(tabFromUrl) ? tabFromUrl : "pending";
   const [filter, setFilter] = useState(initialTab);
@@ -344,7 +340,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
-      <SubpageHeader title="门诊" />
+      <SubpageHeader title="审核" />
 
       <Box sx={{ flex: 1, overflow: "auto" }}>
         {/* Filter stat bar */}
@@ -367,10 +363,11 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
               borderBottom: `0.5px solid ${COLOR.border}`,
             }}>
               {pending.map((item) => (
-                <PendingReviewCard
+                <ReplyCard
                   key={item.id}
-                  item={item}
-                  onNavigate={handleNavigate}
+                  item={{ ...item, section_label: SECTION_LABEL[item.section] || item.section }}
+                  mode="diagnosis"
+                  onClick={() => handleNavigate(item)}
                 />
               ))}
             </Box>
@@ -387,7 +384,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
         )}
 
         {/* ── Section: 待回复 (patient messages with AI drafts) ── */}
-        {!loading && showReplies && drafts.length > 0 && (
+        {!loading && showReplies && activeDrafts.length > 0 && (
           <>
             <SectionLabel>患者消息 · 待回复</SectionLabel>
             <Box sx={{
@@ -395,18 +392,20 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
               borderTop: `0.5px solid ${COLOR.border}`,
               borderBottom: `0.5px solid ${COLOR.border}`,
             }}>
-              {drafts.map((msg) => (
-                <MessageItem
+              {activeDrafts.map((msg) => (
+                <ReplyCard
                   key={msg.id}
                   item={msg}
-                  onSend={(item) => setConfirmItem(item)}
+                  mode="pending"
+                  doctorId={doctorId}
+                  onSent={(item) => setConfirmItem(item)}
                 />
               ))}
             </Box>
           </>
         )}
 
-        {!loading && showReplies && drafts.length === 0 && (
+        {!loading && showReplies && activeDrafts.length === 0 && (
           <EmptyState
             icon={<MailOutlineIcon />}
             title="暂无待回复消息"
@@ -425,7 +424,9 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
             }}>
               {completed.map((item) => (
                 <CompletedRow key={item.id} item={item} onClick={() => {
-                  if (item.patient_id) {
+                  if (item.type === "reply" && item.patient_id) {
+                    navigate(`/doctor/patients/${item.patient_id}?expand=messages`);
+                  } else if (item.patient_id) {
                     const params = item.record_id ? `?record=${item.record_id}` : "";
                     navigate(`/doctor/patients/${item.patient_id}${params}`);
                   } else if (item.record_id) {

@@ -10,20 +10,16 @@
  */
 import { useEffect, useState, useCallback } from "react";
 import { Box, CircularProgress, Snackbar, Typography } from "@mui/material";
-import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
-import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import EmptyState from "../../components/EmptyState";
-import ListCard from "../../components/ListCard";
 import SectionLabel from "../../components/SectionLabel";
 import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
-import IconBadge from "../../components/IconBadge";
+import ActionRow from "../../components/ActionRow";
 import { TYPE, COLOR } from "../../theme";
-import { ICON_BADGES } from "./constants";
 
 // ── Task type badge mapping ──
 const TASK_TYPE_BADGE = {
@@ -53,105 +49,7 @@ function SummaryStat({ value, label, sublabel, color, onClick }) {
 }
 
 // ── Scheduled follow-up row ──
-function TaskCheckbox({ checked, onToggle }) {
-  return (
-    <Box
-      onClick={(e) => { e.stopPropagation(); onToggle(); }}
-      sx={{
-        width: 24, height: 24, borderRadius: "50%",
-        border: checked ? "none" : `2px solid ${COLOR.primary}`,
-        bgcolor: checked ? COLOR.primary : "transparent",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        cursor: "pointer", flexShrink: 0,
-        transition: "all 0.15s ease",
-        "&:active": { transform: "scale(0.9)" },
-      }}
-    >
-      {checked && <CheckOutlinedIcon sx={{ fontSize: 14, color: "#fff" }} />}
-    </Box>
-  );
-}
-
-function CompletableRow({ title, subtitle, right, onClick, onComplete }) {
-  const [completing, setCompleting] = useState(false);
-
-  const handleToggle = () => {
-    setCompleting(true);
-    setTimeout(() => onComplete?.(), 600);
-  };
-
-  return (
-    <Box sx={{
-      opacity: completing ? 0.4 : 1,
-      transition: "opacity 0.5s ease",
-    }}>
-      <ListCard
-        avatar={<TaskCheckbox checked={completing} onToggle={handleToggle} />}
-        title={
-          <Box component="span" sx={{
-            textDecoration: completing ? "line-through" : "none",
-            color: completing ? COLOR.text4 : COLOR.text1,
-            transition: "all 0.3s ease",
-          }}>
-            {title}
-          </Box>
-        }
-        subtitle={subtitle}
-        right={right}
-        onClick={completing ? undefined : onClick}
-      />
-    </Box>
-  );
-}
-
-function ScheduledRow({ item, onComplete }) {
-  const navigate = useAppNavigate();
-  return (
-    <CompletableRow
-      title={`${item.patient_name} · ${item.task}`}
-      subtitle={item.detail}
-      right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: item.soon ? COLOR.warning : COLOR.text4, fontWeight: item.soon ? 500 : 400 }}>{item.due_label}</Typography>}
-      onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
-      onComplete={() => onComplete?.(item)}
-    />
-  );
-}
-
-function TaskRow({ item, onComplete }) {
-  const navigate = useAppNavigate();
-  const dueLabel = item.due_at ? item.due_at.slice(0, 10) : "";
-  return (
-    <CompletableRow
-      title={item.title || "任务"}
-      subtitle={item.content}
-      right={dueLabel ? <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{dueLabel}</Typography> : null}
-      onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
-      onComplete={() => onComplete?.(item)}
-    />
-  );
-}
-
-function SentRow({ item, onUncomplete }) {
-  const navigate = useAppNavigate();
-  const [uncompleting, setUncompleting] = useState(false);
-
-  const handleUncomplete = () => {
-    setUncompleting(true);
-    setTimeout(() => onUncomplete?.(item), 400);
-  };
-
-  return (
-    <Box sx={{ opacity: uncompleting ? 0.4 : 1, transition: "opacity 0.3s ease" }}>
-      <ListCard
-        avatar={<TaskCheckbox checked={!uncompleting} onToggle={handleUncomplete} />}
-        title={`${item.patient_name} · ${item.task}`}
-        subtitle={item.read_status || "已完成"}
-        right={<Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{item.time}</Typography>}
-        onClick={uncompleting ? undefined : () => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
-      />
-    </Box>
-  );
-}
+// Old TaskCheckbox, CompletableRow, ScheduledRow, TaskRow, SentRow replaced by ActionRow
 
 // ── Send confirmation sheet ──
 function SendConfirmSheet({ open, onClose, item, onConfirm, sending }) {
@@ -523,11 +421,17 @@ export default function TaskPage({ doctorId, urlSubpage }) {
               <>
                 <SectionLabel>待完成</SectionLabel>
                 <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-                  {allPendingItems.map((item) =>
-                    item._isFollowup
-                      ? <ScheduledRow key={`f-${item.id}`} item={item} onComplete={handleCompleteTask} />
-                      : <TaskRow key={`t-${item.id}`} item={item} onComplete={handleCompleteTask} />
-                  )}
+                  {allPendingItems.map((item) => (
+                    <ActionRow
+                      key={`${item._isFollowup ? "f" : "t"}-${item.id}`}
+                      title={item._isFollowup ? `${item.patient_name} · ${item.task}` : (item.title || "任务")}
+                      subtitle={item._isFollowup ? item.detail : item.content}
+                      right={item._isFollowup ? (item.due_label || "") : (item.due_at ? item.due_at.slice(0, 10) : "")}
+                      urgent={item.soon}
+                      onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
+                      onToggle={() => handleCompleteTask(item)}
+                    />
+                  ))}
                 </Box>
               </>
             )}
@@ -537,7 +441,17 @@ export default function TaskPage({ doctorId, urlSubpage }) {
               <>
                 <SectionLabel>已完成</SectionLabel>
                 <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-                  {recentlySent.map((s) => <SentRow key={s.id} item={s} onUncomplete={handleUncompleteTask} />)}
+                  {recentlySent.map((s) => (
+                    <ActionRow
+                      key={s.id}
+                      title={`${s.patient_name} · ${s.task}`}
+                      subtitle={s.read_status || "已完成"}
+                      right={s.time}
+                      done
+                      onClick={() => s.patient_id ? navigate(`/doctor/patients/${s.patient_id}`) : undefined}
+                      onToggle={() => handleUncompleteTask(s)}
+                    />
+                  ))}
                 </Box>
               </>
             )}
