@@ -270,7 +270,7 @@ export default function MyAIPage({ doctorId }) {
             subtitle="患者消息可快速处理"
             right={<InlineBadge count={followupBadge} color="#ef4444" />}
             chevron
-            onClick={() => navigate("/doctor/tasks")}
+            onClick={() => navigate("/doctor/review?tab=replies")}
           />
           <ListCard
             avatar={<IconBadge config={ICON_BADGES.qr_code} />}
@@ -404,8 +404,8 @@ export default function MyAIPage({ doctorId }) {
                   </Typography>
                 }
                 onClick={() => {
-                  if (item.patient_id) navigate(`/doctor/patients/${item.patient_id}`);
-                  else if (item.type === "diagnosis" && item.record_id) navigate(`/doctor/review/${item.record_id}`);
+                  if (item.type === "diagnosis" && item.record_id) navigate(`/doctor/review/${item.record_id}`);
+                  else if (item.patient_id) navigate(`/doctor/patients/${item.patient_id}`);
                   else navigate("/doctor/tasks");
                 }}
                 sx={idx === recentActivity.length - 1 ? { borderBottom: "none" } : {}}
