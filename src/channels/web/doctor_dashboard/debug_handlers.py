@@ -243,3 +243,91 @@ async def debug_dashboard_page(token: str = Query(..., description="Debug access
         Path(__file__).parent / "debug.html",
         media_type="text/html",
     )
+
+
+@router.post("/api/debug/llm-benchmark")
+async def llm_benchmark(
+    x_debug_token: str | None = Header(default=None, alias="X-Debug-Token"),
+    runs: int = Query(default=2, ge=1, le=5),
+):
+    """Run latency benchmark across all configured LLM providers.
+
+    Tests each provider with a realistic ~3K token medical prompt using streaming.
+    Returns TTFT, total latency, and output token counts per provider.
+    """
+    import asyncio
+    import os
+    import time
+    from openai import AsyncOpenAI
+
+    _require_ui_debug_access(x_debug_token)
+
+    from infra.llm.client import _get_providers
+
+    MESSAGES = [
+        {"role": "system", "content": "你是一位专业的神经外科医生AI助手，负责帮助医生采集和结构化病历信息。" * 50},
+        {"role": "user", "content": "患者男50岁，头痛3天加重1天，伴恶心呕吐，既往高血压10年，请给出鉴别诊断"},
+    ]
+
+    providers = _get_providers()
+    active = os.environ.get("ROUTING_LLM", "")
+    results = []
+
+    for name, pcfg in providers.items():
+        api_key = os.environ.get(pcfg.get("api_key_env", ""), "")
+        if not api_key or name == "ollama":
+            continue
+
+        client = AsyncOpenAI(
+            base_url=pcfg["base_url"], api_key=api_key, timeout=25.0,
+        )
+        model = pcfg["model"]
+        run_results = []
+
+        for i in range(runs):
+            t0 = time.monotonic()
+            ttft = None
+            chunks = 0
+            error_msg = None
+            try:
+                stream = await client.chat.completions.create(
+                    model=model, messages=MESSAGES, max_tokens=150,
+                    stream=True,
+                )
+                async for chunk in stream:
+                    if ttft is None and chunk.choices and chunk.choices[0].delta.content:
+                        ttft = int((time.monotonic() - t0) * 1000)
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        chunks += 1
+                total = int((time.monotonic() - t0) * 1000)
+            except Exception as e:
+                total = int((time.monotonic() - t0) * 1000)
+                error_msg = str(e)[:120]
+                ttft = None
+
+            run_results.append({
+                "run": i + 1,
+                "ttft_ms": ttft,
+                "total_ms": total,
+                "chunks": chunks,
+                "error": error_msg,
+            })
+
+        # Compute averages (skip first run as warmup if multiple runs)
+        valid = [r for r in run_results if r["ttft_ms"] is not None]
+        avg_runs = valid[1:] if len(valid) > 1 else valid
+        avg_ttft = int(sum(r["ttft_ms"] for r in avg_runs) / len(avg_runs)) if avg_runs else None
+        avg_total = int(sum(r["total_ms"] for r in avg_runs) / len(avg_runs)) if avg_runs else None
+
+        results.append({
+            "provider": name,
+            "model": model,
+            "active": name == active,
+            "avg_ttft_ms": avg_ttft,
+            "avg_total_ms": avg_total,
+            "runs": run_results,
+        })
+
+    # Sort by avg_ttft (fastest first), None at end
+    results.sort(key=lambda r: r["avg_ttft_ms"] if r["avg_ttft_ms"] is not None else 999999)
+    return {"results": results, "active_provider": active, "prompt_tokens": "~3000"}

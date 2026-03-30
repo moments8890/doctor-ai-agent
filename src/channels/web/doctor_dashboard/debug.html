@@ -500,9 +500,32 @@
 <!-- Tab bar -->
 <div class="tabs">
   <div class="tab active" data-tab="llm">LLM Calls</div>
+  <div class="tab" data-tab="benchmark">Benchmark</div>
   <div class="tab" data-tab="requests">Requests</div>
   <div class="tab" data-tab="errors">Errors <span class="tab-badge" id="errorBadge" style="display:none">0</span></div>
   <div class="tab" data-tab="health">Health</div>
+</div>
+
+<!-- ===================== TAB: BENCHMARK ===================== -->
+<div class="tab-panel" id="panel-benchmark">
+  <div style="padding:16px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <button id="benchRunBtn" onclick="runBenchmark()" style="background:var(--green);color:#fff;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">Run Benchmark</button>
+      <select id="benchRuns" style="background:var(--card);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;">
+        <option value="2">2 runs</option>
+        <option value="3">3 runs</option>
+        <option value="5">5 runs</option>
+      </select>
+      <span id="benchStatus" style="font-size:12px;color:var(--text-muted);"></span>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">
+      Tests all configured providers with a ~3K token medical prompt (streaming). Measures TTFT and total latency from this server.
+    </div>
+    <div id="benchResults">
+      <div class="empty-state">Click "Run Benchmark" to test LLM provider latency</div>
+    </div>
+    <div id="benchHistory" style="margin-top:24px;"></div>
+  </div>
 </div>
 
 <!-- ===================== TAB: REQUESTS ===================== -->
@@ -678,7 +701,7 @@ function restoreUrlState() {
   const url = new URL(window.location);
   // Tab from hash
   const hash = url.hash.replace('#', '');
-  const validTabs = ['llm', 'requests', 'errors', 'health'];
+  const validTabs = ['llm', 'benchmark', 'requests', 'errors', 'health'];
   if (hash && validTabs.includes(hash)) {
     currentTab = hash;
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === hash));
@@ -740,6 +763,7 @@ function stampRefreshed() {
 function loadCurrentTab(force) {
   if (currentTab === 'requests')  loadRequests(force);
   else if (currentTab === 'llm')  loadLLM(force);
+  else if (currentTab === 'benchmark') renderBenchHistory();
   else if (currentTab === 'errors') loadErrors(force);
   else if (currentTab === 'health') loadHealth(force);
 }
@@ -934,6 +958,115 @@ function renderWaterfall(spans, totalMs) {
 // Live filters
 document.getElementById('reqSearch').addEventListener('input', renderRequests);
 document.getElementById('reqStatusFilter').addEventListener('change', renderRequests);
+
+// ============================================================
+// TAB: BENCHMARK
+// ============================================================
+let benchHistory = JSON.parse(localStorage.getItem('llm_bench_history') || '[]');
+
+async function runBenchmark() {
+  const btn = document.getElementById('benchRunBtn');
+  const status = document.getElementById('benchStatus');
+  const runs = parseInt(document.getElementById('benchRuns').value);
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  status.textContent = 'Testing all providers (may take 30-60s)...';
+  document.getElementById('benchResults').innerHTML = '<div class="loading">Running benchmark...</div>';
+
+  try {
+    const res = await fetch('/api/debug/llm-benchmark?runs=' + runs, {
+      method: 'POST',
+      headers: { 'X-Debug-Token': getToken() },
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    renderBenchResults(data);
+    // Save to history
+    benchHistory.unshift({ ts: new Date().toISOString(), data });
+    if (benchHistory.length > 10) benchHistory = benchHistory.slice(0, 10);
+    localStorage.setItem('llm_bench_history', JSON.stringify(benchHistory));
+    renderBenchHistory();
+    status.textContent = 'Done at ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    document.getElementById('benchResults').innerHTML = '<div class="empty-state" style="color:var(--red);">Benchmark failed: ' + e.message + '</div>';
+    status.textContent = 'Failed';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Run Benchmark';
+  }
+}
+
+function ttftColor(ms) {
+  if (ms == null) return 'var(--text-muted)';
+  if (ms < 800) return 'var(--green)';
+  if (ms < 2000) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+function renderBenchResults(data) {
+  const el = document.getElementById('benchResults');
+  if (!data.results || data.results.length === 0) {
+    el.innerHTML = '<div class="empty-state">No providers with API keys configured</div>';
+    return;
+  }
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+  html += '<tr style="border-bottom:1px solid var(--border);text-align:left;">';
+  html += '<th style="padding:8px;color:var(--text-muted);">Provider</th>';
+  html += '<th style="padding:8px;color:var(--text-muted);">Model</th>';
+  html += '<th style="padding:8px;color:var(--text-muted);text-align:right;">TTFT</th>';
+  html += '<th style="padding:8px;color:var(--text-muted);text-align:right;">Total</th>';
+  html += '<th style="padding:8px;color:var(--text-muted);text-align:right;">Runs</th>';
+  html += '</tr>';
+  for (const r of data.results) {
+    const active = r.active ? ' style="background:rgba(76,175,80,0.1);"' : '';
+    const badge = r.active ? '<span style="font-size:10px;background:var(--green);color:#fff;padding:1px 6px;border-radius:4px;margin-left:6px;">ACTIVE</span>' : '';
+    const ttft = r.avg_ttft_ms != null ? r.avg_ttft_ms + 'ms' : 'ERR';
+    const total = r.avg_total_ms != null ? r.avg_total_ms + 'ms' : 'ERR';
+    const runDetails = r.runs.map(run => {
+      if (run.error) return '<span style="color:var(--red);">ERR</span>';
+      return (run.ttft_ms || '?') + 'ms';
+    }).join(' / ');
+    html += '<tr' + active + ' style="border-bottom:1px solid rgba(255,255,255,0.05);">';
+    html += '<td style="padding:8px;font-family:var(--mono);">' + r.provider + badge + '</td>';
+    html += '<td style="padding:8px;font-size:11px;color:var(--text-dim);">' + r.model + '</td>';
+    html += '<td style="padding:8px;text-align:right;font-family:var(--mono);color:' + ttftColor(r.avg_ttft_ms) + ';font-weight:600;">' + ttft + '</td>';
+    html += '<td style="padding:8px;text-align:right;font-family:var(--mono);color:var(--text-dim);">' + total + '</td>';
+    html += '<td style="padding:8px;text-align:right;font-size:11px;color:var(--text-muted);">' + runDetails + '</td>';
+    html += '</tr>';
+  }
+  html += '</table>';
+  html += '<div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Prompt: ~3K tokens (medical) | TTFT color: <span style="color:var(--green);">&lt;800ms</span> <span style="color:var(--yellow);">800-2000ms</span> <span style="color:var(--red);">&gt;2000ms</span></div>';
+  el.innerHTML = html;
+}
+
+function renderBenchHistory() {
+  const el = document.getElementById('benchHistory');
+  if (benchHistory.length === 0) { el.innerHTML = ''; return; }
+  let html = '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">History (last 10 runs)</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+  html += '<tr style="border-bottom:1px solid var(--border);">';
+  html += '<th style="padding:4px 8px;text-align:left;color:var(--text-muted);">Time</th>';
+  for (const r of (benchHistory[0]?.data?.results || [])) {
+    html += '<th style="padding:4px 8px;text-align:right;color:var(--text-muted);">' + r.provider + '</th>';
+  }
+  html += '</tr>';
+  for (const entry of benchHistory.slice(0, 10)) {
+    const d = new Date(entry.ts);
+    const timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.03);">';
+    html += '<td style="padding:4px 8px;color:var(--text-dim);font-size:11px;">' + timeStr + '</td>';
+    for (const r of (entry.data?.results || [])) {
+      const val = r.avg_ttft_ms != null ? r.avg_ttft_ms + 'ms' : 'ERR';
+      html += '<td style="padding:4px 8px;text-align:right;font-family:var(--mono);color:' + ttftColor(r.avg_ttft_ms) + ';">' + val + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+  el.innerHTML = html;
+}
+
+// Render saved history on load
+renderBenchHistory();
 
 // ============================================================
 // TAB 2: LLM CALLS
