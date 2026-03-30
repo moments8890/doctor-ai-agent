@@ -33,6 +33,8 @@ import RecordEditDialog from "../../components/RecordEditDialog";
 import AppButton from "../../components/AppButton";
 import { STRUCTURED_FIELD_LABELS } from "./constants";
 import InterviewPage from "./InterviewPage";
+import SheetDialog from "../../components/SheetDialog";
+import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 
 function groupPatients(list) {
@@ -521,10 +523,24 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
   const [triggerExport, setTriggerExport] = useState(false);
 
   const [interviewPatient, setInterviewPatient] = useState(null);
+  const [showPatientPicker, setShowPatientPicker] = useState(false);
 
   function handleStartInterview(patientOrEvent) {
     // Called from buttons with no arg (event), or with explicit patient object
     const patient = (patientOrEvent && patientOrEvent.id && patientOrEvent.name) ? patientOrEvent : selectedPatient;
+    if (patient) {
+      // Patient already known — skip picker
+      setInterviewPatient(patient);
+      setInterviewActive(true);
+      navigate("/doctor/patients/new");
+    } else {
+      // No patient context — show picker
+      setShowPatientPicker(true);
+    }
+  }
+
+  function handlePickPatient(patient) {
+    setShowPatientPicker(false);
     setInterviewPatient(patient || null);
     setInterviewActive(true);
     navigate("/doctor/patients/new");
@@ -584,12 +600,41 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
   );
 
   return (
-    <PageSkeleton
-      title="患者"
-      isMobile={isMobile}
-      mobileView={mobileSubpage}
-      listPane={<PatientListPane {...listPaneProps} />}
-      detailPane={selectedPatient || interviewActive ? detailContent : null}
-    />
+    <>
+      <PageSkeleton
+        title="患者"
+        isMobile={isMobile}
+        mobileView={mobileSubpage}
+        listPane={<PatientListPane {...listPaneProps} />}
+        detailPane={selectedPatient || interviewActive ? detailContent : null}
+      />
+      {/* Patient picker sheet — shown when starting interview without a patient */}
+      <SheetDialog open={showPatientPicker} onClose={() => setShowPatientPicker(false)} title="选择患者">
+        <ListCard
+          avatar={<PersonAddOutlinedIcon sx={{ color: COLOR.primary, fontSize: ICON.md }} />}
+          title="新建患者"
+          subtitle="在对话中输入患者信息"
+          chevron
+          onClick={() => handlePickPatient(null)}
+          sx={{ borderBottom: `1px solid ${COLOR.border}` }}
+        />
+        {patients.map((p) => (
+          <ListCard
+            key={p.id}
+            avatar={<NameAvatar name={p.name} size={36} />}
+            title={p.name}
+            subtitle={[p.gender, p.age ? `${p.age}岁` : null].filter(Boolean).join(" · ") || ""}
+            chevron
+            onClick={() => handlePickPatient(p)}
+            sx={{ borderBottom: `1px solid ${COLOR.borderLight}` }}
+          />
+        ))}
+        {patients.length === 0 && (
+          <Typography sx={{ px: 2, py: 3, color: COLOR.text4, fontSize: TYPE.secondary.fontSize, textAlign: "center" }}>
+            暂无患者记录
+          </Typography>
+        )}
+      </SheetDialog>
+    </>
   );
 }
