@@ -302,6 +302,8 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
             db.add(task)
             p_result.task_count += 1
 
+        # Update last_activity_at to now so the patient appears recent in the list
+        patient.last_activity_at = now
         patient_results.append(p_result)
 
     return SeedResult(
