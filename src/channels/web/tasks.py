@@ -211,6 +211,15 @@ async def _create_task_for_doctor(doctor_id: str, body: TaskCreate) -> TaskOut:
         )
     safe_create_task(audit(doctor_id, "create_task", "doctor_task", str(task.id)))
 
+    # Update last_activity_at for the patient
+    if task.patient_id:
+        try:
+            async with AsyncSessionLocal() as act_db:
+                from db.crud.patient import touch_patient_activity
+                await touch_patient_activity(act_db, task.patient_id)
+        except Exception:
+            pass
+
     # Notify patient via system chat message
     if task.target == "patient" and task.patient_id:
         try:

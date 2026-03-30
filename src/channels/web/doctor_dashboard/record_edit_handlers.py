@@ -91,6 +91,13 @@ async def update_record(
     db.add(new_rec)
     await db.commit()
     await db.refresh(new_rec)
+    # Update last_activity_at for the patient
+    if new_rec.patient_id:
+        try:
+            from db.crud.patient import touch_patient_activity
+            await touch_patient_activity(db, new_rec.patient_id)
+        except Exception:
+            pass
     rec = new_rec
     return {
         "id": rec.id,

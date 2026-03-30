@@ -137,6 +137,14 @@ async def interview_confirm_endpoint(
 
     log(f"[interview-confirm] record saved id={record_id} doctor={resolved_doctor} patient={session.patient_id} status={status.value}")
 
+    # Update last_activity_at for the patient
+    if session.patient_id:
+        try:
+            from db.crud.patient import touch_patient_activity
+            await touch_patient_activity(db, session.patient_id)
+        except Exception:
+            pass
+
     # Update session status
     session.status = InterviewStatus.confirmed
     await save_session(session)
