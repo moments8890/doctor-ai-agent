@@ -9,40 +9,24 @@
  *   4. 最近已发送         (recently sent messages)
  */
 import { useEffect, useState, useCallback } from "react";
-import { Box, CircularProgress, Snackbar, Typography } from "@mui/material";
+import { Box, CircularProgress, Snackbar, Typography, useMediaQuery, useTheme } from "@mui/material";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
-import SubpageHeader from "../../components/SubpageHeader";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
 import SectionLabel from "../../components/SectionLabel";
 import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
-import ActionRow from "../../components/ActionRow";
-import { TYPE, COLOR, RADIUS } from "../../theme";
+import PageSkeleton from "../../components/PageSkeleton";
+import BarButton from "../../components/BarButton";
+import TaskDetailSubpage from "./subpages/TaskDetailSubpage";
+
+import FilterBar from "../../components/FilterBar";
+import { TYPE, COLOR, RADIUS, HIGHLIGHT_ROW_SX } from "../../theme";
 import { markOnboardingStep, ONBOARDING_STEP } from "./constants";
 
 // Task type badge mapping removed — ActionRow uses checkbox instead of IconBadge
-
-// ── Summary stat component ──
-function SummaryStat({ value, label, sublabel, color, onClick }) {
-  return (
-    <Box onClick={onClick} sx={{ flex: 1, textAlign: "center", cursor: onClick ? "pointer" : "default", "&:active": onClick ? { opacity: 0.5 } : {} }}>
-      <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 600, color: color || COLOR.text1 }}>
-        {value}
-      </Typography>
-      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mt: "2px" }}>
-        {label}
-      </Typography>
-      {sublabel && (
-        <Typography sx={{ fontSize: 10, color: COLOR.primary, mt: "1px" }}>
-          {sublabel}
-        </Typography>
-      )}
-    </Box>
-  );
-}
 
 // ── Scheduled follow-up row ──
 // Old TaskCheckbox, CompletableRow, ScheduledRow, TaskRow, SentRow replaced by ActionRow
@@ -139,12 +123,94 @@ function SendConfirmSheet({ open, onClose, item, onConfirm, sending }) {
   );
 }
 
+// ── Create task sheet ──
+function CreateTaskSheet({ open, onClose, doctorId, onCreated }) {
+  const api = useApi();
+  const [title, setTitle] = useState("");
+  const [dueAt, setDueAt] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const handleCreate = async () => {
+    if (!title.trim() || creating) return;
+    setCreating(true);
+    try {
+      const task = await (api.createTask || (() => Promise.resolve({})))(doctorId, {
+        task_type: "general",
+        title: title.trim(),
+        due_at: dueAt || undefined,
+      });
+      onCreated?.(task);
+      setTitle("");
+      setDueAt("");
+      onClose();
+    } catch {
+      // keep sheet open
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <SheetDialog
+      open={open}
+      onClose={onClose}
+      title="新建任务"
+      footer={
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <AppButton variant="secondary" size="lg" fullWidth onClick={onClose} disabled={creating}>
+            取消
+          </AppButton>
+          <AppButton variant="primary" size="lg" fullWidth onClick={handleCreate} loading={creating} disabled={!title.trim()}>
+            创建
+          </AppButton>
+        </Box>
+      }
+    >
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.5 }}>任务标题</Typography>
+          <Box
+            component="input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="例如：术后复查CT"
+            sx={{
+              width: "100%", p: 1.5, border: `0.5px solid ${COLOR.border}`,
+              borderRadius: RADIUS.sm, fontSize: TYPE.body.fontSize,
+              outline: "none", fontFamily: "inherit",
+              "&:focus": { borderColor: COLOR.primary },
+            }}
+          />
+        </Box>
+        <Box>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.5 }}>截止日期（可选）</Typography>
+          <Box
+            component="input"
+            type="date"
+            value={dueAt}
+            onChange={(e) => setDueAt(e.target.value)}
+            sx={{
+              width: "100%", p: 1.5, border: `0.5px solid ${COLOR.border}`,
+              borderRadius: RADIUS.sm, fontSize: TYPE.body.fontSize,
+              outline: "none", fontFamily: "inherit",
+              "&:focus": { borderColor: COLOR.primary },
+            }}
+          />
+        </Box>
+      </Box>
+    </SheetDialog>
+  );
+}
+
 // ── Main page ──
 const VALID_TABS = new Set(["followups", "sent"]);
 
 export default function TaskPage({ doctorId, urlSubpage }) {
   const api = useApi();
   const navigate = useAppNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [createOpen, setCreateOpen] = useState(false);
   const params = new URLSearchParams(window.location.search);
   const origin = params.get("origin") || "";
   const highlightTaskIds = new Set(
@@ -351,9 +417,24 @@ export default function TaskPage({ doctorId, urlSubpage }) {
   const showFollowups = filter === "all" || filter === "followups";
   const showSent = filter === "all" || filter === "sent";
 
+  const showDetail = !!urlSubpage && urlSubpage !== "tasks";
+  const mobileSubpage = showDetail ? (
+    <TaskDetailSubpage
+      taskId={urlSubpage}
+      doctorId={doctorId}
+      onBack={() => navigate(-1)}
+      isMobile={isMobile}
+    />
+  ) : null;
+
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
-      <SubpageHeader title="任务" />
+    <>
+    <PageSkeleton
+      title="任务"
+      isMobile={isMobile}
+      headerRight={<BarButton onClick={() => setCreateOpen(true)}>+ 新建</BarButton>}
+      mobileView={mobileSubpage}
+      listPane={
       <Box sx={{ flex: 1, overflow: "auto", pb: "80px" }}>
         {origin === "patient_submit" && (
           <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 15 }}>
@@ -400,74 +481,81 @@ export default function TaskPage({ doctorId, urlSubpage }) {
         {!loading && !error && (
           <>
             {/* ── Filter stat bar — always visible ── */}
-            <Box sx={{
-              display: "flex",
-              bgcolor: COLOR.white,
-              borderBottom: `0.5px solid ${COLOR.border}`,
-              borderTop: `0.5px solid ${COLOR.border}`,
-            }}>
-              {[
-                { key: "followups", label: "待完成", count: allPendingItems.length, activeColor: COLOR.warning },
-                { key: "sent", label: "已完成", count: recentlySent.length, activeColor: COLOR.text4 },
-              ].map((tab, i, arr) => {
-                const active = filter === tab.key;
+            <FilterBar
+              items={[
+                { key: "followups", label: "待完成", activeColor: COLOR.warning },
+                { key: "sent", label: "已完成", activeColor: COLOR.text4 },
+              ]}
+              active={filter}
+              counts={{ followups: allPendingItems.length, sent: recentlySent.length }}
+              onChange={handleFilter}
+              dividers
+            />
+
+            {/* ── Section: 待完成 (grouped by urgency) ── */}
+            {showFollowups && allPendingItems.length > 0 && (() => {
+              const urgent = allPendingItems.filter(item => item.soon);
+              const upcoming = allPendingItems.filter(item => !item.soon);
+
+              const renderRow = (item) => {
+                const isUrgent = item.soon;
+                const dotColor = isUrgent ? COLOR.danger : (upcoming.indexOf(item) < 3 ? COLOR.warning : COLOR.text4);
+                const title = item._isFollowup ? `${item.patient_name} · ${item.task}` : (item.title || "任务");
+                const subtitle = item._isFollowup ? item.detail : item.content;
+                const dateStr = item._isFollowup ? (item.due_label || "") : (item.due_at ? item.due_at.slice(0, 10) : "");
                 return (
-                  <Box key={tab.key} sx={{ display: "contents" }}>
-                    <Box
-                      onClick={() => handleFilter(tab.key)}
-                      sx={{
-                        flex: 1, textAlign: "center",
-                        py: 1, cursor: "pointer", userSelect: "none",
-                        borderBottom: active ? `2px solid ${tab.activeColor}` : "2px solid transparent",
-                        transition: "border-color 0.15s ease",
-                        "&:active": { opacity: 0.5 },
-                      }}
-                    >
-                      <Typography sx={{
-                        fontSize: TYPE.title.fontSize, fontWeight: 600,
-                        color: active ? tab.activeColor : COLOR.text4,
-                        transition: "color 0.15s ease",
-                      }}>
-                        {tab.count}
+                  <Box key={`${item._isFollowup ? "f" : "t"}-${item.id}`}
+                    onClick={() => navigate(`/doctor/tasks/${item.id}`)}
+                    sx={{
+                      display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5,
+                      borderBottom: `0.5px solid ${COLOR.borderLight}`, cursor: "pointer",
+                      ...(isUrgent ? { bgcolor: COLOR.dangerLight } : {}),
+                      "&:last-child": { borderBottom: "none" },
+                      "&:active": { opacity: 0.8 },
+                      ...(highlightTaskIds.has(String(item.id)) ? HIGHLIGHT_ROW_SX : {}),
+                    }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: dotColor, flexShrink: 0, mt: 0.5 }} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {title}
                       </Typography>
-                      <Typography sx={{
-                        fontSize: TYPE.micro.fontSize, mt: "2px",
-                        color: active ? COLOR.text2 : COLOR.text4,
-                        fontWeight: active ? 500 : 400,
-                      }}>
-                        {tab.label}
-                      </Typography>
+                      {subtitle && (
+                        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {subtitle}
+                        </Typography>
+                      )}
                     </Box>
-                    {i < arr.length - 1 && (
-                      <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 1 }} />
-                    )}
+                    <Box sx={{ flexShrink: 0, textAlign: "right" }}>
+                      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: isUrgent ? COLOR.danger : COLOR.text4, fontWeight: isUrgent ? 500 : 400 }}>
+                        {dateStr}
+                      </Typography>
+                      <Typography sx={{ fontSize: 14, color: COLOR.text4, mt: 0.5 }}>›</Typography>
+                    </Box>
                   </Box>
                 );
-              })}
-            </Box>
+              };
 
-            {/* ── Section: 待完成 (merged followups + tasks, sorted by due date) ── */}
-            {showFollowups && allPendingItems.length > 0 && (
-              <>
-                <SectionLabel>待完成</SectionLabel>
-                <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-                  {allPendingItems.map((item) => (
-                    <ActionRow
-                      key={`${item._isFollowup ? "f" : "t"}-${item.id}`}
-                      title={item._isFollowup ? `${item.patient_name} · ${item.task}` : (item.title || "任务")}
-                      subtitle={item._isFollowup ? item.detail : item.content}
-                      right={item._isFollowup ? (item.due_label || "") : (item.due_at ? item.due_at.slice(0, 10) : "")}
-                      urgent={item.soon}
-                      onClick={() => item.patient_id ? navigate(`/doctor/patients/${item.patient_id}`) : undefined}
-                      onToggle={() => handleCompleteTask(item)}
-                      sx={highlightTaskIds.has(String(item.id))
-                        ? { bgcolor: "#fffef5", borderLeft: `3px solid ${COLOR.primary}` }
-                        : undefined}
-                    />
-                  ))}
-                </Box>
-              </>
-            )}
+              return (
+                <>
+                  {urgent.length > 0 && (
+                    <>
+                      <SectionLabel sx={{ color: COLOR.danger }}>紧急 · 今天到期</SectionLabel>
+                      <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+                        {urgent.map(renderRow)}
+                      </Box>
+                    </>
+                  )}
+                  {upcoming.length > 0 && (
+                    <>
+                      <SectionLabel>{urgent.length > 0 ? "即将到期" : "待完成"}</SectionLabel>
+                      <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+                        {upcoming.map(renderRow)}
+                      </Box>
+                    </>
+                  )}
+                </>
+              );
+            })()}
 
             {/* ── Section: 已完成 ── */}
             {showSent && recentlySent.length > 0 && (
@@ -475,18 +563,27 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                 <SectionLabel>已完成</SectionLabel>
                 <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
                   {recentlySent.map((s) => (
-                    <ActionRow
-                      key={s.id}
-                      title={`${s.patient_name} · ${s.task}`}
-                      subtitle={s.read_status || "已完成"}
-                      right={s.time}
-                      done
-                      onClick={() => s.patient_id ? navigate(`/doctor/patients/${s.patient_id}`) : undefined}
-                      onToggle={() => handleUncompleteTask(s)}
-                      sx={highlightTaskIds.has(String(s.id))
-                        ? { bgcolor: "#fffef5", borderLeft: `3px solid ${COLOR.primary}` }
-                        : undefined}
-                    />
+                    <Box key={s.id}
+                      onClick={() => navigate(`/doctor/tasks/${s.id}`)}
+                      sx={{
+                        display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.5,
+                        borderBottom: `0.5px solid ${COLOR.borderLight}`, cursor: "pointer",
+                        "&:last-child": { borderBottom: "none" },
+                        "&:active": { opacity: 0.8 },
+                        ...(highlightTaskIds.has(String(s.id)) ? HIGHLIGHT_ROW_SX : {}),
+                      }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: COLOR.primary, flexShrink: 0 }} />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography sx={{ fontSize: TYPE.action.fontSize, color: COLOR.text4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {s.patient_name} · {s.task}
+                        </Typography>
+                        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.5 }}>
+                          {s.read_status || "已完成"}
+                        </Typography>
+                      </Box>
+                      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{s.time}</Typography>
+                      <Typography sx={{ fontSize: 14, color: COLOR.text4 }}>›</Typography>
+                    </Box>
                   ))}
                 </Box>
               </>
@@ -503,6 +600,8 @@ export default function TaskPage({ doctorId, urlSubpage }) {
           </>
         )}
       </Box>
+      }
+    />
 
       {/* Send confirmation sheet */}
       <SendConfirmSheet
@@ -511,6 +610,14 @@ export default function TaskPage({ doctorId, urlSubpage }) {
         item={confirmItem}
         onConfirm={handleConfirmSend}
         sending={sending}
+      />
+
+      {/* Create task sheet */}
+      <CreateTaskSheet
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        doctorId={doctorId}
+        onCreated={() => loadData()}
       />
 
       {/* Teaching prompt: save edited draft as knowledge rule */}
@@ -553,6 +660,6 @@ export default function TaskPage({ doctorId, urlSubpage }) {
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         message="已保存为知识条目"
       />
-    </Box>
+    </>
   );
 }
