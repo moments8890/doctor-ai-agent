@@ -10,7 +10,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
-import { Box } from "@mui/material";
+import { Box, Fade } from "@mui/material";
 import Badge from "@mui/material/Badge";
 import BottomNavigation from "@mui/material/BottomNavigation";
 import BottomNavigationAction from "@mui/material/BottomNavigationAction";
@@ -30,7 +30,7 @@ import RecordsTab from "./RecordsTab";
 import TasksTab from "./TasksTab";
 import MyPage from "./MyPage";
 import InterviewPage from "./InterviewPage";
-import { COLOR } from "../../theme";
+import { COLOR, TYPE } from "../../theme";
 
 const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
@@ -147,31 +147,44 @@ export default function PatientPage() {
       {/* Page header — hidden when a subpage renders its own */}
       {!urlSubpage && <SubpageHeader title={NAV_TABS.find(t => t.key === tab)?.title || "AI 健康助手"} />}
 
-      {/* Content area */}
+      {/* Content area — Fade transition matches DoctorPage */}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-        {tab === "chat" && (
-          <ChatTab token={token} doctorName={doctorName} onLogout={handleLogout}
-            onNewInterview={startInterview}
-            onViewRecords={() => setTab("records")}
-            onUnreadCountChange={setUnreadCount} />
-        )}
-        {tab === "records" && (
-          <RecordsTab token={token} onNewRecord={startInterview} urlSubpage={urlSubpage} />
-        )}
-        {tab === "tasks" && <TasksTab token={token} />}
-        {tab === "profile" && (
-          <MyPage patientName={patientName} doctorName={doctorName}
-            doctorSpecialty={doctorSpecialty} doctorId={doctorId}
-            onLogout={handleLogout} />
-        )}
+        <Fade in={tab === "chat"} timeout={150} unmountOnExit>
+          <Box sx={{ position: tab === "chat" ? "relative" : "absolute", inset: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+            <ChatTab token={token} doctorName={doctorName} onLogout={handleLogout}
+              onNewInterview={startInterview}
+              onViewRecords={() => setTab("records")}
+              onUnreadCountChange={setUnreadCount} />
+          </Box>
+        </Fade>
+        <Fade in={tab === "records"} timeout={150} unmountOnExit>
+          <Box sx={{ position: tab === "records" ? "relative" : "absolute", inset: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+            <RecordsTab token={token} onNewRecord={startInterview} urlSubpage={urlSubpage} />
+          </Box>
+        </Fade>
+        <Fade in={tab === "tasks"} timeout={150} unmountOnExit>
+          <Box sx={{ position: tab === "tasks" ? "relative" : "absolute", inset: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+            <TasksTab token={token} />
+          </Box>
+        </Fade>
+        <Fade in={tab === "profile"} timeout={150} unmountOnExit>
+          <Box sx={{ position: tab === "profile" ? "relative" : "absolute", inset: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+            <MyPage patientName={patientName} doctorName={doctorName}
+              doctorSpecialty={doctorSpecialty} doctorId={doctorId}
+              onLogout={handleLogout} />
+          </Box>
+        </Fade>
       </Box>
 
       {/* Bottom navigation */}
       <BottomNavigation value={tab} onChange={(_, v) => setTab(v)} showLabels
         sx={{
-          flexShrink: 0, height: 56,
-          borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface,
+          flexShrink: 0, height: 64, bgcolor: COLOR.surface,
+          borderTop: `0.5px solid ${COLOR.border}`,
           paddingBottom: "env(safe-area-inset-bottom)",
+          "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "8px", color: COLOR.text4 },
+          "& .Mui-selected": { color: COLOR.primary },
+          "& .Mui-selected .MuiBottomNavigationAction-label": { color: COLOR.primary, fontWeight: 600 },
         }}>
         {NAV_TABS.map(t => (
           <BottomNavigationAction key={t.key} value={t.key} label={t.label}
@@ -180,7 +193,7 @@ export default function PatientPage() {
                 ? <Badge badgeContent={unreadCount} color="error">{t.icon}</Badge>
                 : t.icon
             }
-            sx={{ "&.Mui-selected": { color: COLOR.primary } }} />
+            />
         ))}
       </BottomNavigation>
     </Box>
