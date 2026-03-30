@@ -142,6 +142,22 @@ export async function getTasks(doctorId, status = null) {
   return { items: filtered };
 }
 
+export async function getTaskById(taskId, doctorId) {
+  const task = tasks.find((t) => t.id === Number(taskId));
+  if (!task) return null;
+  const patient = task.patient_id
+    ? patients.find((p) => p.id === task.patient_id)
+    : null;
+  return {
+    ...task,
+    patient_name: patient?.name || task.patient_name || null,
+    notes: task.notes || null,
+    reminder_at: task.reminder_at || null,
+    completed_at: task.completed_at || null,
+    source_type: task.source_type || null,
+  };
+}
+
 export async function getTaskRecord(recordId) {
   return records.find((r) => r.id === Number(recordId)) || null;
 }
@@ -209,6 +225,11 @@ export async function patchTask(taskId, doctorId, status) {
 
 export async function postponeTask(taskId, doctorId, dueAt) {
   tasks = tasks.map((t) => (t.id === taskId ? { ...t, due_at: dueAt } : t));
+  return {};
+}
+
+export async function patchTaskNotes(taskId, doctorId, notes) {
+  tasks = tasks.map((t) => (t.id === Number(taskId) ? { ...t, notes } : t));
   return {};
 }
 
