@@ -235,7 +235,7 @@ async def debug_llm_calls(
     return {"calls": page, "total": total, "has_more": has_more}
 
 
-@router.get("/debug", include_in_schema=False)
+@router.get("/api/debug/dashboard", include_in_schema=False)
 async def debug_dashboard_page(token: str = Query(..., description="Debug access token")):
     """Serve the debug dashboard HTML page. Token required."""
     _require_ui_debug_access(token)
