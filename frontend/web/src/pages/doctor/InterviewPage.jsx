@@ -460,6 +460,22 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
         />
       )}
 
+      {/* Ready-for-confirm floating banner — draws attention to "完成" */}
+      {session.status === "ready_for_confirm" && (
+        <Box sx={{ px: 2, py: 1.5, borderTop: `1px solid ${COLOR.primary}`, bgcolor: COLOR.primaryLight,
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text1, fontWeight: 500 }}>
+            病历信息已足够，可以生成AI诊断建议
+          </Typography>
+          <Button size="small" variant="contained" disableElevation
+            sx={{ bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover },
+              fontSize: TYPE.caption.fontSize, px: 2, py: 0.5, minWidth: "auto", flexShrink: 0 }}
+            onClick={() => setShowCompleteDialog(true)} disabled={loading}>
+            生成诊断
+          </Button>
+        </Box>
+      )}
+
       {/* Input bar — WeChat style: voice toggle | text input | + actions | send */}
       {session.status !== "draft_created" && (
         <>
