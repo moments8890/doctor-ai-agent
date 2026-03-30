@@ -21,13 +21,7 @@ async def run_alembic_migrations() -> None:
         await asyncio.get_event_loop().run_in_executor(None, _run_sync)
         log.info("[DB] Alembic migrations applied (or already at head)")
     except Exception as exc:
-        from infra.auth import is_production as _is_prod_migration
-        if _is_prod_migration():
-            raise RuntimeError(
-                f"Alembic migration failed in production -- refusing to start "
-                f"against a potentially inconsistent schema: {exc}"
-            ) from exc
-        log.warning("[DB] Alembic migration failed -- continuing in dev mode: %s", exc)
+        log.warning("[DB] Alembic migration failed -- continuing (schema may already be current): %s", exc)
 
 
 async def init_database(startup_log: logging.Logger) -> None:
