@@ -121,3 +121,14 @@ async def revert_task_to_pending(
         .values(status=TaskStatus.pending, updated_at=_utcnow())
     )
     await session.commit()
+
+
+async def update_task_notes(
+    session: AsyncSession,
+    task_id: int,
+    doctor_id: str,
+    notes: str,
+) -> Optional[DoctorTask]:
+    return await TaskRepository(session).update_notes(
+        task_id=task_id, doctor_id=doctor_id, notes=notes
+    )

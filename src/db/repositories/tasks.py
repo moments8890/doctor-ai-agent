@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import DoctorTask
 from db.models.tasks import TaskStatus
+from db.models.base import _utcnow
 
 
 class TaskRepository:
@@ -79,6 +80,11 @@ class TaskRepository:
         if task is None:
             return None
         task.status = status
+        task.updated_at = _utcnow()
+        if status == "completed":
+            task.completed_at = _utcnow()
+        elif task.completed_at is not None:
+            task.completed_at = None
         await self.session.commit()
         await self.session.refresh(task)
         return task
@@ -125,3 +131,13 @@ class TaskRepository:
             .values(status=TaskStatus.notified, updated_at=notified_at)
         )
         await self.session.commit()
+
+    async def update_notes(self, task_id: int, doctor_id: str, notes: str) -> Optional[DoctorTask]:
+        task = await self.get_by_id(task_id, doctor_id)
+        if task is None:
+            return None
+        task.notes = notes
+        task.updated_at = _utcnow()
+        await self.session.commit()
+        await self.session.refresh(task)
+        return task

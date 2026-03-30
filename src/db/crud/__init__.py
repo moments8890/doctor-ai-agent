@@ -37,6 +37,7 @@ from db.crud.tasks import (
     get_due_tasks,
     mark_task_notified,
     revert_task_to_pending,
+    update_task_notes,
 )
 from db.crud.runtime import (
     get_runtime_token,
@@ -94,6 +95,7 @@ __all__ = [
     "get_due_tasks",
     "mark_task_notified",
     "revert_task_to_pending",
+    "update_task_notes",
     # runtime
     "get_runtime_token",
     "upsert_runtime_token",
