@@ -74,9 +74,9 @@ async def review_queue(
     # ── 1. Summary counts ──────────────────────────────────────────────
     count_stmt = (
         select(
-            func.count().filter(AISuggestion.decision == None).label("pending"),  # noqa: E711
-            func.count().filter(AISuggestion.decision == "confirmed").label("confirmed"),
-            func.count().filter(AISuggestion.decision == "edited").label("modified"),
+            func.sum(case((AISuggestion.decision == None, 1), else_=0)).label("pending"),  # noqa: E711
+            func.sum(case((AISuggestion.decision == "confirmed", 1), else_=0)).label("confirmed"),
+            func.sum(case((AISuggestion.decision == "edited", 1), else_=0)).label("modified"),
         )
         .where(AISuggestion.doctor_id == resolved)
     )
