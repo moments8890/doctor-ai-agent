@@ -41,9 +41,15 @@ class TaskOut(BaseModel):
     patient_id: Optional[int]
     record_id: Optional[int]
     target: str = "doctor"
+    # Extended fields
+    notes: Optional[str] = None
+    reminder_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    patient_name: Optional[str] = None
+    source_type: Optional[str] = None
 
     @classmethod
-    def from_orm(cls, task: object) -> "TaskOut":
+    def from_orm(cls, task: object, patient_name: Optional[str] = None) -> "TaskOut":
         def _iso(dt: Optional[datetime]) -> Optional[str]:
             return dt.isoformat() if dt else None
 
@@ -59,11 +65,20 @@ class TaskOut(BaseModel):
             patient_id=task.patient_id,
             record_id=task.record_id,
             target=getattr(task, "target", "doctor"),
+            notes=getattr(task, "notes", None),
+            reminder_at=_iso(getattr(task, "reminder_at", None)),
+            completed_at=_iso(getattr(task, "completed_at", None)),
+            patient_name=patient_name,
+            source_type=getattr(task, "source_type", None),
         )
 
 
 class TaskStatusUpdate(BaseModel):
     status: str
+
+
+class TaskNotesUpdate(BaseModel):
+    notes: str
 
 
 class TaskDueUpdate(BaseModel):
@@ -117,6 +132,41 @@ async def _get_tasks_for_doctor(
     async with AsyncSessionLocal() as session:
         tasks = await list_tasks(session, doctor_id, status=status, limit=limit, offset=offset)
     return [TaskOut.from_orm(t) for t in tasks]
+
+
+@router.get("/{task_id}", response_model=TaskOut)
+async def get_task_detail(
+    task_id: int,
+    doctor_id: str,
+    authorization: Optional[str] = Header(default=None),
+) -> TaskOut:
+    """Fetch a single task with patient name."""
+    from db.models.tasks import DoctorTask
+    from db.models import Patient
+    from sqlalchemy import select
+
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="TASKS_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="tasks.get")
+    async with AsyncSessionLocal() as session:
+        stmt = select(DoctorTask).where(
+            DoctorTask.id == task_id,
+            DoctorTask.doctor_id == resolved_doctor_id,
+        )
+        task = (await session.execute(stmt)).scalar_one_or_none()
+        if task is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+        patient_name = None
+        if task.patient_id:
+            pt = (await session.execute(
+                select(Patient).where(Patient.id == task.patient_id)
+            )).scalar_one_or_none()
+            if pt:
+                patient_name = pt.name
+    return TaskOut.from_orm(task, patient_name=patient_name)
 
 
 @router.post("", response_model=TaskOut, status_code=201)
@@ -207,6 +257,28 @@ async def _patch_task_for_doctor(task_id: int, doctor_id: str, body: TaskStatusU
         raise HTTPException(status_code=422, detail=f"status must be one of {allowed}")
     async with AsyncSessionLocal() as session:
         task = await update_task_status(session, task_id, doctor_id, body.status)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return TaskOut.from_orm(task)
+
+
+@router.patch("/{task_id}/notes", response_model=TaskOut)
+async def patch_task_notes(
+    task_id: int,
+    doctor_id: str,
+    body: TaskNotesUpdate,
+    authorization: Optional[str] = Header(default=None),
+) -> TaskOut:
+    """Update task notes."""
+    resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
+        doctor_id, authorization,
+        fallback_env_flag="TASKS_ALLOW_BODY_DOCTOR_ID",
+        default_doctor_id="test_doctor",
+    )
+    enforce_doctor_rate_limit(resolved_doctor_id, scope="tasks.patch")
+    async with AsyncSessionLocal() as session:
+        from db.crud.tasks import update_task_notes
+        task = await update_task_notes(session, task_id, resolved_doctor_id, body.notes)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return TaskOut.from_orm(task)
