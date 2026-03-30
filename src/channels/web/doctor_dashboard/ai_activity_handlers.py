@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from channels.web.doctor_dashboard.deps import _resolve_ui_doctor_id
 from db.engine import get_db
 from db.models.ai_suggestion import AISuggestion
+from db.models.records import MedicalRecordDB
 from db.models.message_draft import MessageDraft
 from db.models.patient import Patient
 from db.models.patient_message import PatientMessage
