@@ -611,24 +611,27 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
       {/* Patient picker sheet — shown when starting interview without a patient */}
       <SheetDialog open={showPatientPicker} onClose={() => setShowPatientPicker(false)} title="选择患者">
         <ListCard
-          avatar={<PersonAddOutlinedIcon sx={{ color: COLOR.primary, fontSize: ICON.md }} />}
+          avatar={<NameAvatar name="+" size={36} />}
           title="新建患者"
           subtitle="在对话中输入患者信息"
           chevron
           onClick={() => handlePickPatient(null)}
           sx={{ borderBottom: `1px solid ${COLOR.border}` }}
         />
-        {patients.map((p) => (
-          <ListCard
-            key={p.id}
-            avatar={<NameAvatar name={p.name} size={36} />}
-            title={p.name}
-            subtitle={[p.gender, p.age ? `${p.age}岁` : null].filter(Boolean).join(" · ") || ""}
-            chevron
-            onClick={() => handlePickPatient(p)}
-            sx={{ borderBottom: `1px solid ${COLOR.borderLight}` }}
-          />
-        ))}
+        {patients.map((p) => {
+          const genderZh = p.gender === "male" ? "男" : p.gender === "female" ? "女" : p.gender || "";
+          return (
+            <ListCard
+              key={p.id}
+              avatar={<NameAvatar name={p.name} size={36} />}
+              title={p.name}
+              subtitle={[genderZh, p.age ? `${p.age}岁` : null].filter(Boolean).join(" · ") || ""}
+              chevron
+              onClick={() => handlePickPatient(p)}
+              sx={{ borderBottom: `1px solid ${COLOR.borderLight}` }}
+            />
+          );
+        })}
         {patients.length === 0 && (
           <Typography sx={{ px: 2, py: 3, color: COLOR.text4, fontSize: TYPE.secondary.fontSize, textAlign: "center" }}>
             暂无患者记录
