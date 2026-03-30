@@ -59,6 +59,9 @@ function formatPatientTime(dateStr) {
   const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   if (dt.getTime() === today.getTime()) return `今天 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   if (dt.getTime() === yesterday.getTime()) return "昨天";
+  const diffDays = Math.floor((today - dt) / 86400000);
+  if (diffDays >= 2 && diffDays < 7) return `${diffDays}天前`;
+  if (d.getFullYear() !== now.getFullYear()) return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
@@ -511,6 +514,18 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
   useEffect(() => {
     if (patientId === "new") setInterviewActive(true);
   }, [patientId]);
+
+  // URL-driven: ?action=new opens patient picker (from home page shortcut)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("action") === "new" && !interviewActive) {
+      setShowPatientPicker(true);
+      // Clean URL
+      params.delete("action");
+      const clean = params.toString();
+      window.history.replaceState({}, "", window.location.pathname + (clean ? "?" + clean : ""));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When triggerInterview is set from chat section, activate interview mode
   useEffect(() => {

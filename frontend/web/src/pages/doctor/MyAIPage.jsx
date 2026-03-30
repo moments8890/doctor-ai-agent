@@ -159,7 +159,7 @@ export default function MyAIPage({ doctorId }) {
   }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derived values — all stats computed from actual data
-  const aiName = `${doctorName || "医生"}AI`;
+  const aiName = `${doctorName || "医生"} 的 AI`;
   const knowledgeList = Array.isArray(knowledge) ? knowledge : (knowledge?.items || []);
   const knowledgeCount = knowledgeList.length;
   const topRules = knowledgeList.slice(0, 3);
@@ -255,7 +255,7 @@ export default function MyAIPage({ doctorId }) {
             title="新建病历"
             subtitle="语音或文字录入患者信息"
             chevron
-            onClick={() => navigate("/doctor/patients/new")}
+            onClick={() => navigate("/doctor/patients?action=new")}
           />
           <ListCard
             avatar={<IconBadge config={ICON_BADGES.review} />}

@@ -21,6 +21,9 @@ import { TYPE, COLOR } from "../theme";
 export default function ListCard({ avatar, title, subtitle, right, chevron, onClick, sx }) {
   return (
     <Box
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(e); } } : undefined}
       onClick={onClick}
       sx={{
         display: "flex", alignItems: "center", gap: 1.5,
