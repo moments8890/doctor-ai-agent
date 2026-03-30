@@ -72,11 +72,20 @@ async def ai_activity_feed(
             .limit(limit)
         )
     ).scalars().all()
+    # Resolve patient_id for suggestions via their records
+    sug_record_ids = [s.record_id for s in suggestions if s.record_id]
+    rec_patient_map = {}
+    if sug_record_ids:
+        rec_rows = (await session.execute(
+            select(MedicalRecordDB.id, MedicalRecordDB.patient_id)
+            .where(MedicalRecordDB.id.in_(sug_record_ids))
+        )).all()
+        rec_patient_map = {rid: pid for rid, pid in rec_rows}
     for s in suggestions:
         events.append({
             "type": "diagnosis",
             "description": f"生成诊断建议：{s.content[:30]}",
-            "patient_id": None,
+            "patient_id": rec_patient_map.get(s.record_id),
             "record_id": s.record_id,
             "timestamp": _safe_iso(s.created_at),
         })
