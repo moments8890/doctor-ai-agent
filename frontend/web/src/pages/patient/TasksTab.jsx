@@ -13,12 +13,15 @@ import TaskChecklist from "../../components/TaskChecklist";
 import SectionLabel from "../../components/SectionLabel";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
+import FilterBar from "../../components/FilterBar";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import { PATIENT_TASK_FILTERS } from "./constants";
 
 export default function TasksTab({ token }) {
   const { getPatientTasks, completePatientTask, uncompletePatientTask } = usePatientApi();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
 
   const loadTasks = useCallback(() => {
     setLoading(true);
@@ -48,29 +51,42 @@ export default function TasksTab({ token }) {
     return <SectionLoading py={6} />;
   }
 
-  if (tasks.length === 0) {
-    return (
-      <EmptyState icon={<AssignmentOutlinedIcon />} title="暂无任务" subtitle="医生安排的复查、用药提醒将显示在这里" />
-    );
-  }
-
   const pending = tasks.filter(t => t.status === "pending" || t.status === "notified");
   const completed = tasks.filter(t => t.status === "completed");
 
+  const filtered = filter === "all" ? tasks
+    : filter === "pending" ? tasks.filter(t => t.status === "pending" || t.status === "notified")
+    : tasks.filter(t => t.status === "completed");
+
   return (
-    <Box sx={{ flex: 1, overflowY: "auto" }}>
-      {pending.length > 0 && (
-        <>
-          <SectionLabel>待完成 · {pending.length}</SectionLabel>
-          <TaskChecklist tasks={pending} onComplete={handleComplete} />
-        </>
-      )}
-      {completed.length > 0 && (
-        <>
-          <SectionLabel sx={{ mt: 1 }}>已完成 · {completed.length}</SectionLabel>
-          <TaskChecklist tasks={completed} onUndo={handleUndo} />
-        </>
-      )}
+    <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <FilterBar items={PATIENT_TASK_FILTERS} active={filter} onChange={setFilter} />
+      <Box sx={{ flex: 1, overflowY: "auto" }}>
+        {filtered.length === 0 ? (
+          <EmptyState icon={<AssignmentOutlinedIcon />} title="暂无任务" subtitle="医生安排的复查、用药提醒将显示在这里" />
+        ) : filter === "all" ? (
+          <>
+            {pending.length > 0 && (
+              <>
+                <SectionLabel>待完成 · {pending.length}</SectionLabel>
+                <TaskChecklist tasks={pending} onComplete={handleComplete} />
+              </>
+            )}
+            {completed.length > 0 && (
+              <>
+                <SectionLabel sx={{ mt: 1 }}>已完成 · {completed.length}</SectionLabel>
+                <TaskChecklist tasks={completed} onUndo={handleUndo} />
+              </>
+            )}
+          </>
+        ) : (
+          <TaskChecklist
+            tasks={filtered}
+            onComplete={filter === "pending" ? handleComplete : undefined}
+            onUndo={filter === "done" ? handleUndo : undefined}
+          />
+        )}
+      </Box>
     </Box>
   );
 }
