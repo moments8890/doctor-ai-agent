@@ -385,7 +385,13 @@ function Step2Content({ doctorId, progress, updateProgress, setCanAdvance, api }
   }, [proofData?.diagnosis_record_id, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleConfirm() {
-    if (!suggestion || confirming) return;
+    if (confirming) return;
+    // No real suggestion data (examples API unavailable) — just toggle UI
+    if (!suggestion) {
+      setConfirmed(true);
+      setCanAdvance(true);
+      return;
+    }
     setConfirming(true);
     try {
       await decideSuggestion(suggestion.id, "accept");
