@@ -605,7 +605,11 @@ let routingData = null;
 // ============================================================
 // TOKEN MANAGEMENT
 // ============================================================
-function getToken() { return localStorage.getItem('debug_token') || ''; }
+function getToken() {
+  const urlToken = new URLSearchParams(window.location.search).get('token');
+  if (urlToken) { localStorage.setItem('debug_token', urlToken); return urlToken; }
+  return localStorage.getItem('debug_token') || '';
+}
 
 function showTokenModal() {
   document.getElementById('tokenModal').classList.remove('hidden');
