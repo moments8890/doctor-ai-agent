@@ -241,18 +241,21 @@ export default function TaskPage({ doctorId, urlSubpage }) {
     setLoading(true);
     setError(null);
     try {
-      const [draftsRes, summaryRes, tasksRes] = await Promise.all([
+      const [draftsRes, summaryRes, tasksRes, completedTasksRes] = await Promise.all([
         (api.fetchDrafts || (() => Promise.resolve({})))(doctorId),
         (api.fetchDraftSummary || (() => Promise.resolve({})))(doctorId),
         (api.getTasks || (() => Promise.resolve([])))(doctorId, "pending")
           .then((d) => Array.isArray(d) ? d : (d.items || []))
           .catch(() => []),
+        (api.getTasks || (() => Promise.resolve([])))(doctorId, "completed")
+          .then((d) => Array.isArray(d) ? d : (d.items || []))
+          .catch(() => []),
       ]);
       // Handle both old flat array format and new structured format
       if (Array.isArray(draftsRes)) {
-        setData({ pending_messages: draftsRes, upcoming_followups: [], recently_sent: [], tasks: tasksRes });
+        setData({ pending_messages: draftsRes, upcoming_followups: [], recently_sent: completedTasksRes, tasks: tasksRes });
       } else {
-        setData({ ...(draftsRes || {}), tasks: tasksRes });
+        setData({ ...(draftsRes || {}), tasks: tasksRes, recently_sent: [...((draftsRes || {}).recently_sent || []), ...completedTasksRes] });
       }
       setSummary(summaryRes || {});
     } catch (err) {
