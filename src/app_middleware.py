@@ -134,8 +134,11 @@ def setup_middleware(app: FastAPI) -> None:
             try:
                 response = await call_next(request)
                 status_code = int(getattr(response, "status_code", 200))
-            except Exception:
+            except Exception as exc:
                 latency_ms = (time.perf_counter() - start_clock) * 1000.0
+                logging.getLogger("app").exception(
+                    "[UnhandledError] path=%s err=%s", request.url.path, exc
+                )
                 add_trace(
                     trace_id=trace_id,
                     started_at=started_at,

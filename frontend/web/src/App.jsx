@@ -9,6 +9,7 @@ import PatientPage from "./pages/patient/PatientPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import ComponentShowcasePage from "./pages/admin/ComponentShowcasePage";
 import DoctorComponentShowcase from "./components/doctor/Showcase";
+import OnboardingWizard from "./pages/doctor/OnboardingWizard";
 import { useDoctorStore } from "./store/doctorStore";
 import { setWebToken, onAuthExpired } from "./api";
 import { ApiProvider } from "./api/ApiContext";
@@ -174,7 +175,10 @@ export default function App() {
   useEffect(() => {
     onAuthExpired(() => {
       if (isMiniApp()) {
+        useDoctorStore.getState().clearAuth();
         alert("会话已过期，请关闭后重新打开小程序");
+        // eslint-disable-next-line no-undef
+        wx.miniProgram?.navigateBack?.();
       } else {
         useDoctorStore.getState().clearAuth();
         window.location.href = "/login";
@@ -188,6 +192,10 @@ export default function App() {
       <Route path="/privacy" element={<MobileFrame><PrivacyPage /></MobileFrame>} />
       <Route path="/login" element={<MobileFrame><LoginPage /></MobileFrame>} />
       <Route path="/" element={<Navigate to="/doctor" replace />} />
+      {/* Onboarding wizard — outside DoctorPage shell (no bottom nav) */}
+      <Route path="/doctor/onboarding" element={
+        <MobileFrame><RequireAuth><ApiProvider><OnboardingWizard /></ApiProvider></RequireAuth></MobileFrame>
+      } />
       {doctorRoutes("/doctor", ApiProvider)}
       {patientRoutes("/patient", PatientApiProvider)}
       {/* Admin — full desktop layout, no MobileFrame */}

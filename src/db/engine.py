@@ -70,3 +70,9 @@ AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 class Base(DeclarativeBase):
     pass
+
+
+async def get_db():
+    """FastAPI dependency that yields an async DB session per request."""
+    async with AsyncSessionLocal() as session:
+        yield session

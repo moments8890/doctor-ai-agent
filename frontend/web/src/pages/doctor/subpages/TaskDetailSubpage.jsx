@@ -169,7 +169,7 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
               {task.title}
             </Typography>
             {isUrgent && (
-              <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.danger, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.75, py: 0.25, lineHeight: 1.5 }}>
+              <Box component="span" sx={{ fontSize: TYPE.micro.fontSize, fontWeight: 600, bgcolor: COLOR.danger, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.75, py: 0.25, lineHeight: 1.5 }}>
                 紧急
               </Box>
             )}
@@ -277,10 +277,9 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
         <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
           <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
             <Typography sx={{ fontSize: TYPE.body.fontSize, flex: 1 }}>提醒</Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: task.reminder_at ? COLOR.primary : COLOR.text4 }}>
               {task.reminder_at ? task.reminder_at.slice(0, 16).replace("T", " ") : "未设置"}
             </Typography>
-            <Typography sx={{ fontSize: 14, color: COLOR.text4, ml: 1 }}>›</Typography>
           </Box>
 
           {!isCompleted && (

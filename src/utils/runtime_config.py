@@ -28,7 +28,7 @@ DEFAULT_RUNTIME_CONFIG: Dict[str, Any] = {
     "VISION_LLM": "ollama",
     "OPENAI_API_KEY": "",
     "TENCENT_LKEAP_BASE_URL": "https://api.lkeap.cloud.tencent.com/v1",
-    "TENCENT_LKEAP_MODEL": "deepseek-v3-1",
+    "TENCENT_LKEAP_MODEL": "deepseek-v3",
     "TENCENT_LKEAP_API_KEY": "",
     "GROQ_API_KEY": "",
     "DEEPSEEK_API_KEY": "",

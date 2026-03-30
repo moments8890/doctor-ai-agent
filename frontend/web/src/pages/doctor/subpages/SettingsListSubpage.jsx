@@ -126,9 +126,9 @@ export default function SettingsListSubpage({
       <Box sx={{ bgcolor: COLOR.white }}>
         <SettingsRow icon={<UploadFileOutlinedIcon sx={{ color: COLOR.primary, fontSize: ICON.lg }} />}
           label="报告模板" sublabel="自定义门诊病历报告格式" onClick={onTemplate} />
-        <SettingsRow icon={<MenuBookOutlinedIcon sx={{ color: "#5b9bd5", fontSize: ICON.lg }} />}
+        <SettingsRow icon={<MenuBookOutlinedIcon sx={{ color: COLOR.recordBlue, fontSize: ICON.lg }} />}
           label="知识库" sublabel="管理 AI 助手参考资料" onClick={onKnowledge} />
-        <SettingsRow icon={<QrCode2OutlinedIcon sx={{ color: "#e8833a", fontSize: ICON.lg }} />}
+        <SettingsRow icon={<QrCode2OutlinedIcon sx={{ color: COLOR.orange, fontSize: ICON.lg }} />}
           label="我的二维码" sublabel="扫码登录其他设备" onClick={onQRCode} />
         <BulkExportRow status={bulkExportStatus} progress={bulkExportProgress} onClick={onBulkExport} />
       </Box>

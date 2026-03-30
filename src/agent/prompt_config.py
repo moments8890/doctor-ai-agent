@@ -15,14 +15,14 @@ from agent.types import IntentType
 class LayerConfig:
     """Which prompt layers an intent uses.
 
-    Layers: common/base.md → domain/{specialty}.md → intent/{intent}.md
+    Layers: L1 Identity → L2 Specialty → L3 Task → L4 Doctor Rules → L5 Case Memory → L6 Patient → L7 Input
 
     conversation_mode:
-      False (default) = Pattern 1 (single-turn): L1-3 system, L4-6 user with XML tags
-      True = Pattern 2 (conversation): L1-5 system, history, L6 user plain text
+      False (default) = Pattern 1 (single-turn): L1-L3 system, L4-L6 user with XML tags
+      True = Pattern 2 (conversation): L1-L5 system, history, L6 user plain text
 
     load_knowledge:
-      True  → load ALL doctor KB items for this intent
+      True  → load ALL doctor KB items (L4 Doctor Rules) for this intent
       False → skip KB loading
     """
     system: bool = True
@@ -39,7 +39,7 @@ class LayerConfig:
 # Intent             | Common | Domain | Intent      | Dr Knowledge | Patient Ctx
 # -------------------|--------|--------|-------------|--------------|------------
 # query_record       |   ✓    |        | query       |      ✓       |      ✓
-# create_record      |   ✓    |   ✓    | interview   |      ✓       |      ✓
+# create_record      |   ✓    |   ✓    | interview   |      ✗       |      ✓
 # query_task         |   ✓    |        | query       |      ✓       |
 # create_task        |   ✓    |        | general     |      ✓       |
 # query_patient      |   ✓    |        | query       |      ✓       |      ✓
@@ -54,7 +54,10 @@ INTENT_LAYERS: dict[IntentType, LayerConfig] = {
     IntentType.create_record: LayerConfig(
         domain=True,
         intent="interview",
-        load_knowledge=True,
+        load_knowledge=False,  # Interview = structured extraction, not medical Q&A.
+                               # L3 intent rules already define fields and examples.
+                               # KB adds ~7500 chars of noise (often duplicated) that
+                               # causes Groq json_validate_failed on long conversations.
         patient_context=True,
         conversation_mode=True,
     ),

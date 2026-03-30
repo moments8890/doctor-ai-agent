@@ -2,7 +2,7 @@
 
 > **Visual version:** [architecture-visual.html](architecture-visual.html) — open in browser for interactive diagrams
 
-**Last updated: 2026-03-28**
+**Last updated: 2026-03-30**
 
 ---
 
@@ -20,7 +20,7 @@ Three channels: **Web dashboard** (React SPA, primary), **WeChat/WeCom** (mobile
 |--------------|---------|
 | Understand the agent pipeline | `src/agent/handle_turn.py` -> `router.py` -> `dispatcher.py` -> `handlers/` |
 | Add a new intent | `src/agent/types.py` (add enum) -> `handlers/` (new file) -> `prompt_config.py` (LayerConfig) -> `prompts/intent/` (new .md) |
-| Edit an LLM prompt | `src/agent/prompts/intent/*.md` — see `docs/guides/llm-prompting-guide.md` |
+| Edit an LLM prompt | `src/agent/prompts/intent/*.md` — see `docs/dev/llm-prompting-guide.md` |
 | Add a new API endpoint | `src/channels/web/` (new route file) -> register in `main.py` |
 | Modify the database | `src/db/models/` (SQLAlchemy model) -> `src/db/crud/` (operations) |
 | Understand the frontend | `frontend/web/src/App.jsx` (routing) -> `pages/doctor/` (doctor app) -> `pages/patient/` (patient app) |
@@ -60,12 +60,12 @@ graph LR
     HN --> LC
 
     subgraph Compose["Prompt Composer"]
-        L1[Layer 1: Identity/Safety]
-        L2[Layer 2: Specialty]
-        L3[Layer 3: Intent rules]
-        L4[Layer 4: Doctor KB]
-        L5[Layer 5: Patient context]
-        L6[Layer 6: User message]
+        L1[L1 Identity]
+        L2[L2 Specialty]
+        L3[L3 Task]
+        L4[L4 Doctor Rules]
+        L6[L6 Patient]
+        L7[L7 Input]
     end
 
     HN --> Compose
@@ -82,7 +82,7 @@ graph LR
 
     HN --> Domain
 
-    DB[(Database<br/>15 tables)]
+    DB[(Database<br/>18 tables)]
     Domain --> DB
 ```
 
@@ -128,11 +128,11 @@ graph LR
 | Intent handlers | `src/agent/handlers/` | One file per intent (7 handlers) |
 | Prompt files | `src/agent/prompts/` | `common/base.md`, `domain/*.md`, `intent/*.md` |
 | Prompt assembly | `src/agent/` | `prompt_composer.py`, `prompt_config.py` |
-| Web API | `src/channels/web/` | `chat.py`, `doctor_interview.py`, `tasks.py`, `export.py` |
+| Web API | `src/channels/web/` | `chat.py`, `doctor_interview/`, `tasks.py`, `export/` |
 | WeChat | `src/channels/wechat/` | `router.py`, `wechat_notify.py` |
-| Patient portal | `src/channels/web/` | `patient_portal.py`, `patient_interview_routes.py` |
+| Patient portal | `src/channels/web/` | `patient_portal/`, `patient_interview_routes.py` |
 | Business logic | `src/domain/` | `patients/`, `records/`, `tasks/`, `knowledge/`, `diagnosis.py` |
-| Database models | `src/db/models/` | 15 SQLAlchemy models |
+| Database models | `src/db/models/` | 18 SQLAlchemy models |
 | Database ops | `src/db/crud/` | CRUD functions per model |
 | Auth | `src/infra/auth/` | JWT, rate limiting, access codes |
 | Startup | `src/startup/` | `db_init.py`, `scheduler.py`, `warmup.py` |
@@ -309,28 +309,33 @@ These flows bypass routing entirely and have their own `LayerConfig`:
 
 All LLM calls use a shared prompt composer (`agent/prompt_composer.py`) that assembles messages from 6 layers:
 
-| Layer | Source | Content |
-|-------|--------|---------|
-| 1 | `common/base.md` | Identity, safety, precedence rules |
-| 2 | `domain/{specialty}.md` | Specialty knowledge (e.g. neurology) |
-| 3 | `intent/{intent}.md` | Action-specific rules + few-shot examples |
-| 4 | Doctor knowledge (DB) | Per-intent KB slice, auto-loaded |
-| 5 | Patient context (DB) | Records, collected state, history |
-| 6 | User message | Actual doctor/patient input |
+| Layer | Name | Source | Content |
+|-------|------|--------|---------|
+| Layer | Name | Source | Content |
+|-------|------|--------|---------|
+| 1 | **Identity** | `common/base.md` | Role, safety rules, precedence |
+| 2 | **Specialty** | `domain/{specialty}.md` | Domain knowledge (e.g. neurology red flags) |
+| 3 | **Task** | `intent/{intent}.md` | Action-specific rules + output format |
+| 4 | **Doctor Rules** | Doctor knowledge (DB) | User-authored KB, auto-loaded and scored |
+| 5 | **Case Memory** | Confirmed records (DB) | Similar past decisions (diagnosis pipeline only) |
+| 6 | **Patient** | Patient context (DB) | Records, collected state, history |
+| 7 | **Input** | User message | Actual doctor/patient input |
+
+The stack reads: "You are [Identity] specializing in [Specialty], doing [Task], following [Doctor Rules] and [Case Memory], for this [Patient], given this [Input]."
 
 ### Two Composition Patterns
 
 ```mermaid
 graph TD
     subgraph P1["Pattern 1: Single-turn<br/>(routing, query, diagnosis)"]
-        S1[system: Layers 1-3<br/>instructions only]
-        U1[user: Layers 4-6 with XML tags<br/>doctor_knowledge + patient_context + doctor_request]
+        S1[system: L1-L3<br/>instructions only]
+        U1[user: L4-L7 with XML tags<br/>doctor_knowledge + patient_context + doctor_request]
     end
 
     subgraph P2["Pattern 2: Conversation<br/>(doctor interview, patient interview)"]
-        S2[system: Layers 1-5<br/>instructions + KB + patient state]
+        S2[system: L1-L6<br/>instructions + KB + patient state]
         H2[history: user/assistant turns]
-        U2[user: Layer 6 only<br/>latest input, plain text]
+        U2[user: L7 Input only<br/>latest input, plain text]
     end
 ```
 
@@ -343,11 +348,11 @@ Pattern 2 puts KB + context in system because conversation history occupies the 
 ```python
 @dataclass(frozen=True)
 class LayerConfig:
-    system: bool = True           # Layer 1: system/base.md
-    domain: bool = False          # Layer 2: common/{specialty}.md
-    intent: str = "general"       # Layer 3: intent/{intent}.md
-    load_knowledge: bool = False  # Layer 4: doctor KB items
-    patient_context: bool = False # Layer 5: patient records/state
+    system: bool = True           # L1 Identity: common/base.md
+    domain: bool = False          # L2 Specialty: domain/{specialty}.md
+    intent: str = "general"       # L3 Task: intent/{intent}.md
+    load_knowledge: bool = False  # L4 Doctor Rules: KB items from DB
+    patient_context: bool = False # L6 Patient: records/state from DB
     conversation_mode: bool = False  # Pattern 1 (False) or Pattern 2 (True)
 ```
 
@@ -358,7 +363,7 @@ An assert at import time ensures every `IntentType` has a config entry -- adding
 | Intent | Pattern | Domain | Intent Prompt | Dr Knowledge | Case Memory | Patient Ctx |
 |--------|---------|--------|---------------|-------------|-------------|-------------|
 | routing | single | | routing | all | | |
-| create_record | convo | Y | interview | all | | Y |
+| create_record | convo | Y | interview | | | Y |
 | query_record | single | | query | all | | Y |
 | query_task | single | | query | all | | |
 | create_task | single | | general | all | | |
@@ -366,20 +371,21 @@ An assert at import time ensures every `IntentType` has a config entry -- adding
 | daily_summary | single | | general | all | | |
 | general | single | | general | all | | |
 | patient_interview | convo | Y | patient-interview | all | | Y |
-| review/diagnosis | single | Y | diagnosis | all | **L4b** | Y |
+| review/diagnosis | single | Y | diagnosis | all | **L5** | Y |
 | **followup_reply** | single | Y | followup_reply | all | | Y |
 
 ### Knowledge Categories
 
 Doctor knowledge items (`doctor_knowledge_items` table) are categorized. Each category maps to specific LLM intent layers:
 
-| Category | Chinese Name | Injected Into |
-|----------|-------------|---------------|
-| `interview_guide` | 问诊指导 | Interview LLM |
-| `diagnosis_rule` | 诊断规则 | Review/diagnosis LLM |
-| `red_flag` | 危险信号 | Interview LLM + Review/diagnosis LLM |
-| `treatment_protocol` | 治疗方案 | Review/diagnosis LLM |
-| `custom` | 自定义 | All intents (always injected) |
+| Category | Chinese Name | Description |
+|----------|-------------|-------------|
+| `custom` | 自定义 | General-purpose rules |
+| `diagnosis` | 诊断规则 | Diagnosis and differential rules |
+| `communication` | 沟通规则 | Patient communication style/rules |
+| `followup` | 随访规则 | Follow-up scheduling and protocols |
+| `medication` | 用药规则 | Medication guidelines |
+| `preference` | 个人偏好 | Doctor's personal preferences |
 
 Doctor knowledge outranks patient context in the prompt stack. If the doctor's KB says "偏头痛首选曲普坦" but a past case used a different drug, the doctor's stated preference wins (enforced by prompt ordering).
 
@@ -418,7 +424,7 @@ Key response models: `RoutingResult`, `InterviewLLMResponse`, `DiagnosisLLMRespo
 
 ## Database Schema
 
-**15 tables** across SQLite (dev) / MySQL (prod). All fields with fixed value sets use `(str, Enum)`.
+**18 tables** across SQLite (dev) / MySQL (prod). All fields with fixed value sets use `(str, Enum)`.
 
 ```mermaid
 erDiagram
@@ -431,6 +437,9 @@ erDiagram
     medical_records ||--o{ ai_suggestions : receives
     doctors ||--o{ interview_sessions : conducts
     patients ||--o{ interview_sessions : participates
+    doctors ||--o{ doctor_tasks : assigns
+    patient_messages ||--o{ message_drafts : has
+    doctor_knowledge_items ||--o{ knowledge_usage_log : tracks
 ```
 
 ### Core Data (9 tables)
@@ -443,23 +452,27 @@ erDiagram
 
 **`patient_auth`** -- Portal access credentials (optional). FK -> patients.
 
-**`medical_records`** -- Clinical records with 14 structured fields and outcome data. Record types: `visit`, `import`, `interview_summary`. Statuses: `interview_active`, `pending_review`, `completed`. Append-only versioning via `version_of` FK. Outcome fields (`final_diagnosis`, `treatment_outcome`, `key_symptoms`) absorb the former `case_history` table.
+**`medical_records`** -- Clinical records with 14 structured fields and outcome data. Record types: `visit`, `dictation`, `import`, `interview_summary`. Statuses: `interview_active`, `pending_review`, `completed`. Append-only versioning via `version_of` FK. Outcome fields (`final_diagnosis`, `treatment_outcome`, `key_symptoms`) absorb the former `case_history` table.
 
 **`ai_suggestions`** -- Per-item AI diagnosis suggestions with doctor decisions. Sections: `differential`, `workup`, `treatment`. Decisions: `confirmed`, `rejected`, `edited`, `custom`. One row per suggestion item.
 
-**`doctor_knowledge_items`** -- Per-doctor reusable knowledge snippets. Categories: `interview_guide`, `diagnosis_rule`, `red_flag`, `treatment_protocol`, `custom`. Content column stores a JSON payload (v1 format) with `text`, optional `source_url`, and optional `file_path` (path to uploaded original file on disk under `uploads/{doctor_id}/`).
+**`doctor_knowledge_items`** -- Per-doctor reusable knowledge snippets. Categories: `custom`, `diagnosis`, `communication`, `followup`, `medication`, `preference`. Fields: `id`, `doctor_id` (FK), `content` (Text), `category`, `title`, `summary`, `reference_count`.
 
 **`doctor_chat_log`** -- Doctor <-> AI conversation history. Roles: `user`, `assistant`.
 
 **`patient_messages`** -- Patient <-> Doctor/AI message history. Directions: `inbound`, `outbound`. Sources: `patient`, `ai`, `doctor`.
 
-### Workflow State (1 table)
+### Workflow State (4 tables)
 
-**`interview_sessions`** -- Multi-turn clinical field collection state. Statuses: `interviewing`, `confirmed`, `abandoned`. Modes: `patient`, `doctor`.
+**`interview_sessions`** -- Multi-turn clinical field collection state. Statuses: `interviewing`, `reviewing`, `confirmed`, `abandoned`, `draft_created`. Modes: `patient`, `doctor`.
 
 **`doctor_tasks`** -- Doctor tasks and follow-ups. Fields: `id` (PK), `doctor_id` (FK), `patient_id` (FK, optional), `type` (Enum: general/review/follow_up/medication/checkup), `title`, `content` (optional), `status` (Enum: pending/notified/completed/cancelled), `due_at`, `notes` (TEXT, optional), `reminder_at` (DATETIME, optional), `completed_at` (DATETIME, optional).
 
-### System/Infrastructure (5 tables)
+**`message_drafts`** -- AI-generated draft replies for patient messages. Statuses: `generated`, `edited`, `sent`, `dismissed`, `stale`.
+
+**`doctor_edits`** -- Doctor edit history (teaching loop: draft edits → KB rules).
+
+### System/Infrastructure (4 tables)
 
 **`audit_log`** -- Compliance audit trail. **`invite_codes`** -- Doctor signup gating. **`runtime_tokens`** -- WeChat access token cache. **`scheduler_leases`** -- Distributed lock for task notification scheduler.
 
@@ -485,45 +498,29 @@ The two most important AI-powered workflows are **diagnosis** and **patient repl
 
 Triggered when a record enters `pending_review` status. Produces differential diagnoses, workup, and treatment suggestions.
 
-```
-                         ┌─────────────────────────────────────┐
-                         │         run_diagnosis()              │
-                         └──────────┬──────────────────────────┘
-                                    │
-                    ┌───────────────┼───────────────┐
-                    ▼               ▼               ▼
-            Load Record      Load Doctor KB    Find Similar Cases
-            (L6: structured   (L4: scored by    (L4b: Jaccard+jieba
-             fields from DB)   query+patient     on confirmed records)
-                              context)
-                    │               │               │
-                    └───────┬───────┘               │
-                            ▼                       │
-                    compose_for_review()            │
-                    ┌─────────────────┐             │
-                    │ L1: base.md     │             │
-                    │ L2: neurology.md│             │
-                    │ L3: diagnosis.md│             │
-                    │ L4: [KB-1]..    │◀────────────┘
-                    │ L4b:【类似病例】 │
-                    │ L5: patient_ctx │
-                    │ L6: user_message│
-                    └────────┬────────┘
-                             ▼
-                    structured_call() → DiagnosisLLMResponse
-                             │
-                    ┌────────┴────────┐
-                    ▼                 ▼
-            Validate & Coerce   Extract [KB-N] Citations
-                    │                 │
-                    ▼                 ▼
-            Save to ai_suggestions   Log to knowledge_usage_log
+```mermaid
+graph TD
+    RD[run_diagnosis] --> |parallel| LR[Load Record<br/>L6: structured fields]
+    RD --> |parallel| LK[Load Doctor KB<br/>L4: scored by query+context]
+    RD --> |parallel| FC[Find Similar Cases<br/>L5: jieba + weighted coverage]
+
+    LR --> CP[compose_for_review]
+    LK --> CP
+    FC --> CP
+
+    CP --> |"L1: base.md<br/>L2: neurology.md<br/>L3: diagnosis.md<br/>L4: KB items<br/>L5: 类似病例<br/>L6: patient_ctx<br/>L7: record fields"| SC[structured_call<br/>DiagnosisLLMResponse]
+
+    SC --> VC[Validate & Coerce]
+    SC --> EX[Extract KB-N Citations]
+
+    VC --> DB[(ai_suggestions)]
+    EX --> KU[(knowledge_usage_log)]
 ```
 
 **Knowledge injection points:**
 - **L4 Doctor KB**: All KB items loaded, scored by `query + patient_context`, ranked by `field_weight * relevance`. Formatted as `[KB-{id}] {text}`.
-- **L4b Case Memory**: `find_similar_cases()` uses jieba tokenization + weighted asymmetric coverage across 6 record fields (`diagnosis` 3.0, `auxiliary_exam` 2.5, `key_symptoms` 2.0, `chief_complaint` 1.5, `present_illness` 1.0). Medical term dictionary with 60+ neurosurgery terms.
-- **L6 Patient Data**: All 14 structured clinical fields formatted as labeled text.
+- **L5 Case Memory**: `find_similar_cases()` uses jieba tokenization + weighted asymmetric coverage across 6 record fields (`diagnosis` 3.0, `auxiliary_exam` 2.5, `key_symptoms` 2.0, `chief_complaint` 1.5, `present_illness` 1.0). Medical term dictionary with 60+ neurosurgery terms.
+- **L7 Patient Data**: All 14 structured clinical fields formatted as labeled text.
 
 **E2E test coverage:** `scripts/run_diagnosis_sim.py` — 12 scenarios with counterfactual validation (±KB, ±case injection). Tests prove KB causally influences output by diffing baseline (no injection) vs full run.
 
@@ -531,40 +528,28 @@ Triggered when a record enters `pending_review` status. Produces differential di
 
 Triggered when a patient sends a message via `/api/patient/chat`. Triage classifies, then routes to the appropriate handler.
 
-```
-Patient message
-       │
-       ▼
-  classify() ─── triage-classify.md + patient_context
-       │
-       ├── informational ──▶ handle_informational()
-       │                      │
-       │                      ├── Load Doctor KB (L4)  ◀── scored by message + context
-       │                      ├── patient_context (L5)
-       │                      └── AI auto-reply (ai_handled=true)
-       │
-       ├── symptom_report ─┐
-       ├── side_effect ────┤─▶ handle_escalation()
-       ├── general_question┘    │
-       │                        ├── KB check: has matching answer?
-       │                        │   YES → KB-informed reply + still escalate
-       │                        │   NO  → template reply + escalate
-       │                        ├── Save inbound message
-       │                        ├── Notify doctor (rate-limited, batched)
-       │                        └── generate_draft_reply() [background]
-       │                              │
-       │                              ├── compose_messages(FOLLOWUP_REPLY_LAYERS)
-       │                              │   L1-L3: base + domain + followup_reply.md
-       │                              │   L4: Doctor KB (scored, auto-loaded)
-       │                              │   L5: patient_context
-       │                              │   L6: patient message
-       │                              ├── Extract [KB-N] citations
-       │                              └── Save to message_drafts (if KB cited)
-       │
-       └── urgent ──────────▶ handle_urgent()
-                               ├── Static safety message ("请就医/拨打120")
-                               ├── Immediate doctor notification (bypasses rate limit)
-                               └── generate_draft_reply() [background]
+```mermaid
+graph TD
+    PM[Patient message] --> CL[classify<br/>triage-classify.md + patient_context]
+
+    CL --> |informational| HI[handle_informational]
+    HI --> LK1[Load Doctor KB L4<br/>scored by message + context]
+    LK1 --> AR[AI auto-reply<br/>ai_handled=true]
+
+    CL --> |"symptom_report<br/>side_effect<br/>general_question"| HE[handle_escalation]
+    HE --> KBC{KB has<br/>matching answer?}
+    KBC --> |YES| KBR[KB-informed reply<br/>+ still escalate]
+    KBC --> |NO| TPL[Template reply<br/>+ escalate]
+    KBR --> SAVE[Save inbound message]
+    TPL --> SAVE
+    SAVE --> NOT[Notify doctor<br/>rate-limited, batched]
+    NOT --> GDR[generate_draft_reply<br/>background]
+    GDR --> |"FOLLOWUP_REPLY_LAYERS<br/>L1-L3: base+domain+followup_reply<br/>L4: Doctor KB<br/>L6: patient_context<br/>L7: patient message"| DFT[(message_drafts<br/>if KB cited)]
+
+    CL --> |urgent| HU[handle_urgent]
+    HU --> SM[Static safety message<br/>请就医/拨打120]
+    HU --> IMM[Immediate doctor notification<br/>bypasses rate limit]
+    HU --> GDR2[generate_draft_reply<br/>background]
 ```
 
 **Knowledge injection points:**
@@ -603,27 +588,30 @@ Patient message
 | Route | Handler | Description |
 |-------|---------|-------------|
 | `POST /api/records/chat` | `channels/web/chat.py` | Doctor chat -> agent pipeline |
-| `POST /api/records/interview/*` | `channels/web/doctor_interview.py` | Interview turn, confirm, cancel |
-| `GET/POST/DELETE /api/manage/*` | `channels/web/ui/` | Admin: knowledge, profile, patients |
-| `POST /api/manage/onboarding/patient-entry` | `channels/web/ui/doctor_profile_handlers.py` | Create or reuse patient, then return deterministic portal + preview entry |
-| `POST /api/manage/onboarding/examples` | `channels/web/ui/doctor_profile_handlers.py` | Backend proof data for onboarding wizard |
-| `GET /api/manage/knowledge/file/{path}` | `channels/web/ui/knowledge_handlers.py` | Serve uploaded original file (auth-checked) |
-| `POST /api/manage/drafts/{draft_id}/save-as-rule` | `channels/web/ui/draft_handlers.py` | Teaching loop: convert draft edit into KB rule |
+| `POST /api/records/interview/*` | `channels/web/doctor_interview/` | Interview turn, confirm, cancel |
+| `GET/POST/DELETE /api/manage/*` | `channels/web/doctor_dashboard/` | Admin: knowledge, profile, patients |
+| `POST /api/manage/onboarding/patient-entry` | `channels/web/doctor_dashboard/onboarding_handlers.py` | Create or reuse patient, then return deterministic portal + preview entry |
+| `POST /api/manage/onboarding/examples` | `channels/web/doctor_dashboard/onboarding_handlers.py` | Backend proof data for onboarding wizard (legacy) |
+| `POST /api/manage/onboarding/seed-demo` | `channels/web/doctor_dashboard/onboarding_handlers.py` | Preseed 5 demo patients with records, messages, tasks (non-destructive) |
+| `POST /api/manage/onboarding/seed-demo/reset` | `channels/web/doctor_dashboard/onboarding_handlers.py` | Delete + recreate all preseed demo data |
+| `DELETE /api/manage/onboarding/seed-demo` | `channels/web/doctor_dashboard/onboarding_handlers.py` | Remove all preseed demo data |
+| `GET /api/manage/knowledge/file/{path}` | `channels/web/doctor_dashboard/knowledge_handlers.py` | Serve uploaded original file (auth-checked) |
+| `POST /api/manage/drafts/{draft_id}/save-as-rule` | `channels/web/doctor_dashboard/draft_handlers.py` | Teaching loop: convert draft edit into KB rule |
 | `GET/POST/PUT/DELETE /api/tasks/*` | `channels/web/tasks.py` | Task CRUD |
 | `GET /api/tasks/{task_id}` | `channels/web/tasks.py` | Fetch single task with patient_name join |
 | `PATCH /api/tasks/{task_id}/notes` | `channels/web/tasks.py` | Update task notes |
-| `GET /api/export/*` | `channels/web/export.py` | PDF/JSON export |
+| `GET /api/export/*` | `channels/web/export/` | PDF/JSON export |
 | `POST /api/import/*` | `channels/web/import_routes.py` | Image/PDF import |
-| `POST /api/auth/*` | `channels/web/auth.py` | JWT authentication |
-| `POST /api/unified-auth/*` | `channels/web/unified_auth_routes.py` | Unified login (doctor + patient) |
+| `POST /api/auth/*` | `channels/web/auth/` | JWT authentication |
+| `POST /api/unified-auth/*` | `channels/web/auth/unified.py` | Unified login (doctor + patient) |
 
 ### Patient Portal
 
 | Route | Handler | Description |
 |-------|---------|-------------|
 | `POST /api/patient/interview/*` | `channels/web/patient_interview_routes.py` | Patient pre-consultation interview. Turn/start/current responses emit `ready_to_review` when required fields are complete so the frontend can end questioning and show explicit confirm-or-continue UI. |
-| `POST /api/patient/chat` | `channels/web/patient_portal.py` | Patient triage pipeline |
-| `GET /api/patient/*` | `channels/web/patient_portal.py` | Patient records, auth |
+| `POST /api/patient/chat` | `channels/web/patient_portal/` | Patient triage pipeline |
+| `GET /api/patient/*` | `channels/web/patient_portal/` | Patient records, auth |
 
 ### Doctor Frontend Routes
 

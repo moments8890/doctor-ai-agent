@@ -20,7 +20,7 @@ All documentation lives under `docs/`. These are the canonical folders:
 | `docs/plans/archived/` | Completed plans (for traceability) | same |
 | `docs/specs/` | Design specs (brainstorm output, architecture decisions) | `YYYY-MM-DD-<topic>-design.md` |
 | `docs/product/` | Product strategy, requirements, gap analysis, UX reviews | descriptive name |
-| `docs/review/` | Dated code/architecture reviews | `docs/review/MM-DD/<title>.md` |
+| `docs/review/` | Dated code/architecture reviews (create when needed) | `docs/review/MM-DD/<title>.md` |
 | `docs/qa/` | QA reports, simulation results, UI checkpoint screenshots | descriptive name |
 | `docs/dev/` | Developer guides (setup, LLM providers, simulation, test strategy) | descriptive name |
 | `docs/deploy/` | Deployment & infrastructure guides | descriptive name |
@@ -39,8 +39,8 @@ All documentation lives under `docs/`. These are the canonical folders:
 
 ## Source of Truth
 
-`README.md` § "Source of Truth — 5 Canonical Entrypoints" is the master registry.
-The 5 entrypoints are: `AGENTS.md`, `docs/architecture.md`, `docs/product/index.md`,
+`README.md` § "Documentation" is the master registry.
+The 5 entrypoints are: `AGENTS.md`, `docs/architecture.md`, `docs/product/README.md`,
 `docs/ux/UI-DESIGN.md`, `docs/dev/index.md`. Before creating a new doc, check if
 a canonical entrypoint already covers the topic.
 
@@ -50,15 +50,15 @@ Before starting any task, read the relevant docs for context:
 
 | Task type | Read first |
 |-----------|-----------|
-| **Any feature work** | `docs/product/north-star.md` (product vision), `docs/architecture.md` (system design) |
+| **Any feature work** | `docs/product/README.md` (product vision), `docs/architecture.md` (system design) |
 | **Backend / API** | `docs/architecture.md` §3-6 (pipeline, intents, prompts, DB schema) |
 | **Frontend / UI** | `docs/ux/UI-DESIGN.md` (components, tokens), `docs/ux/design-spec.md` (UX flows) |
-| **Diagnosis / CDS** | `docs/product/clinical-decision-support-design.md`, `docs/architecture.md` §7 (CDS pipeline) |
-| **Patient portal** | `docs/architecture.md` §8 (channels), `docs/product/requirements-and-gaps.md` (Phase 3) |
-| **Prompts / LLM** | `src/agent/prompts/README.md`, `docs/guides/llm-prompting-guide.md` |
+| **Diagnosis / CDS** | `docs/architecture.md` §7 (CDS pipeline) |
+| **Patient portal** | `docs/architecture.md` §8 (channels) |
+| **Prompts / LLM** | `src/agent/prompts/README.md`, `docs/dev/llm-prompting-guide.md` |
 | **Testing** | `docs/TESTING.md`, `docs/dev/patient-simulation-guide.md` |
 | **Deploy / Release** | `docs/dev/index.md`, `docs/deploy/tecenet-deployment/index.md` |
-| **New feature design** | `docs/product/feature-parity-matrix.md` (what exists), `docs/product/requirements-and-gaps.md` (roadmap) |
+| **New feature design** | `docs/product/roadmap.md` (what's left), `docs/product/README.md` (product vision) |
 
 Do not start implementation without understanding how your change fits the existing system.
 
@@ -122,8 +122,8 @@ edits that require reading surrounding context to decide what to change.
 - **Preserve medical abbreviations** — do not translate or expand STEMI, BNP, PCI, EGFR, ANC, HER2, EF, NYHA, ICD, etc.
 - **Tests mock all I/O** — unit tests in `tests/` must not make real LLM, DB, or network calls; use `AsyncMock` / `patch`
 - **Testing policy** — integration tests are required for safety-critical modules (diagnosis pipeline, clinical decision support). For other modules, do not add unit tests unless the user explicitly asks. Prefer integration/E2E replay tests over unit tests for prompt-related changes.
-- **Enums over strings** — use `(str, Enum)` for any DB column or Pydantic field with a fixed set of values (status, role, task_type, category, etc.). Never use raw strings with inline comments listing allowed values. This applies to all models in `db/models/` and `agent/types.py`.
-- **DB schema changes** — add to `db/models/`; `create_tables()` handles creation automatically; document any manual cleanup/migration impact in the commit message and PR description
+- **Enums over strings** — use `(str, Enum)` for any DB column or Pydantic field with a fixed set of values (status, role, task_type, category, etc.). Never use raw strings with inline comments listing allowed values. This applies to all models in `src/db/models/` and `src/agent/types.py`.
+- **DB schema changes** — add to `src/db/models/`; `create_tables()` handles creation automatically; document any manual cleanup/migration impact in the commit message and PR description
 - **No Alembic migrations** — do not create or run Alembic migrations until first production launch; for dev, use `create_tables()` or manual `ALTER TABLE` statements
 - **LLM provider defaults** — local model is `qwen3.5:9b` via Ollama; prefer this in examples and defaults
 
@@ -153,7 +153,7 @@ Direct pushes to `main` are allowed.
 3. **Corpus/E2E replay** — `bash scripts/test.sh chatlog-full` — use for human-language regression checks on meaningful workflow changes
 4. **Document changes in commit message** — include what changed and any migration/manual cleanup impact
 5. **Update `docs/architecture.md`** — only if schema, env vars, API endpoints, or service structure changed
-6. **Update progress** — tick completed items in `debug/iteration_*.md`
+6. **Update progress** — tick completed items in `docs/debug/iteration_*.md`
 7. **DO NOT RUN TESTS** - do not run tests during normal development (dont run the tests to validate)
 8. **Pre-push gate** — before pushing, run `/test-gate` to validate no regressions against the existing test suite
 
@@ -242,7 +242,7 @@ When working on a design (spec, plan, or architecture document), always include 
 Every new feature design, spec, or plan **must** include a **Cascading Impact** section before implementation begins. Enumerate all downstream effects the change has on the existing system:
 
 1. **DB schema** — new columns, altered types, removed fields; verify `create_tables()` / `_backfill_missing_columns()` will handle them; note any manual cleanup for existing data
-2. **ORM models & Pydantic schemas** — which models in `db/models/` and request/response schemas need updating
+2. **ORM models & Pydantic schemas** — which models in `src/db/models/` and request/response schemas need updating
 3. **API endpoints** — new routes, changed request/response shapes, deprecated endpoints
 4. **Domain logic** — functions, services, or pipelines whose behavior or signatures change
 5. **Prompt files** — any `prompts/*.md` that reference changed fields, workflows, or terminology
@@ -265,11 +265,9 @@ If a category has no impact, write "None." Do not omit the category. This sectio
    - Report progress to the user (what was done, any deviations from the plan)
    - Update the corresponding spec in `docs/specs/` to mark status as "Completed" with the completion date
    - Move the plan from `docs/plans/` to `docs/plans/archived/`
-8. **Keep docs current** — whenever designing or implementing a feature, update all affected canonical documents. Start from the 5 entrypoints in `README.md` § "Source of Truth":
+8. **Keep docs current** — whenever designing or implementing a feature, update all affected canonical documents. Start from the 5 entrypoints in `README.md` § "Documentation":
    - `docs/architecture.md` — if schema, services, pipelines, intents, prompt system, or module boundaries changed
-   - `docs/product/requirements-and-gaps.md` — if a roadmap item's status changed (started, completed, deferred)
-   - `docs/product/feature-parity-matrix.md` — if any frontend or backend feature was added, changed, or removed
-   - `docs/product/clinical-decision-support-design.md` — if diagnosis, knowledge base, or CDS behavior changed
+   - `docs/product/roadmap.md` — if a roadmap item's status changed (started, completed, deferred)
    - `docs/ux/UI-DESIGN.md` — if new components were added or existing patterns changed
    - `src/agent/prompts/README.md` — if prompt files, intent routing, or LLM contracts changed
    - Do not defer doc updates to a separate task — update docs in the same work session as the code change

@@ -74,7 +74,7 @@ async def _call_interview_llm(
     missing = check_completeness(collected, mode=mode)
     missing_labels = [FIELD_LABELS.get(f, f) for f in missing]
 
-    # Build patient context (Layer 5 — goes into system for conversation_mode)
+    # Build patient context (L6 Patient — goes into system for conversation_mode)
     context_lines = [
         f"患者信息：{patient_info['name']}，{patient_info['gender']}，{patient_info['age']}岁",
         f"已收集：{json.dumps(collected, ensure_ascii=False)}",

@@ -30,12 +30,10 @@
 
 ## Session Hygiene
 
-- After finishing a self-contained task, suggest a fresh session (`/clear` or
-  new terminal), especially before starting unrelated work.
-- Suggest `/compact` when the task changes phase (exploration → implementation,
-  bug A → bug B, backend → frontend), when old context is no longer needed, or
-  around 30-50 turns in a continuing session.
-- Strongly suggest reset for marathon sessions or when re-summarizing old context.
+- **Do NOT suggest `/compact`, `/clear`, or session reset unless context usage
+  exceeds 50%.** Below 50%, never mention session management unprompted.
+- Above 50%: suggest `/compact` when the task changes phase or old context is no
+  longer needed. Suggest `/clear` or new terminal for unrelated work.
 - **NEVER call `/compact` yourself** — only suggest it. The user decides when to
   compact.
 
@@ -59,11 +57,57 @@
 - **Pre-spawn test** — before spawning, confirm all three:
   1. Is this independent? 2. Is it non-blocking? 3. Would inline slow the main path?
   If not all true, don't spawn.
-- **Each agent must have:** concrete goal, owned files, explicit non-goals, and
-  expected output format. Vague prompts cause exploration bloat.
+- **Each agent prompt must include:** concrete goal, owned files, explicit
+  non-goals, expected output format, AND a reminder to use bulk CLI tools
+  (ast-grep, sd, fd) instead of Edit loops for repetitive changes. Agents do
+  not read CLAUDE.md — the dispatcher must embed the rules.
 - **One exploration owner** per subproblem — never let multiple agents duplicate
   repo discovery.
 - **Stop conditions:** terminate agents that are retrying, reopening the same
   files, or bouncing between search/edit/verify without convergence.
 - **No recursive delegation** — agents must not spawn more agents.
 - **Close agents promptly** after completion. No idle agents kept alive.
+
+## UI Design System (MUST follow for all frontend changes)
+
+These rules are enforced by `scripts/lint-ui.sh`. Run it before pushing.
+
+### Tokens — never hardcode
+
+| What | Use | Never |
+|------|-----|-------|
+| Colors | `COLOR.*` from theme.js | Hardcoded hex (`#07C160`, `#999`, etc.) |
+| Font sizes | `TYPE.*` from theme.js | Hardcoded px (`fontSize: 14`) |
+| Border radius | `RADIUS.*` from theme.js | Hardcoded px (`borderRadius: "8px"`) |
+| Icon sizes | `ICON.*` from theme.js | Hardcoded numbers for icon fontSize |
+| Highlight rows | `HIGHLIGHT_ROW_SX` from theme.js | `bgcolor: "#fffef5"` inline |
+
+### Components — use shared, never inline
+
+| Need | Use | Never |
+|------|-----|-------|
+| List rows | `ListCard` | Inline flex row with avatar+title+subtitle |
+| Stat display | `StatColumn` | Inline stat with value+label |
+| Filter tabs | `FilterBar` (with `dividers`, `activeColor`) | Inline tab bar JSX |
+| Chat avatar | `MsgAvatar` | Inline Box with hospital/robot icon |
+| Expand/collapse | MUI `Collapse` transition | `{open && children}` (instant show/hide) |
+| Loading states | `SectionLoading` (skeleton by default) | Raw `CircularProgress` for content |
+| Empty lists | `EmptyState` | Plain text ("暂无…") |
+| Bottom sheets | `SheetDialog` (SwipeableDrawer inside) | Raw `Dialog` positioned at bottom |
+| Confirm dialogs | `ConfirmDialog` | Custom dialog JSX |
+| Citation preview | `CitationPopover` | Navigate away to knowledge page |
+| Timestamps | `nowTs()` from utils/time.js | Inline `new Date()` formatting |
+
+### Icons — MUI only, never emojis
+
+- Use MUI `@mui/icons-material` for all icons in UI components
+- **Never use emojis** (📄🌐✏) as icons in the app — they render inconsistently across devices
+- Emojis are OK in mock HTML docs but never in shipped JSX
+
+### Layout conventions
+
+- **Tab switch:** `Fade` (150ms) — see `DoctorPage SectionContent`
+- **Subpage push/pop:** `Slide` (300ms, direction="left") via `PageSkeleton mobileView`
+- **Dialog buttons:** cancel LEFT (gray), primary RIGHT (green). Always.
+- **Danger dialogs:** same layout, primary button red. No button-swap.
+- **Mobile subpages:** must use `PageSkeleton mobileView` (auto-gets Slide transition)

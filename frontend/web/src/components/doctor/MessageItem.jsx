@@ -101,12 +101,12 @@ export default function MessageItem({ item, onSend, onTeachPrompt }) {
       {/* No-draft notice */}
       {!item.draft_text && item.status === "no_draft" && (
         <Box sx={{
-          bgcolor: "#fff8e1",
-          border: `0.5px solid #ffcc02`,
+          bgcolor: COLOR.amberLight,
+          border: `0.5px solid ${COLOR.amberBorder}`,
           borderRadius: RADIUS.md,
           px: 1.5, py: 1, mb: 1,
         }}>
-          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: "#b28704", fontWeight: 500, mb: 0.5 }}>
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.amberText, fontWeight: 500, mb: 0.5 }}>
             AI未找到可引用的知识条目，无法起草回复
           </Typography>
           {editing ? (

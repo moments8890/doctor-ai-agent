@@ -208,7 +208,7 @@ async def test_ai_disclosure_default(async_session):
 
 
 def test_parse_cited_ids():
-    from channels.web.ui.draft_handlers import _parse_cited_ids
+    from channels.web.doctor_dashboard.draft_handlers import _parse_cited_ids
 
     assert _parse_cited_ids(None) == []
     assert _parse_cited_ids("") == []

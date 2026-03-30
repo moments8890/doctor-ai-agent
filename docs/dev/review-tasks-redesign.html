@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review + Tasks Redesign — Before / After</title>
+<style>
+  :root {
+    --primary: #07C160; --primary-light: #E7F7EE;
+    --accent: #576B95; --accent-light: #EEF1F6;
+    --danger: #D65745; --danger-light: #FDF0EE;
+    --warning: #F59E0B; --warning-light: #FFF7E6;
+    --text1: #1a1a1a; --text2: #353535; --text3: #666; --text4: #999;
+    --border: #e5e5e5; --border-light: #f0f0f0;
+    --surface: #f7f7f7; --surface-alt: #ededed; --white: #fff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif; background: #111; color: var(--text1); }
+
+  .page-header { background: #222; padding: 16px 24px; text-align: center; position: sticky; top: 0; z-index: 10; }
+  .page-header h1 { font-size: 18px; font-weight: 700; color: #fff; }
+  .page-header .sub { font-size: 12px; color: #888; margin-top: 4px; }
+
+  .section-title { font-size: 14px; font-weight: 700; color: #ccc; padding: 20px 24px 8px; }
+
+  .phones { display: flex; gap: 20px; padding: 0 24px 24px; overflow-x: auto; }
+
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
+  .phone-label { font-size: 11px; color: #888; font-weight: 600; letter-spacing: 0.5px; }
+  .phone-sublabel { font-size: 10px; color: #666; max-width: 340px; text-align: center; line-height: 1.4; }
+
+  .phone {
+    width: 360px; height: 700px; background: var(--surface-alt);
+    border-radius: 28px; overflow: hidden; border: 3px solid #333;
+    display: flex; flex-direction: column;
+  }
+  .phone-notch { height: 36px; background: var(--white); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px; font-size: 10px; color: var(--text4); }
+  .phone-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  .phone-body::-webkit-scrollbar { display: none; }
+  .phone-nav {
+    display: flex; height: 52px; border-top: 0.5px solid var(--border);
+    background: var(--white); flex-shrink: 0;
+  }
+  .phone-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 9px; color: var(--text4); gap: 2px; }
+  .phone-nav-item.active { color: var(--primary); }
+
+  /* ── Shared atoms ── */
+  .header { display: flex; align-items: center; height: 44px; padding: 0 12px; background: var(--white); border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+  .header-title { flex: 1; font-size: 15px; font-weight: 600; text-align: center; }
+
+  .filter-bar { display: flex; background: var(--white); border-bottom: 0.5px solid var(--border); border-top: 0.5px solid var(--border); }
+  .filter-tab { flex: 1; text-align: center; padding: 10px 0; border-bottom: 2px solid transparent; cursor: pointer; }
+  .filter-tab.active { border-bottom-style: solid; border-bottom-width: 2px; }
+  .filter-tab .tab-count { font-size: 16px; font-weight: 600; line-height: 1.2; }
+  .filter-tab .tab-label { font-size: 10px; color: var(--text4); margin-top: 2px; }
+  .filter-tab.active .tab-label { color: var(--text2); font-weight: 500; }
+  .filter-divider { width: 0.5px; background: var(--border-light); margin: 8px 0; }
+
+  .section-label { font-size: 10px; font-weight: 600; color: var(--text4); padding: 8px 16px 4px; letter-spacing: 0.3px; }
+
+  .card-container { background: var(--white); border-top: 0.5px solid var(--border); border-bottom: 0.5px solid var(--border); }
+
+  .row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 0.5px solid var(--border-light); cursor: pointer; }
+  .row:last-child { border-bottom: none; }
+  .row:active { background: var(--surface); }
+
+  .avatar { width: 36px; height: 36px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0; }
+
+  .body { flex: 1; min-width: 0; }
+  .title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub { font-size: 11px; color: var(--text4); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .right { font-size: 11px; color: var(--text4); flex-shrink: 0; }
+  .chevron { font-size: 14px; color: var(--text4); }
+
+  .badge { display: inline-block; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; line-height: 1.3; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .checkbox { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border); flex-shrink: 0; }
+  .checkbox.done { background: var(--primary); border-color: var(--primary); }
+
+  .empty { text-align: center; padding: 40px 16px; color: var(--text4); font-size: 13px; }
+
+  /* Annotation */
+  .callout {
+    position: relative; display: inline-block;
+    background: rgba(245,158,11,0.9); color: #fff;
+    font-size: 10px; font-weight: 600; padding: 3px 10px;
+    border-radius: 4px; margin: 4px 0;
+  }
+
+  .issue-list { padding: 8px 24px 16px; }
+  .issue { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid #333; font-size: 12px; color: #ccc; }
+  .issue:last-child { border-bottom: none; }
+  .issue-num { color: var(--warning); font-weight: 700; flex-shrink: 0; width: 20px; }
+  .issue-fix { color: var(--primary); font-weight: 500; }
+
+  .summary-table { width: 100%; max-width: 900px; margin: 0 auto; border-collapse: collapse; font-size: 12px; }
+  .summary-table th { text-align: left; padding: 8px 12px; color: #888; border-bottom: 1px solid #333; }
+  .summary-table td { padding: 8px 12px; color: #ccc; border-bottom: 1px solid #222; }
+  .summary-table td:first-child { color: var(--warning); font-weight: 600; }
+
+  /* Draft card in reply */
+  .draft-bubble {
+    background: var(--primary-light); border-radius: 8px;
+    padding: 10px 12px; margin: 4px 0; font-size: 12px;
+    color: var(--text2); line-height: 1.6;
+  }
+  .draft-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 6px; font-size: 12px; }
+
+  /* Task detail card */
+  .task-detail {
+    background: var(--white); border-radius: 8px; margin: 8px 16px;
+    border: 0.5px solid var(--border); overflow: hidden;
+  }
+  .task-detail-header { padding: 12px 16px; border-bottom: 0.5px solid var(--border-light); }
+  .task-detail-field { display: flex; gap: 12px; padding: 8px 16px; font-size: 12px; }
+  .task-detail-label { color: var(--text4); flex-shrink: 0; min-width: 48px; }
+  .task-detail-value { color: var(--text2); line-height: 1.5; }
+  .task-detail-actions { display: flex; gap: 8px; padding: 12px 16px; border-top: 0.5px solid var(--border-light); }
+  .btn { padding: 8px 0; border-radius: 4px; font-size: 13px; font-weight: 500; text-align: center; flex: 1; cursor: pointer; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-secondary { background: var(--surface); color: var(--text2); }
+  .btn-danger { background: #fff; color: var(--danger); border: 0.5px solid var(--danger); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>审核 + 任务 Redesign</h1>
+  <div class="sub">Design system compliance review + proposed improvements</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 1: REVIEW PAGE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section-title">1. 审核页 — Issues Found</div>
+<div class="issue-list">
+  <div class="issue"><span class="issue-num">1</span><span>Reply tab shows inline draft editing — should navigate to patient chat subpage (<code>?view=chat</code>) instead</span></div>
+  <div class="issue"><span class="issue-num">2</span><span>Reply cards have their own send confirmation dialog — duplicates the chat subpage flow</span></div>
+  <div class="issue"><span class="issue-num">3</span><span>Completed tab items navigate inconsistently — some go to patient, some to review, some do nothing</span></div>
+  <div class="issue"><span class="issue-num">4</span><span>Tab colors differ from FilterBar convention (custom per-tab colors vs single active color)</span></div>
+  <div class="issue"><span class="issue-num">5</span><span>"门诊" tab label is confusing — these are diagnosis reviews, not outpatient visits</span></div>
+</div>
+
+<div class="phones">
+  <!-- BEFORE: Review Replies Tab -->
+  <div class="phone-wrap">
+    <div class="phone-label">BEFORE — 回复 tab</div>
+    <div class="phone-sublabel">Inline draft editing with send dialog. Doctor edits and sends here — duplicates chat subpage.</div>
+    <div class="phone">
+      <div class="phone-notch">9:41</div>
+      <div class="phone-body">
+        <div class="header"><div class="header-title">审核</div></div>
+        <div class="filter-bar">
+          <div class="filter-tab"><div class="tab-count" style="color:var(--text4)">2</div><div class="tab-label">门诊</div></div>
+          <div class="filter-divider"></div>
+          <div class="filter-tab active" style="border-bottom-color:var(--danger)"><div class="tab-count" style="color:var(--danger)">4</div><div class="tab-label" style="color:var(--text2)">回复</div></div>
+          <div class="filter-divider"></div>
+          <div class="filter-tab"><div class="tab-count" style="color:var(--text4)">3</div><div class="tab-label">完成</div></div>
+        </div>
+        <div class="section-label">患者消息 · 待回复</div>
+        <div class="card-container">
+          <!-- Inline editing UI — complex, duplicates chat -->
+          <div style="padding:12px 16px;border-bottom:0.5px solid var(--border-light)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <div class="avatar" style="background:var(--border-light);color:var(--text4)">陈</div>
+              <div class="body">
+                <div class="title">陈伟强 <span class="badge" style="background:var(--danger);color:#fff">紧急</span></div>
+                <div class="sub">今天 12:00</div>
+              </div>
+            </div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:8px">张医生，我今天早上起来头痛比昨天厉害了...</div>
+            <div style="background:var(--warning-light);padding:6px 8px;border-radius:4px;font-size:10px;color:#b28704;margin-bottom:4px">AI起草回复 · 待发送</div>
+            <div class="draft-bubble">陈先生，您术后头痛加剧伴恶心需要高度重视...</div>
+            <div style="font-size:10px;color:var(--danger);background:var(--danger-light);display:inline-block;padding:1px 6px;border-radius:3px;margin:4px 0">引用: 术后头痛危险信号</div>
+            <div class="draft-actions">
+              <span style="color:var(--text4)">修改</span>
+              <span style="color:var(--primary);font-weight:600">审核</span>
+            </div>
+          </div>
+        </div>
+        <div style="padding:8px 24px"><div class="callout">Problem: duplicates chat subpage UX</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AFTER: Review Replies Tab — enriched info -->
+  <div class="phone-wrap">
+    <div class="phone-label">AFTER — 待回复 tab</div>
+    <div class="phone-sublabel">3-line rows: patient + urgency, raw question, AI summary + confidence. Tap → chat subpage.</div>
+    <div class="phone">
+      <div class="phone-notch">9:41</div>
+      <div class="phone-body">
+        <div class="header"><div class="header-title">审核</div></div>
+        <div class="filter-bar">
+          <div class="filter-tab"><div class="tab-count" style="color:var(--text4)">2</div><div class="tab-label">待审核</div></div>
+          <div class="filter-divider"></div>
+          <div class="filter-tab active" style="border-bottom-color:var(--danger)"><div class="tab-count" style="color:var(--danger)">4</div><div class="tab-label" style="color:var(--text2)">待回复</div></div>
+          <div class="filter-divider"></div>
+          <div class="filter-tab"><div class="tab-count" style="color:var(--text4)">3</div><div class="tab-label">已完成</div></div>
+        </div>
+        <div class="section-label">患者消息 · 待回复</div>
+        <div class="card-container">
+          <!-- Row design: Line1 = who + urgency + time -->
+          <!--              Line2 = patient's raw question (what they actually said) -->
+          <!--              Line3 = AI status + triage category + cited rule -->
+          <div class="row" style="align-items:flex-start;padding:12px 16px">
+            <div class="avatar" style="background:var(--border-light);color:var(--text4)">陈</div>
+            <div class="body">
+              <div class="title">陈伟强 42岁 <span class="badge" style="background:var(--danger);color:#fff">紧急</span></div>
+              <div style="font-size:12px;color:var(--text2);margin-top:3px;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">
+                "头痛比昨天厉害了，还有点恶心，需要去急诊吗？"
+              </div>
+              <div style="font-size:10px;color:var(--text4);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span style="color:var(--primary);font-weight:500">AI已起草</span>
+                <span>·</span>
+                <span style="color:var(--danger)">需紧急处理</span>
+                <span>·</span>
+                <span>引用: 术后头痛</span>
+              </div>
+            </div>
+            <div style="flex-shrink:0;text-align:right">
+              <div class="right">12:00</div>
+              <div class="chevron" style="margin-top:4px">›</div>
+            </div>
+          </div>
+
+          <div class="row" style="align-items:flex-start;padding:12px 16px">
+            <div class="avatar" style="background:var(--border-light);color:var(--text4)">李</div>
+            <div class="body">
+              <div class="title">李复诊 58岁</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:3px;line-height:1.5">
+                "下次检查是什么时候？需要做什么准备吗？"
+              </div>
+              <div style="font-size:10px;color:var(--text4);margin-top:4px;display:flex;align-items:center;gap:6px">
+                <span style="color:var(--primary);font-weight:500">AI已起草</span>
+                <span>·</span>
+                <span>常规咨询</span>
+                <span>·</span>
+                <span>引用: TIA复查</span>
+              </div>
+            </div>
+            <div style="flex-shrink:0;text-align:right">
+              <div class="right">09:15</div>
+              <div class="chevron" style="margin-top:4px">›</div>
+            </div>
+          </div>
+
+          <div class="row" style="align-items:flex-start;padding:12px 16px">
+            <div class="avatar" style="background:var(--border-light);color:var(--text4)">刘</div>
+            <div class="body">
+              <div class="title">刘建国 65岁</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:3px;line-height:1.5">
+                "能不能做腰椎穿刺检查一下？"
+              </div>
+              <div style="font-size:10px;color:var(--text4);margin-top:4px;display:flex;align-items:center;gap:6px">
+                <span style="color:var(--primary);font-weight:500">AI已起草</span>
+                <span>·</span>
+                <span>常规咨询</span>
+              </div>
+            </div>
+            <div style="flex-shrink:0;text-align:right">
+              <div class="right">昨天</div>
+              <div class="chevron" style="margin-top:4px">›</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:8px 16px">
+          <div class="callout" style="background:var(--primary)">Tap → patient chat subpage (?view=chat)</div>
+          <div style="font-size:10px;color:#888;margin-top:8px;line-height:1.6">
+            <strong>Row info design:</strong><br>
+            Line 1: <strong>patient name + age + urgency badge</strong> — who & priority<br>
+            Line 2: <strong>patient's raw question in quotes</strong> — what they actually asked<br>
+            Line 3: <strong>AI status · triage category · cited rule</strong> — context for the doctor
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AFTER: Review Pending Tab — enriched info -->
+  <div class="phone-wrap">
+    <div class="phone-label">AFTER — 待审核 tab</div>
+    <div class="phone-sublabel">3-line rows: patient + age + urgency, chief complaint, source + completeness + AI finding.</div>
+    <div class="phone">
+      <div class="phone-notch">9:41</div>
+      <div class="phone-body">
+        <div class="header"><div class="header-title">审核</div></div>
+        <div class="filter-bar">
+          <div class="filter-tab active" style="border-bottom-color:var(--warning)"><div class="tab-count" style="color:var(--warning)">2</div><div class="tab-label" style="color:var(--text2)">待审核</div></div>
+          <div class="filter-divider"></div>
+          <div class="filter-tab"><div class="tab-count" style="color:var(--text4)">4</div><div class="tab-label">待回复</div></div>
+          <div class="filter-divider"></div>
+          <div class="filter-tab"><div class="tab-count" style="color:var(--text4)">3</div><div class="tab-label">已完成</div></div>
+        </div>
+        <div class="section-label">待审核</div>
+        <div class="card-container">
+          <div class="row" style="background:var(--warning-light);align-items:flex-start;padding:12px 16px">
+            <div class="avatar" style="background:var(--border-light);color:var(--text4)">陈</div>
+            <div class="body">
+              <div class="title">陈伟强 42岁 <span class="badge" style="background:var(--danger);color:#fff">紧急</span></div>
+              <div style="font-size:12px;color:var(--text2);margin-top:3px;line-height:1.5">
+                主诉：术后头痛加剧伴恶心1天
+              </div>
+              <div style="font-size:10px;color:var(--text4);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span style="color:var(--accent)">预问诊</span>
+                <span>·</span>
+                <span>12/14字段</span>
+                <span>·</span>
+                <span style="color:var(--warning);font-weight:500">AI：疑迟发性血肿</span>
+              </div>
+            </div>
+            <div style="flex-shrink:0;text-align:right">
+              <div class="right">12:00</div>
+              <div class="chevron" style="margin-top:4px">›</div>
+            </div>
+          </div>
+
+          <div class="row" style="align-items:flex-start;padding:12px 16px">
+            <div class="avatar" style="background:var(--border-light);color:var(--text4)">李</div>
+            <div class="body">
+              <div class="title">李复诊 58岁 <span class="badge" style="background:var(--warning);color:#fff">待处理</span></div>
+              <div style="font-size:12px;color:var(--text2);margin-top:3px;line-height:1.5">
+                主诉：突发左侧肢体无力2小时
+              </div>
+              <div style="font-size:10px;color:var(--text4);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span style="color:var(--primary)">门诊记录</span>
+                <span>·</span>
+                <span>8/14字段</span>
+                <span>·</span>
+                <span style="color:var(--warning);font-weight:500">AI：建议颈动脉超声+MRA</span>
+              </div>
+            </div>
+            <div style="flex-shrink:0;text-align:right">
+              <div class="right">11:30</div>
+              <div class="chevron" style="margin-top:4px">›</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:8px 16px">
+          <div class="callout" style="background:var(--primary)">Tap → review detail page</div>
+          <div style="font-size:10px;color:#888;margin-top:8px;line-height:1.6">
+            <strong>Row info design:</strong><br>
+            Line 1: <strong>patient name + age + urgency badge</strong> — who & priority<br>
+            Line 2: <strong>chief complaint (patient's words)</strong> — what brought them in<br>
+            Line 3: <strong>source · field completeness · AI one-line finding</strong> — context
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 2: TASKS PAGE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section-title">2. 任务页 — Issues Found</div>
+<div class="issue-list">
+  <div class="issue"><span class="issue-num">1</span><span>Tasks have no detail page — tapping navigates to patient, not to the task itself</span></div>
+  <div class="issue"><span class="issue-num">2</span><span>No way to see task details (due date, notes, related record, who assigned it)</span></div>
+  <div class="issue"><span class="issue-num">3</span><span>"已完成" tab shows empty even though there are completed items — data issue</span></div>
+  <div class="issue"><span class="issue-num">4</span><span>Checkbox UX is ambiguous — does tapping the row navigate, or toggle completion?</span></div>
+  <div class="issue"><span class="issue-num">5</span><span>No task creation entry point from this page</span></div>
+  <div class="issue"><span class="issue-num">6</span><span>No notification/reminder system — tasks are passive, doctor must check manually</span></div>
+</div>
+
+<div class="phones">
+  <!-- BEFORE: Tasks Page -->
+  <div class="phone-wrap">
+    <div class="phone-label">BEFORE — 任务页</div>
+    <div class="phone-sublabel">Flat list with checkbox + navigate confusion. No detail page. No create button.</div>
+    <div class="phone">
+      <div class="phone-notch">9:41</div>
+      <div class="phone-body">
+        <div class="header"><div class="header-title">任务</div></div>
+        <div class="filter-bar">
+          <div class="filter-tab active" style="border-bottom-color:var(--warning)"><div class="tab-count" style="color:var(--warning)">5</div><div class="tab-label" style="color:var(--text2)">待完成</div></div>
+          <div class="filter-divider"></div>
+          <div class="filter-tab"><div class="tab-count" style="color:var(--text4)">0</div><div class="tab-label">已完成</div></div>
+        </div>
+        <div class="section-label">待完成</div>
+        <div class="card-container">
+          <div class="row"><div class="checkbox"></div><div class="body"><div class="title">陈伟强 术后复查CT</div><div class="sub">脑膜瘤术后第7天，头痛加剧...</div></div><div class="right">03-27 ›</div></div>
+          <div class="row"><div class="checkbox"></div><div class="body"><div class="title">李复诊 颈动脉超声</div><div class="sub">TIA首发48h内完成...</div></div><div class="right">03-28 ›</div></div>
+          <div class="row"><div class="checkbox"></div><div class="body"><div class="title">王明 术后复查DSA</div><div class="sub">动脉瘤夹闭术后复查...</div></div><div class="right">04-03 ›</div></div>
+          <div class="row"><div class="checkbox"></div><div class="body"><div class="title">张小红 用药效果复查</div><div class="sub">卡马西平2周疗效评估...</div></div><div class="right">04-03 ›</div></div>
+          <div class="row"><div class="checkbox"></div><div class="body"><div class="title">刘建国 保守治疗1月评估</div><div class="sub">腰椎管狭窄保守治疗...</div></div><div class="right">04-10 ›</div></div>
+        </div>
+        <div style="padding:8px 24px">
+          <div class="callout">Tap row → patient page (not task detail)</div>
+          <div class="callout" style="margin-left:4px">Tap checkbox → complete (no confirm)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AFTER: Tasks Page -->
+  <div class="phone-wrap">
+    <div class="phone-label">AFTER — 任务页</div>
+    <div class="phone-sublabel">Grouped by urgency. Tap row → task detail subpage. Checkbox separated. + button to create.</div>
+    <div class="phone">
+      <div class="phone-notch">9:41</div>
+      <div class="phone-body">
+        <div class="header">
+          <div class="header-title">任务</div>
+          <div style="position:absolute;right:12px;font-size:14px;color:var(--primary);cursor:pointer">+ 新建</div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-tab active" style="border-bottom-color:var(--warning)"><div class="tab-count" style="color:var(--warning)">5</div><div class="tab-label" style="color:var(--text2)">待完成</div></div>
+          <div class="filter-divider"></div>
+          <div class="filter-tab"><div class="tab-count" style="color:var(--text4)">2</div><div class="tab-label">已完成</div></div>
+        </div>
+
+        <!-- Urgent group -->
+        <div class="section-label" style="color:var(--danger)">紧急 · 今天到期</div>
+        <div class="card-container">
+          <div class="row" style="background:var(--danger-light)">
+            <div class="dot" style="background:var(--danger)"></div>
+            <div class="body">
+              <div class="title">陈伟强 · 术后复查CT</div>
+              <div class="sub">脑膜瘤术后第7天，头痛加剧</div>
+            </div>
+            <div class="right" style="color:var(--danger);font-weight:500">今天</div>
+            <div class="chevron">›</div>
+          </div>
+        </div>
+
+        <!-- Upcoming group -->
+        <div class="section-label">即将到期</div>
+        <div class="card-container">
+          <div class="row">
+            <div class="dot" style="background:var(--warning)"></div>
+            <div class="body">
+              <div class="title">李复诊 · 颈动脉超声</div>
+              <div class="sub">TIA首发48h内完成颈动脉超声</div>
+            </div>
+            <div class="right">明天</div>
+            <div class="chevron">›</div>
+          </div>
+          <div class="row">
+            <div class="dot" style="background:var(--text4)"></div>
+            <div class="body">
+              <div class="title">王明 · 术后复查DSA</div>
+              <div class="sub">动脉瘤夹闭术后复查DSA</div>
+            </div>
+            <div class="right">04-03</div>
+            <div class="chevron">›</div>
+          </div>
+          <div class="row">
+            <div class="dot" style="background:var(--text4)"></div>
+            <div class="body">
+              <div class="title">张小红 · 用药效果复查</div>
+              <div class="sub">卡马西平2周疗效评估</div>
+            </div>
+            <div class="right">04-03</div>
+            <div class="chevron">›</div>
+          </div>
+          <div class="row">
+            <div class="dot" style="background:var(--text4)"></div>
+            <div class="body">
+              <div class="title">刘建国 · 保守治疗评估</div>
+              <div class="sub">腰椎管狭窄1月评估</div>
+            </div>
+            <div class="right">04-10</div>
+            <div class="chevron">›</div>
+          </div>
+        </div>
+        <div style="padding:8px 24px"><div class="callout" style="background:var(--primary)">Tap → task detail subpage</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AFTER: Task Detail Subpage -->
+  <div class="phone-wrap">
+    <div class="phone-label">NEW — 任务详情 subpage</div>
+    <div class="phone-sublabel">Full task context: patient, due date, source, notes. Mark complete or navigate to patient.</div>
+    <div class="phone">
+      <div class="phone-notch">9:41</div>
+      <div class="phone-body">
+        <div class="header">
+          <div style="font-size:18px;color:var(--text2);width:32px">‹</div>
+          <div class="header-title">任务详情</div>
+        </div>
+
+        <div class="task-detail" style="margin-top:8px">
+          <div class="task-detail-header">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="dot" style="background:var(--danger)"></div>
+              <div style="font-size:15px;font-weight:600">术后复查CT</div>
+              <span class="badge" style="background:var(--danger);color:#fff">紧急</span>
+            </div>
+          </div>
+          <div class="task-detail-field">
+            <div class="task-detail-label">患者</div>
+            <div class="task-detail-value" style="color:var(--primary);cursor:pointer">陈伟强 ›</div>
+          </div>
+          <div class="task-detail-field">
+            <div class="task-detail-label">截止</div>
+            <div class="task-detail-value" style="color:var(--danger);font-weight:500">2026-03-27 (今天)</div>
+          </div>
+          <div class="task-detail-field">
+            <div class="task-detail-label">来源</div>
+            <div class="task-detail-value">AI诊断审核 → 自动生成</div>
+          </div>
+          <div class="task-detail-field">
+            <div class="task-detail-label">详情</div>
+            <div class="task-detail-value">脑膜瘤术后第7天，头痛加剧，需要急查头颅CT平扫排除迟发性颅内血肿</div>
+          </div>
+          <div class="task-detail-field">
+            <div class="task-detail-label">关联</div>
+            <div class="task-detail-value" style="color:var(--primary);cursor:pointer">预问诊记录 03-25 ›</div>
+          </div>
+          <div class="task-detail-actions">
+            <div class="btn btn-primary">标记完成</div>
+            <div class="btn btn-secondary">查看患者</div>
+          </div>
+        </div>
+
+        <!-- Notes section -->
+        <div style="padding:16px">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">备注</div>
+          <div style="background:var(--white);border:0.5px solid var(--border);border-radius:6px;padding:10px;font-size:12px;color:var(--text4);min-height:60px">
+            添加备注...
+          </div>
+        </div>
+
+        <!-- Reminder section -->
+        <div class="card-container" style="margin-top:0">
+          <div class="row">
+            <div style="font-size:13px;flex:1">提醒</div>
+            <div style="font-size:12px;color:var(--primary)">当天 09:00</div>
+            <div class="chevron">›</div>
+          </div>
+          <div class="row">
+            <div style="font-size:13px;flex:1;color:var(--danger)">删除任务</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 3: TASK NOTIFICATION SYSTEM -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section-title">3. Task Notification System — Proposal</div>
+<div class="phones">
+  <div class="phone-wrap">
+    <div class="phone-label">Notification Flow</div>
+    <div class="phone-sublabel">How tasks surface to the doctor across the app — not just in the tasks tab.</div>
+    <div class="phone" style="height:auto;min-height:500px">
+      <div class="phone-notch">Architecture</div>
+      <div class="phone-body" style="padding:16px;font-size:12px;color:var(--text2);line-height:2">
+        <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:var(--text1)">Task Sources</div>
+        <div style="padding-left:12px">
+          <div>1. <strong>AI审核完成</strong> → auto-create follow-up tasks</div>
+          <div>2. <strong>医生手动</strong> → "+ 新建" from tasks page or patient detail</div>
+          <div>3. <strong>患者消息</strong> → AI triage creates urgent tasks</div>
+          <div>4. <strong>定时随访</strong> → scheduled follow-up triggers</div>
+        </div>
+
+        <div style="font-weight:600;font-size:14px;margin:16px 0 12px;color:var(--text1)">Where Tasks Surface</div>
+        <div style="padding-left:12px">
+          <div>1. <strong style="color:var(--primary)">任务 tab</strong> — full list, grouped by urgency</div>
+          <div>2. <strong style="color:var(--primary)">患者详情</strong> → "需要你处理" attention card</div>
+          <div>3. <strong style="color:var(--primary)">我的AI</strong> → dashboard stat "待处理"</div>
+          <div>4. <strong style="color:var(--primary)">Bottom nav badge</strong> — red dot with count</div>
+          <div>5. <strong style="color:var(--warning)">Push notification</strong> (WeChat miniprogram)</div>
+        </div>
+
+        <div style="font-weight:600;font-size:14px;margin:16px 0 12px;color:var(--text1)">Reminder System</div>
+        <div style="padding-left:12px">
+          <div>• Each task has optional <strong>reminder time</strong> (default: due date 09:00)</div>
+          <div>• Reminders send <strong>WeChat template message</strong> to doctor</div>
+          <div>• Overdue tasks: <strong>escalate</strong> — red badge, top of list, daily 09:00 push</div>
+          <div>• Completed tasks auto-archive after 7 days</div>
+        </div>
+
+        <div style="font-weight:600;font-size:14px;margin:16px 0 12px;color:var(--text1)">Data Model Addition</div>
+        <div style="background:var(--surface);border-radius:6px;padding:10px;font-family:monospace;font-size:11px;line-height:1.8;color:var(--text3)">
+          tasks table:<br>
+          &nbsp;&nbsp;+ reminder_at: datetime<br>
+          &nbsp;&nbsp;+ reminder_sent: boolean<br>
+          &nbsp;&nbsp;+ source_type: enum (review, manual, triage, schedule)<br>
+          &nbsp;&nbsp;+ source_record_id: integer (nullable)<br>
+          &nbsp;&nbsp;+ notes: text<br>
+          &nbsp;&nbsp;+ completed_at: datetime (nullable)<br>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WeChat notification mock -->
+  <div class="phone-wrap">
+    <div class="phone-label">WeChat Push Notification</div>
+    <div class="phone-sublabel">Template message sent to doctor's WeChat when task is due or overdue.</div>
+    <div class="phone" style="height:auto;min-height:300px">
+      <div class="phone-notch">微信</div>
+      <div class="phone-body" style="padding:16px;background:var(--surface-alt)">
+        <div style="background:var(--white);border-radius:8px;padding:16px;border:0.5px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <div class="avatar" style="background:var(--primary);color:#fff;width:28px;height:28px;font-size:10px;border-radius:4px">AI</div>
+            <div style="font-size:13px;font-weight:600">鲸鱼随行</div>
+            <div style="font-size:10px;color:var(--text4);margin-left:auto">09:00</div>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:8px">任务提醒</div>
+          <div style="font-size:12px;color:var(--text3);line-height:2">
+            <div>患者：<span style="color:var(--text1)">陈伟强</span></div>
+            <div>任务：<span style="color:var(--text1)">术后复查CT</span></div>
+            <div>截止：<span style="color:var(--danger);font-weight:500">今天</span></div>
+            <div>详情：<span style="color:var(--text1)">脑膜瘤术后第7天，排除迟发性血肿</span></div>
+          </div>
+          <div style="text-align:center;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border-light)">
+            <span style="font-size:12px;color:var(--primary)">点击查看详情 ›</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SUMMARY -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div style="max-width:900px;margin:24px auto;padding:0 24px 48px">
+  <div style="font-size:14px;font-weight:700;color:#ccc;margin-bottom:12px">Changes Summary</div>
+  <table class="summary-table">
+    <tr><th>#</th><th>Change</th><th>Impact</th><th>Effort</th></tr>
+    <tr>
+      <td>1</td>
+      <td style="color:#fff">Review 回复 tab → ListCard rows, tap navigates to <code>?view=chat</code></td>
+      <td style="color:var(--warning)">High — removes duplicate UX</td>
+      <td style="color:var(--primary)">~1hr</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td style="color:#fff">Rename tab: 门诊 → 待审核, 回复 → 待回复, 完成 → 已完成</td>
+      <td>Medium — clearer labels</td>
+      <td style="color:var(--primary)">~10min</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td style="color:#fff">Tasks: group by urgency (紧急/即将到期), color-coded dots</td>
+      <td style="color:var(--warning)">High — doctor sees priority</td>
+      <td style="color:var(--warning)">~2hr</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td style="color:#fff">Tasks: add detail subpage (patient, due, source, notes, reminder)</td>
+      <td style="color:var(--warning)">High — tasks become actionable</td>
+      <td style="color:var(--warning)">~3hr</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td style="color:#fff">Tasks: remove checkbox, use dot + chevron (same as records)</td>
+      <td>Medium — removes tap ambiguity</td>
+      <td style="color:var(--primary)">~30min</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td style="color:#fff">Tasks: add "+ 新建" button in header</td>
+      <td>Medium — manual task creation</td>
+      <td style="color:var(--primary)">~1hr</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td style="color:#fff">Notification: WeChat template messages for task reminders</td>
+      <td style="color:var(--danger)">Critical — passive → active</td>
+      <td style="color:var(--danger)">~1 day (backend + WeChat API)</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td style="color:#fff">DB: add reminder_at, source_type, notes, completed_at to tasks table</td>
+      <td style="color:var(--warning)">Foundation for #4 + #7</td>
+      <td style="color:var(--primary)">~30min</td>
+    </tr>
+  </table>
+
+  <div style="margin-top:16px;font-size:12px;color:#888;line-height:1.6">
+    <strong style="color:var(--primary)">Priority order:</strong> #2 (rename tabs, 10min) → #1 (reply navigation, 1hr) → #5 (remove checkbox, 30min) → #3 (urgency groups, 2hr) → #4 (task detail, 3hr) → #6 (create button, 1hr) → #8 (DB schema, 30min) → #7 (WeChat push, 1 day)
+  </div>
+</div>
+
+</body>
+</html>

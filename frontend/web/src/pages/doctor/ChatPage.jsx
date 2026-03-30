@@ -37,18 +37,8 @@ import AppButton from "../../components/AppButton";
 import DialogFooter from "../../components/DialogFooter";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
-
-function MsgAvatar({ isUser, size = 40 }) {
-  return (
-    <Box sx={{ width: size, height: size, borderRadius: RADIUS.sm, flexShrink: 0, mb: 0.5,
-      bgcolor: isUser ? "#5b9bd5" : COLOR.primary,
-      display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {isUser
-        ? <LocalHospitalOutlinedIcon sx={{ color: COLOR.white, fontSize: size * 0.56 }} />
-        : <SmartToyOutlinedIcon sx={{ color: COLOR.white, fontSize: size * 0.56 }} />}
-    </Box>
-  );
-}
+import MsgAvatar from "../../components/MsgAvatar";
+import { nowTs } from "../../utils/time";
 
 
 function TasksCard({ tasks }) {
@@ -144,7 +134,7 @@ function TaskCards({ tasks, onNavigate, max = 5 }) {
     <Box sx={{ mt: 1, borderTop: `1px solid ${COLOR.border}`, pt: 0.5 }}>
       {shown.map((tk) => (
         <Box key={tk.id} sx={cardRowSx} onClick={() => tk.patient_id ? onNavigate(`/doctor/patients/${tk.patient_id}`) : onNavigate("/doctor/tasks")}>
-          <Box sx={cardIconSx(COLOR.warningLight)}><AssignmentOutlinedIcon sx={{ fontSize: 16, color: "#e8833a" }} /></Box>
+          <Box sx={cardIconSx(COLOR.warningLight)}><AssignmentOutlinedIcon sx={{ fontSize: 16, color: COLOR.orange }} /></Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 600, color: COLOR.text2 }} noWrap>
               {typeLabels[tk.task_type] || "任务"} · {tk.title || "未命名"}
@@ -193,7 +183,7 @@ function MsgBubble({ msg, onQuickSend, onNavigate }) {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isUser = msg.role === "user";
   const bubbleRadius = isUser ? `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}` : `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`;
-  const bgColor = isUser ? "#95EC69" : COLOR.white;
+  const bgColor = isUser ? COLOR.wechatGreen : COLOR.white;
   const textColor = COLOR.text1;
   const hasPending = !isUser && /确认保存/.test(msg.content);
 
@@ -305,11 +295,6 @@ function FailedMessageBanner({ onRetry, onDismiss }) {
       <Button size="small" variant="text" sx={{ fontSize: TYPE.caption.fontSize, py: 0, minWidth: "auto", color: "text.secondary" }} onClick={onDismiss}>忽略</Button>
     </Box>
   );
-}
-
-function nowTs() {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 function ChipInput({ activeChip, onRemoveChip, input, onInput, onSend, loading, isProcessing,

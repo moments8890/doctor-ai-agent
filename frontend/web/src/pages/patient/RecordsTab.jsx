@@ -18,13 +18,14 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 import { usePatientApi } from "../../api/PatientApiContext";
 import ListCard from "../../components/ListCard";
 import NewItemCard from "../../components/NewItemCard";
-import RecordTypeAvatar from "../../components/RecordTypeAvatar";
+import IconBadge from "../../components/IconBadge";
 import DateAvatar from "../../components/DateAvatar";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
 import StatusBadge from "../../components/StatusBadge";
 import { TYPE, COLOR, RADIUS } from "../../theme";
 import { RECORD_TYPE_LABEL, formatDate } from "./constants";
+import { RECORD_TYPE_BADGE } from "../doctor/constants";
 import RecordDetail from "./subpages/RecordDetail";
 
 const _DL = { pending: "诊断中", completed: "待审核", confirmed: "已确认", failed: "诊断失败" };
@@ -229,7 +230,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
             return (
               <ListCard
                 key={rec.id}
-                avatar={<RecordTypeAvatar type={rec.record_type} />}
+                avatar={<IconBadge config={RECORD_TYPE_BADGE[rec.record_type]} />}
                 title={typeLabel}
                 subtitle={preview}
                 right={

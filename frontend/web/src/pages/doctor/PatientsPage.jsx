@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
-  Alert, Box, Button, Chip, CircularProgress, InputAdornment,
+  Alert, Autocomplete, Box, Button, Chip, CircularProgress, InputAdornment,
   Stack, TextField, Typography,
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -27,8 +27,11 @@ import StatusBadge from "../../components/StatusBadge";
 import NameAvatar from "../../components/NameAvatar";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
-import PatientDetail from "./patients/PatientDetail";
+import PatientDetail, { PatientChatPage } from "./patients/PatientDetail";
 import SubpageHeader from "../../components/SubpageHeader";
+import RecordEditDialog from "../../components/RecordEditDialog";
+import AppButton from "../../components/AppButton";
+import { STRUCTURED_FIELD_LABELS } from "./constants";
 import InterviewPage from "./InterviewPage";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 
@@ -182,32 +185,83 @@ function ImportCard({ importing, importError, onFileClick, onChatClick }) {
   );
 }
 
-function SearchBar({ patients, search, nlResults, nlLoading, onChange, onSubmit }) {
-  const q = search.trim();
-  const showNlBtn = q && isNLQuery(q) && nlResults === null;
+function SearchBar({ patients, search, nlResults, nlLoading, onChange, onSubmit, onSelect, onStartInterview }) {
   return (
     <Box sx={{ px: 1.5, py: 1, borderBottom: `0.5px solid ${COLOR.borderLight}`, bgcolor: COLOR.surfaceAlt }}>
-      <TextField
-        size="small" fullWidth
-        placeholder={`搜索患者${patients.length > 0 ? ` (共${patients.length}人)` : ""}，或用自然语言描述`}
-        value={search}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && onSubmit()}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              {nlLoading ? <CircularProgress size={14} /> : <SearchIcon fontSize="small" />}
-            </InputAdornment>
-          ),
-          endAdornment: showNlBtn ? (
-            <InputAdornment position="end">
-              <Box onClick={onSubmit} sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, cursor: "pointer", whiteSpace: "nowrap", pr: 0.5 }}>
-                智能搜索
-              </Box>
-            </InputAdornment>
-          ) : null,
+      <Autocomplete
+        freeSolo
+        options={patients}
+        getOptionLabel={(option) => typeof option === "string" ? option : option.name}
+        inputValue={search}
+        onInputChange={(_, value, reason) => {
+          if (reason === "input") onChange(value);
         }}
-        sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.sm, bgcolor: COLOR.white } }}
+        onChange={(_, value) => {
+          if (value && typeof value !== "string" && value.id) {
+            onSelect?.(value);
+          }
+        }}
+        filterOptions={(options, { inputValue }) => {
+          const q = inputValue.trim();
+          if (!q) return options.slice(0, 8);
+          const filtered = options.filter((p) => p.name.includes(q));
+          // Add "create new" option
+          if (q && !filtered.some((p) => p.name === q)) {
+            filtered.push({ _create: true, name: q });
+          }
+          return filtered.slice(0, 10);
+        }}
+        renderOption={(props, option) => {
+          if (option._create) {
+            return (
+              <Box component="li" {...props} key="__create__"
+                onClick={(e) => { e.stopPropagation(); onStartInterview?.(); }}
+                sx={{ color: COLOR.primary, fontWeight: 500, fontSize: TYPE.secondary.fontSize }}>
+                + 新建患者「{option.name}」
+              </Box>
+            );
+          }
+          const age = option.year_of_birth ? new Date().getFullYear() - option.year_of_birth : null;
+          const genderStr = option.gender ? ({ male: "男", female: "女" }[option.gender] || "") : "";
+          return (
+            <Box component="li" {...props} key={option.id}
+              sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
+              <NameAvatar name={option.name} size={28} />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 500 }} noWrap>
+                  {option.name}
+                </Typography>
+                <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }} noWrap>
+                  {[genderStr, age ? `${age}岁` : null].filter(Boolean).join(" · ")}
+                </Typography>
+              </Box>
+              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
+                {formatPatientTime(option.last_activity_at || option.updated_at || "")}
+              </Typography>
+            </Box>
+          );
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            size="small"
+            fullWidth
+            placeholder={`搜索患者${patients.length > 0 ? ` (共${patients.length}人)` : ""}，或用自然语言描述`}
+            onKeyDown={(e) => e.key === "Enter" && onSubmit()}
+            InputProps={{
+              ...params.InputProps,
+              startAdornment: (
+                <InputAdornment position="start">
+                  {nlLoading ? <CircularProgress size={14} /> : <SearchIcon fontSize="small" />}
+                </InputAdornment>
+              ),
+            }}
+            sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.sm, bgcolor: COLOR.white } }}
+          />
+        )}
+        noOptionsText="未找到患者"
+        loading={nlLoading}
+        sx={{ "& .MuiAutocomplete-listbox": { py: 0.5 } }}
       />
       {nlResults !== null && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, pt: 0.5 }}>
@@ -247,7 +301,7 @@ function PatientList({ filtered, search, selectedId, isMobile, navigate, onStart
 function PatientListPane({ patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange, onSearchSubmit, onStartInterview, onLoad, onFileInputChange, attention, aiTagMap }) {
   return (
     <>
-      <SearchBar patients={patients} search={search} nlResults={nlResults} nlLoading={nlLoading} onChange={onSearchChange} onSubmit={onSearchSubmit} />
+      <SearchBar patients={patients} search={search} nlResults={nlResults} nlLoading={nlLoading} onChange={onSearchChange} onSubmit={onSearchSubmit} onSelect={(patient) => navigate(`/doctor/patients/${patient.id}`)} onStartInterview={onStartInterview} />
       {error && <Alert severity="error" action={<Button size="small" onClick={onLoad}>重试</Button>}>{error}</Alert>}
       <Box sx={{ flex: 1, overflowY: "auto", bgcolor: COLOR.surfaceAlt }}>
         {loading && <SectionLoading py={2} />}
@@ -334,7 +388,19 @@ function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selec
     finally { setImporting(false); }
   }
 
-  const filtered = (() => { const q = search.trim(); if (!q) return patients; if (nlResults !== null) return nlResults; return patients.filter((p) => p.name.includes(q)); })();
+  const filtered = (() => {
+    const q = search.trim();
+    const base = !q ? patients : (nlResults !== null ? nlResults : patients.filter((p) => p.name.includes(q)));
+    // Sort: patients with pending actions first, then by most recent activity
+    return [...base].sort((a, b) => {
+      const aHasTag = aiTagMap?.[a.id] ? 1 : 0;
+      const bHasTag = aiTagMap?.[b.id] ? 1 : 0;
+      if (aHasTag !== bHasTag) return bHasTag - aHasTag; // tagged first
+      const aDate = a.last_activity_at || a.created_at || "";
+      const bDate = b.last_activity_at || b.created_at || "";
+      return bDate.localeCompare(aDate); // most recent first
+    });
+  })();
   return { patients, setPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile, attention, aiTagMap };
 }
 
@@ -344,6 +410,87 @@ function MobilePatientDetailView({ selectedPatient, doctorId, navigate, onStartI
       <Box sx={{ flex: 1, overflow: "hidden" }}>
         <PatientDetail patient={selectedPatient} doctorId={doctorId} onStartInterview={onStartInterview} />
       </Box>
+    </Box>
+  );
+}
+
+const RECORD_FIELD_ORDER = [
+  "department", "chief_complaint", "present_illness", "past_history",
+  "allergy_history", "family_history", "personal_history", "marital_reproductive",
+  "physical_exam", "specialist_exam", "auxiliary_exam",
+  "diagnosis", "treatment_plan", "orders_followup",
+];
+
+function RecordDetailSubpage({ recordId, doctorId, patientName, onBack, onDeleted }) {
+  const api = useApi();
+  const { getTaskRecord } = api;
+  const [record, setRecord] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const load = useCallback(() => {
+    if (!recordId) return;
+    setLoading(true);
+    getTaskRecord(recordId, doctorId)
+      .then(setRecord)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [recordId, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [load]);
+
+  const structured = record?.structured || {};
+  const filled = RECORD_FIELD_ORDER.filter((k) => structured[k]);
+  const typeLabel = record?.record_type ? ({ visit: "门诊", dictation: "口述", import: "导入", interview_summary: "预问诊", lab: "检验", imaging: "影像", surgery: "手术", referral: "转诊" }[record.record_type] || record.record_type) : "";
+  const date = record?.created_at ? record.created_at.slice(0, 10) : "";
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
+      <SubpageHeader title={`${patientName} · ${typeLabel || "病历"}`} onBack={onBack}
+      />
+      <Box sx={{ flex: 1, overflow: "auto" }}>
+        {loading && <SectionLoading />}
+        {!loading && !record && (
+          <Box sx={{ py: 6, textAlign: "center" }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>病历不存在</Typography>
+          </Box>
+        )}
+        {!loading && record && (
+          <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+            {/* Header */}
+            <Box sx={{ px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>{typeLabel}</Typography>
+                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{date}</Typography>
+              </Box>
+              {record.content && !filled.length && (
+                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, mt: 0.5, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                  {record.content}
+                </Typography>
+              )}
+            </Box>
+            {/* Structured fields */}
+            {filled.map((key) => (
+              <Box key={key} sx={{ display: "flex", gap: 1.5, px: 2, py: 1, borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" } }}>
+                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 500, flexShrink: 0, minWidth: 56 }}>
+                  {STRUCTURED_FIELD_LABELS[key]}
+                </Typography>
+                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                  {structured[key]}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        )}
+        {record && (
+          <Box sx={{ px: 2, pt: 1.5, pb: "calc(12px + env(safe-area-inset-bottom))", bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}` }}>
+            <AppButton variant="secondary" size="md" fullWidth onClick={() => setEditOpen(true)}>编辑病历</AppButton>
+          </Box>
+        )}
+      </Box>
+      <RecordEditDialog open={editOpen} record={record} doctorId={doctorId}
+        onClose={() => setEditOpen(false)}
+        onUpdated={(updated) => { setRecord({ ...record, ...updated }); setEditOpen(false); }}
+        onDeleted={() => { setEditOpen(false); onDeleted?.(); }} />
     </Box>
   );
 }
@@ -385,7 +532,10 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
 
   const listPaneProps = { patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange: handleSearchChange, onSearchSubmit: handleSearchSubmit, onStartInterview: handleStartInterview, onLoad: load, onFileInputChange: handleImportFile, attention, aiTagMap };
 
-  // Mobile subpage override: interview or patient detail
+  // Detect ?view=chat for dedicated chat subpage
+  const viewParam = new URLSearchParams(window.location.search).get("view");
+
+  // Mobile subpage override: interview, chat, or patient detail
   const mobileSubpage = isMobile && interviewActive ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surface }}>
       <InterviewPage doctorId={doctorId}
@@ -395,13 +545,24 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
         onComplete={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); load(); }}
         onCancel={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); navigate(-1); }} />
     </Box>
+  ) : isMobile && selectedId && viewParam === "record" ? (
+    <RecordDetailSubpage
+      recordId={Number(new URLSearchParams(window.location.search).get("record"))}
+      doctorId={doctorId}
+      patientName={selectedPatient?.name || ""}
+      onBack={() => navigate(`/doctor/patients/${selectedId}`, { replace: true })}
+      onDeleted={() => { load(); navigate(`/doctor/patients/${selectedId}`, { replace: true }); }}
+    />
+  ) : selectedId && viewParam === "chat" ? (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt, overflow: "hidden" }}>
+      <SubpageHeader title={`${selectedPatient?.name || ""} · 消息`} onBack={() => navigate(`/doctor/patients/${selectedId}`)} sx={{ flexShrink: 0 }} />
+      <Box sx={{ flex: 1, overflow: "auto" }}>
+        <PatientChatPage patientId={selectedId} doctorId={doctorId} bubbleView patientName={selectedPatient?.name} />
+      </Box>
+    </Box>
   ) : isMobile && selectedId ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surface }}>
-      <SubpageHeader title={selectedPatient?.name || ""} onBack={() => navigate(-1)}
-        right={
-          <BarButton onClick={handleStartInterview}>门诊</BarButton>
-        }
-      />
+      <SubpageHeader title={selectedPatient?.name || ""} onBack={() => navigate("/doctor/patients")} />
       <Box sx={{ flex: 1, overflow: "hidden" }}>
         <PatientDetail patient={selectedPatient} doctorId={doctorId} onStartInterview={handleStartInterview}
           triggerExport={triggerExport} onTriggerExportConsumed={() => setTriggerExport(false)} />

@@ -7,39 +7,30 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert, Box, Button, CircularProgress, IconButton, LinearProgress, Stack, Typography } from "@mui/material";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
-import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import MicIcon from "@mui/icons-material/Mic";
 import KeyboardIcon from "@mui/icons-material/Keyboard";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
-import CancelConfirm from "../../components/CancelConfirm";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import SuggestionChips from "../../components/SuggestionChips";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
 import ActionPanel from "../../components/ActionPanel";
 import ImportChoiceDialog from "../../components/ImportChoiceDialog";
 import FieldReviewCard from "../../components/doctor/FieldReviewCard";
 import InterviewCompleteDialog from "../../components/doctor/InterviewCompleteDialog";
-import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
-
-function nowTs() {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
+import { TYPE, COLOR, RADIUS } from "../../theme";
+import MsgAvatar from "../../components/MsgAvatar";
+import { nowTs } from "../../utils/time";
 
 function MsgBubble({ msg }) {
   const isUser = msg.role === "user";
   return (
     <Box sx={{ display: "flex", flexDirection: isUser ? "row-reverse" : "row", alignItems: "flex-end", gap: 1, px: 1.5 }}>
-      <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: isUser ? "#5b9bd5" : COLOR.primary,
-        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        {isUser ? <LocalHospitalOutlinedIcon sx={{ color: COLOR.white, fontSize: ICON.md }} />
-                : <SmartToyOutlinedIcon sx={{ color: COLOR.white, fontSize: ICON.md }} />}
-      </Box>
+      <MsgAvatar isUser={isUser} size={32} />
       <Box sx={{ maxWidth: "75%", px: 1.5, py: 1, borderRadius: isUser ? `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}` : `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`,
-        bgcolor: isUser ? "#95EC69" : COLOR.white, fontSize: TYPE.body.fontSize, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
+        bgcolor: isUser ? COLOR.wechatGreen : COLOR.white, fontSize: TYPE.body.fontSize, whiteSpace: "pre-wrap", lineHeight: 1.7 }}>
         {msg.content}
       </Box>
     </Box>
@@ -344,9 +335,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
           const hasWork = session.sessionId || messages.length > 1 || input.trim();
           hasWork ? setShowCancelConfirm(true) : handleCancel();
         }}
-        right={<Typography variant="caption" sx={{ color: COLOR.primary, fontWeight: 500 }}>
-          {session.progress.pct || 0}%
-        </Typography>} />
+      />
 
       {/* Progress bar + missing fields + confirm */}
       <Box sx={{ px: 1.5, py: 0.5, bgcolor: COLOR.white, borderBottom: `1px solid ${COLOR.border}` }}>
@@ -355,7 +344,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
           sx={{ height: 6, borderRadius: 3, bgcolor: COLOR.border,
             "& .MuiLinearProgress-bar": { bgcolor: COLOR.primary, borderRadius: 3 } }} />
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 0.5 }}>
-          <Typography variant="caption" sx={{ color: session.status === "ready_for_confirm" ? "#2e7d32" : COLOR.text4 }}>
+          <Typography variant="caption" sx={{ color: session.status === "ready_for_confirm" ? COLOR.successText : COLOR.text4 }}>
             {session.status === "ready_for_confirm" ? "信息已完整，可以生成病历了" :
              session.sessionId ? `${session.progress.pct || 0}%` : ""}
           </Typography>
@@ -454,7 +443,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
       {session.status === "draft_created" && (
         <Box sx={{ px: 1.5, py: 1, borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.primaryLight,
           display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Typography variant="caption" sx={{ color: "#2e7d32" }}>
+          <Typography variant="caption" sx={{ color: COLOR.successText }}>
             草稿已生成
           </Typography>
         </Box>
@@ -549,10 +538,16 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
 
       {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mx: 1, mb: 0.5 }}>{error}</Alert>}
 
-      <CancelConfirm
+      <ConfirmDialog
         open={showCancelConfirm}
-        onConfirm={() => { setShowCancelConfirm(false); handleCancel(); }}
+        onClose={() => setShowCancelConfirm(false)}
         onCancel={() => setShowCancelConfirm(false)}
+        onConfirm={() => { setShowCancelConfirm(false); handleCancel(); }}
+        title="确认离开？"
+        message="未保存的内容将会丢失"
+        confirmLabel="离开"
+        cancelLabel="取消"
+        confirmTone="danger"
       />
 
       {/* Interview complete dialog — preview fields + save/diagnose */}

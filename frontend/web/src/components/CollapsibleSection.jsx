@@ -6,7 +6,7 @@
  * (e.g., tapping summary bar stats to jump to a section).
  */
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Collapse, Typography } from "@mui/material";
 import { TYPE, COLOR } from "../theme";
 
 const CollapsibleSection = forwardRef(function CollapsibleSection({ title, count, defaultOpen = true, children }, ref) {
@@ -50,7 +50,7 @@ const CollapsibleSection = forwardRef(function CollapsibleSection({ title, count
           {open ? "▾" : "▸"}
         </Typography>
       </Box>
-      {open && children}
+      <Collapse in={open}>{children}</Collapse>
     </>
   );
 });

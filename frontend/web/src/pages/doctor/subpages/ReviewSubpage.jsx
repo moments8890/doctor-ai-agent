@@ -1,25 +1,24 @@
 /**
  * ReviewSubpage — shared presentational review UI for diagnosis suggestions.
  *
- * Displays record summary, grouped suggestion sections (differential, workup,
- * treatment), each with DiagnosisCard and inline add. Bottom bar shows
- * progress and finalize button.
+ * Displays record summary, then checklist-style suggestion rows grouped by
+ * section (differential, workup, treatment). Each row has three states:
+ * collapsed (compact), expanded (detail + actions), confirmed (green check).
  *
  * Used by both real ReviewPage (API data) and MockPages (static data).
  *
  * @see /debug/doctor-pages → 诊断审核
  */
 import { useState } from "react";
-import { Box, Button, TextField, Typography } from "@mui/material";
-import DiagnosisCard from "../../../components/doctor/DiagnosisCard";
+import { Box, TextField, Typography } from "@mui/material";
 import SubpageHeader from "../../../components/SubpageHeader";
-import BarButton from "../../../components/BarButton";
+import AppButton from "../../../components/AppButton";
 import { TYPE, COLOR } from "../../../theme";
 
 const SECTIONS = [
-  { key: "differential", label: "鉴别诊断", color: "#e8833a" },
-  { key: "workup",       label: "检查建议", color: COLOR.danger },
-  { key: "treatment",    label: "治疗方向", color: "#1a7f37" },
+  { key: "differential", label: "鉴别诊断" },
+  { key: "workup",       label: "检查建议" },
+  { key: "treatment",    label: "治疗方向" },
 ];
 
 /* ── Inline add form ── */
@@ -59,47 +58,127 @@ function InlineAddForm({ onSubmit, onCancel }) {
   );
 }
 
-/* ── Suggestion section ── */
+/* ── Checklist section ── */
 
-function SuggestionSection({ sectionKey, label, items, expandedIds, onToggle, onDecide, onAdd, knowledgeMap, color }) {
+function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledgeMap }) {
+  const [expandedId, setExpandedId] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [editDetail, setEditDetail] = useState("");
   if ((!items || items.length === 0) && !adding) return null;
 
-  const decidedCount = (items || []).filter((s) => s.decision).length;
-  const total = (items || []).length;
-
   return (
-    <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-      {/* Section header */}
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5, px: 2, py: 1, borderLeft: color ? `3px solid ${color}` : "none" }}>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>{label}</Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.5 }}>{decidedCount}/{total} 已处理</Typography>
-        </Box>
-        <Box onClick={() => setAdding((prev) => !prev)}
-          sx={{ fontSize: TYPE.caption.fontSize, color: adding ? COLOR.text4 : COLOR.primary, cursor: "pointer", whiteSpace: "nowrap", pt: 0.5, "&:active": { opacity: 0.6 } }}>
-          {adding ? "取消" : "添加"}
+    <>
+      <Box sx={{ px: 2, py: 1, bgcolor: COLOR.surfaceAlt }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, fontWeight: 600, color: COLOR.text4, letterSpacing: 0.3 }}>{label}</Typography>
+          <Typography onClick={() => setAdding(prev => !prev)}
+            sx={{ fontSize: TYPE.micro.fontSize, color: adding ? COLOR.text4 : COLOR.primary, cursor: "pointer" }}>
+            {adding ? "取消" : "+ 添加"}
+          </Typography>
         </Box>
       </Box>
 
       {adding && (
-        <InlineAddForm
-          onSubmit={(content, detail) => { onAdd?.(sectionKey, content, detail); setAdding(false); }}
-          onCancel={() => setAdding(false)}
-        />
+        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+          <InlineAddForm
+            onSubmit={(content, detail) => { onAdd?.(sectionKey, content, detail); setAdding(false); }}
+            onCancel={() => setAdding(false)}
+          />
+        </Box>
       )}
 
-      {(items || []).map((s) => (
-        <DiagnosisCard
-          key={s.id}
-          suggestion={s}
-          expanded={expandedIds instanceof Set ? expandedIds.has(s.id) : expandedIds === s.id}
-          onToggle={() => onToggle(s.id)}
-          onDecide={onDecide}
-          knowledgeMap={knowledgeMap}
-        />
-      ))}
-    </Box>
+      <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+        {(items || []).map((s) => {
+          const isConfirmed = s.decision === "confirmed" || s.decision === "edited";
+          const isRejected = s.decision === "rejected";
+          const isExpanded = expandedId === s.id;
+          const citedRules = (s.cited_knowledge_ids || []).map(id => knowledgeMap[id]).filter(Boolean);
+
+          return (
+            <Box key={s.id} sx={{ borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" } }}>
+              <Box sx={{
+                display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5,
+                cursor: "pointer",
+                ...(isExpanded ? { bgcolor: COLOR.surface } : {}),
+                ...(isRejected ? { opacity: 0.4 } : {}),
+              }}>
+                {/* Checkbox */}
+                <Box onClick={(e) => { e.stopPropagation(); onDecide(s.id, isConfirmed ? null : "confirmed", {}); }}
+                  sx={{ width: 18, height: 18, borderRadius: "50%", flexShrink: 0, mt: 0.5, cursor: "pointer",
+                    ...(isConfirmed
+                      ? { bgcolor: COLOR.primary, display: "flex", alignItems: "center", justifyContent: "center" }
+                      : { border: `1.5px solid ${COLOR.border}` }),
+                  }}>
+                  {isConfirmed && <Typography sx={{ color: COLOR.white, fontSize: 11, lineHeight: 1 }}>✓</Typography>}
+                </Box>
+
+                {/* Content — tap to expand */}
+                <Box onClick={() => { if (editingId !== s.id) setExpandedId(isExpanded ? null : s.id); }} sx={{ flex: 1, minWidth: 0 }}>
+                  {editingId === s.id ? (
+                    <Box onClick={(e) => e.stopPropagation()}>
+                      <TextField fullWidth size="small" multiline minRows={1} maxRows={3} autoFocus
+                        placeholder="建议内容"
+                        value={editText} onChange={(e) => setEditText(e.target.value)}
+                        sx={{ mb: 1, "& .MuiOutlinedInput-root": { fontSize: TYPE.action.fontSize } }} />
+                      <TextField fullWidth size="small" multiline minRows={2} maxRows={6}
+                        placeholder="详细说明"
+                        value={editDetail} onChange={(e) => setEditDetail(e.target.value)}
+                        sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.secondary.fontSize } }} />
+                      <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
+                        <Typography onClick={() => { onDecide(s.id, "edited", { edited_text: editText, detail: editDetail }); setEditingId(null); }}
+                          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, fontWeight: 500, cursor: "pointer" }}>保存</Typography>
+                        <Typography onClick={() => setEditingId(null)}
+                          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer" }}>取消</Typography>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <>
+                      <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: isRejected ? COLOR.text4 : COLOR.text1 }}>
+                        {s.edited_text || s.content}
+                        {!isExpanded && !isConfirmed && !isRejected && <Box component="span" sx={{ fontSize: 11, color: COLOR.text4, ml: 0.5 }}>▾</Box>}
+                      </Typography>
+                      {isExpanded && (
+                        <Box sx={{ mt: 1 }}>
+                          {s.detail && (
+                            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, lineHeight: 1.6, mb: 1 }}>
+                              {s.detail}
+                            </Typography>
+                          )}
+                          {citedRules.length > 0 && (
+                            <Box sx={{ mb: 1 }}>
+                              {citedRules.map(rule => (
+                                <Typography key={rule.id} sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.danger }}>
+                                  引用: {rule.title}
+                                </Typography>
+                              ))}
+                            </Box>
+                          )}
+                          {s.rule_cited && citedRules.length === 0 && (
+                            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.danger, mb: 1 }}>
+                              引用: {s.rule_cited}
+                            </Typography>
+                          )}
+                          <Box sx={{ display: "flex", gap: 2, pt: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+                            {!isConfirmed && <Typography onClick={(e) => { e.stopPropagation(); onDecide(s.id, "confirmed", {}); }}
+                              sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, fontWeight: 500, cursor: "pointer" }}>确认</Typography>}
+                            <Typography onClick={(e) => { e.stopPropagation(); setEditText(s.edited_text || s.content); setEditDetail(s.detail || ""); setEditingId(s.id); }}
+                              sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer" }}>修改</Typography>
+                            <Typography onClick={(e) => { e.stopPropagation(); onDecide(s.id, "rejected", { reason: "removed" }); }}
+                              sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer" }}>移除</Typography>
+                          </Box>
+                        </Box>
+                      )}
+                    </>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          );
+        })}
+      </Box>
+    </>
   );
 }
 
@@ -108,8 +187,6 @@ function SuggestionSection({ sectionKey, label, items, expandedIds, onToggle, on
 export default function ReviewSubpage({
   record,
   suggestions = [],
-  expandedIds,
-  onToggle,
   onDecide,
   onAdd,
   onFinalize,
@@ -128,67 +205,39 @@ export default function ReviewSubpage({
     if (grouped[s.section]) grouped[s.section].push(s);
   });
 
-  const totalCount = suggestions.length;
-  const decidedCount = suggestions.filter((s) => s.decision).length;
-
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
       <SubpageHeader title="诊断审核" onBack={onBack} right={headerRight} />
 
-      <Box sx={{ flex: 1, overflow: "auto", pb: hasSuggestions ? "88px" : 2 }}>
-        {/* Record summary (render via children or default) */}
+      <Box sx={{ flex: 1, overflow: "auto", pb: hasSuggestions ? "80px" : 2 }}>
         {children}
 
-        {/* Suggestion sections */}
         {hasSuggestions && (
-          <Box sx={{ pb: 1 }}>
-            {SECTIONS.map((sec) => (
-              <SuggestionSection
-                key={sec.key}
-                sectionKey={sec.key}
-                label={sec.label}
-                color={sec.color}
-                items={grouped[sec.key]}
-                expandedIds={expandedIds}
-                onToggle={onToggle}
-                onDecide={onDecide}
-                onAdd={onAdd}
-                knowledgeMap={knowledgeMap}
-              />
-            ))}
+          <Box sx={{ px: 2, py: 1, bgcolor: COLOR.surfaceAlt, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, fontWeight: 600, color: COLOR.text4, letterSpacing: 0.3 }}>
+              AI 诊断建议
+            </Typography>
           </Box>
         )}
+
+        {SECTIONS.map((sec) => (
+          <ChecklistSection
+            key={sec.key}
+            sectionKey={sec.key}
+            label={sec.label}
+            items={grouped[sec.key]}
+            onDecide={onDecide}
+            onAdd={onAdd}
+            knowledgeMap={knowledgeMap}
+          />
+        ))}
       </Box>
 
-      {/* Sticky bottom bar */}
       {hasSuggestions && (
-        <Box sx={{
-          position: "absolute", bottom: 0, left: 0, right: 0,
-          bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`,
-          px: 2, pt: 1, pb: 1,
-          paddingBottom: "calc(8px + env(safe-area-inset-bottom))",
-        }}>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Box>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>已处理</Typography>
-              <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2 }}>{decidedCount}/{totalCount}</Typography>
-            </Box>
-            <Button
-              variant="contained" onClick={onFinalize} disabled={finalizing}
-              sx={{
-                bgcolor: COLOR.primary, color: COLOR.white,
-                fontSize: TYPE.body.fontSize, fontWeight: 600,
-                minHeight: 36, px: 2, py: 0, borderRadius: 1,
-                "&:hover": { bgcolor: COLOR.primary },
-                "&:disabled": { bgcolor: COLOR.border, color: COLOR.text4 },
-              }}
-            >
-              {finalizing ? "提交中..." : "完成审核"}
-            </Button>
-          </Box>
-          <Typography sx={{ fontSize: 10, color: COLOR.text4, textAlign: "center", mt: 0.5 }}>
-            AI建议仅供参考
-          </Typography>
+        <Box sx={{ position: "absolute", bottom: 0, left: 0, right: 0, px: 2, pt: 1.5, pb: "calc(12px + env(safe-area-inset-bottom))", bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}` }}>
+          <AppButton variant="primary" size="lg" fullWidth onClick={onFinalize} loading={finalizing} loadingLabel="提交中...">
+            完成审核
+          </AppButton>
         </Box>
       )}
     </Box>

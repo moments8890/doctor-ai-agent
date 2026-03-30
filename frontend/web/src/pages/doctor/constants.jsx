@@ -341,3 +341,15 @@ export const ICON_BADGES = {
   task_general:    { icon: AssignmentOutlinedIcon, bg: COLOR.recordDoc },
   task_imaging:    { icon: MonitorHeartOutlinedIcon, bg: COLOR.accent },
 };
+
+// Record type → IconBadge config lookup (replaces RecordTypeAvatar)
+// Usage: <IconBadge config={RECORD_TYPE_BADGE[rec.record_type]} />
+export const RECORD_TYPE_BADGE = {
+  visit:              ICON_BADGES.rec_visit,
+  dictation:          ICON_BADGES.rec_dictation,
+  import:             ICON_BADGES.rec_import,
+  lab:                ICON_BADGES.rec_lab,
+  imaging:            ICON_BADGES.rec_imaging,
+  surgery:            ICON_BADGES.rec_surgery,
+  interview_summary:  ICON_BADGES.rec_interview,
+};

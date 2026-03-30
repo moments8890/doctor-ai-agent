@@ -46,3 +46,4 @@ class MessageDraft(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)

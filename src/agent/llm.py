@@ -62,9 +62,13 @@ def _rotate_if_needed(path: _Path) -> None:
         oldest.unlink()
 
 
-def _log_llm_call(op_name: str, model: str, messages: list, output: Any = None, *, usage: Any = None) -> None:
+def _log_llm_call(
+    op_name: str, model: str, messages: list, output: Any = None, *,
+    usage: Any = None, error: Any = None, raw_messages: list | None = None,
+) -> None:
     """Log LLM call to an append-only JSONL file.
 
+    Logs both successful and failed calls for debug visibility.
     - Append file: logs/llm_calls.jsonl (one JSON line per call, auto-rotated by size/date)
     """
     try:
@@ -75,8 +79,11 @@ def _log_llm_call(op_name: str, model: str, messages: list, output: Any = None, 
             "timestamp": now.isoformat(),
             "op": op_name,
             "model": model,
+            "status": "error" if error else "ok",
             "input": {"messages": messages},
         }
+        if raw_messages:
+            entry["raw_messages"] = raw_messages
         if output is not None:
             if isinstance(output, BaseModel):
                 entry["output"] = output.model_dump()
@@ -84,6 +91,8 @@ def _log_llm_call(op_name: str, model: str, messages: list, output: Any = None, 
                 entry["output"] = {"text": output}
             else:
                 entry["output"] = output
+        if error is not None:
+            entry["error"] = str(error)
 
         # Correlation: trace_id from HTTP middleware (observability ContextVar)
         from infra.observability.observability import get_current_trace_id
@@ -177,6 +186,23 @@ def clean_llm_output(raw: str) -> str:
     return _THINK_RE.sub("", raw).strip()
 
 
+def _compute_raw_messages(messages: list, response_model: type) -> list | None:
+    """Compute the actual messages instructor sends to the API (for debug logging).
+
+    Instructor modifies messages in MD_JSON mode:
+    - Appends JSON schema to system message
+    - Appends "Return the correct JSON response..." as final user message
+    """
+    try:
+        import copy
+        from instructor.processing.response import handle_json_modes
+        kwargs = {"messages": copy.deepcopy(messages)}
+        _, modified = handle_json_modes(response_model, kwargs, instructor.Mode.MD_JSON)
+        return modified.get("messages")
+    except Exception:
+        return None
+
+
 async def structured_call(
     *,
     response_model: Type[T],
@@ -197,6 +223,7 @@ async def structured_call(
     log(f"[{op_name}] input: model={model} msgs={len(messages)}")
 
     _last_usage = None
+    raw_messages = _compute_raw_messages(messages, response_model)
 
     async def _call(model_name: str) -> T:
         nonlocal _last_usage
@@ -215,12 +242,16 @@ async def structured_call(
             _last_usage = getattr(raw_resp, "usage", None)
         return result
 
-    with trace_block("llm", op_name, {"model": model, "response_model": response_model.__name__}):
-        result = await _call(model)
+    try:
+        with trace_block("llm", op_name, {"model": model, "response_model": response_model.__name__}):
+            result = await _call(model)
 
-    log(f"[{op_name}] output: {result.model_dump_json()[:200]}")
-    _log_llm_call(op_name, model, messages, result, usage=_last_usage)
-    return result
+        log(f"[{op_name}] output: {result.model_dump_json()[:200]}")
+        _log_llm_call(op_name, model, messages, result, usage=_last_usage, raw_messages=raw_messages)
+        return result
+    except Exception as exc:
+        _log_llm_call(op_name, model, messages, error=exc, raw_messages=raw_messages)
+        raise
 
 
 async def llm_call(
@@ -261,14 +292,18 @@ async def llm_call(
         raw = response.choices[0].message.content or ""
         return clean_llm_output(raw)
 
-    with trace_block("llm", op_name, {"model": model, "env_var": env_var}):
-        result = await call_with_retry_and_fallback(
-            _call,
-            primary_model=model,
-            fallback_model=None,  # single provider for now
-            max_attempts=2,
-            backoff_seconds=(0.5,),
-            op_name=op_name,
-        )
-    _log_llm_call(op_name, model, messages, result, usage=_last_usage)
-    return result
+    try:
+        with trace_block("llm", op_name, {"model": model, "env_var": env_var}):
+            result = await call_with_retry_and_fallback(
+                _call,
+                primary_model=model,
+                fallback_model=None,  # single provider for now
+                max_attempts=2,
+                backoff_seconds=(0.5,),
+                op_name=op_name,
+            )
+        _log_llm_call(op_name, model, messages, result, usage=_last_usage, raw_messages=messages)
+        return result
+    except Exception as exc:
+        _log_llm_call(op_name, model, messages, error=exc, raw_messages=messages)
+        raise

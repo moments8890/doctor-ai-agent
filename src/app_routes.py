@@ -12,16 +12,16 @@ from starlette.responses import Response
 from channels.web.chat import router as records_router
 from channels.wechat.router import router as wechat_router
 from channels.web.auth import router as auth_router
-from channels.web.unified_auth_routes import router as unified_auth_router
-from channels.web.ui import router as ui_router
+from channels.web.auth.unified import router as unified_auth_router
+from channels.web.doctor_dashboard import router as doctor_dashboard_router
 from channels.web.tasks import router as tasks_router
 from channels.web.export import router as export_router
 from channels.web.import_routes import router as import_router
 from channels.web.patient_portal import router as patient_portal_router
 from channels.web.patient_interview_routes import router as patient_interview_router
 from channels.web.doctor_interview import router as doctor_interview_router
-from channels.web.transcribe_ws import router as transcribe_ws_router
-from channels.web.transcribe_routes import router as transcribe_rest_router
+from channels.web.transcribe.ws import router as transcribe_ws_router
+from channels.web.transcribe.routes import router as transcribe_rest_router
 from db.engine import AsyncSessionLocal
 
 
@@ -38,7 +38,7 @@ def include_routers(app: FastAPI) -> None:
     app.include_router(wechat_router)
     app.include_router(auth_router)
     app.include_router(unified_auth_router)
-    app.include_router(ui_router)
+    app.include_router(doctor_dashboard_router)
     app.include_router(tasks_router)
     app.include_router(export_router)
     app.include_router(import_router)

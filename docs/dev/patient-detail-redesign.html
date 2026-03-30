@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patient Detail Redesign — Before / After</title>
+<style>
+  :root {
+    --primary: #07C160; --primary-light: #E7F7EE; --primary-hover: #06a050;
+    --accent: #576B95; --accent-light: #EEF1F6;
+    --danger: #D65745; --danger-light: #FDF0EE;
+    --warning: #F59E0B; --warning-light: #FFF7E6;
+    --text1: #1a1a1a; --text2: #353535; --text3: #666; --text4: #999;
+    --border: #e5e5e5; --border-light: #f0f0f0;
+    --surface: #f7f7f7; --surface-alt: #ededed; --white: #fff;
+    --wechat-green: #95EC69; --record-doc: #8993a4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif; background: #1a1a1a; color: var(--text1); display: flex; justify-content: center; gap: 24px; padding: 24px; flex-wrap: wrap; }
+
+  .column { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .column-label { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
+  .column-sublabel { font-size: 11px; color: #999; max-width: 340px; text-align: center; line-height: 1.5; }
+
+  .phone {
+    width: 375px; height: 780px; background: var(--surface-alt);
+    border-radius: 32px; overflow: hidden;
+    border: 3px solid #333; position: relative;
+    display: flex; flex-direction: column;
+  }
+  .phone-notch {
+    height: 44px; background: var(--white);
+    display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px;
+    font-size: 10px; color: var(--text4);
+  }
+  .phone-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  .phone-body::-webkit-scrollbar { display: none; }
+
+  /* ── Shared atoms ── */
+  .header {
+    display: flex; align-items: center; height: 44px; padding: 0 12px;
+    background: var(--white); border-bottom: 0.5px solid var(--border);
+    flex-shrink: 0; position: sticky; top: 0; z-index: 10;
+  }
+  .header-back { font-size: 20px; color: var(--text2); width: 32px; }
+  .header-title { flex: 1; font-size: 15px; font-weight: 600; text-align: center; }
+  .header-action { font-size: 14px; color: var(--primary); font-weight: 400; }
+
+  .section {
+    background: var(--white);
+    border-top: 0.5px solid var(--border);
+    border-bottom: 0.5px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px 6px; font-size: 14px; font-weight: 600; color: var(--text2);
+  }
+
+  .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-bottom: 0.5px solid var(--border-light);
+  }
+  .row:last-child { border-bottom: none; }
+
+  .avatar {
+    width: 36px; height: 36px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600; flex-shrink: 0;
+  }
+
+  .badge {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 2px 6px; border-radius: 4px; line-height: 1.4;
+  }
+
+  .chip {
+    display: inline-block; font-size: 11px; padding: 3px 8px;
+    border-radius: 4px; white-space: nowrap;
+  }
+
+  .tab-bar {
+    display: flex; gap: 0; padding: 0 12px;
+    border-bottom: 0.5px solid var(--border-light);
+    background: var(--white);
+  }
+  .tab {
+    padding: 8px 0; margin-right: 16px; font-size: 12px; color: var(--text4);
+    border-bottom: 2px solid transparent; cursor: pointer;
+  }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+  .tab .tab-count { font-size: 14px; font-weight: 700; display: block; }
+
+  /* Record card */
+  .record-card {
+    padding: 10px 16px; border-bottom: 0.5px solid var(--border-light);
+    cursor: pointer;
+  }
+  .record-card:last-child { border-bottom: none; }
+  .record-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; }
+  .record-type { font-size: 12px; font-weight: 500; }
+  .record-tag { font-size: 10px; padding: 1px 5px; border-radius: 3px; }
+  .record-date { font-size: 11px; color: var(--text4); margin-left: auto; }
+  .record-preview { font-size: 13px; color: var(--text3); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+  /* Message timeline */
+  .msg { padding: 8px 16px; }
+  .msg-meta { font-size: 11px; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+  .msg-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .msg-text { font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .msg-draft {
+    background: var(--primary-light); border-radius: 8px;
+    padding: 10px 12px; margin: 4px 0; font-size: 13px;
+    color: var(--text2); line-height: 1.6;
+  }
+  .msg-citation { font-size: 10px; color: var(--danger); background: var(--danger-light); padding: 1px 6px; border-radius: 3px; margin-top: 6px; display: inline-block; }
+  .msg-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 6px; font-size: 12px; }
+
+  /* Profile */
+  .profile-summary {
+    display: flex; align-items: center; padding: 12px 16px;
+    cursor: pointer;
+  }
+  .profile-name { font-size: 15px; font-weight: 700; }
+  .profile-meta { font-size: 12px; color: var(--text4); margin-left: 8px; }
+  .profile-toggle { font-size: 12px; color: var(--primary); margin-left: auto; white-space: nowrap; }
+  .profile-details {
+    padding: 0 16px 10px; font-size: 12px; color: var(--text3);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px;
+  }
+  .profile-details span { color: var(--text2); }
+  .profile-actions {
+    display: flex; gap: 16px; padding: 6px 16px 10px;
+    border-top: 0.5px solid var(--border-light); font-size: 12px;
+  }
+
+  /* ── NEW: Attention card ── */
+  .attention-card {
+    margin: 0; padding: 10px 16px;
+    background: var(--white);
+    border-top: 0.5px solid var(--border);
+    border-bottom: 0.5px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .attention-title {
+    font-size: 11px; font-weight: 600; color: var(--warning);
+    letter-spacing: 0.3px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .attention-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 0.5px solid var(--border-light);
+    cursor: pointer;
+  }
+  .attention-item:last-child { border-bottom: none; }
+  .attention-icon {
+    width: 32px; height: 32px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .attention-text { flex: 1; }
+  .attention-label { font-size: 13px; font-weight: 500; color: var(--text1); }
+  .attention-sub { font-size: 11px; color: var(--text4); margin-top: 1px; }
+  .attention-arrow { font-size: 14px; color: var(--text4); }
+
+  /* ── Pending record card (promoted) ── */
+  .pending-card {
+    padding: 10px 16px;
+    background: var(--warning-light);
+    border-left: 3px solid var(--warning);
+    cursor: pointer;
+  }
+  .pending-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .pending-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warning); flex-shrink: 0; }
+  .pending-type { font-size: 12px; color: var(--warning); font-weight: 600; }
+  .pending-badge { font-size: 10px; color: var(--warning); background: rgba(245,158,11,0.15); padding: 1px 6px; border-radius: 3px; font-weight: 500; }
+  .pending-preview { font-size: 13px; color: var(--text2); line-height: 1.5; }
+
+  /* Overflow menu */
+  .overflow-btn {
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--text4); cursor: pointer; border-radius: 50%;
+  }
+  .overflow-btn:active { background: var(--surface); }
+
+  /* Draft sticky card */
+  .draft-sticky {
+    background: var(--primary-light); border-bottom: 0.5px solid var(--primary);
+    padding: 8px 16px; display: flex; align-items: center; gap: 8px;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .draft-sticky-icon {
+    width: 24px; height: 24px; border-radius: 4px; background: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--white); font-size: 12px; flex-shrink: 0;
+  }
+  .draft-sticky-text { flex: 1; font-size: 12px; color: var(--primary); font-weight: 500; }
+  .draft-sticky-action { font-size: 12px; color: var(--primary); font-weight: 600; }
+
+  /* Annotation callouts */
+  .callout {
+    position: absolute; z-index: 20;
+    background: rgba(245,158,11,0.95); color: #fff;
+    font-size: 10px; font-weight: 600; padding: 3px 8px;
+    border-radius: 4px; white-space: nowrap;
+    pointer-events: none;
+  }
+  .callout::after {
+    content: ''; position: absolute;
+    border: 5px solid transparent;
+  }
+  .callout.right::after { left: -8px; top: 50%; transform: translateY(-50%); border-right-color: rgba(245,158,11,0.95); }
+  .callout.left::after { right: -8px; top: 50%; transform: translateY(-50%); border-left-color: rgba(245,158,11,0.95); }
+  .callout.bottom::after { top: -8px; left: 50%; transform: translateX(-50%); border-bottom-color: rgba(245,158,11,0.95); }
+
+  .diff-line {
+    position: absolute; z-index: 15; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- BEFORE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="column">
+  <div class="column-label">BEFORE (current)</div>
+  <div class="column-sublabel">Static data dominates. Actionable items buried. Doctor must scroll and scan to find what needs attention.</div>
+  <div class="phone">
+    <div class="phone-notch">9:41</div>
+    <div class="phone-body">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-back">&lsaquo;</div>
+        <div class="header-title">陈伟强</div>
+        <div class="header-action">门诊</div>
+      </div>
+
+      <!-- Profile expanded — takes 40% of viewport -->
+      <div class="section" style="margin-bottom:0">
+        <div class="profile-summary">
+          <div class="profile-name">陈伟强</div>
+          <div class="profile-meta" style="font-size:11px">男 · 42岁</div>
+          <div class="profile-toggle">收起 &#9652;</div>
+        </div>
+        <div style="display:flex;gap:12px;padding:0 16px 6px;font-size:12px;color:var(--text3)">
+          <span>门诊 <span style="color:var(--text2);font-weight:600">1</span></span>
+          <span>检验 <span style="color:var(--text2);font-weight:600">0</span></span>
+          <span>影像 <span style="color:var(--text2);font-weight:600">0</span></span>
+          <span>最近活动 <span style="color:var(--text2);font-weight:600">03-27</span></span>
+        </div>
+        <div class="profile-details">
+          <div>电话 <span>138****5678</span></div>
+          <div>出生 <span>1984年</span></div>
+          <div>身份证 <span>—</span></div>
+          <div>建档 <span>2026/3/19</span></div>
+        </div>
+        <div class="profile-actions">
+          <span style="color:var(--danger)">🗑 删除患者</span>
+          <span style="flex:1"></span>
+          <span style="color:var(--record-doc)">二维码</span>
+          <span style="color:var(--primary)">导出PDF</span>
+          <span style="color:var(--accent)">门诊报告</span>
+        </div>
+      </div>
+
+      <!-- Records section -->
+      <div class="section">
+        <div class="section-head">病历记录</div>
+        <div class="tab-bar">
+          <div class="tab active"><span class="tab-count" style="color:var(--warning)">2</span>全部</div>
+          <div class="tab"><span class="tab-count">1</span>病历</div>
+          <div class="tab"><span class="tab-count">0</span>检验</div>
+          <div class="tab"><span class="tab-count">1</span>影像/问诊</div>
+        </div>
+
+        <!-- Pending review — looks same as regular records -->
+        <div class="record-card">
+          <div class="record-header">
+            <span class="record-type" style="color:var(--warning)">预问诊记录</span>
+            <span class="record-tag" style="color:var(--warning);background:var(--warning-light)">待审核</span>
+            <span class="chip" style="font-size:10px;color:var(--text4);background:var(--surface)">术后随访</span>
+            <span class="chip" style="font-size:10px;color:var(--text4);background:var(--surface)">头痛加剧</span>
+            <span class="record-date">前天</span>
+          </div>
+          <div class="record-preview">术后头痛加剧伴恶心1天</div>
+        </div>
+
+        <!-- Regular record -->
+        <div class="record-card">
+          <div class="record-header">
+            <span class="record-type" style="color:var(--primary)">门诊</span>
+            <span class="chip" style="font-size:10px;color:var(--text4);background:var(--surface)">脑膜瘤</span>
+            <span class="chip" style="font-size:10px;color:var(--text4);background:var(--surface)">开颅手术</span>
+            <span class="record-date">3月20日</span>
+          </div>
+          <div class="record-preview">头痛渐进性加重2月伴右眼视力下降1月</div>
+        </div>
+      </div>
+
+      <!-- Messages — actionable draft buried here -->
+      <div class="section">
+        <div class="section-head">
+          患者消息 (3)
+          <span style="font-size:14px;color:var(--text4)">&#9662;</span>
+        </div>
+
+        <div class="msg">
+          <div class="msg-meta">
+            <div class="msg-dot" style="background:var(--accent)"></div>
+            <span style="color:var(--accent)">患者</span>
+            <span style="color:var(--text4)">03/27 08:30</span>
+          </div>
+          <div class="msg-text">张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？</div>
+        </div>
+
+        <div class="msg">
+          <div class="msg-meta">
+            <div class="msg-dot" style="background:var(--text4)"></div>
+            <span style="color:var(--text4)">AI</span>
+            <span style="color:var(--text4)">03/27 08:31</span>
+          </div>
+          <div class="msg-text" style="color:var(--text3)">这个问题需要您的主治医生回复，我已通知医生。</div>
+        </div>
+
+        <div class="msg">
+          <div class="msg-meta">
+            <div class="msg-dot" style="background:var(--primary);border:2px solid var(--primary-light);width:8px;height:8px"></div>
+            <span style="color:var(--primary);font-weight:500">AI起草回复</span>
+            <span style="color:var(--text4)">· 待发送</span>
+          </div>
+          <div class="msg-draft">
+            陈先生，您术后头痛加剧伴恶心需要高度重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果出现剧烈头痛、呕吐或意识不清，请立即拨打120。
+          </div>
+          <div class="msg-citation">引用: 术后头痛危险信号</div>
+          <div class="msg-actions">
+            <span style="color:var(--text4)">修改</span>
+            <span style="color:var(--primary);font-weight:600">发送 &rsaquo;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- AFTER -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="column">
+  <div class="column-label">AFTER (proposed)</div>
+  <div class="column-sublabel">Actionable items surface first. Profile collapsed. AI draft promoted. Doctor sees what needs attention immediately.</div>
+  <div class="phone" style="position:relative">
+    <div class="phone-notch">9:41</div>
+    <div class="phone-body">
+      <!-- Header with overflow menu -->
+      <div class="header">
+        <div class="header-back">&lsaquo;</div>
+        <div class="header-title">陈伟强</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="header-action">问诊</div>
+          <div class="overflow-btn">···</div>
+        </div>
+      </div>
+
+      <!-- Draft sticky bar — most actionable item promoted to top -->
+      <div class="draft-sticky">
+        <div class="draft-sticky-icon">✉</div>
+        <div class="draft-sticky-text">AI已起草回复 · 待你确认发送</div>
+        <div class="draft-sticky-action">查看 &rsaquo;</div>
+      </div>
+
+      <!-- Profile collapsed — one line, minimal space -->
+      <div class="section" style="margin-bottom:0">
+        <div class="profile-summary">
+          <div class="profile-name">陈伟强</div>
+          <div class="profile-meta">男 · 42岁 · 门诊1 · 最近03-27</div>
+          <div class="profile-toggle" style="color:var(--primary);font-size:11px">展开 &#9662;</div>
+        </div>
+      </div>
+
+      <!-- ★ NEW: Needs attention card -->
+      <div class="attention-card">
+        <div class="attention-title">
+          <span style="font-size:14px">⚡</span> 需要你处理
+        </div>
+        <div class="attention-item">
+          <div class="attention-icon" style="background:var(--warning-light);color:var(--warning)">📋</div>
+          <div class="attention-text">
+            <div class="attention-label">1 条病历待审核</div>
+            <div class="attention-sub">预问诊记录 · 术后头痛加剧 · 前天</div>
+          </div>
+          <div class="attention-arrow">&rsaquo;</div>
+        </div>
+        <div class="attention-item">
+          <div class="attention-icon" style="background:var(--primary-light);color:var(--primary)">✉</div>
+          <div class="attention-text">
+            <div class="attention-label">1 条消息待回复</div>
+            <div class="attention-sub">AI已起草 · 引用: 术后头痛危险信号</div>
+          </div>
+          <div class="attention-arrow">&rsaquo;</div>
+        </div>
+      </div>
+
+      <!-- Records section — pending card visually distinct -->
+      <div class="section">
+        <div class="section-head">
+          病历记录
+          <span style="font-size:12px;color:var(--text4);font-weight:400">2</span>
+        </div>
+        <div class="tab-bar">
+          <div class="tab active">全部</div>
+          <div class="tab">病历 1</div>
+          <div class="tab">检验 0</div>
+          <div class="tab">问诊 1</div>
+        </div>
+
+        <!-- Pending review — visually promoted with amber background -->
+        <div class="pending-card">
+          <div class="pending-header">
+            <div class="pending-dot"></div>
+            <span class="pending-type">预问诊记录</span>
+            <span class="pending-badge">待审核</span>
+            <span class="record-date">前天 &rsaquo;</span>
+          </div>
+          <div class="pending-preview">术后头痛加剧伴恶心1天</div>
+        </div>
+
+        <!-- Regular record — quieter styling -->
+        <div class="record-card" style="opacity:0.85">
+          <div class="record-header">
+            <span class="record-type" style="color:var(--primary)">门诊</span>
+            <span class="chip" style="font-size:10px;color:var(--text4);background:var(--surface)">脑膜瘤</span>
+            <span class="record-date">3月20日</span>
+          </div>
+          <div class="record-preview">头痛渐进性加重2月伴右眼视力下降1月</div>
+        </div>
+      </div>
+
+      <!-- Messages — cleaner, draft is above so less urgency here -->
+      <div class="section">
+        <div class="section-head">
+          患者消息
+          <span style="font-size:12px;color:var(--text4);font-weight:400">3</span>
+        </div>
+
+        <div class="msg">
+          <div class="msg-meta">
+            <div class="msg-dot" style="background:var(--accent)"></div>
+            <span style="color:var(--accent)">患者</span>
+            <span style="color:var(--text4)">03/27 08:30</span>
+          </div>
+          <div class="msg-text">张医生，我今天早上起来头痛比昨天厉害了，还有点恶心，需要去急诊吗？</div>
+        </div>
+
+        <div class="msg">
+          <div class="msg-meta">
+            <div class="msg-dot" style="background:var(--text4)"></div>
+            <span style="color:var(--text4)">AI</span>
+            <span style="color:var(--text4)">03/27 08:31</span>
+          </div>
+          <div class="msg-text" style="color:var(--text3)">这个问题需要您的主治医生回复，我已通知医生。</div>
+        </div>
+
+        <div class="msg">
+          <div class="msg-meta">
+            <div class="msg-dot" style="background:var(--primary)"></div>
+            <span style="color:var(--primary);font-weight:500">AI起草回复</span>
+            <span style="color:var(--text4)">· 待发送</span>
+          </div>
+          <div class="msg-draft">
+            陈先生，您术后头痛加剧伴恶心需要高度重视。请您尽快到医院急诊做一个头颅CT检查，排除术后出血可能。如果出现剧烈头痛、呕吐或意识不清，请立即拨打120。
+          </div>
+          <div class="msg-citation">引用: 术后头痛危险信号</div>
+          <div class="msg-actions">
+            <span style="color:var(--text4)">修改</span>
+            <span style="color:var(--primary);font-weight:600">发送 &rsaquo;</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:32px"></div>
+    </div>
+
+    <!-- Annotations -->
+    <div class="callout right" style="top:90px;left:-140px">★ Draft promoted to top</div>
+    <div class="callout right" style="top:130px;left:-155px">Profile collapsed by default</div>
+    <div class="callout right" style="top:200px;left:-170px">★ "Needs attention" card (NEW)</div>
+    <div class="callout right" style="top:365px;left:-165px">Pending record: amber bg</div>
+    <div class="callout right" style="top:430px;left:-140px">Completed: quieter style</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- EXPANDED PROFILE (third phone) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="column">
+  <div class="column-label">AFTER — profile expanded</div>
+  <div class="column-sublabel">Profile expands on tap. Actions in overflow menu (...) instead of inline bar. Destructive action behind menu.</div>
+  <div class="phone" style="position:relative">
+    <div class="phone-notch">9:41</div>
+    <div class="phone-body">
+      <!-- Header with overflow menu showing -->
+      <div class="header">
+        <div class="header-back">&lsaquo;</div>
+        <div class="header-title">陈伟强</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="header-action">问诊</div>
+          <div class="overflow-btn" style="background:var(--surface)">···</div>
+        </div>
+      </div>
+
+      <!-- Overflow menu dropdown -->
+      <div style="position:relative">
+        <div style="position:absolute;right:12px;top:0;z-index:20;background:var(--white);border:0.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1);width:160px;overflow:hidden">
+          <div style="padding:10px 14px;font-size:13px;border-bottom:0.5px solid var(--border-light);cursor:pointer">导出PDF</div>
+          <div style="padding:10px 14px;font-size:13px;border-bottom:0.5px solid var(--border-light);cursor:pointer">门诊报告</div>
+          <div style="padding:10px 14px;font-size:13px;border-bottom:0.5px solid var(--border-light);cursor:pointer">患者二维码</div>
+          <div style="padding:10px 14px;font-size:13px;color:var(--danger);cursor:pointer">删除患者</div>
+        </div>
+      </div>
+
+      <!-- Draft sticky bar -->
+      <div class="draft-sticky">
+        <div class="draft-sticky-icon">✉</div>
+        <div class="draft-sticky-text">AI已起草回复 · 待你确认发送</div>
+        <div class="draft-sticky-action">查看 &rsaquo;</div>
+      </div>
+
+      <!-- Profile EXPANDED -->
+      <div class="section" style="margin-bottom:0">
+        <div class="profile-summary">
+          <div>
+            <div class="profile-name">陈伟强</div>
+            <div style="font-size:12px;color:var(--text4);margin-top:2px">男 · 42岁</div>
+          </div>
+          <div class="profile-toggle" style="color:var(--primary);font-size:11px">收起 &#9652;</div>
+        </div>
+
+        <!-- Stats row -->
+        <div style="display:flex;gap:12px;padding:0 16px 8px;font-size:12px;color:var(--text3)">
+          <span>门诊 <span style="color:var(--text2);font-weight:600">1</span></span>
+          <span>检验 <span style="color:var(--text2);font-weight:600">0</span></span>
+          <span>影像 <span style="color:var(--text2);font-weight:600">0</span></span>
+          <span>最近 <span style="color:var(--text2);font-weight:600">03-27</span></span>
+        </div>
+
+        <!-- Demographics -->
+        <div class="profile-details">
+          <div>电话 <span>138****5678</span></div>
+          <div>出生 <span>1984年</span></div>
+          <div>身份证 <span>—</span></div>
+          <div>建档 <span>2026/3/19</span></div>
+        </div>
+      </div>
+
+      <!-- Attention card -->
+      <div class="attention-card">
+        <div class="attention-title">
+          <span style="font-size:14px">⚡</span> 需要你处理
+        </div>
+        <div class="attention-item">
+          <div class="attention-icon" style="background:var(--warning-light);color:var(--warning)">📋</div>
+          <div class="attention-text">
+            <div class="attention-label">1 条病历待审核</div>
+            <div class="attention-sub">预问诊记录 · 术后头痛加剧</div>
+          </div>
+          <div class="attention-arrow">&rsaquo;</div>
+        </div>
+        <div class="attention-item">
+          <div class="attention-icon" style="background:var(--primary-light);color:var(--primary)">✉</div>
+          <div class="attention-text">
+            <div class="attention-label">1 条消息待回复</div>
+            <div class="attention-sub">AI已起草 · 引用: 术后头痛危险信号</div>
+          </div>
+          <div class="attention-arrow">&rsaquo;</div>
+        </div>
+      </div>
+
+      <!-- Records (truncated) -->
+      <div class="section">
+        <div class="section-head">
+          病历记录
+          <span style="font-size:12px;color:var(--text4);font-weight:400">2</span>
+        </div>
+        <div class="tab-bar">
+          <div class="tab active">全部</div>
+          <div class="tab">病历 1</div>
+          <div class="tab">检验 0</div>
+          <div class="tab">问诊 1</div>
+        </div>
+        <div class="pending-card">
+          <div class="pending-header">
+            <div class="pending-dot"></div>
+            <span class="pending-type">预问诊记录</span>
+            <span class="pending-badge">待审核</span>
+            <span class="record-date">前天 &rsaquo;</span>
+          </div>
+          <div class="pending-preview">术后头痛加剧伴恶心1天</div>
+        </div>
+        <div class="record-card" style="opacity:0.85">
+          <div class="record-header">
+            <span class="record-type" style="color:var(--primary)">门诊</span>
+            <span class="chip" style="font-size:10px;color:var(--text4);background:var(--surface)">脑膜瘤</span>
+            <span class="record-date">3月20日</span>
+          </div>
+          <div class="record-preview">头痛渐进性加重2月伴右眼视力下降1月</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Annotations -->
+    <div class="callout left" style="top:52px;right:-155px">Actions in overflow menu</div>
+    <div class="callout left" style="top:290px;right:-180px">No action bar — cleaner profile</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- Summary table -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="column" style="width:100%;max-width:900px;margin-top:16px">
+  <div style="background:#222;border-radius:12px;padding:20px;width:100%">
+    <div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:12px">Changes Summary</div>
+    <table style="width:100%;font-size:12px;color:#ccc;border-collapse:collapse">
+      <tr style="border-bottom:1px solid #444">
+        <th style="text-align:left;padding:8px;color:#999">#</th>
+        <th style="text-align:left;padding:8px;color:#999">Change</th>
+        <th style="text-align:left;padding:8px;color:#999">Why</th>
+        <th style="text-align:left;padding:8px;color:#999">Impact</th>
+      </tr>
+      <tr style="border-bottom:1px solid #333">
+        <td style="padding:8px;color:var(--warning)">1</td>
+        <td style="padding:8px;font-weight:500;color:#fff">Draft sticky bar at top</td>
+        <td style="padding:8px">Most actionable item (send reply) promoted from scroll bottom to always visible</td>
+        <td style="padding:8px;color:var(--warning)">High</td>
+      </tr>
+      <tr style="border-bottom:1px solid #333">
+        <td style="padding:8px;color:var(--warning)">2</td>
+        <td style="padding:8px;font-weight:500;color:#fff">"需要你处理" attention card</td>
+        <td style="padding:8px">Doctor sees pending count + pending reply at a glance instead of scanning</td>
+        <td style="padding:8px;color:var(--warning)">High</td>
+      </tr>
+      <tr style="border-bottom:1px solid #333">
+        <td style="padding:8px;color:var(--primary)">3</td>
+        <td style="padding:8px;font-weight:500;color:#fff">Pending records: amber background</td>
+        <td style="padding:8px">Actionable records visually distinct from completed, not just a tiny badge</td>
+        <td style="padding:8px;color:var(--primary)">Medium</td>
+      </tr>
+      <tr style="border-bottom:1px solid #333">
+        <td style="padding:8px;color:var(--primary)">4</td>
+        <td style="padding:8px;font-weight:500;color:#fff">Profile collapsed by default</td>
+        <td style="padding:8px">Static demographics hidden, saves 120px of scroll on every visit</td>
+        <td style="padding:8px;color:var(--primary)">Medium</td>
+      </tr>
+      <tr style="border-bottom:1px solid #333">
+        <td style="padding:8px;color:var(--primary)">5</td>
+        <td style="padding:8px;font-weight:500;color:#fff">Overflow menu for actions</td>
+        <td style="padding:8px">4 text links (delete/QR/export/report) → "..." menu, reduces header noise</td>
+        <td style="padding:8px;color:var(--primary)">Medium</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;color:#999">6</td>
+        <td style="padding:8px;font-weight:500;color:#fff">Completed records quieter</td>
+        <td style="padding:8px">Lower opacity for non-actionable records, pending stands out more</td>
+        <td style="padding:8px;color:#999">Low</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>

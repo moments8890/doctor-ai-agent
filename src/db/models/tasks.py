@@ -59,6 +59,7 @@ class DoctorTask(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     reminder_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     __table_args__ = (
         CheckConstraint("status IN ('pending','notified','completed','cancelled')", name="ck_doctor_tasks_status"),

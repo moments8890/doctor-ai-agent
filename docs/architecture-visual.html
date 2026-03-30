@@ -852,12 +852,13 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
       <div class="box box-purple" style="max-width: 500px;">
         <div style="font-weight: 600; margin-bottom: 8px;">prompt_composer.py</div>
         <div style="display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem; text-align: left;">
-          <div style="padding: 4px 8px; background: rgba(130,80,223,0.15); border-radius: 3px;">L1: Identity / Safety &mdash; common/base.md</div>
-          <div style="padding: 4px 8px; background: rgba(130,80,223,0.12); border-radius: 3px;">L2: Specialty &mdash; domain/neurology.md</div>
-          <div style="padding: 4px 8px; background: rgba(130,80,223,0.10); border-radius: 3px;">L3: Intent rules &mdash; intent/*.md</div>
-          <div style="padding: 4px 8px; background: rgba(130,80,223,0.08); border-radius: 3px;">L4: Doctor knowledge &mdash; from DB</div>
-          <div style="padding: 4px 8px; background: rgba(130,80,223,0.06); border-radius: 3px;">L5: Patient context &mdash; from DB</div>
-          <div style="padding: 4px 8px; background: rgba(130,80,223,0.04); border-radius: 3px;">L6: User message</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.15); border-radius: 3px;">L1 <b>Identity</b> &mdash; common/base.md</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.12); border-radius: 3px;">L2 <b>Specialty</b> &mdash; domain/neurology.md</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.10); border-radius: 3px;">L3 <b>Task</b> &mdash; intent/*.md</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.08); border-radius: 3px;">L4 <b>Doctor Rules</b> &mdash; KB from DB</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.07); border-radius: 3px;">L5 <b>Case Memory</b> &mdash; similar confirmed records</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.06); border-radius: 3px;">L6 <b>Patient</b> &mdash; context from DB</div>
+          <div style="padding: 4px 8px; background: rgba(130,80,223,0.04); border-radius: 3px;">L7 <b>Input</b> &mdash; user message</div>
         </div>
       </div>
     </div>
@@ -1069,11 +1070,11 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
         <span class="layer-source">from DB (doctor_knowledge_items) with [KB-{id}] citations</span>
       </div>
       <div class="layer-bar" style="background: rgba(7,193,96,0.10);">
-        <span><span class="layer-num">L4b</span> <span class="layer-name">Case Memory</span></span>
+        <span><span class="layer-num">L5</span> <span class="layer-name">Case Memory</span></span>
         <span class="layer-source">similar confirmed cases via case_matching.py</span>
       </div>
       <div class="layer-bar" style="background: rgba(26,127,55,0.08);">
-        <span><span class="layer-num">L5</span> <span class="layer-name">Patient Context</span></span>
+        <span><span class="layer-num">L6</span> <span class="layer-name">Patient Context</span></span>
         <span class="layer-source">from DB (records, history)</span>
       </div>
       <div class="layer-bar" style="background: rgba(101,109,118,0.06);">
@@ -1124,7 +1125,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
           <td style="padding:5px 8px; font-weight:500;">ROUTING_LAYERS</td><td style="padding:5px 8px;">routing</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">Intent classification</td>
         </tr>
         <tr style="border-bottom:1px solid var(--border-light);">
-          <td style="padding:5px 8px; font-weight:500;">REVIEW_LAYERS</td><td style="padding:5px 8px;">diagnosis</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">✅ L4b</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">Diagnosis pipeline + case memory</td>
+          <td style="padding:5px 8px; font-weight:500;">REVIEW_LAYERS</td><td style="padding:5px 8px;">diagnosis</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">✅ L5</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">Diagnosis pipeline + case memory</td>
         </tr>
         <tr style="border-bottom:1px solid var(--border-light);">
           <td style="padding:5px 8px; font-weight:500; color:#07C160;">FOLLOWUP_REPLY_LAYERS</td><td style="padding:5px 8px;">followup_reply</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">Draft reply generation</td>
@@ -1176,7 +1177,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
           <span class="box-label">scored by query + patient_context</span>
         </div>
         <div class="box box-orange">
-          <strong>L4b</strong> Case Memory
+          <strong>L5</strong> Case Memory
           <span class="box-label">jieba + weighted similarity (top 3)</span>
         </div>
       </div>
@@ -1191,9 +1192,9 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
 L2 neurology.md
 L3 diagnosis.md
 L4 [KB-1] [KB-2] ...
-L4b 【类似病例参考】
-L5 patient_context
-L6 user_message</span>
+L5 【类似病例参考】
+L6 patient_context
+L7 user_message</span>
         </div>
       </div>
       <div class="arrow-right">&rarr;</div>
@@ -1224,7 +1225,7 @@ L6 user_message</span>
         </span>
       </div>
       <div class="box box-orange" style="text-align:left;padding:14px;">
-        <strong style="font-size:12px;">L4b Case Memory</strong>
+        <strong style="font-size:12px;">L5 Case Memory</strong>
         <span class="box-label" style="text-align:left;margin-top:6px;line-height:1.6;">
           jieba tokenization + 60 medical terms<br>
           Weighted fields: <code>diagnosis</code>(3.0) <code>aux_exam</code>(2.5) <code>key_symptoms</code>(2.0)<br>

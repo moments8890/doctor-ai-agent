@@ -1,0 +1,53 @@
+{
+  "id": "STRESS20",
+  "name": "张模糊",
+  "gender": "男",
+  "age": 72,
+  "year_of_birth": 1954,
+  "phone": "13899990020",
+  "condition": "记忆力减退伴头晕（表述困难型老年患者）",
+  "background": "72岁退休工人，近半年记忆力明显下降，经常找不到东西、忘记关火。伴有间歇性头晕，无明显头痛。高血压10年，服降压药但不记得药名。2型糖尿病5年，饮食控制为主。无手术史。青霉素过敏。父亲有脑梗病史。不吸烟，偶尔饮酒。已婚，育有2子1女。",
+  "medications": [
+    {"name": "某种降压药", "dose": "不记得", "frequency": "每天吃", "duration": "很多年了"}
+  ],
+  "surgical_history": "无",
+  "comorbidities": ["高血压", "糖尿病"],
+  "style": "vague_elderly",
+  "personality": "典型的表述困难型老年患者。回答极其简短模糊，经常说'不清楚''不记得''好像有'。需要反复追问才能得到有用信息。每次只回答一两个字。经常答非所问，把话题扯到不相关的事情上（比如'我儿子说让我来看看'）。对时间、药名、症状描述都很模糊。不主动提供任何信息，必须一个一个追问。即使被直接问到，也倾向于给出不确定的回答。",
+  "allowed_facts": [
+    {"category": "chief_complaint", "fact": "记性变差半年", "volunteer": false},
+    {"category": "chief_complaint", "fact": "经常找不到东西", "volunteer": false},
+    {"category": "present_illness", "fact": "半年前开始记忆力下降", "volunteer": false},
+    {"category": "present_illness", "fact": "经常忘记关火、找不到钥匙", "volunteer": false},
+    {"category": "present_illness", "fact": "间歇性头晕，站起来的时候明显", "volunteer": false},
+    {"category": "present_illness", "fact": "没有头痛", "volunteer": false},
+    {"category": "present_illness", "fact": "没有做过头部检查", "volunteer": false},
+    {"category": "past_history", "fact": "高血压10年，吃降压药", "volunteer": false},
+    {"category": "past_history", "fact": "糖尿病5年，饮食控制", "volunteer": false},
+    {"category": "past_history", "fact": "无手术史", "volunteer": false},
+    {"category": "allergy_history", "fact": "青霉素过敏", "volunteer": false},
+    {"category": "family_history", "fact": "父亲有脑梗", "volunteer": false},
+    {"category": "personal_history", "fact": "不吸烟，偶尔喝点酒", "volunteer": false},
+    {"category": "marital_reproductive", "fact": "已婚，有2子1女", "volunteer": false}
+  ],
+  "fact_catalog": [
+    {"id": "cc1", "field": "chief_complaint", "slot": "main_complaint", "text": "记忆力减退半年", "importance": "critical"},
+    {"id": "pi1", "field": "present_illness", "slot": "发病情况", "text": "半年前开始记忆力下降", "importance": "critical"},
+    {"id": "pi2", "field": "present_illness", "slot": "症状特点", "text": "忘记关火、找不到钥匙", "importance": "important"},
+    {"id": "pi3", "field": "present_illness", "slot": "伴随症状", "text": "间歇性头晕，体位性", "importance": "important"},
+    {"id": "ph1", "field": "past_history", "slot": "疾病史", "text": "高血压10年，糖尿病5年", "importance": "critical"},
+    {"id": "al1", "field": "allergy_history", "slot": null, "text": "青霉素过敏", "importance": "critical"},
+    {"id": "fh1", "field": "family_history", "slot": null, "text": "父亲脑梗", "importance": "important"},
+    {"id": "sh1", "field": "personal_history", "slot": "烟酒史", "text": "不吸烟，偶尔饮酒", "importance": "optional"}
+  ],
+  "record_expectation": {
+    "chief_complaint": {
+      "max_chars": 20,
+      "require_duration": true,
+      "acceptable_variants": ["记忆力减退半年", "记性变差半年伴头晕"],
+      "required_fact_ids": ["cc1"]
+    }
+  },
+  "coverage_expectation": {"must_elicit": ["记忆力下降"], "should_elicit": [], "min_coverage": 0.3},
+  "checklist": {"must_ask": ["记忆力下降"], "should_ask": [], "min_coverage": 0.3}
+}

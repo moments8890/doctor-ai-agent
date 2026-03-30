@@ -11,6 +11,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Box, CircularProgress, Snackbar, Typography, useMediaQuery, useTheme } from "@mui/material";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import EmptyState from "../../components/EmptyState";
@@ -19,10 +20,11 @@ import SectionLabel from "../../components/SectionLabel";
 import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
 import PageSkeleton from "../../components/PageSkeleton";
-import BarButton from "../../components/BarButton";
+
 import TaskDetailSubpage from "./subpages/TaskDetailSubpage";
 
 import FilterBar from "../../components/FilterBar";
+import NewItemCard from "../../components/NewItemCard";
 import { TYPE, COLOR, RADIUS, HIGHLIGHT_ROW_SX } from "../../theme";
 import { markOnboardingStep, ONBOARDING_STEP } from "./constants";
 
@@ -432,7 +434,6 @@ export default function TaskPage({ doctorId, urlSubpage }) {
     <PageSkeleton
       title="任务"
       isMobile={isMobile}
-      headerRight={<BarButton onClick={() => setCreateOpen(true)}>+ 新建</BarButton>}
       mobileView={mobileSubpage}
       listPane={
       <Box sx={{ flex: 1, overflow: "auto", pb: "80px" }}>
@@ -492,6 +493,8 @@ export default function TaskPage({ doctorId, urlSubpage }) {
               dividers
             />
 
+            <NewItemCard title="新建任务" subtitle="添加待办提醒或随访任务" onClick={() => setCreateOpen(true)} />
+
             {/* ── Section: 待完成 (grouped by urgency) ── */}
             {showFollowups && allPendingItems.length > 0 && (() => {
               const urgent = allPendingItems.filter(item => item.soon);
@@ -499,33 +502,41 @@ export default function TaskPage({ doctorId, urlSubpage }) {
 
               const renderRow = (item) => {
                 const isUrgent = item.soon;
-                const dotColor = isUrgent ? COLOR.danger : (upcoming.indexOf(item) < 3 ? COLOR.warning : COLOR.text4);
                 const title = item._isFollowup ? `${item.patient_name} · ${item.task}` : (item.title || "任务");
                 const subtitle = item._isFollowup ? item.detail : item.content;
                 const dateStr = item._isFollowup ? (item.due_label || "") : (item.due_at ? item.due_at.slice(0, 10) : "");
                 return (
                   <Box key={`${item._isFollowup ? "f" : "t"}-${item.id}`}
-                    onClick={() => navigate(`/doctor/tasks/${item.id}`)}
                     sx={{
-                      display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5,
-                      borderBottom: `0.5px solid ${COLOR.borderLight}`, cursor: "pointer",
+                      display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5,
+                      borderBottom: `0.5px solid ${COLOR.borderLight}`,
                       ...(isUrgent ? { bgcolor: COLOR.dangerLight } : {}),
                       "&:last-child": { borderBottom: "none" },
-                      "&:active": { opacity: 0.8 },
                       ...(highlightTaskIds.has(String(item.id)) ? HIGHLIGHT_ROW_SX : {}),
                     }}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: dotColor, flexShrink: 0, mt: 0.5 }} />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box
+                      onClick={(e) => { e.stopPropagation(); handleCompleteTask(item); }}
+                      sx={{
+                        width: 22, height: 22, borderRadius: "50%",
+                        border: `2px solid ${isUrgent ? COLOR.danger : COLOR.border}`,
+                        flexShrink: 0, cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        "&:active": { bgcolor: COLOR.primaryLight, borderColor: COLOR.primary },
+                      }}
+                    />
+                    <Box
+                      onClick={() => navigate(`/doctor/tasks/${item.id}`)}
+                      sx={{ flex: 1, minWidth: 0, cursor: "pointer", "&:active": { opacity: 0.8 } }}>
                       <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {title}
                       </Typography>
                       {subtitle && (
-                        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {subtitle}
                         </Typography>
                       )}
                     </Box>
-                    <Box sx={{ flexShrink: 0, textAlign: "right" }}>
+                    <Box onClick={() => navigate(`/doctor/tasks/${item.id}`)} sx={{ flexShrink: 0, textAlign: "right", cursor: "pointer" }}>
                       <Typography sx={{ fontSize: TYPE.micro.fontSize, color: isUrgent ? COLOR.danger : COLOR.text4, fontWeight: isUrgent ? 500 : 400 }}>
                         {dateStr}
                       </Typography>
@@ -564,25 +575,27 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                 <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
                   {recentlySent.map((s) => (
                     <Box key={s.id}
-                      onClick={() => navigate(`/doctor/tasks/${s.id}`)}
                       sx={{
-                        display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.5,
-                        borderBottom: `0.5px solid ${COLOR.borderLight}`, cursor: "pointer",
+                        display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5,
+                        borderBottom: `0.5px solid ${COLOR.borderLight}`,
                         "&:last-child": { borderBottom: "none" },
-                        "&:active": { opacity: 0.8 },
                         ...(highlightTaskIds.has(String(s.id)) ? HIGHLIGHT_ROW_SX : {}),
                       }}>
-                      <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: COLOR.primary, flexShrink: 0 }} />
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography sx={{ fontSize: TYPE.action.fontSize, color: COLOR.text4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {s.patient_name} · {s.task}
-                        </Typography>
-                        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.5 }}>
-                          {s.read_status || "已完成"}
+                      <CheckCircleOutlineIcon
+                        onClick={(e) => { e.stopPropagation(); handleUncompleteTask(s); }}
+                        sx={{
+                          fontSize: 24, color: COLOR.primary, flexShrink: 0, cursor: "pointer",
+                          "&:active": { opacity: 0.6 },
+                        }}
+                      />
+                      <Box
+                        onClick={() => navigate(`/doctor/tasks/${s.id}`)}
+                        sx={{ flex: 1, minWidth: 0, cursor: "pointer", "&:active": { opacity: 0.8 } }}>
+                        <Typography sx={{ fontSize: TYPE.action.fontSize, color: COLOR.text4, textDecoration: "line-through", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {s.patient_name} · {s.task || s.title}
                         </Typography>
                       </Box>
-                      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{s.time}</Typography>
-                      <Typography sx={{ fontSize: 14, color: COLOR.text4 }}>›</Typography>
+                      <Typography onClick={() => navigate(`/doctor/tasks/${s.id}`)} sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, cursor: "pointer" }}>{s.time}</Typography>
                     </Box>
                   ))}
                 </Box>

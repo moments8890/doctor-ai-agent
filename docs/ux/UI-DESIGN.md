@@ -1,9 +1,14 @@
 # UI Design Principles & Component Guide
 
-> **Visual version:** [UI-DESIGN-visual.html](UI-DESIGN-visual.html) — open in browser for interactive component guide
-
 > Source of truth for all frontend visual and interaction decisions.
 > Read this before creating or modifying any UI component.
+
+## Interactive References
+
+| Reference | File | What it shows |
+|-----------|------|---------------|
+| **Component Matrix** | [component-matrix.html](component-matrix.html) | Visual catalog of all components + page usage matrix |
+| **Navigation Graph** | [page-force-graph.html](page-force-graph.html) | Force graph of all pages, routes, and navigation links |
 
 ## Live Showcases
 
@@ -16,104 +21,6 @@
 | **Doctor Components** | [`/debug/doctor-components`](http://localhost:5173/debug/doctor-components) | Doctor-specific components (DiagnosisCard, FieldReviewCard, etc.) |
 
 Source: [`src/pages/admin/ComponentShowcasePage.jsx`](../../frontend/web/src/pages/admin/ComponentShowcasePage.jsx)
-
----
-
-## Quick Reference — Component File Map
-
-### App Shell
-| Component | File | Purpose |
-|-----------|------|---------|
-| MobileFrame | [`src/App.jsx`](../../frontend/web/src/App.jsx) | Phone-shaped container for desktop |
-| DoctorPage | [`src/pages/doctor/DoctorPage.jsx`](../../frontend/web/src/pages/doctor/DoctorPage.jsx) | Doctor app shell (top bar + content + nav) |
-| PatientPage | [`src/pages/patient/PatientPage.jsx`](../../frontend/web/src/pages/patient/PatientPage.jsx) | Patient portal shell |
-| LoginPage | [`src/pages/LoginPage.jsx`](../../frontend/web/src/pages/LoginPage.jsx) | Unified login (doctor/patient tabs) |
-
-### Top Bar & Navigation
-| Component | File | Purpose |
-|-----------|------|---------|
-| SubpageHeader | [`src/components/SubpageHeader.jsx`](../../frontend/web/src/components/SubpageHeader.jsx) | ‹ back + title + action |
-| BarButton | [`src/components/BarButton.jsx`](../../frontend/web/src/components/BarButton.jsx) | Top bar text action button |
-| MobileBottomNav | [`src/pages/doctor/DoctorPage.jsx`](../../frontend/web/src/pages/doctor/DoctorPage.jsx) | 4-tab bottom navigation |
-
-### Layout & Structure
-| Component | File | Purpose |
-|-----------|------|---------|
-| PageSkeleton | [`src/components/PageSkeleton.jsx`](../../frontend/web/src/components/PageSkeleton.jsx) | Page layout wrapper (list + detail) |
-| SectionLabel | [`src/components/SectionLabel.jsx`](../../frontend/web/src/components/SectionLabel.jsx) | Section header label (12px/600) |
-| EmptyState | [`src/components/EmptyState.jsx`](../../frontend/web/src/components/EmptyState.jsx) | Centered "暂无XX" placeholder |
-
-### Buttons & Actions
-| Component | File | Purpose |
-|-----------|------|---------|
-| AppButton | [`src/components/AppButton.jsx`](../../frontend/web/src/components/AppButton.jsx) | Content-level button (primary/secondary/danger) |
-| CancelConfirm | [`src/components/CancelConfirm.jsx`](../../frontend/web/src/components/CancelConfirm.jsx) | Two-step cancel popup (确認\|返回) |
-| ConfirmDialog | [`src/components/ConfirmDialog.jsx`](../../frontend/web/src/components/ConfirmDialog.jsx) | Compact confirm/destructive dialog |
-| ActionPanel | [`src/components/ActionPanel.jsx`](../../frontend/web/src/components/ActionPanel.jsx) | Slide-up action sheet (camera, gallery, file, patient) |
-| DialogFooter | [`src/components/DialogFooter.jsx`](../../frontend/web/src/components/DialogFooter.jsx) | Standard 2-button footer for SheetDialog (cancel LEFT, primary RIGHT) |
-| Toast | [`src/components/Toast.jsx`](../../frontend/web/src/components/Toast.jsx) | Transient dark overlay message + `useToast` hook |
-
-### Content Components
-| Component | File | Purpose |
-|-----------|------|---------|
-| ListCard | [`src/components/ListCard.jsx`](../../frontend/web/src/components/ListCard.jsx) | List row (avatar + title + subtitle + chevron) |
-| NewItemCard | [`src/components/NewItemCard.jsx`](../../frontend/web/src/components/NewItemCard.jsx) | "+" dashed new item row |
-| RecordCard | [`src/components/RecordCard.jsx`](../../frontend/web/src/components/RecordCard.jsx) | Expandable medical record card |
-| RecordFields | [`src/components/RecordFields.jsx`](../../frontend/web/src/components/RecordFields.jsx) | NHC structured field rows |
-| DetailCard | [`src/components/DetailCard.jsx`](../../frontend/web/src/components/DetailCard.jsx) | Compact key-value card |
-
-### Chat & Input
-| Component | File | Purpose |
-|-----------|------|---------|
-| AskAIBar | [`src/components/AskAIBar.jsx`](../../frontend/web/src/components/AskAIBar.jsx) | Floating "问 AI" entry bar |
-| SuggestionChips | [`src/components/SuggestionChips.jsx`](../../frontend/web/src/components/SuggestionChips.jsx) | Quick-reply options above input |
-| DoctorBubble | [`src/components/DoctorBubble.jsx`](../../frontend/web/src/components/DoctorBubble.jsx) | Doctor reply message bubble |
-| MessageTimeline | [`src/components/MessageTimeline.jsx`](../../frontend/web/src/components/MessageTimeline.jsx) | Foldable left-rail patient-detail message timeline with inline draft actions |
-| VoiceInput | [`src/components/VoiceInput.jsx`](../../frontend/web/src/components/VoiceInput.jsx) | Press-to-talk voice input |
-
-### Dialogs & Pickers
-| Component | File | Purpose |
-|-----------|------|---------|
-| SheetDialog | [`src/components/SheetDialog.jsx`](../../frontend/web/src/components/SheetDialog.jsx) | Bottom-sheet dialog shell |
-| BottomSheet | [`src/components/BottomSheet.jsx`](../../frontend/web/src/components/BottomSheet.jsx) | Swipe-up panel overlay |
-| RecordEditDialog | [`src/components/RecordEditDialog.jsx`](../../frontend/web/src/components/RecordEditDialog.jsx) | Medical record field editor |
-| ExportSelectorDialog | [`src/components/ExportSelectorDialog.jsx`](../../frontend/web/src/components/ExportSelectorDialog.jsx) | PDF export field picker |
-| ImportChoiceDialog | [`src/components/ImportChoiceDialog.jsx`](../../frontend/web/src/components/ImportChoiceDialog.jsx) | Import method selector |
-| PatientPickerDialog | [`src/components/PatientPickerDialog.jsx`](../../frontend/web/src/components/PatientPickerDialog.jsx) | Patient search and select |
-
-### Badges & Avatars
-| Component | File | Purpose |
-|-----------|------|---------|
-| StatusBadge | [`src/components/StatusBadge.jsx`](../../frontend/web/src/components/StatusBadge.jsx) | Colored status pill (高/中/低/急诊) |
-| NameAvatar | [`src/components/NameAvatar.jsx`](../../frontend/web/src/components/NameAvatar.jsx) | Colored initial avatar derived from a name |
-| RecordTypeAvatar | [`src/components/RecordTypeAvatar.jsx`](../../frontend/web/src/components/RecordTypeAvatar.jsx) | Record type icon (visit/lab/imaging) |
-
-### Doctor-Specific Components
-| Component | File | Purpose |
-|-----------|------|---------|
-| DiagnosisCard | [`src/components/doctor/DiagnosisCard.jsx`](../../frontend/web/src/components/doctor/DiagnosisCard.jsx) | Collapsible diagnosis review card (5 states) |
-| FieldReviewCard | [`src/components/doctor/FieldReviewCard.jsx`](../../frontend/web/src/components/doctor/FieldReviewCard.jsx) | Carry-forward / import field review |
-| InterviewCompleteDialog | [`src/components/doctor/InterviewCompleteDialog.jsx`](../../frontend/web/src/components/doctor/InterviewCompleteDialog.jsx) | NHC preview + save/diagnose popup |
-
-### Page-Level Components
-| Component | File | Purpose |
-|-----------|------|---------|
-| HomePage | [`src/pages/doctor/HomePage.jsx`](../../frontend/web/src/pages/doctor/HomePage.jsx) | Home tab: stats + onboarding |
-| ChatPage | [`src/pages/doctor/ChatPage.jsx`](../../frontend/web/src/pages/doctor/ChatPage.jsx) | AI chat with quick commands |
-| PatientsPage | [`src/pages/doctor/PatientsPage.jsx`](../../frontend/web/src/pages/doctor/PatientsPage.jsx) | Patient list + detail drill-down |
-| PatientDetail | [`src/pages/doctor/patients/PatientDetail.jsx`](../../frontend/web/src/pages/doctor/patients/PatientDetail.jsx) | Patient profile + records + actions |
-| TasksPage | [`src/pages/doctor/TasksPage.jsx`](../../frontend/web/src/pages/doctor/TasksPage.jsx) | Task list with filter chips |
-| SettingsPage | [`src/pages/doctor/SettingsPage.jsx`](../../frontend/web/src/pages/doctor/SettingsPage.jsx) | Profile, tools, knowledge base |
-| ReviewPage | [`src/pages/doctor/ReviewPage.jsx`](../../frontend/web/src/pages/doctor/ReviewPage.jsx) | Diagnosis review subpage |
-| InterviewPage | [`src/pages/doctor/InterviewPage.jsx`](../../frontend/web/src/pages/doctor/InterviewPage.jsx) | Doctor interview (chat + fields) |
-
-### Theme & Tokens
-| File | Purpose |
-|------|---------|
-| [`src/theme.js`](../../frontend/web/src/theme.js) | `TYPE`, `ICON`, `COLOR`, `RADIUS` tokens + MUI theme |
-| [`src/api.js`](../../frontend/web/src/api.js) | All API functions |
-| [`src/store/doctorStore.js`](../../frontend/web/src/store/doctorStore.js) | Auth state (Zustand) |
-| [`src/pages/doctor/constants.jsx`](../../frontend/web/src/pages/doctor/constants.jsx) | Labels, enums, field definitions |
 
 ---
 
@@ -207,24 +114,40 @@ This forces mobile layout everywhere. To enable desktop layout later, revert
 
 ---
 
-## 3. Three-Component Page Architecture
+## 3. Page Architecture
 
-Every page is composed of exactly 3 components stacked vertically:
+Two page types with distinct layouts:
+
+**Main tabs** (我的AI, 患者, 审核, 任务) — full shell:
 
 ```
 ┌─────────────────────────────────────┐
-│          TOP BAR (48px)             │  Fixed. Navigation + 1 action.
+│          TOP BAR (48px)             │  Title only, no back button.
 ├─────────────────────────────────────┤
 │                                     │
 │          CONTENT (flex: 1)          │  Scrollable. Different per page.
 │                                     │
 ├─────────────────────────────────────┤
-│       BOTTOM NAVIGATION (64px)      │  Fixed. 4 tabs. Always visible.
+│       BOTTOM NAVIGATION (64px)      │  4 tabs. Always visible.
 └─────────────────────────────────────┘
 ```
 
-No page deviates from this structure. Top bar and bottom nav are shared
-chrome. Only the content area changes between pages.
+**Subpages** (patient detail, review, interview, settings, etc.) — pushed view:
+
+```
+┌─────────────────────────────────────┐
+│  ‹ back   Title            Action   │  SubpageHeader, 48px.
+├─────────────────────────────────────┤
+│                                     │
+│          CONTENT (flex: 1)          │  Scrollable. No bottom nav.
+│                                     │
+├─────────────────────────────────────┤
+│       INPUT BAR (if applicable)     │  Chat/interview pages only.
+└─────────────────────────────────────┘
+```
+
+Subpages hide the bottom nav and show a back button. Pages using
+`PageSkeleton` with `mobileView` get Slide transitions automatically.
 
 ---
 
@@ -276,7 +199,7 @@ template. The shared rules (cards, spacing, components) are in sections 4-6.
 
 | Page | Screenshot | Layout |
 |------|-----------|--------|
-| **我的AI** | [`/doctor`](http://localhost:5173/doctor) | AI身份卡 → deterministic onboarding checklist → quick actions → knowledge preview → recent AI activity |
+| **我的AI** | [`/doctor`](http://localhost:5173/doctor) | AI身份卡 → quick actions → knowledge preview → recent AI activity (onboarding wizard at `/doctor/onboarding`, replayable via "重新体验引导" link) |
 | **患者** | [`/doctor/patients`](http://localhost:5173/doctor/patients) | Search bar → "新建患者" card → patient list rows |
 | **患者详情** | [`/doctor/patients/:id`](http://localhost:5173/doctor/patients) | Collapsible profile → record tabs → record cards → foldable patient message timeline (latest 3 items by default) |
 | **对话** | [`/doctor/chat`](http://localhost:5173/doctor/chat) | Chat bubbles → quick command chips → input bar + mic |
@@ -301,10 +224,12 @@ template. The shared rules (cards, spacing, components) are in sections 4-6.
 
 ```
 ┌─────────────────────────────────────┐
-│   ✦        👤        ☑        ✉    │  64px
+│  [icon]   [icon]   [icon]   [icon]  │  64px
 │  我的AI    患者      审核      任务   │  + safe-area-inset
 └─────────────────────────────────────┘
 ```
+
+Icons are MUI outlined: `SmartToyOutlined`, `PeopleOutlined`, `FactCheckOutlined`, `AssignmentOutlined`.
 
 | Rule | Detail |
 |------|--------|
@@ -339,7 +264,6 @@ views hide it and show a back button instead.
 | 患者 | patient list |
 | 审核 | review queue |
 | 任务 | task list |
-| 设置 | settings, subpages |
 
 ---
 
@@ -667,9 +591,10 @@ Used in: internal UI review, component QA, visual regression walkthroughs.
 
 ### Action Button Layout
 
-- Cancel + confirm actions in dialog footers use inline `AppButton` pairs
-- Destructive left (red), constructive right (green). Always.
-- Usage: `<AppButton variant="danger">取消</AppButton> <AppButton>保存</AppButton>`
+- Cancel (gray/secondary) LEFT, primary RIGHT. Always.
+- Destructive dialogs: cancel still LEFT gray, destructive action RIGHT red.
+- Usage: `<AppButton variant="secondary">取消</AppButton> <AppButton>保存</AppButton>`
+- Destructive: `<AppButton variant="secondary">取消</AppButton> <AppButton variant="danger">删除</AppButton>`
 
 ### AskAIBar
 
@@ -678,11 +603,11 @@ Used in: internal UI review, component QA, visual regression walkthroughs.
 - Sticky floating "问 AI 任何问题..." entry bar on home page
 - Green AI icon + gray placeholder text. Taps navigate to chat.
 
-### BottomSheet
+### SheetDialog
 
-**File:** [`src/components/BottomSheet.jsx`](../../frontend/web/src/components/BottomSheet.jsx)
+**File:** [`src/components/SheetDialog.jsx`](../../frontend/web/src/components/SheetDialog.jsx)
 
-- Swipe-up panel overlay (~85% screen). Dark backdrop.
+- SwipeableDrawer-based bottom sheet. Dark backdrop.
 - Swipe down or tap backdrop to close.
 - Used for: mobile dialogs, pickers, action menus.
 
@@ -721,12 +646,13 @@ Used in: internal UI review, component QA, visual regression walkthroughs.
 - Unified page layout wrapper. Handles: SubpageHeader, list/detail split, mobile subpage override.
 - Props: `title`, `headerRight`, `listPane`, `detailPane`, `mobileView`
 
-### RecordTypeAvatar
+### IconBadge (replaces RecordTypeAvatar)
 
-**File:** [`src/components/RecordTypeAvatar.jsx`](../../frontend/web/src/components/RecordTypeAvatar.jsx)
+**File:** [`src/components/IconBadge.jsx`](../../frontend/web/src/components/IconBadge.jsx)
 
-- Colored icon for record type (visit=green, lab=purple, imaging=blue, etc.)
-- Shared by doctor and patient views.
+- Centralized tinted icon component with 30+ configs in `ICON_BADGES` (constants.jsx).
+- Light background + colored icon. Used for record types, task types, status indicators.
+- Replaces all per-type avatar components.
 
 ### RecordFields
 
@@ -766,6 +692,28 @@ Used in: internal UI review, component QA, visual regression walkthroughs.
 - Shows: title, subtitle, due-date badge, urgency badge, optional upload button
 - Used in: patient portal tasks tab
 
+### TaskDetailSubpage
+
+**File:** [`src/pages/doctor/TaskDetailSubpage.jsx`](../../frontend/web/src/pages/doctor/TaskDetailSubpage.jsx)
+
+*See live: [`/doctor/tasks/:id`](http://localhost:5173/doctor/tasks)*
+
+- Full task detail view with title, urgency badge, patient link, due date, source/type, content
+- Notes section with edit capability
+- Reminder picker for scheduling reminders
+- Mark complete action bar
+- Delete button with confirmation
+- Uses PageSkeleton mobileView for subpage navigation pattern (back button, hides bottom nav)
+
+### CreateTaskSheet
+
+**File:** [`src/pages/doctor/TaskPage.jsx`](../../frontend/web/src/pages/doctor/TaskPage.jsx) (+ SheetDialog wrapper)
+
+- Modal bottom sheet form for creating new tasks
+- Fields: title (required), content, due date, urgency level
+- Triggered by "+ 新建" button on TaskPage
+- Submits via POST /api/tasks/
+
 ---
 
 ## 7. Interaction Patterns
@@ -787,10 +735,10 @@ Used in: internal UI review, component QA, visual regression walkthroughs.
 ### Cancel / Discard (leaving unsaved work)
 
 **Every cancel/back action that would discard user work MUST use
-`CancelConfirm`** ([`src/components/CancelConfirm.jsx`](../../frontend/web/src/components/CancelConfirm.jsx)).
+`ConfirmDialog`** ([`src/components/ConfirmDialog.jsx`](../../frontend/web/src/components/ConfirmDialog.jsx)) with `confirmTone="danger"`.
 
 Two-step flow:
-1. User taps cancel/back → `CancelConfirm` popup appears
+1. User taps cancel/back → `ConfirmDialog` popup appears
 2. User sees: "确认离开？未保存的内容将会丢失"
 3. Two buttons: **取消** (gray, left — stay and continue) | **离开** (red, right — discard and leave)
 
@@ -858,7 +806,7 @@ Before submitting any UI change, verify:
 - [ ] Button text: prefer 2 characters, allow up to 4 with justification
 - [ ] Use `DialogFooter` for new SheetDialog footers
 - [ ] Deletion requires 2-tap confirmation
-- [ ] Cancel/back that discards work uses `CancelConfirm` (取消|离开)
+- [ ] Cancel/back that discards work uses `ConfirmDialog` with `confirmTone="danger"` (取消|离开)
 
 **Components & State:**
 - [ ] Empty lists use `EmptyState` component (icon + title + subtitle)

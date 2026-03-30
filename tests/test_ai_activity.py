@@ -58,7 +58,7 @@ async def _seed_doctor_and_patient(session, doctor_id="doc_1"):
 
 
 def test_urgency_rank_ordering():
-    from channels.web.ui.ai_activity_handlers import _urgency_rank
+    from channels.web.doctor_dashboard.ai_activity_handlers import _urgency_rank
 
     assert _urgency_rank("urgent") > _urgency_rank("high")
     assert _urgency_rank("high") > _urgency_rank("medium")
@@ -67,7 +67,7 @@ def test_urgency_rank_ordering():
 
 
 def test_urgency_rank_values():
-    from channels.web.ui.ai_activity_handlers import _urgency_rank
+    from channels.web.doctor_dashboard.ai_activity_handlers import _urgency_rank
 
     assert _urgency_rank("urgent") == 3
     assert _urgency_rank("high") == 2
@@ -79,13 +79,13 @@ def test_urgency_rank_values():
 
 
 def test_safe_iso_none():
-    from channels.web.ui.ai_activity_handlers import _safe_iso
+    from channels.web.doctor_dashboard.ai_activity_handlers import _safe_iso
 
     assert _safe_iso(None) is None
 
 
 def test_safe_iso_datetime():
-    from channels.web.ui.ai_activity_handlers import _safe_iso
+    from channels.web.doctor_dashboard.ai_activity_handlers import _safe_iso
 
     dt = datetime(2026, 3, 27, 10, 30, 0, tzinfo=timezone.utc)
     result = _safe_iso(dt)
@@ -261,7 +261,7 @@ async def test_flagged_unreviewed_suggestions(async_session):
 
 def test_dedup_keeps_highest_urgency():
     """When multiple flags exist for the same patient, keep highest urgency."""
-    from channels.web.ui.ai_activity_handlers import _urgency_rank
+    from channels.web.doctor_dashboard.ai_activity_handlers import _urgency_rank
 
     flagged = [
         {"patient_id": 1, "reason": "low reason", "urgency": "medium", "type": "unread_message"},

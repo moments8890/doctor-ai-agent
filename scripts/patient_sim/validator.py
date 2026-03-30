@@ -273,28 +273,54 @@ _ELICITATION_JUDGE_PROMPT = """\
 
 # --------------- Axis 2: Extraction Fidelity prompts ---------------------
 
+_FACT_EXTRACT_FROM_DIALOG_PROMPT = """\
+/no_think
+你是预问诊对话审查员。请判断患者是否提到了以下每条事实，如果提到了，摘录患者的原话。
+
+## 患者的全部发言（逐条列出）
+{patient_text}
+
+## 需要检查的事实主题
+{facts_block}
+
+## 严格规则
+- 只看上方「患者的全部发言」，不看AI助手的话
+- 患者描述自己的情况才算，转述家人不算（"我妈有高血压"不算患者本人的高血压）
+- 必须从患者原话中找到对应内容才能填写；绝对不能把「事实主题」中的描述当作患者说过的话
+- 患者说"脑出血6个月"≠ 患者说了"左侧基底节区脑出血15ml保守治疗"，后者的细节如果患者没说就是没说
+- 如果患者只说了笼统的话（如"有高血压"），只返回笼统的部分，不要补充患者没说的数字、药名、部位等细节
+- 如果患者完全没提到该主题，返回空字符串""
+
+请只返回JSON: {{"results": {{"fact_id_1": "患者原话摘要（仅限患者说过的）", "fact_id_2": "", ...}}}}
+"""
+
 _FACT_MATCH_JUDGE_PROMPT = """\
 /no_think
-你是一位医学信息提取评审专家。请逐条判断以下期望事实是否出现在系统提取的结构化字段中。
+你是一位医学信息提取评审专家。请逐条判断：患者说的内容是否被系统正确记录到了结构化病历中。
 
 ## 系统实际提取的全部结构化病历字段
 {record_dump}
 
-## 需要核对的事实列表
+## 需要核对的内容（患者实际表述 → 对应的事实主题）
 {facts_block}
 
-## 规则
-- 不要求原文一模一样，只要语义等价即可判为匹配
-- 例如"体检发现动脉瘤"和"MRA检查发现脑动脉瘤"是语义等价的
-- "高血压5年"和"高血压病史5年，服用氨氯地平"也是等价的
-- 如果事实出现在任何字段中（即使不是期望字段），也算匹配，但请标注实际所在字段
-- 只有当某条事实在所有病历字段中都完全没有体现时，才判为未匹配
+## 匹配级别（三级）
+- "exact": 患者说的核心信息已完整体现在病历中（语义等价即可）
+- "partial": 核心概念已出现，但患者说的部分细节未被记录
+- "missed": 患者说的内容在所有字段中都完全没有体现
+
+## 判断规则
+- 比较的是"患者说了什么"vs"病历记了什么"，不是"理想上应该有什么"
+- 如果患者只说了"有高血压"，病历记了"高血压" → exact（患者说的都记了）
+- 如果患者说了"高血压10年，吃缬沙坦"，病历只记了"高血压" → partial（核心在，细节丢了）
+- 如果患者说了"高血压"，病历完全没提 → missed
+- 出现在任何字段中都算匹配
 
 对每条事实，返回:
-- "match": true/false
+- "match": "exact" / "partial" / "missed"
 - "found_in": 实际找到的字段名（如未找到则为null）
 
-请只返回JSON: {{"results": {{"fact_id_1": {{"match": true, "found_in": "present_illness"}}, "fact_id_2": {{"match": false, "found_in": null}}, ...}}}}
+请只返回JSON: {{"results": {{"fact_id_1": {{"match": "exact", "found_in": "past_history"}}, ...}}}}
 """
 
 # --------------- Axis 3: NHC Record Quality prompts ----------------------
@@ -387,8 +413,14 @@ async def _judge_facts_single(
     record: Dict[str, str],
     facts: List[dict],
     provider: dict,
+    patient_statements: Optional[Dict[str, str]] = None,
 ) -> Dict[str, dict]:
-    """One LLM judge checks all facts against clinical record fields."""
+    """One LLM judge checks patient's actual statements against clinical record fields.
+
+    If patient_statements is provided, uses those instead of persona fact text.
+    This ensures we judge 'did the record capture what the patient said' not
+    'did the record match the persona ideal'.
+    """
     record_lines = []
     for field, value in record.items():
         record_lines.append(f"- {field}: {value or '（空）'}")
@@ -397,9 +429,19 @@ async def _judge_facts_single(
     facts_block_lines = []
     for f in facts:
         fid = f.get("id", f.get("fact", "?"))
-        facts_block_lines.append(
-            f"- {fid} (期望字段: {f.get('field', f.get('expected_field', '未指定'))}): {f.get('text', f.get('fact', ''))}"
-        )
+        # Use patient's actual statement if available, otherwise fall back to persona text
+        actual_text = (patient_statements or {}).get(fid, "")
+        persona_text = f.get("text", f.get("fact", ""))
+        display_text = actual_text if actual_text else persona_text
+        target_field = f.get('field', f.get('expected_field', '未指定'))
+        if actual_text:
+            facts_block_lines.append(
+                f"- {fid} (目标字段: {target_field}): 患者说「{actual_text}」"
+            )
+        else:
+            facts_block_lines.append(
+                f"- {fid} (目标字段: {target_field}): {persona_text}"
+            )
     facts_block = "\n".join(facts_block_lines)
 
     prompt = _FACT_MATCH_JUDGE_PROMPT.format(
@@ -415,8 +457,16 @@ async def _judge_facts_single(
         for f in facts:
             fid = f.get("id", f.get("fact", "?"))
             entry = results.get(fid, {})
+            # Handle tiered match: "exact"/"partial"/"missed" or legacy bool
+            raw_match = entry.get("match", "missed")
+            if isinstance(raw_match, bool):
+                match_level = "exact" if raw_match else "missed"
+            elif isinstance(raw_match, str):
+                match_level = raw_match.lower() if raw_match.lower() in ("exact", "partial", "missed") else "missed"
+            else:
+                match_level = "missed"
             out[fid] = {
-                "match": bool(entry.get("match", False)),
+                "match_level": match_level,
                 "found_in": entry.get("found_in"),
                 "model": label,
             }
@@ -425,31 +475,114 @@ async def _judge_facts_single(
         out = {}
         for f in facts:
             fid = f.get("id", f.get("fact", "?"))
-            out[fid] = {"match": False, "found_in": None, "model": label, "error": str(e)}
+            out[fid] = {"match_level": "missed", "found_in": None, "model": label, "error": str(e)}
         return out
+
+
+
+
+
+async def _extract_patient_statements(conversation: list, facts: List[dict]) -> Dict[str, str]:
+    """LLM-based extraction: what did the patient actually say for each fact topic?
+
+    Returns {fact_id: "patient's actual statement"} — empty string means not disclosed.
+    This replaces the separate disclosure check and gives us the actual text to judge against.
+    """
+    patient_text = "\n".join(
+        turn.get("content", turn.get("text", ""))
+        for turn in conversation
+        if turn.get("role") in ("user", "patient")
+    )
+    if not patient_text:
+        return {f.get("id", f.get("fact", "?")): "" for f in facts}
+
+    # Option 1: Send only short topic labels, not full expected text (prevents contamination)
+    _TOPIC_LABELS = {
+        "cc_": "主诉相关", "pi_": "现病史相关", "ph_": "既往史相关",
+        "al_": "过敏史相关", "fh_": "家族史相关", "sh_": "个人史相关",
+    }
+    facts_lines = []
+    for f in facts:
+        fid = f.get("id", f.get("fact", "?"))
+        # Use a short generic label instead of the full expected text
+        full_text = f.get("text", f.get("fact", ""))
+        # Extract just the core topic: first clause or first 8 chars
+        short_topic = full_text.split("，")[0].split("、")[0][:15] if full_text else fid
+        facts_lines.append(f"- {fid}: {short_topic}")
+    facts_block = "\n".join(facts_lines)
+
+    prompt = _FACT_EXTRACT_FROM_DIALOG_PROMPT.format(
+        patient_text=patient_text,
+        facts_block=facts_block,
+    )
+
+    provider = _pick_judges(1)[0]
+    try:
+        raw = await _llm_call(provider, prompt)
+        parsed = _parse_json_response(raw)
+        results = parsed.get("results", {})
+
+        # Option 2: Post-verification — check LLM output against actual patient text
+        import jieba
+        verified: Dict[str, str] = {}
+        for f in facts:
+            fid = f.get("id", f.get("fact", "?"))
+            claimed = str(results.get(fid, "")).strip()
+            if not claimed:
+                verified[fid] = ""
+                continue
+            # Extract key terms from claimed text and verify at least one appears in patient text
+            key_terms = [w for w in jieba.cut(claimed) if len(w) >= 2]
+            if key_terms and any(term in patient_text for term in key_terms[:5]):
+                verified[fid] = claimed
+            else:
+                verified[fid] = ""  # hallucination — term not in patient text
+        return verified
+    except Exception:
+        return {f.get("id", f.get("fact", "?")): "" for f in facts}
 
 
 async def _axis2_extraction(
     record: Dict[str, str],
     fact_catalog: List[dict],
+    conversation: Optional[list] = None,
 ) -> dict:
-    """Axis 2: Extraction Fidelity — did the system capture what the patient said?"""
+    """Axis 2: Extraction Fidelity — did the system capture what the patient said?
+
+    If conversation is provided, facts not disclosed by the patient are reported
+    separately and do not count toward hard-fail conditions.
+    """
     # Filter to critical + important facts only
     relevant_facts = [
         f for f in fact_catalog
         if f.get("importance", "normal") in ("critical", "important")
     ]
     if not relevant_facts:
-        return {"score": 1.0, "facts": {}}
+        return {"score": 1.0, "facts": {}, "undisclosed_facts": []}
 
-    # 3 LLM judges, majority vote
+    # Step 1: Extract what the patient actually said for each fact topic
+    patient_statements: Optional[Dict[str, str]] = None
+    if conversation:
+        patient_statements = await _extract_patient_statements(conversation, relevant_facts)
+        for f in relevant_facts:
+            fid = f.get("id", f.get("fact", "?"))
+            actual = (patient_statements or {}).get(fid, "")
+            f["_disclosed"] = bool(actual.strip())
+            f["_patient_said"] = actual.strip()
+    else:
+        for f in relevant_facts:
+            f["_disclosed"] = True
+            f["_patient_said"] = ""
+
+    # Step 2: Judge patient's actual statements against the record (3 LLM judges)
     providers = _pick_judges(3)
     all_results = await asyncio.gather(*[
-        _judge_facts_single(record, relevant_facts, p)
+        _judge_facts_single(record, relevant_facts, p, patient_statements=patient_statements)
         for p in providers
     ])
 
-    # Majority vote per fact
+    # Majority vote per fact (tiered: exact > partial > missed)
+    _LEVEL_RANK = {"exact": 2, "partial": 1, "missed": 0}
     facts_out: Dict[str, dict] = {}
     any_critical_missing = False
 
@@ -458,41 +591,72 @@ async def _axis2_extraction(
         expected_field = f.get("field", f.get("expected_field", ""))
         importance = f.get("importance", "normal")
 
-        votes = [r.get(fid, {}).get("match", False) for r in all_results]
-        match = sum(votes) >= 2  # majority
+        # Collect tiered votes from all judges
+        level_votes = [r.get(fid, {}).get("match_level", "missed") for r in all_results]
+        # Majority vote: pick the level that >= 2 judges agree on, else take median
+        from collections import Counter
+        level_counts = Counter(level_votes)
+        majority_level = level_counts.most_common(1)[0][0]
+        # If no clear majority (all different), take the median by rank
+        if level_counts.most_common(1)[0][1] < 2:
+            sorted_levels = sorted(level_votes, key=lambda l: _LEVEL_RANK.get(l, 0))
+            majority_level = sorted_levels[len(sorted_levels) // 2]
 
-        # Determine found_in from majority of judges that said match
-        found_in_votes = [r.get(fid, {}).get("found_in") for r in all_results if r.get(fid, {}).get("match")]
+        # For backward compat: match = True if exact or partial
+        match = majority_level in ("exact", "partial")
+
+        # Determine found_in from judges that reported a match
+        found_in_votes = [
+            r.get(fid, {}).get("found_in")
+            for r in all_results
+            if r.get(fid, {}).get("match_level", "missed") != "missed"
+        ]
         found_in = found_in_votes[0] if found_in_votes else None
 
-        # Classify: correct field, wrong field, or missed
+        # Classify location
         if match and found_in == expected_field:
             location = "correct_field"
         elif match and found_in and found_in != expected_field:
             location = "wrong_field"
         elif match:
-            location = "found"  # matched but no specific field info
+            location = "found"
         else:
             location = "missed"
-            if importance == "critical":
+            # Only count as critical missing if the patient actually disclosed the fact
+            disclosed = f.get("_disclosed", True)
+            if importance == "critical" and disclosed:
                 any_critical_missing = True
 
         facts_out[fid] = {
             "expected_field": expected_field,
             "found_in": found_in,
             "match": match,
-            "votes": votes,
+            "match_level": majority_level,
+            "votes": level_votes,
             "location": location,
             "importance": importance,
+            "disclosed": f.get("_disclosed", True),
+            "patient_said": f.get("_patient_said", ""),
         }
 
-    matched_count = sum(1 for v in facts_out.values() if v["match"])
-    score = (matched_count / len(relevant_facts) * 100) if relevant_facts else 100
+    # Score only on disclosed facts (undisclosed are reported but don't affect score)
+    disclosed_facts = {k: v for k, v in facts_out.items() if v.get("disclosed", True)}
+    undisclosed_facts = [k for k, v in facts_out.items() if not v.get("disclosed", True)]
+
+    if disclosed_facts:
+        score_sum = sum(
+            1.0 if v["match_level"] == "exact" else 0.5 if v["match_level"] == "partial" else 0.0
+            for v in disclosed_facts.values()
+        )
+        score = (score_sum / len(disclosed_facts) * 100)
+    else:
+        score = 100
 
     return {
         "score": int(round(score)),
         "facts": facts_out,
         "any_critical_missing": any_critical_missing,
+        "undisclosed_facts": undisclosed_facts,
     }
 
 
@@ -675,7 +839,7 @@ async def validate_tier2(
 
     # Run all 3 axes concurrently
     axis1_task = _axis1_elicitation(conversation, coverage_expectation)
-    axis2_task = _axis2_extraction(record, fact_catalog)
+    axis2_task = _axis2_extraction(record, fact_catalog, conversation=conversation)
     axis3_task = _axis3_nhc_compliance(record, record_expectation)
 
     elicitation, extraction, nhc_compliance = await asyncio.gather(

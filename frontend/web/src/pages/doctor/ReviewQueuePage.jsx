@@ -12,9 +12,8 @@
  * navigate to the full ReviewPage for that record.
  */
 import { useCallback, useEffect, useState } from "react";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
-import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
@@ -24,13 +23,8 @@ import NameAvatar from "../../components/NameAvatar";
 import SectionLabel from "../../components/SectionLabel";
 import ActionRow from "../../components/ActionRow";
 import SubpageHeader from "../../components/SubpageHeader";
-import SheetDialog from "../../components/SheetDialog";
-import AppButton from "../../components/AppButton";
-import DialogFooter from "../../components/DialogFooter";
-import ReplyCard from "../../components/doctor/ReplyCard";
-import { TYPE, COLOR, RADIUS } from "../../theme";
-import { markOnboardingStep, ONBOARDING_STEP } from "./constants";
-
+import FilterBar from "../../components/FilterBar";
+import { TYPE, COLOR, RADIUS, HIGHLIGHT_ROW_SX } from "../../theme";
 /* ── Case memory helpers ──────────────────────────────────────────────────── */
 
 function extractCaseText(detail) {
@@ -52,63 +46,10 @@ const SECTION_LABEL = {
   treatment: "治疗方向",
 };
 
-/* ── Summary bar ──────────────────────────────────────────────────────────── */
-
-function FilterStatBar({ summary, filter, onFilter }) {
-  const tabs = [
-    { key: "pending", label: "门诊", count: summary.pending, activeColor: COLOR.warning },
-    { key: "replies", label: "回复", count: summary.replies, activeColor: COLOR.danger },
-    { key: "completed", label: "完成", count: summary.completed, activeColor: COLOR.primary },
-  ];
-  return (
-    <Box sx={{
-      display: "flex",
-      bgcolor: COLOR.white,
-      borderBottom: `0.5px solid ${COLOR.border}`,
-      borderTop: `0.5px solid ${COLOR.border}`,
-    }}>
-      {tabs.map((tab, i) => {
-        const active = filter === tab.key;
-        return (
-          <Box key={tab.key} sx={{ display: "contents" }}>
-            <Box
-              onClick={() => onFilter(tab.key)}
-              sx={{
-                flex: 1, textAlign: "center", py: 1.5,
-                cursor: "pointer", userSelect: "none",
-                borderBottom: active ? `2px solid ${tab.activeColor}` : "2px solid transparent",
-                transition: "border-color 0.15s ease",
-                "&:active": { opacity: 0.5 },
-              }}
-            >
-              <Typography sx={{
-                fontSize: TYPE.title.fontSize, fontWeight: 600,
-                color: active ? tab.activeColor : COLOR.text4,
-                transition: "color 0.15s ease",
-              }}>
-                {tab.count ?? 0}
-              </Typography>
-              <Typography sx={{
-                fontSize: TYPE.micro.fontSize, mt: 0.5,
-                color: active ? COLOR.text2 : COLOR.text4,
-                fontWeight: active ? 500 : 400,
-              }}>
-                {tab.label}
-              </Typography>
-            </Box>
-            {i < tabs.length - 1 && (
-              <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 1 }} />
-            )}
-          </Box>
-        );
-      })}
-    </Box>
-  );
-}
-
 /* ── Pending review item card ─────────────────────────────────────────────── */
 
 function PendingReviewCard({ item, onNavigate }) {
+  const [citationAnchor, setCitationAnchor] = useState(null);
   const hasCitation = !!item.rule_cited;
   const hasCaseMemory = (item.detail || "").includes("相似度") || (item.detail || "").includes("类似病例");
 
@@ -177,12 +118,23 @@ function PendingReviewCard({ item, onNavigate }) {
       {/* Citation line */}
       <Box sx={{ px: 2, mb: 1 }}>
         {hasCitation ? (
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>
-            引用了你的规则：
-            <Box component="span" sx={{ color: COLOR.primary, fontWeight: 500 }}>
-              {item.rule_cited}
-            </Box>
-          </Typography>
+          <>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>
+              引用了你的规则：
+              <Box component="span"
+                onClick={(e) => { e.stopPropagation(); setCitationAnchor(e.currentTarget); }}
+                sx={{ color: COLOR.primary, fontWeight: 500, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
+                {item.rule_cited}
+              </Box>
+            </Typography>
+            <CitationPopover
+              anchorEl={citationAnchor}
+              open={Boolean(citationAnchor)}
+              onClose={() => setCitationAnchor(null)}
+              rule={{ title: item.rule_cited, summary: item.detail || "", reference_count: item.rule_count }}
+              onViewFull={() => {}}
+            />
+          </>
         ) : (
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>
@@ -258,10 +210,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   const [queue, setQueue] = useState(null);
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [confirmItem, setConfirmItem] = useState(null);
-  const [sending, setSending] = useState(false);
   const params = new URLSearchParams(window.location.search);
-  const source = params.get("source") || "";
   const highlightDraftId = params.get("highlight_draft") || "";
 
   const load = useCallback(async () => {
@@ -289,27 +238,8 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
 
   useEffect(() => { load(); }, [load]);
 
-  // Step 3 onboarding: mark complete only when doctor sends a reply (not on page visit)
-
   function handleNavigate(item) {
     navigate(`/doctor/review/${item.record_id}`);
-  }
-
-  async function handleSendDraft() {
-    if (!confirmItem) return;
-    setSending(true);
-    try {
-      await (api.sendDraft || (() => Promise.resolve()))(confirmItem.id, doctorId);
-      if (source === "reply_proof") {
-        markOnboardingStep(doctorId, ONBOARDING_STEP.reply);
-      }
-      setDrafts((prev) => prev.filter((m) => m.id !== confirmItem.id));
-      setConfirmItem(null);
-    } catch {
-      // keep dialog open on error
-    } finally {
-      setSending(false);
-    }
   }
 
   /* ── Render ─────────────────────────────────────────────────────────────── */
@@ -354,52 +284,68 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
       <SubpageHeader title="审核" />
 
       <Box sx={{ flex: 1, overflow: "auto" }}>
-        {source === "reply_proof" && (
-          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.5 }}>
-            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
-              示例患者回复
-            </Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.45, lineHeight: 1.6 }}>
-              先看患者原始消息，再看 AI 起草的回复。你可以直接修改后发送。
-            </Typography>
-            <Box sx={{ mt: 1 }}>
-              <AppButton
-                variant="secondary"
-                size="md"
-                fullWidth
-                onClick={() => navigate("/doctor/settings/qr?onboarding=1")}
-              >
-                下一步：体验患者预问诊
-              </AppButton>
-            </Box>
-          </Box>
-        )}
-
         {/* Filter stat bar */}
-        <FilterStatBar summary={summary} filter={filter} onFilter={handleFilter} />
+        <FilterBar
+          items={[
+            { key: "pending", label: "待审核", activeColor: COLOR.warning },
+            { key: "replies", label: "待回复", activeColor: COLOR.danger },
+            { key: "completed", label: "已完成", activeColor: COLOR.primary },
+          ]}
+          active={filter}
+          counts={summary}
+          onChange={handleFilter}
+          dividers
+        />
 
         {/* Loading */}
         {loading && (
           <SectionLoading />
         )}
 
-        {/* Pending items */}
+        {/* Pending items — 3-line enriched rows */}
         {!loading && showPending && pending.length > 0 && (
           <>
             <SectionLabel>待审核</SectionLabel>
-            <Box sx={{
-              bgcolor: COLOR.white,
-              borderTop: `0.5px solid ${COLOR.border}`,
-              borderBottom: `0.5px solid ${COLOR.border}`,
-            }}>
-              {pending.map((item) => (
-                <ReplyCard
-                  key={item.id}
-                  item={{ ...item, section_label: SECTION_LABEL[item.section] || item.section }}
-                  mode="diagnosis"
-                  onClick={() => handleNavigate(item)}
-                />
-              ))}
+            <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+              {pending.map((item) => {
+                const chiefComplaint = item.chief_complaint || item.content || "";
+                const sourceLabel = item.record_type === "interview_summary" ? "预问诊" : item.record_type === "import" ? "导入" : "门诊记录";
+                const fieldCount = item.field_count;
+                const aiSummary = item.detail ? `AI：${item.content || (SECTION_LABEL[item.section] || "")}` : "";
+                return (
+                  <Box key={item.id} onClick={() => handleNavigate(item)}
+                    sx={{
+                      display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5, cursor: "pointer",
+                      borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" },
+                      ...(item.urgency === "urgent" ? { bgcolor: COLOR.warningLight } : {}),
+                      "&:active": { opacity: 0.8 },
+                    }}>
+                    <NameAvatar name={item.patient_name || "?"} size={36} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500 }}>{item.patient_name}</Typography>
+                        {item.age && <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{item.age}岁</Typography>}
+                        {item.urgency === "urgent" && <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.danger, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.5, py: 0.5, lineHeight: 1.5 }}>紧急</Box>}
+                        {item.urgency !== "urgent" && <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.warning, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.5, py: 0.5, lineHeight: 1.5 }}>待处理</Box>}
+                      </Box>
+                      {chiefComplaint && (
+                        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, mt: 0.5, lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          主诉：{chiefComplaint}
+                        </Typography>
+                      )}
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, fontSize: TYPE.micro.fontSize, color: COLOR.text4, flexWrap: "wrap" }}>
+                        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.accent, fontWeight: 500 }}>{sourceLabel}</Typography>
+                        {fieldCount && <><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>·</Typography><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{fieldCount}</Typography></>}
+                        {aiSummary && <><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>·</Typography><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.warning, fontWeight: 500 }}>{aiSummary}</Typography></>}
+                      </Box>
+                    </Box>
+                    <Box sx={{ flexShrink: 0, textAlign: "right" }}>
+                      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{item.time}</Typography>
+                      <Typography sx={{ fontSize: 14, color: COLOR.text4, mt: 0.5 }}>›</Typography>
+                    </Box>
+                  </Box>
+                );
+              })}
             </Box>
           </>
         )}
@@ -413,30 +359,46 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
           />
         )}
 
-        {/* ── Section: 待回复 (patient messages with AI drafts) ── */}
+        {/* ── Section: 待回复 — simple rows, tap navigates to patient chat subpage ── */}
         {!loading && showReplies && activeDrafts.length > 0 && (
           <>
             <SectionLabel>患者消息 · 待回复</SectionLabel>
-            <Box sx={{
-              bgcolor: COLOR.white,
-              borderTop: `0.5px solid ${COLOR.border}`,
-              borderBottom: `0.5px solid ${COLOR.border}`,
-            }}>
-              {activeDrafts.map((msg) => (
-                <Box
-                  key={msg.id}
-                  sx={String(msg.id) === highlightDraftId
-                    ? { bgcolor: "#fffef5", borderLeft: `3px solid ${COLOR.primary}` }
-                    : undefined}
-                >
-                  <ReplyCard
-                    item={msg}
-                    mode="pending"
-                    doctorId={doctorId}
-                    onSent={(item) => setConfirmItem(item)}
-                  />
-                </Box>
-              ))}
+            <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+              {activeDrafts.map((msg) => {
+                const triageLabel = msg.badge === "urgent" ? "需紧急处理" : "常规咨询";
+                const citedRule = msg.rule_cited || (msg.cited_rules?.[0]?.title) || "";
+                return (
+                  <Box key={msg.id}
+                    onClick={() => navigate(`/doctor/patients/${msg.patient_id}?view=chat`, { replace: false })}
+                    sx={{
+                      display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5, cursor: "pointer",
+                      borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" },
+                      ...(String(msg.id) === highlightDraftId ? HIGHLIGHT_ROW_SX : {}),
+                      "&:active": { opacity: 0.8 },
+                    }}>
+                    <NameAvatar name={msg.patient_name || "?"} size={36} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500 }}>{msg.patient_name}</Typography>
+                        {msg.badge === "urgent" && <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.danger, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.5, py: 0.5, lineHeight: 1.5 }}>紧急</Box>}
+                      </Box>
+                      <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, mt: 0.5, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                        "{msg.patient_message || msg.content || ""}"
+                      </Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
+                        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500 }}>AI已起草</Typography>
+                        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>·</Typography>
+                        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: msg.badge === "urgent" ? COLOR.danger : COLOR.text4 }}>{triageLabel}</Typography>
+                        {citedRule && <><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>·</Typography><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>引用: {citedRule}</Typography></>}
+                      </Box>
+                    </Box>
+                    <Box sx={{ flexShrink: 0, textAlign: "right" }}>
+                      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{msg.time || ""}</Typography>
+                      <Typography sx={{ fontSize: 14, color: COLOR.text4, mt: 0.5 }}>›</Typography>
+                    </Box>
+                  </Box>
+                );
+              })}
             </Box>
           </>
         )}
@@ -461,9 +423,9 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
               {completed.map((item) => (
                 <CompletedRow key={item.id} item={item} onClick={() => {
                   if (item.type === "reply" && item.patient_id) {
-                    navigate(`/doctor/patients/${item.patient_id}?expand=messages`);
+                    navigate(`/doctor/patients/${item.patient_id}?view=chat`);
                   } else if (item.patient_id) {
-                    const params = item.record_id ? `?record=${item.record_id}` : "";
+                    const params = item.record_id ? `?view=record&record=${item.record_id}` : "";
                     navigate(`/doctor/patients/${item.patient_id}${params}`);
                   } else if (item.record_id) {
                     navigate(`/doctor/review/${item.record_id}`);
@@ -489,34 +451,6 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
         </Box>
       </Box>
 
-      {/* Send confirmation dialog */}
-      <SheetDialog
-        open={!!confirmItem}
-        onClose={() => setConfirmItem(null)}
-        title="确认发送"
-        desktopMaxWidth={400}
-        footer={
-          <DialogFooter
-            onCancel={() => setConfirmItem(null)}
-            onConfirm={handleSendDraft}
-            confirmLabel="发送"
-            confirmDisabled={sending}
-            confirmLoading={sending}
-            confirmLoadingLabel="发送中..."
-          />
-        }
-      >
-        {confirmItem && (
-          <Box>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mb: 1 }}>
-              将以下回复发送给 {confirmItem.patient_name}：
-            </Typography>
-            <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, lineHeight: 1.6, whiteSpace: "pre-line" }}>
-              {confirmItem.draft_text}
-            </Typography>
-          </Box>
-        )}
-      </SheetDialog>
     </Box>
   );
 }

@@ -37,6 +37,21 @@
             "tencent_lkeap"
           ]
         },
+        "DIAGNOSIS_LLM": {
+          "value": "tencent_lkeap",
+          "description": "LLM provider for diagnosis pipeline. Falls back to STRUCTURING_LLM if empty.",
+          "description_zh": "诊断管道使用的LLM提供商。为空时使用STRUCTURING_LLM。",
+          "options": [
+            "ollama",
+            "deepseek",
+            "groq",
+            "cerebras",
+            "sambanova",
+            "siliconflow",
+            "openrouter",
+            "tencent_lkeap"
+          ]
+        },
         "INTENT_PROVIDER": {
           "value": "model-driven",
           "description": "Intent mode: local or model-driven.",
@@ -94,7 +109,7 @@
           "description_zh": "腾讯云 LKEAP（OpenAI 兼容）API 基地址。"
         },
         "TENCENT_LKEAP_MODEL": {
-          "value": "deepseek-v3.1",
+          "value": "deepseek-v3",
           "description": "Tencent LKEAP model name for routing/structuring.",
           "description_zh": "路由/结构化使用的腾讯云 LKEAP 模型名。"
         },

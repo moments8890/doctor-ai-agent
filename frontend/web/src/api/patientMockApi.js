@@ -97,22 +97,27 @@ export async function interviewStart(token) {
   };
 }
 
+const MOCK_TURN_SEQUENCE = [
+  { reply: "收到，主诉和现病史已记录。请问您有什么既往病史吗？比如高血压、糖尿病？", filled: 2, missing: ["past_history", "allergy_history", "family_history", "personal_history", "physical_exam"] },
+  { reply: "好的，已记录。请问您有药物或食物过敏吗？", filled: 3, missing: ["allergy_history", "family_history", "personal_history", "physical_exam"] },
+  { reply: "了解了。您的家族中有类似疾病史吗？", filled: 4, missing: ["family_history", "personal_history", "physical_exam"] },
+  { reply: "谢谢。最后一个问题：您目前的生活习惯如何？吸烟、饮酒情况？", filled: 5, missing: ["personal_history", "physical_exam"] },
+  { reply: "信息已收集完整，请确认提交。", filled: 7, missing: [], complete: true },
+];
+let _mockTurnIndex = 0;
+
 export async function interviewTurn(token, sessionId, text) {
   await delay();
+  const step = MOCK_TURN_SEQUENCE[Math.min(_mockTurnIndex, MOCK_TURN_SEQUENCE.length - 1)];
+  _mockTurnIndex++;
   return {
-    reply: MOCK_INTERVIEW_STATE.reply,
-    collected: MOCK_INTERVIEW_STATE.collected,
-    progress: MOCK_INTERVIEW_STATE.progress,
-    status: "interviewing",
+    reply: step.reply,
+    collected: { ...MOCK_INTERVIEW_STATE.collected },
+    progress: { filled: step.filled, total: 7 },
+    status: step.complete ? "confirming" : "interviewing",
     suggestions: MOCK_INTERVIEW_STATE.suggestions,
-    missing_fields: [
-      "past_history",
-      "allergy_history",
-      "family_history",
-      "personal_history",
-      "physical_exam",
-    ],
-    complete: false,
+    missing_fields: step.missing,
+    complete: step.complete || false,
   };
 }
 

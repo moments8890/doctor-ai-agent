@@ -45,7 +45,11 @@ export default function InterviewPage({ token, onBack, onLogout }) {
   const [showSummary, setShowSummary] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
-  const [suggestions, setSuggestions] = useState([]);
+  const [suggestions, setSuggestions] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const starter = params.get("starter_suggestions");
+    return starter ? starter.split(",").map(s => s.trim()).filter(Boolean) : [];
+  });
   const [selectedSuggestions, setSelectedSuggestions] = useState([]);
   const [voiceMode, setVoiceMode] = useState(false);
   const [reviewReady, setReviewReady] = useState(false);
@@ -181,7 +185,7 @@ export default function InterviewPage({ token, onBack, onLogout }) {
           <Box key={i} sx={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", mb: 1.5 }}>
             <Box sx={{
               maxWidth: "80%", px: 2, py: 1.5, borderRadius: 2,
-              bgcolor: msg.role === "user" ? "#95ec69" : COLOR.white,
+              bgcolor: msg.role === "user" ? COLOR.wechatGreen : COLOR.white,
               color: COLOR.text2, fontSize: "0.9rem", lineHeight: 1.6,
               whiteSpace: "pre-wrap", wordBreak: "break-word",
             }}>{msg.content}</Box>

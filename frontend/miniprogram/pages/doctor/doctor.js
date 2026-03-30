@@ -34,7 +34,7 @@ Page({
     // Show the permission prompt if a template is configured and the user
     // hasn't been asked yet this session. The prompt's CTA button provides
     // the TAP gesture that wx.requestSubscribeMessage requires.
-    if (runtimeConfig.subscribeTemplateId) {
+    if (runtimeConfig.subscribeTemplateId && !wx.getStorageSync("permission_prompted")) {
       this.setData({ showPermissionPrompt: true, loading: false });
     }
   },
@@ -47,7 +47,7 @@ Page({
       wx.requestSubscribeMessage({
         tmplIds: [tmplId],
         complete: () => {
-          // Proceed regardless of accept/reject — the WebView should load.
+          wx.setStorageSync("permission_prompted", "1");
           this.setData({ showPermissionPrompt: false, loading: true });
         },
       });

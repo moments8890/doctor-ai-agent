@@ -71,9 +71,29 @@ const COLOR = {
   // Interaction states
   primaryHover: "#06a050",   // button hover/active
   link:         "#1565c0",   // citation badges, knowledge references
+  // Chat bubbles
+  wechatGreen:  "#95EC69",   // user message bubble (WeChat standard)
+  // Highlight
+  highlightBg:  "#fffef5",   // highlighted row background (URL-driven)
+  // Semantic accent colors
+  orange:       "#e8833a",   // import/file/medium urgency
+  recordBlue:   "#5b9bd5",   // dictation/gallery/patient-side blue
+  purple:       "#9b59b6",   // patient archive action
+  // Amber tones (draft indicators, no-draft notices)
+  amberLight:   "#fff8e1",   // warm amber background
+  amberText:    "#b28704",   // dark amber label text
+  amberBorder:  "#ffcc02",   // amber border for notices
+  // Deep variants for text on light backgrounds
+  successText:  "#2e7d32",   // dark green text on successLight bg
 };
 
-export { TYPE, ICON, BUTTON, COLOR, RADIUS };
+// ── Shared sx presets ──────────────────────────────────────────────
+const HIGHLIGHT_ROW_SX = {
+  bgcolor: COLOR.highlightBg,
+  borderLeft: `3px solid ${COLOR.primary}`,
+};
+
+export { TYPE, ICON, BUTTON, COLOR, RADIUS, HIGHLIGHT_ROW_SX };
 
 // Shared theme options (palette, typography, components) — used by both app and admin themes
 const sharedThemeOptions = {
@@ -96,7 +116,7 @@ const sharedThemeOptions = {
     borderRadius: parseInt(RADIUS.sm),
   },
   wechat: {
-    userBubble: "#95EC69",
+    userBubble: COLOR.wechatGreen,
     aiBubble: COLOR.white,
     inputBarBg: "#f5f5f5",
     tabBarBg: COLOR.surface,

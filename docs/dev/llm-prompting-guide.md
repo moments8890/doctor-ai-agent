@@ -34,28 +34,29 @@ Every LLM call in this project is assembled by `prompt_composer.py` from up to
 6 layers. Understanding the layers is prerequisite to writing good prompts.
 
 ```
-Layer 1 — common/base.md      Role, safety, precedence, date     [system]
-Layer 2 — domain/{spec}.md    Specialty knowledge (neurology)     [system]
-Layer 3 — intent/{intent}.md  Action-specific rules + examples    [system]
-Layer 4 — Doctor Knowledge    KB items from DB (auto-loaded)      [user/system]
-Layer 5 — Patient Context     Records, demographics               [user/system]
-Layer 6 — User Message        The actual doctor/patient input      [user]
+L1 Identity      — common/base.md      Role, safety, precedence, date     [system]
+L2 Specialty     — domain/{spec}.md    Domain knowledge (neurology)       [system]
+L3 Task          — intent/{intent}.md  Action-specific rules + format     [system]
+L4 Doctor Rules  — DB (auto-loaded)    User-authored KB, scored           [user/system]
+L5 Case Memory   — DB (diagnosis only) Similar past confirmed decisions   [system]
+L6 Patient       — DB (per-request)    Records, demographics, state       [user/system]
+L7 Input         — user message        Actual doctor/patient input        [user]
 ```
 
 ### Three Composition Patterns
 
 | Pattern | When Used | Layer Placement |
 |---------|-----------|-----------------|
-| **A — Single-Turn** | routing, query, general, diagnosis | L1-3 → system; L4-6 → user with XML tags |
-| **B — Conversation** | interview, patient-interview | L1-5 → system; history turns; L6 → plain user |
+| **A — Single-Turn** | routing, query, general, diagnosis | L1-L3 → system; L4-L7 → user with XML tags |
+| **B — Conversation** | interview, patient-interview | L1-L6 → system; history turns; L7 Input → plain user |
 | **C — Direct** | doctor-extract, patient-extract, vision-ocr | Standalone template with `{variables}`, no composer |
 
 ### File Locations
 
 ```
 src/agent/prompts/
-  common/base.md          ← Layer 1 (universal)
-  domain/neurology.md     ← Layer 2 (specialty)
+  common/base.md          ← L1 Identity (universal)
+  domain/neurology.md     ← L2 Specialty
   intent/
     routing.md            ← Intent classification
     interview.md          ← Doctor-side record creation
@@ -465,7 +466,7 @@ data:
 Used for: routing, query, general, diagnosis, create_task
 
 ```
-system: [Layer 1 + Layer 2 + Layer 3]
+system: [L1 Identity + L2 Specialty + L3 Task]
 user:   <doctor_knowledge>...</doctor_knowledge>
         <patient_context>...</patient_context>
         <doctor_request>...</doctor_request>
@@ -481,7 +482,7 @@ user:   <doctor_knowledge>...</doctor_knowledge>
 Used for: interview (create_record), patient-interview
 
 ```
-system: [Layer 1 + Layer 2 + Layer 3 + Layer 4 (KB) + Layer 5 (context)]
+system: [L1 Identity + L2 Specialty + L3 Task + L4 Doctor Rules + L6 Patient]
 user/assistant: [conversation history]
 user:   [latest message — plain text, no XML]
 ```
@@ -668,7 +669,7 @@ For patient-facing prompts (`patient-interview.md`):
 
 ### 10.4 Knowledge Base Safety
 
-When the prompt includes KB data (Layer 4):
+When the prompt includes KB data (L4 Doctor Rules):
 
 ```markdown
 - 知识库仅供参考，不优先于当前病历事实
@@ -747,7 +748,7 @@ When making non-trivial prompt changes:
 
 | Anti-Pattern | Why It's Bad | Do This Instead |
 |---|---|---|
-| Hardcoding KB in prompt file | Stale data, can't personalize | Use Layer 4 (auto-loaded from DB) |
+| Hardcoding KB in prompt file | Stale data, can't personalize | Use L4 Doctor Rules (auto-loaded from DB) |
 | Putting patient data in system msg (Pattern A) | Violates layer separation | Use XML tags in user message |
 | String concatenation for messages | Injection risk, fragile | Use `compose_messages()` |
 | Skipping `_inject_date()` | `{current_date}` appears literally | Always go through composer |

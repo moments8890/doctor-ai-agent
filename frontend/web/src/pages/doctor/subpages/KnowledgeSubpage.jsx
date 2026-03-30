@@ -6,17 +6,17 @@
  *
  * @see /debug/doctor/settings/knowledge
  */
-import { Box, Typography } from "@mui/material";
+import { useState } from "react";
+import { Box, InputAdornment, TextField, Typography } from "@mui/material";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
-// ChevronRightOutlinedIcon removed — ListCard handles chevron
-import { TYPE, COLOR } from "../../../theme";
+import SearchIcon from "@mui/icons-material/Search";
+import { TYPE, COLOR, RADIUS } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
-import ListCard from "../../../components/ListCard";
 import KnowledgeCard from "../../../components/KnowledgeCard";
+import StatColumn from "../../../components/StatColumn";
 import EmptyState from "../../../components/EmptyState";
+import NewItemCard from "../../../components/NewItemCard";
 import AppButton from "../../../components/AppButton";
-import IconBadge from "../../../components/IconBadge";
-import { ICON_BADGES } from "../constants";
 
 /* ── Helpers ── */
 
@@ -120,11 +120,23 @@ export default function KnowledgeSubpage({
   onItemClick,
 }) {
   const sorted = mergeAndSort(items, stats);
+  const [search, setSearch] = useState("");
 
   // Compute weekly citation total
   const weekCitations = Array.isArray(stats)
     ? stats.reduce((sum, s) => sum + (s.total_count || 0), 0)
     : sorted.reduce((sum, it) => sum + (it._usageCount || 0), 0);
+
+  const unusedCount = sorted.filter(item => (item._usageCount || 0) === 0).length;
+
+  // Filter sorted items by search
+  const filtered = search.trim()
+    ? sorted.filter(item => {
+        const q = search.trim();
+        const titleText = item.title || extractShortTitle(item.text || item.content || "");
+        return titleText.includes(q) || (item.text || "").includes(q) || (item.content || "").includes(q);
+      })
+    : sorted;
 
   const listContent = (
     <Box sx={{ flex: 1, overflowY: "auto" }}>
@@ -150,29 +162,30 @@ export default function KnowledgeSubpage({
 
       {!loading && items.length > 0 && (
         <>
-          {/* Stats summary */}
-          <Box sx={{ px: 2, pt: 1.5, pb: 1 }}>
-            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-              共 {items.length} 条 {"\u00B7"} 本周引用 {weekCitations} 次
-            </Typography>
+          {/* Search bar */}
+          <Box sx={{ px: 1.5, py: 1, bgcolor: COLOR.surfaceAlt }}>
+            <TextField size="small" fullWidth
+              placeholder={`搜索知识规则${items.length > 0 ? ` (共${items.length}条)` : ""}`}
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.sm, bgcolor: COLOR.white } }}
+            />
           </Box>
 
-          {/* Add knowledge entry */}
-          {onAdd && (
-            <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}`, mb: 0.5 }}>
-              <ListCard
-                avatar={<IconBadge config={ICON_BADGES.kb_add} />}
-                title="添加知识"
-                subtitle="上传文件、粘贴网址或手动输入"
-                chevron
-                onClick={onAdd}
-              />
-            </Box>
-          )}
+          {/* Stats bar */}
+          <Box sx={{ display: "flex", py: 1.5, px: 2, bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
+            <StatColumn value={items.length} label="条规则" />
+            <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight }} />
+            <StatColumn value={weekCitations} label="本周引用" color={COLOR.primary} />
+            <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight }} />
+            <StatColumn value={unusedCount} label="未引用" color={unusedCount > 0 ? COLOR.warning : COLOR.text4} />
+          </Box>
+
+          {onAdd && <NewItemCard title="添加知识" subtitle="上传文件、网址导入或手动输入" onClick={onAdd} />}
 
           {/* Knowledge rows */}
           <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-            {sorted.map((item) => (
+            {filtered.map((item) => (
               <KnowledgeRow
                 key={item.id}
                 item={item}
@@ -190,7 +203,6 @@ export default function KnowledgeSubpage({
     <PageSkeleton
       title={title}
       onBack={onBack}
-      headerRight={undefined}
       isMobile
       listPane={listContent}
     />

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review Detail + Knowledge Pages — Redesign</title>
+<style>
+  :root {
+    --primary: #07C160; --primary-light: #E7F7EE;
+    --accent: #576B95; --accent-light: #EEF1F6;
+    --danger: #D65745; --danger-light: #FDF0EE;
+    --warning: #F59E0B; --warning-light: #FFF7E6;
+    --text1: #1a1a1a; --text2: #353535; --text3: #666; --text4: #999;
+    --border: #e5e5e5; --border-light: #f0f0f0;
+    --surface: #f7f7f7; --surface-alt: #ededed; --white: #fff;
+    --orange: #e8833a; --record-doc: #8993a4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif; background: #111; color: var(--text1); }
+
+  .page-header { background: #222; padding: 16px 24px; text-align: center; position: sticky; top: 0; z-index: 10; }
+  .page-header h1 { font-size: 18px; font-weight: 700; color: #fff; }
+  .page-header .sub { font-size: 12px; color: #888; margin-top: 4px; }
+
+  .section-title { font-size: 14px; font-weight: 700; color: #ccc; padding: 20px 24px 8px; }
+  .issue-list { padding: 4px 24px 16px; }
+  .issue { display: flex; gap: 8px; padding: 5px 0; border-bottom: 1px solid #333; font-size: 12px; color: #ccc; }
+  .issue:last-child { border-bottom: none; }
+  .issue-num { color: var(--warning); font-weight: 700; flex-shrink: 0; width: 20px; }
+
+  .phones { display: flex; gap: 20px; padding: 0 24px 24px; overflow-x: auto; }
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
+  .phone-label { font-size: 11px; color: #888; font-weight: 600; letter-spacing: 0.5px; }
+  .phone-sublabel { font-size: 10px; color: #666; max-width: 340px; text-align: center; line-height: 1.4; }
+
+  .phone {
+    width: 360px; min-height: 680px; background: var(--surface-alt);
+    border-radius: 28px; overflow: hidden; border: 3px solid #333;
+    display: flex; flex-direction: column;
+  }
+  .phone-notch { height: 36px; background: var(--white); display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px; font-size: 10px; color: var(--text4); flex-shrink: 0; }
+  .phone-body { flex: 1; overflow-y: auto; }
+  .phone-body::-webkit-scrollbar { display: none; }
+
+  /* Atoms */
+  .header { display: flex; align-items: center; height: 44px; padding: 0 12px; background: var(--white); border-bottom: 0.5px solid var(--border); flex-shrink: 0; position: sticky; top: 0; z-index: 5; }
+  .header-back { font-size: 20px; color: var(--text2); width: 32px; }
+  .header-title { flex: 1; font-size: 15px; font-weight: 600; text-align: center; }
+  .header-action { font-size: 14px; color: var(--primary); }
+
+  .section { background: var(--white); border-top: 0.5px solid var(--border); border-bottom: 0.5px solid var(--border); margin-bottom: 8px; }
+  .section-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 8px; }
+  .section-head-title { font-size: 14px; font-weight: 600; color: var(--text2); }
+
+  .field-row { display: flex; gap: 12px; padding: 8px 16px; border-bottom: 0.5px solid var(--border-light); font-size: 13px; }
+  .field-row:last-child { border-bottom: none; }
+  .field-label { color: var(--text4); flex-shrink: 0; min-width: 52px; font-size: 12px; }
+  .field-value { color: var(--text2); line-height: 1.6; flex: 1; }
+
+  .row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 0.5px solid var(--border-light); cursor: pointer; }
+  .row:last-child { border-bottom: none; }
+
+  .avatar { width: 36px; height: 36px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .badge { display: inline-block; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; line-height: 1.3; }
+  .chip { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 4px; }
+
+  .body { flex: 1; min-width: 0; }
+  .title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub { font-size: 11px; color: var(--text4); margin-top: 2px; }
+
+  .btn { padding: 10px 0; border-radius: 4px; font-size: 14px; font-weight: 500; text-align: center; cursor: pointer; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-secondary { background: var(--surface); color: var(--text2); border: 0.5px solid var(--border); }
+
+  /* Diagnosis card */
+  .diag-card { margin: 0 16px 8px; background: var(--white); border-radius: 8px; border: 0.5px solid var(--border); overflow: hidden; }
+  .diag-header { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 0.5px solid var(--border-light); }
+  .diag-section { font-size: 11px; color: var(--text4); font-weight: 500; }
+  .diag-content { font-size: 13px; font-weight: 500; color: var(--text1); flex: 1; }
+  .diag-body { padding: 10px 14px; font-size: 12px; color: var(--text3); line-height: 1.6; }
+  .diag-citation { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 4px; margin-top: 6px; }
+  .diag-actions { display: flex; border-top: 0.5px solid var(--border-light); }
+  .diag-action { flex: 1; text-align: center; padding: 10px; font-size: 13px; cursor: pointer; border-right: 0.5px solid var(--border-light); }
+  .diag-action:last-child { border-right: none; }
+
+  /* Knowledge card */
+  .kb-card { padding: 12px 16px; border-bottom: 0.5px solid var(--border-light); cursor: pointer; }
+  .kb-card:last-child { border-bottom: none; }
+  .kb-title { font-size: 14px; font-weight: 500; color: var(--text1); margin-bottom: 4px; }
+  .kb-summary { font-size: 12px; color: var(--text3); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .kb-meta { display: flex; gap: 8px; margin-top: 6px; font-size: 10px; color: var(--text4); }
+
+  /* Add knowledge */
+  .add-section { background: var(--white); border-top: 0.5px solid var(--border); border-bottom: 0.5px solid var(--border); margin-bottom: 8px; padding: 16px; }
+  .add-title { font-size: 14px; font-weight: 600; color: var(--text1); margin-bottom: 4px; }
+  .add-sub { font-size: 12px; color: var(--text4); margin-bottom: 12px; line-height: 1.5; }
+  .add-actions { display: flex; gap: 8px; }
+  .add-action { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 8px; background: var(--surface); border-radius: 8px; cursor: pointer; }
+  .add-action:active { background: var(--border-light); }
+  .add-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .add-label { font-size: 12px; font-weight: 500; color: var(--text2); }
+  .add-desc { font-size: 10px; color: var(--text4); text-align: center; }
+
+  .input-area { margin: 0 16px 8px; background: var(--white); border: 0.5px solid var(--border); border-radius: 8px; padding: 12px; min-height: 80px; font-size: 13px; color: var(--text3); line-height: 1.6; }
+
+  .callout { background: rgba(245,158,11,0.9); color: #fff; font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 4px; display: inline-block; margin: 4px 0; }
+  .callout.green { background: var(--primary); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Review Detail + Knowledge Redesign</h1>
+  <div class="sub">WeChat-style card layout, consistent with patient detail patterns</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 1. REVIEW DETAIL -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section-title">1. 诊断审核 Detail Page</div>
+<div class="issue-list">
+  <div class="issue"><span class="issue-num">1</span>Record and AI suggestions have equal visual weight — doctor can't quickly distinguish evidence from decisions</div>
+  <div class="issue"><span class="issue-num">2</span>AI suggestions use gray CollapsibleSection headers — feels like settings, not a clinical review</div>
+  <div class="issue"><span class="issue-num">3</span>Action buttons (confirm/edit/reject) hidden until section expanded — too many taps</div>
+  <div class="issue"><span class="issue-num">4</span>"完成审核" at bottom easily missed — should be in header, always visible</div>
+  <div class="issue"><span class="issue-num">5</span>No visual separation between "the evidence" (record) and "the decisions" (AI suggestions)</div>
+</div>
+
+<div class="phones">
+  <div class="phone-wrap">
+    <div class="phone-label">BEFORE</div>
+    <div class="phone-sublabel">Record and suggestions look the same. Gray collapsible headers. Actions hidden.</div>
+    <div class="phone">
+      <div class="phone-notch">Current</div>
+      <div class="phone-body">
+        <div class="header"><span class="header-back">‹</span><span class="header-title">诊断审核</span></div>
+        <!-- Everything looks the same — same white sections, same text style -->
+        <div class="section">
+          <div class="field-row"><div class="field-label">来源</div><div class="field-value">患者预问诊摘要</div></div>
+          <div class="field-row"><div class="field-label">关键</div><div class="field-value">术后头痛加剧伴恶心1天</div></div>
+        </div>
+        <div class="section">
+          <div class="section-head"><span class="section-head-title">陈伟强 2026-03-27</span><span style="font-size:12px;color:var(--text4)">收起 ▴</span></div>
+          <div class="field-row"><div class="field-label">主诉</div><div class="field-value">术后头痛加剧伴恶心1天</div></div>
+          <div class="field-row"><div class="field-label">现病史</div><div class="field-value">脑膜瘤术后第7天...</div></div>
+        </div>
+        <!-- Same visual weight as record — no distinction -->
+        <div style="background:var(--border-light);padding:6px 16px;font-size:11px;font-weight:600;color:var(--text3);border-top:0.5px solid var(--border)">鉴别诊断 (3)</div>
+        <div class="section" style="margin:0">
+          <div style="padding:10px 16px;font-size:13px;color:var(--text1)">术后迟发性颅内血肿</div>
+          <div style="padding:0 16px 10px;font-size:11px;color:var(--text4)">0/7 · 引用: 术后头痛危险信号</div>
+        </div>
+        <div style="background:var(--border-light);padding:6px 16px;font-size:11px;font-weight:600;color:var(--text3)">检查建议 (2)</div>
+        <div class="section" style="margin:0">
+          <div style="padding:10px 16px;font-size:13px;color:var(--text1)">急查头颅CT平扫</div>
+        </div>
+        <div style="padding:16px;text-align:center">
+          <div class="btn btn-primary" style="max-width:200px;margin:0 auto">完成审核</div>
+        </div>
+        <div style="padding:8px 16px"><div class="callout">Record & suggestions look identical — no visual hierarchy</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phone-wrap">
+    <div class="phone-label">AFTER</div>
+    <div class="phone-sublabel">Two visual zones: record (evidence, plain) → AI suggestions (decisions, cards with actions). Doctor reads then decides.</div>
+    <div class="phone">
+      <div class="phone-notch">Proposed</div>
+      <div class="phone-body">
+        <div class="header">
+          <span class="header-back">‹</span>
+          <span class="header-title">诊断审核</span>
+          <span class="header-action">完成</span>
+        </div>
+
+        <!-- ═══ ZONE 1: THE EVIDENCE (medical record) ═══ -->
+        <!-- Plain, quiet, readable — doctor scans this for context -->
+
+        <!-- Patient identity bar -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--white);border-bottom:0.5px solid var(--border-light)">
+          <div class="avatar" style="background:var(--border-light);color:var(--text4)">陈</div>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:500">陈伟强 <span style="font-size:12px;color:var(--text4);font-weight:400">男 · 42岁</span></div>
+            <div style="font-size:11px;color:var(--text4)">预问诊 · 2026-03-27</div>
+          </div>
+        </div>
+
+        <!-- Structured record fields — the clinical evidence -->
+        <div class="section" style="margin-bottom:0">
+          <div class="field-row"><div class="field-label">主诉</div><div class="field-value">术后头痛加剧伴恶心1天</div></div>
+          <div class="field-row"><div class="field-label">现病史</div><div class="field-value">脑膜瘤术后第7天。前日开始头痛较前明显加剧，今晨伴恶心欲吐1次。无抽搐，无肢体活动障碍。</div></div>
+          <div class="field-row"><div class="field-label">手术史</div><div class="field-value">3月20日右额叶脑膜瘤开颅切除术</div></div>
+          <div class="field-row"><div class="field-label">体格</div><div class="field-value">神清，精神疲倦。双侧瞳孔等大等圆，对光反射灵敏。颈无抵抗。</div></div>
+        </div>
+
+        <!-- ═══ ZONE 2: AI SUGGESTIONS ═══ -->
+        <!-- Checklist style — same rows as rest of app, checkbox to confirm -->
+
+        <div style="font-size:10px;font-weight:600;color:var(--text4);padding:10px 16px 4px;letter-spacing:0.3px;background:var(--surface-alt);border-top:0.5px solid var(--border)">AI 鉴别诊断</div>
+        <div class="section" style="margin-bottom:0">
+
+          <!-- State 1: Confirmed — green check, normal text -->
+          <div style="border-bottom:0.5px solid var(--border-light)">
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 16px">
+              <div style="width:18px;height:18px;border-radius:50%;background:var(--primary);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center">
+                <span style="color:#fff;font-size:11px">✓</span>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14px;font-weight:500;color:var(--text1)">术后迟发性颅内血肿</div>
+                <div style="font-size:12px;color:var(--text3);margin-top:3px;line-height:1.5">脑膜瘤术后第7天头痛加剧伴恶心，需排除迟发性血肿。</div>
+                <div style="font-size:10px;color:var(--danger);margin-top:4px">引用: 术后头痛危险信号</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- State 2: Expanded — tapped to see detail + actions -->
+          <div style="border-bottom:0.5px solid var(--border-light);background:var(--surface)">
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 16px">
+              <div style="width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;margin-top:1px"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14px;font-weight:500;color:var(--text1)">术后脑水肿 <span style="font-size:11px;color:var(--text4);font-weight:400">▾</span></div>
+                <div style="font-size:12px;color:var(--text3);margin-top:3px;line-height:1.5">术后脑水肿可引起头痛加重，通常术后3-7天达高峰。需监测意识状态变化。</div>
+                <!-- Actions revealed on tap -->
+                <div style="display:flex;gap:16px;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border-light)">
+                  <span style="font-size:12px;color:var(--primary);font-weight:500;cursor:pointer">确认</span>
+                  <span style="font-size:12px;color:var(--text4);cursor:pointer">修改</span>
+                  <span style="font-size:12px;color:var(--text4);cursor:pointer">移除</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- State 3: Collapsed — not yet tapped, compact row -->
+          <div>
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 16px">
+              <div style="width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border-light);flex-shrink:0;margin-top:1px"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14px;font-weight:500;color:var(--text4)">颅内感染</div>
+                <div style="font-size:12px;color:var(--text4);margin-top:3px">低可能性。无发热，无脑膜刺激征。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size:10px;font-weight:600;color:var(--text4);padding:10px 16px 4px;letter-spacing:0.3px;background:var(--surface-alt)">AI 检查建议</div>
+        <div class="section" style="margin-bottom:0">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:0.5px solid var(--border-light)">
+            <div style="width:18px;height:18px;border-radius:50%;background:var(--primary);flex-shrink:0;display:flex;align-items:center;justify-content:center">
+              <span style="color:#fff;font-size:11px">✓</span>
+            </div>
+            <div style="font-size:14px;font-weight:500;color:var(--text1);flex:1">急查头颅CT平扫</div>
+          </div>
+          <!-- Expanded workup item -->
+          <div style="background:var(--surface)">
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 16px">
+              <div style="width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;margin-top:1px"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14px;font-weight:500;color:var(--text1)">血常规+CRP <span style="font-size:11px;color:var(--text4);font-weight:400">▾</span></div>
+                <div style="display:flex;gap:16px;margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border-light)">
+                  <span style="font-size:12px;color:var(--primary);font-weight:500;cursor:pointer">确认</span>
+                  <span style="font-size:12px;color:var(--text4);cursor:pointer">修改</span>
+                  <span style="font-size:12px;color:var(--text4);cursor:pointer">移除</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:8px 16px;background:var(--surface-alt)">
+          <div style="text-align:center;font-size:12px;color:var(--primary);cursor:pointer;padding:6px">+ 添加建议</div>
+        </div>
+
+        <div style="padding:8px 16px"><div class="callout green">3 states: collapsed (compact) → tap to expand (detail + actions) → tap checkbox to confirm</div></div>
+        <div style="padding:4px 16px"><div class="callout green">Expanded row: subtle gray bg + actions below divider. No hidden gestures.</div></div>
+        <div style="padding:4px 16px 16px"><div class="callout green">Same checklist pattern as tasks. Feels like a clinical form, not an AI tool.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 2. KNOWLEDGE LIST -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section-title">2. 知识库 List Page</div>
+<div class="issue-list">
+  <div class="issue"><span class="issue-num">1</span>No search — doctor with 50+ rules can't find anything</div>
+  <div class="issue"><span class="issue-num">2</span>No category/tag grouping — all rules in one flat list</div>
+  <div class="issue"><span class="issue-num">3</span>"添加知识" button at top takes valuable space — should be in header like "+" pattern</div>
+  <div class="issue"><span class="issue-num">4</span>Stats line ("共 11 条 · 本周引用 23 次") is useful but could be more visual</div>
+</div>
+
+<div class="phones">
+  <div class="phone-wrap">
+    <div class="phone-label">BEFORE</div>
+    <div class="phone-sublabel">Flat list, no search, big add button at top</div>
+    <div class="phone">
+      <div class="phone-notch">Current</div>
+      <div class="phone-body">
+        <div class="header"><span class="header-back">‹</span><span class="header-title">我的方法</span></div>
+        <div style="padding:8px 16px;font-size:12px;color:var(--text4)">共 11 条 · 本周引用 23 次</div>
+        <div class="section">
+          <div class="row">
+            <div class="avatar" style="background:var(--primary-light);color:var(--primary)">+</div>
+            <div class="body"><div class="title" style="color:var(--primary)">添加知识</div><div class="sub">上传文件、粘贴网址或手动输入</div></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="kb-card"><div class="kb-title">高血压分级与危险分层</div><div class="kb-summary">高血压分级：1级（140-159/90-99）2级（160-179...</div><div class="kb-meta"><span>引用 12 次</span><span>03-10</span></div></div>
+          <div class="kb-card"><div class="kb-title">高血压患者首诊</div><div class="kb-summary">必须询问头痛、头晕、视物模糊、胸闷...</div><div class="kb-meta"><span>引用 8 次</span><span>03-15</span></div></div>
+          <div class="kb-card"><div class="kb-title">术后头痛危险信号</div><div class="kb-summary">先排除再出血，再评估颅压...</div><div class="kb-meta"><span>引用 7 次</span><span>03-23</span></div></div>
+          <div class="kb-card"><div class="kb-title">蛛网膜下腔出血 (SAH)</div><div class="kb-summary">突发剧烈头痛（雷击样），伴恶心呕吐...</div><div class="kb-meta"><span>引用 5 次</span><span>03-20</span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phone-wrap">
+    <div class="phone-label">AFTER</div>
+    <div class="phone-sublabel">Search bar, "+" in header, source badges, sort by reference count</div>
+    <div class="phone">
+      <div class="phone-notch">Proposed</div>
+      <div class="phone-body">
+        <div class="header">
+          <span class="header-back">‹</span>
+          <span class="header-title">知识库</span>
+          <span class="header-action">+ 添加</span>
+        </div>
+
+        <!-- Stats bar -->
+        <div style="display:flex;padding:10px 16px;background:var(--white);border-bottom:0.5px solid var(--border);gap:16px">
+          <div style="text-align:center;flex:1"><div style="font-size:18px;font-weight:600;color:var(--text1)">11</div><div style="font-size:10px;color:var(--text4)">条规则</div></div>
+          <div style="width:0.5px;background:var(--border-light)"></div>
+          <div style="text-align:center;flex:1"><div style="font-size:18px;font-weight:600;color:var(--primary)">23</div><div style="font-size:10px;color:var(--text4)">本周引用</div></div>
+          <div style="width:0.5px;background:var(--border-light)"></div>
+          <div style="text-align:center;flex:1"><div style="font-size:18px;font-weight:600;color:var(--warning)">3</div><div style="font-size:10px;color:var(--text4)">未引用</div></div>
+        </div>
+
+        <!-- Search -->
+        <div style="padding:8px 12px;background:var(--surface-alt)">
+          <div style="background:var(--white);border:0.5px solid var(--border);border-radius:4px;padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text4)">
+            🔍 搜索知识规则...
+          </div>
+        </div>
+
+        <!-- Knowledge list with source badges -->
+        <div class="section">
+          <div class="kb-card">
+            <div class="kb-title">
+              高血压分级与危险分层
+              <span class="chip" style="background:var(--surface);color:var(--text4);font-size:9px;margin-left:4px">AI生成</span>
+            </div>
+            <div class="kb-summary">高血压分级：1级（140-159/90-99）2级（160-179/100-109）3级（≥180/≥110）</div>
+            <div class="kb-meta">
+              <span style="color:var(--primary);font-weight:500">引用 12 次</span>
+              <span>03-10</span>
+              <span>›</span>
+            </div>
+          </div>
+          <div class="kb-card">
+            <div class="kb-title">
+              高血压患者首诊
+              <span class="chip" style="background:var(--primary-light);color:var(--primary);font-size:9px;margin-left:4px">医生</span>
+            </div>
+            <div class="kb-summary">必须询问头痛、头晕、视物模糊、胸闷。必须测量双上肢血压。</div>
+            <div class="kb-meta">
+              <span style="color:var(--primary);font-weight:500">引用 8 次</span>
+              <span>03-15</span>
+              <span>›</span>
+            </div>
+          </div>
+          <div class="kb-card">
+            <div class="kb-title">
+              术后头痛危险信号
+              <span class="chip" style="background:var(--primary-light);color:var(--primary);font-size:9px;margin-left:4px">医生</span>
+            </div>
+            <div class="kb-summary">先排除再出血，再评估颅压。开颅术后头痛加剧需警惕...</div>
+            <div class="kb-meta">
+              <span style="color:var(--primary);font-weight:500">引用 7 次</span>
+              <span>03-23</span>
+              <span>›</span>
+            </div>
+          </div>
+          <div class="kb-card">
+            <div class="kb-title">
+              腰椎穿刺术后护理要点
+              <span class="chip" style="background:var(--accent-light);color:var(--accent);font-size:9px;margin-left:4px">PDF导入</span>
+            </div>
+            <div class="kb-summary">去枕平卧6小时、观察穿刺点渗液、监测头痛程度</div>
+            <div class="kb-meta">
+              <span style="color:var(--primary);font-weight:500">引用 3 次</span>
+              <span>03-12</span>
+              <span>›</span>
+            </div>
+          </div>
+        </div>
+        <div style="padding:4px 24px"><div class="callout green">Search + stats bar + source badges (医生/AI/PDF导入)</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- 3. ADD KNOWLEDGE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section-title">3. 添加知识 Page</div>
+<div class="issue-list">
+  <div class="issue"><span class="issue-num">1</span>Three input methods stacked vertically — takes up the entire screen before doctor can start</div>
+  <div class="issue"><span class="issue-num">2</span>"上传文件" and "拍照" are small text links — should be larger tap targets</div>
+  <div class="issue"><span class="issue-num">3</span>"或" divider between URL and text input is confusing — which is the primary path?</div>
+  <div class="issue"><span class="issue-num">4</span>No preview of what adding knowledge does — doctor doesn't know the outcome</div>
+</div>
+
+<div class="phones">
+  <div class="phone-wrap">
+    <div class="phone-label">BEFORE</div>
+    <div class="phone-sublabel">Vertical stack of 3 methods, small tap targets, no preview</div>
+    <div class="phone">
+      <div class="phone-notch">Current</div>
+      <div class="phone-body">
+        <div class="header"><span class="header-back">‹</span><span class="header-title">添加知识</span><span class="header-action">添加</span></div>
+        <div class="add-section">
+          <div class="add-title">上传文件</div>
+          <div class="add-sub">支持 PDF、Word、TXT 文件或拍照，AI 会自动提取并整理内容</div>
+          <div style="display:flex;gap:12px;font-size:13px">
+            <span style="display:flex;align-items:center;gap:4px;color:var(--text2)">📄 上传文件</span>
+            <span style="display:flex;align-items:center;gap:4px;color:var(--text2)">📷 拍照</span>
+          </div>
+        </div>
+        <div class="add-section">
+          <div class="add-title">从网页导入</div>
+          <div class="add-sub">粘贴网址，AI 会自动提取并整理网页内容</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="flex:1;border:0.5px solid var(--border);border-radius:4px;padding:8px 12px;font-size:13px;color:var(--text4)">https://...</div>
+            <span style="font-size:13px;color:var(--primary)">获取</span>
+          </div>
+        </div>
+        <div style="text-align:center;padding:8px;font-size:12px;color:var(--text4)">或</div>
+        <div class="add-section">
+          <div class="add-title">手动输入</div>
+          <div class="input-area">用自然语言描述您的临床经验、诊断规则、问诊策略等</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text4);margin-top:4px;padding:0 16px">
+            <span>用自然语言描述，AI 会在相关场景中参考</span><span>0/3000</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phone-wrap">
+    <div class="phone-label">AFTER</div>
+    <div class="phone-sublabel">Card-based method picker, large tap targets, text input always visible below</div>
+    <div class="phone">
+      <div class="phone-notch">Proposed</div>
+      <div class="phone-body">
+        <div class="header">
+          <span class="header-back">‹</span>
+          <span class="header-title">添加知识</span>
+          <span class="header-action">保存</span>
+        </div>
+
+        <!-- Method picker — horizontal cards -->
+        <div style="padding:12px 16px 4px">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">选择来源</div>
+          <div class="add-actions">
+            <div class="add-action">
+              <div class="add-icon" style="background:var(--primary-light);color:var(--primary)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <div class="add-label">上传文件</div>
+              <div class="add-desc">PDF/Word/图片</div>
+            </div>
+            <div class="add-action">
+              <div class="add-icon" style="background:var(--accent-light);color:var(--accent)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg></div>
+              <div class="add-label">网页导入</div>
+              <div class="add-desc">粘贴网址</div>
+            </div>
+            <div class="add-action" style="background:var(--primary-light)">
+              <div class="add-icon" style="background:var(--primary);color:#fff"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+              <div class="add-label" style="color:var(--primary)">手动输入</div>
+              <div class="add-desc" style="color:var(--primary)">自然语言</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Text input — always visible, primary path -->
+        <div style="padding:12px 16px 4px">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">描述你的规则</div>
+        </div>
+        <div class="input-area" style="min-height:120px">
+          用自然语言描述你的临床经验、诊断规则、问诊策略等。
+          <br><br>
+          例如：
+          <br>• 高血压3级首选ARB+CCB联合方案
+          <br>• 术后头痛加重先排除颅内出血
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:4px 16px;font-size:11px;color:var(--text4)">
+          <span>🎤 语音输入</span><span>0/3000</span>
+        </div>
+
+        <!-- Preview hint -->
+        <div style="margin:12px 16px;padding:10px 14px;background:var(--primary-light);border-radius:8px;font-size:11px;color:var(--primary);line-height:1.6">
+          💡 保存后，AI 会在遇到相关病例时自动引用这条规则。你可以随时在知识库中编辑或删除。
+        </div>
+
+        <div style="padding:4px 24px"><div class="callout green">Method picker as horizontal cards, text always visible, preview hint</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Summary -->
+<div style="max-width:900px;margin:24px auto;padding:0 24px 48px">
+  <div style="font-size:14px;font-weight:700;color:#ccc;margin-bottom:12px">Changes Summary</div>
+  <table style="width:100%;font-size:12px;border-collapse:collapse">
+    <tr style="border-bottom:1px solid #333"><th style="text-align:left;padding:8px;color:#888">#</th><th style="text-align:left;padding:8px;color:#888">Change</th><th style="text-align:left;padding:8px;color:#888">Effort</th></tr>
+    <tr style="border-bottom:1px solid #222"><td style="padding:8px;color:var(--warning)">1</td><td style="padding:8px;color:#fff">Review: card-based diagnosis items with inline confirm/edit/remove</td><td style="padding:8px;color:var(--warning)">~3hr</td></tr>
+    <tr style="border-bottom:1px solid #222"><td style="padding:8px;color:var(--warning)">2</td><td style="padding:8px;color:#fff">Review: patient context bar at top, "完成" in header</td><td style="padding:8px;color:var(--primary)">~1hr</td></tr>
+    <tr style="border-bottom:1px solid #222"><td style="padding:8px;color:var(--warning)">3</td><td style="padding:8px;color:#fff">Knowledge list: search bar + stats bar + source badges</td><td style="padding:8px;color:var(--warning)">~2hr</td></tr>
+    <tr style="border-bottom:1px solid #222"><td style="padding:8px;color:var(--warning)">4</td><td style="padding:8px;color:#fff">Knowledge list: "+" in header, remove top add card</td><td style="padding:8px;color:var(--primary)">~30min</td></tr>
+    <tr style="border-bottom:1px solid #222"><td style="padding:8px;color:var(--warning)">5</td><td style="padding:8px;color:#fff">Add knowledge: horizontal method picker cards</td><td style="padding:8px;color:var(--warning)">~2hr</td></tr>
+    <tr><td style="padding:8px;color:var(--warning)">6</td><td style="padding:8px;color:#fff">Add knowledge: text input always visible + preview hint</td><td style="padding:8px;color:var(--primary)">~30min</td></tr>
+  </table>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UI Component Audit — Proposed Changes</title>
+<style>
+  :root {
+    --primary: #07C160;
+    --primary-light: #E7F7EE;
+    --accent: #576B95;
+    --accent-light: #EEF1F6;
+    --danger: #D65745;
+    --danger-light: #FDF0EE;
+    --warning: #F59E0B;
+    --warning-light: #FFF7E6;
+    --text1: #1a1a1a;
+    --text2: #353535;
+    --text3: #666;
+    --text4: #999;
+    --border: #e5e5e5;
+    --border-light: #f0f0f0;
+    --surface: #f7f7f7;
+    --surface-alt: #f2f2f2;
+    --white: #fff;
+    --wechat-green: #95EC69;
+    --highlight-bg: #fffef5;
+    --record-doc: #8993a4;
+    --link: #1565c0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--surface-alt);
+    color: var(--text1);
+    line-height: 1.6;
+  }
+
+  .page-header {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .page-header h1 { font-size: 18px; font-weight: 700; }
+  .page-header .subtitle { font-size: 12px; color: var(--text4); margin-top: 2px; }
+
+  .nav-tabs {
+    display: flex; gap: 0;
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 62px; z-index: 99;
+  }
+  .nav-tab {
+    flex: 1; text-align: center; padding: 10px 0;
+    cursor: pointer; font-size: 13px; color: var(--text4);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .nav-tab:hover { color: var(--text2); }
+  .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+  .nav-tab .count { font-size: 18px; font-weight: 700; display: block; line-height: 1.2; }
+
+  .content { max-width: 900px; margin: 0 auto; padding: 16px; }
+
+  .finding-card {
+    background: var(--white);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .finding-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px;
+    border-bottom: 0.5px solid var(--border-light);
+    cursor: pointer;
+  }
+  .finding-header:hover { background: var(--surface); }
+  .finding-number {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: var(--white); flex-shrink: 0;
+  }
+  .finding-number.high { background: var(--danger); }
+  .finding-number.medium { background: var(--warning); }
+  .finding-number.low { background: var(--text4); }
+
+  .finding-title { font-size: 15px; font-weight: 600; }
+  .finding-meta { font-size: 11px; color: var(--text4); margin-top: 2px; }
+
+  .confidence-badge {
+    font-size: 10px; font-weight: 600; padding: 2px 8px;
+    border-radius: 99px; white-space: nowrap; flex-shrink: 0;
+  }
+  .confidence-badge.high { background: var(--danger-light); color: var(--danger); }
+  .confidence-badge.medium { background: var(--warning-light); color: var(--warning); }
+  .confidence-badge.low { background: var(--surface); color: var(--text4); }
+
+  .finding-body { padding: 0 16px 16px; }
+  .finding-body.collapsed { display: none; }
+
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 12px 0;
+  }
+  @media (max-width: 640px) {
+    .compare-grid { grid-template-columns: 1fr; }
+  }
+
+  .compare-panel {
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .compare-label {
+    font-size: 10px; font-weight: 600; color: var(--text4);
+    padding: 6px 12px;
+    background: var(--surface);
+    border-bottom: 0.5px solid var(--border-light);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .compare-label.before { color: var(--danger); }
+  .compare-label.after { color: var(--primary); }
+  .compare-content { padding: 12px; background: var(--white); }
+
+  .file-tag {
+    display: inline-flex; align-items: center;
+    font-size: 11px; color: var(--accent);
+    background: var(--accent-light);
+    padding: 2px 8px; border-radius: 4px;
+    margin: 2px 4px 2px 0;
+    font-family: "SF Mono", "Fira Code", monospace;
+  }
+
+  .arrow-label {
+    display: flex; align-items: center; justify-content: center;
+    padding: 8px 0;
+    color: var(--primary); font-size: 20px;
+  }
+
+  /* ── Mock UI widgets ── */
+
+  .mock-phone {
+    width: 100%; max-width: 320px;
+    background: var(--surface-alt);
+    border-radius: 12px;
+    border: 0.5px solid var(--border);
+    overflow: hidden;
+    margin: 0 auto;
+  }
+
+  /* FilterStatBar mock */
+  .mock-filter-bar {
+    display: flex;
+    background: var(--white);
+    border-bottom: 0.5px solid var(--border);
+  }
+  .mock-filter-tab {
+    flex: 1; text-align: center; padding: 12px 0;
+    border-bottom: 2px solid transparent;
+  }
+  .mock-filter-tab.active { border-bottom-width: 2px; border-bottom-style: solid; }
+  .mock-filter-tab .tab-count { font-size: 18px; font-weight: 700; line-height: 1.2; }
+  .mock-filter-tab .tab-label { font-size: 10px; color: var(--text4); margin-top: 2px; }
+  .mock-filter-tab.active .tab-label { color: var(--text2); font-weight: 500; }
+  .mock-filter-divider { width: 0.5px; background: var(--border-light); margin: 8px 0; }
+
+  /* MsgAvatar mock */
+  .mock-avatar {
+    width: 32px; height: 32px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; color: var(--white); font-size: 16px;
+  }
+  .mock-avatar.ai { background: var(--primary); }
+  .mock-avatar.user { background: var(--accent); }
+
+  .mock-bubble {
+    max-width: 75%; padding: 8px 12px;
+    font-size: 14px; line-height: 1.7; white-space: pre-wrap;
+  }
+  .mock-bubble.ai { background: var(--white); border-radius: 4px 4px 4px 0; }
+  .mock-bubble.user { background: var(--wechat-green); border-radius: 4px 4px 0 4px; }
+
+  .mock-msg-row {
+    display: flex; gap: 8px; padding: 4px 12px;
+    align-items: flex-end;
+  }
+  .mock-msg-row.user-msg { flex-direction: row-reverse; }
+
+  /* StatColumn mock */
+  .mock-stat-bar {
+    display: flex; padding: 12px 16px;
+    background: var(--white);
+    border-bottom: 0.5px solid var(--border-light);
+  }
+  .mock-stat {
+    flex: 1; text-align: center;
+  }
+  .mock-stat .stat-value { font-size: 18px; font-weight: 600; }
+  .mock-stat .stat-label { font-size: 10px; color: var(--text4); margin-top: 4px; }
+  .mock-stat-divider { width: 0.5px; background: var(--border-light); margin: 4px 0; }
+
+  /* Highlight row */
+  .mock-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    background: var(--white);
+    border-bottom: 0.5px solid var(--border-light);
+  }
+  .mock-row.highlighted {
+    background: var(--highlight-bg);
+    border-left: 3px solid var(--primary);
+  }
+  .mock-row .row-title { font-size: 14px; font-weight: 500; }
+  .mock-row .row-sub { font-size: 12px; color: var(--text4); margin-top: 2px; }
+  .mock-row .row-right { font-size: 11px; color: var(--text4); flex-shrink: 0; }
+
+  .mock-checkbox {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 1.5px solid var(--border); flex-shrink: 0;
+  }
+  .mock-checkbox.done { background: var(--primary); border-color: var(--primary); }
+
+  /* Code diffs */
+  .code-block {
+    font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    font-size: 11px; line-height: 1.6;
+    background: #1e1e2e; color: #cdd6f4;
+    padding: 12px; border-radius: 6px;
+    overflow-x: auto; white-space: pre;
+    margin: 8px 0;
+  }
+  .code-block .kw { color: #cba6f7; }
+  .code-block .fn { color: #89b4fa; }
+  .code-block .str { color: #a6e3a1; }
+  .code-block .cm { color: #6c7086; }
+  .code-block .del { background: #45243340; text-decoration: line-through; color: #f38ba8; }
+  .code-block .add { background: #1e664040; color: #a6e3a1; }
+
+  .impact-summary {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; margin: 16px 0;
+  }
+  @media (max-width: 640px) {
+    .impact-summary { grid-template-columns: repeat(2, 1fr); }
+  }
+  .impact-card {
+    background: var(--white); border: 0.5px solid var(--border);
+    border-radius: 8px; padding: 12px; text-align: center;
+  }
+  .impact-card .impact-value { font-size: 24px; font-weight: 700; }
+  .impact-card .impact-label { font-size: 11px; color: var(--text4); margin-top: 4px; }
+
+  .desc { font-size: 13px; color: var(--text3); margin: 8px 0; line-height: 1.6; }
+  .desc strong { color: var(--text1); }
+
+  .section-sep { height: 8px; background: var(--surface-alt); }
+
+  .tag-row { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+
+  /* Toggle */
+  .toggle-icon { font-size: 12px; color: var(--text4); margin-left: auto; flex-shrink: 0; transition: transform 0.15s; }
+  .toggle-icon.open { transform: rotate(0deg); }
+  .toggle-icon.closed { transform: rotate(-90deg); }
+
+  .skip-badge {
+    font-size: 10px; color: var(--text4); background: var(--surface);
+    padding: 2px 8px; border-radius: 99px; font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <h1>UI Component Audit</h1>
+    <div class="subtitle">2026-03-29 &mdash; Proposed shared component changes</div>
+  </div>
+  <div style="display:flex; gap:6px;">
+    <span class="confidence-badge high">3 HIGH</span>
+    <span class="confidence-badge medium">2 MED</span>
+    <span class="confidence-badge low">2 LOW</span>
+  </div>
+</div>
+
+<div class="nav-tabs">
+  <div class="nav-tab active" onclick="showAll()">
+    <span class="count">7</span> All Findings
+  </div>
+  <div class="nav-tab" onclick="filter('high')">
+    <span class="count">3</span> High
+  </div>
+  <div class="nav-tab" onclick="filter('medium')">
+    <span class="count">2</span> Medium
+  </div>
+  <div class="nav-tab" onclick="filter('low')">
+    <span class="count">2</span> Low / Skip
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- Impact summary -->
+  <div class="impact-summary">
+    <div class="impact-card">
+      <div class="impact-value" style="color:var(--primary)">2</div>
+      <div class="impact-label">New Components</div>
+    </div>
+    <div class="impact-card">
+      <div class="impact-value" style="color:var(--accent)">1</div>
+      <div class="impact-label">Extended</div>
+    </div>
+    <div class="impact-card">
+      <div class="impact-value" style="color:var(--warning)">~13</div>
+      <div class="impact-label">Files Touched</div>
+    </div>
+    <div class="impact-card">
+      <div class="impact-value" style="color:var(--text4)">1</div>
+      <div class="impact-label">Skipped</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Finding 1: FilterStatBar -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="finding-card" data-confidence="high">
+    <div class="finding-header" onclick="toggleBody(this)">
+      <div class="finding-number high">1</div>
+      <div style="flex:1">
+        <div class="finding-title">FilterStatBar &rarr; extend FilterBar</div>
+        <div class="finding-meta">ReviewQueuePage + TaskPage duplicate the same tab-bar widget</div>
+      </div>
+      <span class="confidence-badge high">HIGH</span>
+      <span class="toggle-icon open">&#9662;</span>
+    </div>
+    <div class="finding-body">
+      <div class="tag-row">
+        <span class="file-tag">ReviewQueuePage.jsx:57-107</span>
+        <span class="file-tag">TaskPage.jsx:403-447</span>
+        <span class="file-tag">components/FilterBar.jsx</span>
+      </div>
+
+      <p class="desc">Both pages build the same widget inline: <strong>count on top, label below, colored active border, vertical dividers</strong>. A shared <code>FilterBar</code> already exists but lacks per-tab colors and dividers.</p>
+
+      <div class="compare-grid">
+        <!-- BEFORE: two different inline versions -->
+        <div class="compare-panel">
+          <div class="compare-label before">BEFORE &mdash; ReviewQueuePage (inline)</div>
+          <div class="compare-content">
+            <div class="mock-phone">
+              <div class="mock-filter-bar">
+                <div class="mock-filter-tab active" style="border-bottom-color:var(--warning);">
+                  <div class="tab-count" style="color:var(--warning);">3</div>
+                  <div class="tab-label">门诊</div>
+                </div>
+                <div class="mock-filter-divider"></div>
+                <div class="mock-filter-tab">
+                  <div class="tab-count" style="color:var(--text4);">1</div>
+                  <div class="tab-label">回复</div>
+                </div>
+                <div class="mock-filter-divider"></div>
+                <div class="mock-filter-tab">
+                  <div class="tab-count" style="color:var(--text4);">5</div>
+                  <div class="tab-label">完成</div>
+                </div>
+              </div>
+              <div style="padding:20px;text-align:center;color:var(--text4);font-size:11px;">~50 lines of inline JSX</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="compare-panel">
+          <div class="compare-label before">BEFORE &mdash; TaskPage (separate inline)</div>
+          <div class="compare-content">
+            <div class="mock-phone">
+              <div class="mock-filter-bar">
+                <div class="mock-filter-tab active" style="border-bottom-color:var(--warning);">
+                  <div class="tab-count" style="color:var(--warning);">4</div>
+                  <div class="tab-label">待完成</div>
+                </div>
+                <div class="mock-filter-divider"></div>
+                <div class="mock-filter-tab">
+                  <div class="tab-count" style="color:var(--text4);">2</div>
+                  <div class="tab-label">已完成</div>
+                </div>
+              </div>
+              <div style="padding:20px;text-align:center;color:var(--text4);font-size:11px;">~45 lines of inline JSX</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-label">&darr; AFTER &darr;</div>
+
+      <div class="compare-panel" style="max-width:400px;margin:0 auto;">
+        <div class="compare-label after">AFTER &mdash; shared FilterBar (extended)</div>
+        <div class="compare-content">
+          <div class="code-block"><span class="cm">// Both pages now use:</span>
+<span class="kw">&lt;FilterBar</span>
+  <span class="fn">items</span>={[
+    { key: <span class="str">"pending"</span>, label: <span class="str">"门诊"</span>, <span class="add">activeColor: COLOR.warning</span> },
+    { key: <span class="str">"replies"</span>, label: <span class="str">"回复"</span>, <span class="add">activeColor: COLOR.danger</span> },
+    { key: <span class="str">"completed"</span>, label: <span class="str">"完成"</span>, <span class="add">activeColor: COLOR.primary</span> },
+  ]}
+  <span class="fn">active</span>={filter}
+  <span class="fn">counts</span>={summary}
+  <span class="fn">onChange</span>={handleFilter}
+  <span class="add">dividers</span>
+<span class="kw">/&gt;</span></div>
+          <div class="mock-phone" style="margin-top:8px;">
+            <div class="mock-filter-bar">
+              <div class="mock-filter-tab active" style="border-bottom-color:var(--warning);">
+                <div class="tab-count" style="color:var(--warning);">3</div>
+                <div class="tab-label">门诊</div>
+              </div>
+              <div class="mock-filter-divider"></div>
+              <div class="mock-filter-tab">
+                <div class="tab-count" style="color:var(--text4);">1</div>
+                <div class="tab-label">回复</div>
+              </div>
+              <div class="mock-filter-divider"></div>
+              <div class="mock-filter-tab">
+                <div class="tab-count" style="color:var(--text4);">5</div>
+                <div class="tab-label">完成</div>
+              </div>
+            </div>
+            <div style="padding:12px;text-align:center;color:var(--primary);font-size:11px;font-weight:600;">Same visual &mdash; 1 line of JSX per page</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="desc" style="margin-top:12px;">
+        <strong>Changes:</strong> Add <code>activeColor</code> per item + <code>dividers</code> boolean to <code>FilterBar</code>.
+        Delete ~95 lines of inline JSX across 2 pages. <strong>Visually identical.</strong>
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Finding 2: MsgAvatar -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="finding-card" data-confidence="high">
+    <div class="finding-header" onclick="toggleBody(this)">
+      <div class="finding-number high">2</div>
+      <div style="flex:1">
+        <div class="finding-title">MsgAvatar &rarr; new shared component</div>
+        <div class="finding-meta">ChatPage + InterviewPage + DoctorPage all build the same avatar</div>
+      </div>
+      <span class="confidence-badge high">HIGH</span>
+      <span class="toggle-icon open">&#9662;</span>
+    </div>
+    <div class="finding-body">
+      <div class="tag-row">
+        <span class="file-tag">ChatPage.jsx:41-50</span>
+        <span class="file-tag">InterviewPage.jsx:32-46</span>
+        <span class="file-tag">DoctorPage.jsx:171-192</span>
+      </div>
+
+      <p class="desc">
+        Three pages independently build the same <strong>doctor/AI avatar</strong>: rounded square, hospital icon (accent) for user, robot icon (primary) for AI. Also share <code>#95EC69</code> WeChat green bubble color.
+      </p>
+
+      <div class="compare-grid">
+        <div class="compare-panel">
+          <div class="compare-label before">BEFORE &mdash; 3 inline versions</div>
+          <div class="compare-content">
+            <div class="mock-phone" style="padding:16px;background:var(--surface-alt);">
+              <div style="font-size:10px;color:var(--text4);margin-bottom:8px;font-weight:600;">ChatPage version:</div>
+              <div class="mock-msg-row">
+                <div class="mock-avatar ai">&#129302;</div>
+                <div class="mock-bubble ai">你好，有什么需要帮助的？</div>
+              </div>
+              <div class="mock-msg-row user-msg" style="margin-top:8px;">
+                <div class="mock-avatar user">&#9877;</div>
+                <div class="mock-bubble user">查一下张阿姨的检验结果</div>
+              </div>
+              <div style="font-size:10px;color:var(--text4);margin-top:12px;font-weight:600;">InterviewPage version:</div>
+              <div class="mock-msg-row" style="margin-top:4px;">
+                <div class="mock-avatar ai" style="width:32px;height:32px;font-size:14px;">&#129302;</div>
+                <div class="mock-bubble ai" style="font-size:13px;">请输入患者信息</div>
+              </div>
+              <div class="mock-msg-row user-msg" style="margin-top:8px;">
+                <div class="mock-avatar user" style="width:32px;height:32px;font-size:14px;">&#9877;</div>
+                <div class="mock-bubble user" style="font-size:13px;">男 45岁 头痛三天</div>
+              </div>
+              <div style="font-size:10px;color:var(--danger);text-align:center;margin-top:12px;">
+                Same icons, same colors, same radius &mdash; defined 3 times
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="compare-panel">
+          <div class="compare-label after">AFTER &mdash; shared MsgAvatar</div>
+          <div class="compare-content">
+            <div class="code-block"><span class="cm">// components/MsgAvatar.jsx</span>
+<span class="kw">export default function</span> <span class="fn">MsgAvatar</span>({
+  isUser, size = 40
+}) {
+  <span class="kw">return</span> (
+    &lt;Box sx={{
+      width: size, height: size,
+      borderRadius: RADIUS.sm,
+      bgcolor: isUser
+        ? COLOR.accent
+        : COLOR.primary,
+      ...
+    }}&gt;
+      {isUser
+        ? &lt;LocalHospitalOutlinedIcon /&gt;
+        : &lt;SmartToyOutlinedIcon /&gt;}
+    &lt;/Box&gt;
+  );
+}</div>
+            <div class="mock-phone" style="padding:16px;background:var(--surface-alt);">
+              <div class="mock-msg-row">
+                <div class="mock-avatar ai">&#129302;</div>
+                <div class="mock-bubble ai">你好，有什么需要帮助的？</div>
+              </div>
+              <div class="mock-msg-row user-msg" style="margin-top:8px;">
+                <div class="mock-avatar user">&#9877;</div>
+                <div class="mock-bubble user">查一下张阿姨的检验结果</div>
+              </div>
+              <div style="font-size:10px;color:var(--primary);text-align:center;margin-top:12px;font-weight:600;">
+                Same visual &mdash; 1 import, 0 inline definitions
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="desc">
+        <strong>Also:</strong> Add <code>COLOR.wechatGreen = "#95EC69"</code> to theme.js. Currently hardcoded in 3 files.
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Finding 3: nowTs() -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="finding-card" data-confidence="high">
+    <div class="finding-header" onclick="toggleBody(this)">
+      <div class="finding-number high">3</div>
+      <div style="flex:1">
+        <div class="finding-title">nowTs() &rarr; shared utility</div>
+        <div class="finding-meta">Identical function in ChatPage + InterviewPage</div>
+      </div>
+      <span class="confidence-badge high">HIGH</span>
+      <span class="toggle-icon open">&#9662;</span>
+    </div>
+    <div class="finding-body">
+      <div class="tag-row">
+        <span class="file-tag">ChatPage.jsx:310</span>
+        <span class="file-tag">InterviewPage.jsx:27</span>
+      </div>
+
+      <div class="compare-grid">
+        <div class="compare-panel">
+          <div class="compare-label before">BEFORE &mdash; duplicated in 2 files</div>
+          <div class="compare-content">
+            <div class="code-block"><span class="cm">// ChatPage.jsx:310</span>
+<span class="kw">function</span> <span class="fn">nowTs</span>() {
+  <span class="kw">const</span> d = <span class="kw">new</span> Date();
+  <span class="kw">return</span> <span class="str">`${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`</span>;
+}
+
+<span class="cm">// InterviewPage.jsx:27 &mdash; EXACT SAME</span>
+<span class="kw">function</span> <span class="fn">nowTs</span>() {
+  <span class="kw">const</span> d = <span class="kw">new</span> Date();
+  <span class="kw">return</span> <span class="str">`${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`</span>;
+}</div>
+          </div>
+        </div>
+
+        <div class="compare-panel">
+          <div class="compare-label after">AFTER &mdash; one shared utility</div>
+          <div class="compare-content">
+            <div class="code-block"><span class="cm">// utils/time.js</span>
+<span class="kw">export function</span> <span class="fn">nowTs</span>() {
+  <span class="kw">const</span> d = <span class="kw">new</span> Date();
+  <span class="kw">return</span> <span class="str">`${...}`</span>;
+}
+
+<span class="cm">// ChatPage.jsx</span>
+<span class="add">import { nowTs } from "../../utils/time";</span>
+
+<span class="cm">// InterviewPage.jsx</span>
+<span class="add">import { nowTs } from "../../utils/time";</span></div>
+          </div>
+        </div>
+      </div>
+
+      <p class="desc">Trivial change. Delete 2 inline definitions, add 1 shared file, 2 imports.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Finding 4: StatColumn -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="finding-card" data-confidence="medium">
+    <div class="finding-header" onclick="toggleBody(this)">
+      <div class="finding-number medium">4</div>
+      <div style="flex:1">
+        <div class="finding-title">StatColumn / SummaryStat &rarr; shared component</div>
+        <div class="finding-meta">MyAIPage + TaskPage build the same stat display</div>
+      </div>
+      <span class="confidence-badge medium">MEDIUM</span>
+      <span class="toggle-icon open">&#9662;</span>
+    </div>
+    <div class="finding-body">
+      <div class="tag-row">
+        <span class="file-tag">MyAIPage.jsx:68-79</span>
+        <span class="file-tag">TaskPage.jsx:29-45</span>
+      </div>
+
+      <div class="compare-grid">
+        <div class="compare-panel">
+          <div class="compare-label before">BEFORE &mdash; MyAIPage StatColumn</div>
+          <div class="compare-content">
+            <div class="mock-phone">
+              <div class="mock-stat-bar">
+                <div class="mock-stat">
+                  <div class="stat-value">12</div>
+                  <div class="stat-label">7天引用</div>
+                </div>
+                <div class="mock-stat-divider"></div>
+                <div class="mock-stat">
+                  <div class="stat-value" style="color:var(--warning);">3</div>
+                  <div class="stat-label">待确认</div>
+                </div>
+                <div class="mock-stat-divider"></div>
+                <div class="mock-stat">
+                  <div class="stat-value">5</div>
+                  <div class="stat-label">今日处理</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="compare-panel">
+          <div class="compare-label before">BEFORE &mdash; TaskPage SummaryStat</div>
+          <div class="compare-content">
+            <div class="mock-phone">
+              <div class="mock-stat-bar">
+                <div class="mock-stat">
+                  <div class="stat-value" style="color:var(--warning);">4</div>
+                  <div class="stat-label">待回复</div>
+                  <div style="font-size:10px;color:var(--primary);margin-top:1px;">3 紧急</div>
+                </div>
+                <div class="mock-stat-divider"></div>
+                <div class="mock-stat">
+                  <div class="stat-value">2</div>
+                  <div class="stat-label">随访</div>
+                </div>
+                <div class="mock-stat-divider"></div>
+                <div class="mock-stat">
+                  <div class="stat-value" style="color:var(--text4);">8</div>
+                  <div class="stat-label">已发送</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="desc">
+        Both display: <strong>large number + micro label + optional color + optional click</strong>. TaskPage version adds <code>sublabel</code> + <code>color</code> props. Extract the superset as <code>components/StatColumn.jsx</code>.
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Finding 5: Highlight row -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="finding-card" data-confidence="medium">
+    <div class="finding-header" onclick="toggleBody(this)">
+      <div class="finding-number medium">5</div>
+      <div style="flex:1">
+        <div class="finding-title">Highlight row sx &rarr; theme constant</div>
+        <div class="finding-meta">Identical highlight styling in 3 places across 2 pages</div>
+      </div>
+      <span class="confidence-badge medium">MEDIUM</span>
+      <span class="toggle-icon open">&#9662;</span>
+    </div>
+    <div class="finding-body">
+      <div class="tag-row">
+        <span class="file-tag">ReviewQueuePage.jsx:429</span>
+        <span class="file-tag">TaskPage.jsx:464</span>
+        <span class="file-tag">TaskPage.jsx:487</span>
+      </div>
+
+      <div class="compare-grid">
+        <div class="compare-panel">
+          <div class="compare-label before">BEFORE &mdash; hardcoded in each page</div>
+          <div class="compare-content">
+            <div class="mock-phone" style="padding:0;">
+              <div class="mock-row">
+                <div class="mock-checkbox"></div>
+                <div style="flex:1;">
+                  <div class="row-title">张阿姨 &middot; 术后换药</div>
+                  <div class="row-sub">明天 14:00</div>
+                </div>
+                <div class="row-right">1天后</div>
+              </div>
+              <div class="mock-row highlighted">
+                <div class="mock-checkbox"></div>
+                <div style="flex:1;">
+                  <div class="row-title">李叔叔 &middot; 复查血常规</div>
+                  <div class="row-sub">后天 09:00</div>
+                </div>
+                <div class="row-right">2天后</div>
+              </div>
+              <div class="mock-row">
+                <div class="mock-checkbox done"></div>
+                <div style="flex:1;">
+                  <div class="row-title" style="text-decoration:line-through;color:var(--text4);">王奶奶 &middot; 随访电话</div>
+                  <div class="row-sub">已完成</div>
+                </div>
+                <div class="row-right">刚刚</div>
+              </div>
+            </div>
+            <div class="code-block"><span class="del">{ bgcolor: "#fffef5", borderLeft: `3px solid ${COLOR.primary}` }</span>
+<span class="cm">// Repeated 3x with same magic hex</span></div>
+          </div>
+        </div>
+
+        <div class="compare-panel">
+          <div class="compare-label after">AFTER &mdash; theme constant</div>
+          <div class="compare-content">
+            <div class="code-block"><span class="cm">// theme.js</span>
+<span class="add">export const HIGHLIGHT_ROW_SX = {</span>
+<span class="add">  bgcolor: COLOR.highlightBg, // #fffef5</span>
+<span class="add">  borderLeft: `3px solid ${COLOR.primary}`,</span>
+<span class="add">};</span>
+
+<span class="cm">// Usage in pages:</span>
+sx={isHighlighted ? <span class="fn">HIGHLIGHT_ROW_SX</span> : undefined}</div>
+            <p class="desc" style="margin-top:8px;">Zero visual change. Eliminates magic <code>#fffef5</code> hex from page files.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Finding 6: Section container -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="finding-card" data-confidence="low">
+    <div class="finding-header" onclick="toggleBody(this)">
+      <div class="finding-number low">6</div>
+      <div style="flex:1">
+        <div class="finding-title">Section border box &rarr; optional theme constant</div>
+        <div class="finding-meta">17 files use the same 3-property pattern</div>
+      </div>
+      <span class="confidence-badge low">LOW</span>
+      <span class="toggle-icon closed">&#9662;</span>
+    </div>
+    <div class="finding-body collapsed">
+      <div class="code-block"><span class="cm">// Repeated in 17 files:</span>
+bgcolor: COLOR.white,
+borderTop: <span class="str">`0.5px solid ${COLOR.border}`</span>,
+borderBottom: <span class="str">`0.5px solid ${COLOR.border}`</span>
+
+<span class="cm">// Optional constant:</span>
+<span class="add">export const SECTION_BOX_SX = {</span>
+<span class="add">  bgcolor: COLOR.white,</span>
+<span class="add">  borderTop: `0.5px solid ${COLOR.border}`,</span>
+<span class="add">  borderBottom: `0.5px solid ${COLOR.border}`,</span>
+<span class="add">};</span></div>
+      <p class="desc">Most repeated pattern but also most trivial. A constant helps consistency but a component would be over-abstraction. <strong>Optional change</strong> &mdash; consider during the Phase 1 token sweep.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Finding 7: SendConfirmDialog — SKIP -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="finding-card" data-confidence="low">
+    <div class="finding-header" onclick="toggleBody(this)">
+      <div class="finding-number low">7</div>
+      <div style="flex:1">
+        <div class="finding-title">SendConfirmDialog &rarr; <span class="skip-badge">SKIP</span></div>
+        <div class="finding-meta">ReviewQueuePage + TaskPage &mdash; similar but divergent</div>
+      </div>
+      <span class="confidence-badge low">SKIP</span>
+      <span class="toggle-icon closed">&#9662;</span>
+    </div>
+    <div class="finding-body collapsed">
+      <div class="compare-grid">
+        <div class="compare-panel">
+          <div class="compare-label before">ReviewQueuePage version</div>
+          <div class="compare-content" style="font-size:12px;color:var(--text3);">
+            <strong>SheetDialog + DialogFooter</strong><br>
+            &bull; Title: "确认发送"<br>
+            &bull; Shows: patient name + draft text<br>
+            &bull; Buttons: cancel + send
+          </div>
+        </div>
+        <div class="compare-panel">
+          <div class="compare-label before">TaskPage version</div>
+          <div class="compare-content" style="font-size:12px;color:var(--text3);">
+            <strong>SheetDialog + stacked AppButtons</strong><br>
+            &bull; Title: "确认发送" + subtitle<br>
+            &bull; Shows: draft text + <strong>cited rules</strong> + <strong>disclaimer</strong><br>
+            &bull; Buttons: "确认发送" + "返回修改" (stacked)
+          </div>
+        </div>
+      </div>
+      <p class="desc">
+        The core structure matches, but TaskPage has <strong>cited rules, navigation to knowledge detail, and disclaimer text</strong>. Merging would create an awkward API with too many conditional props. <strong>Leave as-is</strong> &mdash; the divergence is warranted.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- Legend / footer -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div style="max-width:900px;margin:24px auto;padding:0 16px 48px;">
+  <div style="background:var(--white);border:0.5px solid var(--border);border-radius:8px;padding:16px;">
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Implementation Priority</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="confidence-badge high" style="min-width:56px;text-align:center;">HIGH</span>
+        <span style="font-size:12px;color:var(--text3);">#1 FilterBar, #2 MsgAvatar, #3 nowTs &mdash; clear wins, no risk</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="confidence-badge medium" style="min-width:56px;text-align:center;">MEDIUM</span>
+        <span style="font-size:12px;color:var(--text3);">#4 StatColumn, #5 Highlight &mdash; worth doing in Phase 1 token sweep</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="confidence-badge low" style="min-width:56px;text-align:center;">LOW/SKIP</span>
+        <span style="font-size:12px;color:var(--text3);">#6 optional, #7 skip &mdash; extraction not justified</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleBody(header) {
+  const body = header.nextElementSibling;
+  const icon = header.querySelector('.toggle-icon');
+  body.classList.toggle('collapsed');
+  icon.classList.toggle('open');
+  icon.classList.toggle('closed');
+}
+
+function showAll() {
+  document.querySelectorAll('.finding-card').forEach(c => c.style.display = '');
+  updateTabs(null);
+}
+
+function filter(level) {
+  document.querySelectorAll('.finding-card').forEach(c => {
+    c.style.display = c.dataset.confidence === level ? '' : 'none';
+  });
+  updateTabs(level);
+}
+
+function updateTabs(active) {
+  document.querySelectorAll('.nav-tab').forEach((t, i) => {
+    t.classList.toggle('active', active === null ? i === 0 :
+      (active === 'high' && i === 1) || (active === 'medium' && i === 2) || (active === 'low' && i === 3));
+  });
+}
+</script>
+</body>
+</html>

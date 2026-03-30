@@ -1,0 +1,669 @@
+{
+  "knowledge_items": [
+    {
+      "key": "kb_lvb_postop",
+      "title": "LVB术后管理规范",
+      "content": "颈深淋巴-静脉分流术（LVB）术后管理规范\n\n一、术后监测\n1. 术后2周、1月、3月、6月定期复查\n2. 每次复查行ICG荧光检查评估吻合口通畅性\n3. 认知评估：MMSE + MoCA，术后2周/3月/6月\n4. 影像学：术后3月复查MRI黑血序列，6月复查PET-CT\n\n二、危险信号\n1. 颈部肿胀：可能为淋巴漏或淋巴囊肿，需急查颈部超声\n2. 头痛加重：排除高灌注综合征或颅内出血\n3. 吻合口血栓：术后静脉压力变化可致血液返流形成血栓\n4. 认知突然下降：若术后曾改善后回退，首先排除吻合口狭窄\n\n三、用药\n1. 继续原有AD药物（多奈哌齐/美金刚），不自行停药\n2. 降压降糖等基础疾病药物不变\n3. 术后抗生素预防感染3天\n\n四、活动\n1. 术后1-2周避免剧烈运动和重体力劳动\n2. 日常轻度活动如散步可正常进行\n3. 颈部避免大幅度转动，保持切口清洁干燥\n\n五、手术要点（供AI参考）\n1. 鼻黏膜ICG注射法：双侧下鼻甲区域及鼻腔底部各注射2-3ml ICG\n2. 30分钟后颈深淋巴系统显影\n3. 选择管径≥0.3mm的淋巴管进行吻合\n4. 蔡司KINEVO 900机器人显微镜，15-25倍放大\n5. 淋巴结静脉吻合放大至10-15倍即可\n\n六、临床发现\n1. 部分患者术后视物模糊和头晕症状改善\n2. 推测LVB可能减轻眶内和内听道的颅神经相关性淋巴水肿\n3. 认知改善通常先于影像学改变\n4. MMSE≥15分的患者术后改善概率较高"
+    },
+    {
+      "key": "kb_ad_diagnosis",
+      "title": "AD诊断与鉴别标准",
+      "content": "阿尔茨海默病（AD）诊断与鉴别标准\n\n一、典型AD\n1. 隐匿起病，进行性加重\n2. 以近事遗忘为首发，逐渐出现找词困难、计算力下降、空间定向障碍\n3. MRI示海马萎缩（Scheltens分级）\n4. PET-CT确认Aβ沉积\n\n二、非典型AD亚型\n1. 后皮质萎缩型（PCA）：以视空间功能障碍为主，枕叶皮层萎缩\n2. 词汇性失语型：以命名和找词困难为主\n3. 额叶型：以执行功能和行为异常为主\n\n三、鉴别诊断\n1. 血管性认知障碍（VCI）：阶梯样下降，有卒中史，MRI白质病变\n2. 正常压力脑积水（NPH）：三联征（步态异常+认知下降+尿失禁），脑室不成比例扩大\n3. 路易体痴呆（DLB）：波动性认知障碍，视幻觉，帕金森样症状，REM睡眠行为障碍\n4. 额颞叶痴呆（FTD）：人格改变，社交行为异常，语义性痴呆\n\n四、关键检查\n1. PET-CT（Aβ显像）：确认淀粉样蛋白沉积\n2. FDG-PET：评估脑代谢模式\n3. MRI黑血序列：评估脑淋巴/脑膜淋巴基线\n4. 腰穿CSF：Aβ42↓、p-tau↑、t-tau↑支持AD\n5. DAT-SPECT：排除路易体痴呆\n\n五、LVB手术适应证\n1. MMSE≥15分（文献提示术后改善概率较高）\n2. PET-CT确认Aβ阳性\n3. 药物治疗效果有限\n4. 患者及家属知情同意，配合度好"
+    }
+  ],
+  "patients": [
+    {
+      "key": "zhang_xiulan",
+      "name": "张秀兰",
+      "gender": "female",
+      "age": 72,
+      "records": [
+        {
+          "key": "initial_visit",
+          "record_type": "visit",
+          "status": "completed",
+          "days_ago": 30,
+          "department": "神经外科",
+          "chief_complaint": "记忆力进行性下降3年，加重半年",
+          "present_illness": "3年前开始出现近事遗忘，逐渐不认识亲人名字。半年前加重，在熟悉地方迷路，不能管理财务。MMSE 18/30，MoCA 14/30。",
+          "past_history": "高血压15年（氨氯地平5mg/日），2型糖尿病8年（二甲双胍），口服多奈哌齐5mg/日2年。",
+          "allergy_history": "无药物过敏史",
+          "personal_history": "无吸烟饮酒史",
+          "marital_reproductive": "已婚，育有2子。",
+          "family_history": "无特殊",
+          "physical_exam": "T 36.5℃，P 76次/分，R 18次/分，BP 138/82mmHg。神志清楚，对答切题但反应迟缓。心肺腹未见明显异常。",
+          "specialist_exam": "神经系统：双侧瞳孔等大等圆，对光反射灵敏。四肢肌力V级，肌张力正常，腱反射对称。无病理征。指鼻试验稳准，跟膝胫试验正常。步态正常。MMSE 18/30（定向力-3，回忆-3，计算-3，语言-3），MoCA 14/30。",
+          "auxiliary_exam": "头颅MRI示双侧海马萎缩；PET-CT示双侧颞顶叶Aβ沉积阳性。",
+          "diagnosis": "阿尔茨海默病（G30.1，晚发型）\n高血压病3级\n2型糖尿病",
+          "treatment_plan": "1. 继续口服多奈哌齐5mg qd\n2. 维持降压降糖方案不变\n3. 完善术前评估（心电图、凝血功能、肝肾功能）\n4. 与家属沟通颈深淋巴-静脉分流术（LVB）方案",
+          "orders_followup": "1. 术前全套检查\n2. 2周后门诊复诊讨论手术方案\n3. 嘱家属加强看护，防走失\n4. 继续认知训练",
+          "content": "记忆力下降3年加重半年，MMSE 18，MoCA 14，PET阳性。高血压15年，糖尿病8年。",
+          "suggestions": []
+        },
+        {
+          "key": "surgery",
+          "record_type": "visit",
+          "status": "completed",
+          "days_ago": 16,
+          "department": "神经外科",
+          "chief_complaint": "双侧颈深淋巴-静脉分流术（LVB）",
+          "present_illness": "鼻黏膜ICG注射法（双侧下鼻甲各注射3ml），30分钟后颈深淋巴系统清晰显影。蔡司KINEVO 900机器人显微镜下操作，20倍放大，吻合3根淋巴管（管径0.3-0.5mm）至颈外静脉分支。ICG荧光确认吻合口通畅。",
+          "past_history": "高血压15年（氨氯地平5mg/日），2型糖尿病8年（二甲双胍），口服多奈哌齐5mg/日2年。",
+          "allergy_history": "无药物过敏史",
+          "personal_history": "无吸烟饮酒史",
+          "marital_reproductive": "已婚，育有2子。",
+          "family_history": "无特殊",
+          "physical_exam": "T 36.4℃，P 72次/分，R 18次/分，BP 135/80mmHg。全麻下手术，术中生命体征平稳。",
+          "specialist_exam": "双侧颈部淋巴管超声显示淋巴管走行清晰。蔡司KINEVO 900机器人显微镜下双侧颈深淋巴系统清晰显影，淋巴管管径0.3-0.5mm，壁薄透明，流速正常。",
+          "auxiliary_exam": "术中ICG荧光造影示双侧颈深淋巴管显影良好，吻合口通畅，无渗漏。",
+          "diagnosis": "阿尔茨海默病（G30.1，晚发型）\n双侧颈深淋巴-静脉分流术后",
+          "treatment_plan": "1. 术后加压包扎24小时\n2. 头孢呋辛预防感染3天\n3. 术后1-2周避免剧烈活动和颈部大幅转动\n4. 继续多奈哌齐5mg qd及降压降糖方案",
+          "orders_followup": "1. 术后2周复查切口愈合及ICG荧光复查吻合口\n2. 术后3月认知评估（MMSE + MoCA）\n3. 术后3月MRI黑血序列\n4. 术后6月PET-CT复查Aβ清除情况",
+          "content": "双侧颈深LVB，吻合3根淋巴管，ICG确认通畅。",
+          "suggestions": []
+        },
+        {
+          "key": "postop_2w",
+          "record_type": "interview_summary",
+          "status": "completed",
+          "days_ago": 0,
+          "department": "神经外科",
+          "chief_complaint": "双侧颈深LVB术后2周复查",
+          "present_illness": "术后恢复顺利，无发热，切口愈合好。家属反映近日能记住早餐内容，情绪较术前稳定。MMSE 20/30（↑2分），MoCA 16/30（↑2分）。",
+          "past_history": "高血压15年（氨氯地平5mg/日），2型糖尿病8年（二甲双胍），口服多奈哌齐5mg/日2年。双侧颈深LVB术后2周。",
+          "allergy_history": "无药物过敏史",
+          "personal_history": "无吸烟饮酒史",
+          "marital_reproductive": "已婚，育有2子。",
+          "family_history": "无特殊",
+          "physical_exam": "T 36.3℃，P 74次/分，R 18次/分，BP 132/78mmHg。神志清楚，精神好。双侧颈部切口Ⅰ期愈合，无红肿渗出。ICG荧光复查示双侧吻合口通畅。",
+          "specialist_exam": "MMSE 20/30（较术前↑2分），MoCA 16/30（较术前↑2分）。双侧颈部切口愈合良好，局部无压痛、无波动感。ICG荧光示双侧吻合口通畅，引流功能正常。",
+          "auxiliary_exam": "ICG荧光造影：双侧吻合口通畅，淋巴引流通畅。切口局部超声：无积液、无淋巴囊肿。",
+          "diagnosis": "阿尔茨海默病（G30.1，晚发型）\n双侧颈深淋巴-静脉分流术后（恢复良好）",
+          "treatment_plan": "1. 继续多奈哌齐5mg qd\n2. 维持降压降糖方案\n3. 增加认知康复训练（每日记忆练习、社交互动）\n4. 颈部可逐步恢复正常活动，避免过度负重",
+          "orders_followup": "1. 术后3月（约10周后）复查认知评估（MMSE + MoCA）\n2. 术后3月MRI黑血序列评估脑淋巴引流\n3. 术后6月PET-CT复查Aβ清除情况\n4. 如出现颈部肿胀或认知突然下降，立即就诊",
+          "content": "LVB术后2周，MMSE↑2，切口愈合好，吻合口通畅。",
+          "suggestions": [
+            {
+              "section": "differential",
+              "content": "术后恢复顺利，认知功能早期改善",
+              "detail": "MMSE较术前提升2分，属于术后早期改善范围内。部分患者术后2周即出现记忆、情绪改善。建议继续观察。 [KB-1]",
+              "confidence": "高"
+            },
+            {
+              "section": "workup",
+              "content": "3个月后复查PET-CT及认知评估",
+              "detail": "术后早期影像学变化不明显，认知改善通常先于影像学改变。建议术后3个月复查PET-CT评估Aβ清除情况，同时复查MRI黑血序列评估脑淋巴引流。 [KB-1]",
+              "confidence": "高"
+            },
+            {
+              "section": "treatment",
+              "content": "维持现有药物方案 + 认知康复训练",
+              "detail": "继续口服多奈哌齐5mg/日，维持降压降糖方案不变。建议增加认知康复训练（每日记忆练习、社交互动）。 [KB-1]",
+              "confidence": "高"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "content": "手术完了，什么时候可以正常活动？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "术后建议休息1-2周，避免剧烈运动和重体力劳动。日常轻度活动如散步可正常进行。颈部避免大幅度转动，保持切口清洁干燥。如有不适请及时联系。 [KB-1]",
+          "days_ago": 12
+        },
+        {
+          "content": "散步可以走多久？能不能做广场舞那种轻运动？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "散步每次20-30分钟为宜，可以每天走。广场舞涉及较多颈部转动，建议术后1个月再开始。目前以舒缓活动为主，避免颈部大幅度旋转。 [KB-1]",
+          "days_ago": 12
+        },
+        {
+          "content": "多奈哌齐还要继续吃吗？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "请继续按原方案每日服用多奈哌齐5mg，下次复诊时再评估药物方案。同时继续服用降压药和降糖药，不要自行停药。 [KB-1]",
+          "days_ago": 7
+        },
+        {
+          "content": "好的，那美金刚要不要加上？听说两个药一起吃效果更好",
+          "triage": "question",
+          "auto_send": true,
+          "ai_reply": "美金刚联合多奈哌齐在中重度AD患者中确实有一定联合疗效。不过是否需要加药需要根据您母亲目前的认知评分和整体状况来判断，建议复诊时再评估。目前先维持现有方案不变。 [KB-2]",
+          "days_ago": 7
+        },
+        {
+          "content": "今天做了复查CT，结果都正常",
+          "triage": "info",
+          "auto_send": true,
+          "ai_reply": "好的，复查结果已记录。术后早期影像学检查正常是好的信号，说明手术区域无异常。请继续保持随访计划。",
+          "days_ago": 3
+        },
+        {
+          "content": "最近能记住早上吃了什么了，是不是在好转？",
+          "triage": "info",
+          "auto_send": true,
+          "ai_reply": "这是一个积极的信号！部分患者术后确实会出现近事记忆力的改善，说明手术可能正在发挥作用。请继续坚持认知康复训练，我们会在复诊时做详细评估。 [KB-1]",
+          "days_ago": 1
+        },
+        {
+          "content": "还有个事想问，她最近说看东西比以前清楚了，这跟手术有关系吗？",
+          "triage": "info",
+          "auto_send": true,
+          "ai_reply": "临床上确实有部分LVB术后患者反映视觉改善。目前推测颈深LVB除了加快脑淋巴循环外，可能减轻了眶内颅神经相关性淋巴水肿，从而改善视力。这是一个积极的信号，我们会在复诊时详细评估。 [KB-1]",
+          "days_ago": 1
+        }
+      ],
+      "tasks": [
+        {
+          "title": "安排3个月后PET-CT复查（评估Aβ清除情况）",
+          "task_type": "checkup",
+          "due_days": 76
+        }
+      ],
+      "phone": "13912345678"
+    },
+    {
+      "key": "li_jianguo",
+      "name": "李建国",
+      "gender": "male",
+      "age": 68,
+      "records": [
+        {
+          "key": "initial_visit",
+          "record_type": "visit",
+          "status": "completed",
+          "days_ago": 60,
+          "department": "神经外科",
+          "chief_complaint": "记忆力下降伴步态不稳2年",
+          "present_illness": "2年前起记忆力逐渐下降，伴行走不稳、小碎步，静止性震颤不明显。MMSE 16/30，MoCA 12/30。外院诊断\"AD伴帕金森综合征\"。",
+          "past_history": "冠心病5年，阿司匹林100mg/日。高血压8年。",
+          "allergy_history": "青霉素过敏（皮疹）",
+          "personal_history": "吸烟30年（20支/日），已戒烟5年。偶饮酒。",
+          "marital_reproductive": "已婚，育有1子1女。",
+          "family_history": "父亲78岁时诊断\"老年痴呆\"（具体分型不详），母亲无特殊。",
+          "physical_exam": "T 36.6℃，P 70次/分，R 18次/分，BP 142/88mmHg。神志清楚，反应迟缓。心律齐，各瓣膜区未闻及杂音。双肺呼吸音清。腹软，无压痛。",
+          "specialist_exam": "神经系统：面部表情略减少，瞬目减少。四肢肌力V级，双上肢肌张力略增高（齿轮样），静止性震颤不明显。小碎步步态，转弯不稳。指鼻试验可，跟膝胫试验稍拙。MMSE 16/30（定向-4，回忆-5，计算-3，语言-2），MoCA 12/30。",
+          "auxiliary_exam": "MRI示全脑萎缩，以颞叶为著。PET示Aβ弥漫性沉积。DAT-SPECT示多巴胺转运体减低。",
+          "diagnosis": "阿尔茨海默病（G30.1）伴帕金森综合征\n冠心病\n高血压病3级",
+          "treatment_plan": "1. 继续阿司匹林100mg qd（术前需评估是否停用）\n2. 多奈哌齐5mg qd + 美金刚10mg bid\n3. 完善术前评估\n4. 与家属沟通LVB手术方案（先行单侧，择期二期对侧）",
+          "orders_followup": "1. 完善凝血功能、心功能评估\n2. 2周后门诊复诊，讨论手术方案及阿司匹林围术期管理\n3. 术前3-5天停阿司匹林（心内科会诊）\n4. 加强防跌倒措施",
+          "content": "记忆力下降伴步态不稳2年，MMSE 16，AD伴帕金森综合征。",
+          "suggestions": []
+        },
+        {
+          "key": "surgery",
+          "record_type": "visit",
+          "status": "completed",
+          "days_ago": 35,
+          "department": "神经外科",
+          "chief_complaint": "右侧颈深淋巴-静脉分流术（LVB）",
+          "present_illness": "鼻黏膜ICG注射法，右侧颈深淋巴管扩张明显（管径0.4-0.6mm），吻合2根淋巴管至颈外静脉。术中见淋巴管内液体浑浊，流速缓慢，提示淋巴引流功能障碍。ICG确认吻合通畅。计划择期行左侧LVB。",
+          "past_history": "冠心病5年，阿司匹林术前已停用5天。高血压8年。AD伴帕金森综合征。",
+          "allergy_history": "青霉素过敏（皮疹）",
+          "personal_history": "吸烟30年（20支/日），已戒烟5年。偶饮酒。",
+          "marital_reproductive": "已婚，育有1子1女。",
+          "family_history": "父亲78岁时诊断\"老年痴呆\"。",
+          "physical_exam": "T 36.5℃，P 68次/分，R 17次/分，BP 140/85mmHg。全麻下手术，术中生命体征平稳。心电监护未见异常。",
+          "specialist_exam": "右侧颈深淋巴管超声示淋巴管明显扩张（管径0.4-0.6mm）。蔡司KINEVO 900机器人显微镜下右侧颈深淋巴系统显影，淋巴管壁薄，管内液体浑浊泛黄，流速缓慢，提示淋巴引流功能障碍。",
+          "auxiliary_exam": "术中ICG荧光造影：右侧颈深淋巴管显影延迟但清晰，吻合后通畅性确认。术中淋巴液标本送检。",
+          "diagnosis": "阿尔茨海默病（G30.1）伴帕金森综合征\n右侧颈深淋巴-静脉分流术后\n冠心病\n高血压病3级",
+          "treatment_plan": "1. 术后加压包扎24小时\n2. 克林霉素预防感染3天（青霉素过敏）\n3. 术后1-2周避免剧烈活动\n4. 术后48小时恢复阿司匹林100mg qd\n5. 继续多奈哌齐+美金刚方案",
+          "orders_followup": "1. 术后2周复查切口及ICG荧光\n2. 术后1月复查认知评估\n3. 择期安排左侧LVB手术评估\n4. 如出现颈部肿胀或头晕加重，立即就诊",
+          "content": "右侧颈深LVB，吻合2根淋巴管，淋巴管扩张明显。",
+          "suggestions": []
+        },
+        {
+          "key": "postop_1m",
+          "record_type": "interview_summary",
+          "status": "pending_review",
+          "days_ago": 0,
+          "chief_complaint": "右侧LVB术后1月，右颈肿胀伴头晕加重1天",
+          "present_illness": "术后2周复查时恢复尚可。3天前开始右颈部隐痛，昨日出现右颈明显肿胀（约3×4cm），质软，伴头晕加重。无发热，无肢体无力。",
+          "physical_exam": "右颈部可触及3×4cm肿物，质软，无压痛，皮肤无红热。双侧瞳孔等大等圆，四肢肌力V级。",
+          "content": "LVB术后1月，右颈肿胀3×4cm，头晕加重，疑淋巴漏/血栓。",
+          "suggestions": [
+            {
+              "section": "differential",
+              "content": "术后淋巴漏 / 吻合口血栓",
+              "detail": "LVB术后1月出现颈部肿胀，需首先排除：①淋巴漏导致淋巴囊肿形成 ②吻合口血栓导致淋巴回流障碍。术中已见淋巴管扩张、液体浑浊，术后静脉压力变化可能导致血液返流形成血栓。 [KB-1]",
+              "confidence": "高",
+              "urgency": "urgent"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "content": "术后恢复还可以，就是脖子有点紧绷的感觉",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "术后早期颈部轻度紧绷感是正常的，随着切口愈合和局部消肿会逐渐缓解。请避免颈部大幅度活动，保持切口清洁。如果紧绷感持续加重或出现明显肿胀，请及时联系。",
+          "days_ago": 20
+        },
+        {
+          "content": "紧绷感好多了，不过洗澡的时候能碰水吗？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "如果切口已完全干燥结痂，可以淋浴但避免直接冲洗切口区域。不建议泡澡或游泳。洗澡后用干净纱布轻拍干切口周围。如果切口仍有渗液，请先等完全愈合。",
+          "days_ago": 18
+        },
+        {
+          "content": "陆医生，我爸这两天说脖子有点隐隐作痛，不是很厉害，需要担心吗？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "术后1个月内轻度颈部隐痛一般不需要特别担心，可能与局部组织修复有关。建议观察疼痛是否加重、是否伴有肿胀或发热。如果疼痛持续加重，请及时来院复查。 [KB-1]",
+          "days_ago": 5
+        },
+        {
+          "content": "今天脖子那里突然肿了一块，摸起来软软的，还说头晕比之前重了",
+          "triage": "urgent",
+          "auto_send": true,
+          "ai_reply": "LVB术后出现颈部肿胀伴头晕加重需要高度重视。软性肿块可能是淋巴漏导致的淋巴囊肿。请尽快带您父亲到医院就诊，需要做颈部超声检查明确肿胀原因。如果肿胀迅速增大或出现呼吸困难，请立即到急诊就诊。 [KB-1]",
+          "days_ago": 1
+        },
+        {
+          "content": "肿块比昨天大了，现在差不多有鸡蛋那么大，要去急诊吗？",
+          "triage": "urgent",
+          "auto_send": true,
+          "ai_reply": "颈部肿胀进行性增大建议立即到医院急诊就诊。需要紧急做颈部超声和头颅CT检查，排除淋巴漏或吻合口血栓等术后并发症。到达后请告知急诊医生是LVB术后患者，术后1个月出现颈部肿胀。 [KB-1]",
+          "days_ago": 0
+        },
+        {
+          "content": "到急诊了，医生说先做个超声看看，还要等多久能做？",
+          "triage": "urgent",
+          "auto_send": false,
+          "ai_reply": "您已经到急诊了，很好。颈部超声一般急诊可以很快安排。请告知急诊医生这是LVB术后疑似淋巴漏，需要评估吻合口情况。陆医生已收到消息，会尽快协调。 [KB-1]",
+          "days_ago": 0
+        }
+      ],
+      "tasks": [
+        {
+          "title": "尽快安排颈部超声 + 头颅CT检查",
+          "task_type": "checkup",
+          "due_days": 1,
+          "content": "紧急：术后颈部肿胀，排除淋巴漏/吻合口血栓"
+        }
+      ],
+      "phone": "13856781234"
+    },
+    {
+      "key": "wang_meihua",
+      "name": "王美华",
+      "gender": "female",
+      "age": 65,
+      "records": [
+        {
+          "key": "referral",
+          "record_type": "visit",
+          "status": "completed",
+          "days_ago": 14,
+          "department": "神经外科",
+          "chief_complaint": "记忆力下降2年，由外院神经内科转入",
+          "present_illness": "外院诊断\"认知功能障碍待查\"，口服多奈哌齐5mg/日1年，症状仍在进展。MRI示双侧海马轻度萎缩（Scheltens 2级）。未做PET-CT。",
+          "past_history": "高血脂5年（瑞舒伐他汀10mg/日）。无高血压、糖尿病。无脑血管病史。",
+          "allergy_history": "无药物及食物过敏史",
+          "personal_history": "无吸烟饮酒史。退休前为小学教师。",
+          "marital_reproductive": "已婚，育有1女。丈夫健在。",
+          "family_history": "母亲70岁后出现\"老糊涂\"，未正式诊断。",
+          "physical_exam": "T 36.4℃，P 72次/分，R 18次/分，BP 128/76mmHg。神志清楚，对答切题。心肺腹查体未见异常。",
+          "specialist_exam": "MMSE 22/30（回忆-3，计算-3，定向-2），MoCA 18/30。步态正常，四肢肌力V级，肌张力正常，无锥体外系征。语言流利度轻度下降。",
+          "auxiliary_exam": "外院MRI示双侧海马轻度萎缩（Scheltens 2级）。血脂：LDL 2.8mmol/L（他汀治疗后）。未做PET-CT。",
+          "diagnosis": "认知功能障碍待查（阿尔茨海默病可能性大）\n高脂血症",
+          "treatment_plan": "1. 继续多奈哌齐5mg qd\n2. 继续瑞舒伐他汀10mg qd\n3. 完善PET-CT（Aβ显像）确认诊断\n4. 完善MRI黑血序列评估脑淋巴基线",
+          "orders_followup": "1. 预约PET-CT及MRI黑血序列\n2. 预约腰穿脑脊液检查\n3. 2周后门诊复诊查看检查结果\n4. 如确诊AD，评估LVB手术适应证",
+          "content": "外院转诊，认知障碍待查，MMSE 22，MoCA 18，海马轻度萎缩。",
+          "suggestions": []
+        },
+        {
+          "key": "first_visit",
+          "record_type": "interview_summary",
+          "status": "pending_review",
+          "days_ago": 0,
+          "chief_complaint": "记忆力进行性下降2年，找词困难半年",
+          "present_illness": "2年前开始出现近事遗忘——反复询问同一问题、忘记约定。近半年加重，出现找词困难（想说\"钥匙\"说成\"那个开门的\"），计算力下降（买菜算不清账），在熟悉的超市迷路2次。外院口服多奈哌齐1年余，自觉无明显效果。无肢体无力，无头痛，无尿失禁，无性格改变。",
+          "physical_exam": "MMSE 22/30（回忆-3，计算-3，定向-2），MoCA 18/30。步态正常，无锥体外系征。",
+          "auxiliary_exam": "外院MRI示双侧海马轻度萎缩。余缺。",
+          "content": "记忆力下降2年伴找词困难，MMSE 22，步态正常，无尿失禁。需鉴别AD/VCI/NPH。",
+          "suggestions": [
+            {
+              "section": "differential",
+              "content": "阿尔茨海默病（AD）",
+              "detail": "隐匿起病，进行性加重，以近事遗忘为首发，逐渐出现找词困难、计算力下降、空间定向障碍。符合AD典型临床表现。MRI示海马萎缩支持诊断。家族史阳性增加AD可能。需PET-CT确认Aβ沉积。 [KB-2]",
+              "confidence": "高"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "content": "陆医生，我这个病做手术真的能好吗？",
+          "triage": "question",
+          "auto_send": true,
+          "ai_reply": "颈深淋巴-静脉分流术（LVB）是通过改善脑部淋巴引流来帮助清除导致阿尔茨海默病的有害蛋白。从目前的临床经验看，多数患者术后会有不同程度的认知改善，主要表现在记忆力、情绪和日常行为方面的好转。不过，我们需要先完善检查确认诊断，才能评估您是否适合手术。 [KB-1]",
+          "days_ago": 10
+        },
+        {
+          "content": "那做完手术能恢复到正常人的记忆力吗？",
+          "triage": "question",
+          "auto_send": true,
+          "ai_reply": "目前的临床数据显示，多数患者术后认知评分有不同程度提升（MMSE平均提高2-4分），主要表现为记忆力、情绪和行为的改善。但完全恢复到正常水平目前还不能保证。手术的目标是延缓甚至部分逆转认知下降趋势。 [KB-1]",
+          "days_ago": 10
+        },
+        {
+          "content": "手术风险大吗？需要住几天院？",
+          "triage": "question",
+          "auto_send": true,
+          "ai_reply": "LVB手术在显微镜下进行，切口在颈部，创伤较小。一般住院5-7天。主要风险包括淋巴漏、吻合口血栓等，发生率较低。手术时间约2-4小时。具体情况等检查结果出来后在门诊详细说明。 [KB-1]",
+          "days_ago": 8
+        },
+        {
+          "content": "我妈有高血脂，吃着他汀，这个影响手术吗？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "他汀类药物不影响LVB手术，术前术后都可以继续服用。高血脂本身不是手术禁忌。术前评估时我们会综合考虑所有基础疾病。",
+          "days_ago": 8
+        },
+        {
+          "content": "检查报告都做完了，PET也做了，什么时候能安排手术？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "好的，我们会尽快安排陆医生查看您的检查结果。确认手术适应证后会通知您住院时间，请保持电话畅通。",
+          "days_ago": 1
+        },
+        {
+          "content": "还有个问题，我妈之前在外院做过MRI，这次还需要重新做吗？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "需要重新做。这次的MRI包含黑血序列，是专门评估脑淋巴和颈深淋巴状况的特殊序列，普通MRI不包含这个。这对评估手术方案和术后对比非常重要。 [KB-1]",
+          "days_ago": 1
+        }
+      ],
+      "tasks": [
+        {
+          "title": "预约PET-CT（Aβ显像）— 确认AD诊断 + LVB手术评估",
+          "task_type": "checkup",
+          "due_days": 7
+        }
+      ],
+      "phone": "15098765432"
+    },
+    {
+      "key": "chen_weiqiang",
+      "name": "陈伟强",
+      "gender": "male",
+      "age": 71,
+      "records": [
+        {
+          "key": "referral",
+          "record_type": "visit",
+          "status": "completed",
+          "days_ago": 21,
+          "department": "神经外科",
+          "chief_complaint": "视物模糊伴记忆力下降1年，由外院眼科+神经内科联合转诊",
+          "present_illness": "1年前开始视物模糊，眼科检查未见明确器质性病变，配镜后无改善。同期出现记忆力下降和反复头晕。外院MRI示双侧颞叶萎缩，枕叶皮层变薄。",
+          "past_history": "高血压8年（缬沙坦80mg/日），高血脂（阿托伐他汀20mg/日）。无糖尿病。无耳部疾病史。",
+          "allergy_history": "磺胺类药物过敏",
+          "personal_history": "不吸烟，偶饮少量白酒。退休前为会计。",
+          "marital_reproductive": "已婚，育有2子。妻子健在。",
+          "family_history": "无痴呆家族史。父亲因脑卒中去世（76岁），母亲健在（93岁）。",
+          "physical_exam": "T 36.5℃，P 74次/分，R 18次/分，BP 145/90mmHg。神志清楚，定向力差。心肺腹查体无明显异常。",
+          "specialist_exam": "视力矫正后右0.8/左0.6，双瞳等大等圆，对光反射灵敏，眼底无明显异常。MMSE 21/30（视空间-4，回忆-3，计算-2），MoCA 16/30（视空间/执行功能明显受损）。步态正常，四肢肌力V级，无震颤，无锥体外系征。",
+          "auxiliary_exam": "外院MRI示双侧颞叶萎缩，枕叶皮层变薄。外院眼科：眼底检查、OCT均未见器质性病变。",
+          "diagnosis": "认知功能障碍待查（后皮质萎缩型阿尔茨海默病可能）\n高血压病3级\n高脂血症",
+          "treatment_plan": "1. 维持降压降脂方案\n2. 完善PET-CT（FDG+Aβ双示踪）明确诊断\n3. 视觉诱发电位排除视通路病变\n4. 前庭功能检查排除外周性眩晕\n5. MRI黑血序列评估脑淋巴基线",
+          "orders_followup": "1. 预约PET-CT、VEP、前庭功能及MRI黑血序列\n2. 2周后门诊复诊查看检查结果\n3. 嘱家属注意视空间障碍相关安全（勿独自驾车、注意台阶）\n4. 如确诊PCA-AD，评估LVB手术适应证",
+          "content": "外院转诊，视物模糊+记忆力下降+头晕1年，眼科无器质性病变，颞叶+枕叶萎缩。",
+          "suggestions": []
+        },
+        {
+          "key": "first_visit",
+          "record_type": "interview_summary",
+          "status": "completed",
+          "days_ago": 0,
+          "department": "神经外科",
+          "chief_complaint": "视物模糊伴记忆力下降1年，反复头晕半年",
+          "present_illness": "1年前开始视物模糊，\"像隔了一层水汽\"，看东西不清楚但眼科查不出问题。同期出现记忆力下降，忘记家人生日、重复购买相同物品。半年前开始反复头晕，非旋转性，与体位变化无关，持续数小时自行缓解。近3月加重——阅读困难（看不清字但并非视力问题），空间感差（停车困难、判断距离不准）。无幻视，无帕金森样症状。",
+          "past_history": "高血压8年（缬沙坦80mg/日），高血脂（阿托伐他汀20mg/日）。无糖尿病。无耳部疾病史。",
+          "allergy_history": "磺胺类药物过敏",
+          "personal_history": "不吸烟，偶饮少量白酒。退休前为会计。",
+          "marital_reproductive": "已婚，育有2子。妻子健在。",
+          "family_history": "无痴呆家族史。父亲因脑卒中去世（76岁）。",
+          "physical_exam": "T 36.4℃，P 72次/分，R 18次/分，BP 140/88mmHg。神志清楚，反应迟缓。心律齐，双肺呼吸音清。MMSE 21/30（视空间-4，回忆-3，计算-2），MoCA 16/30（视空间/执行功能明显受损）。步态正常，无震颤。双侧瞳孔正常，视力矫正后0.8/0.6。",
+          "specialist_exam": "视空间功能明显受损：画钟测验异常（数字排列错乱），线段对分偏移。命名能力轻度下降。语言流利度尚可。无视幻觉，无REM睡眠行为障碍。双侧瞳孔等大等圆，眼球运动正常。四肢肌力V级，肌张力正常，无锥体外系征。",
+          "auxiliary_exam": "外院MRI示双侧颞叶萎缩，枕叶皮层变薄。余缺。",
+          "diagnosis": "认知功能障碍（后皮质萎缩型阿尔茨海默病待排）\n高血压病3级\n高脂血症",
+          "treatment_plan": "1. 试用多奈哌齐5mg qd\n2. 维持降压降脂方案\n3. 完善PET-CT（FDG+Aβ双示踪）确认诊断及亚型\n4. 视觉诱发电位排除视通路器质性病变\n5. 前庭功能检查排除外周性眩晕\n6. MRI黑血序列建立脑淋巴基线",
+          "orders_followup": "1. 预约PET-CT（Aβ+FDG）、VEP、前庭功能检查、MRI黑血序列\n2. 2周后门诊复诊查看检查结果\n3. 嘱家属注意视空间安全（避免独自驾车、注意台阶及障碍物）\n4. 如确诊PCA-AD且Aβ阳性，评估LVB手术适应证",
+          "content": "视物模糊+记忆+头晕，MMSE 21（视空间-4），枕叶变薄。需鉴别PCA-AD/DLB。",
+          "suggestions": [
+            {
+              "section": "differential",
+              "content": "后皮质萎缩型阿尔茨海默病（PCA-AD）",
+              "detail": "以视空间功能障碍为突出表现（视物模糊、阅读困难、空间感差），伴记忆力下降，MRI示枕叶皮层变薄。PCA是AD的非典型变异型，病理基础仍为Aβ沉积，但分布以顶枕叶为主。MMSE视空间项失分显著支持此诊断。 [KB-2]",
+              "confidence": "高"
+            },
+            {
+              "section": "differential",
+              "content": "路易体痴呆（DLB）— 需排除",
+              "detail": "DLB也可出现视觉症状和认知波动。但该患者无典型幻视、无帕金森运动症状、无REM睡眠行为障碍，不支持DLB核心诊断标准。DAT-SPECT可辅助排除。 [KB-2]",
+              "confidence": "中"
+            },
+            {
+              "section": "differential",
+              "content": "颅神经相关性淋巴水肿（值得注意）",
+              "detail": "临床发现部分LVB术后患者视物模糊和头晕症状获得改善。推测颈深LVB除加快脑淋巴循环外，可能减轻眶内和内听道的颅神经相关性淋巴水肿。该患者若确诊AD，视觉和眩晕症状可能从LVB中额外获益。 [KB-1]",
+              "confidence": "中"
+            },
+            {
+              "section": "workup",
+              "content": "PET-CT（FDG+Aβ双示踪）+ 视觉诱发电位 + 前庭功能",
+              "detail": "①PET-CT（Aβ显像）：确认Aβ沉积，尤其关注顶枕叶分布 ②FDG-PET：评估后部代谢减低（PCA特征）③视觉诱发电位（VEP）：排除视通路器质性病变 ④前庭功能检查：排除外周性眩晕 ⑤MRI黑血序列：建立颈深淋巴基线。 [KB-2]",
+              "confidence": "高"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "content": "陆医生，我看东西模糊到底是眼睛的问题还是脑子的问题？",
+          "triage": "question",
+          "auto_send": true,
+          "ai_reply": "从您的检查来看，眼睛本身没有大问题。您的视物模糊可能与大脑处理视觉信息的区域有关——这在部分认知障碍患者中可以出现。我们安排的PET-CT和视觉诱发电位检查可以帮助明确原因。值得一提的是，有些类似症状的患者在LVB手术后视觉有所改善。 [KB-1]",
+          "days_ago": 14
+        },
+        {
+          "content": "之前眼科配了眼镜也没用，还以为是白内障，结果眼科说不是",
+          "triage": "info",
+          "auto_send": true,
+          "ai_reply": "这种情况确实符合大脑视觉处理区域的问题而非眼球本身的问题。白内障和屈光不正都可以排除，进一步说明需要从神经科角度评估。我们安排的检查可以帮助明确。",
+          "days_ago": 14
+        },
+        {
+          "content": "头晕会不会是耳朵的问题？要不要去看耳鼻喉？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "好问题。我们已经安排了前庭功能检查，可以评估内耳是否有问题。您的头晕特点（非旋转性、与体位无关）更可能与脑部有关，但我们会全面排查。检查完成后再综合判断。",
+          "days_ago": 10
+        },
+        {
+          "content": "头晕的时候不是天旋地转那种，就是整个人晕乎乎的，像喝了酒一样",
+          "triage": "info",
+          "auto_send": true,
+          "ai_reply": "您描述的这种非旋转性头晕（头昏沉感）与前庭外周性眩晕（天旋地转）不同，更倾向于中枢性原因。这个信息对鉴别诊断很有帮助，已记录。 [KB-2]",
+          "days_ago": 10
+        },
+        {
+          "content": "检查要做好几项，能不能集中一两天做完？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "我们会尽量协调安排集中检查。PET-CT需要提前预约，其他检查可以当天完成。预约确认后会通知您具体时间安排。",
+          "days_ago": 5
+        },
+        {
+          "content": "PET-CT预约到下周二了，当天还能做其他检查吗？需要空腹吗？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "PET-CT当天需要空腹至少6小时，检查前避免剧烈运动。视觉诱发电位和前庭功能检查不需要空腹，可以安排在PET-CT之后的当天下午完成。MRI可以另外约时间。",
+          "days_ago": 3
+        }
+      ],
+      "tasks": [
+        {
+          "title": "预约PET-CT（Aβ + FDG双示踪）— 确认AD亚型",
+          "task_type": "checkup",
+          "due_days": 7
+        }
+      ],
+      "phone": "18621345678"
+    },
+    {
+      "key": "liu_shufen",
+      "name": "刘淑芬",
+      "gender": "female",
+      "age": 70,
+      "records": [
+        {
+          "key": "initial_visit",
+          "record_type": "visit",
+          "status": "completed",
+          "days_ago": 210,
+          "department": "神经外科",
+          "chief_complaint": "记忆力下降4年，近1年加速恶化",
+          "present_illness": "4年前出现记忆力下降，渐进性加重。近1年明显加速：不认识邻居，做饭忘记关火，曾走失1次。MMSE 15/30，MoCA 10/30。CDR 2分（中度痴呆）。",
+          "past_history": "高血压20年，糖尿病10年，骨质疏松。多奈哌齐+美金刚联合治疗2年。",
+          "allergy_history": "无药物及食物过敏史",
+          "personal_history": "无吸烟饮酒史。退休前为纺织厂工人。",
+          "marital_reproductive": "已婚，育有2女。丈夫3年前去世。",
+          "family_history": "无痴呆家族史。母亲因心脏病去世（72岁）。",
+          "physical_exam": "T 36.3℃，P 78次/分，R 19次/分，BP 148/92mmHg。神志清楚但淡漠，对答简短。体型偏瘦。心律齐，双肺呼吸音清。腹软。双下肢无水肿。",
+          "specialist_exam": "MMSE 15/30（定向-5，回忆-5，计算-3，语言-2），MoCA 10/30。CDR 2分（中度痴呆）。四肢肌力V级，肌张力正常。步态正常。有强迫性反复洗手行为。命名困难明显。",
+          "auxiliary_exam": "PET-CT示双侧颞顶叶广泛Aβ沉积。MRI示双侧海马萎缩（Scheltens 3级），额叶萎缩。骨密度：T值-2.8（骨质疏松症）。",
+          "diagnosis": "阿尔茨海默病（G30.1，晚发型，中度）\n高血压病3级\n2型糖尿病\n骨质疏松症",
+          "treatment_plan": "1. 继续多奈哌齐5mg qd + 美金刚10mg bid\n2. 维持降压降糖方案\n3. 骨质疏松治疗（钙剂+维生素D）\n4. 完善术前评估，与家属讨论LVB手术方案\n5. MMSE 15分处于手术适应证边界，需充分告知获益及风险",
+          "orders_followup": "1. 完善术前全套检查\n2. 2周后门诊复诊讨论手术方案\n3. 嘱家属24小时看护，防走失、防忘关火\n4. 使用定位手环",
+          "content": "AD 4年，MMSE 15，广泛Aβ沉积，海马+额叶萎缩。",
+          "suggestions": []
+        },
+        {
+          "key": "surgery_and_3m",
+          "record_type": "visit",
+          "status": "completed",
+          "days_ago": 90,
+          "department": "神经外科",
+          "chief_complaint": "双侧颈深LVB手术 + 术后3月随访",
+          "present_illness": "手术：双侧颈深LVB，吻合3根淋巴管。术中未见明显淋巴管扩张，管径偏细（0.2-0.3mm），吻合技术要求高。术后3月：MMSE升至19分（↑4分），能认出家人，情绪好转。强迫性反复洗手行为消失。家属非常满意。",
+          "past_history": "高血压20年，糖尿病10年，骨质疏松。多奈哌齐+美金刚联合治疗2年。双侧颈深LVB术后。",
+          "allergy_history": "无药物及食物过敏史",
+          "personal_history": "无吸烟饮酒史。退休前为纺织厂工人。",
+          "marital_reproductive": "已婚，育有2女。丈夫已故。",
+          "family_history": "无痴呆家族史。",
+          "physical_exam": "手术记录：T 36.4℃，P 76次/分，R 18次/分，BP 145/88mmHg。全麻下手术，术中生命体征平稳。\n术后3月随访：T 36.3℃，P 74次/分，BP 140/85mmHg。精神好，对答较前流利。",
+          "specialist_exam": "手术：蔡司KINEVO 900机器人显微镜下双侧颈深淋巴管显影，管径偏细（0.2-0.3mm），壁薄，吻合技术要求高，25倍放大下完成吻合。\n术后3月：MMSE 19/30（↑4分），MoCA 14/30（↑4分）。强迫行为消失，能认出家人。双侧颈部切口愈合良好。",
+          "auxiliary_exam": "术中ICG荧光造影：吻合口通畅但流速偏慢（与管径偏细有关）。\n术后3月：ICG荧光示双侧吻合口尚通畅。MRI黑血序列较术前有改善趋势。",
+          "diagnosis": "阿尔茨海默病（G30.1，中度，LVB术后改善中）\n双侧颈深淋巴-静脉分流术后\n高血压病3级\n2型糖尿病\n骨质疏松症",
+          "treatment_plan": "1. 继续多奈哌齐5mg qd + 美金刚10mg bid\n2. 维持降压降糖及骨质疏松治疗\n3. 加强认知康复训练\n4. 密切关注吻合口通畅性（管径偏细为狭窄高风险因素）",
+          "orders_followup": "1. 术后6月复查认知评估（MMSE + MoCA）\n2. 术后6月PET-CT复查Aβ清除情况\n3. 术后6月ICG荧光复查吻合口\n4. 如认知出现回退，提前就诊排除吻合口狭窄",
+          "content": "双侧LVB（管径偏细），术后3月MMSE↑4分，认知行为显著改善。",
+          "suggestions": []
+        },
+        {
+          "key": "postop_6m",
+          "record_type": "interview_summary",
+          "status": "completed",
+          "days_ago": 0,
+          "department": "神经外科",
+          "chief_complaint": "双侧LVB术后6月，认知功能部分回退2月",
+          "present_illness": "术后3月时改善明显，但近2月家属反映记忆力再次下降，又开始不认识邻居，偶有走失倾向。MMSE回退至16/30（较3月时↓3分）。MoCA 11/30。情绪较前波动，强迫行为未复发。",
+          "past_history": "高血压20年，糖尿病10年，骨质疏松。双侧颈深LVB术后6月。多奈哌齐+美金刚联合治疗2年余。",
+          "allergy_history": "无药物及食物过敏史",
+          "personal_history": "无吸烟饮酒史。退休前为纺织厂工人。",
+          "marital_reproductive": "已婚，育有2女。丈夫已故。",
+          "family_history": "无痴呆家族史。",
+          "physical_exam": "T 36.5℃，P 76次/分，R 18次/分，BP 146/90mmHg。神志清楚，情绪低落，回答简短。体型偏瘦。心肺腹查体无异常。双下肢无水肿。",
+          "specialist_exam": "MMSE 16/30（较术后3月↓3分），MoCA 11/30（较术后3月↓3分）。命名困难较前加重，近事遗忘再次恶化。强迫性洗手行为未复发。双侧颈部切口愈合好，无肿胀。四肢肌力V级，步态正常。",
+          "auxiliary_exam": "待查：ICG荧光复查吻合口通畅性，PET-CT复查（与术前及术后3月对比）。",
+          "diagnosis": "阿尔茨海默病（G30.1，中度）\n双侧颈深淋巴-静脉分流术后6月（认知部分回退，疑吻合口狭窄）\n高血压病3级\n2型糖尿病\n骨质疏松症",
+          "treatment_plan": "1. 继续多奈哌齐5mg qd + 美金刚10mg bid，不减药\n2. 维持降压降糖及骨质疏松治疗\n3. 尽快安排ICG荧光复查评估吻合口\n4. 加强认知康复训练频次\n5. 待检查结果后评估是否具备二次手术条件",
+          "orders_followup": "1. 紧急安排ICG荧光复查吻合口通畅性\n2. 复查PET-CT与术前/术后3月对比\n3. 如吻合口狭窄确认，讨论二次手术或淋巴静脉分流泵方案\n4. 嘱家属加强看护，防走失",
+          "content": "LVB术后6月，MMSE从19回退至16。需鉴别吻合口狭窄vs AD进展。",
+          "suggestions": [
+            {
+              "section": "differential",
+              "content": "吻合口狭窄/血栓 vs AD自然进展",
+              "detail": "术后3月改善后出现回退，需首先排除吻合口狭窄或血栓导致淋巴引流效果下降。该患者术中淋巴管管径偏细（0.2-0.3mm），是术后吻合口狭窄的高风险因素。同时不排除重度AD的自然进展。 [KB-1]",
+              "confidence": "高",
+              "urgency": "urgent"
+            },
+            {
+              "section": "workup",
+              "content": "ICG荧光复查 + PET-CT对比",
+              "detail": "ICG荧光检查评估双侧吻合口通畅性（关键检查）。复查PET-CT与术前/术后3月对比Aβ清除趋势。如吻合口不通畅，需评估是否具备二次手术条件。 [KB-1]",
+              "confidence": "高"
+            },
+            {
+              "section": "treatment",
+              "content": "维持药物 + 加强认知干预",
+              "detail": "继续多奈哌齐+美金刚联合方案，不建议减药。加强认知康复训练频次。待检查结果明确后再讨论后续手术方案。 [KB-1]",
+              "confidence": "高"
+            }
+          ]
+        }
+      ],
+      "messages": [
+        {
+          "content": "陆医生，术后三个月的时候明显好多了，我们全家都很高兴",
+          "triage": "info",
+          "auto_send": true,
+          "ai_reply": "很高兴听到改善的消息。术后3个月是观察疗效的重要节点，认知功能的改善说明淋巴引流在发挥作用。请继续保持规律服药和认知训练，定期来院复查。",
+          "days_ago": 60
+        },
+        {
+          "content": "她现在能自己穿衣服了，之前那个反复洗手的毛病也没了",
+          "triage": "info",
+          "auto_send": true,
+          "ai_reply": "自理能力恢复和强迫行为消失都是非常好的改善信号。这些行为层面的改善往往比记忆改善更早出现。请继续鼓励她做力所能及的日常活动，这对认知康复很有帮助。",
+          "days_ago": 58
+        },
+        {
+          "content": "陆医生，最近这两周我妈好像又开始忘事了，之前能记住的邻居名字又叫不出来了",
+          "triage": "concern",
+          "auto_send": true,
+          "ai_reply": "术后出现认知波动需要关注。之前3个月的显著改善说明手术本身是有效的，但近期回退可能有几个原因需要排查：吻合口是否仍通畅、AD是否在继续进展等。建议尽快来院复查。 [KB-1]",
+          "days_ago": 5
+        },
+        {
+          "content": "是不是手术白做了？她之前强迫洗手的毛病倒是没有复发",
+          "triage": "concern",
+          "auto_send": true,
+          "ai_reply": "手术不是白做的。强迫行为持续缓解说明手术的部分效果仍然在。记忆回退和行为改善分离，这个现象提示可能是吻合口狭窄导致引流部分受阻，而不是完全失效。您母亲术中淋巴管管径偏细，确实有狭窄的风险。我们需要做ICG荧光复查来确认。 [KB-1]",
+          "days_ago": 3
+        },
+        {
+          "content": "需要再做一次手术吗？",
+          "triage": "question",
+          "auto_send": false,
+          "ai_reply": "目前还不能确定。先完成ICG荧光检查评估吻合口情况。如果确认是吻合口狭窄，有多种处理方案可以考虑。我们团队也在研发新的淋巴静脉分流泵装置，可以降低再手术的难度并避免血栓并发症。等检查结果出来后，陆医生会和您详细讨论。 [KB-1]",
+          "days_ago": 1
+        },
+        {
+          "content": "好的，什么时候能安排做ICG检查？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "我们会尽快协调安排。ICG荧光检查需要在手术显微镜下进行，一般门诊即可完成，不需要住院。预约好后会通知您具体时间。",
+          "days_ago": 1
+        }
+      ],
+      "tasks": [
+        {
+          "title": "安排ICG荧光复查吻合口通畅性",
+          "task_type": "checkup",
+          "due_days": 5,
+          "content": "优先：术后6月认知回退，排除吻合口狭窄"
+        }
+      ],
+      "phone": "13765432198"
+    }
+  ]
+}

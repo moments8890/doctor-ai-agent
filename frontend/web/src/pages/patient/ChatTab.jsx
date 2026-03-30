@@ -32,9 +32,10 @@ import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNone
 import { usePatientApi } from "../../api/PatientApiContext";
 import DoctorBubble from "../../components/DoctorBubble";
 import ListCard from "../../components/ListCard";
-import RecordTypeAvatar from "../../components/RecordTypeAvatar";
+import IconBadge from "../../components/IconBadge";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { LAST_SEEN_CHAT_KEY } from "./constants";
+import { RECORD_TYPE_BADGE } from "../doctor/constants";
 
 const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
@@ -188,13 +189,13 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
     if (src === "patient") {
       return (
         <Box key={msg.id || i} sx={{ display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1, mb: 1.5 }}>
-          <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: "#5b9bd5",
+          <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: COLOR.recordBlue,
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <PersonOutlineIcon sx={{ color: COLOR.white, fontSize: ICON.md }} />
           </Box>
           <Box sx={{
             maxWidth: "75%", px: 1.5, py: 1, borderRadius: `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}`,
-            bgcolor: "#95ec69", color: COLOR.text2, fontSize: TYPE.body.fontSize, lineHeight: 1.7,
+            bgcolor: COLOR.wechatGreen, color: COLOR.text2, fontSize: TYPE.body.fontSize, lineHeight: 1.7,
             whiteSpace: "pre-wrap", wordBreak: "break-word",
           }}>{msg.content}</Box>
         </Box>
@@ -210,7 +211,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
       let avatar;
       let onTap;
       if (linkType === "record") {
-        avatar = <RecordTypeAvatar type="visit" size={32} />;
+        avatar = <IconBadge config={RECORD_TYPE_BADGE.visit} size={32} />;
         onTap = () => navigate(`/patient/records/${linkId}`);
       } else if (linkType === "task") {
         avatar = (

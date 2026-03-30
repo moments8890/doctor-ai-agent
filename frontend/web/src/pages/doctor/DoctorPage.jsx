@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
-  Badge, Box, Chip, CircularProgress, IconButton, LinearProgress, Stack, TextField, Typography,
+  Badge, Box, Chip, CircularProgress, Fade, IconButton, LinearProgress, Slide, Stack, TextField, Typography,
 } from "@mui/material";
 import BottomNavigationMui from "@mui/material/BottomNavigation";
 import BottomNavigationActionMui from "@mui/material/BottomNavigationAction";
@@ -30,6 +30,7 @@ import {
   markOnboardingStep,
   ONBOARDING_STEP,
 } from "./constants";
+import { isWizardDone } from "./onboardingWizardState";
 import MyAIPage from "./MyAIPage";
 import ChatPage from "./ChatPage";
 import PatientsPage from "./PatientsPage";
@@ -178,7 +179,7 @@ function PreviewMessageBubble({ role, content }) {
           px: 2,
           py: 1.5,
           borderRadius: 2,
-          bgcolor: isUser ? "#95EC69" : COLOR.white,
+          bgcolor: isUser ? COLOR.wechatGreen : COLOR.white,
           color: COLOR.text2,
           fontSize: TYPE.body.fontSize,
           lineHeight: 1.6,
@@ -654,41 +655,47 @@ function PatientPreviewPage({ doctorId, previewId }) {
 
 function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout, onContextCleared, triggerInterview, setTriggerInterview, chatInterviewSessionId, setChatInterviewSessionId, chatInterviewPrePopulated, setChatInterviewPrePopulated }) {
   return (
-    <Box sx={{ flex: 1, overflow: "hidden" }}>
-      {activeSection === "my-ai" && (
-        <ErrorBoundary label="我的AI">
-          <MyAIPage doctorId={doctorId} />
-        </ErrorBoundary>
-      )}
-      {activeSection === "chat" && (
-        <ErrorBoundary label="聊天">
-          <ChatPage doctorId={doctorId} onMessageCountChange={() => {}}
-            externalInput={chatInsertText} onExternalInputConsumed={() => setChatInsertText("")}
-            onPatientCreated={() => setPatientRefreshKey((k) => k + 1)}
-            autoSendText={chatAutoSendText !== chatAutoSendConsumedRef.current ? chatAutoSendText : ""}
-            onAutoSendConsumed={() => { chatAutoSendConsumedRef.current = chatAutoSendText; setChatAutoSendText(""); }}
-            onContextCleared={onContextCleared}
-            onStartPatientInterview={(sessionId, prePopulated) => { setChatInterviewSessionId(sessionId || null); setChatInterviewPrePopulated(prePopulated || null); setTriggerInterview(true); navigate("/doctor/patients"); }}
-            onBack={isMobile ? () => navigate("/doctor") : undefined} />
-        </ErrorBoundary>
-      )}
-      {activeSection === "patients" && (
-        <ErrorBoundary label="患者">
-          <PatientsPage doctorId={doctorId} onNavigateToChat={() => navigate("/doctor/chat")}
-            onInsertChatText={(text) => { setChatInsertText(text); navigate("/doctor/chat"); }}
-            onAutoSendToChat={(text) => { chatAutoSendConsumedRef.current = ""; setChatAutoSendText(text); navigate("/doctor/chat"); }}
-            refreshKey={patientRefreshKey}
-            triggerInterview={triggerInterview}
-            onTriggerInterviewConsumed={() => setTriggerInterview(false)}
-            chatInterviewSessionId={chatInterviewSessionId}
-            onChatInterviewSessionConsumed={() => { setChatInterviewSessionId(null); setChatInterviewPrePopulated(null); }}
-            chatInterviewPrePopulated={chatInterviewPrePopulated} />
-        </ErrorBoundary>
-      )}
-      {activeSection === "review" && <ErrorBoundary label="门诊"><ReviewQueuePage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary>}
-      {activeSection === "tasks" && <ErrorBoundary label="任务"><TaskPage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary>}
-      {activeSection === "settings" && <ErrorBoundary label="设置"><SettingsPage doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>}
-      {activeSection === "preview" && <ErrorBoundary label="患者端预览"><PatientPreviewPage doctorId={doctorId} previewId={urlSubpage} /></ErrorBoundary>}
+    <Box sx={{ flex: 1, overflow: "hidden", position: "relative" }}>
+      <Fade in={activeSection === "my-ai"} timeout={150} unmountOnExit>
+        <Box sx={{ position: "absolute", inset: 0 }}>
+          <ErrorBoundary label="我的AI">
+            <MyAIPage doctorId={doctorId} />
+          </ErrorBoundary>
+        </Box>
+      </Fade>
+      <Fade in={activeSection === "chat"} timeout={150} unmountOnExit>
+        <Box sx={{ position: "absolute", inset: 0 }}>
+          <ErrorBoundary label="聊天">
+            <ChatPage doctorId={doctorId} onMessageCountChange={() => {}}
+              externalInput={chatInsertText} onExternalInputConsumed={() => setChatInsertText("")}
+              onPatientCreated={() => setPatientRefreshKey((k) => k + 1)}
+              autoSendText={chatAutoSendText !== chatAutoSendConsumedRef.current ? chatAutoSendText : ""}
+              onAutoSendConsumed={() => { chatAutoSendConsumedRef.current = chatAutoSendText; setChatAutoSendText(""); }}
+              onContextCleared={onContextCleared}
+              onStartPatientInterview={(sessionId, prePopulated) => { setChatInterviewSessionId(sessionId || null); setChatInterviewPrePopulated(prePopulated || null); setTriggerInterview(true); navigate("/doctor/patients"); }}
+              onBack={isMobile ? () => navigate("/doctor") : undefined} />
+          </ErrorBoundary>
+        </Box>
+      </Fade>
+      <Fade in={activeSection === "patients"} timeout={150} unmountOnExit>
+        <Box sx={{ position: "absolute", inset: 0 }}>
+          <ErrorBoundary label="患者">
+            <PatientsPage doctorId={doctorId} onNavigateToChat={() => navigate("/doctor/chat")}
+              onInsertChatText={(text) => { setChatInsertText(text); navigate("/doctor/chat"); }}
+              onAutoSendToChat={(text) => { chatAutoSendConsumedRef.current = ""; setChatAutoSendText(text); navigate("/doctor/chat"); }}
+              refreshKey={patientRefreshKey}
+              triggerInterview={triggerInterview}
+              onTriggerInterviewConsumed={() => setTriggerInterview(false)}
+              chatInterviewSessionId={chatInterviewSessionId}
+              onChatInterviewSessionConsumed={() => { setChatInterviewSessionId(null); setChatInterviewPrePopulated(null); }}
+              chatInterviewPrePopulated={chatInterviewPrePopulated} />
+          </ErrorBoundary>
+        </Box>
+      </Fade>
+      <Fade in={activeSection === "review"} timeout={150} unmountOnExit><Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="门诊"><ReviewQueuePage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary></Box></Fade>
+      <Fade in={activeSection === "tasks"} timeout={150} unmountOnExit><Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="任务"><TaskPage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary></Box></Fade>
+      <Fade in={activeSection === "settings"} timeout={150} unmountOnExit><Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="设置"><SettingsPage doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary></Box></Fade>
+      <Fade in={activeSection === "preview"} timeout={150} unmountOnExit><Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="患者端预览"><PatientPreviewPage doctorId={doctorId} previewId={urlSubpage} /></ErrorBoundary></Box></Fade>
     </Box>
   );
 }
@@ -759,6 +766,17 @@ export default function DoctorPage() {
 
   const { pendingTaskCount, reviewCount, followupCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
+  // Redirect to onboarding wizard on first login (skip for /debug and wizard subpages)
+  useEffect(() => {
+    if (!doctorId) return;
+    if (window.location.pathname.startsWith("/debug")) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("wizard") === "1" || params.get("onboarding") === "1") return;
+    if (!isWizardDone(doctorId)) {
+      navigate("/doctor/onboarding");
+    }
+  }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const navBadge = { tasks: pendingTaskCount, review: reviewCount };
 
   const isReviewPage = !!recordId;
@@ -780,13 +798,14 @@ export default function DoctorPage() {
     <Box sx={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: "100%", position: "relative", bgcolor: COLOR.surface }}>
       {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={navBadge} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-        {isReviewPage ? (
-          <ErrorBoundary label="诊断审核">
-            <ReviewPage recordId={recordId} />
-          </ErrorBoundary>
-        ) : (
-          <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={undefined} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} />
-        )}
+        <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={undefined} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} />
+        <Slide direction="left" in={isReviewPage} timeout={300} mountOnEnter unmountOnExit>
+          <Box sx={{ position: "absolute", inset: 0, zIndex: 5, bgcolor: COLOR.surfaceAlt }}>
+            <ErrorBoundary label="诊断审核">
+              <ReviewPage recordId={recordId} />
+            </ErrorBoundary>
+          </Box>
+        </Slide>
       </Box>
       {isMobile && !isSubpage && <MobileBottomNav activeSection={activeSection} navBadge={navBadge} onNav={handleNav} />}
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} onClose={() => setShowOnboarding(false)} />

@@ -84,11 +84,11 @@ canvas.dragging { cursor: grabbing; }
     <div class="legend-item"><div class="legend-line dashed" style="border-color:#bc4c00"></div> Cross</div>
   </div>
   <div class="filters">
-    <button class="filter-btn active" data-filter="all">All</button>
-    <button class="filter-btn" data-filter="doctor">Doctor</button>
-    <button class="filter-btn" data-filter="patient">Patient</button>
+    <button class="filter-btn active" data-filter="doctor">Doctor App</button>
+    <button class="filter-btn" data-filter="patient">Patient App</button>
+    <button class="filter-btn" data-filter="debug">Debug / Admin</button>
+    <button class="filter-btn" data-filter="all">All</button>
     <button class="filter-btn" data-filter="cross">Cross-links</button>
-    <button class="filter-btn" data-filter="orphan">Orphaned</button>
   </div>
 </div>
 
@@ -114,8 +114,8 @@ var NODES = [
   // Doctor nav tabs — row 0
   { id: 'myai',     label: '我的AI',   route: '/doctor',           comp: 'MyAIPage',        img: 'doctor-home.png',     app: 'doctor', color: '#1a7f37', gx: 0.10, gy: 0.14 },
   { id: 'patients', label: '患者',     route: '/doctor/patients',   comp: 'PatientsPage',    img: 'doctor-patients.png', app: 'doctor', color: '#1a7f37', gx: 0.26, gy: 0.14 },
-  { id: 'review',   label: '门诊',     route: '/doctor/review',     comp: 'ReviewQueuePage', img: 'doctor-review.png',   app: 'doctor', color: '#1a7f37', gx: 0.42, gy: 0.14 },
-  { id: 'tasks',    label: '任务',     route: '/doctor/tasks',      comp: 'TaskPage',        img: 'doctor-followup.png', app: 'doctor', color: '#1a7f37', gx: 0.56, gy: 0.14 },
+  { id: 'review',   label: '审核',     route: '/doctor/review',     comp: 'ReviewQueuePage', img: 'doctor-review.png',   app: 'doctor', color: '#1a7f37', gx: 0.42, gy: 0.14 },
+  { id: 'tasks',    label: '任务',     route: '/doctor/tasks',      comp: 'TaskPage',        img: 'doctor-tasks.png', app: 'doctor', color: '#1a7f37', gx: 0.56, gy: 0.14 },
   // Doctor main pages — row 1
   { id: 'chat',     label: 'AI Chat ⚠', route: '/doctor/chat',       comp: 'ChatPage',        img: 'doctor-chat.png',     app: 'doctor', color: '#9a6700', gx: 0.06, gy: 0.40, reason: 'No nav tab. Reachable via AskAIBar and navigate() calls only.' },
   { id: 'settings', label: '设置',     route: '/doctor/settings',   comp: 'SettingsPage',    img: 'doctor-settings.png', app: 'doctor', color: '#0969da', gx: 0.28, gy: 0.40 },
@@ -126,8 +126,10 @@ var NODES = [
   { id: 'template',       label: '报告模板',  route: '/settings/template',  comp: 'TemplateSubpage',  img: 'doctor-settings-template.png',  app: 'doctor', color: '#8250df', gx: 0.50, gy: 0.66 },
   { id: 'about',          label: '关于',      route: '/settings/about',     comp: 'AboutSubpage',     img: 'doctor-settings-about.png',     app: 'doctor', color: '#8250df', gx: 0.62, gy: 0.66 },
   { id: 'review-detail', label: '诊断审核',  route: '/review/:id',  comp: 'ReviewPage',      img: 'doctor-review-detail.png',       app: 'doctor', color: '#8250df', gx: 0.50, gy: 0.66 },
+  { id: 'patient-chat',    label: '患者消息',  route: '/patients/:id?view=chat',   comp: 'PatientChatPage',    img: 'doctor-patients-chat.png', app: 'doctor', color: '#8250df', gx: 0.16, gy: 0.82 },
+  { id: 'record-detail',   label: '病历详情',  route: '/patients/:id?view=record&record=:rid', comp: 'RecordDetailSubpage', img: null, app: 'doctor', color: '#bc4c00', gx: 0.30, gy: 0.82 },
   // Doctor detail — row 3
-  { id: 'knowledge-add',  label: '添加知识',  route: '/knowledge/add',  comp: 'AddKnowledgeSubpage', img: 'doctor-settings-knowledge-add.png', app: 'doctor', color: '#bc4c00', gx: 0.38, gy: 0.88 },
+  { id: 'knowledge-add',  label: '添加知识',  route: '/knowledge/add',  comp: 'AddKnowledgeSubpage', img: 'doctor-settings-knowledge-add.png', app: 'doctor', color: '#bc4c00', gx: 0.44, gy: 0.88 },
   // Patient nav — right column
   { id: 'p-chat',      label: '消息',   route: '/patient',          comp: 'ChatTab',        img: 'patient.png',           app: 'patient', color: '#1a7f37', gx: 0.74, gy: 0.14 },
   { id: 'p-records',   label: '病历',   route: '/patient/records',  comp: 'RecordsTab',     img: 'patient-records.png',   app: 'patient', color: '#1a7f37', gx: 0.84, gy: 0.14 },
@@ -161,9 +163,12 @@ var EDGES = [
   // Patients drill
   { from: 'patients', to: 'patient-detail', label: 'tap row', type: 'drill' },
   { from: 'patients', to: 'interview', label: '"新建患者"', type: 'drill' },
+  // Patient detail drill
+  { from: 'patient-detail', to: 'patient-chat', label: '"患者消息"', type: 'drill' },
+  { from: 'patient-detail', to: 'record-detail', label: 'tap record', type: 'drill' },
+  { from: 'patient-detail', to: 'interview', label: '"新建门诊"', type: 'drill' },
   // Patient detail cross
-  { from: 'patient-detail', to: 'chat', label: '"问AI"', type: 'cross' },
-  { from: 'patient-detail', to: 'interview', label: '"门诊"', type: 'cross' },
+  { from: 'patient-detail', to: 'review-detail', label: 'pending review', type: 'drill' },
   // Settings drill
   { from: 'settings', to: 'knowledge', label: '"知识库"', type: 'drill' },
   { from: 'settings', to: 'template', label: '"报告模板"', type: 'drill' },
@@ -175,7 +180,8 @@ var EDGES = [
   // Review drill
   { from: 'review', to: 'review-detail', label: 'tap review card', type: 'drill' },
   { from: 'patient-detail', to: 'review-detail', label: 'pending review >', type: 'drill' },
-  // Cross-section links
+  // Review cross-links
+  { from: 'review', to: 'patient-chat', label: '待回复 tab', type: 'cross' },
   { from: 'review', to: 'patient-detail', label: 'completed row', type: 'cross' },
   { from: 'tasks', to: 'patient-detail', label: 'tap row', type: 'cross' },
   { from: 'chat', to: 'patient-detail', label: 'patient card', type: 'cross' },
@@ -202,9 +208,9 @@ var nodeMap = {};
 var images = {};
 var dragging = null, dragOff = { x: 0, y: 0 }, wasDragged = false;
 var hover = null;
-var activeFilter = 'all';
+var activeFilter = 'doctor';
 
-NODES.forEach(function(n) { n.visible = true; nodeMap[n.id] = n; });
+NODES.forEach(function(n) { n.visible = n.app === 'doctor'; nodeMap[n.id] = n; });
 
 function resize() {
   W = window.innerWidth;
@@ -543,7 +549,7 @@ document.querySelectorAll('.filter-btn').forEach(function(btn) {
       if (activeFilter === 'all') n.visible = true;
       else if (activeFilter === 'doctor') n.visible = n.app === 'doctor';
       else if (activeFilter === 'patient') n.visible = n.app === 'patient';
-      else if (activeFilter === 'orphan') n.visible = !!n.orphan;
+      else if (activeFilter === 'debug') n.visible = n.app === 'standalone' || n.app === 'orphan' || !!n.orphan;
       else if (activeFilter === 'cross') {
         var has = false;
         EDGES.forEach(function(e) { if (e.type === 'cross' && (e.from === n.id || e.to === n.id)) has = true; });

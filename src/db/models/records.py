@@ -30,6 +30,7 @@ class MedicalRecordDB(Base):
     tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of keyword strings
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+    seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     # --- Versioning ---
     version_of: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("medical_records.id", ondelete="SET NULL"), nullable=True)

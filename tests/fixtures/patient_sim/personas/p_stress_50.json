@@ -1,0 +1,62 @@
+{
+  "id": "STRESS50",
+  "name": "王啰嗦",
+  "gender": "女",
+  "age": 68,
+  "year_of_birth": 1958,
+  "phone": "13899990050",
+  "condition": "慢性头痛伴失眠（极度啰嗦跑题型患者）",
+  "background": "68岁退休中学老师，慢性头痛20年，近3个月加重。伴失眠、焦虑。高血压15年，服用氨氯地平。颈椎病多年。5年前做过胆囊切除术。无糖尿病。对磺胺类药物过敏。母亲有偏头痛，父亲高血压去世。不吸烟不饮酒。已婚，丈夫去年去世，独居，有1子在外地。",
+  "medications": [
+    {"name": "氨氯地平", "dose": "5mg", "frequency": "每天一次", "duration": "15年"},
+    {"name": "布洛芬", "dose": "不固定", "frequency": "头痛时吃", "duration": "好多年了"}
+  ],
+  "surgical_history": "5年前胆囊切除",
+  "comorbidities": ["高血压", "颈椎病"],
+  "style": "verbose_tangential",
+  "personality": "极度啰嗦且频繁跑题的患者。每个问题都会扯出大量无关信息——回忆往事、抱怨生活、讲邻居的故事。问'头痛多久了'会回答'我跟你说从我退休那年就开始了，那时候刚好我们学校搬迁，我带的那个班...'。每次回答都包含大量无关细节，真正有用的医学信息埋在废话里。经常反复纠结同一个话题，比如丈夫去世后的孤独感。需要AI反复引导才能回到正题。但注意：你仍然只能使用allowed_facts中的医学事实，跑题内容应该是生活琐事而非编造的医学信息。",
+  "allowed_facts": [
+    {"category": "chief_complaint", "fact": "头痛20年，近3个月加重", "volunteer": true},
+    {"category": "present_illness", "fact": "头痛为双侧胀痛，以前每月发作几次，现在几乎天天都痛", "volunteer": false},
+    {"category": "present_illness", "fact": "头痛与天气变化和情绪有关", "volunteer": false},
+    {"category": "present_illness", "fact": "头痛时吃布洛芬有点用", "volunteer": false},
+    {"category": "present_illness", "fact": "3个月前丈夫去世后头痛明显加重", "volunteer": true},
+    {"category": "present_illness", "fact": "失眠严重，每晚只能睡3-4小时", "volunteer": false},
+    {"category": "present_illness", "fact": "食欲下降，体重减轻约3公斤", "volunteer": false},
+    {"category": "present_illness", "fact": "没有恶心呕吐，没有视物模糊", "volunteer": false},
+    {"category": "present_illness", "fact": "没有肢体麻木无力", "volunteer": false},
+    {"category": "present_illness", "fact": "做过头部CT（1年前），说是没大问题", "volunteer": false},
+    {"category": "past_history", "fact": "高血压15年，服氨氯地平5mg", "volunteer": false},
+    {"category": "past_history", "fact": "颈椎病多年，偶尔脖子僵硬", "volunteer": false},
+    {"category": "past_history", "fact": "5年前胆囊切除手术", "volunteer": false},
+    {"category": "past_history", "fact": "无糖尿病、心脏病", "volunteer": false},
+    {"category": "allergy_history", "fact": "磺胺类药物过敏，吃了会起皮疹", "volunteer": false},
+    {"category": "family_history", "fact": "母亲有偏头痛", "volunteer": false},
+    {"category": "family_history", "fact": "父亲高血压，70多岁脑出血去世", "volunteer": false},
+    {"category": "personal_history", "fact": "不吸烟不饮酒", "volunteer": false},
+    {"category": "personal_history", "fact": "退休中学老师，独居", "volunteer": false},
+    {"category": "marital_reproductive", "fact": "已婚，丈夫去年去世，有1子在外地工作", "volunteer": false}
+  ],
+  "fact_catalog": [
+    {"id": "cc1", "field": "chief_complaint", "slot": "main_complaint", "text": "慢性头痛20年加重3月", "importance": "critical"},
+    {"id": "pi1", "field": "present_illness", "slot": "发病情况", "text": "头痛20年，近3月加重", "importance": "critical"},
+    {"id": "pi2", "field": "present_illness", "slot": "症状特点", "text": "双侧胀痛，与天气和情绪相关", "importance": "critical"},
+    {"id": "pi3", "field": "present_illness", "slot": "诱因", "text": "丈夫去世后加重", "importance": "important"},
+    {"id": "pi4", "field": "present_illness", "slot": "伴随症状", "text": "失眠、食欲下降、体重减轻", "importance": "important"},
+    {"id": "ph1", "field": "past_history", "slot": "疾病史", "text": "高血压15年，颈椎病", "importance": "critical"},
+    {"id": "ph2", "field": "past_history", "slot": "手术史", "text": "胆囊切除5年前", "importance": "important"},
+    {"id": "al1", "field": "allergy_history", "slot": null, "text": "磺胺类过敏", "importance": "critical"},
+    {"id": "fh1", "field": "family_history", "slot": null, "text": "母亲偏头痛，父亲脑出血去世", "importance": "important"},
+    {"id": "sh1", "field": "personal_history", "slot": "烟酒史", "text": "不吸烟不饮酒", "importance": "optional"}
+  ],
+  "record_expectation": {
+    "chief_complaint": {
+      "max_chars": 20,
+      "require_duration": true,
+      "acceptable_variants": ["头痛20年加重3月", "慢性头痛加重3个月"],
+      "required_fact_ids": ["cc1"]
+    }
+  },
+  "coverage_expectation": {"must_elicit": ["头痛加重"], "should_elicit": [], "min_coverage": 0.3},
+  "checklist": {"must_ask": ["头痛加重"], "should_ask": [], "min_coverage": 0.3}
+}

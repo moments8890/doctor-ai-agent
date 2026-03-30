@@ -1,17 +1,19 @@
 /**
- * SectionLoading — centered spinner for content sections.
- *
- * Replaces ad-hoc CircularProgress+Box patterns across pages.
- * Use for section/page-level loading. For button-level loading,
- * use AppButton's loading prop instead.
+ * SectionLoading — loading state for content sections.
+ * Default: skeleton rows matching ListCard layout.
+ * Set `spinner` prop for the legacy centered spinner behavior.
  */
 import { Box, CircularProgress } from "@mui/material";
 import { COLOR } from "../theme";
+import ListCardSkeleton from "./ListCardSkeleton";
 
-export default function SectionLoading({ size = 20, py = 3 }) {
-  return (
-    <Box sx={{ display: "flex", justifyContent: "center", py }}>
-      <CircularProgress size={size} sx={{ color: COLOR.text4 }} />
-    </Box>
-  );
+export default function SectionLoading({ py = 2, rows = 3, spinner = false }) {
+  if (spinner) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py }}>
+        <CircularProgress size={20} sx={{ color: COLOR.text4 }} />
+      </Box>
+    );
+  }
+  return <ListCardSkeleton rows={rows} />;
 }

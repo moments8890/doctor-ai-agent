@@ -119,7 +119,7 @@ td.dot { cursor: default; }
 
 <div class="header">
   <h1>Component System</h1>
-  <p>Visual catalog + page usage matrix. Updated 2026-03-29.</p>
+  <p>Visual catalog + page usage matrix. Updated 2026-03-29 (post-audit).</p>
   <div class="tab-bar">
     <div class="tab active" onclick="showTab('catalog', this)">
       <div class="tab-count" id="tab-catalog-count">35</div>
@@ -145,25 +145,25 @@ td.dot { cursor: default; }
 <script>
 // ── Data ──
 var PAGES = [
-  { id: 'myai', label: 'MyAI', comps: ['SubpageHeader','IconBadge','ListCard','KnowledgeCard','NameAvatar','SectionLabel','AppButton','EmptyState','SectionLoading'] },
+  { id: 'myai', label: 'MyAI', comps: ['SubpageHeader','IconBadge','ListCard','KnowledgeCard','NameAvatar','StatColumn','SectionLabel','AppButton','EmptyState','SectionLoading'] },
   { id: 'patients', label: '患者', comps: ['SubpageHeader','ListCard','NameAvatar','SectionLabel','StatusBadge','NewItemCard','PageSkeleton','EmptyState','SectionLoading','AskAIBar','BarButton'] },
   { id: 'patient-detail', label: '患者详情', comps: ['RecordCard','RecordEditDialog','MessageTimeline','ExportSelectorDialog','ConfirmDialog','EmptyState','FilterBar','QRDialog'] },
-  { id: 'chat', label: 'AI对话', comps: ['SubpageHeader','VoiceInput','ActionPanel','ConfirmDialog','SheetDialog','DialogFooter','AppButton','PatientPickerDialog','ImportChoiceDialog','RecordFields','BarButton'] },
-  { id: 'interview', label: '新建病历', comps: ['SubpageHeader','VoiceInput','CancelConfirm','SuggestionChips','ActionPanel','ImportChoiceDialog','FieldReviewCard','InterviewCompleteDialog'] },
-  { id: 'review-queue', label: '审核队列', comps: ['SubpageHeader','NameAvatar','ActionRow','SectionLabel','SheetDialog','DialogFooter','EmptyState','SectionLoading','ReplyCard'] },
+  { id: 'chat', label: 'AI对话', comps: ['SubpageHeader','MsgAvatar','VoiceInput','ActionPanel','ConfirmDialog','SheetDialog','DialogFooter','AppButton','PatientPickerDialog','ImportChoiceDialog','RecordFields','BarButton'] },
+  { id: 'interview', label: '新建病历', comps: ['SubpageHeader','MsgAvatar','VoiceInput','ConfirmDialog','SuggestionChips','ActionPanel','ImportChoiceDialog','FieldReviewCard','InterviewCompleteDialog'] },
+  { id: 'review-queue', label: '审核队列', comps: ['SubpageHeader','NameAvatar','ActionRow','SectionLabel','FilterBar','SheetDialog','DialogFooter','EmptyState','SectionLoading','ReplyCard','CitationPopover'] },
   { id: 'review-detail', label: '诊断审核', comps: ['AppButton','Toast','DiagnosisCard','SubpageHeader','BarButton','CollapsibleSection','InlineEditor'] },
-  { id: 'tasks', label: '任务', comps: ['SubpageHeader','ActionRow','SectionLabel','SheetDialog','AppButton','EmptyState','SectionLoading'] },
+  { id: 'tasks', label: '任务', comps: ['SubpageHeader','ActionRow','FilterBar','SectionLabel','SheetDialog','AppButton','EmptyState','SectionLoading'] },
   { id: 'settings', label: '设置', comps: ['SubpageHeader','SheetDialog','DialogFooter','ConfirmDialog','AppButton','PageSkeleton'] },
   { id: 'knowledge', label: '知识库', comps: ['PageSkeleton','ListCard','KnowledgeCard','EmptyState','AppButton','IconBadge'] },
   { id: 'knowledge-detail', label: '知识详情', comps: ['PageSkeleton','SectionLabel','ListCard','ConfirmDialog','SheetDialog','DialogFooter','IconBadge'] },
-  { id: 'add-knowledge', label: '添加知识', comps: ['PageSkeleton','AppButton','SheetDialog','VoiceInput','Toast','CancelConfirm','BarButton'] },
+  { id: 'add-knowledge', label: '添加知识', comps: ['PageSkeleton','AppButton','SheetDialog','VoiceInput','Toast','ConfirmDialog','BarButton'] },
   { id: 'templates', label: '模板管理', comps: ['PageSkeleton','SectionLabel','ConfirmDialog','SheetDialog','DialogFooter'] },
   { id: 'doctor-shell', label: '医生Shell', comps: ['ErrorBoundary','ConfirmDialog','SheetDialog','DialogFooter','AppButton','SubpageHeader','SuggestionChips','VoiceInput','BarButton'] },
   { id: 'settings-list', label: '设置列表', comps: ['AccountCard','PageSkeleton','SectionLabel'] },
   { id: 'patient-profile', label: '患者·我的', comps: ['AccountCard'] },
-  { id: 'patient-records', label: '患者·病历', comps: ['ListCard','NewItemCard','RecordTypeAvatar','DateAvatar','StatusBadge','EmptyState','SectionLoading'] },
+  { id: 'patient-records', label: '患者·病历', comps: ['ListCard','NewItemCard','IconBadge','DateAvatar','StatusBadge','EmptyState','SectionLoading'] },
   { id: 'patient-tasks', label: '患者·任务', comps: ['TaskChecklist','SectionLabel','EmptyState','SectionLoading'] },
-  { id: 'patient-chat', label: '患者·聊天', comps: ['VoiceInput','DoctorBubble','ListCard','RecordTypeAvatar'] },
+  { id: 'patient-chat', label: '患者·聊天', comps: ['VoiceInput','DoctorBubble','ListCard','IconBadge'] },
   { id: 'patient-interview', label: '患者·问诊', comps: ['SubpageHeader','VoiceInput','SuggestionChips','SheetDialog','ConfirmDialog','AppButton'] },
 ];
 
@@ -177,7 +177,9 @@ var CATALOG = [
     { name: 'SectionLabel', file: 'SectionLabel.jsx',
       html: '<div style="width:100%;text-align:left"><div class="m-section-label">最近 · 5位患者</div></div>' },
     { name: 'FilterBar', file: 'FilterBar.jsx',
-      html: '<div style="display:flex;width:100%;background:#fff;border-radius:4px;border-bottom:1px solid #e5e5e5"><div style="flex:1;text-align:center;padding:6px 0 8px;border-bottom:3px solid #F59E0B"><div style="font-size:14px;font-weight:700;color:#F59E0B">2</div><div style="font-size:10px;color:#1A1A1A">门诊</div></div><div style="flex:1;text-align:center;padding:6px 0 8px"><div style="font-size:14px;font-weight:700;color:#999">4</div><div style="font-size:10px;color:#999">回复</div></div><div style="flex:1;text-align:center;padding:6px 0 8px"><div style="font-size:14px;font-weight:700;color:#999">3</div><div style="font-size:10px;color:#999">完成</div></div></div>' },
+      html: '<div style="display:flex;width:100%;background:#fff;border-radius:4px;border-bottom:1px solid #e5e5e5"><div style="flex:1;text-align:center;padding:8px 0 10px;border-bottom:2px solid #F59E0B"><div style="font-size:14px;font-weight:600;color:#F59E0B">3</div><div style="font-size:9px;color:#333;font-weight:500;margin-top:2px">门诊</div></div><div style="width:0.5px;background:#f0f0f0;margin:8px 0"></div><div style="flex:1;text-align:center;padding:8px 0 10px;border-bottom:2px solid transparent"><div style="font-size:14px;font-weight:600;color:#999">1</div><div style="font-size:9px;color:#999;margin-top:2px">回复</div></div><div style="width:0.5px;background:#f0f0f0;margin:8px 0"></div><div style="flex:1;text-align:center;padding:8px 0 10px;border-bottom:2px solid transparent"><div style="font-size:14px;font-weight:600;color:#999">5</div><div style="font-size:9px;color:#999;margin-top:2px">完成</div></div></div>' },
+    { name: 'StatColumn', file: 'StatColumn.jsx',
+      html: '<div style="display:flex;width:100%;background:#fff;border-radius:4px;padding:8px 0"><div style="flex:1;text-align:center"><div style="font-size:16px;font-weight:600;color:#1A1A1A">12</div><div style="font-size:9px;color:#999;margin-top:2px">7天引用</div></div><div style="width:0.5px;background:#f0f0f0;margin:4px 0"></div><div style="flex:1;text-align:center"><div style="font-size:16px;font-weight:600;color:#F59E0B">3</div><div style="font-size:9px;color:#999;margin-top:2px">待确认</div></div><div style="width:0.5px;background:#f0f0f0;margin:4px 0"></div><div style="flex:1;text-align:center"><div style="font-size:16px;font-weight:600;color:#1A1A1A">5</div><div style="font-size:9px;color:#999;margin-top:2px">今日处理</div></div></div>' },
     { name: 'ErrorBoundary', file: 'ErrorBoundary.jsx',
       html: '<div style="text-align:center;padding:8px;color:#D65745;font-size:10px;background:#fff;border-radius:4px">Something went wrong<br><span style="color:#07C160;font-size:9px">Retry</span></div>' },
     { name: 'CollapsibleSection', file: 'CollapsibleSection.jsx',
@@ -202,14 +204,14 @@ var CATALOG = [
       html: '<div style="background:#fff;border-radius:4px;padding:6px 8px;width:100%;font-size:9px"><div style="font-weight:600;font-size:10px;margin-bottom:4px">任务详情</div><div style="display:grid;grid-template-columns:40px 1fr;gap:2px 8px;color:#666"><span style="color:#999">类型</span><span>复查</span><span style="color:#999">截止</span><span>04-05</span></div></div>' },
   ]},
   { section: 'Avatars & Badges', color: '#8993a4', items: [
+    { name: 'MsgAvatar', file: 'MsgAvatar.jsx',
+      html: '<div style="display:flex;gap:8px;align-items:center"><div class="m-avatar" style="background:#576B95;color:#fff;font-size:14px">&#9877;</div><div class="m-avatar" style="background:#07C160;color:#fff;font-size:14px">&#129302;</div><div style="font-size:10px;color:#666">Doctor / AI chat avatar</div></div>' },
     { name: 'NameAvatar', file: 'NameAvatar.jsx',
       html: '<div style="display:flex;gap:8px;align-items:center"><div class="m-avatar" style="background:#f0f0f0;color:#999;position:relative">王<div style="position:absolute;top:-2px;right:-2px;width:7px;height:7px;border-radius:50%;background:#D65745;border:1.5px solid #fff"></div></div><div style="font-size:10px;color:#666">Gray + status dot</div></div>' },
     { name: 'IconBadge', file: 'IconBadge.jsx',
       html: '<div style="display:flex;gap:6px"><div class="m-avatar" style="background:#E7F7EE;color:#07C160;font-size:14px">&#x2695;</div><div class="m-avatar" style="background:#EEF1F6;color:#576B95;font-size:14px">&#x2697;</div><div class="m-avatar" style="background:#f0f0f0;color:#8993a4;font-size:14px">&#x270E;</div></div>' },
     { name: 'StatusBadge', file: 'StatusBadge.jsx',
       html: '<div style="display:flex;gap:4px"><span class="m-badge" style="color:#D65745;border-color:#D65745">高</span><span class="m-badge" style="color:#F59E0B;border-color:#F59E0B">中</span><span class="m-badge" style="color:#999;border-color:#ccc">低</span></div>' },
-    { name: 'RecordTypeAvatar', file: 'RecordTypeAvatar.jsx',
-      html: '<div style="display:flex;gap:6px"><div class="m-avatar" style="background:#07C160;color:#fff;font-size:10px">门诊</div><div class="m-avatar" style="background:#576B95;color:#fff;font-size:10px">检验</div><div class="m-avatar" style="background:#8993a4;color:#fff;font-size:10px">口述</div></div>' },
     { name: 'DateAvatar', file: 'DateAvatar.jsx',
       html: '<div class="m-avatar" style="background:#f0f0f0;color:#666;flex-direction:column;font-size:8px;line-height:1.2;width:32px;height:32px"><div style="font-weight:600;font-size:11px">28</div><div>Mar</div></div>' },
   ]},
@@ -218,8 +220,6 @@ var CATALOG = [
       html: '<div class="m-dialog" style="border-radius:12px 12px 0 0"><div style="width:24px;height:3px;border-radius:2px;background:#ccc;margin:0 auto 6px"></div><div class="m-dialog-title">选择导出内容</div><div class="m-dialog-msg">勾选需要包含的字段</div></div>' },
     { name: 'ConfirmDialog', file: 'ConfirmDialog.jsx',
       html: '<div class="m-dialog"><div class="m-dialog-title">确认删除？</div><div class="m-dialog-msg">删除后无法恢复</div><div class="m-dialog-btns"><div class="m-btn m-btn-secondary">取消</div><div class="m-btn m-btn-danger">删除</div></div></div>' },
-    { name: 'CancelConfirm', file: 'CancelConfirm.jsx',
-      html: '<div class="m-dialog"><div class="m-dialog-title">确认离开？</div><div class="m-dialog-msg">未保存的内容将会丢失</div><div class="m-dialog-btns"><div class="m-btn m-btn-secondary">取消</div><div class="m-btn m-btn-danger">离开</div></div></div>' },
     { name: 'DialogFooter', file: 'DialogFooter.jsx',
       html: '<div class="m-dialog-btns" style="width:100%"><div class="m-btn m-btn-secondary">取消</div><div class="m-btn m-btn-primary">保存</div></div>' },
     { name: 'AppButton', file: 'AppButton.jsx',
@@ -268,8 +268,12 @@ var CATALOG = [
   { section: 'State & Feedback', color: '#999', items: [
     { name: 'EmptyState', file: 'EmptyState.jsx',
       html: '<div class="m-empty"><div style="font-size:20px;color:#ccc;margin-bottom:4px">&#x2637;</div><div style="font-weight:500">暂无病历</div><div style="font-size:9px;color:#bbb">点击右上角新建</div></div>' },
+    { name: 'ListCardSkeleton', file: 'ListCardSkeleton.jsx',
+      html: '<div style="width:100%"><div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border-bottom:0.5px solid #f0f0f0"><div style="width:36px;height:36px;border-radius:4px;background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);flex-shrink:0"></div><div style="flex:1"><div style="width:60%;height:12px;border-radius:3px;background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);margin-bottom:4px"></div><div style="width:40%;height:10px;border-radius:3px;background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)"></div></div></div><div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff"><div style="width:36px;height:36px;border-radius:4px;background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);flex-shrink:0"></div><div style="flex:1"><div style="width:75%;height:12px;border-radius:3px;background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);margin-bottom:4px"></div><div style="width:50%;height:10px;border-radius:3px;background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)"></div></div></div></div>' },
     { name: 'SectionLoading', file: 'SectionLoading.jsx',
-      html: '<div style="display:flex;justify-content:center;padding:12px"><div class="m-spinner"></div></div>' },
+      html: '<div style="width:100%;font-size:9px;color:#999;text-align:center;padding:4px">Now defaults to ListCardSkeleton rows.<br>Pass <code>spinner</code> prop for legacy spinner.</div>' },
+    { name: 'CitationPopover', file: 'CitationPopover.jsx',
+      html: '<div style="background:#fff;border:0.5px solid #e5e5e5;border-radius:8px;padding:8px 10px;width:100%;box-shadow:0 2px 8px rgba(0,0,0,0.08)"><div style="font-size:11px;font-weight:600;margin-bottom:3px">高血压分级用药规则</div><div style="font-size:9px;color:#666;line-height:1.5;margin-bottom:4px">3级首选ARB+CCB联合...</div><div style="display:flex;justify-content:space-between;font-size:8px"><span style="color:#999">引用 5 次</span><span style="color:#07C160">查看全文 ›</span></div></div>' },
     { name: 'Toast', file: 'Toast.jsx',
       html: '<div style="display:flex;justify-content:center"><div class="m-toast">已保存到知识库</div></div>' },
     { name: 'TaskChecklist', file: 'TaskChecklist.jsx',

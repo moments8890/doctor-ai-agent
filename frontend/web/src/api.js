@@ -676,6 +676,20 @@ export async function createTask(doctorId, { taskType, title, dueAt, patientId, 
   });
 }
 
+export async function getTaskById(taskId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/tasks/${taskId}?${qs.toString()}`);
+}
+
+export async function patchTaskNotes(taskId, doctorId, notes) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/tasks/${taskId}/notes?${qs.toString()}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes }),
+  });
+}
+
 export async function getTaskRecord(recordId, doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   return request(`/api/tasks/record/${recordId}?${qs.toString()}`);
@@ -1128,6 +1142,14 @@ export async function createRuleFromEdit(editId, doctorId) {
 
 export async function finalizeReview(recordId, doctorId) {
   return request(`/api/doctor/records/${recordId}/review/finalize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id: doctorId }),
+  });
+}
+
+export async function seedDemo(doctorId) {
+  return request("/api/manage/onboarding/seed-demo", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ doctor_id: doctorId }),

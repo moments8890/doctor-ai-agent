@@ -7,7 +7,7 @@
 > - ADR 0017 (Patient Onboarding): **✅ Implemented** — QR token endpoint + unified auth + QRDialog
 > - ADR 0018 (Clinical Decision Support): **✅ Implemented** — full diagnosis pipeline + review UI
 > - ADR 0022 (Knowledge Base): **✅ Implemented** — manual KB CRUD + document upload + LLM processing + citation
-> - Deterministic doctor onboarding: **✅ Implemented** — 我的AI checklist, knowledge proof routing, doctor-side patient preview, review-task and follow-up-task bridges
+> - Deterministic doctor onboarding: **✅ Implemented** — 5-step onboarding wizard (`/doctor/onboarding`), auto-redirect on first login, replayable via 我的AI; replaces old inline checklist
 > - ADR 0019 (External AI): NOT STARTED. ADR 0020 (Bidirectional): PARTIAL. ADR 0021 (Outcome Tracking): NOT STARTED.
 > - Phases are **concurrent**, not sequential — Phases 1-3 are substantially on main.
 > - File paths in Phase 0 section are stale; see `docs/architecture.md` for current module map.
@@ -46,8 +46,8 @@ All features below are working end-to-end on `main`.
 | 0.6 | Patient CRUD (auto-create, search, switch) | Done | `resolve.py`, `db/crud/` |
 | 0.7 | Task scheduling + rule-based auto-tasks + notifications | Done | `notify/task_rules.py` |
 | 0.8 | WeChat doctor channel (text, image, PDF, voice) | Done | `channels/wechat/router.py` |
-| 0.9 | Web UI: doctor chat, records, tasks, settings, admin | Done | `channels/web/ui/` |
-| 0.10 | Patient portal (web): login, view records, send messages | Done (limited) | `channels/web/patient_portal.py` |
+| 0.9 | Web UI: doctor chat, records, tasks, settings, admin | Done | `channels/web/doctor_dashboard/` |
+| 0.10 | Patient portal (web): login, view records, send messages | Done (limited) | `channels/web/patient_portal/` |
 | 0.11 | Patient chat (WeChat): emergency detection, health Q&A | Done (limited) | `channels/wechat/patient_pipeline.py` |
 
 ---

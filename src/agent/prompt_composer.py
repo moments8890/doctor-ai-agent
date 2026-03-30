@@ -1,17 +1,18 @@
-"""Prompt composer — assembles the 6-layer prompt stack into messages.
+"""Prompt composer — assembles the 7-layer prompt stack into messages.
 
 Layers:
-  1. Common prompt     (common/base.md)         — identity, safety, date
-  2. Domain prompt     (domain/{specialty}.md)   — specialty knowledge
-  3. Intent prompt     (intent/{intent}.md)      — action-specific rules
-  4. Doctor knowledge  (DB, filtered by category) — auto-loaded from KB
-  5. Patient context   (DB, records/history)     — caller provides
-  6. User prompt       (actual message)          — doctor's input
+  L1 Identity      (common/base.md)         — role, safety, precedence
+  L2 Specialty     (domain/{specialty}.md)   — domain knowledge
+  L3 Task          (intent/{intent}.md)      — action-specific rules + format
+  L4 Doctor Rules  (DB, auto-loaded)         — user-authored KB, scored
+  L5 Case Memory   (DB, diagnosis only)      — similar confirmed decisions
+  L6 Patient       (DB, records/history)     — caller provides
+  L7 Input         (actual message)          — doctor's/patient's input
 
-Layers 1-3 → single system message
-Layer 4 → auto-loaded by composer from DB when config.load_knowledge is True
-Layers 4-6 → final user message with XML tags
-Conversation history sits between system and user.
+L1-L3 → single system message
+L4 → auto-loaded by composer from DB when config.load_knowledge is True
+L4-L7 → final user message with XML tags (Pattern 1)
+       or L4-L6 in system, L7 as plain user (Pattern 2: conversation)
 """
 from __future__ import annotations
 
@@ -55,36 +56,36 @@ async def compose_messages(
     specialty: str = "neurology",
     extra_system: str = "",
 ) -> List[Dict[str, str]]:
-    """Assemble the 6-layer prompt stack into a message list.
+    """Assemble the prompt stack into a message list.
 
-    Layer 4 (doctor knowledge) is auto-loaded from DB when
-    config.load_knowledge is True. Callers don't need to load KB.
+    L4 Doctor Rules is auto-loaded from DB when config.load_knowledge
+    is True. Callers don't need to load KB.
 
     Args:
         config: LayerConfig defining which layers to include.
         doctor_id: Used for KB loading and logging.
-        patient_context: Pre-formatted patient data (Layer 5).
-        doctor_message: The actual user input (Layer 6).
+        patient_context: Pre-formatted patient data (L6 Patient).
+        doctor_message: The actual user input (L7 Input).
         history: Conversation history (between system and user).
-        specialty: Doctor's specialty for Layer 2 lookup.
+        specialty: Doctor's specialty for L2 Specialty lookup.
         extra_system: Additional system content appended to system message.
     """
-    # ── Layers 1-3: System message ─────────────────────────────────
+    # ── L1-L3: System message ────────────────────────────────────────
     parts = []
 
-    # Layer 1: Common base (always included)
+    # L1 Identity (always included)
     if config.system:
         base = get_prompt_sync("common/base", fallback="")
         if base:
             parts.append(base)
 
-    # Layer 2: Domain specialty knowledge
+    # L2 Specialty
     if config.domain:
         domain = get_prompt_sync(f"domain/{specialty}", fallback="")
         if domain:
             parts.append(domain)
 
-    # Layer 3: Intent-specific prompt
+    # L3 Task
     intent_prompt = get_prompt_sync(f"intent/{config.intent}", fallback="")
     if intent_prompt:
         parts.append(intent_prompt)
@@ -95,7 +96,7 @@ async def compose_messages(
 
     system_msg = _inject_date("\n\n".join(filter(None, parts)))
 
-    # ── Layer 4: Doctor knowledge (auto-loaded from DB) ────────────
+    # ── L4 Doctor Rules (auto-loaded from DB) ───────────────────────
     doctor_knowledge = await _load_doctor_knowledge(
         doctor_id, config, query=doctor_message, patient_context=patient_context,
     )
@@ -104,9 +105,9 @@ async def compose_messages(
 
     if config.conversation_mode:
         # ── Pattern 2: Conversation ───────────────────────────────
-        # Layers 1-5 → system message (instructions + KB + context)
+        # L1-L6 (Identity through Patient) → system message
         # History → user/assistant turns
-        # Layer 6 → final user message (plain text, no XML)
+        # L7 Input → final user message (plain text, no XML)
         if doctor_knowledge:
             system_msg += f"\n\n{doctor_knowledge}"
         if config.patient_context and patient_context:
@@ -115,15 +116,15 @@ async def compose_messages(
         messages: List[Dict[str, str]] = [{"role": "system", "content": system_msg}]
         if history:
             messages.extend(history)
-        # Only add Layer 6 if there's a message (interview may pass empty)
+        # Only add L7 Input if there's a message (interview may pass empty)
         if doctor_message:
             messages.append({"role": "user", "content": doctor_message})
 
         log(f"[composer] intent={config.intent} pattern=convo system={len(system_msg)}chars{kb_note} history={len(history or [])}turns")
     else:
         # ── Pattern 1: Single-turn ────────────────────────────────
-        # Layers 1-3 → system message
-        # Layers 4-6 → user message with XML tags
+        # L1-L3 (Identity+Specialty+Task) → system message
+        # L4-L7 (Doctor Rules+Patient+Input) → user message with XML tags
         user_parts = []
         if doctor_knowledge:
             user_parts.append(f"<doctor_knowledge>\n{doctor_knowledge}\n</doctor_knowledge>")

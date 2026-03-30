@@ -46,6 +46,9 @@ _PERSONA_FILES = {
     "P8": "p8_flow_diverter_nonadherent.json",
     "P9": "p9_amaurosis_fugax.json",
     "P10": "p10_davf_tinnitus.json",
+    # Stress-test personas — deliberately difficult patients for long conversations
+    "STRESS20": "p_stress_20.json",
+    "STRESS50": "p_stress_50.json",
 }
 
 
@@ -75,7 +78,8 @@ async def _run(args: argparse.Namespace) -> None:
 
     # Resolve persona IDs
     if args.patients.lower() == "all":
-        persona_ids = list(_PERSONA_FILES.keys())
+        # Exclude stress-test personas from "all" — run explicitly with --patients stress20,stress50
+        persona_ids = [k for k in _PERSONA_FILES if not k.startswith("STRESS")]
     else:
         persona_ids = [p.strip().upper() for p in args.patients.split(",")]
 
@@ -193,10 +197,14 @@ async def _run(args: argparse.Namespace) -> None:
     if deleted:
         print(f"\nCleaned up {deleted} test rows")
 
+    # Review HTML is generated alongside at same path with -review suffix
+    review_path = html_path.replace(".html", "-review.html")
+
     print()
     print("=" * 50)
     print(f"Results: {passed_count}/{total} passed")
     print(f"Report:  {html_path}")
+    print(f"Review:  {review_path}")
     print(f"JSON:    {json_path}")
 
 

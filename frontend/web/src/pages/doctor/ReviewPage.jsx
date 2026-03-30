@@ -10,17 +10,15 @@
  *  - Review mode: suggestions exist, grouped by section
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Box, Skeleton, Typography } from "@mui/material";
+import { Box, Collapse, Skeleton, Typography } from "@mui/material";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { useDoctorStore } from "../../store/doctorStore";
 import {
   STRUCTURED_FIELD_LABELS,
-  getOnboardingState,
   markOnboardingStep,
   ONBOARDING_STEP,
 } from "./constants";
-import { getPreferredOnboardingRule, resolveReplyProofDestination } from "./onboardingProofs";
 import ReviewSubpage from "./subpages/ReviewSubpage";
 import { TYPE, COLOR } from "../../theme";
 import AppButton from "../../components/AppButton";
@@ -80,28 +78,28 @@ function RecordSummary({ record }) {
         </Typography>
       </Box>
 
-      {expanded && filledFields.length > 0 && (
-        <Box>
-          {filledFields.map((key) => (
-            <Box key={key} sx={{ display: "flex", gap: 1, px: 2, py: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 500, flexShrink: 0, minWidth: 56 }}>
-                {STRUCTURED_FIELD_LABELS[key]}
-              </Typography>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-                {structured[key]}
-              </Typography>
-            </Box>
-          ))}
-        </Box>
-      )}
-
-      {expanded && filledFields.length === 0 && record.content && (
-        <Box sx={{ px: 2, py: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-            {record.content}
-          </Typography>
-        </Box>
-      )}
+      <Collapse in={expanded}>
+        {filledFields.length > 0 ? (
+          <Box>
+            {filledFields.map((key) => (
+              <Box key={key} sx={{ display: "flex", gap: 1, px: 2, py: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 500, flexShrink: 0, minWidth: 56 }}>
+                  {STRUCTURED_FIELD_LABELS[key]}
+                </Typography>
+                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+                  {structured[key]}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        ) : record.content ? (
+          <Box sx={{ px: 2, py: 1, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+              {record.content}
+            </Typography>
+          </Box>
+        ) : null}
+      </Collapse>
     </Box>
   );
 }
@@ -136,15 +134,6 @@ function FlowBanner({ title, subtitle }) {
           {subtitle}
         </Typography>
       )}
-    </Box>
-  );
-}
-
-function FlowBannerActions({ children }) {
-  if (!children) return null;
-  return (
-    <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1 }}>
-      {children}
     </Box>
   );
 }
@@ -197,8 +186,6 @@ export default function ReviewPage({ recordId }) {
     finalizeReview,
     getTaskRecord,
     getKnowledgeBatch,
-    fetchDrafts,
-    ensureOnboardingExamples,
   } = useApi();
   const { doctorId } = useDoctorStore();
 
@@ -207,15 +194,12 @@ export default function ReviewPage({ recordId }) {
   const [expandedIds, setExpandedIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
-  const [openingReplyProof, setOpeningReplyProof] = useState(false);
   const [toast, showToast] = useToast();
   const [knowledgeMap, setKnowledgeMap] = useState({});
   const pollRef = useRef(null);
   const params = new URLSearchParams(window.location.search);
   const source = params.get("source") || "";
   const reviewTaskId = params.get("review_task_id") || "";
-  const onboarding = getOnboardingState(doctorId);
-  const savedRuleTitle = onboarding.lastSavedRuleTitle || "";
 
   /* ── Fetch cited knowledge items when suggestions change ─────────────────── */
 
@@ -237,8 +221,6 @@ export default function ReviewPage({ recordId }) {
       })
       .catch(() => {}); // silent fail — citations will show as unresolved
   }, [citedIds, doctorId, getKnowledgeBatch]);
-
-  // Step 2 onboarding: mark complete only when doctor finalizes review (not on page visit)
 
   /* ── Fetch record + suggestions on mount ─────────────────────────────────── */
 
@@ -344,9 +326,6 @@ export default function ReviewPage({ recordId }) {
     setFinalizing(true);
     try {
       const data = await finalizeReview(recordId, doctorId);
-      if (source === "knowledge_proof") {
-        markOnboardingStep(doctorId, ONBOARDING_STEP.diagnosis);
-      }
       const followUpTaskIds = data?.follow_up_task_ids || [];
       const isPreviewOnboardingFlow = source === "patient_preview";
       if (isPreviewOnboardingFlow && followUpTaskIds.length > 0) {
@@ -369,38 +348,16 @@ export default function ReviewPage({ recordId }) {
     }
   }
 
-  async function handleOpenReplyProof() {
-    if (openingReplyProof) return;
-    setOpeningReplyProof(true);
-    try {
-      const { preferredRuleId, preferredRuleTitle } = getPreferredOnboardingRule(doctorId, {
-        preferredRuleTitle: savedRuleTitle,
-      });
-      const destination = await resolveReplyProofDestination({ fetchDrafts, ensureOnboardingExamples }, doctorId, {
-        preferredRuleId,
-        preferredRuleTitle,
-      });
-      navigate(destination);
-    } finally {
-      setOpeningReplyProof(false);
-    }
-  }
-
-
   /* ── Derived state ───────────────────────────────────────────────────────── */
 
   const hasSuggestions = suggestions && suggestions.length > 0;
   const isPendingReview = record?.review_status === "pending_review" || record?.status === "pending_review";
-  const bannerTitle = source === "knowledge_proof"
-    ? "示例诊断审核"
-    : source === "patient_preview"
-      ? "患者预问诊已提交"
-      : "";
-  const bannerSubtitle = source === "knowledge_proof"
-    ? (savedRuleTitle ? `你刚保存的规则“${savedRuleTitle}”会在类似场景中影响 AI 的审核建议。` : "这里展示的是一个带来源信息的审核示例。")
-    : source === "patient_preview"
-      ? `该病例来自患者预问诊提交，审核完成后会生成随访任务。${reviewTaskId ? ` 当前审核任务 #${reviewTaskId}` : ""}`
-      : "";
+  const bannerTitle = source === "patient_preview"
+    ? "患者预问诊已提交"
+    : "";
+  const bannerSubtitle = source === "patient_preview"
+    ? `该病例来自患者预问诊提交，审核完成后会生成随访任务。${reviewTaskId ? ` 当前审核任务 #${reviewTaskId}` : ""}`
+    : "";
 
   /* ── Render ──────────────────────────────────────────────────────────────── */
 
@@ -419,22 +376,6 @@ export default function ReviewPage({ recordId }) {
         knowledgeMap={knowledgeMap}
       >
         <FlowBanner title={bannerTitle} subtitle={bannerSubtitle} />
-
-        {source === "knowledge_proof" && (
-          <FlowBannerActions>
-            <AppButton
-              variant="secondary"
-              size="md"
-              fullWidth
-              disabled={openingReplyProof}
-              loading={openingReplyProof}
-              loadingLabel="打开中…"
-              onClick={handleOpenReplyProof}
-            >
-              下一步：看回复示例
-            </AppButton>
-          </FlowBannerActions>
-        )}
 
         <InputProvenanceCard record={record} />
 

@@ -28,7 +28,7 @@ export default function ProfileTab({ patientName, doctorName, doctorSpecialty, d
           <AccountCard
             name={doctorName}
             subtitle={doctorSpecialty || ""}
-            color="#5b9bd5"
+            color={COLOR.recordBlue}
           />
         </>
       )}

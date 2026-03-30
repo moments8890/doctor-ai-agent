@@ -13,11 +13,11 @@ LLM prompt files — one `.md` file per prompt. Edit directly to tune behavior.
 
 ```
 prompts/
-├── common/                  ← Layer 1: universal (every LLM call)
-│   └── base.md                 identity, safety rules, {current_date}
-├── domain/                  ← Layer 2: specialty (when LayerConfig.domain=True)
+├── common/                  ← L1 Identity: universal (every LLM call)
+│   └── base.md                 role, safety rules, {current_date}
+├── domain/                  ← L2 Specialty: domain knowledge (when LayerConfig.domain=True)
 │   └── neurology.md            conditions, red flags, key tests
-├── intent/                  ← Layer 3: action-specific rules + examples
+├── intent/                  ← L3 Task: action-specific rules + output format
 │   ├── routing.md              intent classification (7 intents)
 │   ├── interview.md            doctor dictation → field extraction
 │   ├── patient-interview.md    patient pre-consultation interview
@@ -35,7 +35,7 @@ prompts/
 └── README.md
 ```
 
-Hierarchy: **common** (universal) → **domain** (specialty) → **intent** (action)
+Hierarchy: **L1 Identity** (universal) → **L2 Specialty** (domain) → **L3 Task** (action) → **L4 Doctor Rules** (KB from DB) → **L5 Case Memory** (diagnosis only) → **L6 Patient** (context) → **L7 Input** (message)
 
 ## 6-Layer Prompt Stack
 
@@ -65,9 +65,9 @@ block-beta
   style LLM fill:#fff3e0,color:#e65100
 ```
 
-> **Pattern A** (single-turn): Layers 1-3 → system msg, Layers 4-6 → user msg with XML tags
-> **Pattern B** (conversation): Layers 1-5 → system msg, history turns, Layer 6 → user msg
-> **Pattern C** (direct): Only Layer 3 prompt, no composer
+> **Pattern A** (single-turn): L1-L3 (Identity+Specialty+Task) → system msg, L4-L7 (Doctor Rules+Patient+Input) → user msg with XML tags
+> **Pattern B** (conversation): L1-L6 (Identity through Patient) → system msg, history turns, L7 Input → user msg
+> **Pattern C** (direct): Only L3 Task prompt, no composer
 
 ## Workflow Diagrams
 
@@ -166,8 +166,8 @@ Used by: doctor-extract, patient-extract, vision-ocr
 
 | # | Prompt | Trigger | Pattern | LLM Input | Model | Output |
 |---|--------|---------|---------|-----------|-------|--------|
-| 1 | common/base.md | Every call | Layer 1 | Always first in system msg | All | N/A (foundation) |
-| 2 | domain/neurology.md | create_record, review, patient-interview | Layer 2 | Appended after base.md | All | N/A (knowledge ref) |
+| 1 | common/base.md | Every call | L1 Identity | Always first in system msg | All | N/A (foundation) |
+| 2 | domain/neurology.md | create_record, review, patient-interview | L2 Specialty | Appended after base.md | All | N/A (knowledge ref) |
 | 3 | routing.md | Every doctor message | A | `sys: base+routing` → `user: msg` + 5 history turns | ROUTING_LLM | `RoutingResult` |
 | 4 | interview.md | Doctor dictation session | B | `sys: base+domain+interview+KB+ctx` → full history | CONVERSATION_LLM | `InterviewLLMResponse` |
 | 5 | patient-interview.md | Patient pre-consult | B | `sys: base+domain+patient-interview+KB+ctx` → full history | CONVERSATION_LLM | `InterviewLLMResponse` |

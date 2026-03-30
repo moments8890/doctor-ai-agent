@@ -13,7 +13,7 @@ import ActionPanel from "../../components/ActionPanel";
 import AppButton from "../../components/AppButton";
 import AskAIBar from "../../components/AskAIBar";
 import BarButton from "../../components/BarButton";
-import CancelConfirm from "../../components/CancelConfirm";
+// CancelConfirm removed — merged into ConfirmDialog
 import ConfirmDialog from "../../components/ConfirmDialog";
 import DetailCard from "../../components/DetailCard";
 import DoctorBubble from "../../components/DoctorBubble";
@@ -25,7 +25,8 @@ import ListCard from "../../components/ListCard";
 import NewItemCard from "../../components/NewItemCard";
 import NameAvatar from "../../components/NameAvatar";
 import PatientPickerDialog from "../../components/PatientPickerDialog";
-import RecordTypeAvatar from "../../components/RecordTypeAvatar";
+import IconBadge from "../../components/IconBadge";
+import { RECORD_TYPE_BADGE } from "../doctor/constants";
 import RecordCard from "../../components/RecordCard";
 import RecordEditDialog from "../../components/RecordEditDialog";
 import RecordFields from "../../components/RecordFields";
@@ -352,10 +353,10 @@ export default function ComponentShowcasePage() {
           </Box>
         </Section>
 
-        <Section title="CancelConfirm" file="CancelConfirm.jsx">
+        <Section title="ConfirmDialog (cancel preset)" file="ConfirmDialog.jsx">
           <Typography sx={{ fontSize: 11, color: COLOR.text4, mb: 1 }}>Triggered by back/cancel on unsaved work:</Typography>
           <AppButton variant="secondary" size="sm" onClick={() => setCancelOpen(true)}>取消</AppButton>
-          <CancelConfirm open={cancelOpen} onConfirm={() => setCancelOpen(false)} onCancel={() => setCancelOpen(false)} />
+          <ConfirmDialog open={cancelOpen} onClose={() => setCancelOpen(false)} onCancel={() => setCancelOpen(false)} onConfirm={() => setCancelOpen(false)} title="确认离开？" message="未保存的内容将会丢失" confirmLabel="离开" cancelLabel="取消" confirmTone="danger" />
         </Section>
       </Group>
 
@@ -454,11 +455,11 @@ export default function ComponentShowcasePage() {
           </Box>
         </Section>
 
-        <Section title="RecordTypeAvatar" file="RecordTypeAvatar.jsx">
+        <Section title="IconBadge (record types)" file="IconBadge.jsx + constants.jsx">
           <Box sx={{ display: "flex", gap: 2 }}>
             {["visit", "lab", "imaging", "surgery", "interview_summary", "import"].map(t => (
               <Box key={t} sx={{ textAlign: "center" }}>
-                <RecordTypeAvatar type={t} />
+                <IconBadge config={RECORD_TYPE_BADGE[t]} />
                 <Typography sx={{ fontSize: 9, color: COLOR.text4, mt: 0.3 }}>{t}</Typography>
               </Box>
             ))}

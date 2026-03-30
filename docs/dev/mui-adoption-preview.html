@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MUI Adoption Preview — Before / After</title>
+<style>
+  :root {
+    --primary: #07C160; --primary-light: #E7F7EE; --primary-hover: #06a050;
+    --accent: #576B95; --accent-light: #EEF1F6;
+    --danger: #D65745; --danger-light: #FDF0EE;
+    --warning: #F59E0B; --warning-light: #FFF7E6;
+    --text1: #1a1a1a; --text2: #353535; --text3: #666; --text4: #999;
+    --border: #e5e5e5; --border-light: #f0f0f0;
+    --surface: #f7f7f7; --surface-alt: #ededed; --white: #fff;
+    --wechat-green: #95EC69; --record-doc: #8993a4; --link: #1565c0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif; background: var(--surface-alt); color: var(--text1); }
+
+  .page-header {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--white); border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+  }
+  .page-header h1 { font-size: 18px; font-weight: 700; }
+  .page-header .sub { font-size: 12px; color: var(--text4); margin-top: 2px; }
+
+  .nav-tabs {
+    display: flex; background: var(--white);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 58px; z-index: 99;
+    overflow-x: auto;
+  }
+  .nav-tab {
+    flex: none; padding: 10px 16px; cursor: pointer;
+    font-size: 13px; color: var(--text4); white-space: nowrap;
+    border-bottom: 2px solid transparent; transition: all 0.15s;
+  }
+  .nav-tab:hover { color: var(--text2); }
+  .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+  .content { max-width: 960px; margin: 0 auto; padding: 16px; }
+
+  .section { margin-bottom: 24px; }
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+  }
+  .section-num {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: var(--white); flex-shrink: 0;
+  }
+  .section-num.high { background: var(--primary); }
+  .section-num.med { background: var(--warning); }
+  .section-title { font-size: 15px; font-weight: 600; }
+  .section-impact {
+    font-size: 10px; font-weight: 600; padding: 2px 8px;
+    border-radius: 99px; flex-shrink: 0;
+  }
+  .section-impact.high { background: var(--primary-light); color: var(--primary); }
+  .section-impact.med { background: var(--warning-light); color: var(--warning); }
+  .section-desc { font-size: 13px; color: var(--text3); margin-bottom: 12px; line-height: 1.6; }
+
+  .compare {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden;
+    background: var(--white);
+  }
+  @media (max-width: 640px) { .compare { grid-template-columns: 1fr; } }
+
+  .compare-side { overflow: hidden; }
+  .compare-side + .compare-side { border-left: 0.5px solid var(--border); }
+  @media (max-width: 640px) { .compare-side + .compare-side { border-left: none; border-top: 0.5px solid var(--border); } }
+
+  .compare-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    padding: 8px 16px; text-transform: uppercase;
+  }
+  .compare-label.before { background: #fef2f2; color: var(--danger); }
+  .compare-label.after { background: #f0fdf4; color: var(--primary); }
+
+  .phone {
+    width: 100%; max-width: 320px; margin: 12px auto;
+    background: var(--surface-alt); border-radius: 16px;
+    overflow: hidden; border: 1px solid var(--border);
+  }
+  .phone-status {
+    height: 24px; background: var(--white);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--text4); border-bottom: 0.5px solid var(--border-light);
+  }
+  .phone-content { min-height: 280px; position: relative; }
+
+  /* ── Mock atoms ── */
+  .m-header {
+    display: flex; align-items: center; height: 44px; padding: 0 12px;
+    background: var(--white); border-bottom: 0.5px solid var(--border);
+  }
+  .m-header-back { font-size: 18px; color: var(--text2); margin-right: 8px; cursor: pointer; }
+  .m-header-title { flex: 1; font-size: 14px; font-weight: 600; text-align: center; }
+  .m-header-action { font-size: 13px; color: var(--primary); }
+
+  .m-section {
+    background: var(--white);
+    border-top: 0.5px solid var(--border);
+    border-bottom: 0.5px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .m-section-title {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px 8px; font-size: 14px; font-weight: 600;
+  }
+
+  .m-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-bottom: 0.5px solid var(--border-light);
+  }
+  .m-row:last-child { border-bottom: none; }
+
+  .m-avatar {
+    width: 36px; height: 36px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600; flex-shrink: 0;
+  }
+
+  .m-body { flex: 1; min-width: 0; }
+  .m-title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-sub { font-size: 12px; color: var(--text4); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-right { font-size: 11px; color: var(--text4); flex-shrink: 0; }
+  .m-chevron { color: var(--text4); font-size: 16px; flex-shrink: 0; }
+
+  /* Spinner */
+  .m-spinner {
+    width: 20px; height: 20px; border: 2.5px solid var(--border);
+    border-top-color: var(--primary); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Skeleton shimmer */
+  .m-skeleton {
+    background: linear-gradient(90deg, var(--border-light) 25%, #e8e8e8 50%, var(--border-light) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* Collapse animation */
+  .m-collapse-target {
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.25s ease;
+  }
+  .m-collapse-target.collapsed { max-height: 0 !important; opacity: 0; }
+  .m-collapse-target.expanded { max-height: 500px; opacity: 1; }
+
+  /* Bottom sheet */
+  .m-sheet-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: flex-end;
+  }
+  .m-sheet {
+    width: 100%; background: var(--white);
+    border-radius: 12px 12px 0 0; padding: 16px;
+  }
+  .m-sheet-handle {
+    width: 32px; height: 4px; border-radius: 2px;
+    background: var(--border); margin: 0 auto 12px;
+  }
+  .m-sheet-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .m-sheet-subtitle { font-size: 12px; color: var(--text4); margin-bottom: 12px; }
+
+  /* Swipe indicator */
+  .m-swipe-hint {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; color: var(--text4); display: flex; align-items: center; gap: 4px;
+  }
+  .m-swipe-arrow { animation: swipeDown 1.5s ease-in-out infinite; }
+  @keyframes swipeDown {
+    0%, 100% { transform: translateY(0); opacity: 0.4; }
+    50% { transform: translateY(4px); opacity: 1; }
+  }
+
+  /* Popover */
+  .m-popover {
+    position: absolute; background: var(--white);
+    border: 0.5px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    width: 200px; z-index: 10;
+  }
+  .m-popover-arrow {
+    position: absolute; top: -6px; left: 24px;
+    width: 12px; height: 12px; background: var(--white);
+    border-left: 0.5px solid var(--border); border-top: 0.5px solid var(--border);
+    transform: rotate(45deg);
+  }
+
+  /* Autocomplete */
+  .m-autocomplete {
+    background: var(--white); border: 1px solid var(--primary);
+    border-radius: 4px; overflow: hidden;
+  }
+  .m-ac-input {
+    padding: 8px 12px; font-size: 14px; border: none; width: 100%;
+    outline: none; font-family: inherit;
+  }
+  .m-ac-dropdown {
+    border-top: 0.5px solid var(--border-light);
+    max-height: 160px; overflow-y: auto;
+  }
+  .m-ac-option {
+    padding: 8px 12px; font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .m-ac-option:hover, .m-ac-option.highlighted { background: var(--surface); }
+  .m-ac-match { font-weight: 600; color: var(--primary); }
+  .m-ac-create { color: var(--primary); font-weight: 500; }
+
+  /* Citation link */
+  .m-citation {
+    font-size: 12px; color: var(--primary); cursor: pointer;
+    text-decoration: underline; text-decoration-style: dotted;
+    text-underline-offset: 2px;
+  }
+
+  /* Tooltip */
+  .m-tooltip {
+    position: absolute; background: rgba(0,0,0,0.8); color: var(--white);
+    padding: 6px 10px; border-radius: 6px; font-size: 11px;
+    max-width: 200px; line-height: 1.5; z-index: 10;
+  }
+  .m-tooltip-arrow {
+    position: absolute; bottom: -4px; left: 20px;
+    width: 8px; height: 8px; background: rgba(0,0,0,0.8);
+    transform: rotate(45deg);
+  }
+
+  .note {
+    font-size: 11px; color: var(--text4); text-align: center;
+    padding: 8px; background: var(--surface); margin: 0 -1px;
+  }
+
+  .hidden { display: none; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .badge-pill {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 1px 6px; border-radius: 99px; margin-left: 4px;
+  }
+
+  /* Switch */
+  .m-switch-track {
+    width: 40px; height: 22px; border-radius: 11px;
+    position: relative; transition: background 0.2s; cursor: pointer;
+  }
+  .m-switch-track.off { background: var(--border); }
+  .m-switch-track.on { background: var(--primary); }
+  .m-switch-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--white); position: absolute; top: 2px;
+    transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .m-switch-track.off .m-switch-thumb { left: 2px; }
+  .m-switch-track.on .m-switch-thumb { left: 20px; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>MUI Adoption Preview</h1>
+  <div class="sub">Side-by-side: current behavior vs. proposed MUI component adoption</div>
+</div>
+
+<div class="nav-tabs" id="navTabs">
+  <div class="nav-tab active" onclick="showTab(0)">1. Collapse</div>
+  <div class="nav-tab" onclick="showTab(1)">2. Skeleton</div>
+  <div class="nav-tab" onclick="showTab(2)">3. Autocomplete</div>
+  <div class="nav-tab" onclick="showTab(3)">4. SwipeableDrawer</div>
+  <div class="nav-tab" onclick="showTab(4)">5. Popover</div>
+</div>
+
+<div class="content">
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- 1. COLLAPSE -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="tab-content active" id="tab0">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num high">1</div>
+      <div class="section-title">Collapse transition</div>
+      <span class="section-impact high">HIGH — ~1hr</span>
+    </div>
+    <div class="section-desc">
+      Patient detail, review summary, and chat sections toggle with <code>{open && children}</code> — content pops in/out instantly.
+      MUI <code>Collapse</code> adds a smooth height animation. Click the sections below to compare.
+    </div>
+
+    <div class="compare">
+      <div class="compare-side">
+        <div class="compare-label before">Before — instant show/hide</div>
+        <div class="phone">
+          <div class="phone-status">Current</div>
+          <div class="phone-content">
+            <div class="m-header"><span class="m-header-title">患者详情</span></div>
+            <div class="m-section">
+              <div class="m-section-title" onclick="toggleInstant('before-profile')" style="cursor:pointer">
+                <span>张阿姨 <span style="font-size:11px;color:var(--text4);font-weight:400">女 · 68岁 · 门诊3</span></span>
+                <span style="font-size:12px;color:var(--primary)" id="before-profile-toggle">收起 &#9652;</span>
+              </div>
+              <div id="before-profile">
+                <div style="padding:0 16px 8px;font-size:12px;display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;color:var(--text3)">
+                  <div>电话 <span style="color:var(--text2)">138****5678</span></div>
+                  <div>出生 <span style="color:var(--text2)">1958年</span></div>
+                  <div>身份证 <span style="color:var(--text2)">3201****4567</span></div>
+                  <div>建档 <span style="color:var(--text2)">2026/03/15</span></div>
+                </div>
+                <div style="padding:4px 16px 10px;display:flex;gap:16px;font-size:12px;border-top:0.5px solid var(--border-light)">
+                  <span style="color:var(--danger)">删除患者</span>
+                  <span style="flex:1"></span>
+                  <span style="color:var(--record-doc)">二维码</span>
+                  <span style="color:var(--primary)">导出PDF</span>
+                </div>
+              </div>
+            </div>
+            <div class="m-section">
+              <div class="m-section-title" onclick="toggleInstant('before-msgs')" style="cursor:pointer">
+                <span>患者消息 <span style="font-size:11px;color:var(--text4);font-weight:400">(3)</span></span>
+                <span style="font-size:12px;color:var(--text4)" id="before-msgs-toggle">&#9662;</span>
+              </div>
+              <div id="before-msgs" style="display:none">
+                <div style="padding:4px 16px 10px;font-size:12px;color:var(--text3)">
+                  <div style="margin-bottom:4px"><span style="color:var(--accent)">患者 03/28:</span> 头还是疼，需要复查吗</div>
+                  <div><span style="color:var(--primary)">AI草稿:</span> 建议复查CT...</div>
+                </div>
+              </div>
+            </div>
+            <div class="note">Content appears/disappears instantly &#x26A0;</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="compare-side">
+        <div class="compare-label after">After — MUI Collapse</div>
+        <div class="phone">
+          <div class="phone-status">Proposed</div>
+          <div class="phone-content">
+            <div class="m-header"><span class="m-header-title">患者详情</span></div>
+            <div class="m-section">
+              <div class="m-section-title" onclick="toggleSmooth('after-profile')" style="cursor:pointer">
+                <span>张阿姨 <span style="font-size:11px;color:var(--text4);font-weight:400">女 · 68岁 · 门诊3</span></span>
+                <span style="font-size:12px;color:var(--primary)" id="after-profile-toggle">收起 &#9652;</span>
+              </div>
+              <div id="after-profile" class="m-collapse-target expanded" style="max-height:200px;">
+                <div style="padding:0 16px 8px;font-size:12px;display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;color:var(--text3)">
+                  <div>电话 <span style="color:var(--text2)">138****5678</span></div>
+                  <div>出生 <span style="color:var(--text2)">1958年</span></div>
+                  <div>身份证 <span style="color:var(--text2)">3201****4567</span></div>
+                  <div>建档 <span style="color:var(--text2)">2026/03/15</span></div>
+                </div>
+                <div style="padding:4px 16px 10px;display:flex;gap:16px;font-size:12px;border-top:0.5px solid var(--border-light)">
+                  <span style="color:var(--danger)">删除患者</span>
+                  <span style="flex:1"></span>
+                  <span style="color:var(--record-doc)">二维码</span>
+                  <span style="color:var(--primary)">导出PDF</span>
+                </div>
+              </div>
+            </div>
+            <div class="m-section">
+              <div class="m-section-title" onclick="toggleSmooth('after-msgs')" style="cursor:pointer">
+                <span>患者消息 <span style="font-size:11px;color:var(--text4);font-weight:400">(3)</span></span>
+                <span style="font-size:12px;color:var(--text4)" id="after-msgs-toggle">&#9662;</span>
+              </div>
+              <div id="after-msgs" class="m-collapse-target collapsed">
+                <div style="padding:4px 16px 10px;font-size:12px;color:var(--text3)">
+                  <div style="margin-bottom:4px"><span style="color:var(--accent)">患者 03/28:</span> 头还是疼，需要复查吗</div>
+                  <div><span style="color:var(--primary)">AI草稿:</span> 建议复查CT...</div>
+                </div>
+              </div>
+            </div>
+            <div class="note" style="background:#f0fdf4;color:var(--primary)">Smooth 300ms height animation &#10003;</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- 2. SKELETON -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab1">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num high">2</div>
+      <div class="section-title">Skeleton loading</div>
+      <span class="section-impact high">HIGH — ~2hr</span>
+    </div>
+    <div class="section-desc">
+      Currently: a centered spinner while data loads. With Skeleton: content-shaped placeholders that show the layout immediately,
+      then resolve to real data. Users perceive skeleton screens as 30-40% faster than spinners.
+    </div>
+
+    <div class="compare">
+      <div class="compare-side">
+        <div class="compare-label before">Before — CircularProgress spinner</div>
+        <div class="phone">
+          <div class="phone-status">Current</div>
+          <div class="phone-content">
+            <div class="m-header">
+              <span class="m-header-back">&#8249;</span>
+              <span class="m-header-title">审核</span>
+            </div>
+            <!-- Filter bar -->
+            <div style="display:flex;background:var(--white);border-bottom:0.5px solid var(--border)">
+              <div style="flex:1;text-align:center;padding:10px 0;border-bottom:2px solid var(--warning)">
+                <div style="font-size:16px;font-weight:600;color:var(--warning)">—</div>
+                <div style="font-size:10px;color:var(--text2);font-weight:500">门诊</div>
+              </div>
+              <div style="width:0.5px;background:var(--border-light);margin:8px 0"></div>
+              <div style="flex:1;text-align:center;padding:10px 0">
+                <div style="font-size:16px;font-weight:600;color:var(--text4)">—</div>
+                <div style="font-size:10px;color:var(--text4)">回复</div>
+              </div>
+              <div style="width:0.5px;background:var(--border-light);margin:8px 0"></div>
+              <div style="flex:1;text-align:center;padding:10px 0">
+                <div style="font-size:16px;font-weight:600;color:var(--text4)">—</div>
+                <div style="font-size:10px;color:var(--text4)">完成</div>
+              </div>
+            </div>
+            <!-- Spinner -->
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 0;gap:8px">
+              <div class="m-spinner"></div>
+              <div style="font-size:12px;color:var(--text4)">加载中...</div>
+            </div>
+            <div class="note">Empty space + spinner. No layout hint. &#x26A0;</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="compare-side">
+        <div class="compare-label after">After — MUI Skeleton</div>
+        <div class="phone">
+          <div class="phone-status">Proposed</div>
+          <div class="phone-content">
+            <div class="m-header">
+              <span class="m-header-back">&#8249;</span>
+              <span class="m-header-title">审核</span>
+            </div>
+            <!-- Filter bar with skeleton counts -->
+            <div style="display:flex;background:var(--white);border-bottom:0.5px solid var(--border)">
+              <div style="flex:1;text-align:center;padding:10px 0;border-bottom:2px solid var(--warning)">
+                <div style="width:20px;height:16px;margin:0 auto 2px" class="m-skeleton"></div>
+                <div style="font-size:10px;color:var(--text2);font-weight:500">门诊</div>
+              </div>
+              <div style="width:0.5px;background:var(--border-light);margin:8px 0"></div>
+              <div style="flex:1;text-align:center;padding:10px 0">
+                <div style="width:20px;height:16px;margin:0 auto 2px" class="m-skeleton"></div>
+                <div style="font-size:10px;color:var(--text4)">回复</div>
+              </div>
+              <div style="width:0.5px;background:var(--border-light);margin:8px 0"></div>
+              <div style="flex:1;text-align:center;padding:10px 0">
+                <div style="width:20px;height:16px;margin:0 auto 2px" class="m-skeleton"></div>
+                <div style="font-size:10px;color:var(--text4)">完成</div>
+              </div>
+            </div>
+            <!-- Skeleton rows -->
+            <div style="padding:8px 0">
+              <div style="font-size:10px;font-weight:600;color:var(--text4);padding:6px 16px;letter-spacing:0.3px">待审核</div>
+              <div class="m-row">
+                <div class="m-skeleton" style="width:36px;height:36px;border-radius:50%;flex-shrink:0"></div>
+                <div class="m-body">
+                  <div class="m-skeleton" style="width:120px;height:14px;margin-bottom:4px"></div>
+                  <div class="m-skeleton" style="width:80px;height:10px"></div>
+                </div>
+                <div class="m-skeleton" style="width:14px;height:14px;border-radius:50%"></div>
+              </div>
+              <div class="m-row">
+                <div class="m-skeleton" style="width:36px;height:36px;border-radius:50%;flex-shrink:0"></div>
+                <div class="m-body">
+                  <div class="m-skeleton" style="width:100px;height:14px;margin-bottom:4px"></div>
+                  <div class="m-skeleton" style="width:140px;height:10px"></div>
+                </div>
+                <div class="m-skeleton" style="width:14px;height:14px;border-radius:50%"></div>
+              </div>
+              <div class="m-row">
+                <div class="m-skeleton" style="width:36px;height:36px;border-radius:50%;flex-shrink:0"></div>
+                <div class="m-body">
+                  <div class="m-skeleton" style="width:90px;height:14px;margin-bottom:4px"></div>
+                  <div class="m-skeleton" style="width:110px;height:10px"></div>
+                </div>
+                <div class="m-skeleton" style="width:14px;height:14px;border-radius:50%"></div>
+              </div>
+            </div>
+            <div class="note" style="background:#f0fdf4;color:var(--primary)">Layout visible immediately, data resolves in place &#10003;</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- 3. AUTOCOMPLETE -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab2">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num high">3</div>
+      <div class="section-title">Autocomplete patient search</div>
+      <span class="section-impact high">HIGH — ~3hr</span>
+    </div>
+    <div class="section-desc">
+      Current search is a plain TextField with client-side name matching. MUI Autocomplete adds:
+      type-ahead dropdown, fuzzy match highlighting, recent patients, and "create new" action — saving doctors keystrokes.
+    </div>
+
+    <div class="compare">
+      <div class="compare-side">
+        <div class="compare-label before">Before — plain TextField filter</div>
+        <div class="phone">
+          <div class="phone-status">Current</div>
+          <div class="phone-content">
+            <div class="m-header"><span class="m-header-title">患者</span></div>
+            <div style="padding:8px 12px;background:var(--surface-alt)">
+              <div style="background:var(--white);border:1px solid var(--border);border-radius:4px;padding:8px 12px;font-size:14px;display:flex;align-items:center;gap:8px">
+                <span style="color:var(--text4)">&#128269;</span>
+                <span style="color:var(--text4)">搜索患者 (共28人)</span>
+              </div>
+            </div>
+            <!-- Typed state -->
+            <div style="padding:8px 12px;background:var(--surface-alt)">
+              <div style="background:var(--white);border:1px solid var(--border);border-radius:4px;padding:8px 12px;font-size:14px;display:flex;align-items:center;gap:8px">
+                <span style="color:var(--text4)">&#128269;</span>
+                <span>张</span>
+              </div>
+            </div>
+            <!-- Filtered results below -->
+            <div style="font-size:10px;color:var(--text4);padding:6px 16px">手动过滤结果:</div>
+            <div class="m-row">
+              <div class="m-avatar" style="background:var(--border-light);color:var(--text4)">张</div>
+              <div class="m-body">
+                <div class="m-title">张阿姨</div>
+                <div class="m-sub">女 · 68岁 · 脑梗死</div>
+              </div>
+            </div>
+            <div class="m-row">
+              <div class="m-avatar" style="background:var(--border-light);color:var(--text4)">张</div>
+              <div class="m-body">
+                <div class="m-title">张伟</div>
+                <div class="m-sub">男 · 45岁 · 高血压</div>
+              </div>
+            </div>
+            <div class="note">No dropdown, no highlighting, full page re-renders &#x26A0;</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="compare-side">
+        <div class="compare-label after">After — MUI Autocomplete</div>
+        <div class="phone">
+          <div class="phone-status">Proposed</div>
+          <div class="phone-content">
+            <div class="m-header"><span class="m-header-title">患者</span></div>
+            <div style="padding:8px 12px;background:var(--surface-alt)">
+              <div class="m-autocomplete">
+                <div style="display:flex;align-items:center;gap:8px;padding:0 12px">
+                  <span style="color:var(--text4);font-size:14px">&#128269;</span>
+                  <input class="m-ac-input" value="张" readonly style="background:transparent">
+                  <span style="color:var(--text4);font-size:12px;cursor:pointer">&#10005;</span>
+                </div>
+                <div class="m-ac-dropdown">
+                  <div class="m-ac-option highlighted">
+                    <div class="m-avatar" style="width:28px;height:28px;font-size:11px;background:var(--border-light);color:var(--text4)">张</div>
+                    <div>
+                      <div style="font-size:13px"><span class="m-ac-match">张</span>阿姨</div>
+                      <div style="font-size:10px;color:var(--text4)">女 · 68岁 · 脑梗死</div>
+                    </div>
+                    <div style="margin-left:auto;font-size:10px;color:var(--text4)">今天</div>
+                  </div>
+                  <div class="m-ac-option">
+                    <div class="m-avatar" style="width:28px;height:28px;font-size:11px;background:var(--border-light);color:var(--text4)">张</div>
+                    <div>
+                      <div style="font-size:13px"><span class="m-ac-match">张</span>伟</div>
+                      <div style="font-size:10px;color:var(--text4)">男 · 45岁 · 高血压</div>
+                    </div>
+                    <div style="margin-left:auto;font-size:10px;color:var(--text4)">昨天</div>
+                  </div>
+                  <div class="m-ac-option" style="border-top:0.5px solid var(--border-light)">
+                    <span class="m-ac-create">+ 新建患者「张」</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="note" style="background:#f0fdf4;color:var(--primary)">
+              Inline dropdown, match highlighting, recent sort, create action &#10003;
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- 4. SWIPEABLE DRAWER -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab3">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num high">4</div>
+      <div class="section-title">SwipeableDrawer bottom sheets</div>
+      <span class="section-impact high">HIGH — ~2hr</span>
+    </div>
+    <div class="section-desc">
+      SheetDialog currently wraps MUI Dialog — tap-to-dismiss only.
+      SwipeableDrawer gives native swipe-down-to-dismiss, the gesture every WeChat user expects.
+      Single change inside SheetDialog affects every bottom sheet in the app.
+    </div>
+
+    <div class="compare">
+      <div class="compare-side">
+        <div class="compare-label before">Before — Dialog (tap overlay to close)</div>
+        <div class="phone">
+          <div class="phone-status">Current</div>
+          <div class="phone-content" style="min-height:320px">
+            <div class="m-header"><span class="m-header-title">审核</span></div>
+            <div style="padding:16px;font-size:12px;color:var(--text3)">
+              <div style="margin-bottom:8px">... page content behind ...</div>
+            </div>
+            <div class="m-sheet-overlay">
+              <div class="m-sheet">
+                <div class="m-sheet-handle"></div>
+                <div class="m-sheet-title">确认发送</div>
+                <div class="m-sheet-subtitle">将以下回复发送给 张阿姨：</div>
+                <div style="background:var(--surface);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:12px">
+                  建议下周复查头颅CT，如有突发剧烈头痛请立即就诊。
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <div style="text-align:center;padding:10px;background:var(--surface);border-radius:4px;font-size:13px;color:var(--text2)">取消</div>
+                  <div style="text-align:center;padding:10px;background:var(--primary);border-radius:4px;font-size:13px;color:var(--white);font-weight:600">发送</div>
+                </div>
+              </div>
+            </div>
+            <div class="note" style="position:relative;z-index:5">Tap dark overlay to close. Handle is decorative only. &#x26A0;</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="compare-side">
+        <div class="compare-label after">After — SwipeableDrawer (swipe to close)</div>
+        <div class="phone">
+          <div class="phone-status">Proposed</div>
+          <div class="phone-content" style="min-height:320px">
+            <div class="m-header"><span class="m-header-title">审核</span></div>
+            <div style="padding:16px;font-size:12px;color:var(--text3)">
+              <div style="margin-bottom:8px">... page content behind ...</div>
+            </div>
+            <div class="m-sheet-overlay">
+              <div class="m-sheet" style="position:relative">
+                <div class="m-sheet-handle" style="background:var(--text4);width:40px;height:5px"></div>
+                <div class="m-sheet-title">确认发送</div>
+                <div class="m-sheet-subtitle">将以下回复发送给 张阿姨：</div>
+                <div style="background:var(--surface);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:12px">
+                  建议下周复查头颅CT，如有突发剧烈头痛请立即就诊。
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <div style="text-align:center;padding:10px;background:var(--surface);border-radius:4px;font-size:13px;color:var(--text2)">取消</div>
+                  <div style="text-align:center;padding:10px;background:var(--primary);border-radius:4px;font-size:13px;color:var(--white);font-weight:600">发送</div>
+                </div>
+                <div class="m-swipe-hint">
+                  <span class="m-swipe-arrow">&#8595;</span> swipe down to close
+                </div>
+              </div>
+            </div>
+            <div class="note" style="position:relative;z-index:5;background:#f0fdf4;color:var(--primary)">
+              Handle is grabbable. Swipe down to dismiss. Native feel. &#10003;
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- 5. POPOVER -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab4">
+  <div class="section">
+    <div class="section-header">
+      <div class="section-num med">5</div>
+      <div class="section-title">Popover for citation preview</div>
+      <span class="section-impact med">MEDIUM — ~3hr</span>
+    </div>
+    <div class="section-desc">
+      When AI cites a knowledge rule, tapping currently navigates to the full knowledge detail page — losing review context.
+      A Popover shows the rule summary inline. Doctor glances, then continues reviewing.
+    </div>
+
+    <div class="compare">
+      <div class="compare-side">
+        <div class="compare-label before">Before — navigate away to knowledge page</div>
+        <div class="phone">
+          <div class="phone-status">Current</div>
+          <div class="phone-content">
+            <div class="m-header">
+              <span class="m-header-back">&#8249;</span>
+              <span class="m-header-title">诊断审核</span>
+              <span class="m-header-action">完成</span>
+            </div>
+            <div class="m-section">
+              <div style="padding:12px 16px">
+                <div style="font-size:13px;font-weight:500;margin-bottom:4px">鉴别诊断：高血压2级</div>
+                <div style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:8px">
+                  患者收缩压持续160-179mmHg，建议ARB+CCB联合方案。
+                </div>
+                <div style="font-size:12px;color:var(--text4)">
+                  引用了你的规则：<span style="color:var(--primary);text-decoration:underline;cursor:pointer">高血压分级用药规则</span>
+                </div>
+              </div>
+            </div>
+            <div style="padding:16px;text-align:center">
+              <div style="font-size:12px;color:var(--danger);margin-bottom:4px">&#x26A0; 点击后跳转到知识详情页</div>
+              <div style="font-size:11px;color:var(--text4)">离开审核页 → 知识库详情 → 返回 → 重新加载审核</div>
+              <div style="margin-top:12px;display:flex;gap:4px;justify-content:center">
+                <div style="width:8px;height:8px;border-radius:50%;background:var(--primary)"></div>
+                <div style="width:40px;height:2px;background:var(--border);align-self:center"></div>
+                <div style="width:8px;height:8px;border-radius:50%;background:var(--border);border:1px solid var(--text4)"></div>
+                <div style="width:40px;height:2px;background:var(--border);align-self:center"></div>
+                <div style="width:8px;height:8px;border-radius:50%;background:var(--border);border:1px solid var(--text4)"></div>
+              </div>
+              <div style="display:flex;justify-content:center;gap:32px;font-size:9px;color:var(--text4);margin-top:2px">
+                <span>审核页</span><span>知识详情</span><span>返回审核</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="compare-side">
+        <div class="compare-label after">After — MUI Popover (inline preview)</div>
+        <div class="phone">
+          <div class="phone-status">Proposed</div>
+          <div class="phone-content">
+            <div class="m-header">
+              <span class="m-header-back">&#8249;</span>
+              <span class="m-header-title">诊断审核</span>
+              <span class="m-header-action">完成</span>
+            </div>
+            <div class="m-section" style="position:relative">
+              <div style="padding:12px 16px">
+                <div style="font-size:13px;font-weight:500;margin-bottom:4px">鉴别诊断：高血压2级</div>
+                <div style="font-size:12px;color:var(--text3);line-height:1.6;margin-bottom:8px">
+                  患者收缩压持续160-179mmHg，建议ARB+CCB联合方案。
+                </div>
+                <div style="font-size:12px;color:var(--text4)">
+                  引用了你的规则：<span class="m-citation">高血压分级用药规则</span>
+                </div>
+              </div>
+              <!-- Popover -->
+              <div class="m-popover" style="bottom:auto;top:100px;left:24px">
+                <div class="m-popover-arrow" style="top:-6px"></div>
+                <div style="font-size:12px;font-weight:600;color:var(--text1);margin-bottom:4px">高血压分级用药规则</div>
+                <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:6px">
+                  3级首选ARB+CCB联合。2级可单药起步。1级优先生活方式干预...
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-size:10px;color:var(--text4)">引用 5 次 · 03-28创建</span>
+                  <span style="font-size:10px;color:var(--primary);cursor:pointer">查看全文 &#8250;</span>
+                </div>
+              </div>
+            </div>
+            <div style="padding:16px;text-align:center">
+              <div style="font-size:12px;color:var(--primary);margin-bottom:4px">&#10003; 不离开审核页，内联预览</div>
+              <div style="font-size:11px;color:var(--text4)">点击空白区域关闭，或点「查看全文」跳转</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- .content -->
+
+<div style="max-width:960px;margin:0 auto;padding:0 16px 48px">
+  <div style="background:var(--white);border:0.5px solid var(--border);border-radius:8px;padding:16px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px">Implementation order</div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <tr style="background:var(--surface)">
+        <th style="text-align:left;padding:6px 8px">#</th>
+        <th style="text-align:left;padding:6px 8px">MUI Component</th>
+        <th style="text-align:left;padding:6px 8px">Wraps</th>
+        <th style="text-align:left;padding:6px 8px">Effort</th>
+        <th style="text-align:left;padding:6px 8px">Risk</th>
+      </tr>
+      <tr><td style="padding:6px 8px">1</td><td style="padding:6px 8px;font-weight:500">Collapse</td><td style="padding:6px 8px;color:var(--text3)">6 expand/collapse spots</td><td style="padding:6px 8px;color:var(--primary)">~1hr</td><td style="padding:6px 8px;color:var(--primary)">None</td></tr>
+      <tr style="background:var(--surface)"><td style="padding:6px 8px">2</td><td style="padding:6px 8px;font-weight:500">Skeleton</td><td style="padding:6px 8px;color:var(--text3)">Replace SectionLoading + custom skeletons</td><td style="padding:6px 8px;color:var(--primary)">~2hr</td><td style="padding:6px 8px;color:var(--primary)">None</td></tr>
+      <tr><td style="padding:6px 8px">3</td><td style="padding:6px 8px;font-weight:500">Autocomplete</td><td style="padding:6px 8px;color:var(--text3)">PatientsPage search</td><td style="padding:6px 8px;color:var(--warning)">~3hr</td><td style="padding:6px 8px;color:var(--warning)">Low — new behavior</td></tr>
+      <tr style="background:var(--surface)"><td style="padding:6px 8px">4</td><td style="padding:6px 8px;font-weight:500">SwipeableDrawer</td><td style="padding:6px 8px;color:var(--text3)">Inside SheetDialog</td><td style="padding:6px 8px;color:var(--warning)">~2hr</td><td style="padding:6px 8px;color:var(--warning)">Low — gesture change</td></tr>
+      <tr><td style="padding:6px 8px">5</td><td style="padding:6px 8px;font-weight:500">Popover</td><td style="padding:6px 8px;color:var(--text3)">Citation links in review</td><td style="padding:6px 8px;color:var(--warning)">~3hr</td><td style="padding:6px 8px;color:var(--warning)">Low — new pattern</td></tr>
+    </table>
+  </div>
+</div>
+
+<script>
+// Tab switching
+function showTab(idx) {
+  document.querySelectorAll('.tab-content').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+  });
+  document.querySelectorAll('.nav-tab').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+  });
+}
+
+// Instant toggle (before)
+function toggleInstant(id) {
+  const el = document.getElementById(id);
+  const toggle = document.getElementById(id + '-toggle');
+  if (el.style.display === 'none') {
+    el.style.display = '';
+    toggle.innerHTML = '收起 &#9652;';
+  } else {
+    el.style.display = 'none';
+    toggle.innerHTML = '展开 &#9662;';
+  }
+}
+
+// Smooth toggle (after — simulates MUI Collapse)
+function toggleSmooth(id) {
+  const el = document.getElementById(id);
+  const toggle = document.getElementById(id + '-toggle');
+  if (el.classList.contains('collapsed')) {
+    el.classList.remove('collapsed');
+    el.classList.add('expanded');
+    toggle.innerHTML = '收起 &#9652;';
+  } else {
+    el.classList.remove('expanded');
+    el.classList.add('collapsed');
+    toggle.innerHTML = '展开 &#9662;';
+  }
+}
+</script>
+</body>
+</html>

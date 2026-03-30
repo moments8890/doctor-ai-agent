@@ -13,35 +13,49 @@
 import { Box, Typography } from "@mui/material";
 import { TYPE, COLOR } from "../theme";
 
-export default function FilterBar({ items, active, counts = {}, onChange }) {
+export default function FilterBar({ items, active, counts = {}, onChange, dividers = false }) {
   const hasCounts = Object.values(counts).some((v) => v != null);
   return (
-    <Box sx={{ display: "flex", borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
-      {items.map((tab) => {
+    <Box sx={{
+      display: "flex",
+      borderBottom: `0.5px solid ${COLOR.borderLight}`,
+      ...(dividers ? { bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}` } : {}),
+    }}>
+      {items.map((tab, i) => {
         const isActive = active === tab.key;
         const count = counts[tab.key];
+        const activeColor = tab.activeColor || COLOR.warning;
         return (
-          <Box key={tab.key} onClick={() => onChange(tab.key)}
-            sx={{
-              flex: 1, textAlign: "center", py: 1, cursor: "pointer",
-              borderBottom: isActive ? `3px solid ${COLOR.warning}` : "3px solid transparent",
-              "&:active": { opacity: 0.7 },
-            }}>
-            {hasCounts && (
-              <Typography sx={{
-                fontSize: TYPE.title.fontSize, fontWeight: 700, lineHeight: 1.3,
-                color: isActive ? COLOR.warning : COLOR.text4,
+          <Box key={tab.key} sx={{ display: dividers ? "contents" : "flex", flex: dividers ? undefined : 1 }}>
+            <Box onClick={() => onChange(tab.key)}
+              sx={{
+                flex: 1, textAlign: "center", py: dividers ? 1.5 : 1, cursor: "pointer",
+                userSelect: "none",
+                borderBottom: isActive ? `2px solid ${activeColor}` : "2px solid transparent",
+                transition: dividers ? "border-color 0.15s ease" : undefined,
+                "&:active": { opacity: dividers ? 0.5 : 0.7 },
               }}>
-                {count ?? 0}
+              {hasCounts && (
+                <Typography sx={{
+                  fontSize: TYPE.title.fontSize, fontWeight: dividers ? 600 : 700, lineHeight: 1.3,
+                  color: isActive ? activeColor : COLOR.text4,
+                  transition: dividers ? "color 0.15s ease" : undefined,
+                }}>
+                  {count ?? 0}
+                </Typography>
+              )}
+              <Typography sx={{
+                fontSize: dividers ? TYPE.micro.fontSize : TYPE.caption.fontSize,
+                mt: dividers ? 0.5 : 0,
+                color: isActive ? (dividers ? COLOR.text2 : COLOR.text1) : COLOR.text4,
+                fontWeight: isActive ? (dividers ? 500 : 600) : 400,
+              }}>
+                {tab.label}
               </Typography>
+            </Box>
+            {dividers && i < items.length - 1 && (
+              <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 1 }} />
             )}
-            <Typography sx={{
-              fontSize: TYPE.caption.fontSize,
-              color: isActive ? COLOR.text1 : COLOR.text4,
-              fontWeight: isActive ? 600 : 400,
-            }}>
-              {tab.label}
-            </Typography>
           </Box>
         );
       })}

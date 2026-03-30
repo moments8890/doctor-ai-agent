@@ -22,17 +22,9 @@ import NameAvatar from "../../components/NameAvatar";
 import IconBadge from "../../components/IconBadge";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
-import {
-  ICON_BADGES,
-  getOnboardingState,
-  isOnboardingStepDone,
-  ONBOARDING_STEP,
-} from "./constants";
-import {
-  getPreferredOnboardingRule,
-  resolveDiagnosisProofDestination,
-  resolveReplyProofDestination,
-} from "./onboardingProofs";
+import { ICON_BADGES } from "./constants";
+import { isWizardDone, clearWizardDone } from "./onboardingWizardState";
+import StatColumn from "../../components/StatColumn";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -65,19 +57,6 @@ function AIAvatar({ size = 44 }) {
   );
 }
 
-function StatColumn({ value, label, onClick }) {
-  return (
-    <Box onClick={onClick} sx={{ flex: 1, textAlign: "center", cursor: onClick ? "pointer" : "default", "&:active": onClick ? { opacity: 0.5 } : {} }}>
-      <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 600, color: COLOR.text1 }}>
-        {value ?? <Skeleton width={20} sx={{ mx: "auto" }} />}
-      </Typography>
-      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mt: 0.5 }}>
-        {label}
-      </Typography>
-    </Box>
-  );
-}
-
 function QuickActionIcon({ bg, children }) {
   return (
     <Box sx={{
@@ -103,65 +82,7 @@ function InlineBadge({ count, color = COLOR.warning }) {
   );
 }
 
-function ChecklistPill({ done, locked, current }) {
-  let text = "去查看";
-  let bg = COLOR.surface;
-  let color = COLOR.text4;
-  if (done) {
-    text = "已完成";
-    bg = COLOR.primaryLight;
-    color = COLOR.primary;
-  } else if (locked) {
-    text = "待解锁";
-  } else if (current) {
-    text = "下一步";
-    bg = COLOR.warningLight;
-    color = COLOR.warning;
-  }
-  return (
-    <Box
-      sx={{
-        fontSize: TYPE.micro.fontSize,
-        fontWeight: 600,
-        color,
-        bgcolor: bg,
-        px: 1,
-        py: 0.5,
-        borderRadius: "999px",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {text}
-    </Box>
-  );
-}
 
-function OnboardingChecklist({ rows, completedCount }) {
-  return (
-    <>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
-        <SectionLabel>开始体验</SectionLabel>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-          {completedCount}/{rows.length} 完成
-        </Typography>
-      </Box>
-      <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-        {rows.map((row, index) => (
-          <ListCard
-            key={row.key}
-            avatar={<IconBadge config={row.icon} />}
-            title={row.title}
-            subtitle={row.subtitle}
-            right={<ChecklistPill done={row.done} locked={row.locked} current={row.current} />}
-            chevron={!row.locked}
-            onClick={row.locked ? undefined : row.onClick}
-            sx={index === rows.length - 1 ? { borderBottom: "none" } : undefined}
-          />
-        ))}
-      </Box>
-    </>
-  );
-}
 
 // RuleDot removed — knowledge preview now uses ListCard + IconBadge
 
@@ -255,89 +176,6 @@ export default function MyAIPage({ doctorId }) {
   // Badge counts for quick actions
   const reviewBadge = pendingReview || 0;
   const followupBadge = 0; // TODO: derive from tasks data when fetched
-  const onboarding = getOnboardingState(doctorId);
-  const doneKnowledge = isOnboardingStepDone(onboarding, ONBOARDING_STEP.knowledge);
-  const doneDiagnosis = isOnboardingStepDone(onboarding, ONBOARDING_STEP.diagnosis);
-  const doneReply = isOnboardingStepDone(onboarding, ONBOARDING_STEP.reply);
-  const donePreview = isOnboardingStepDone(onboarding, ONBOARDING_STEP.patientPreview);
-  const doneTasks = isOnboardingStepDone(onboarding, ONBOARDING_STEP.followupTask);
-
-  async function handleOpenDiagnosisProof() {
-    const { preferredRuleId, preferredRuleTitle } = getPreferredOnboardingRule(doctorId);
-    const destination = await resolveDiagnosisProofDestination(api, doctorId, {
-      preferredRuleId,
-      preferredRuleTitle,
-    });
-    navigate(destination);
-  }
-
-  async function handleOpenReplyProof() {
-    const { preferredRuleId, preferredRuleTitle } = getPreferredOnboardingRule(doctorId);
-    const destination = await resolveReplyProofDestination(api, doctorId, {
-      preferredRuleId,
-      preferredRuleTitle,
-    });
-    navigate(destination);
-  }
-
-  const checklistRows = [
-    {
-      key: ONBOARDING_STEP.knowledge,
-      title: "教 AI 一条规则",
-      subtitle: "从网址、图片/文件或文本开始",
-      icon: ICON_BADGES.kb_add,
-      done: doneKnowledge,
-      locked: false,
-      current: !doneKnowledge,
-      onClick: () => navigate("/doctor/settings/knowledge/add?onboarding=1"),
-    },
-    {
-      key: ONBOARDING_STEP.diagnosis,
-      title: "看 AI 如何用于诊断审核",
-      subtitle: onboarding.lastSavedRuleTitle ? `基于“${onboarding.lastSavedRuleTitle}”进入示例` : "打开一个带来源的审核示例",
-      icon: ICON_BADGES.review,
-      done: doneDiagnosis,
-      locked: !doneKnowledge,
-      current: doneKnowledge && !doneDiagnosis,
-      onClick: handleOpenDiagnosisProof,
-    },
-    {
-      key: ONBOARDING_STEP.reply,
-      title: "看 AI 如何起草患者回复",
-      subtitle: "先看患者原始消息，再看 AI 草稿",
-      icon: ICON_BADGES.followup,
-      done: doneReply,
-      locked: !doneDiagnosis,
-      current: doneKnowledge && doneDiagnosis && !doneReply,
-      onClick: handleOpenReplyProof,
-    },
-    {
-      key: ONBOARDING_STEP.patientPreview,
-      title: "体验患者预问诊",
-      subtitle: "先建档，再生成可扫码/可预览入口",
-      icon: ICON_BADGES.qr_code,
-      done: donePreview,
-      locked: !doneDiagnosis || !doneReply,
-      current: doneDiagnosis && doneReply && !donePreview,
-      onClick: () => navigate("/doctor/settings/qr?onboarding=1"),
-    },
-    {
-      key: ONBOARDING_STEP.followupTask,
-      title: "查看生成任务",
-      subtitle: doneTasks ? "已完成审核后的随访任务" : "审核完成后会自动高亮任务",
-      icon: ICON_BADGES.task_general,
-      done: doneTasks,
-      locked: !donePreview && !doneTasks,
-      current: donePreview && !doneTasks,
-      onClick: () => {
-        const taskIds = (onboarding.lastFollowUpTaskIds || []).join(",");
-        const origin = doneTasks ? "review_finalize" : "patient_submit";
-        const highlight = taskIds || onboarding.lastReviewTaskId || "";
-        navigate(`/doctor/tasks?tab=followups${highlight ? `&highlight_task_ids=${highlight}` : ""}&origin=${origin}`);
-      },
-    },
-  ];
-  const completedChecklistCount = checklistRows.filter((row) => row.done).length;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
@@ -409,8 +247,6 @@ export default function MyAIPage({ doctorId }) {
           </Box>
         </Box>
 
-        <OnboardingChecklist rows={checklistRows} completedCount={completedChecklistCount} />
-
         {/* ── B. Quick Actions ───────────────────────────────────── */}
         <SectionLabel>快捷入口</SectionLabel>
         <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
@@ -443,8 +279,18 @@ export default function MyAIPage({ doctorId }) {
             subtitle="患者扫码自助填写病史"
             chevron
             onClick={() => navigate("/doctor/settings/qr")}
-            sx={{ borderBottom: "none" }}
+            sx={isWizardDone(doctorId) ? {} : { borderBottom: "none" }}
           />
+          {isWizardDone(doctorId) && (
+            <ListCard
+              avatar={<IconBadge config={ICON_BADGES.kb_doctor} />}
+              title="重新体验引导"
+              subtitle="再次走一遍产品引导流程"
+              chevron
+              onClick={() => { clearWizardDone(doctorId); navigate("/doctor/onboarding?step=1"); }}
+              sx={{ borderBottom: "none" }}
+            />
+          )}
         </Box>
 
         {/* ── C. 我的方法 (Knowledge Preview) ─────────────────── */}
@@ -507,7 +353,7 @@ export default function MyAIPage({ doctorId }) {
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
           <SectionLabel>最近由AI处理</SectionLabel>
           <Typography
-            onClick={() => navigate("/doctor/tasks")}
+            onClick={() => navigate("/doctor/review")}
             sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
           >
             全部 {activityList.length} 条 ›
@@ -545,8 +391,9 @@ export default function MyAIPage({ doctorId }) {
                 }
                 onClick={() => {
                   if (item.type === "diagnosis" && item.record_id) navigate(`/doctor/review/${item.record_id}`);
+                  else if (item.type === "draft" && item.patient_id) navigate(`/doctor/patients/${item.patient_id}?view=chat`);
                   else if (item.patient_id) navigate(`/doctor/patients/${item.patient_id}`);
-                  else navigate("/doctor/tasks");
+                  else navigate("/doctor/review");
                 }}
                 sx={idx === recentActivity.length - 1 ? { borderBottom: "none" } : {}}
               />

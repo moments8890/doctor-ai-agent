@@ -114,9 +114,10 @@ async def run_persona(
         ]
 
         # ------------------------------------------------------------------
-        # 5. Interview loop (max 20 turns)
+        # 5. Interview loop
         # ------------------------------------------------------------------
-        max_turns = 20
+        # Stress-test personas get higher turn limits
+        max_turns = 50 if persona_id.startswith("STRESS") else 20
         turn_count = 0
 
         complete = False

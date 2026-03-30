@@ -10,7 +10,7 @@ import {
   MOCK_PATIENT_MESSAGES,
   MOCK_KNOWLEDGE_ITEMS,
   MOCK_SETTINGS_TEMPLATES,
-} from "../pages/doctor/debug/MockData";
+} from "../pages/doctor/debug/DoctorDebugData";
 
 const INITIAL_DRAFT_MESSAGES = [
   {

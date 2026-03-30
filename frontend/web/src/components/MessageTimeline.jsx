@@ -9,7 +9,7 @@ import { Box, Typography } from "@mui/material";
 import { TYPE, COLOR, RADIUS } from "../theme";
 
 const SOURCE_CONFIG = {
-  patient: { label: "患者", color: "#5b9bd5" },
+  patient: { label: "患者", color: COLOR.recordBlue },
   ai: { label: "AI", color: COLOR.text4 },
   doctor: { label: "医生", color: COLOR.primary },
 };
@@ -214,7 +214,7 @@ function DraftTimelineNode({
 
         <Box
           sx={{
-            bgcolor: isManualReply ? "#fff8e1" : "#f5fbf6",
+            bgcolor: isManualReply ? COLOR.amberLight : "#f5fbf6",
             borderRadius: RADIUS.md,
             px: 1.5,
             py: 1.5,

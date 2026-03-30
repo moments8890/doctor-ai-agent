@@ -48,6 +48,7 @@ class PatientMessage(Base):
     )
     read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
+    seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     __table_args__ = (
         CheckConstraint(

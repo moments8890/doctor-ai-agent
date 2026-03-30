@@ -92,16 +92,18 @@ For each persona, the pipeline:
    - Response sent via `/api/patient/interview/turn`
    - Stops when 5+ fields collected or 20 turns reached
 5. **Confirms** the interview via `/api/patient/interview/confirm`
-6. **Validates** with 3 tiers:
+6. **Validates** with 4 tiers:
    - **Tier 1 (DB):** record exists, structured JSON populated, review queue created
-   - **Tier 2 (Extraction):** expected clinical keywords found in collected fields
+   - **Tier 2 (3-axis):** elicitation coverage, extraction fidelity (dialog-based: judges what patient actually said vs what record captured), NHC compliance. Uses LLM to extract patient's actual statements from conversation, then judges those against the structured record. Facts the patient never mentioned are excluded from scoring.
    - **Tier 3 (Quality):** LLM judge scores conversation 0-10 (optional)
+   - **Tier 4 (Anomaly):** anomaly review checks
 7. **Cleans up** test data (`intsim_*` rows)
 
 ## Reading the Report
 
 Reports are saved to `reports/patient_sim/`:
-- `sim-{timestamp}.md` — Human-readable markdown with conversation transcripts
+- `sim-{timestamp}.html` — Detailed technical report (scorecard, DB checks, quality scores)
+- `sim-{timestamp}-review.html` — Dialog review (persona background, chat history, structured record, fact assessment table with "患者实际表述" column). Passed personas collapsed, failed ones expanded.
 - `sim-{timestamp}.json` — Machine-readable results
 
 The markdown report includes:
@@ -131,7 +133,10 @@ This runs the same pipeline but asserts pass/fail per persona as pytest test cas
 → The system interview may not be extracting enough fields. Check `progress.filled` in the JSON report. The stop condition is `filled >= 5`.
 
 **Extraction validation fails but DB passes**
-→ The `expected_extracted` keywords in the persona JSON may not match what the system actually extracts. Check the "Extracted Facts" table in the report and adjust keywords in `tests/fixtures/patient_sim/personas/*.json`.
+→ The `fact_catalog` entries in the persona JSON may not match what the system actually extracts. T2 uses 3 LLM judges with tiered matching (exact/partial/missed). A `partial` match (core concept present but details missing) counts as a pass. Only `missed` critical facts cause failure. Check the report for vote details and adjust facts in `tests/fixtures/patient_sim/personas/*.json`.
+
+**Same persona passes/fails on different runs**
+→ LLM non-determinism affects both the sim patient (what it says) and the interview AI (what it asks). Run 2-3 times to assess stability. Personas with `volunteer=false` facts that depend on the AI asking the right category question are inherently less stable.
 
 **"Register failed: 404"**
 → The test doctor doesn't exist. The pipeline creates one automatically, but the DB must be writable. Check `data/patients.db` exists and is not locked.

@@ -60,7 +60,7 @@ def _get_providers() -> dict:
                 "https://api.lkeap.cloud.tencent.com/v1",
             ),
             "api_key_env": "TENCENT_LKEAP_API_KEY",
-            "model": os.environ.get("TENCENT_LKEAP_MODEL", "deepseek-v3-1"),
+            "model": os.environ.get("TENCENT_LKEAP_MODEL", "deepseek-v3"),
         },
 
         # ── Local / self-hosted ──────────────────────────────────────

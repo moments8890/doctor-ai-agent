@@ -37,7 +37,7 @@ const STATUS_LABEL = {
 
 function badgeColor(value) {
   if (value === "急诊" || value === "紧急" || value === "高") return COLOR.danger;
-  if (value === "中" || value === "常规") return "#e8833a";
+  if (value === "中" || value === "常规") return COLOR.orange;
   if (value === "低" || value === "观察") return COLOR.text4;
   if (value === "药物") return COLOR.primary;
   return COLOR.text4;
@@ -48,8 +48,8 @@ function badgeColor(value) {
 function MetaBadge({ value }) {
   if (!value) return null;
   const c = badgeColor(value);
-  const bgMap = { [COLOR.danger]: COLOR.dangerLight, "#e8833a": COLOR.warningLight, [COLOR.text4]: COLOR.surface };
-  const bg = bgMap[c] || "#f0faf4";
+  const bgMap = { [COLOR.danger]: COLOR.dangerLight, [COLOR.orange]: COLOR.warningLight, [COLOR.text4]: COLOR.surface };
+  const bg = bgMap[c] || COLOR.successLight;
   return (
     <Box
       component="span"

@@ -8,11 +8,12 @@ import logging
 from datetime import datetime, timezone
 from typing import Annotated, List, Optional
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.engine import AsyncSessionLocal
-from db.crud import list_tasks, update_task_status, create_task, update_task_due_at
+from db.engine import AsyncSessionLocal, get_db
+from db.crud import list_tasks, update_task_status, create_task, update_task_due_at, update_task_notes
 from db.crud.patient import get_patient_for_doctor
 from db.crud.patient_message import save_patient_message
 from infra.auth.rate_limit import enforce_doctor_rate_limit
@@ -139,6 +140,7 @@ async def get_task_detail(
     task_id: int,
     doctor_id: str,
     authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
 ) -> TaskOut:
     """Fetch a single task with patient name."""
     from db.models.tasks import DoctorTask
@@ -151,21 +153,20 @@ async def get_task_detail(
         default_doctor_id="test_doctor",
     )
     enforce_doctor_rate_limit(resolved_doctor_id, scope="tasks.get")
-    async with AsyncSessionLocal() as session:
-        stmt = select(DoctorTask).where(
-            DoctorTask.id == task_id,
-            DoctorTask.doctor_id == resolved_doctor_id,
-        )
-        task = (await session.execute(stmt)).scalar_one_or_none()
-        if task is None:
-            raise HTTPException(status_code=404, detail="Task not found")
-        patient_name = None
-        if task.patient_id:
-            pt = (await session.execute(
-                select(Patient).where(Patient.id == task.patient_id)
-            )).scalar_one_or_none()
-            if pt:
-                patient_name = pt.name
+    stmt = select(DoctorTask).where(
+        DoctorTask.id == task_id,
+        DoctorTask.doctor_id == resolved_doctor_id,
+    )
+    task = (await session.execute(stmt)).scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    patient_name = None
+    if task.patient_id:
+        pt = (await session.execute(
+            select(Patient).where(Patient.id == task.patient_id)
+        )).scalar_one_or_none()
+        if pt:
+            patient_name = pt.name
     return TaskOut.from_orm(task, patient_name=patient_name)
 
 
@@ -268,6 +269,7 @@ async def patch_task_notes(
     doctor_id: str,
     body: TaskNotesUpdate,
     authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
 ) -> TaskOut:
     """Update task notes."""
     resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
@@ -276,9 +278,7 @@ async def patch_task_notes(
         default_doctor_id="test_doctor",
     )
     enforce_doctor_rate_limit(resolved_doctor_id, scope="tasks.patch")
-    async with AsyncSessionLocal() as session:
-        from db.crud.tasks import update_task_notes
-        task = await update_task_notes(session, task_id, resolved_doctor_id, body.notes)
+    task = await update_task_notes(session, task_id, resolved_doctor_id, body.notes)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return TaskOut.from_orm(task)
@@ -317,6 +317,7 @@ async def get_task_record(
     record_id: int,
     doctor_id: str,
     authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
 ) -> dict:
     """Fetch a medical record by ID (for task detail view)."""
     from db.models import MedicalRecordDB, Patient
@@ -328,16 +329,15 @@ async def get_task_record(
         fallback_env_flag="TASKS_ALLOW_BODY_DOCTOR_ID",
         default_doctor_id="test_doctor",
     )
-    async with AsyncSessionLocal() as session:
-        stmt = (
-            select(MedicalRecordDB)
-            .options(joinedload(MedicalRecordDB.patient))
-            .where(
-                MedicalRecordDB.id == record_id,
-                MedicalRecordDB.doctor_id == resolved_doctor_id,
-            )
+    stmt = (
+        select(MedicalRecordDB)
+        .options(joinedload(MedicalRecordDB.patient))
+        .where(
+            MedicalRecordDB.id == record_id,
+            MedicalRecordDB.doctor_id == resolved_doctor_id,
         )
-        record = (await session.execute(stmt)).scalar_one_or_none()
+    )
+    record = (await session.execute(stmt)).scalar_one_or_none()
     if record is None:
         raise HTTPException(status_code=404, detail="Record not found")
 
@@ -349,11 +349,13 @@ async def get_task_record(
         except Exception:
             pass
 
+    structured = record.structured_dict() if record.has_structured_data() else {}
     return {
         "id": record.id,
         "patient_name": record.patient.name if record.patient else None,
         "record_type": record.record_type or "visit",
         "content": record.content,
+        "structured": structured,
         "tags": tags,
         "status": record.status or "completed",
         "created_at": record.created_at.isoformat() if record.created_at else None,

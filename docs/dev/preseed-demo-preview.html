@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LVB-AD Preseed Data — Demo Workflow Preview</title>
+<style>
+  :root {
+    --bg: #f5f5f7; --card: #fff; --border: #e5e5ea;
+    --green: #07C160; --red: #e53935; --orange: #ff9800;
+    --blue: #1976d2; --purple: #7c4dff; --grey: #8e8e93;
+    --text1: #1d1d1f; --text2: #48484a; --text3: #8e8e93;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "PingFang SC", sans-serif; background: var(--bg); color: var(--text1); padding: 20px; max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .subtitle { color: var(--text3); font-size: 14px; margin-bottom: 24px; }
+
+  /* Nav */
+  .patient-nav { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+  .patient-nav button {
+    padding: 8px 16px; border: 1.5px solid var(--border); border-radius: 20px;
+    background: var(--card); font-size: 13px; cursor: pointer; transition: all .2s;
+    font-family: inherit;
+  }
+  .patient-nav button.active { background: var(--green); color: #fff; border-color: var(--green); }
+  .patient-nav button:hover:not(.active) { border-color: var(--green); color: var(--green); }
+
+  /* Patient card */
+  .patient-panel { display: none; }
+  .patient-panel.active { display: block; }
+
+  .patient-header {
+    background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 16px;
+    border: 1px solid var(--border); display: flex; gap: 16px; align-items: center;
+  }
+  .avatar {
+    width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 22px; font-weight: 600; color: #fff; flex-shrink: 0;
+  }
+  .patient-meta { flex: 1; }
+  .patient-name { font-size: 20px; font-weight: 600; }
+  .patient-tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500;
+  }
+  .tag-stage { background: #e8f5e9; color: #2e7d32; }
+  .tag-urgent { background: #ffebee; color: #c62828; }
+  .tag-new { background: #e3f2fd; color: #1565c0; }
+  .tag-good { background: #f3e5f5; color: #6a1b9a; }
+  .tag-relapse { background: #fff3e0; color: #e65100; }
+
+  /* Showcase banner */
+  .showcase {
+    background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+    border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;
+    border: 1px solid #c8e6c9;
+  }
+  .showcase-title { font-size: 14px; font-weight: 600; color: #2e7d32; margin-bottom: 8px; }
+  .showcase-features { display: flex; flex-wrap: wrap; gap: 8px; }
+  .feature-chip {
+    font-size: 12px; padding: 4px 10px; border-radius: 8px;
+    background: #fff; border: 1px solid #a5d6a7; color: #1b5e20;
+  }
+
+  /* Section */
+  .section {
+    background: var(--card); border-radius: 12px; padding: 16px 20px; margin-bottom: 12px;
+    border: 1px solid var(--border);
+  }
+  .section-title {
+    font-size: 13px; font-weight: 600; color: var(--text3); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+  }
+  .section-icon { font-size: 16px; }
+
+  /* Records timeline */
+  .timeline { position: relative; padding-left: 24px; }
+  .timeline::before {
+    content: ''; position: absolute; left: 7px; top: 4px; bottom: 4px;
+    width: 2px; background: var(--border);
+  }
+  .timeline-item { position: relative; margin-bottom: 16px; }
+  .timeline-item:last-child { margin-bottom: 0; }
+  .timeline-dot {
+    position: absolute; left: -20px; top: 4px; width: 10px; height: 10px;
+    border-radius: 50%; border: 2px solid;
+  }
+  .dot-completed { border-color: var(--green); background: var(--green); }
+  .dot-pending { border-color: var(--orange); background: #fff; }
+  .record-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .record-content { font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .record-status {
+    display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px;
+    margin-left: 6px; font-weight: 500;
+  }
+  .status-completed { background: #e8f5e9; color: #2e7d32; }
+  .status-pending { background: #fff3e0; color: #e65100; }
+
+  /* Chat messages */
+  .chat-list { display: flex; flex-direction: column; gap: 10px; }
+  .chat-row { display: flex; gap: 10px; align-items: flex-start; }
+  .chat-avatar {
+    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 14px; flex-shrink: 0;
+  }
+  .chat-avatar-patient { background: #e3f2fd; }
+  .chat-avatar-ai { background: #e8f5e9; }
+  .chat-bubble {
+    padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5;
+    max-width: 80%; position: relative;
+  }
+  .bubble-patient { background: #f0f0f0; color: var(--text1); border-top-left-radius: 4px; }
+  .bubble-ai { background: #e8f5e9; color: var(--text1); border-top-left-radius: 4px; }
+  .triage-badge {
+    display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px;
+    font-weight: 600; margin-left: 6px; vertical-align: middle;
+  }
+  .triage-routine { background: #e8f5e9; color: #2e7d32; }
+  .triage-info { background: #e3f2fd; color: #1565c0; }
+  .triage-urgent { background: #ffebee; color: #c62828; }
+  .triage-question { background: #f3e5f5; color: #6a1b9a; }
+  .triage-concern { background: #fff3e0; color: #e65100; }
+  .handling-badge {
+    font-size: 10px; color: var(--text3); margin-top: 2px;
+  }
+  .handling-auto { color: var(--green); }
+  .handling-doctor { color: var(--orange); font-weight: 600; }
+
+  /* AI Diagnosis */
+  .diagnosis-card {
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px;
+    border-left: 3px solid;
+  }
+  .diagnosis-card:last-child { margin-bottom: 0; }
+  .diag-urgent { border-left-color: var(--red); }
+  .diag-normal { border-left-color: var(--green); }
+  .diag-warning { border-left-color: var(--orange); }
+  .diag-section { font-size: 11px; color: var(--text3); font-weight: 600; text-transform: uppercase; }
+  .diag-content { font-size: 14px; font-weight: 600; margin: 4px 0 2px; }
+  .diag-detail { font-size: 12px; color: var(--text2); line-height: 1.5; }
+  .kb-cite { background: #e8f5e9; color: #2e7d32; font-size: 11px; padding: 1px 4px; border-radius: 3px; }
+
+  /* Tasks */
+  .task-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 0;
+    border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .task-item:last-child { border-bottom: none; }
+  .task-check { width: 18px; height: 18px; border: 2px solid var(--border); border-radius: 50%; flex-shrink: 0; }
+  .task-priority { font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600; flex-shrink: 0; }
+  .priority-urgent { background: #ffebee; color: #c62828; }
+  .priority-normal { background: #e3f2fd; color: #1565c0; }
+  .priority-low { background: #f5f5f5; color: #757575; }
+
+  /* Workflow arrows */
+  .workflow {
+    background: #fafafa; border-radius: 12px; padding: 16px 20px; margin-bottom: 12px;
+    border: 1px solid var(--border);
+  }
+  .workflow-title { font-size: 13px; font-weight: 600; color: var(--blue); margin-bottom: 12px; }
+  .workflow-steps { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .wf-step {
+    font-size: 12px; padding: 6px 12px; border-radius: 8px; background: #fff;
+    border: 1px solid var(--border); display: flex; align-items: center; gap: 4px;
+  }
+  .wf-step.highlight { background: var(--green); color: #fff; border-color: var(--green); }
+  .wf-arrow { color: var(--text3); font-size: 16px; }
+
+  /* Overview tab */
+  .overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+  .overview-card {
+    background: var(--card); border-radius: 12px; padding: 20px; border: 1px solid var(--border);
+  }
+  .overview-card h3 { font-size: 16px; margin-bottom: 8px; }
+  .stat-row { display: flex; gap: 16px; margin: 16px 0; }
+  .stat-box { text-align: center; flex: 1; }
+  .stat-num { font-size: 28px; font-weight: 700; color: var(--green); }
+  .stat-label { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+  .legend { margin-top: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<h1>LVB-AD 引导预置数据 — 演示流程预览</h1>
+<p class="subtitle">5位患者 · 14份病历 · 17轮对话 · 5类AI功能展示 — 为陆华教授团队定制</p>
+
+<nav class="patient-nav">
+  <button class="active" onclick="showPanel('overview')">📊 总览</button>
+  <button onclick="showPanel('p1')">张秀兰 · 术后恢复</button>
+  <button onclick="showPanel('p2')">李建国 · 紧急情况</button>
+  <button onclick="showPanel('p3')">王美华 · 新诊断①</button>
+  <button onclick="showPanel('p4')">陈伟强 · 新诊断②</button>
+  <button onclick="showPanel('p5')">刘淑芬 · 症状反复</button>
+</nav>
+
+<!-- ═══════════════════ OVERVIEW ═══════════════════ -->
+<div id="panel-overview" class="patient-panel active">
+
+  <div class="stat-row">
+    <div class="stat-box"><div class="stat-num">5</div><div class="stat-label">患者</div></div>
+    <div class="stat-box"><div class="stat-num">14</div><div class="stat-label">病历记录</div></div>
+    <div class="stat-box"><div class="stat-num">17</div><div class="stat-label">患者消息</div></div>
+    <div class="stat-box"><div class="stat-num">11</div><div class="stat-label">AI 自动回复</div></div>
+    <div class="stat-box"><div class="stat-num">6</div><div class="stat-label">需医生审核</div></div>
+    <div class="stat-box"><div class="stat-num">7</div><div class="stat-label">待办任务</div></div>
+  </div>
+
+  <div class="overview-grid">
+    <div class="overview-card">
+      <h3>🎯 核心价值展示</h3>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div><b>AI 自动回复</b> — 常规/信息类消息自动处理，医生无需逐条回复</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div><b>紧急升级</b> — AI 识别危险信号，立即升级到医生审核</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div><b>AI 诊断建议</b> — 基于医生知识库生成鉴别诊断、检查和治疗建议</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div><b>知识引用</b> — 所有 AI 输出引用医生添加的 LVB 术后管理知识</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div><b>智能任务</b> — AI 自动生成随访检查任务，不遗漏关键时间节点</div>
+      </div>
+    </div>
+    <div class="overview-card">
+      <h3>📋 患者分布设计</h3>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div><b>张秀兰</b> — 术后2周，恢复良好 → 展示日常随访自动化</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div><b>李建国</b> — 术后1月，颈部肿胀 → 展示紧急情况识别</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div><b>王美华</b> — 新诊断①：典型AD → 展示AI鉴别诊断（AD vs 血管性 vs NPH）</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div><b>陈伟强</b> — 新诊断②：非典型 → 展示AI识别PCA型AD + 视觉/眩晕症状</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div><b>刘淑芬</b> — 术后6月，症状反复 → 展示复发检测 + 再评估</div>
+      </div>
+    </div>
+    <div class="overview-card">
+      <h3>🔄 引导流程中的展示</h3>
+      <p style="font-size:13px;color:var(--text2);line-height:1.8">
+        <b>Step 1 了解产品:</b> 介绍 AI 如何学习医生知识<br>
+        <b>Step 2 添加知识:</b> 医生添加 LVB 术后管理规则 → 触发预置数据生成<br>
+        <b>Step 3 诊断审核:</b> 查看 5 位患者的 AI 诊断建议（5条 pending_review）<br>
+        <b>Step 4 消息处理:</b> 查看 17 轮对话，11条自动处理 + 6条待审核<br>
+        <b>Step 5 患者问诊:</b> 体验新患者预问诊流程<br>
+        <b>Step 6 任务管理:</b> 查看 AI 生成的 7 个随访任务
+      </p>
+    </div>
+    <div class="overview-card">
+      <h3>💡 为什么选这5个场景</h3>
+      <p style="font-size:13px;color:var(--text2);line-height:1.8">
+        覆盖 LVB-AD 患者<b>完整生命周期</b>：<br>
+        术前评估 → 手术 → 早期恢复 → 中期随访 → 远期管理<br><br>
+        覆盖<b>所有分诊级别</b>：<br>
+        routine(4) · info(5) · question(3) · urgent(3) · concern(2)<br><br>
+        来源于<b>陆华教授真实临床经验</b>：<br>
+        鼻黏膜ICG注射法 · 吻合口血栓风险 · 视力/眩晕改善 · 症状反复
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PATIENT 1: 张秀兰 ═══════════════════ -->
+<div id="panel-p1" class="patient-panel">
+  <div class="patient-header">
+    <div class="avatar" style="background:var(--green)">张</div>
+    <div class="patient-meta">
+      <div class="patient-name">张秀兰</div>
+      <div class="patient-tags">
+        <span class="tag tag-stage">72岁 · 女</span>
+        <span class="tag tag-stage">双侧LVB术后2周</span>
+        <span class="tag tag-good">恢复顺利</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="showcase">
+    <div class="showcase-title">✦ 该患者重点展示功能</div>
+    <div class="showcase-features">
+      <div class="feature-chip">✓ 日常随访全自动回复</div>
+      <div class="feature-chip">✓ 认知评分追踪</div>
+      <div class="feature-chip">✓ AI 识别无需打扰医生的消息</div>
+      <div class="feature-chip">✓ 自动生成定期复查任务</div>
+    </div>
+  </div>
+
+  <div class="workflow">
+    <div class="workflow-title">👨‍⚕️ 医生在 App 中看到的体验</div>
+    <div class="workflow-steps">
+      <div class="wf-step">打开患者列表</div><span class="wf-arrow">→</span>
+      <div class="wf-step">看到张秀兰 4 条消息已自动处理</div><span class="wf-arrow">→</span>
+      <div class="wf-step highlight">无需操作 ✓</div><span class="wf-arrow">→</span>
+      <div class="wf-step">点开查看 AI 回复内容确认准确</div><span class="wf-arrow">→</span>
+      <div class="wf-step">审核术后复查诊断建议</div><span class="wf-arrow">→</span>
+      <div class="wf-step">确认自动生成的复查任务</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">📋</span> 病历记录 (3份)</div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-dot dot-completed"></div>
+        <div class="record-title">初诊评估 <span class="record-status status-completed">已完成</span></div>
+        <div class="record-content">
+          <b>主诉:</b> 记忆力进行性下降3年，加重半年<br>
+          <b>现病史:</b> 3年前开始出现近事遗忘，逐渐不认识亲人名字。半年前加重，在熟悉地方迷路，不能管理财务。MMSE 18/30，MoCA 14/30。<br>
+          <b>辅助检查:</b> 头颅MRI示双侧海马萎缩；PET-CT示双侧颞顶叶Aβ沉积阳性。<br>
+          <b>既往史:</b> 高血压15年（氨氯地平5mg/日），2型糖尿病8年（二甲双胍），口服多奈哌齐5mg/日 2年。
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-completed"></div>
+        <div class="record-title">手术记录 <span class="record-status status-completed">已完成</span></div>
+        <div class="record-content">
+          <b>手术名称:</b> 双侧颈深淋巴-静脉分流术（LVB）<br>
+          <b>术中要点:</b> 鼻黏膜ICG注射法（双侧下鼻甲各注射3ml），30分钟后颈深淋巴系统清晰显影。蔡司KINEVO 900机器人显微镜下操作，20倍放大，吻合3根淋巴管（管径0.3-0.5mm）至颈外静脉分支。ICG荧光确认吻合口通畅。<br>
+          <b>术后:</b> 切口加压包扎，抗生素预防感染3天。
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-pending"></div>
+        <div class="record-title">术后2周复查 <span class="record-status status-pending">待审核</span></div>
+        <div class="record-content">
+          <b>主诉:</b> 双侧颈深LVB术后2周复查<br>
+          <b>现病史:</b> 术后恢复顺利，无发热，切口愈合好。家属反映近日能记住早餐内容，情绪较术前稳定。MMSE 20/30（↑2分），MoCA 16/30（↑2分）。<br>
+          <b>查体:</b> 双侧颈部切口Ⅰ期愈合，无红肿渗出。ICG荧光复查示双侧吻合口通畅。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">🤖</span> AI 诊断建议（术后2周复查）</div>
+    <div class="diagnosis-card diag-normal">
+      <div class="diag-section">鉴别诊断</div>
+      <div class="diag-content">术后恢复顺利，认知功能早期改善</div>
+      <div class="diag-detail">MMSE较术前提升2分，属于术后早期改善范围内。部分患者术后2周即出现记忆、情绪改善。建议继续观察。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-normal">
+      <div class="diag-section">检查建议</div>
+      <div class="diag-content">3个月后复查PET-CT及认知评估</div>
+      <div class="diag-detail">术后早期影像学变化不明显，认知改善通常先于影像学改变。建议术后3个月复查PET-CT评估Aβ清除情况，同时复查MRI黑血序列评估脑淋巴引流。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-normal">
+      <div class="diag-section">治疗建议</div>
+      <div class="diag-content">维持现有药物方案 + 认知康复训练</div>
+      <div class="diag-detail">继续口服多奈哌齐5mg/日，维持降压降糖方案不变。建议增加认知康复训练（每日记忆练习、社交互动）。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">💬</span> 患者消息 (4轮) — 全部自动处理</div>
+    <div class="chat-list">
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👩</div>
+        <div>
+          <div class="chat-bubble bubble-patient">手术完了，什么时候可以正常活动？<span class="triage-badge triage-routine">routine</span></div>
+          <div class="handling-badge handling-auto">✓ AI 自动回复</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai">术后建议休息1-2周，避免剧烈运动和重体力劳动。日常轻度活动如散步可正常进行。颈部避免大幅度转动，保持切口清洁干燥。如有不适请及时联系。<span class="kb-cite">[KB-1]</span></div>
+      </div>
+
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👩</div>
+        <div>
+          <div class="chat-bubble bubble-patient">多奈哌齐还要继续吃吗？<span class="triage-badge triage-routine">routine</span></div>
+          <div class="handling-badge handling-auto">✓ AI 自动回复</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai">请继续按原方案每日服用多奈哌齐5mg，下次复诊时再评估药物方案。同时继续服用降压药和降糖药，不要自行停药。<span class="kb-cite">[KB-1]</span></div>
+      </div>
+
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👩</div>
+        <div>
+          <div class="chat-bubble bubble-patient">今天做了复查CT，结果都正常<span class="triage-badge triage-info">info</span></div>
+          <div class="handling-badge handling-auto">✓ AI 自动回复</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai">好的，复查结果已记录。术后早期影像学检查正常是好的信号，说明手术区域无异常。请继续保持随访计划。</div>
+      </div>
+
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👩</div>
+        <div>
+          <div class="chat-bubble bubble-patient">最近能记住早上吃了什么了，是不是在好转？<span class="triage-badge triage-info">info</span></div>
+          <div class="handling-badge handling-auto">✓ AI 自动回复</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai">这是一个积极的信号！部分患者术后确实会出现近事记忆力的改善，说明手术可能正在发挥作用。请继续坚持认知康复训练，我们会在复诊时做详细评估。<span class="kb-cite">[KB-1]</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">📌</span> AI 生成任务</div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-normal">定期</span>
+      <span>安排3个月后PET-CT复查（评估Aβ清除情况）</span>
+    </div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-normal">定期</span>
+      <span>术后3个月认知评估（MMSE + MoCA）</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PATIENT 2: 李建国 ═══════════════════ -->
+<div id="panel-p2" class="patient-panel">
+  <div class="patient-header">
+    <div class="avatar" style="background:var(--red)">李</div>
+    <div class="patient-meta">
+      <div class="patient-name">李建国</div>
+      <div class="patient-tags">
+        <span class="tag tag-stage">68岁 · 男</span>
+        <span class="tag tag-stage">右侧LVB术后1月</span>
+        <span class="tag tag-urgent">⚠ 需紧急处理</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="showcase">
+    <div class="showcase-title">✦ 该患者重点展示功能</div>
+    <div class="showcase-features">
+      <div class="feature-chip">⚠ 紧急消息识别与升级</div>
+      <div class="feature-chip">⚠ 术后并发症 AI 鉴别诊断</div>
+      <div class="feature-chip">✓ 紧急任务自动生成</div>
+      <div class="feature-chip">✓ 危险信号引用医生知识库</div>
+    </div>
+  </div>
+
+  <div class="workflow">
+    <div class="workflow-title">👨‍⚕️ 医生在 App 中看到的体验</div>
+    <div class="workflow-steps">
+      <div class="wf-step highlight">审核队列红色提醒 ⚠</div><span class="wf-arrow">→</span>
+      <div class="wf-step">看到 AI 标记"紧急"的患者消息</div><span class="wf-arrow">→</span>
+      <div class="wf-step">查看 AI 草稿回复，引用了自己添加的知识</div><span class="wf-arrow">→</span>
+      <div class="wf-step">编辑确认发送</div><span class="wf-arrow">→</span>
+      <div class="wf-step">查看 AI 诊断建议（淋巴漏/血栓鉴别）</div><span class="wf-arrow">→</span>
+      <div class="wf-step highlight">确认紧急检查任务</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">📋</span> 病历记录 (3份)</div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-dot dot-completed"></div>
+        <div class="record-title">初诊评估 <span class="record-status status-completed">已完成</span></div>
+        <div class="record-content">
+          <b>主诉:</b> 记忆力下降伴步态不稳2年<br>
+          <b>现病史:</b> 2年前起记忆力逐渐下降，伴行走不稳、小碎步，静止性震颤不明显。MMSE 16/30，MoCA 12/30。外院诊断"AD伴帕金森综合征"。<br>
+          <b>辅助检查:</b> MRI示全脑萎缩，以颞叶为著。PET示Aβ弥漫性沉积。DAT-SPECT示多巴胺转运体减低。<br>
+          <b>既往史:</b> 冠心病5年，阿司匹林100mg/日。高血压8年。
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-completed"></div>
+        <div class="record-title">手术记录 <span class="record-status status-completed">已完成</span></div>
+        <div class="record-content">
+          <b>手术名称:</b> 右侧颈深淋巴-静脉分流术（LVB）<br>
+          <b>术中要点:</b> 鼻黏膜ICG注射法，右侧颈深淋巴管扩张明显（管径0.4-0.6mm），吻合2根淋巴管至颈外静脉。术中见淋巴管内液体浑浊，流速缓慢，提示淋巴引流功能障碍。ICG确认吻合通畅。<br>
+          <b>备注:</b> 计划择期行左侧LVB。
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-pending"></div>
+        <div class="record-title">术后1月复查 <span class="record-status status-pending">待审核 ⚠</span></div>
+        <div class="record-content">
+          <b>主诉:</b> 右侧LVB术后1月，右颈肿胀伴头晕加重1天<br>
+          <b>现病史:</b> 术后2周复查时恢复尚可。3天前开始右颈部隐痛，昨日出现右颈明显肿胀（约3×4cm），质软，伴头晕加重。无发热，无肢体无力。<br>
+          <b>查体:</b> 右颈部可触及3×4cm肿物，质软，无压痛，皮肤无红热。双侧瞳孔等大等圆，四肢肌力V级。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">🤖</span> AI 诊断建议（术后1月复查）— 紧急</div>
+    <div class="diagnosis-card diag-urgent">
+      <div class="diag-section">鉴别诊断</div>
+      <div class="diag-content">术后淋巴漏 / 吻合口血栓</div>
+      <div class="diag-detail">LVB术后1月出现颈部肿胀，需首先排除：①淋巴漏导致淋巴囊肿形成 ②吻合口血栓导致淋巴回流障碍。术中已见淋巴管扩张、液体浑浊，术后静脉压力变化可能导致血液返流形成血栓。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-urgent">
+      <div class="diag-section">检查建议</div>
+      <div class="diag-content">急查颈部超声 + ICG荧光复查吻合口</div>
+      <div class="diag-detail">颈部超声评估肿物性质（囊性/实性）及与吻合口的关系。ICG荧光检查评估吻合口是否仍通畅。必要时头颅CT排除颅内异常。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-warning">
+      <div class="diag-section">治疗建议</div>
+      <div class="diag-content">局部加压包扎，必要时穿刺引流</div>
+      <div class="diag-detail">若为淋巴囊肿，先行加压包扎观察，必要时超声引导下穿刺引流。若确认吻合口血栓，需评估是否需要修复吻合或二次手术。暂停阿司匹林需权衡冠心病风险。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">💬</span> 患者消息 (3轮) — 含紧急升级</div>
+    <div class="chat-list">
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👨</div>
+        <div>
+          <div class="chat-bubble bubble-patient">术后恢复还可以，就是脖子有点紧绷的感觉<span class="triage-badge triage-routine">routine</span></div>
+          <div class="handling-badge handling-auto">✓ AI 自动回复</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai">术后早期颈部轻度紧绷感是正常的，随着切口愈合和局部消肿会逐渐缓解。请避免颈部大幅度活动，保持切口清洁。如果紧绷感持续加重或出现明显肿胀，请及时联系。</div>
+      </div>
+
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👨</div>
+        <div>
+          <div class="chat-bubble bubble-patient">陆医生，我爸脖子那里肿了一块，还说头晕比之前重了<span class="triage-badge triage-urgent">urgent ⚠</span></div>
+          <div class="handling-badge handling-doctor">⏳ 等待医生审核</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai" style="border: 1.5px solid var(--orange)">
+          <div style="font-size:10px;color:var(--orange);font-weight:600;margin-bottom:4px">AI 草稿 — 待医生审核后发送</div>
+          LVB术后出现颈部肿胀伴头晕加重需要重视。请尽快带您父亲到医院就诊，需要做颈部超声检查明确肿胀原因。如果肿胀迅速增大或出现呼吸困难，请立即到急诊就诊。<span class="kb-cite">[KB-1]</span>
+        </div>
+      </div>
+
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👨</div>
+        <div>
+          <div class="chat-bubble bubble-patient">今天肿得更大了，要去急诊吗？<span class="triage-badge triage-urgent">urgent ⚠</span></div>
+          <div class="handling-badge handling-doctor">⏳ 等待医生审核</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai" style="border: 1.5px solid var(--orange)">
+          <div style="font-size:10px;color:var(--orange);font-weight:600;margin-bottom:4px">AI 草稿 — 待医生审核后发送</div>
+          颈部肿胀进行性增大建议立即到医院急诊就诊。需要紧急做颈部超声和头颅CT检查，排除淋巴漏或吻合口血栓等术后并发症。到达后请告知急诊医生是LVB术后患者。<span class="kb-cite">[KB-1]</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">📌</span> AI 生成任务</div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-urgent">紧急</span>
+      <span>尽快安排颈部超声 + 头颅CT检查</span>
+    </div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-urgent">紧急</span>
+      <span>ICG荧光复查吻合口通畅性</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PATIENT 3: 王美华 — 新诊断：典型AD ═══════════════════ -->
+<div id="panel-p3" class="patient-panel">
+  <div class="patient-header">
+    <div class="avatar" style="background:var(--blue)">王</div>
+    <div class="patient-meta">
+      <div class="patient-name">王美华</div>
+      <div class="patient-tags">
+        <span class="tag tag-stage">65岁 · 女</span>
+        <span class="tag tag-new">新患者 · AI 首次诊断</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="showcase">
+    <div class="showcase-title">✦ 该患者重点展示功能 — 新诊断 #1</div>
+    <div class="showcase-features">
+      <div class="feature-chip">★ AI 鉴别诊断（AD vs 血管性 vs NPH）</div>
+      <div class="feature-chip">★ 基于知识库的检查建议</div>
+      <div class="feature-chip">✓ 患者教育（手术咨询问答）</div>
+      <div class="feature-chip">✓ 术前检查任务自动生成</div>
+    </div>
+  </div>
+
+  <div class="workflow">
+    <div class="workflow-title">👨‍⚕️ 医生在 App 中看到的体验</div>
+    <div class="workflow-steps">
+      <div class="wf-step">新患者完成预问诊，AI 生成病历</div><span class="wf-arrow">→</span>
+      <div class="wf-step highlight">审核 AI 鉴别诊断（3个方向）</div><span class="wf-arrow">→</span>
+      <div class="wf-step">看到 AI 引用了自己的知识库</div><span class="wf-arrow">→</span>
+      <div class="wf-step">审核患者咨询的 AI 回复草稿</div><span class="wf-arrow">→</span>
+      <div class="wf-step">确认自动生成的检查任务</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">📋</span> 病历记录 (2份)</div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-dot dot-completed"></div>
+        <div class="record-title">外院转诊资料 <span class="record-status status-completed">已完成</span></div>
+        <div class="record-content">
+          <b>来源:</b> 外院神经内科转诊<br>
+          <b>摘要:</b> 外院诊断"认知功能障碍待查"，口服多奈哌齐5mg/日1年，症状仍在进展。MRI示双侧海马轻度萎缩（Scheltens 2级）。未做PET-CT。建议进一步评估。
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-pending"></div>
+        <div class="record-title">首次就诊 — AI 问诊记录 <span class="record-status status-pending">待审核 ★ 新诊断</span></div>
+        <div class="record-content">
+          <b>主诉:</b> 记忆力进行性下降2年，找词困难半年<br>
+          <b>现病史:</b> 2年前开始出现近事遗忘——反复询问同一问题、忘记约定。近半年加重，出现找词困难（想说"钥匙"说成"那个开门的"），计算力下降（买菜算不清账），在熟悉的超市迷路2次。外院口服多奈哌齐1年余，自觉无明显效果。无肢体无力，无头痛，无尿失禁，无性格改变。<br>
+          <b>既往史:</b> 高血脂5年（瑞舒伐他汀10mg/日）。无高血压、糖尿病。无脑血管病史。无手术史。<br>
+          <b>家族史:</b> 母亲70岁后出现"老糊涂"，未正式诊断。<br>
+          <b>查体:</b> MMSE 22/30（回忆-3，计算-3，定向-2），MoCA 18/30。步态正常，无锥体外系征。<br>
+          <b>辅助检查:</b> 外院MRI示双侧海马轻度萎缩。余缺。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">🤖</span> AI 诊断建议（首次就诊）— ★ 新诊断鉴别</div>
+    <div class="diagnosis-card diag-warning">
+      <div class="diag-section">鉴别诊断 ①（最可能）</div>
+      <div class="diag-content">阿尔茨海默病（AD）</div>
+      <div class="diag-detail">隐匿起病，进行性加重，以近事遗忘为首发，逐渐出现找词困难、计算力下降、空间定向障碍。符合AD典型临床表现。MRI示海马萎缩支持诊断。家族史阳性增加AD可能。需PET-CT确认Aβ沉积。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-normal">
+      <div class="diag-section">鉴别诊断 ②（需排除）</div>
+      <div class="diag-content">血管性认知障碍（VCI）</div>
+      <div class="diag-detail">患者有高血脂病史，是脑血管病危险因素。但无明确卒中史、无局灶体征、起病方式为缓慢进展而非阶梯样下降，不支持典型血管性痴呆。需MRI排除静默性脑梗死和白质病变。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-normal">
+      <div class="diag-section">鉴别诊断 ③（需排除）</div>
+      <div class="diag-content">正常压力脑积水（NPH）</div>
+      <div class="diag-detail">NPH经典三联征为步态异常、认知下降、尿失禁。该患者步态正常、无尿失禁，不支持NPH。但需MRI评估脑室是否不成比例扩大。NPH是可手术逆转的痴呆原因，需明确排除。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-warning">
+      <div class="diag-section">检查建议</div>
+      <div class="diag-content">PET-CT + MRI黑血序列 + 腰穿</div>
+      <div class="diag-detail">①PET-CT（Aβ显像）：确认Aβ沉积，同时作为LVB手术适应证核心指标 ②头颅MRI（含黑血序列）：评估白质病变、脑室形态，并建立颈深淋巴基线 ③腰穿脑脊液检查（Aβ42/p-tau/t-tau）：辅助AD诊断。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-normal">
+      <div class="diag-section">初步治疗建议</div>
+      <div class="diag-content">继续多奈哌齐 + 待确诊后评估LVB手术</div>
+      <div class="diag-detail">目前继续口服多奈哌齐5mg/日。若PET-CT确认Aβ阳性且排除NPH/VCI，MMSE 22分属轻度范围，文献提示MMSE≥15分的AD患者LVB术后改善概率较高，可考虑手术评估。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">💬</span> 患者消息 (3轮) — 含患者教育咨询</div>
+    <div class="chat-list">
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👩</div>
+        <div>
+          <div class="chat-bubble bubble-patient">陆医生，我这个病做手术真的能好吗？<span class="triage-badge triage-question">question</span></div>
+          <div class="handling-badge handling-doctor">⏳ 等待医生审核</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai" style="border: 1.5px solid var(--orange)">
+          <div style="font-size:10px;color:var(--orange);font-weight:600;margin-bottom:4px">AI 草稿 — 待医生审核后发送</div>
+          颈深淋巴-静脉分流术（LVB）是通过改善脑部淋巴引流来帮助清除导致阿尔茨海默病的有害蛋白。从目前的临床经验看，多数患者术后会有不同程度的认知改善，主要表现在记忆力、情绪和日常行为方面的好转。不过，我们需要先完善检查确认诊断，才能评估您是否适合手术。<span class="kb-cite">[KB-1]</span>
+        </div>
+      </div>
+
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👩</div>
+        <div>
+          <div class="chat-bubble bubble-patient">手术风险大吗？需要住几天院？<span class="triage-badge triage-question">question</span></div>
+          <div class="handling-badge handling-doctor">⏳ 等待医生审核</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai" style="border: 1.5px solid var(--orange)">
+          <div style="font-size:10px;color:var(--orange);font-weight:600;margin-bottom:4px">AI 草稿 — 待医生审核后发送</div>
+          LVB手术在显微镜下进行，切口在颈部，创伤较小。一般住院5-7天。主要风险包括淋巴漏、吻合口血栓等，发生率较低。手术时间约2-4小时。具体情况等检查结果出来后在门诊详细说明。<span class="kb-cite">[KB-1]</span>
+        </div>
+      </div>
+
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👩</div>
+        <div>
+          <div class="chat-bubble bubble-patient">检查报告都做完了，什么时候能安排手术？<span class="triage-badge triage-routine">routine</span></div>
+          <div class="handling-badge handling-auto">✓ AI 自动回复</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai">好的，我们会尽快安排陆医生查看您的检查结果。确认手术适应证后会通知您住院时间，请保持电话畅通。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">📌</span> AI 生成任务</div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-normal">检查</span>
+      <span>预约PET-CT（Aβ显像）— 确认AD诊断 + LVB手术评估</span>
+    </div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-normal">检查</span>
+      <span>预约头颅MRI（含黑血序列）— 排除NPH/VCI + 淋巴基线</span>
+    </div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-normal">检查</span>
+      <span>腰穿脑脊液检查（Aβ42/p-tau/t-tau）</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PATIENT 4: 陈伟强 — 新诊断：非典型 ═══════════════════ -->
+<div id="panel-p4" class="patient-panel">
+  <div class="patient-header">
+    <div class="avatar" style="background:var(--purple)">陈</div>
+    <div class="patient-meta">
+      <div class="patient-name">陈伟强</div>
+      <div class="patient-tags">
+        <span class="tag tag-stage">71岁 · 男</span>
+        <span class="tag tag-new">新患者 · AI 首次诊断</span>
+        <span class="tag tag-good">非典型表现</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="showcase">
+    <div class="showcase-title">✦ 该患者重点展示功能 — 新诊断 #2</div>
+    <div class="showcase-features">
+      <div class="feature-chip">★ AI 鉴别非典型表现（视觉+眩晕+认知）</div>
+      <div class="feature-chip">★ 引用陆华教授临床发现（LVB改善视力）</div>
+      <div class="feature-chip">✓ 复杂病例 AI 也能给出方向</div>
+      <div class="feature-chip">✓ 多学科检查任务协调</div>
+    </div>
+  </div>
+
+  <div class="workflow">
+    <div class="workflow-title">👨‍⚕️ 医生在 App 中看到的体验</div>
+    <div class="workflow-steps">
+      <div class="wf-step">新患者预问诊完成</div><span class="wf-arrow">→</span>
+      <div class="wf-step highlight">AI 识别非典型AD可能（视觉+认知）</div><span class="wf-arrow">→</span>
+      <div class="wf-step">鉴别4个方向：PCA型AD / 路易体 / 视通路 / 梅尼埃</div><span class="wf-arrow">→</span>
+      <div class="wf-step">AI 引用"LVB可能改善视力和眩晕"的知识</div><span class="wf-arrow">→</span>
+      <div class="wf-step">确认多学科检查任务</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">📋</span> 病历记录 (2份)</div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-dot dot-completed"></div>
+        <div class="record-title">外院病历资料 <span class="record-status status-completed">已完成</span></div>
+        <div class="record-content">
+          <b>来源:</b> 外院眼科 + 神经内科联合转诊<br>
+          <b>摘要:</b> 1年前开始视物模糊，眼科检查未见明确器质性病变，配镜后无改善。同期出现记忆力下降和反复头晕。外院MRI示双侧颞叶萎缩，建议进一步评估。
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-pending"></div>
+        <div class="record-title">首次就诊 — AI 问诊记录 <span class="record-status status-pending">待审核 ★ 新诊断</span></div>
+        <div class="record-content">
+          <b>主诉:</b> 视物模糊伴记忆力下降1年，反复头晕半年<br>
+          <b>现病史:</b> 1年前开始视物模糊，"像隔了一层水汽"，看东西不清楚但眼科查不出问题。同期出现记忆力下降，忘记家人生日、重复购买相同物品。半年前开始反复头晕，非旋转性，与体位变化无关，持续数小时自行缓解。近3月加重——阅读困难（看不清字但并非视力问题），空间感差（停车困难、判断距离不准）。无幻视，无帕金森样症状。<br>
+          <b>既往史:</b> 高血压8年（缬沙坦80mg/日），高血脂（阿托伐他汀）。无糖尿病。无耳部疾病史。<br>
+          <b>查体:</b> MMSE 21/30（视空间-4，回忆-3，计算-2），MoCA 16/30（视空间/执行功能明显受损）。步态正常，无震颤。双侧瞳孔正常，视力矫正后0.8/0.6。<br>
+          <b>辅助检查:</b> 外院MRI示双侧颞叶萎缩，枕叶皮层变薄。余缺。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">🤖</span> AI 诊断建议（首次就诊）— ★ 非典型鉴别</div>
+    <div class="diagnosis-card diag-warning">
+      <div class="diag-section">鉴别诊断 ①（最可能）</div>
+      <div class="diag-content">后皮质萎缩型阿尔茨海默病（PCA-AD）</div>
+      <div class="diag-detail">以视空间功能障碍为突出表现（视物模糊、阅读困难、空间感差），伴记忆力下降，MRI示枕叶皮层变薄。PCA是AD的非典型变异型，病理基础仍为Aβ沉积，但分布以顶枕叶为主。MMSE视空间项失分显著支持此诊断。PET-CT可确认后部Aβ沉积模式。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-normal">
+      <div class="diag-section">鉴别诊断 ②（需排除）</div>
+      <div class="diag-content">路易体痴呆（DLB）</div>
+      <div class="diag-detail">DLB也可出现视觉症状和认知波动。但该患者无典型幻视、无帕金森运动症状、无REM睡眠行为障碍，不支持DLB核心诊断标准。DAT-SPECT可辅助排除。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-normal">
+      <div class="diag-section">鉴别诊断 ③（值得注意）</div>
+      <div class="diag-content">颅神经相关性淋巴水肿</div>
+      <div class="diag-detail">值得注意：临床发现部分LVB术后患者视物模糊和头晕症状获得改善。推测颈深LVB除加快脑淋巴循环外，可能减轻眶内和内听道的颅神经相关性淋巴水肿。该患者若确诊AD，视觉和眩晕症状可能从LVB中额外获益。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-warning">
+      <div class="diag-section">检查建议</div>
+      <div class="diag-content">PET-CT（FDG+Aβ双示踪）+ 视觉诱发电位 + 前庭功能</div>
+      <div class="diag-detail">①PET-CT（Aβ显像）：确认Aβ沉积，尤其关注顶枕叶分布 ②FDG-PET：评估后部代谢减低（PCA特征） ③视觉诱发电位（VEP）：排除视通路器质性病变 ④前庭功能检查：排除外周性眩晕 ⑤MRI黑血序列：建立颈深淋巴基线。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">💬</span> 患者消息 (3轮)</div>
+    <div class="chat-list">
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👨</div>
+        <div>
+          <div class="chat-bubble bubble-patient">陆医生，我看东西模糊到底是眼睛的问题还是脑子的问题？<span class="triage-badge triage-question">question</span></div>
+          <div class="handling-badge handling-doctor">⏳ 等待医生审核</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai" style="border: 1.5px solid var(--orange)">
+          <div style="font-size:10px;color:var(--orange);font-weight:600;margin-bottom:4px">AI 草稿 — 待医生审核后发送</div>
+          从您的检查来看，眼睛本身没有大问题。您的视物模糊可能与大脑处理视觉信息的区域有关——这在部分认知障碍患者中可以出现。我们安排的PET-CT和视觉诱发电位检查可以帮助明确原因。值得一提的是，有些类似症状的患者在LVB手术后视觉有所改善。<span class="kb-cite">[KB-1]</span>
+        </div>
+      </div>
+
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👨</div>
+        <div>
+          <div class="chat-bubble bubble-patient">头晕会不会是耳朵的问题？要不要去看耳鼻喉？<span class="triage-badge triage-routine">routine</span></div>
+          <div class="handling-badge handling-auto">✓ AI 自动回复</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai">好问题。我们已经安排了前庭功能检查，可以评估内耳是否有问题。您的头晕特点（非旋转性、与体位无关）更可能与脑部有关，但我们会全面排查。检查完成后再综合判断。</div>
+      </div>
+
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👨</div>
+        <div>
+          <div class="chat-bubble bubble-patient">检查要做好几项，能不能集中一两天做完？<span class="triage-badge triage-routine">routine</span></div>
+          <div class="handling-badge handling-auto">✓ AI 自动回复</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai">我们会尽量协调安排集中检查。PET-CT需要提前预约，其他检查可以当天完成。预约确认后会通知您具体时间安排。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">📌</span> AI 生成任务</div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-normal">检查</span>
+      <span>预约PET-CT（Aβ + FDG 双示踪）— 确认AD亚型</span>
+    </div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-normal">检查</span>
+      <span>视觉诱发电位（VEP）— 排除视通路病变</span>
+    </div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-normal">检查</span>
+      <span>前庭功能检查 — 排除外周性眩晕</span>
+    </div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-normal">检查</span>
+      <span>头颅MRI（含黑血序列）— 淋巴基线评估</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PATIENT 5: 刘淑芬 ═══════════════════ -->
+<div id="panel-p5" class="patient-panel">
+  <div class="patient-header">
+    <div class="avatar" style="background:var(--orange)">刘</div>
+    <div class="patient-meta">
+      <div class="patient-name">刘淑芬</div>
+      <div class="patient-tags">
+        <span class="tag tag-stage">70岁 · 女</span>
+        <span class="tag tag-stage">双侧LVB术后6月</span>
+        <span class="tag tag-relapse">症状反复 ↓</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="showcase">
+    <div class="showcase-title">✦ 该患者重点展示功能</div>
+    <div class="showcase-features">
+      <div class="feature-chip">⚠ AI 检测疗效回退趋势</div>
+      <div class="feature-chip">✓ 复发原因鉴别诊断</div>
+      <div class="feature-chip">✓ 家属情绪安抚 + 医学解释</div>
+      <div class="feature-chip">✓ 再评估检查任务生成</div>
+    </div>
+  </div>
+
+  <div class="workflow">
+    <div class="workflow-title">👨‍⚕️ 医生在 App 中看到的体验</div>
+    <div class="workflow-steps">
+      <div class="wf-step">看到家属担忧的消息（待审核）</div><span class="wf-arrow">→</span>
+      <div class="wf-step">查看 AI 草稿：安抚 + 建议复查</div><span class="wf-arrow">→</span>
+      <div class="wf-step highlight">审核诊断：吻合口狭窄 vs AD进展</div><span class="wf-arrow">→</span>
+      <div class="wf-step">确认再评估任务（ICG复查 + PET）</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">📋</span> 病历记录 (3份)</div>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-dot dot-completed"></div>
+        <div class="record-title">初诊评估 <span class="record-status status-completed">已完成</span></div>
+        <div class="record-content">
+          <b>主诉:</b> 记忆力下降4年，近1年加速恶化<br>
+          <b>现病史:</b> 4年前出现记忆力下降，渐进性加重。近1年明显加速：不认识邻居，做饭忘记关火，曾走失1次。MMSE 15/30，MoCA 10/30。CDR 2分。<br>
+          <b>辅助检查:</b> PET-CT示双侧颞顶叶广泛Aβ沉积。MRI示双侧海马萎缩（Scheltens 3级），额叶萎缩。<br>
+          <b>既往史:</b> 高血压20年，糖尿病10年，骨质疏松。多奈哌齐+美金刚联合治疗2年。
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-completed"></div>
+        <div class="record-title">手术记录 + 术后3月随访 <span class="record-status status-completed">已完成</span></div>
+        <div class="record-content">
+          <b>手术:</b> 双侧颈深LVB，吻合3根淋巴管。术中未见明显淋巴管扩张。<br>
+          <b>术后3月:</b> MMSE升至19分（↑4分），能认出家人，情绪好转。强迫性反复洗手行为消失。家属非常满意。<br>
+          <b>备注:</b> 术中淋巴管管径偏细（0.2-0.3mm），吻合技术要求高。
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot dot-pending"></div>
+        <div class="record-title">术后6月随访 <span class="record-status status-pending">待审核 ⚠</span></div>
+        <div class="record-content">
+          <b>主诉:</b> 双侧LVB术后6月，认知功能部分回退2月<br>
+          <b>现病史:</b> 术后3月时改善明显，但近2月家属反映记忆力再次下降，又开始不认识邻居，偶有走失倾向。MMSE回退至16/30（较3月时↓3分）。MoCA 11/30。情绪较前波动，强迫行为未复发。<br>
+          <b>分析:</b> 需鉴别：①吻合口狭窄/血栓导致引流效果下降 ②AD自然进展 ③两者叠加。术中淋巴管管径偏细是狭窄的风险因素。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">🤖</span> AI 诊断建议（术后6月随访）</div>
+    <div class="diagnosis-card diag-warning">
+      <div class="diag-section">鉴别诊断</div>
+      <div class="diag-content">吻合口狭窄/血栓 vs AD自然进展</div>
+      <div class="diag-detail">术后3月改善后出现回退，需首先排除吻合口狭窄或血栓导致淋巴引流效果下降。该患者术中淋巴管管径偏细（0.2-0.3mm），是术后吻合口狭窄的高风险因素。同时不排除重度AD的自然进展。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-warning">
+      <div class="diag-section">检查建议</div>
+      <div class="diag-content">ICG荧光复查 + PET-CT对比</div>
+      <div class="diag-detail">ICG荧光检查评估双侧吻合口通畅性（关键检查）。复查PET-CT与术前/术后3月对比Aβ清除趋势。如吻合口不通畅，需评估是否具备二次手术条件（淋巴静脉分流泵可降低再手术技术难度）。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+    <div class="diagnosis-card diag-normal">
+      <div class="diag-section">治疗建议</div>
+      <div class="diag-content">维持药物 + 加强认知干预</div>
+      <div class="diag-detail">继续多奈哌齐+美金刚联合方案，不建议减药。加强认知康复训练频次。待检查结果明确后再讨论后续手术方案。<span class="kb-cite">[KB-1]</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">💬</span> 患者消息 (3轮) — 含家属关切</div>
+    <div class="chat-list">
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👩</div>
+        <div>
+          <div class="chat-bubble bubble-patient">陆医生，术后三个月的时候明显好多了，我们全家都很高兴<span class="triage-badge triage-info">info</span></div>
+          <div class="handling-badge handling-auto">✓ AI 自动回复</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai">很高兴听到改善的消息。术后3个月是观察疗效的重要节点，认知功能的改善说明淋巴引流在发挥作用。请继续保持规律服药和认知训练，定期来院复查。</div>
+      </div>
+
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👩</div>
+        <div>
+          <div class="chat-bubble bubble-patient">陆医生，我妈最近又开始忘事了，是不是手术白做了？<span class="triage-badge triage-concern">concern ⚠</span></div>
+          <div class="handling-badge handling-doctor">⏳ 等待医生审核</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai" style="border: 1.5px solid var(--orange)">
+          <div style="font-size:10px;color:var(--orange);font-weight:600;margin-bottom:4px">AI 草稿 — 待医生审核后发送</div>
+          术后出现症状波动并不罕见，不代表手术没有效果。之前3个月的改善说明手术本身是成功的。现在需要检查是否有吻合口狭窄等可纠正的原因。建议您尽快带母亲来医院做一次ICG荧光检查，评估淋巴引流情况，我们再根据结果制定下一步方案。<span class="kb-cite">[KB-1]</span>
+        </div>
+      </div>
+
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-patient">👩</div>
+        <div>
+          <div class="chat-bubble bubble-patient">需要再做一次手术吗？<span class="triage-badge triage-question">question</span></div>
+          <div class="handling-badge handling-doctor">⏳ 等待医生审核</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <div class="chat-avatar chat-avatar-ai">🤖</div>
+        <div class="chat-bubble bubble-ai" style="border: 1.5px solid var(--orange)">
+          <div style="font-size:10px;color:var(--orange);font-weight:600;margin-bottom:4px">AI 草稿 — 待医生审核后发送</div>
+          目前还不能确定是否需要再次手术。先完成检查评估吻合口情况，如果确认是吻合口狭窄导致的，有多种处理方案可以考虑。我们团队也在研发新的淋巴静脉分流装置，可以降低再手术的难度。等检查结果出来后，陆医生会和您详细讨论方案。<span class="kb-cite">[KB-1]</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="section-icon">📌</span> AI 生成任务</div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-urgent">优先</span>
+      <span>安排ICG荧光复查吻合口通畅性</span>
+    </div>
+    <div class="task-item">
+      <div class="task-check"></div>
+      <span class="task-priority priority-normal">检查</span>
+      <span>复查PET-CT（与术前/术后3月对比）</span>
+    </div>
+  </div>
+</div>
+
+<script>
+function showPanel(id, btn) {
+  document.querySelectorAll('.patient-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.patient-nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  else if (event && event.target) event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

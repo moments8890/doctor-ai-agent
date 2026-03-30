@@ -105,8 +105,8 @@
 
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
-| D5.1 | 任务系统 / Task Management | **Done** | TasksPage — filter chips, date groups, status actions, snooze |
-| D5.2 | 任务创建 / Task Creation | **Done** | CreateTask dialog + chat-driven + patient submit auto-creates review task + review finalize auto-creates follow-up tasks |
+| D5.1 | 任务系统 / Task Management | **Done** | TasksPage — filter chips, date groups, status actions, snooze. TaskDetailSubpage — full detail view with notes, reminder, mark complete, delete |
+| D5.2 | 任务创建 / Task Creation | **Done** | UI form via "+ 新建" button with SheetDialog. Chat-driven + patient submit auto-creates review task + review finalize auto-creates follow-up tasks |
 | D5.3 | 任务提醒与通知 / Task Notifications | **Backend only** | Backend sends WeChat notifications via APScheduler; no doctor preference UI |
 | D5.4 | 医生→患者消息回复 / Doctor Reply to Patient | **Done** | PatientDetail chat panel with `replyToPatient`; reply marks inbound as ai_handled + drafts as stale |
 | D5.5 | 患者消息分类 / Patient Message Triage | **Done** | Triage color dots in patient list + PatientDetail; draft reply pipeline with cited_rules; undrafted message notice; no dedicated triage dashboard (handled inline) |
@@ -122,6 +122,7 @@
 | D6.5 | 模板管理 / Template Management | **Done** | TemplateSubpage — upload custom outpatient report template (PDF/DOCX/TXT), delete/revert to default |
 | D6.6 | 通知偏好设置 / Notification Preferences | **Defer** | No notification settings UI. Notifications stay passive until push infra built. Group: Active Notifications |
 | D6.7 | 数据导出 / Data Export | **Done** | Per-patient PDF with section/range filtering + bulk ZIP export (all patients). Streaming generation, font caching, async polling. QA: 5/5 pass |
+| D6.8 | 医生入职向导 / Onboarding Wizard | **Done** | 5-step guided flow at `/doctor/onboarding`: 教AI规则 → 诊断审核 → AI处理消息 → 患者预问诊体验 → 查看任务. State persisted in localStorage. Auto-redirects on first login, skippable, replayable |
 
 ---
 

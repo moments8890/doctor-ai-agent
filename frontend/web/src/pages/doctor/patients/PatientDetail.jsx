@@ -1,29 +1,32 @@
 /**
  * 患者详情面板：可折叠个人信息、带计数的病历标签页、置顶操作栏。
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert, Box, Button, CircularProgress, Stack, Typography,
+  Alert, Box, Button, CircularProgress, ClickAwayListener, Collapse, Stack, Typography,
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
-import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import { useApi } from "../../../api/ApiContext";
 import { generateQRToken } from "../../../api";
 import QRDialog from "../../../components/QRDialog";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { RECORD_TAB_GROUPS } from "../constants";
-import RecordCard, { formatRelativeDate } from "../../../components/RecordCard";
+import { formatRelativeDate } from "../../../components/RecordCard";
 import MessageTimeline from "../../../components/MessageTimeline";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExportSelectorDialog from "../../../components/ExportSelectorDialog";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import EmptyState from "../../../components/EmptyState";
-import { TYPE, ICON, COLOR } from "../../../theme";
+import MsgAvatar from "../../../components/MsgAvatar";
+import NameAvatar from "../../../components/NameAvatar";
+import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
+import { TYPE, ICON, COLOR, RADIUS } from "../../../theme";
 
 /* ── helpers ── */
 
@@ -81,31 +84,71 @@ function DeletePatientDialog({ open, patientName, deleting, onConfirm, onClose }
   );
 }
 
-function PatientActionBar({ exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen, onQRCode }) {
+function OverflowDropdown({ open, onClose, onExportPdf, onExportReport, onQRCode, onDeleteOpen }) {
+  if (!open) return null;
+  const menuItems = [
+    { label: "导出PDF", onClick: () => { onClose(); onExportPdf(); } },
+    { label: "门诊报告", onClick: () => { onClose(); onExportReport(); } },
+    { label: "患者二维码", onClick: () => { onClose(); onQRCode(); } },
+    { label: "删除患者", onClick: () => { onClose(); onDeleteOpen(); }, danger: true },
+  ];
   return (
-    <Stack direction="row" spacing={2} sx={{ pt: 0.5, borderTop: `0.5px solid ${COLOR.borderLight}` }} alignItems="center">
-      <Box onClick={onDeleteOpen}
-        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: COLOR.danger, fontSize: TYPE.secondary.fontSize, "&:active": { opacity: 0.6 } }}>
-        <DeleteOutlineIcon sx={{ fontSize: ICON.sm }} />
-        删除患者
+    <ClickAwayListener onClickAway={onClose}>
+      <Box sx={{
+        position: "absolute", right: 0, top: "100%", mt: 0.5, zIndex: 100,
+        bgcolor: COLOR.white, borderRadius: RADIUS.md, overflow: "hidden",
+        minWidth: 140, border: `0.5px solid ${COLOR.border}`,
+        boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+      }}>
+        {menuItems.map((item, i) => (
+          <Box key={item.label} onClick={item.onClick}
+            sx={{
+              py: 1.5, px: 2, cursor: "pointer",
+              fontSize: TYPE.secondary.fontSize, color: item.danger ? COLOR.danger : COLOR.text1,
+              borderBottom: i < menuItems.length - 1 ? `0.5px solid ${COLOR.borderLight}` : "none",
+              "&:active": { bgcolor: COLOR.surface },
+            }}>
+            {item.label}
+          </Box>
+        ))}
       </Box>
-      <Box sx={{ flex: 1 }} />
-      <Box onClick={onQRCode}
-        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer", color: COLOR.recordDoc, fontSize: TYPE.secondary.fontSize, "&:active": { opacity: 0.6 } }}>
-        <QrCode2OutlinedIcon sx={{ fontSize: ICON.sm }} />
-        二维码
-      </Box>
-      <Box onClick={!exportingPdf && !exportingReport ? onExportPdf : undefined}
-        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingPdf ? "default" : "pointer", color: exportingPdf ? COLOR.text4 : COLOR.primary, fontSize: TYPE.secondary.fontSize }}>
-        {exportingPdf ? <CircularProgress size={12} sx={{ color: COLOR.text4 }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: ICON.sm }} />}
-        导出PDF
-      </Box>
-      <Box onClick={!exportingPdf && !exportingReport ? onExportReport : undefined}
-        sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: exportingReport ? "default" : "pointer", color: exportingReport ? COLOR.text4 : COLOR.accent, fontSize: TYPE.secondary.fontSize }}>
-        {exportingReport ? <CircularProgress size={12} sx={{ color: COLOR.text4 }} /> : <FileDownloadOutlinedIcon sx={{ fontSize: ICON.sm }} />}
-        门诊报告
-      </Box>
-    </Stack>
+    </ClickAwayListener>
+  );
+}
+
+
+function AttentionCard({ pendingReviewCount, draftCount, onPendingClick, onDraftClick }) {
+  if (!pendingReviewCount && !draftCount) return null;
+  return (
+    <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, mb: 1, px: 2, py: 1 }}>
+      <Typography sx={{ fontSize: TYPE.micro.fontSize, fontWeight: 600, color: COLOR.warning, letterSpacing: 0.3, mb: 1, display: "flex", alignItems: "center", gap: 0.5 }}>
+        ⚡ 需要你处理
+      </Typography>
+      {pendingReviewCount > 0 && (
+        <Box onClick={onPendingClick} sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1, cursor: "pointer", borderBottom: draftCount ? `0.5px solid ${COLOR.borderLight}` : "none", "&:active": { opacity: 0.6 } }}>
+          <Box sx={{ width: 32, height: 32, borderRadius: "6px", bgcolor: COLOR.warningLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <AssignmentOutlinedIcon sx={{ fontSize: 16, color: COLOR.warning }} />
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 500 }}>{pendingReviewCount} 条病历待审核</Typography>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mt: 0.5 }}>点击查看并确认</Typography>
+          </Box>
+          <Typography sx={{ fontSize: 14, color: COLOR.text4 }}>›</Typography>
+        </Box>
+      )}
+      {draftCount > 0 && (
+        <Box onClick={onDraftClick} sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
+          <Box sx={{ width: 32, height: 32, borderRadius: "6px", bgcolor: COLOR.primaryLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <MailOutlineIcon sx={{ fontSize: 16, color: COLOR.primary }} />
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 500 }}>{draftCount} 条消息待回复</Typography>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mt: 0.5 }}>AI已起草 · 待你确认</Typography>
+          </Box>
+          <Typography sx={{ fontSize: 14, color: COLOR.text4 }}>›</Typography>
+        </Box>
+      )}
+    </Box>
   );
 }
 
@@ -118,79 +161,69 @@ function formatActivityDate(dateStr) {
   return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function CollapsibleProfile({ patient, age, records, expanded, onToggle, exportingPdf, exportingReport, onExportPdf, onExportReport, onDeleteOpen, onQRCode }) {
+function CollapsibleProfile({ patient, age, records, expanded, onToggle, overflowOpen, onOverflowOpen, onOverflowClose, overflowActions, onStartInterview }) {
   const genderStr = patient.gender ? { male: "男", female: "女" }[patient.gender] || patient.gender : null;
   const stats = computeRecordStats(records);
   const activityStr = formatActivityDate(patient.last_activity_at) || stats.lastVisitStr;
+  const summaryParts = [
+    genderStr, age ? `${age}岁` : null, `门诊${stats.visitCount}`, `最近${activityStr}`,
+  ].filter(Boolean).join(" · ");
 
-  if (!expanded) {
-    const summaryParts = [
-      genderStr,
-      age ? `${age}岁` : null,
-      `门诊${stats.visitCount}`,
-      `最近${activityStr}`,
-    ].filter(Boolean).join(" · ");
-
-    return (
-      <Box sx={{ bgcolor: COLOR.white, px: 2.5, pt: 2, pb: 1.5, mb: 1 }}>
-        <Box onClick={onToggle} sx={{ display: "flex", alignItems: "center", cursor: "pointer", mb: 1 }}>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
-              <Typography sx={{ fontWeight: 700, fontSize: TYPE.action.fontSize }}>{patient.name}</Typography>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{summaryParts}</Typography>
-            </Box>
-          </Box>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, flexShrink: 0, ml: 1 }}>展开 ▾</Typography>
-        </Box>
-      </Box>
-    );
-  }
-
-  /* expanded */
   const createdStr = patient.created_at ? new Date(patient.created_at).toLocaleDateString("zh-CN") : "—";
   const birthStr = patient.year_of_birth ? `${patient.year_of_birth}年` : "—";
 
   return (
-    <Box sx={{ bgcolor: COLOR.white, px: 2.5, pt: 2, pb: 1.5, mb: 1 }}>
-      {/* Header row — clickable to collapse */}
-      <Box onClick={onToggle} sx={{ display: "flex", alignItems: "center", cursor: "pointer", mb: 1 }}>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography sx={{ fontWeight: 700, fontSize: TYPE.title.fontSize }}>{patient.name}</Typography>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.5 }}>
-            {[genderStr, age ? `${age}岁` : null].filter(Boolean).join(" · ")}
-          </Typography>
+    <Box sx={{ bgcolor: COLOR.white, px: 2.5, pt: 1.5, pb: 1, mb: 0, position: "relative" }}>
+      {/* Header row — always same height regardless of expanded state */}
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Box onClick={onToggle} sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "baseline", gap: 1, cursor: "pointer" }}>
+          <Typography sx={{ fontWeight: 700, fontSize: TYPE.action.fontSize }}>{patient.name}</Typography>
+          {!expanded && (
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {summaryParts}
+            </Typography>
+          )}
         </Box>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, flexShrink: 0, ml: 1 }}>收起 ▴</Typography>
-      </Box>
-
-      {/* Stats row */}
-      <Box sx={{ display: "flex", gap: 2, mb: 1 }}>
-        {[
-          { label: "门诊", value: stats.visitCount },
-          { label: "检验", value: stats.labCount },
-          { label: "影像", value: stats.imagingCount },
-          { label: "最近活动", value: activityStr },
-        ].map((s) => (
-          <Typography key={s.label} sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3 }}>
-            {s.label} <Box component="span" sx={{ fontWeight: 600, color: COLOR.text2 }}>{s.value}</Box>
+        {expanded ? (
+          <Typography onClick={(e) => { e.stopPropagation(); onStartInterview?.(); }}
+            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, fontWeight: 500, flexShrink: 0, ml: 1, cursor: "pointer", "&:active": { opacity: 0.6 } }}>
+            新建门诊
           </Typography>
-        ))}
+        ) : (
+          <Typography onClick={onToggle}
+            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, flexShrink: 0, ml: 1, cursor: "pointer" }}>
+            展开 ▾
+          </Typography>
+        )}
+        <Box onClick={(e) => { e.stopPropagation(); onOverflowOpen(); }} sx={{ ml: 1.5, cursor: "pointer", display: "flex", alignItems: "center", position: "relative", "&:active": { opacity: 0.5 } }}>
+          <MoreHorizIcon sx={{ fontSize: ICON.lg, color: COLOR.text4 }} />
+          <OverflowDropdown open={overflowOpen} onClose={onOverflowClose} {...overflowActions} />
+        </Box>
       </Box>
 
-      {/* Demographics grid */}
-      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px", mb: 1, fontSize: TYPE.caption.fontSize, color: COLOR.text3 }}>
-        <Box>电话 <Box component="span" sx={{ color: COLOR.text2 }}>{maskPhone(patient.phone)}</Box></Box>
-        <Box>出生 <Box component="span" sx={{ color: COLOR.text2 }}>{birthStr}</Box></Box>
-        <Box>身份证 <Box component="span" sx={{ color: COLOR.text2 }}>{maskIdNumber(patient.id_number)}</Box></Box>
-        <Box>建档 <Box component="span" sx={{ color: COLOR.text2 }}>{createdStr}</Box></Box>
-      </Box>
-
-      {/* Action bar */}
-      <PatientActionBar
-        exportingPdf={exportingPdf} exportingReport={exportingReport}
-        onExportPdf={onExportPdf} onExportReport={onExportReport} onDeleteOpen={onDeleteOpen}
-        onQRCode={onQRCode}
-      />
+      {/* Expanded details — all below the fixed header row */}
+      <Collapse in={expanded}>
+        <Box sx={{ mt: 1 }}>
+          <Box sx={{ display: "flex", gap: 2, mb: 1 }}>
+            {[
+              { label: "门诊", value: stats.visitCount },
+              { label: "检验", value: stats.labCount },
+              { label: "影像", value: stats.imagingCount },
+              { label: "最近", value: activityStr },
+            ].map((s) => (
+              <Typography key={s.label} sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3 }}>
+                {s.label} <Box component="span" sx={{ fontWeight: 600, color: COLOR.text2 }}>{s.value}</Box>
+              </Typography>
+            ))}
+          </Box>
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px", fontSize: TYPE.caption.fontSize, color: COLOR.text3 }}>
+            <Box>电话 <Box component="span" sx={{ color: COLOR.text2 }}>{maskPhone(patient.phone)}</Box></Box>
+            <Box>出生 <Box component="span" sx={{ color: COLOR.text2 }}>{birthStr}</Box></Box>
+            <Box>身份证 <Box component="span" sx={{ color: COLOR.text2 }}>{maskIdNumber(patient.id_number)}</Box></Box>
+            <Box>建档 <Box component="span" sx={{ color: COLOR.text2 }}>{createdStr}</Box></Box>
+          </Box>
+        </Box>
+      </Collapse>
     </Box>
   );
 }
@@ -247,46 +280,40 @@ function StickyTopBar({ patient, isMobile, onStartInterview, onExportOpen }) {
 
 /* ── RecordListSection ── */
 
-function PendingReviewRow({ record, onClick }) {
-  const RECORD_TYPE_LABEL = {
-    visit: "门诊记录", dictation: "语音记录", import: "导入记录", interview_summary: "预问诊记录",
-    lab: "检验", imaging: "影像", surgery: "手术", referral: "转诊",
-  };
+const RECORD_DOT_COLORS = {
+  visit: COLOR.primary, dictation: COLOR.recordDoc, import: COLOR.recordDoc,
+  lab: COLOR.accent, imaging: COLOR.accent, surgery: COLOR.danger,
+  referral: COLOR.primary, interview_summary: COLOR.primary,
+};
+
+const RECORD_TYPE_LABEL_MAP = {
+  visit: "门诊", dictation: "口述", import: "导入", interview_summary: "预问诊",
+  lab: "检验", imaging: "影像", surgery: "手术", referral: "转诊",
+};
+
+function RecordRow({ record, onClick }) {
+  const isPending = record.status === "pending_review";
+  const dotColor = isPending ? COLOR.warning : (RECORD_DOT_COLORS[record.record_type] || COLOR.text4);
   const date = formatRelativeDate(record.created_at);
   const preview = record.structured?.chief_complaint || record.content || "（无记录内容）";
+  const typeLabel = RECORD_TYPE_LABEL_MAP[record.record_type] || record.record_type;
   return (
-    <Box onClick={onClick} sx={{ borderBottom: `1px solid ${COLOR.borderLight}`, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}>
-      <Box sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1.5 }}>
-        <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: COLOR.warning, flexShrink: 0, mt: 0.5, mr: 1.5 }} />
+    <Box onClick={onClick} sx={{
+      borderBottom: `0.5px solid ${COLOR.borderLight}`, cursor: "pointer",
+      ...(isPending ? { bgcolor: COLOR.warningLight } : {}),
+      "&:active": { opacity: 0.8 },
+    }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", px: 2, py: 1 }}>
+        <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: dotColor, flexShrink: 0, mt: 0.5, mr: 1.5 }} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, mb: 0.5 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-              {record.record_type && (
-                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.warning, fontWeight: 600 }}>
-                  {RECORD_TYPE_LABEL[record.record_type] || record.record_type}
-                </Typography>
-              )}
-              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.warning, bgcolor: COLOR.warningLight, px: 1, py: 0.5, borderRadius: 0.5, fontWeight: 500 }}>
-                待审核
-              </Typography>
-              {(Array.isArray(record.tags) ? record.tags : []).map((tag, i) => (
-                <Typography key={i} sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, bgcolor: COLOR.surfaceAlt, px: 0.5, borderRadius: 0.5 }}>
-                  {tag}
-                </Typography>
-              ))}
-            </Box>
-            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, flexShrink: 0 }}>{date}</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: dotColor, fontWeight: 600 }}>{typeLabel}</Typography>
+            {isPending && <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.warning, fontWeight: 500 }}>待审核</Typography>}
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, ml: "auto", flexShrink: 0 }}>{date} ›</Typography>
           </Box>
-          <Typography sx={{
-            fontSize: TYPE.secondary.fontSize, color: preview !== "（无记录内容）" ? "text.primary" : COLOR.text4,
-            overflow: "hidden", display: "-webkit-box",
-            WebkitLineClamp: 2, WebkitBoxOrient: "vertical", whiteSpace: "pre-wrap",
-          }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {preview}
           </Typography>
-        </Box>
-        <Box sx={{ ml: 1, flexShrink: 0, display: "flex", alignItems: "center", mt: 0.5 }}>
-          <ChevronRightIcon sx={{ fontSize: ICON.md, color: COLOR.warning }} />
         </Box>
       </Box>
     </Box>
@@ -308,14 +335,10 @@ function RecordListSection({ loading, error, records, filteredRecords, activeTab
         <EmptyState title="该类型暂无病历" />
       ) : (
         filteredRecords.map((r) => (
-          r.status === "pending_review" ? (
-            <PendingReviewRow key={r.id} record={r} onClick={() => navigate(`/doctor/review/${r.id}`)} />
-          ) : (
-            <RecordCard key={r.id} record={r} doctorId={doctorId}
-              defaultExpanded={highlightRecordId === r.id ? true : undefined}
-              onUpdated={(updated) => setRecords((prev) => prev.map((x) => x.id === updated.id ? { ...x, ...updated } : x))}
-              onDeleted={(id) => setRecords((prev) => prev.filter((x) => x.id !== id))} />
-          )
+          <RecordRow key={r.id} record={r} onClick={() => {
+            if (r.status === "pending_review") navigate(`/doctor/review/${r.id}`);
+            else navigate(`/doctor/patients/${r.patient_id || ""}?view=record&record=${r.id}`, { replace: true });
+          }} />
         ))
       )}
     </Box>
@@ -350,7 +373,7 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
 
 /* ── PatientChatPage ── */
 
-function PatientChatPage({ patientId, doctorId }) {
+export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCount, hidden = false, bubbleView = false, patientName }) {
   const { getPatientChat, replyToPatient, fetchDrafts, editDraft, sendDraft } = useApi();
   const navigate = useAppNavigate();
   const [messages, setMessages] = useState([]);
@@ -408,13 +431,11 @@ function PatientChatPage({ patientId, doctorId }) {
     await refreshMessages();
   }
 
-  async function handleManualReply(nextText, draft) {
+  async function handleManualReply(nextText) {
     const text = nextText.trim();
     if (!text) return;
     await replyToPatient(patientId, text);
-    if (draft?.id) {
-      setDrafts((prev) => prev.filter((item) => item.id !== draft.id));
-    }
+    // Draft stays visible — only removed when doctor explicitly sends or dismisses it
     await Promise.allSettled([refreshMessages(), refreshDrafts()]);
   }
 
@@ -422,6 +443,175 @@ function PatientChatPage({ patientId, doctorId }) {
   const timelineCount = messages.length + (activeDraft ? 1 : 0);
   const hasContent = timelineCount > 0;
 
+  // Report counts to parent
+  useEffect(() => { onDraftCount?.(drafts.filter((d) => d.status !== "sent").length); }, [drafts.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onMessageCount?.(messages.length + drafts.filter((d) => d.status !== "sent").length); }, [messages.length, drafts.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hidden mode: only fetch draft count, don't render UI
+  if (hidden) return null;
+
+  /* ── Bubble view (dedicated chat subpage) ── */
+  if (bubbleView) {
+    const [replyText, setReplyText] = useState("");
+    const [sending, setSending] = useState(false);
+    const [editingDraft, setEditingDraft] = useState(null);
+    const bottomRef = useRef(null);
+    const inputRef = useRef(null);
+    useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, drafts]);
+
+    async function handleSendReply() {
+      const text = replyText.trim();
+      if (!text || sending) return;
+      setSending(true);
+      try {
+        if (editingDraft) {
+          await handleDraftEdit(text, editingDraft);
+          await handleDraftSend({ ...editingDraft, draft_text: text });
+          setEditingDraft(null);
+        } else {
+          await replyToPatient(patientId, text);
+        }
+        setReplyText("");
+        await Promise.allSettled([refreshMessages(), refreshDrafts()]);
+      } finally { setSending(false); }
+    }
+
+    function handleEditDraft(draft) {
+      setEditingDraft(draft);
+      setReplyText(draft.draft_text || draft.content || "");
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+
+    function handleReplyKeyDown(e) {
+      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+        e.preventDefault();
+        handleSendReply();
+      }
+    }
+
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        {/* Messages area */}
+        <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: 1.5, bgcolor: COLOR.surfaceAlt }}>
+          {loading && (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress size={20} sx={{ color: COLOR.text4 }} />
+            </Box>
+          )}
+          {!loading && messages.length === 0 && !activeDraft && (
+            <Box sx={{ textAlign: "center", py: 6 }}>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>暂无消息</Typography>
+            </Box>
+          )}
+          {messages.map((msg, idx) => {
+            const isPatient = msg.role === "patient" || msg.sender_type === "patient" || msg.source === "patient";
+            const isDoctor = msg.role === "doctor" || msg.sender_type === "doctor" || msg.source === "doctor";
+            const isAI = !isPatient && !isDoctor;
+            const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "";
+            return (
+              <Box key={idx} sx={{ display: "flex", flexDirection: isPatient ? "row" : "row-reverse", alignItems: "flex-end", gap: 1, px: 1.5 }}>
+                {isPatient ? (
+                  <NameAvatar name={patientName || "患者"} size={36} />
+                ) : (
+                  <MsgAvatar isUser={isDoctor} size={36} />
+                )}
+                <Box sx={{ maxWidth: "72%", display: "flex", flexDirection: "column", alignItems: isPatient ? "flex-start" : "flex-end" }}>
+                  <Box sx={{
+                    px: 1.5, py: 1,
+                    borderRadius: isPatient ? `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0` : `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}`,
+                    bgcolor: isPatient ? COLOR.white : (isDoctor ? COLOR.wechatGreen : COLOR.white),
+                    fontSize: TYPE.body.fontSize, whiteSpace: "pre-wrap", lineHeight: 1.7, color: COLOR.text1,
+                  }}>
+                    {isAI && <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>AI</Typography>}
+                    {msg.content || msg.text || ""}
+                  </Box>
+                  <Typography sx={{ mt: 0.5, px: 0.5, fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{time}</Typography>
+                </Box>
+              </Box>
+            );
+          })}
+
+          {/* AI draft — actionable card on the right */}
+          {activeDraft && (
+            <Box sx={{ display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1, px: 1.5 }}>
+              <MsgAvatar isUser={false} size={36} />
+              <Box sx={{ maxWidth: "78%" }}>
+                <Box sx={{
+                  bgcolor: COLOR.primaryLight, border: `1px solid ${COLOR.primary}30`,
+                  borderRadius: RADIUS.md, px: 2, py: 1.5,
+                }}>
+                  <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 600, mb: 0.5 }}>
+                    AI起草回复 · 待你确认
+                  </Typography>
+                  <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                    {activeDraft.draft_text || activeDraft.content || ""}
+                  </Typography>
+                  {activeDraft.cited_rules?.length > 0 && (
+                    <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                      {activeDraft.cited_rules.map((rule) => (
+                        <Box key={rule.id} component="span"
+                          onClick={() => rule.id && navigate(`/doctor/settings/knowledge/${rule.id}`)}
+                          sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.danger, bgcolor: COLOR.dangerLight, px: 1, py: 0.5, borderRadius: RADIUS.sm, cursor: "pointer" }}>
+                          引用: {rule.title}
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                  <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 1.5, pt: 1, borderTop: `0.5px solid ${COLOR.primary}20` }}>
+                    <Typography onClick={() => handleEditDraft(activeDraft)}
+                      sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
+                      修改
+                    </Typography>
+                    <Typography onClick={() => handleDraftSend(activeDraft)}
+                      sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, fontWeight: 600, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
+                      确认发送 ›
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          )}
+
+          <div ref={bottomRef} />
+        </Box>
+
+        {/* Reply input bar */}
+        <Box sx={{ borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface }}>
+          {editingDraft && (
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", px: 1.5, py: 0.5, bgcolor: COLOR.primaryLight, borderBottom: `0.5px solid ${COLOR.primary}30` }}>
+              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500 }}>正在编辑AI草稿</Typography>
+              <Typography onClick={() => { setEditingDraft(null); setReplyText(""); }}
+                sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, cursor: "pointer" }}>取消</Typography>
+            </Box>
+          )}
+          <Box sx={{ px: 1, py: 1, display: "flex", alignItems: "flex-end", gap: 0.5 }}>
+            <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1.5, py: 1, minHeight: 36, maxHeight: 120, overflowY: "auto" }}>
+              <Box component="textarea" ref={inputRef} value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                onKeyDown={handleReplyKeyDown}
+                disabled={sending}
+                rows={editingDraft ? 3 : 1}
+                placeholder={editingDraft ? "编辑回复内容..." : "直接回复患者..."}
+                sx={{ width: "100%", border: "none", outline: "none", fontSize: TYPE.body.fontSize, fontFamily: "inherit", bgcolor: "transparent", p: 0, resize: "none", lineHeight: 1.7 }}
+              />
+            </Box>
+            <Box onClick={handleSendReply}
+              sx={{
+                width: 36, height: 36, borderRadius: "50%",
+                bgcolor: replyText.trim() ? COLOR.primary : COLOR.text4,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: replyText.trim() ? "pointer" : "default", flexShrink: 0, mb: 0.5,
+                "&:active": replyText.trim() ? { bgcolor: COLOR.primaryHover } : {},
+              }}>
+              <SendOutlinedIcon sx={{ fontSize: 16, color: COLOR.white }} />
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
+
+  /* ── Timeline view (inline in patient detail — legacy, kept for fallback) ── */
   return (
     <Box sx={{ bgcolor: COLOR.white, mb: 1 }}>
       <Box
@@ -449,7 +639,7 @@ function PatientChatPage({ patientId, doctorId }) {
         </Box>
       </Box>
 
-      {open && (
+      <Collapse in={open}>
         <Box sx={{ px: 2, pb: 1.5, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
           {!loading && !hasContent ? (
             <Box sx={{ pt: 1 }}>
@@ -476,7 +666,7 @@ function PatientChatPage({ patientId, doctorId }) {
             />
           )}
         </Box>
-      )}
+      </Collapse>
     </Box>
   );
 }
@@ -486,9 +676,15 @@ function PatientChatPage({ patientId, doctorId }) {
 export default function PatientDetail({ patient, doctorId, onDeleted, onStartInterview, triggerExport, onTriggerExportConsumed }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const [expanded, setExpanded] = useState(!isMobile);
+  const [expanded, setExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const [draftCount, setDraftCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
+  const chatRef = useCallback((node) => {
+    if (node) node.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   // Allow parent to trigger export dialog
   useEffect(() => {
@@ -496,6 +692,7 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
   }, [triggerExport]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, load, handleDelete, handleExportPdf, handleExportReport } = usePatientDetailState({ patient, doctorId, onDeleted });
+  const navigate = useAppNavigate();
 
   /* QR code state */
   const [qrOpen, setQrOpen] = useState(false);
@@ -513,10 +710,10 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
   if (!patient) return <EmptyPatientPlaceholder />;
 
   const age = patient.year_of_birth ? new Date().getFullYear() - patient.year_of_birth : null;
+  const pendingReviewCount = records.filter((r) => r.status === "pending_review").length;
 
   /* Filter records by active tab */
   const activeGroup = RECORD_TAB_GROUPS.find((g) => g.key === activeTab);
-  // Sort: actionable items first (pending_review, interview_active), then newest first
   const sortedRecords = [...records].sort((a, b) => {
     const actionable = (r) => r.status === "pending_review" || r.status === "interview_active" ? 1 : 0;
     const diff = actionable(b) - actionable(a);
@@ -525,22 +722,67 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
   });
   const filteredRecords = activeGroup?.types ? sortedRecords.filter((r) => activeGroup.types.includes(r.record_type)) : sortedRecords;
 
+  // Navigate to dedicated chat subpage (push so back returns to patient detail)
+  const goToChat = () => {
+    navigate(`/doctor/patients/${patient.id}?view=chat`);
+  };
+
+  // Navigate to first pending review record
+  const goToPendingReview = () => {
+    const pending = records.find((r) => r.status === "pending_review");
+    if (pending) navigate(`/doctor/review/${pending.id}`);
+  };
+
   return (
     <Box sx={{ overflowY: "auto", height: "100%", bgcolor: COLOR.surfaceAlt }}>
+      {/* Profile — collapsed by default */}
       <CollapsibleProfile
-        patient={patient} age={age} records={records} expanded={expanded} onToggle={() => setExpanded((v) => !v)}
-        exportingPdf={exportingPdf} exportingReport={exportingReport}
-        onExportPdf={() => setExportOpen(true)}
-        onExportReport={handleExportReport} onDeleteOpen={() => setDeleteConfirmOpen(true)}
-        onQRCode={handlePatientQR}
+        patient={patient} age={age} records={records} expanded={expanded}
+        onToggle={() => setExpanded((v) => !v)}
+        overflowOpen={overflowOpen} onOverflowOpen={() => setOverflowOpen(true)} onOverflowClose={() => setOverflowOpen(false)}
+        overflowActions={{ onExportPdf: () => setExportOpen(true), onExportReport: handleExportReport, onQRCode: handlePatientQR, onDeleteOpen: () => setDeleteConfirmOpen(true) }}
+        onStartInterview={onStartInterview}
       />
+
+      {/* Attention card — pending reviews + drafts */}
+      <AttentionCard
+        pendingReviewCount={pendingReviewCount} draftCount={draftCount}
+        onPendingClick={goToPendingReview} onDraftClick={goToChat}
+      />
+
       {exportError && <Typography variant="caption" color="error.main" sx={{ display: "block", px: 2.5, mt: 0.5 }}>{exportError}</Typography>}
       <DeletePatientDialog open={deleteConfirmOpen} patientName={patient.name} deleting={deleting} onConfirm={handleDelete} onClose={() => setDeleteConfirmOpen(false)} />
       <ExportSelectorDialog open={exportOpen} onClose={() => setExportOpen(false)} patientId={patient.id} patientName={patient.name}
         onExport={(opts) => { setExportOpen(false); handleExportPdf(opts); }} />
+      {/* Chat nav — always visible, links to dedicated chat subpage */}
+      <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, mb: 1 }}>
+        <Box onClick={goToChat} sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.5, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}>
+          <Box sx={{ width: 36, height: 36, borderRadius: "6px", bgcolor: COLOR.accentLight, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <MailOutlineIcon sx={{ fontSize: 18, color: COLOR.accent }} />
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500 }}>
+              患者消息
+              {messageCount > 0 && <Box component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, fontWeight: 400, ml: 0.5 }}>({messageCount})</Box>}
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mt: 0.5 }}>
+              {draftCount > 0 ? `${draftCount} 条待回复` : "查看聊天记录"}
+            </Typography>
+          </Box>
+          {draftCount > 0 && (
+            <Box sx={{ fontSize: TYPE.micro.fontSize, fontWeight: 600, color: COLOR.white, bgcolor: COLOR.danger, borderRadius: "8px", px: 1, minWidth: 16, textAlign: "center", lineHeight: "18px" }}>
+              {draftCount}
+            </Box>
+          )}
+          <Typography sx={{ fontSize: 16, color: COLOR.text4 }}>›</Typography>
+        </Box>
+      </Box>
+
       <RecordListSection loading={loading} error={error} records={records} filteredRecords={filteredRecords} activeTab={activeTab} setActiveTab={setActiveTab} setRecords={setRecords} doctorId={doctorId} load={load}
         highlightRecordId={(() => { const p = new URLSearchParams(window.location.search).get("record"); return p ? parseInt(p) : null; })()} />
-      <PatientChatPage patientId={patient.id} doctorId={doctorId} />
+
+      <PatientChatPage patientId={patient.id} doctorId={doctorId} onDraftCount={setDraftCount} onMessageCount={setMessageCount} hidden />
+
       <QRDialog open={qrOpen} onClose={() => setQrOpen(false)} title="患者二维码"
         name={patient.name} url={qrUrl} loading={qrLoading} error={qrError}
         onRegenerate={handlePatientQR} />

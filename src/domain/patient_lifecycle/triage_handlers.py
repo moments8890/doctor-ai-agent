@@ -208,7 +208,7 @@ _ESCALATION_SYSTEM_PROMPT = get_prompt_sync("intent/triage-escalation")
 # ---------------------------------------------------------------------------
 
 def _build_context_summary(context: dict) -> str:
-    """Extract a short doctor-facing summary from Layer 5 patient context."""
+    """Extract a short doctor-facing summary from L6 Patient context."""
     stable_history = context.get("stable_history") or {}
     latest_record = context.get("latest_record") or {}
 
@@ -245,7 +245,7 @@ def _context_needles(context: dict) -> List[str]:
 
 
 def _merge_context_into_summary(summary: Dict[str, str], context: dict) -> Dict[str, str]:
-    """Ensure the doctor-facing summary carries forward relevant Layer 5 history."""
+    """Ensure the doctor-facing summary carries forward relevant L6 Patient history."""
     context_summary = _build_context_summary(context)
     if not context_summary:
         return summary
