@@ -28,7 +28,7 @@ import {
 import ChatTab from "./ChatTab";
 import RecordsTab from "./RecordsTab";
 import TasksTab from "./TasksTab";
-import ProfileTab from "./ProfileTab";
+import MyPage from "./MyPage";
 import InterviewPage from "./InterviewPage";
 import { COLOR } from "../../theme";
 
@@ -160,7 +160,7 @@ export default function PatientPage() {
         )}
         {tab === "tasks" && <TasksTab token={token} />}
         {tab === "profile" && (
-          <ProfileTab patientName={patientName} doctorName={doctorName}
+          <MyPage patientName={patientName} doctorName={doctorName}
             doctorSpecialty={doctorSpecialty} doctorId={doctorId}
             onLogout={handleLogout} />
         )}
