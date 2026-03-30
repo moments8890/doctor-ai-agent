@@ -57,12 +57,13 @@ function formatPatientTime(dateStr) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
   const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  if (dt.getTime() === today.getTime()) return `今天 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  if (dt.getTime() === today.getTime()) return "今天";
   if (dt.getTime() === yesterday.getTime()) return "昨天";
   const diffDays = Math.floor((today - dt) / 86400000);
-  if (diffDays >= 2 && diffDays < 7) return `${diffDays}天前`;
-  if (d.getFullYear() !== now.getFullYear()) return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
+  if (diffDays < 7) return `${diffDays}天前`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}周前`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}个月前`;
+  return `${Math.floor(diffDays / 365)}年前`;
 }
 
 /* Triage badge: urgent → red "紧急", symptom/side_effect → amber "待处理" */
