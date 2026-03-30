@@ -65,6 +65,7 @@ def _rotate_if_needed(path: _Path) -> None:
 def _log_llm_call(
     op_name: str, model: str, messages: list, output: Any = None, *,
     usage: Any = None, error: Any = None, raw_messages: list | None = None,
+    duration_ms: int | None = None,
 ) -> None:
     """Log LLM call to an append-only JSONL file.
 
@@ -109,6 +110,9 @@ def _log_llm_call(
                 "completion": getattr(usage, "completion_tokens", 0),
                 "total": getattr(usage, "total_tokens", 0),
             }
+
+        if duration_ms is not None:
+            entry["duration_ms"] = duration_ms
 
         # Append to rotated JSONL file
         _LLM_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -242,15 +246,19 @@ async def structured_call(
             _last_usage = getattr(raw_resp, "usage", None)
         return result
 
+    import time as _time
+    _t0 = _time.monotonic()
     try:
         with trace_block("llm", op_name, {"model": model, "response_model": response_model.__name__}):
             result = await _call(model)
 
+        _dur = int((_time.monotonic() - _t0) * 1000)
         log(f"[{op_name}] output: {result.model_dump_json()[:200]}")
-        _log_llm_call(op_name, model, messages, result, usage=_last_usage, raw_messages=raw_messages)
+        _log_llm_call(op_name, model, messages, result, usage=_last_usage, raw_messages=raw_messages, duration_ms=_dur)
         return result
     except Exception as exc:
-        _log_llm_call(op_name, model, messages, error=exc, raw_messages=raw_messages)
+        _dur = int((_time.monotonic() - _t0) * 1000)
+        _log_llm_call(op_name, model, messages, error=exc, raw_messages=raw_messages, duration_ms=_dur)
         raise
 
 
@@ -292,6 +300,8 @@ async def llm_call(
         raw = response.choices[0].message.content or ""
         return clean_llm_output(raw)
 
+    import time as _time
+    _t0 = _time.monotonic()
     try:
         with trace_block("llm", op_name, {"model": model, "env_var": env_var}):
             result = await call_with_retry_and_fallback(
@@ -302,8 +312,10 @@ async def llm_call(
                 backoff_seconds=(0.5,),
                 op_name=op_name,
             )
-        _log_llm_call(op_name, model, messages, result, usage=_last_usage, raw_messages=messages)
+        _dur = int((_time.monotonic() - _t0) * 1000)
+        _log_llm_call(op_name, model, messages, result, usage=_last_usage, raw_messages=messages, duration_ms=_dur)
         return result
     except Exception as exc:
-        _log_llm_call(op_name, model, messages, error=exc, raw_messages=messages)
+        _dur = int((_time.monotonic() - _t0) * 1000)
+        _log_llm_call(op_name, model, messages, error=exc, raw_messages=messages, duration_ms=_dur)
         raise
