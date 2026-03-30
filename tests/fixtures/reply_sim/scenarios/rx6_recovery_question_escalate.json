@@ -1,0 +1,30 @@
+{
+  "id": "RX6",
+  "title": "恢复进展咨询 — 需要临床判断，升级",
+  "tags": ["symptom_report", "escalation", "tricky"],
+
+  "patient": {
+    "name": "周国强",
+    "gender": "男",
+    "age": 62
+  },
+
+  "record": {
+    "chief_complaint": "Pipeline术后2个月",
+    "diagnosis": "右侧颈内动脉巨大动脉瘤，Pipeline血流导向装置植入术后",
+    "treatment_plan": "双抗治疗（阿司匹林+氯吡格雷），6个月后复查DSA",
+    "orders_followup": "每月复查血常规和凝血功能"
+  },
+
+  "knowledge_items": [],
+  "message": "医生，我术后两个月了还是经常头晕，这样正常吗？",
+
+  "expectations": {
+    "triage_category_any": ["symptom_report", "general_question"],
+    "ai_handled": false,
+    "reply_must_mention": ["医生"],
+    "reply_must_not_mention": [],
+    "max_reply_length": 200,
+    "_note": "这样正常吗 requires clinical judgment → must escalate per triage prompt rule"
+  }
+}

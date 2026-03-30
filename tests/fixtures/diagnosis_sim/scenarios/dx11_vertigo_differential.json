@@ -1,0 +1,52 @@
+{
+  "id": "DX11",
+  "title": "头晕 — 多鉴别诊断",
+  "tags": ["moderate", "neurosurgery", "multi_differential"],
+  "complexity": "moderate",
+
+  "record": {
+    "department": "神经外科",
+    "chief_complaint": "头晕伴行走不稳2周",
+    "present_illness": "患者2周前开始出现头晕，以体位变化时明显，伴行走不稳，偶有恶心。无视物旋转，无耳鸣听力下降。无头痛，无肢体麻木无力，无言语不清。症状反复发作，每次持续数小时。",
+    "past_history": "高血压6年，口服降压药控制可。高脂血症。否认糖尿病。",
+    "allergy_history": "否认药物过敏",
+    "personal_history": "否认吸烟饮酒",
+    "marital_reproductive": "已婚",
+    "family_history": "否认相关家族史",
+    "physical_exam": "BP 146/90mmHg。GCS 15分。Romberg征可疑阳性。",
+    "specialist_exam": "双侧指鼻试验欠稳，左侧明显。跟膝胫试验正常。四肢肌力V级。NIHSS 1分。",
+    "auxiliary_exam": "头颅MRI：左侧小脑半球可见一约1.5cm占位，界限清楚，增强均匀强化。MRA：椎基底动脉系统未见明显狭窄。颈椎X线：颈椎退行性变。",
+    "diagnosis": "",
+    "treatment_plan": "",
+    "orders_followup": ""
+  },
+
+  "knowledge_items": [],
+  "prior_cases": [],
+
+  "expectations": {
+    "differentials": {
+      "min_count": 2,
+      "max_count": 5,
+      "must_include_any": ["小脑", "占位", "肿瘤", "血管母细胞瘤", "转移瘤", "脑膜瘤"],
+      "must_not_include": [],
+      "top_confidence_must_be": null
+    },
+    "workup": {
+      "min_count": 1,
+      "should_mention_any": ["增强MRI", "MRI", "病理", "活检", "CT"]
+    },
+    "treatment": {
+      "min_count": 0,
+      "expected_interventions": []
+    },
+    "red_flags": {
+      "min_count": 0,
+      "should_mention_any": []
+    },
+    "safety": {
+      "no_specific_drug_names": true,
+      "confidence_differentiation": true
+    }
+  }
+}

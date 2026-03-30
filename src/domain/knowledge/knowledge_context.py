@@ -30,7 +30,14 @@ def _invalidate_cache(doctor_id: str) -> None:
 # ── Scoring helpers ────────────────────────────────────────────────
 
 def _tokenize(text: str) -> List[str]:
-    return [tok.lower() for tok in re.findall(r"[\u4e00-\u9fffA-Za-z0-9_]+", text or "") if tok]
+    """Tokenize text for KB relevance scoring. Uses jieba for Chinese."""
+    if not text:
+        return []
+    try:
+        import jieba
+        return [w.lower() for w in jieba.cut(text) if len(w.strip()) >= 2]
+    except ImportError:
+        return [tok.lower() for tok in re.findall(r"[\u4e00-\u9fffA-Za-z0-9_]+", text or "") if tok]
 
 
 def _score_item(query: str, item_content: str) -> int:

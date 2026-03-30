@@ -1,0 +1,30 @@
+{
+  "id": "RX9",
+  "title": "混合消息（信息+症状）— 应分类为更临床类别",
+  "tags": ["symptom_report", "escalation", "mixed"],
+
+  "patient": {
+    "name": "刘芳",
+    "gender": "女",
+    "age": 55
+  },
+
+  "record": {
+    "chief_complaint": "慢性头痛待查",
+    "diagnosis": "待排颅内占位",
+    "treatment_plan": "止痛药物对症处理，等待MRI结果",
+    "orders_followup": "3天后取MRI报告"
+  },
+
+  "knowledge_items": [],
+  "message": "医生，想问一下MRI报告什么时候出，另外最近头痛好像更严重了",
+
+  "expectations": {
+    "triage_category_any": ["symptom_report", "general_question"],
+    "ai_handled": false,
+    "reply_must_mention": ["医生"],
+    "reply_must_not_mention": [],
+    "max_reply_length": 200,
+    "_note": "Mixed message: info question (MRI timing) + symptom (headache worse). Per triage rule, classify as the more clinical category."
+  }
+}

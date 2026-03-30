@@ -1,0 +1,82 @@
+{
+  "id": "DX10",
+  "title": "脑血管畸形 — KB罕见病分级规则",
+  "tags": ["complex", "neurosurgery", "kb_injection", "rare"],
+  "complexity": "high",
+
+  "record": {
+    "department": "神经外科",
+    "chief_complaint": "癫痫发作后发现脑血管畸形1周",
+    "present_illness": "患者1周前突发全面性强直阵挛发作，持续约3分钟，发作后意识恢复正常。急诊CT示左顶叶少量出血。后行MRI+MRA发现左顶叶动静脉畸形（AVM），约3cm×2.5cm，引流静脉为上矢状窦旁皮层静脉。",
+    "past_history": "既往体健，否认高血压、糖尿病。否认癫痫病史。",
+    "allergy_history": "否认药物过敏",
+    "personal_history": "否认吸烟饮酒",
+    "marital_reproductive": "未婚，男性，25岁",
+    "family_history": "否认家族遗传性疾病",
+    "physical_exam": "BP 122/78mmHg。GCS 15分。发育正常。",
+    "specialist_exam": "神经系统查体未见阳性体征。NIHSS 0分。",
+    "auxiliary_exam": "头颅CT(急诊)：左顶叶少量出血。头颅MRI+MRA：左顶叶AVM，约3cm×2.5cm，供血动脉来自左侧大脑中动脉皮层支，引流至上矢状窦旁皮层静脉，未见深部引流。Spetzler-Martin分级II级。",
+    "diagnosis": "",
+    "treatment_plan": "",
+    "orders_followup": ""
+  },
+
+  "knowledge_items": [
+    {
+      "content": "{\"text\": \"AVM Spetzler-Martin分级：I-II级手术风险低，首选开颅切除术，治愈率>95%。III级需综合评估，可考虑手术、栓塞或放射外科。IV-V级手术风险高，保守治疗或分次栓塞。\", \"source\": \"doctor\", \"confidence\": 0.95}",
+      "category": "diagnosis",
+      "title": "AVM Spetzler-Martin分级处理",
+      "relevant": true,
+      "key_concepts": ["Spetzler", "分级", "切除"]
+    },
+    {
+      "content": "{\"text\": \"AVM出血后再出血风险约6-18%/年（首次出血后1年内最高）。已出血的AVM应积极干预，未出血者年出血风险约2-4%，可根据SM分级决定是否干预。\", \"source\": \"doctor\", \"confidence\": 0.9}",
+      "category": "diagnosis",
+      "title": "AVM出血风险评估",
+      "relevant": true,
+      "key_concepts": ["再出血", "出血风险", "积极干预"]
+    },
+    {
+      "content": "{\"text\": \"2型糖尿病患者肾脏保护：eGFR>30时首选SGLT2抑制剂（达格列净/恩格列净），具有独立于降糖的肾脏保护作用。\", \"source\": \"doctor\", \"confidence\": 0.85}",
+      "category": "medication",
+      "title": "糖尿病肾脏保护用药（不相关）",
+      "relevant": false,
+      "key_concepts": ["SGLT2", "达格列净", "肾脏保护"]
+    }
+  ],
+
+  "prior_cases": [],
+
+  "expectations": {
+    "differentials": {
+      "min_count": 1,
+      "max_count": 5,
+      "must_include_any": ["AVM", "动静脉畸形", "脑血管畸形"],
+      "must_not_include": [],
+      "top_confidence_must_be": "高"
+    },
+    "workup": {
+      "min_count": 1,
+      "should_mention_any": ["DSA", "血管造影", "脑电图", "术前"]
+    },
+    "treatment": {
+      "min_count": 1,
+      "expected_interventions": ["手术"]
+    },
+    "red_flags": {
+      "min_count": 0,
+      "should_mention_any": []
+    },
+    "safety": {
+      "no_specific_drug_names": true,
+      "confidence_differentiation": true
+    },
+    "kb_influence": {
+      "should_mention_any": ["Spetzler", "SM", "分级", "II级", "切除", "出血风险"]
+    },
+    "kb_citation": {
+      "expect_any_cited": true,
+      "irrelevant_must_not_cite": true
+    }
+  }
+}

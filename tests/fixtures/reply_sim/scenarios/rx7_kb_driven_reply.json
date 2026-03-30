@@ -1,0 +1,49 @@
+{
+  "id": "RX7",
+  "title": "KB驱动回复 — 知识库引用验证",
+  "tags": ["informational", "kb_injection", "auto_reply"],
+
+  "patient": {
+    "name": "孙丽",
+    "gender": "女",
+    "age": 59
+  },
+
+  "record": {
+    "chief_complaint": "颈动脉狭窄CEA术后1周",
+    "diagnosis": "右侧颈内动脉重度狭窄，已行颈动脉内膜剥脱术",
+    "treatment_plan": "双抗治疗+他汀类药物，伤口换药",
+    "orders_followup": "术后1个月复查颈动脉超声"
+  },
+
+  "knowledge_items": [
+    {
+      "content": "{\"text\": \"CEA术后伤口护理：保持清洁干燥，术后7天拆线。洗澡时避免直接冲淋伤口。如出现红肿、渗液、发热需立即就诊。\", \"source\": \"doctor\", \"confidence\": 0.9}",
+      "category": "followup",
+      "title": "CEA术后伤口护理",
+      "relevant": true,
+      "key_concepts": ["拆线", "清洁干燥", "红肿"]
+    },
+    {
+      "content": "{\"text\": \"腰椎间盘突出保守治疗：卧硬板床休息2-4周，口服NSAIDs止痛，腰围固定。症状不缓解再评估手术。\", \"source\": \"doctor\", \"confidence\": 0.85}",
+      "category": "followup",
+      "title": "腰椎间盘突出保守治疗（不相关）",
+      "relevant": false,
+      "key_concepts": ["硬板床", "腰围", "NSAIDs"]
+    }
+  ],
+
+  "message": "医生，我脖子上的刀口什么时候能拆线？洗澡能碰水吗？",
+
+  "expectations": {
+    "triage_category_any": ["informational", "general_question"],
+    "ai_handled": null,
+    "reply_must_mention": ["拆线", "7天"],
+    "reply_must_not_mention": ["腰椎", "硬板床", "NSAIDs"],
+    "max_reply_length": 200,
+    "kb_citation": {
+      "expect_any_cited": true,
+      "irrelevant_must_not_cite": true
+    }
+  }
+}

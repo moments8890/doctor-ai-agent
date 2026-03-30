@@ -204,6 +204,65 @@ _ESCALATION_SYSTEM_PROMPT = get_prompt_sync("intent/triage-escalation")
 
 
 # ---------------------------------------------------------------------------
+# Context helpers
+# ---------------------------------------------------------------------------
+
+def _build_context_summary(context: dict) -> str:
+    """Extract a short doctor-facing summary from Layer 5 patient context."""
+    stable_history = context.get("stable_history") or {}
+    latest_record = context.get("latest_record") or {}
+
+    parts: List[str] = []
+    diagnosis = latest_record.get("diagnosis")
+    if diagnosis:
+        parts.append("最近诊断：{0}".format(diagnosis))
+
+    past_history = stable_history.get("past_history") or latest_record.get("past_history")
+    if past_history:
+        parts.append("既往史：{0}".format(past_history))
+
+    allergy_history = stable_history.get("allergy_history") or latest_record.get("allergy_history")
+    if allergy_history:
+        parts.append("过敏史：{0}".format(allergy_history))
+
+    followup = latest_record.get("orders_followup")
+    if followup:
+        parts.append("随访计划：{0}".format(followup))
+
+    return "；".join(parts[:4])
+
+
+def _context_needles(context: dict) -> List[str]:
+    stable_history = context.get("stable_history") or {}
+    latest_record = context.get("latest_record") or {}
+    candidates = [
+        latest_record.get("diagnosis"),
+        stable_history.get("past_history") or latest_record.get("past_history"),
+        stable_history.get("allergy_history") or latest_record.get("allergy_history"),
+        latest_record.get("orders_followup"),
+    ]
+    return [item for item in candidates if item]
+
+
+def _merge_context_into_summary(summary: Dict[str, str], context: dict) -> Dict[str, str]:
+    """Ensure the doctor-facing summary carries forward relevant Layer 5 history."""
+    context_summary = _build_context_summary(context)
+    if not context_summary:
+        return summary
+
+    summary_text = json.dumps(summary, ensure_ascii=False)
+    if any(needle in summary_text for needle in _context_needles(context)):
+        return summary
+
+    merged = dict(summary)
+    existing = (merged.get("conversation_context") or "").strip()
+    merged["conversation_context"] = (
+        "{0}；{1}".format(context_summary, existing) if existing else context_summary
+    )
+    return merged
+
+
+# ---------------------------------------------------------------------------
 # Handlers
 # ---------------------------------------------------------------------------
 
@@ -216,13 +275,26 @@ async def handle_informational(
 ) -> str:
     """Handle an informational message: AI generates a direct answer.
 
-    Saves both the inbound patient message and the outbound AI response
-    with ``ai_handled=True`` and ``triage_category="informational"``.
+    Loads doctor KB for grounding (same as draft reply), then generates
+    a response using patient context + KB. Saves both the inbound patient
+    message and the outbound AI response with ``ai_handled=True``.
     """
     from agent.llm import structured_call
 
     context_text = json.dumps(context, ensure_ascii=False, indent=2)
     system = _INFORMATIONAL_SYSTEM_PROMPT.replace("{patient_context}", context_text)
+
+    # Load doctor KB for grounding (informational replies should also use KB)
+    kb_text = ""
+    try:
+        from domain.knowledge.knowledge_context import load_knowledge
+        kb_text = await load_knowledge(doctor_id, query=message, patient_context=context_text)
+    except Exception as exc:
+        log(f"[triage] KB load for informational failed (non-fatal): {exc}", level="warning")
+
+    if kb_text:
+        system += f"\n\n## 医生知识库\n{kb_text}"
+
     messages = [
         {"role": "system", "content": system},
         {"role": "user", "content": message},
@@ -304,17 +376,18 @@ async def handle_escalation(
             temperature=0.1,
             max_tokens=800,
         )
-        summary_json = result.model_dump_json()
+        summary_payload = _merge_context_into_summary(result.model_dump(), context)
+        summary_json = json.dumps(summary_payload, ensure_ascii=False)
     except Exception as exc:
         log(f"[triage] handle_escalation summary failed: {exc}", level="error")
         # Still escalate even if summary generation fails
-        summary_json = json.dumps({
+        summary_json = json.dumps(_merge_context_into_summary({
             "patient_question": message,
             "conversation_context": "",
             "patient_status": "未知",
             "reason_for_escalation": f"分类为{category}，摘要生成失败",
             "suggested_action": "请查看患者消息",
-        }, ensure_ascii=False)
+        }, context), ensure_ascii=False)
 
     # Persist inbound patient message with escalation metadata
     saved_msg = await save_patient_message(
@@ -341,14 +414,44 @@ async def handle_escalation(
     except Exception as exc:
         log(f"[triage] failed to schedule draft generation: {exc}", level="warning")
 
+    # KB-informed reply: if doctor's KB has a relevant answer, provide it
+    # immediately to the patient while still escalating to the doctor.
+    # Patient gets useful info now; doctor still reviews.
+    kb_reply = ""
+    try:
+        from domain.knowledge.knowledge_context import load_knowledge
+        kb_text = await load_knowledge(doctor_id, query=message, patient_context=context_text)
+        if kb_text:
+            from agent.llm import structured_call as _sc
+            kb_system = (
+                _INFORMATIONAL_SYSTEM_PROMPT.replace("{patient_context}", context_text)
+                + f"\n\n## 医生知识库\n{kb_text}"
+                + "\n\n## 重要提示\n回复末尾必须加上：已同时通知您的主治医生。"
+            )
+            kb_result = await _sc(
+                response_model=InformationalLLMResponse,
+                messages=[{"role": "system", "content": kb_system}, {"role": "user", "content": message}],
+                op_name="triage.escalation_kb_reply",
+                env_var=_triage_env_var(),
+                temperature=0.3,
+                max_tokens=500,
+            )
+            if kb_result.reply:
+                kb_reply = kb_result.reply
+                if "通知" not in kb_reply:
+                    kb_reply += " 已同时通知您的主治医生。"
+                log(f"[triage] KB-informed escalation reply generated for patient {patient_id}")
+    except Exception as exc:
+        log(f"[triage] KB-informed reply failed (non-fatal, using template): {exc}", level="warning")
+
     # Rate limiting: max 3 escalation notifications per 6h per patient.
     # If rate-limited, still save the message but don't notify the doctor.
     if _is_rate_limited(patient_id, doctor_id):
         log(f"[triage] rate-limited escalation for patient {patient_id}, skipping notification")
-        reply = "医生将在查看时一并处理您的问题"
+        reply = kb_reply or "医生将在查看时一并处理您的问题"
     else:
         _record_escalation(patient_id, doctor_id)
-        reply = "这个问题需要您的主治医生回复，我已通知医生。"
+        reply = kb_reply or "这个问题需要您的主治医生回复，我已通知医生。"
 
         # Batch notifications: only notify if 10-min quiet window has elapsed.
         if _should_notify(patient_id, doctor_id):
@@ -392,6 +495,10 @@ async def handle_urgent(
     ``urgent`` always notifies immediately — bypasses rate limiting and batching.
     """
     reply = "如出现严重症状请立即就医或拨打120。已通知您的主治医生。"
+    context_summary = _build_context_summary(context)
+    reason_for_escalation = "紧急情况"
+    if context_summary:
+        reason_for_escalation += "，结合既往病史/随访背景需立即处理"
 
     # Persist inbound urgent message
     saved_msg = await save_patient_message(
@@ -405,8 +512,10 @@ async def handle_urgent(
         triage_category="urgent",
         structured_data=json.dumps({
             "patient_question": message,
-            "reason_for_escalation": "紧急情况",
-            "suggested_action": "请立即联系患者",
+            "conversation_context": context_summary,
+            "patient_status": message,
+            "reason_for_escalation": reason_for_escalation,
+            "suggested_action": "请立即联系患者，并评估是否需要急诊就医或立即回院。",
         }, ensure_ascii=False),
     )
 

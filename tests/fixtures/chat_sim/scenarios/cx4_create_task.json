@@ -1,0 +1,26 @@
+{
+    "id": "CX4",
+    "title": "创建任务 — create_task",
+    "tags": [
+        "routing",
+        "create_task"
+    ],
+    "seed_patients": [
+        {
+            "name": "赵小红",
+            "record": {
+                "chief_complaint": "脑血管畸形"
+            }
+        }
+    ],
+    "message": "帮我提醒下周给赵小红复查MRI",
+    "expectations": {
+        "intent": "create_task",
+        "reply_must_mention": [
+            "任务",
+            "复查"
+        ],
+        "reply_must_not_mention": [],
+        "ai_handled": true
+    }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "RX4",
+  "title": "药物副作用 — 升级给医生",
+  "tags": ["side_effect", "escalation"],
+
+  "patient": {
+    "name": "赵小红",
+    "gender": "女",
+    "age": 45
+  },
+
+  "record": {
+    "chief_complaint": "脑血管畸形",
+    "diagnosis": "左顶叶AVM，Spetzler-Martin II级",
+    "treatment_plan": "丙戊酸钠500mg每日两次控制癫痫，术前评估中",
+    "orders_followup": "1周后复查肝功能和血常规"
+  },
+
+  "knowledge_items": [],
+  "message": "医生，吃了丙戊酸以后总觉得恶心，还掉头发",
+
+  "expectations": {
+    "triage_category_any": ["side_effect", "general_question"],
+    "ai_handled": false,
+    "reply_must_mention": ["医生"],
+    "reply_must_not_mention": [],
+    "max_reply_length": 200
+  }
+}

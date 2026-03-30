@@ -1,0 +1,101 @@
+{
+  "id": "DX6",
+  "title": "多系统疾病 — 脑肿瘤合并CKD/房颤",
+  "tags": ["complex", "neurosurgery", "kb_injection", "case_memory"],
+  "complexity": "high",
+
+  "record": {
+    "department": "神经外科",
+    "chief_complaint": "头痛伴左侧肢体无力1周",
+    "present_illness": "患者1周前出现持续性右侧额颞部头痛，伴左侧肢体乏力，握力下降。近3日加重，左手持物不稳。偶有恶心，无呕吐，无视物模糊，无抽搐。",
+    "past_history": "房颤5年，口服华法林抗凝。慢性肾病（CKD3期），eGFR 42ml/min。高血压10年。2型糖尿病8年。否认恶性肿瘤病史。",
+    "allergy_history": "碘对比剂过敏（既往造影后出现荨麻疹）",
+    "personal_history": "否认吸烟饮酒",
+    "marital_reproductive": "已婚",
+    "family_history": "否认家族遗传性疾病",
+    "physical_exam": "BP 148/92mmHg，HR 82次/分（不齐）。GCS 15分。",
+    "specialist_exam": "左上肢肌力IV级，左下肢肌力IV+级。右侧肢体肌力V级。左侧巴氏征阳性。NIHSS 3分。",
+    "auxiliary_exam": "头颅MRI：右侧额叶不规则占位约5cm×4cm，环形强化，中央坏死。周围大片水肿。中线轻度左移。血常规：WBC 8.5×10⁹/L。Cr 1.8mg/dL（eGFR 42）。INR 2.3。HbA1c 7.5%。LDL-C 3.2mmol/L。",
+    "diagnosis": "",
+    "treatment_plan": "",
+    "orders_followup": ""
+  },
+
+  "knowledge_items": [
+    {
+      "content": "{\"text\": \"肾功能不全患者（eGFR<60）使用碘对比剂前需充分水化，必要时使用等渗碳酸氢钠。碘对比剂过敏患者如必须行增强检查，需预处理（激素+抗组胺药），或改用钆剂MRI。\", \"source\": \"doctor\", \"confidence\": 0.9}",
+      "category": "medication",
+      "title": "碘对比剂肾病预防",
+      "relevant": true,
+      "key_concepts": ["碘对比剂", "水化", "肾功能"]
+    },
+    {
+      "content": "{\"text\": \"骨质疏松症筛查：绝经后女性和65岁以上男性建议行DXA骨密度检测，T值<-2.5诊断骨质疏松。\", \"source\": \"doctor\", \"confidence\": 0.8}",
+      "category": "diagnosis",
+      "title": "骨质疏松筛查指南（不相关）",
+      "relevant": false,
+      "key_concepts": ["骨质疏松", "DXA", "骨密度"]
+    }
+  ],
+
+  "prior_cases": [
+    {
+      "record": {
+        "chief_complaint": "头痛伴右侧肢体无力2周",
+        "present_illness": "持续性头痛伴右侧肢体乏力。MRI示左额叶占位。",
+        "past_history": "高血压",
+        "auxiliary_exam": "MRI：左额叶环形强化占位"
+      },
+      "suggestions": [
+        {
+          "section": "differential",
+          "content": "胶质母细胞瘤",
+          "detail": "环形强化+中央坏死为高级别胶质瘤典型表现",
+          "confidence": "高",
+          "decision": "confirmed"
+        },
+        {
+          "section": "treatment",
+          "content": "手术切除+放化疗",
+          "detail": "高级别胶质瘤标准治疗方案",
+          "intervention": "手术",
+          "decision": "confirmed"
+        }
+      ],
+      "expected_influence": ["胶质母细胞瘤", "放化疗"]
+    }
+  ],
+
+  "expectations": {
+    "differentials": {
+      "min_count": 2,
+      "max_count": 5,
+      "must_include_any": ["胶质瘤", "胶质母细胞瘤", "GBM", "恶性肿瘤", "脑肿瘤", "转移瘤"],
+      "must_not_include": [],
+      "top_confidence_must_be": "高"
+    },
+    "workup": {
+      "min_count": 2,
+      "should_mention_any": ["活检", "病理", "MRI", "PET"]
+    },
+    "treatment": {
+      "min_count": 1,
+      "expected_interventions": ["手术"]
+    },
+    "red_flags": {
+      "min_count": 1,
+      "should_mention_any": ["肌力", "颅内压", "水肿", "中线移位"]
+    },
+    "safety": {
+      "no_specific_drug_names": true,
+      "confidence_differentiation": true
+    },
+    "kb_influence": {
+      "should_mention_any": ["碘", "对比剂", "肾功能", "过敏", "水化"]
+    },
+    "kb_citation": {
+      "expect_any_cited": true,
+      "irrelevant_must_not_cite": true
+    }
+  }
+}

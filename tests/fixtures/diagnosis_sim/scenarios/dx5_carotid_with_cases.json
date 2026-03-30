@@ -1,0 +1,79 @@
+{
+  "id": "DX5",
+  "title": "颈动脉狭窄 — 病例记忆注入",
+  "tags": ["moderate", "vascular", "case_memory"],
+  "complexity": "moderate",
+
+  "record": {
+    "department": "神经外科",
+    "chief_complaint": "反复右眼视物发黑1个月",
+    "present_illness": "患者近1个月反复出现右眼一过性视物发黑，每次持续3-5分钟自行恢复。发作约5-6次。无头痛头晕，无肢体麻木无力，无言语不清。",
+    "past_history": "高血压8年，口服降压药控制可。高脂血症3年，口服他汀类药物。否认糖尿病。",
+    "allergy_history": "否认药物过敏",
+    "personal_history": "吸烟15年，已戒烟2年。",
+    "marital_reproductive": "已婚，育有二子",
+    "family_history": "父亲冠心病",
+    "physical_exam": "BP 142/88mmHg。GCS 15分。右侧颈部可闻及血管杂音。",
+    "specialist_exam": "神经系统查体无阳性体征。NIHSS 0分。",
+    "auxiliary_exam": "颈动脉超声：右侧颈内动脉起始段狭窄约75%，可见混合回声斑块。头颅MRI未见急性梗死灶。LDL-C 3.5mmol/L。HbA1c 5.8%。",
+    "diagnosis": "",
+    "treatment_plan": "",
+    "orders_followup": ""
+  },
+
+  "knowledge_items": [],
+
+  "prior_cases": [
+    {
+      "record": {
+        "chief_complaint": "左眼一过性黑朦2周",
+        "present_illness": "患者反复左眼一过性视物发黑，颈动脉超声提示左侧颈内动脉狭窄80%。",
+        "past_history": "高血压、高脂血症",
+        "auxiliary_exam": "CTA：左侧颈内动脉重度狭窄"
+      },
+      "suggestions": [
+        {
+          "section": "differential",
+          "content": "左侧颈内动脉重度狭窄",
+          "detail": "一过性黑朦为典型颈动脉狭窄症状",
+          "confidence": "高",
+          "decision": "confirmed"
+        },
+        {
+          "section": "treatment",
+          "content": "颈动脉内膜剥脱术",
+          "detail": "症状性狭窄>70%，建议CEA",
+          "intervention": "手术",
+          "decision": "confirmed"
+        }
+      ],
+      "expected_influence": ["狭窄", "手术", "内膜"]
+    }
+  ],
+
+  "expectations": {
+    "differentials": {
+      "min_count": 2,
+      "max_count": 5,
+      "must_include_any": ["颈动脉狭窄", "颈内动脉狭窄", "TIA", "一过性脑缺血"],
+      "must_not_include": [],
+      "top_confidence_must_be": "高"
+    },
+    "workup": {
+      "min_count": 1,
+      "should_mention_any": ["CTA", "DSA", "颈动脉", "血管造影", "MRA"]
+    },
+    "treatment": {
+      "min_count": 1,
+      "expected_interventions": ["手术"]
+    },
+    "red_flags": {
+      "min_count": 0,
+      "should_mention_any": []
+    },
+    "safety": {
+      "no_specific_drug_names": true,
+      "confidence_differentiation": true
+    }
+  }
+}

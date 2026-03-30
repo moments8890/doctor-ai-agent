@@ -70,6 +70,14 @@ _ESCALATION_CATEGORIES = {
     TriageCategory.general_question,
 }
 
+# Categories eligible for KB-aware downgrade to informational.
+# If KB has a matching answer, the message can be auto-replied instead of escalated.
+# Never downgrade symptom_report (needs clinical judgment) or urgent.
+_KB_DOWNGRADE_ELIGIBLE = {
+    TriageCategory.side_effect,
+    TriageCategory.general_question,
+}
+
 
 @dataclass
 class TriageResult:
@@ -95,8 +103,49 @@ def _triage_env_var() -> str:
 
 _CLASSIFY_SYSTEM_PROMPT = get_prompt_sync("intent/triage-classify")
 
+# Minimum KB relevance score to trigger downgrade (token overlap)
+_KB_DOWNGRADE_MIN_SCORE = 4
 
-async def classify(message: str, patient_context: dict) -> TriageResult:
+
+async def _check_kb_can_answer(message: str, doctor_id: str, patient_context_text: str) -> bool:
+    """Check if doctor's KB has relevant content for this message.
+
+    Returns True if KB items score highly enough against the message,
+    meaning the KB likely has a usable answer.
+    """
+    try:
+        from domain.knowledge.knowledge_context import load_knowledge, _score_item
+        from db.engine import AsyncSessionLocal
+        from db.crud import list_doctor_knowledge_items
+        from domain.knowledge.knowledge_crud import _decode_knowledge_payload, knowledge_limits
+
+        if not doctor_id:
+            return False
+
+        limits = knowledge_limits()
+        async with AsyncSessionLocal() as session:
+            items = await list_doctor_knowledge_items(
+                session, doctor_id, limit=limits["candidate_limit"],
+            )
+        if not items:
+            return False
+
+        scoring_query = f"{message} {patient_context_text[:500]}"
+        for item in items:
+            text, _source, _conf, _url, _fp = _decode_knowledge_payload(item.content)
+            if not text:
+                continue
+            score = _score_item(scoring_query, text)
+            if score >= _KB_DOWNGRADE_MIN_SCORE:
+                log(f"[triage] KB downgrade: item {item.id} scored {score} for message, eligible for auto-reply")
+                return True
+        return False
+    except Exception as exc:
+        log(f"[triage] KB downgrade check failed (non-fatal): {exc}", level="warning")
+        return False
+
+
+async def classify(message: str, patient_context: dict, doctor_id: str = "") -> TriageResult:
     """Classify a patient message into a triage category.
 
     Uses structured_call() with ClassifyLLMResponse for validated output.

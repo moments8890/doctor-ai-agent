@@ -1,0 +1,27 @@
+{
+    "id": "CX3",
+    "title": "查询待办任务 — query_task",
+    "tags": [
+        "routing",
+        "query_task"
+    ],
+    "seed_tasks": [
+        {
+            "title": "张建国术后3个月复查CTA",
+            "task_type": "follow_up"
+        },
+        {
+            "title": "李秀兰术后换药",
+            "task_type": "general"
+        }
+    ],
+    "message": "今天有什么待办",
+    "expectations": {
+        "intent": "query_task",
+        "reply_must_mention": [
+            "任务"
+        ],
+        "reply_must_not_mention": [],
+        "ai_handled": true
+    }
+}

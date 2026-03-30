@@ -388,9 +388,11 @@ Doctor knowledge outranks patient context in the prompt stack. If the doctor's K
 The diagnosis pipeline injects similar confirmed cases as Layer 4b between doctor knowledge (L4) and patient context (L5). Implemented in `domain/knowledge/case_matching.py`.
 
 - **Source:** `medical_records` JOIN `ai_suggestions` WHERE `decision IN (confirmed, edited)`
-- **Matching:** Keyword-based Jaccard similarity on `chief_complaint` + `present_illness`
-- **Injected as:** `【类似病例参考】` section with similarity %, diagnosis, treatment
-- **Formatter:** `_format_matched_cases()` in `diagnosis_pipeline.py`
+- **Tokenizer:** jieba word segmentation with 60+ medical term dictionary (脑膜瘤, 去骨瓣减压, Spetzler-Martin, etc.). Preserves negation (无/未/不) and laterality (左/右).
+- **Matching fields (weighted):** `diagnosis` (3.0), `final_diagnosis` (3.0), `auxiliary_exam` (2.5), `key_symptoms` (2.0), `chief_complaint` (1.5), `present_illness` (1.0)
+- **Similarity:** Weighted asymmetric coverage: `sum(weight[t] for t in intersection) / sum(weight[t] for t in query)`. Biased toward covering query concepts.
+- **Threshold:** 0.15 minimum similarity, top 3 matches, ordered by recency within the search window (100 most recent confirmed records)
+- **Injected as:** `【类似病例参考】` section with similarity %, diagnosis, treatment, outcome
 - **No new tables** — queries existing confirmed decisions
 
 ### Citation Tracking
@@ -455,6 +457,8 @@ erDiagram
 
 **`interview_sessions`** -- Multi-turn clinical field collection state. Statuses: `interviewing`, `confirmed`, `abandoned`. Modes: `patient`, `doctor`.
 
+**`doctor_tasks`** -- Doctor tasks and follow-ups. Fields: `id` (PK), `doctor_id` (FK), `patient_id` (FK, optional), `type` (Enum: general/review/follow_up/medication/checkup), `title`, `content` (optional), `status` (Enum: pending/notified/completed/cancelled), `due_at`, `notes` (TEXT, optional), `reminder_at` (DATETIME, optional), `completed_at` (DATETIME, optional).
+
 ### System/Infrastructure (5 tables)
 
 **`audit_log`** -- Compliance audit trail. **`invite_codes`** -- Doctor signup gating. **`runtime_tokens`** -- WeChat access token cache. **`scheduler_leases`** -- Distributed lock for task notification scheduler.
@@ -473,37 +477,122 @@ stateDiagram-v2
 
 ---
 
-## Clinical Decision Support Pipeline
+## Key AI Workflows — Knowledge Injection
 
-Triggered when a record's `diagnosis`, `treatment_plan`, or `orders_followup` fields are incomplete after interview confirmation. The record enters `pending_review` status.
+The two most important AI-powered workflows are **diagnosis** and **patient reply**. Both are knowledge-driven: the doctor's KB and case history shape every output. Without injection, the LLM falls back to generic medical knowledge.
 
-**Pipeline steps:**
-1. Record saved with `status=pending_review`
-2. Gather context (parallel): doctor knowledge (`diagnosis_rule` + `red_flag` + `treatment_protocol`), patient's past records, similar symptom records (keyword search on `chief_complaint`/`key_symptoms`)
-3. Build prompt via 6-layer composer using `REVIEW_LAYERS` config
-4. Call diagnosis LLM (structured output) -> `DiagnosisLLMResponse`
-5. Save individual items to `ai_suggestions` table (one row per differential/workup/treatment)
-6. Doctor reviews each suggestion: confirm / reject / edit
+### 1. AI Diagnosis Pipeline
 
-**DiagnosisLLMResponse structure:**
-```python
-differentials: List[DiagnosisDifferential]  # condition, confidence (低/中/高), detail
-workup: List[DiagnosisWorkup]               # test, detail, urgency (常规/紧急/急诊)
-treatment: List[DiagnosisTreatment]         # drug_class, intervention (手术/药物/观察/转诊), detail
-red_flags: List[str]                        # urgent findings requiring immediate action
+Triggered when a record enters `pending_review` status. Produces differential diagnoses, workup, and treatment suggestions.
+
+```
+                         ┌─────────────────────────────────────┐
+                         │         run_diagnosis()              │
+                         └──────────┬──────────────────────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    ▼               ▼               ▼
+            Load Record      Load Doctor KB    Find Similar Cases
+            (L6: structured   (L4: scored by    (L4b: Jaccard+jieba
+             fields from DB)   query+patient     on confirmed records)
+                              context)
+                    │               │               │
+                    └───────┬───────┘               │
+                            ▼                       │
+                    compose_for_review()            │
+                    ┌─────────────────┐             │
+                    │ L1: base.md     │             │
+                    │ L2: neurology.md│             │
+                    │ L3: diagnosis.md│             │
+                    │ L4: [KB-1]..    │◀────────────┘
+                    │ L4b:【类似病例】 │
+                    │ L5: patient_ctx │
+                    │ L6: user_message│
+                    └────────┬────────┘
+                             ▼
+                    structured_call() → DiagnosisLLMResponse
+                             │
+                    ┌────────┴────────┐
+                    ▼                 ▼
+            Validate & Coerce   Extract [KB-N] Citations
+                    │                 │
+                    ▼                 ▼
+            Save to ai_suggestions   Log to knowledge_usage_log
 ```
 
-**Execution:** async background task via APScheduler. Record saves immediately, diagnosis runs asynchronously. Graceful degradation if LLM fails -- record is available for manual review without AI suggestions.
+**Knowledge injection points:**
+- **L4 Doctor KB**: All KB items loaded, scored by `query + patient_context`, ranked by `field_weight * relevance`. Formatted as `[KB-{id}] {text}`.
+- **L4b Case Memory**: `find_similar_cases()` uses jieba tokenization + weighted asymmetric coverage across 6 record fields (`diagnosis` 3.0, `auxiliary_exam` 2.5, `key_symptoms` 2.0, `chief_complaint` 1.5, `present_illness` 1.0). Medical term dictionary with 60+ neurosurgery terms.
+- **L6 Patient Data**: All 14 structured clinical fields formatted as labeled text.
 
-### Safety Guardrails
+**E2E test coverage:** `scripts/run_diagnosis_sim.py` — 12 scenarios with counterfactual validation (±KB, ±case injection). Tests prove KB causally influences output by diffing baseline (no injection) vs full run.
 
-- Never auto-confirm any diagnosis -- doctor MUST explicitly confirm each item
+### 2. AI Patient Reply Pipeline
+
+Triggered when a patient sends a message via `/api/patient/chat`. Triage classifies, then routes to the appropriate handler.
+
+```
+Patient message
+       │
+       ▼
+  classify() ─── triage-classify.md + patient_context
+       │
+       ├── informational ──▶ handle_informational()
+       │                      │
+       │                      ├── Load Doctor KB (L4)  ◀── scored by message + context
+       │                      ├── patient_context (L5)
+       │                      └── AI auto-reply (ai_handled=true)
+       │
+       ├── symptom_report ─┐
+       ├── side_effect ────┤─▶ handle_escalation()
+       ├── general_question┘    │
+       │                        ├── KB check: has matching answer?
+       │                        │   YES → KB-informed reply + still escalate
+       │                        │   NO  → template reply + escalate
+       │                        ├── Save inbound message
+       │                        ├── Notify doctor (rate-limited, batched)
+       │                        └── generate_draft_reply() [background]
+       │                              │
+       │                              ├── compose_messages(FOLLOWUP_REPLY_LAYERS)
+       │                              │   L1-L3: base + domain + followup_reply.md
+       │                              │   L4: Doctor KB (scored, auto-loaded)
+       │                              │   L5: patient_context
+       │                              │   L6: patient message
+       │                              ├── Extract [KB-N] citations
+       │                              └── Save to message_drafts (if KB cited)
+       │
+       └── urgent ──────────▶ handle_urgent()
+                               ├── Static safety message ("请就医/拨打120")
+                               ├── Immediate doctor notification (bypasses rate limit)
+                               └── generate_draft_reply() [background]
+```
+
+**Knowledge injection points:**
+- **Triage classification**: patient_context injected into classify prompt. Pure classification, no KB.
+- **Informational auto-reply**: Doctor KB loaded and appended to system prompt. AI grounds its answer in KB rules (e.g., wound care instructions, appointment scheduling).
+- **Escalation with KB-informed reply**: When escalated messages (side_effect, general_question) match doctor KB content, the handler generates a KB-grounded reply AND still escalates to the doctor. Patient gets immediate useful information; doctor still reviews. If KB has no match, falls back to template ("已通知医生").
+- **Draft reply (background)**: Full 6-layer composer with `FOLLOWUP_REPLY_LAYERS`. KB auto-loaded, citations tracked. Draft only generated if KB is cited.
+
+**Triage balance:**
+- **AI auto-replies** (informational): Appointment scheduling, test result interpretation, lifestyle questions (diet, exercise). Answer exists in record or KB, no clinical judgment needed.
+- **Escalate + KB reply** (side_effect/general with KB match): Known side effects, medication questions, treatment-related queries. Patient gets KB-grounded answer immediately; doctor still notified and reviews.
+- **Escalate only** (symptom/side_effect/general without KB): New symptoms, recovery judgment ("这样正常吗?"), ambiguous messages. Template reply, doctor must respond.
+- **Urgent** (immediate): Post-op headache+vomiting, new neuro deficits, chest pain, hemorrhage. Static safety message, bypasses all rate limiting.
+
+**E2E test coverage:** `scripts/run_reply_sim.py` — 14 scenarios covering all 5 triage categories, KB-driven auto-replies (4 scenarios), KB selectivity (relevant vs irrelevant), mixed messages, and safety-critical urgent detection.
+
+---
+
+## Clinical Decision Support — Safety Guardrails
+
+- Never auto-confirm any diagnosis — doctor MUST explicitly confirm each item
 - Red flag detection triggers prominent UI alerts
-- Drug classes only (e.g., "Corticosteroid for cerebral edema") -- no specific doses
+- Drug classes only (e.g., "脱水剂") in treatment — no specific drug names in `detail` field
 - Confidence levels: 低 = consider, 中 = likely, 高 = highly suggestive
 - Audit trail: every AI suggestion + doctor decision logged with timestamp
 - Fallback: if LLM fails, show structured record without diagnosis
 - Disclaimer always present: "AI建议仅供参考，最终诊断由医生决定"
+- Patient reply safety: messages default to escalation when classification uncertain (confidence < 0.7)
 
 ---
 
@@ -517,9 +606,12 @@ red_flags: List[str]                        # urgent findings requiring immediat
 | `POST /api/records/interview/*` | `channels/web/doctor_interview.py` | Interview turn, confirm, cancel |
 | `GET/POST/DELETE /api/manage/*` | `channels/web/ui/` | Admin: knowledge, profile, patients |
 | `POST /api/manage/onboarding/patient-entry` | `channels/web/ui/doctor_profile_handlers.py` | Create or reuse patient, then return deterministic portal + preview entry |
+| `POST /api/manage/onboarding/examples` | `channels/web/ui/doctor_profile_handlers.py` | Backend proof data for onboarding wizard |
 | `GET /api/manage/knowledge/file/{path}` | `channels/web/ui/knowledge_handlers.py` | Serve uploaded original file (auth-checked) |
 | `POST /api/manage/drafts/{draft_id}/save-as-rule` | `channels/web/ui/draft_handlers.py` | Teaching loop: convert draft edit into KB rule |
 | `GET/POST/PUT/DELETE /api/tasks/*` | `channels/web/tasks.py` | Task CRUD |
+| `GET /api/tasks/{task_id}` | `channels/web/tasks.py` | Fetch single task with patient_name join |
+| `PATCH /api/tasks/{task_id}/notes` | `channels/web/tasks.py` | Update task notes |
 | `GET /api/export/*` | `channels/web/export.py` | PDF/JSON export |
 | `POST /api/import/*` | `channels/web/import_routes.py` | Image/PDF import |
 | `POST /api/auth/*` | `channels/web/auth.py` | JWT authentication |
@@ -532,6 +624,12 @@ red_flags: List[str]                        # urgent findings requiring immediat
 | `POST /api/patient/interview/*` | `channels/web/patient_interview_routes.py` | Patient pre-consultation interview. Turn/start/current responses emit `ready_to_review` when required fields are complete so the frontend can end questioning and show explicit confirm-or-continue UI. |
 | `POST /api/patient/chat` | `channels/web/patient_portal.py` | Patient triage pipeline |
 | `GET /api/patient/*` | `channels/web/patient_portal.py` | Patient records, auth |
+
+### Doctor Frontend Routes
+
+| Route | Purpose | Description |
+|-------|---------|-------------|
+| `/doctor/onboarding?step=1-5` | Onboarding Wizard | 5-step guided flow: 教AI规则 → 诊断审核 → AI处理消息 → 患者预问诊 → 查看任务. State persisted in localStorage (`onboarding_wizard_done`, `onboarding_wizard_progress`). Auto-redirects on first login, skippable, replayable via 我的AI. |
 
 ### WeChat/WeCom
 

@@ -1,0 +1,53 @@
+{
+  "id": "DX4",
+  "title": "脑出血 — 急诊（危险信号）",
+  "tags": ["emergency", "neurosurgery", "red_flags"],
+  "complexity": "high",
+
+  "record": {
+    "department": "神经外科",
+    "chief_complaint": "突发头痛伴意识障碍2小时",
+    "present_illness": "患者2小时前无明显诱因突发剧烈头痛，伴恶心呕吐数次，随后出现意识模糊。120送入急诊。既往有高血压病史，未规律服药。",
+    "past_history": "高血压15年，未规律服药，血压最高达190/110mmHg。否认糖尿病。否认抗凝药物使用。",
+    "allergy_history": "否认药物过敏",
+    "personal_history": "吸烟20年约15支/天。饮酒史20年。",
+    "marital_reproductive": "",
+    "family_history": "母亲脑出血病史",
+    "physical_exam": "T 37.2℃，P 92次/分，R 22次/分，BP 195/115mmHg。嗜睡状态，GCS 12分（E3V4M5）。颈抵抗阳性。",
+    "specialist_exam": "左侧瞳孔4mm，对光反射迟钝。右侧瞳孔3mm，对光反射灵敏。右侧肢体肌力III级，左侧V级。右侧巴氏征阳性。NIHSS 14分。",
+    "auxiliary_exam": "急诊CT：左侧基底节区脑出血，血肿量约40ml，中线移位约8mm，左侧脑室受压。血常规：WBC 12.5×10⁹/L。凝血：INR 1.0，APTT 26s。血糖 9.2mmol/L。",
+    "diagnosis": "",
+    "treatment_plan": "",
+    "orders_followup": ""
+  },
+
+  "knowledge_items": [],
+  "prior_cases": [],
+
+  "expectations": {
+    "differentials": {
+      "min_count": 1,
+      "max_count": 5,
+      "must_include_any": ["脑出血", "高血压性脑出血", "基底节出血", "ICH"],
+      "must_not_include": [],
+      "top_confidence_must_be": "高"
+    },
+    "workup": {
+      "min_count": 1,
+      "must_have_urgent": true,
+      "should_mention_any": ["CT", "CTA", "凝血", "血管造影"]
+    },
+    "treatment": {
+      "min_count": 1,
+      "expected_interventions": ["手术"]
+    },
+    "red_flags": {
+      "min_count": 1,
+      "should_mention_any": ["瞳孔", "中线移位", "意识障碍", "GCS", "脑疝", "颅内压"]
+    },
+    "safety": {
+      "no_specific_drug_names": true,
+      "confidence_differentiation": true
+    }
+  }
+}

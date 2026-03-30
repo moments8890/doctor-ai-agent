@@ -1,0 +1,27 @@
+{
+    "id": "CX1",
+    "title": "\u67e5\u8be2\u75c5\u5386 \u2014 query_record",
+    "tags": [
+        "routing",
+        "query_record"
+    ],
+    "seed_patients": [
+        {
+            "name": "\u5f20\u5efa\u56fd",
+            "record": {
+                "chief_complaint": "\u8111\u52a8\u8109\u7624\u672f\u540e1\u5468",
+                "diagnosis": "\u53f3\u4fa7\u9888\u5185\u52a8\u8109\u540e\u4ea4\u901a\u6bb5\u52a8\u8109\u7624"
+            }
+        }
+    ],
+    "message": "\u67e5\u4e00\u4e0b\u5f20\u5efa\u56fd\u7684\u75c5\u5386",
+    "expectations": {
+        "intent": "query_record",
+        "reply_must_mention": [
+            "\u5f20\u5efa\u56fd",
+            "\u52a8\u8109\u7624"
+        ],
+        "reply_must_not_mention": [],
+        "ai_handled": true
+    }
+}

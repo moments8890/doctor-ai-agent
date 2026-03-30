@@ -22,6 +22,16 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+def _date_subdir() -> str:
+    """Date string for subdirectory (yyyymmdd), local time."""
+    return datetime.now().strftime("%Y%m%d")
+
+
+def _time_slug() -> str:
+    """Time string for filename (hh-mm-ss), local time."""
+    return datetime.now().strftime("%H-%M-%S")
+
+
 def _human_date() -> str:
     """Human-readable date for report title."""
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -629,6 +639,173 @@ def _build_json(results: List[dict], patient_llm: str, server_url: str) -> dict:
 # Public API
 # ---------------------------------------------------------------------------
 
+_FIELD_CN = {
+    "chief_complaint": "主诉", "present_illness": "现病史", "past_history": "既往史",
+    "allergy_history": "过敏史", "family_history": "家族史", "personal_history": "个人史",
+    "marital_reproductive": "婚育史", "department": "科室", "physical_exam": "体格检查",
+    "specialist_exam": "专科检查", "auxiliary_exam": "辅助检查", "diagnosis": "诊断",
+    "treatment_plan": "治疗方案", "orders_followup": "医嘱随访",
+}
+
+_REVIEW_CSS = """\
+body{font-family:-apple-system,"Segoe UI",Roboto,Helvetica,sans-serif;max-width:1000px;margin:20px auto;padding:0 20px 0 180px;background:#fafafa;color:#1a1a1a;line-height:1.6}
+h1{border-bottom:2px solid #333;padding-bottom:8px;font-size:1.5rem}
+.summary-bar{display:flex;gap:16px;margin:12px 0;font-size:16px;font-weight:700}
+.persona{border:1px solid #ddd;border-radius:8px;margin:20px 0;padding:16px;background:#fff}
+.pass{border-left:4px solid #22c55e}.fail{border-left:4px solid #ef4444}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.badge{padding:2px 10px;border-radius:12px;font-size:13px;font-weight:600}
+.badge-pass{background:#dcfce7;color:#166534}.badge-fail{background:#fee2e2;color:#991b1b}
+.msg{margin:8px 0;padding:10px 14px;border-radius:12px;max-width:85%;line-height:1.6;font-size:14px;white-space:pre-wrap}
+.ai{background:#f0f0f0;margin-right:auto}.patient{background:#dbeafe;margin-left:auto;text-align:right}
+.record{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px;margin-top:8px;font-size:13px}
+.record dt{font-weight:600;color:#475569;margin-top:8px}.record dd{margin:2px 0 0 0;color:#1e293b}
+.persona-bg{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:12px;margin-bottom:12px;font-size:13px}
+.persona-bg h3{margin:0 0 8px 0;font-size:14px;color:#166534}.persona-bg .label{font-weight:600;color:#15803d}
+.fact-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}
+.fact-table th{background:#f1f5f9;text-align:left;padding:6px 8px;border:1px solid #e2e8f0}
+.fact-table td{padding:6px 8px;border:1px solid #e2e8f0;vertical-align:top}
+.fact-exact{background:#dcfce7}.fact-partial{background:#fef9c3}.fact-missed{background:#fee2e2}.fact-undisclosed{background:#e0e7ff}
+.stats{font-size:13px;color:#64748b}
+details{margin-top:8px}summary{cursor:pointer;font-weight:600;font-size:13px;color:#475569}
+nav.side{position:fixed;left:0;top:0;width:160px;height:100vh;background:#fff;border-right:1px solid #e2e8f0;padding:16px 12px;overflow-y:auto;font-size:13px;z-index:100}
+nav.side h3{font-size:12px;color:#64748b;margin:0 0 8px 0;text-transform:uppercase;letter-spacing:0.5px}
+nav.side a{display:block;padding:4px 8px;border-radius:4px;text-decoration:none;color:#334155;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+nav.side a:hover{background:#f1f5f9}
+nav.side a.nav-pass{color:#166534}
+nav.side a.nav-fail{color:#991b1b;font-weight:600}
+nav.side .nav-icon{margin-right:4px}
+@media(max-width:768px){nav.side{display:none}body{padding-left:20px}}
+"""
+
+
+def _build_review_html(results: List[dict], patient_llm: str, server_url: str) -> str:
+    """Build the dialog review HTML — persona + chat + record + fact assessment table."""
+    date = _human_date()
+    passed = sum(1 for r in results if r.get("pass"))
+    total = len(results)
+    p: list[str] = []
+
+    p.append(f"<!DOCTYPE html><html lang='zh'><head><meta charset='utf-8'>")
+    p.append(f"<title>Sim Review — {passed}/{total}</title>")
+    p.append(f"<style>{_REVIEW_CSS}</style></head><body>")
+    # Floating nav bar
+    p.append('<nav class="side"><h3>Personas</h3>')
+    for r in results:
+        _persona = r.get("persona", {})
+        _pid = _persona.get("id", "?")
+        _name = _persona.get("name", "?")
+        _p = r.get("pass", False)
+        _icon = "✅" if _p else "❌"
+        _cls = "nav-pass" if _p else "nav-fail"
+        p.append(f'<a href="#persona-{_esc(_pid)}" class="{_cls}">'
+                 f'<span class="nav-icon">{_icon}</span>{_esc(_pid)} {_esc(_name)}</a>')
+    p.append("</nav>")
+
+    p.append(f"<h1>Patient Sim Review</h1>")
+    p.append(f'<p style="color:#64748b">{_esc(date)} · LLM: {_esc(patient_llm)} · Server: {_esc(server_url)}</p>')
+    p.append(f'<div class="summary-bar"><span style="color:#22c55e">PASS: {passed}</span>'
+             f'<span style="color:#ef4444">FAIL: {total - passed}</span></div>')
+
+    for r in results:
+        persona = r.get("persona", {})
+        pid = persona.get("id", "?")
+        name = persona.get("name", "?")
+        gender = persona.get("gender", "")
+        age = persona.get("age", "")
+        p_pass = r.get("pass", False)
+        turns = r.get("turns", 0)
+        t2 = r.get("tier2", {})
+        elicit = t2.get("elicitation", {}).get("score", "?")
+        extract = t2.get("extraction", {}).get("score", "?")
+        undisclosed_ids = t2.get("extraction", {}).get("undisclosed_facts", [])
+
+        cls = "pass" if p_pass else "fail"
+        badge = "badge-pass" if p_pass else "badge-fail"
+        status = "PASS" if p_pass else "FAIL"
+        open_attr = "" if p_pass else " open"
+
+        p.append(f'<div class="persona {cls}" id="persona-{_esc(pid)}">')
+        p.append(f'<div class="header"><h2 style="margin:0">{_esc(pid)} — {_esc(name)}, {_esc(gender)}, {_esc(str(age))}岁</h2>')
+        p.append(f'<span class="badge {badge}">{status}</span></div>')
+        p.append(f'<div class="stats">{turns} turns | elicit={elicit}% | extract={extract}%')
+        if undisclosed_ids:
+            p.append(f" | {len(undisclosed_ids)} undisclosed")
+        p.append("</div>")
+
+        # Persona background
+        p.append(f'<details{open_attr}><summary>📋 Persona</summary><div class="persona-bg">')
+        p.append(f'<p><span class="label">Condition:</span> {_esc(persona.get("condition", ""))}</p>')
+        p.append(f'<p><span class="label">Background:</span> {_esc(persona.get("background", ""))}</p>')
+        meds = persona.get("medications", "")
+        if meds:
+            if isinstance(meds, list):
+                meds_str = "; ".join(f"{m.get('name','')} {m.get('dose','')} {m.get('frequency','')}" for m in meds)
+            else:
+                meds_str = str(meds)
+            p.append(f'<p><span class="label">Medications:</span> {_esc(meds_str)}</p>')
+        p.append("</div></details>")
+
+        # Dialog
+        p.append(f'<details{open_attr}><summary>💬 对话</summary>')
+        for m in r.get("conversation", []):
+            role = m.get("role")
+            text = _esc(m.get("text", m.get("content", "")))
+            if role in ("system", "assistant"):
+                p.append(f'<div class="msg ai">🤖 {text}</div>')
+            else:
+                p.append(f'<div class="msg patient">👤 {text}</div>')
+        p.append("</details>")
+
+        # Record
+        snap = r.get("structured_snapshot", {})
+        filled = {k: v for k, v in snap.items() if v}
+        if filled:
+            p.append(f'<details{open_attr}><summary>📄 病历</summary><div class="record"><dl>')
+            for k, v in filled.items():
+                p.append(f"<dt>{_esc(_FIELD_CN.get(k, k))}</dt><dd>{_esc(v)}</dd>")
+            p.append("</dl></div></details>")
+
+        # Fact assessment table
+        facts = t2.get("extraction", {}).get("facts", {})
+        all_catalog = persona.get("fact_catalog", [])
+        if all_catalog:
+            p.append(f'<details{open_attr}><summary>📊 事实评估</summary>')
+            p.append('<table class="fact-table">')
+            p.append("<tr><th>目标字段</th><th>预期事实</th><th>患者实际表述</th><th>重要性</th><th>结果</th></tr>")
+            for f in all_catalog:
+                fid = f.get("id", "")
+                ftext = _esc(f.get("text", ""))
+                imp = f.get("importance", "normal")
+                imp_cn = {"critical": "🔴", "important": "🟡", "normal": "⚪"}.get(imp, "")
+                target = _FIELD_CN.get(f.get("field", f.get("expected_field", "")), "?")
+                v = facts.get(fid, {})
+                level = v.get("match_level", "—")
+                disclosed = v.get("disclosed", None)
+                patient_said = v.get("patient_said", "")
+
+                if level == "exact":
+                    row_cls, level_cn = "fact-exact", "✅ 匹配"
+                elif level == "partial":
+                    row_cls, level_cn = "fact-partial", "⚠️ 部分"
+                elif level == "missed" and disclosed is False:
+                    row_cls, level_cn = "fact-undisclosed", "— 未评估"
+                elif level == "missed":
+                    row_cls, level_cn = "fact-missed", "❌ 缺失"
+                else:
+                    row_cls, level_cn = "", "—"
+
+                said_display = _esc(patient_said) if patient_said else ("（未提及）" if disclosed is False else "—")
+                p.append(f'<tr class="{row_cls}"><td>{_esc(target)}</td><td>{ftext}</td>'
+                         f"<td>{said_display}</td><td>{imp_cn}</td><td>{level_cn}</td></tr>")
+            p.append("</table></details>")
+
+        p.append("</div>")
+
+    p.append("</body></html>")
+    return "\n".join(p)
+
+
 def generate_reports(
     results: List[dict],
     patient_llm: str,
@@ -636,23 +813,28 @@ def generate_reports(
     output_dir: Optional[str] = None,
     db_path: str = "",
 ) -> Tuple[str, str]:
-    """Generate HTML and JSON reports for a simulation run.
+    """Generate HTML, review HTML, and JSON reports for a simulation run.
 
     Returns:
         Tuple of (html_path, json_path).
     """
-    out = Path(output_dir or _DEFAULT_OUTPUT_DIR)
+    out = Path(output_dir or _DEFAULT_OUTPUT_DIR) / _date_subdir()
     out.mkdir(parents=True, exist_ok=True)
 
-    ts = _timestamp()
-    html_name = f"sim-{ts}.html"
-    json_name = f"sim-{ts}.json"
+    slug = _time_slug()
+    html_name = f"sim-{slug}.html"
+    json_name = f"sim-{slug}.json"
+    review_name = f"sim-{slug}-review.html"
 
     html_path = out / html_name
     json_path = out / json_name
+    review_path = out / review_name
 
     html_content = _build_html(results, patient_llm, server_url, db_path=db_path)
     html_path.write_text(html_content, encoding="utf-8")
+
+    review_content = _build_review_html(results, patient_llm, server_url)
+    review_path.write_text(review_content, encoding="utf-8")
 
     json_data = _build_json(results, patient_llm, server_url)
     json_path.write_text(

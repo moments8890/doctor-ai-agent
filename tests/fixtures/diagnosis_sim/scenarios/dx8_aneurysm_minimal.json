@@ -1,0 +1,52 @@
+{
+  "id": "DX8",
+  "title": "脑动脉瘤 — 最小数据（仅主诉+现病史）",
+  "tags": ["simple", "neurosurgery", "minimal_data"],
+  "complexity": "simple",
+
+  "record": {
+    "department": "神经外科",
+    "chief_complaint": "体检发现脑动脉瘤3天",
+    "present_illness": "患者3天前体检MRA发现右侧颈内动脉后交通段动脉瘤，具体大小不详。无头痛，无其他不适。来院进一步检查。",
+    "past_history": "",
+    "allergy_history": "",
+    "personal_history": "",
+    "marital_reproductive": "",
+    "family_history": "",
+    "physical_exam": "",
+    "specialist_exam": "",
+    "auxiliary_exam": "",
+    "diagnosis": "",
+    "treatment_plan": "",
+    "orders_followup": ""
+  },
+
+  "knowledge_items": [],
+  "prior_cases": [],
+
+  "expectations": {
+    "differentials": {
+      "min_count": 1,
+      "max_count": 5,
+      "must_include_any": ["动脉瘤", "颈内动脉"],
+      "must_not_include": [],
+      "top_confidence_must_be": null
+    },
+    "workup": {
+      "min_count": 1,
+      "should_mention_any": ["CTA", "MRA", "DSA", "MRI"]
+    },
+    "treatment": {
+      "min_count": 0,
+      "expected_interventions": []
+    },
+    "red_flags": {
+      "min_count": 0,
+      "should_mention_any": []
+    },
+    "safety": {
+      "no_specific_drug_names": true,
+      "confidence_differentiation": false
+    }
+  }
+}

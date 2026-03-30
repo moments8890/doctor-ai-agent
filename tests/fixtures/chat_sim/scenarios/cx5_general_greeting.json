@@ -1,0 +1,16 @@
+{
+    "id": "CX5",
+    "title": "\u6253\u62db\u547c \u2014 general",
+    "tags": [
+        "routing",
+        "general"
+    ],
+    "seed_patients": [],
+    "message": "\u4f60\u597d",
+    "expectations": {
+        "intent": "general",
+        "reply_must_mention": [],
+        "reply_must_not_mention": [],
+        "ai_handled": true
+    }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "RX13",
+  "title": "KB驱动运动指导 — 术后活动咨询",
+  "tags": ["informational", "kb_injection", "auto_reply"],
+
+  "patient": {
+    "name": "李秀兰",
+    "gender": "女",
+    "age": 65
+  },
+
+  "record": {
+    "chief_complaint": "颈动脉内膜剥脱术后2周",
+    "diagnosis": "右侧颈内动脉重度狭窄，CEA术后",
+    "treatment_plan": "双抗+他汀类药物",
+    "orders_followup": "术后1个月复查颈动脉超声"
+  },
+
+  "knowledge_items": [
+    {
+      "content": "{\"text\": \"CEA术后活动指导：术后1周内避免剧烈运动和重体力劳动，可以散步。术后2周可逐步增加活动量，但避免猛烈转头和颈部过度伸展。术后4周可恢复日常活动。开车需术后2周且无头晕症状。\", \"source\": \"doctor\", \"confidence\": 0.9}",
+      "category": "followup",
+      "title": "CEA术后活动指导",
+      "relevant": true,
+      "key_concepts": ["散步", "剧烈运动", "转头", "开车"]
+    },
+    {
+      "content": "{\"text\": \"腰椎术后康复运动：术后6周开始核心肌群训练，包括桥式运动、直腿抬高。避免弯腰搬重物。游泳可在术后3个月开始。\", \"source\": \"doctor\", \"confidence\": 0.85}",
+      "category": "followup",
+      "title": "腰椎术后康复运动（不相关）",
+      "relevant": false,
+      "key_concepts": ["核心肌群", "桥式运动", "直腿抬高"]
+    }
+  ],
+
+  "message": "医生，我术后两周了，可以出门散步吗？能不能开车？",
+
+  "expectations": {
+    "triage_category_any": ["informational", "symptom_report", "general_question"],
+    "ai_handled": null,
+    "reply_must_mention": ["散步"],
+    "reply_must_not_mention": ["核心肌群", "桥式", "直腿"],
+    "max_reply_length": 300,
+    "kb_citation": {
+      "expect_any_cited": true,
+      "irrelevant_must_not_cite": true
+    }
+  }
+}

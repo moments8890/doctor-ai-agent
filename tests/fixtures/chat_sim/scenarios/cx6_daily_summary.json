@@ -1,0 +1,34 @@
+{
+    "id": "CX6",
+    "title": "每日摘要 — daily_summary",
+    "tags": [
+        "routing",
+        "daily_summary"
+    ],
+    "seed_patients": [
+        {
+            "name": "周国强",
+            "record": {
+                "chief_complaint": "Pipeline术后"
+            }
+        }
+    ],
+    "seed_tasks": [
+        {
+            "title": "周国强复查凝血功能",
+            "task_type": "follow_up"
+        }
+    ],
+    "message": "给我看看今日摘要",
+    "expectations": {
+        "intent": "daily_summary",
+        "reply_must_mention": [],
+        "reply_must_not_mention": [],
+        "ai_handled": true,
+        "intent_any": [
+            "daily_summary",
+            "general",
+            "query_task"
+        ]
+    }
+}

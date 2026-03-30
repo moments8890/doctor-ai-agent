@@ -1,0 +1,56 @@
+{
+  "id": "RX14",
+  "title": "KB多条选择 — 只引用相关条目",
+  "tags": ["informational", "kb_injection", "auto_reply", "multi_kb"],
+
+  "patient": {
+    "name": "王淑芬",
+    "gender": "女",
+    "age": 68
+  },
+
+  "record": {
+    "chief_complaint": "动脉瘤栓塞术后3个月",
+    "diagnosis": "前交通动脉瘤，弹簧圈栓塞术后",
+    "treatment_plan": "阿司匹林单药长期维持",
+    "orders_followup": "术后6个月复查MRA"
+  },
+
+  "knowledge_items": [
+    {
+      "content": "{\"text\": \"栓塞术后随访计划：术后3个月、6个月、1年各复查一次MRA。如动脉瘤完全闭塞且稳定，之后每2年复查一次。复查前无需停药，无需空腹。\", \"source\": \"doctor\", \"confidence\": 0.95}",
+      "category": "followup",
+      "title": "栓塞术后随访计划",
+      "relevant": true,
+      "key_concepts": ["3个月", "6个月", "MRA", "无需空腹"]
+    },
+    {
+      "content": "{\"text\": \"癫痫患者驾驶规定：发作控制2年以上且脑电图无异常放电，可申请驾照。服用抗癫痫药物期间需每年复查脑电图。\", \"source\": \"doctor\", \"confidence\": 0.8}",
+      "category": "custom",
+      "title": "癫痫驾驶规定（不相关）",
+      "relevant": false,
+      "key_concepts": ["驾照", "脑电图", "2年"]
+    },
+    {
+      "content": "{\"text\": \"脑积水分流术后注意事项：避免剧烈运动，注意分流管侧卧位压迫。出现头痛加重、恶心呕吐需急诊。\", \"source\": \"doctor\", \"confidence\": 0.85}",
+      "category": "followup",
+      "title": "脑积水分流术后（不相关）",
+      "relevant": false,
+      "key_concepts": ["分流管", "卧位", "脑积水"]
+    }
+  ],
+
+  "message": "医生，我下次复查是什么时候？需要空腹抽血吗？",
+
+  "expectations": {
+    "triage_category": "informational",
+    "ai_handled": true,
+    "reply_must_mention": ["6个月", "MRA"],
+    "reply_must_not_mention": ["驾照", "脑电图", "分流管", "脑积水"],
+    "max_reply_length": 300,
+    "kb_citation": {
+      "expect_any_cited": true,
+      "irrelevant_must_not_cite": true
+    }
+  }
+}

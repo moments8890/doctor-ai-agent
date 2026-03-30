@@ -1139,6 +1139,208 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
 
 
 <!-- ═══════════════════════════════════════════════════════
+     AI WORKFLOWS — KNOWLEDGE INJECTION
+     ═══════════════════════════════════════════════════════ -->
+<div class="section open" id="ai-workflows">
+  <div class="section-header" onclick="toggleSection(this)">
+    <h2><span class="dot" style="background:#8250df"></span> AI Workflows — Knowledge Injection</h2>
+    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </div>
+  <div class="section-body">
+    <p class="muted">The two most important AI pipelines. Both are knowledge-driven: the doctor's KB and case history shape every output.</p>
+
+    <!-- ── 1. DIAGNOSIS PIPELINE ────────────────────────── -->
+    <h3 style="font-size:15px;font-weight:600;margin:20px 0 14px;">1. AI Diagnosis Pipeline</h3>
+
+    <!-- Diagram: horizontal flow -->
+    <div class="diagram" style="align-items:stretch;">
+      <!-- Trigger -->
+      <div class="diagram-column" style="flex:0 0 auto;">
+        <div class="diagram-column-label">触发</div>
+        <div class="box box-green">
+          POST /diagnose
+          <span class="box-label">diagnosis_handlers.py</span>
+        </div>
+      </div>
+      <div class="arrow-right">&rarr;</div>
+
+      <!-- Data Loading (3 parallel sources) -->
+      <div class="diagram-column">
+        <div class="diagram-column-label">数据加载（并行）</div>
+        <div class="box box-gray">
+          <strong>L6</strong> Patient Record
+          <span class="box-label">14 structured fields from DB</span>
+        </div>
+        <div class="box box-blue">
+          <strong>L4</strong> Doctor KB
+          <span class="box-label">scored by query + patient_context</span>
+        </div>
+        <div class="box box-orange">
+          <strong>L4b</strong> Case Memory
+          <span class="box-label">jieba + weighted similarity (top 3)</span>
+        </div>
+      </div>
+      <div class="arrow-right">&rarr;</div>
+
+      <!-- Prompt Composition -->
+      <div class="diagram-column" style="flex:0 0 auto;">
+        <div class="diagram-column-label">Prompt 组装</div>
+        <div class="box box-purple" style="min-height:140px;">
+          <strong>compose_for_review()</strong>
+          <span class="box-label" style="white-space:pre;text-align:left;margin-top:6px;">L1 base.md
+L2 neurology.md
+L3 diagnosis.md
+L4 [KB-1] [KB-2] ...
+L4b 【类似病例参考】
+L5 patient_context
+L6 user_message</span>
+        </div>
+      </div>
+      <div class="arrow-right">&rarr;</div>
+
+      <!-- LLM + Output -->
+      <div class="diagram-column" style="flex:0 0 auto;">
+        <div class="diagram-column-label">输出</div>
+        <div class="box box-orange">
+          structured_call()
+          <span class="box-label">DiagnosisLLMResponse</span>
+        </div>
+        <div class="arrow">&darr;</div>
+        <div style="display:flex;gap:8px;">
+          <div class="box box-green" style="font-size:11px;padding:8px 10px;">ai_suggestions</div>
+          <div class="box box-blue" style="font-size:11px;padding:8px 10px;">[KB-N] citations</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Knowledge injection cards -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px;">
+      <div class="box box-blue" style="text-align:left;padding:14px;">
+        <strong style="font-size:12px;">L4 Doctor Knowledge Base</strong>
+        <span class="box-label" style="text-align:left;margin-top:6px;line-height:1.6;">
+          All KB items loaded &amp; scored by <code>query + patient_context</code><br>
+          Format: <code>[KB-{id}] {text}</code><br>
+          LLM cites → <code>knowledge_usage_log</code>
+        </span>
+      </div>
+      <div class="box box-orange" style="text-align:left;padding:14px;">
+        <strong style="font-size:12px;">L4b Case Memory</strong>
+        <span class="box-label" style="text-align:left;margin-top:6px;line-height:1.6;">
+          jieba tokenization + 60 medical terms<br>
+          Weighted fields: <code>diagnosis</code>(3.0) <code>aux_exam</code>(2.5) <code>key_symptoms</code>(2.0)<br>
+          Asymmetric coverage, threshold 0.15, top 3
+        </span>
+      </div>
+      <div class="box box-purple" style="text-align:left;padding:14px;">
+        <strong style="font-size:12px;">E2E Test Coverage</strong>
+        <span class="box-label" style="text-align:left;margin-top:6px;line-height:1.6;">
+          <code>run_diagnosis_sim.py</code> — 12 scenarios<br>
+          Counterfactual: ±KB / ±cases diff<br>
+          T1-T6: structure, clinical, safety, KB, cases, causal
+        </span>
+      </div>
+    </div>
+
+    <!-- ── 2. REPLY PIPELINE ────────────────────────────── -->
+    <h3 style="font-size:15px;font-weight:600;margin:32px 0 14px;">2. AI Patient Reply Pipeline</h3>
+
+    <!-- Diagram: triage fan-out -->
+    <div class="diagram" style="align-items:stretch;">
+      <!-- Entry -->
+      <div class="diagram-column" style="flex:0 0 auto;">
+        <div class="diagram-column-label">入口</div>
+        <div class="box box-green">
+          POST /chat
+          <span class="box-label">patient_portal_chat.py</span>
+        </div>
+        <div class="arrow">&darr;</div>
+        <div class="box box-blue">
+          classify()
+          <span class="box-label">triage-classify.md + context</span>
+        </div>
+        <div class="arrow">&darr;</div>
+      </div>
+      <div class="arrow-right">&rarr;</div>
+
+      <!-- Triage fan-out -->
+      <div class="diagram-column">
+        <div class="diagram-column-label">分类路由</div>
+        <div class="box" style="background:#dafbe1;border-color:#1a7f37;color:#1a7f37;">
+          <strong>informational</strong>
+          <span class="box-label" style="color:#1a7f37;">AI 自动回复 · 加载 KB · ai_handled=true</span>
+        </div>
+        <div class="box" style="background:#fff3cd;border-color:#9a6700;color:#9a6700;">
+          <strong>symptom / side_effect / general</strong>
+          <span class="box-label" style="color:#9a6700;">KB有答案 → KB回复+仍升级 · KB无答案 → 模板+升级</span>
+        </div>
+        <div class="box" style="background:#ffebe9;border-color:#cf222e;color:#cf222e;">
+          <strong>urgent</strong>
+          <span class="box-label" style="color:#cf222e;">紧急通知 · "请就医/拨打120" · 绕过限流</span>
+        </div>
+      </div>
+      <div class="arrow-right">&rarr;</div>
+
+      <!-- KB injection -->
+      <div class="diagram-column" style="flex:0 0 auto;">
+        <div class="diagram-column-label">知识注入</div>
+        <div class="box box-blue" style="min-height:80px;">
+          <strong>Doctor KB</strong>
+          <span class="box-label" style="text-align:left;">informational: system prompt 附加<br>escalation: 6层 composer (L4)<br>urgent: 后台草稿生成</span>
+        </div>
+        <div class="box box-gray" style="min-height:50px;">
+          <strong>Patient Context</strong>
+          <span class="box-label">诊断 · 治疗方案 · 医嘱 · 近期消息</span>
+        </div>
+      </div>
+      <div class="arrow-right">&rarr;</div>
+
+      <!-- Output -->
+      <div class="diagram-column" style="flex:0 0 auto;">
+        <div class="diagram-column-label">输出</div>
+        <div class="box box-green" style="font-size:12px;">
+          <strong>patient_messages</strong>
+          <span class="box-label">reply + triage_category</span>
+        </div>
+        <div class="box box-blue" style="font-size:12px;">
+          <strong>message_drafts</strong>
+          <span class="box-label">draft + [KB-N] citations</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Triage balance cards -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:16px;">
+      <div class="box" style="background:#dafbe1;border-color:#1a7f37;text-align:left;padding:12px;">
+        <strong style="font-size:11px;color:#1a7f37;">AI 自动回复</strong>
+        <span class="box-label" style="text-align:left;margin-top:4px;color:#333;line-height:1.5;">
+          用药时间 · 复查安排<br>伤口护理 · 检查解读<br><em>答案在病历或 KB 中</em>
+        </span>
+      </div>
+      <div class="box" style="background:#fff3cd;border-color:#9a6700;text-align:left;padding:12px;">
+        <strong style="font-size:11px;color:#9a6700;">升级给医生</strong>
+        <span class="box-label" style="text-align:left;margin-top:4px;color:#333;line-height:1.5;">
+          新症状 · 药物副作用<br>"正常吗？" · 漏服用药<br><em>需要临床判断</em>
+        </span>
+      </div>
+      <div class="box" style="background:#ffebe9;border-color:#cf222e;text-align:left;padding:12px;">
+        <strong style="font-size:11px;color:#cf222e;">紧急</strong>
+        <span class="box-label" style="text-align:left;margin-top:4px;color:#333;line-height:1.5;">
+          术后头痛+呕吐<br>新发神经缺损 · 大出血<br><em>立即通知 + 安全指导</em>
+        </span>
+      </div>
+      <div class="box box-purple" style="text-align:left;padding:12px;">
+        <strong style="font-size:11px;">E2E Test Coverage</strong>
+        <span class="box-label" style="text-align:left;margin-top:4px;line-height:1.5;">
+          <code>run_reply_sim.py</code><br>10 scenarios · 5 categories<br>KB concept match · safety
+        </span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
      DATABASE SCHEMA — INTERACTIVE GRAPH
      ═══════════════════════════════════════════════════════ -->
 <div class="section" id="database-schema">

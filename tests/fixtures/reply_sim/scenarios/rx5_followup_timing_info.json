@@ -1,0 +1,29 @@
+{
+  "id": "RX5",
+  "title": "复查时间咨询 — 信息类自动回复",
+  "tags": ["informational", "auto_reply"],
+
+  "patient": {
+    "name": "陈大海",
+    "gender": "男",
+    "age": 60
+  },
+
+  "record": {
+    "chief_complaint": "脑出血恢复期6个月",
+    "diagnosis": "左基底节区脑出血，保守治疗后",
+    "treatment_plan": "降压药+他汀类药物",
+    "orders_followup": "下次复查4月15日头颅CT，空腹抽血"
+  },
+
+  "knowledge_items": [],
+  "message": "医生，我下次什么时候去复查啊？需要空腹吗？",
+
+  "expectations": {
+    "triage_category": "informational",
+    "ai_handled": true,
+    "reply_must_mention": ["4月15", "空腹"],
+    "reply_must_not_mention": ["急诊", "就医"],
+    "max_reply_length": 200
+  }
+}

@@ -1,0 +1,28 @@
+{
+    "id": "CX7",
+    "title": "\u6a21\u7cca\u6307\u4ee4 \u2014 routing\u8fb9\u754c",
+    "tags": [
+        "routing",
+        "edge_case"
+    ],
+    "seed_patients": [
+        {
+            "name": "\u4f55\u9759",
+            "record": {
+                "chief_complaint": "\u640f\u52a8\u6027\u8033\u9e23"
+            }
+        }
+    ],
+    "message": "\u4f55\u9759\u600e\u4e48\u6837\u4e86",
+    "expectations": {
+        "intent_any": [
+            "query_record",
+            "query_patient"
+        ],
+        "reply_must_mention": [
+            "\u4f55\u9759"
+        ],
+        "reply_must_not_mention": [],
+        "ai_handled": true
+    }
+}

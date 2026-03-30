@@ -1,0 +1,50 @@
+{
+  "id": "RX10",
+  "title": "KB驱动用药指导 — 医生回复草稿",
+  "tags": ["general_question", "escalation", "kb_injection"],
+
+  "patient": {
+    "name": "王淑芬",
+    "gender": "女",
+    "age": 68
+  },
+
+  "record": {
+    "chief_complaint": "动脉瘤弹簧圈栓塞术后2周",
+    "diagnosis": "前交通动脉瘤，弹簧圈栓塞术后",
+    "treatment_plan": "双抗治疗6个月（阿司匹林100mg qd + 氯吡格雷75mg qd）",
+    "orders_followup": "术后3个月复查MRA，术后6个月改单抗"
+  },
+
+  "knowledge_items": [
+    {
+      "content": "{\"text\": \"弹簧圈栓塞术后双抗方案：阿司匹林+氯吡格雷持续6个月，之后改为阿司匹林单药长期服用。双抗期间禁止自行停药，漏服后不要双倍补服。出血倾向（牙龈出血、皮肤瘀斑）属正常范围，但大量出血需立即就医。\", \"source\": \"doctor\", \"confidence\": 0.95}",
+      "category": "medication",
+      "title": "栓塞术后双抗管理",
+      "relevant": true,
+      "key_concepts": ["漏服", "停药", "6个月", "单药"]
+    },
+    {
+      "content": "{\"text\": \"帕金森病左旋多巴剂量调整原则：起始小剂量，缓慢加量，餐前1小时服用以提高吸收率。注意剂末现象和异动症。\", \"source\": \"doctor\", \"confidence\": 0.85}",
+      "category": "medication",
+      "title": "帕金森病左旋多巴用药（不相关）",
+      "relevant": false,
+      "key_concepts": ["帕金森", "左旋多巴", "剂末现象"]
+    }
+  ],
+
+  "message": "医生，我昨天忘了吃氯吡格雷，今天要不要补吃两片？",
+
+  "expectations": {
+    "triage_category_any": ["general_question", "informational"],
+    "ai_handled": null,
+    "reply_must_mention": ["漏服", "补服"],
+    "reply_must_not_mention": ["帕金森", "左旋多巴"],
+    "max_reply_length": 200,
+    "kb_citation": {
+      "expect_any_cited": true,
+      "irrelevant_must_not_cite": true
+    },
+    "_note": "Medication dosing question should escalate (involves clinical judgment about missed dose). Draft should cite KB about 漏服 management."
+  }
+}

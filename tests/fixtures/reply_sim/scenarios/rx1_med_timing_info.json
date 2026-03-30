@@ -1,0 +1,29 @@
+{
+  "id": "RX1",
+  "title": "用药时间咨询 — 信息类自动回复",
+  "tags": ["informational", "auto_reply", "baseline"],
+
+  "patient": {
+    "name": "张建国",
+    "gender": "男",
+    "age": 58
+  },
+
+  "record": {
+    "chief_complaint": "体检发现脑动脉瘤1周",
+    "diagnosis": "右侧颈内动脉后交通段未破裂动脉瘤",
+    "treatment_plan": "术前双抗治疗：阿司匹林100mg每日一次+氯吡格雷75mg每日一次，饭后服用",
+    "orders_followup": "术后3个月复查CTA"
+  },
+
+  "knowledge_items": [],
+  "message": "医生，我的药是饭前吃还是饭后吃？",
+
+  "expectations": {
+    "triage_category": "informational",
+    "ai_handled": true,
+    "reply_must_mention": ["饭后"],
+    "reply_must_not_mention": ["急诊", "就医", "120"],
+    "max_reply_length": 200
+  }
+}

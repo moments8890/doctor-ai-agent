@@ -1,0 +1,49 @@
+{
+  "id": "RX12",
+  "title": "KB驱动饮食指导 — 术后饮食咨询",
+  "tags": ["informational", "kb_injection", "auto_reply"],
+
+  "patient": {
+    "name": "张建国",
+    "gender": "男",
+    "age": 58
+  },
+
+  "record": {
+    "chief_complaint": "脑膜瘤术后1周",
+    "diagnosis": "右额叶脑膜瘤，开颅切除术后",
+    "treatment_plan": "抗癫痫药物预防性治疗，伤口护理",
+    "orders_followup": "术后1个月复查MRI"
+  },
+
+  "knowledge_items": [
+    {
+      "content": "{\"text\": \"开颅术后饮食指导：术后24小时内流质饮食，之后逐步过渡到半流质、软食。避免辛辣刺激、过硬食物。鼓励高蛋白饮食促进伤口愈合。术后1周可恢复正常饮食。禁烟禁酒至少3个月。\", \"source\": \"doctor\", \"confidence\": 0.9}",
+      "category": "followup",
+      "title": "开颅术后饮食指导",
+      "relevant": true,
+      "key_concepts": ["高蛋白", "辛辣", "禁烟禁酒", "正常饮食"]
+    },
+    {
+      "content": "{\"text\": \"糖尿病饮食管理：每日碳水化合物控制在总热量50-60%，选择低GI食物，分餐制（少量多餐），监测餐后血糖。\", \"source\": \"doctor\", \"confidence\": 0.85}",
+      "category": "followup",
+      "title": "糖尿病饮食管理（不相关）",
+      "relevant": false,
+      "key_concepts": ["碳水化合物", "低GI", "分餐制"]
+    }
+  ],
+
+  "message": "医生，我术后一周了，能吃辣的吗？可以喝点酒吗？",
+
+  "expectations": {
+    "triage_category_any": ["informational", "general_question"],
+    "ai_handled": null,
+    "reply_must_mention": ["辣"],
+    "reply_must_not_mention": ["碳水化合物", "GI", "分餐"],
+    "max_reply_length": 300,
+    "kb_citation": {
+      "expect_any_cited": true,
+      "irrelevant_must_not_cite": true
+    }
+  }
+}

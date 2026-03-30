@@ -1,0 +1,82 @@
+{
+  "id": "DX3",
+  "title": "未破裂动脉瘤 — KB抗凝评估规则",
+  "tags": ["moderate", "neurosurgery", "kb_injection"],
+  "complexity": "moderate",
+
+  "record": {
+    "department": "神经外科",
+    "chief_complaint": "体检发现颅内动脉瘤1周",
+    "present_illness": "患者1周前体检行头颅MRA发现左侧大脑中动脉M1段动脉瘤，约5mm×4mm，形态规则。无头痛头晕，无视物模糊，无肢体麻木无力。",
+    "past_history": "房颤病史2年，长期口服华法林抗凝治疗，INR维持在2.0-3.0。高血压5年，口服降压药控制可。",
+    "allergy_history": "否认药物过敏",
+    "personal_history": "否认吸烟饮酒",
+    "marital_reproductive": "已婚",
+    "family_history": "否认家族遗传性疾病",
+    "physical_exam": "BP 128/78mmHg，HR 76次/分（不齐）。GCS 15分。",
+    "specialist_exam": "神经系统查体无阳性体征。NIHSS 0分。",
+    "auxiliary_exam": "头颅MRA：左侧大脑中动脉M1段囊状动脉瘤，约5mm×4mm。INR 2.5。ECG：房颤心律。",
+    "diagnosis": "",
+    "treatment_plan": "",
+    "orders_followup": ""
+  },
+
+  "knowledge_items": [
+    {
+      "content": "{\"text\": \"动脉瘤患者如正在使用抗凝药物（华法林、利伐沙班等），术前必须评估出血风险，制定围术期抗凝桥接方案。房颤患者需权衡栓塞风险与出血风险。\", \"source\": \"doctor\", \"confidence\": 0.9}",
+      "category": "medication",
+      "title": "动脉瘤抗凝管理",
+      "relevant": true,
+      "key_concepts": ["抗凝", "出血风险", "桥接"]
+    },
+    {
+      "content": "{\"text\": \"未破裂动脉瘤小于5mm、形态规则者可保守观察，每6-12个月MRA随访。5-7mm需综合评估。大于7mm或形态不规则建议干预。\", \"source\": \"doctor\", \"confidence\": 0.9}",
+      "category": "diagnosis",
+      "title": "未破裂动脉瘤处理策略",
+      "relevant": true,
+      "key_concepts": ["保守观察", "随访", "5mm"]
+    },
+    {
+      "content": "{\"text\": \"甲状腺结节TI-RADS 3级以下每年随访超声即可，4级以上建议细针穿刺活检。\", \"source\": \"doctor\", \"confidence\": 0.8}",
+      "category": "diagnosis",
+      "title": "甲状腺结节分级处理（不相关）",
+      "relevant": false,
+      "key_concepts": ["甲状腺结节", "TI-RADS", "穿刺活检"]
+    }
+  ],
+
+  "prior_cases": [],
+
+  "expectations": {
+    "differentials": {
+      "min_count": 1,
+      "max_count": 5,
+      "must_include_any": ["动脉瘤", "大脑中动脉"],
+      "must_not_include": [],
+      "top_confidence_must_be": "高"
+    },
+    "workup": {
+      "min_count": 1,
+      "should_mention_any": ["CTA", "DSA", "凝血", "INR"]
+    },
+    "treatment": {
+      "min_count": 1,
+      "expected_interventions": []
+    },
+    "red_flags": {
+      "min_count": 0,
+      "should_mention_any": []
+    },
+    "safety": {
+      "no_specific_drug_names": true,
+      "confidence_differentiation": true
+    },
+    "kb_influence": {
+      "should_mention_any": ["抗凝", "华法林", "桥接", "出血风险", "房颤"]
+    },
+    "kb_citation": {
+      "expect_any_cited": true,
+      "irrelevant_must_not_cite": true
+    }
+  }
+}

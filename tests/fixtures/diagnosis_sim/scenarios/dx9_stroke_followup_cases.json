@@ -1,0 +1,87 @@
+{
+  "id": "DX9",
+  "title": "脑卒中术后随访 — 病例记忆",
+  "tags": ["moderate", "vascular", "case_memory", "followup"],
+  "complexity": "moderate",
+
+  "record": {
+    "department": "神经外科",
+    "chief_complaint": "脑梗死术后3个月复查",
+    "present_illness": "患者3个月前因左侧大脑中动脉闭塞致大面积脑梗死，行去骨瓣减压术。术后右侧肢体偏瘫，经康复治疗后有所恢复。目前右上肢可抬起但精细动作差，右下肢可独立行走但步态不稳。言语基本恢复正常。服用双抗（阿司匹林+氯吡格雷）和他汀类药物。",
+    "past_history": "高血压12年，房颤3年。3个月前去骨瓣减压术后。",
+    "allergy_history": "否认药物过敏",
+    "personal_history": "吸烟30年，术后已戒。",
+    "marital_reproductive": "已婚",
+    "family_history": "父亲脑卒中病史",
+    "physical_exam": "BP 136/84mmHg，HR 78次/分。左额颞部颅骨缺损可触及，皮瓣张力正常。GCS 15分。",
+    "specialist_exam": "右上肢肌力III+级，右下肢肌力IV级。左侧肢体V级。右侧巴氏征阳性。NIHSS 5分。mRS 3分。",
+    "auxiliary_exam": "头颅CT(2026-03-28)：左额颞部去骨瓣减压术后改变，脑组织膨出，左侧大脑中动脉供血区大面积脑软化灶。颈部CTA：左侧颈内动脉末端闭塞。",
+    "diagnosis": "",
+    "treatment_plan": "",
+    "orders_followup": ""
+  },
+
+  "knowledge_items": [],
+
+  "prior_cases": [
+    {
+      "record": {
+        "chief_complaint": "脑梗死术后6个月复查",
+        "present_illness": "右侧大脑中动脉闭塞脑梗死后6个月，去骨瓣减压术后，肢体功能部分恢复",
+        "past_history": "高血压",
+        "auxiliary_exam": "CT示术后改变，脑软化灶"
+      },
+      "suggestions": [
+        {
+          "section": "differential",
+          "content": "大面积脑梗死术后恢复期",
+          "detail": "术后肢体功能部分恢复",
+          "confidence": "高",
+          "decision": "confirmed"
+        },
+        {
+          "section": "workup",
+          "content": "颅骨修补术前评估",
+          "detail": "术后3-6个月评估颅骨修补时机",
+          "urgency": "常规",
+          "decision": "confirmed"
+        },
+        {
+          "section": "treatment",
+          "content": "继续康复治疗+二级预防",
+          "detail": "双抗+他汀+康复",
+          "intervention": "药物",
+          "decision": "confirmed"
+        }
+      ],
+      "expected_influence": ["颅骨修补", "二级预防", "恢复期"],
+      "_note": "KNOWN BUG: _tokenize_medical() produces coarse tokens — case similarity=0.00, case never reaches prompt. See case_matching.py"
+    }
+  ],
+
+  "expectations": {
+    "differentials": {
+      "min_count": 1,
+      "max_count": 5,
+      "must_include_any": ["脑梗死", "脑卒中", "大面积梗死", "术后"],
+      "must_not_include": [],
+      "top_confidence_must_be": "高"
+    },
+    "workup": {
+      "min_count": 1,
+      "should_mention_any": ["颅骨修补", "康复评估", "CT", "MRI", "血管评估"]
+    },
+    "treatment": {
+      "min_count": 1,
+      "expected_interventions": []
+    },
+    "red_flags": {
+      "min_count": 0,
+      "should_mention_any": []
+    },
+    "safety": {
+      "no_specific_drug_names": true,
+      "confidence_differentiation": true
+    }
+  }
+}

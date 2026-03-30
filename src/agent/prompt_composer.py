@@ -31,13 +31,13 @@ def _inject_date(text: str) -> str:
     return text
 
 
-async def _load_doctor_knowledge(doctor_id: str, config: LayerConfig, query: str = "") -> str:
+async def _load_doctor_knowledge(doctor_id: str, config: LayerConfig, query: str = "", patient_context: str = "") -> str:
     """Load doctor KB items. Returns formatted text."""
     if not doctor_id or not config.load_knowledge:
         return ""
     try:
         from domain.knowledge.doctor_knowledge import load_knowledge
-        result = await load_knowledge(doctor_id, query=query)
+        result = await load_knowledge(doctor_id, query=query, patient_context=patient_context)
         log(f"[composer] KB loaded: {len(result)} chars")
         return result
     except Exception as exc:
@@ -97,7 +97,7 @@ async def compose_messages(
 
     # ── Layer 4: Doctor knowledge (auto-loaded from DB) ────────────
     doctor_knowledge = await _load_doctor_knowledge(
-        doctor_id, config, query=doctor_message,
+        doctor_id, config, query=doctor_message, patient_context=patient_context,
     )
 
     kb_note = f" kb={len(doctor_knowledge)}chars" if doctor_knowledge else ""

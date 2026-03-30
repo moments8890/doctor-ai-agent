@@ -1,0 +1,18 @@
+{
+    "id": "CX8",
+    "title": "\u53e3\u8ff0\u75c5\u5386 \u2014 create_record",
+    "tags": [
+        "routing",
+        "create_record"
+    ],
+    "seed_patients": [],
+    "message": "\u8bb0\u5f55\u4e00\u4e0b\uff0c\u60a3\u8005\u5218\u82b3\uff0c\u5973\uff0c55\u5c81\uff0c\u5934\u75db2\u5468",
+    "expectations": {
+        "intent": "create_record",
+        "reply_must_mention": [
+            "\u5218\u82b3"
+        ],
+        "reply_must_not_mention": [],
+        "ai_handled": true
+    }
+}

@@ -126,8 +126,8 @@ async def post_chat(
             # Step 1: Load patient context for LLM prompts.
             patient_context = await load_patient_context(patient.id, doctor_id, db)
 
-            # Step 2: Classify the message.
-            triage_result = await classify(text, patient_context)
+            # Step 2: Classify the message (KB-aware: may downgrade to informational).
+            triage_result = await classify(text, patient_context, doctor_id=doctor_id)
             category = triage_result.category
 
             # Step 3: Route to the appropriate handler.

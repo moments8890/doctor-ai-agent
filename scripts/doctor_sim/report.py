@@ -22,6 +22,16 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+def _date_subdir() -> str:
+    """Date string for subdirectory (yyyymmdd), local time."""
+    return datetime.now().strftime("%Y%m%d")
+
+
+def _time_slug() -> str:
+    """Time string for filename (hh-mm-ss), local time."""
+    return datetime.now().strftime("%H-%M-%S")
+
+
 def _human_date() -> str:
     """Human-readable date for report title."""
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -632,12 +642,12 @@ def generate_reports(
     Returns:
         Tuple of (html_path, json_path).
     """
-    out = Path(output_dir or _DEFAULT_OUTPUT_DIR)
+    out = Path(output_dir or _DEFAULT_OUTPUT_DIR) / _date_subdir()
     out.mkdir(parents=True, exist_ok=True)
 
-    ts = _timestamp()
-    html_name = f"docsim-{ts}.html"
-    json_name = f"docsim-{ts}.json"
+    slug = _time_slug()
+    html_name = f"docsim-{slug}.html"
+    json_name = f"docsim-{slug}.json"
 
     html_path = out / html_name
     json_path = out / json_name

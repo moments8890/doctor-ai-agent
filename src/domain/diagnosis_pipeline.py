@@ -378,6 +378,7 @@ async def run_diagnosis(
                     case_session, doctor_id,
                     chief_complaint=structured.get("chief_complaint", ""),
                     present_illness=structured.get("present_illness", ""),
+                    structured=structured,
                 )
         except Exception as exc:
             log(f"[diagnosis] case matching failed (non-fatal): {exc}", level="warning")

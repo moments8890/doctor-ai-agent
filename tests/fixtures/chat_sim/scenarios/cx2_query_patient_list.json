@@ -1,0 +1,32 @@
+{
+    "id": "CX2",
+    "title": "\u67e5\u8be2\u60a3\u8005\u5217\u8868 \u2014 query_patient",
+    "tags": [
+        "routing",
+        "query_patient"
+    ],
+    "seed_patients": [
+        {
+            "name": "\u674e\u79c0\u5170",
+            "record": {
+                "chief_complaint": "\u8111\u6897\u6b7b\u672f\u540e"
+            }
+        },
+        {
+            "name": "\u738b\u660e",
+            "record": {
+                "chief_complaint": "\u8111\u51fa\u8840\u6062\u590d\u671f"
+            }
+        }
+    ],
+    "message": "\u6211\u6709\u54ea\u4e9b\u60a3\u8005",
+    "expectations": {
+        "intent": "query_patient",
+        "reply_must_mention": [
+            "\u674e\u79c0\u5170",
+            "\u738b\u660e"
+        ],
+        "reply_must_not_mention": [],
+        "ai_handled": true
+    }
+}

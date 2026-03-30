@@ -1,0 +1,49 @@
+{
+  "id": "RX11",
+  "title": "KB驱动抗凝指导 — 术后双抗咨询",
+  "tags": ["informational", "kb_injection", "auto_reply"],
+
+  "patient": {
+    "name": "陈建国",
+    "gender": "男",
+    "age": 56
+  },
+
+  "record": {
+    "chief_complaint": "动脉瘤介入栓塞术后2周",
+    "diagnosis": "右侧颈内动脉后交通段动脉瘤，介入栓塞术后",
+    "treatment_plan": "双抗治疗6个月",
+    "orders_followup": "术后3个月复查MRA"
+  },
+
+  "knowledge_items": [
+    {
+      "content": "{\"text\": \"介入栓塞术后双抗方案：阿司匹林+氯吡格雷持续6个月，6个月后改阿司匹林单药长期维持。双抗期间牙龈出血、皮肤瘀斑属于正常范围，但鼻出血不止或黑便需立即就医。禁止自行停药。\", \"source\": \"doctor\", \"confidence\": 0.95}",
+      "category": "medication",
+      "title": "栓塞术后双抗方案",
+      "relevant": true,
+      "key_concepts": ["6个月", "单药", "牙龈出血", "停药"]
+    },
+    {
+      "content": "{\"text\": \"高血压患者降压药调整原则：目标血压<140/90mmHg，老年患者可放宽至<150/90。优先选择长效制剂，每日一次。\", \"source\": \"doctor\", \"confidence\": 0.85}",
+      "category": "medication",
+      "title": "降压药调整原则（不相关）",
+      "relevant": false,
+      "key_concepts": ["降压药", "140/90", "长效制剂"]
+    }
+  ],
+
+  "message": "医生，我刷牙的时候牙龈总出血，是不是吃药的问题？要不要停药？",
+
+  "expectations": {
+    "triage_category_any": ["side_effect", "general_question", "informational"],
+    "ai_handled": null,
+    "reply_must_mention": ["牙龈", "停药"],
+    "reply_must_not_mention": ["降压药", "140/90"],
+    "max_reply_length": 300,
+    "kb_citation": {
+      "expect_any_cited": true,
+      "irrelevant_must_not_cite": true
+    }
+  }
+}

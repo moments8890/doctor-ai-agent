@@ -1,0 +1,29 @@
+{
+  "id": "RX2",
+  "title": "新发症状 — 必须升级给医生",
+  "tags": ["symptom_report", "escalation"],
+
+  "patient": {
+    "name": "李秀兰",
+    "gender": "女",
+    "age": 65
+  },
+
+  "record": {
+    "chief_complaint": "脑梗死术后3个月",
+    "diagnosis": "左侧大脑中动脉闭塞脑梗死，去骨瓣减压术后",
+    "treatment_plan": "双抗+他汀类药物，继续康复训练",
+    "orders_followup": "术后3个月复查MRI"
+  },
+
+  "knowledge_items": [],
+  "message": "医生，我今天右手突然没力气，连筷子都拿不稳了",
+
+  "expectations": {
+    "triage_category_any": ["symptom_report", "urgent", "general_question"],
+    "ai_handled": false,
+    "reply_must_mention": ["医生", "通知"],
+    "reply_must_not_mention": [],
+    "max_reply_length": 200
+  }
+}
