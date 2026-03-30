@@ -50,21 +50,8 @@ function isNLQuery(q) {
   return /[的得了这那哪]{1}|姓|阿姨|叔叔|奶奶|大爷|多岁|中年|老年|男性|女性|上周|本周|最近|昨天/.test(q);
 }
 
-function formatPatientTime(dateStr) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-  const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  if (dt.getTime() === today.getTime()) return "今天";
-  if (dt.getTime() === yesterday.getTime()) return "昨天";
-  const diffDays = Math.floor((today - dt) / 86400000);
-  if (diffDays < 7) return `${diffDays}天前`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}周前`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}个月前`;
-  return `${Math.floor(diffDays / 365)}年前`;
-}
+import { relativeDate } from "../../utils/time";
+const formatPatientTime = relativeDate;
 
 /* Triage badge: urgent → red "紧急", symptom/side_effect → amber "待处理" */
 function TriageDot({ triageCategory }) {

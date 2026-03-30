@@ -12,6 +12,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Box, CircularProgress, Snackbar, Typography, useMediaQuery, useTheme } from "@mui/material";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import { relativeDate } from "../../utils/time";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import EmptyState from "../../components/EmptyState";
@@ -504,7 +505,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                 const isUrgent = item.soon;
                 const title = item._isFollowup ? `${item.patient_name} · ${item.task}` : (item.title || "任务");
                 const subtitle = item._isFollowup ? item.detail : item.content;
-                const dateStr = item._isFollowup ? (item.due_label || "") : (item.due_at ? item.due_at.slice(0, 10) : "");
+                const dateStr = item._isFollowup ? (item.due_label || "") : relativeDate(item.due_at);
                 return (
                   <Box key={`${item._isFollowup ? "f" : "t"}-${item.id}`}
                     sx={{

@@ -42,12 +42,16 @@ def _relative_time(dt: datetime | None) -> str:
     delta = now - dt
 
     if delta.days == 0:
-        return f"今天 {dt.strftime('%H:%M')}"
+        return "今天"
     if delta.days == 1:
         return "昨天"
+    if delta.days < 7:
+        return f"{delta.days}天前"
+    if delta.days < 30:
+        return f"{delta.days // 7}周前"
     if delta.days < 365:
-        return f"{dt.month}月{dt.day}日"
-    return f"{dt.year}年{dt.month}月{dt.day}日"
+        return f"{delta.days // 30}个月前"
+    return f"{delta.days // 365}年前"
 
 
 def _map_urgency_label(urgency: str | None) -> str:
