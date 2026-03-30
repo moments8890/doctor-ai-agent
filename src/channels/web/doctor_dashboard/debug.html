@@ -509,21 +509,26 @@
 <!-- ===================== TAB: BENCHMARK ===================== -->
 <div class="tab-panel" id="panel-benchmark">
   <div style="padding:16px;">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+    <!-- Provider overview -->
+    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Configured Providers</div>
+    <div id="benchProviderList" style="margin-bottom:16px;">
+      <div class="loading">Loading providers...</div>
+    </div>
+    <!-- Benchmark controls -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
       <button id="benchRunBtn" onclick="runBenchmark()" style="background:var(--green);color:#fff;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">Run Benchmark</button>
       <select id="benchRuns" style="background:var(--card);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;">
         <option value="2">2 runs</option>
-        <option value="3">3 runs</option>
+        <option value="3" selected>3 runs</option>
         <option value="5">5 runs</option>
       </select>
       <span id="benchStatus" style="font-size:12px;color:var(--text-muted);"></span>
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">
-      Tests all configured providers with a ~3K token medical prompt (streaming). Measures TTFT and total latency from this server.
+      Select providers above, then click Run. Tests ~3K token medical prompt (streaming) from this server.
     </div>
-    <div id="benchResults">
-      <div class="empty-state">Click "Run Benchmark" to test LLM provider latency</div>
-    </div>
+    <!-- Results -->
+    <div id="benchResults"></div>
     <div id="benchHistory" style="margin-top:24px;"></div>
   </div>
 </div>
@@ -763,7 +768,7 @@ function stampRefreshed() {
 function loadCurrentTab(force) {
   if (currentTab === 'requests')  loadRequests(force);
   else if (currentTab === 'llm')  loadLLM(force);
-  else if (currentTab === 'benchmark') renderBenchHistory();
+  else if (currentTab === 'benchmark') { loadProviders(); renderBenchHistory(); }
   else if (currentTab === 'errors') loadErrors(force);
   else if (currentTab === 'health') loadHealth(force);
 }
@@ -963,26 +968,80 @@ document.getElementById('reqStatusFilter').addEventListener('change', renderRequ
 // TAB: BENCHMARK
 // ============================================================
 let benchHistory = JSON.parse(localStorage.getItem('llm_bench_history') || '[]');
+let benchProviders = [];
+
+async function loadProviders() {
+  const el = document.getElementById('benchProviderList');
+  try {
+    const data = await apiFetch('/api/debug/llm-providers');
+    benchProviders = data.providers || [];
+    renderProviderList();
+  } catch (e) {
+    el.innerHTML = '<div style="color:var(--red);font-size:12px;">Failed to load providers</div>';
+  }
+}
+
+function renderProviderList() {
+  const el = document.getElementById('benchProviderList');
+  if (benchProviders.length === 0) { el.innerHTML = '<div style="color:var(--text-muted);">No providers</div>'; return; }
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+  html += '<tr style="border-bottom:1px solid var(--border);">';
+  html += '<th style="padding:6px 8px;text-align:left;width:30px;"></th>';
+  html += '<th style="padding:6px 8px;text-align:left;color:var(--text-muted);">Provider</th>';
+  html += '<th style="padding:6px 8px;text-align:left;color:var(--text-muted);">Model</th>';
+  html += '<th style="padding:6px 8px;text-align:left;color:var(--text-muted);">Status</th>';
+  html += '<th style="padding:6px 8px;text-align:left;color:var(--text-muted);">Role</th>';
+  html += '</tr>';
+  for (const p of benchProviders) {
+    const checked = p.configured ? 'checked' : '';
+    const disabled = p.configured ? '' : 'disabled';
+    const statusBadge = p.configured
+      ? '<span style="color:var(--green);font-size:11px;">API key set</span>'
+      : '<span style="color:var(--text-muted);font-size:11px;">No API key</span>';
+    const roleBadges = p.roles.map(r =>
+      '<span style="font-size:10px;background:' + (r === 'routing' ? 'var(--green)' : 'var(--blue)') +
+      ';color:#fff;padding:1px 5px;border-radius:3px;margin-right:3px;">' + r + '</span>'
+    ).join('');
+    const rowBg = p.active ? 'background:rgba(76,175,80,0.08);' : '';
+    html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);' + rowBg + '">';
+    html += '<td style="padding:6px 8px;"><input type="checkbox" class="bench-check" data-provider="' + p.name + '" ' + checked + ' ' + disabled + '></td>';
+    html += '<td style="padding:6px 8px;font-family:var(--mono);">' + p.name + '</td>';
+    html += '<td style="padding:6px 8px;font-size:11px;color:var(--text-dim);">' + p.model + '</td>';
+    html += '<td style="padding:6px 8px;">' + statusBadge + '</td>';
+    html += '<td style="padding:6px 8px;">' + (roleBadges || '<span style="color:var(--text-muted);font-size:11px;">—</span>') + '</td>';
+    html += '</tr>';
+  }
+  html += '</table>';
+  el.innerHTML = html;
+}
+
+function getSelectedProviders() {
+  return Array.from(document.querySelectorAll('.bench-check:checked')).map(c => c.dataset.provider);
+}
 
 async function runBenchmark() {
+  const selected = getSelectedProviders();
+  if (selected.length === 0) {
+    document.getElementById('benchStatus').textContent = 'Select at least one provider';
+    return;
+  }
   const btn = document.getElementById('benchRunBtn');
   const status = document.getElementById('benchStatus');
   const runs = parseInt(document.getElementById('benchRuns').value);
   btn.disabled = true;
   btn.textContent = 'Running...';
-  status.textContent = 'Testing all providers (may take 30-60s)...';
+  status.textContent = 'Testing ' + selected.join(', ') + ' (' + runs + ' runs each)...';
   document.getElementById('benchResults').innerHTML = '<div class="loading">Running benchmark...</div>';
 
   try {
-    const res = await fetch('/api/debug/llm-benchmark?runs=' + runs, {
+    const res = await fetch('/api/debug/llm-benchmark?runs=' + runs + '&providers=' + encodeURIComponent(selected.join(',')), {
       method: 'POST',
       headers: { 'X-Debug-Token': getToken() },
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     renderBenchResults(data);
-    // Save to history
-    benchHistory.unshift({ ts: new Date().toISOString(), data });
+    benchHistory.unshift({ ts: new Date().toISOString(), data, selected });
     if (benchHistory.length > 10) benchHistory = benchHistory.slice(0, 10);
     localStorage.setItem('llm_bench_history', JSON.stringify(benchHistory));
     renderBenchHistory();

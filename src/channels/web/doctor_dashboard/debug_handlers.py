@@ -245,14 +245,51 @@ async def debug_dashboard_page(token: str = Query(..., description="Debug access
     )
 
 
+@router.get("/api/debug/llm-providers")
+async def llm_providers(
+    x_debug_token: str | None = Header(default=None, alias="X-Debug-Token"),
+):
+    """List all configured LLM providers with their status."""
+    import os
+    _require_ui_debug_access(x_debug_token)
+    from infra.llm.client import _get_providers
+
+    providers = _get_providers()
+    active = os.environ.get("ROUTING_LLM", "")
+    structuring = os.environ.get("STRUCTURING_LLM", "")
+    diagnosis = os.environ.get("DIAGNOSIS_LLM", "")
+
+    result = []
+    for name, pcfg in providers.items():
+        api_key = os.environ.get(pcfg.get("api_key_env", ""), "")
+        has_key = bool(api_key) and name != "ollama"
+        roles = []
+        if name == active:
+            roles.append("routing")
+        if name == structuring:
+            roles.append("structuring")
+        if name == diagnosis:
+            roles.append("diagnosis")
+        result.append({
+            "name": name,
+            "model": pcfg["model"],
+            "base_url": pcfg["base_url"],
+            "configured": has_key,
+            "active": name == active,
+            "roles": roles,
+        })
+    return {"providers": result, "active": active}
+
+
 @router.post("/api/debug/llm-benchmark")
 async def llm_benchmark(
     x_debug_token: str | None = Header(default=None, alias="X-Debug-Token"),
     runs: int = Query(default=2, ge=1, le=5),
+    providers_csv: str = Query(default="", alias="providers", description="Comma-separated provider names to test. Empty = all configured."),
 ):
-    """Run latency benchmark across all configured LLM providers.
+    """Run latency benchmark for selected LLM providers.
 
-    Tests each provider with a realistic ~3K token medical prompt using streaming.
+    Tests with a realistic ~3K token medical prompt using streaming.
     Returns TTFT, total latency, and output token counts per provider.
     """
     import asyncio
@@ -271,11 +308,14 @@ async def llm_benchmark(
 
     providers = _get_providers()
     active = os.environ.get("ROUTING_LLM", "")
+    selected = set(p.strip() for p in providers_csv.split(",") if p.strip()) if providers_csv else None
     results = []
 
     for name, pcfg in providers.items():
         api_key = os.environ.get(pcfg.get("api_key_env", ""), "")
         if not api_key or name == "ollama":
+            continue
+        if selected and name not in selected:
             continue
 
         client = AsyncOpenAI(
