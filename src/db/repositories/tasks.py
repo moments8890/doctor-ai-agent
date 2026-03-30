@@ -133,7 +133,7 @@ class TaskRepository:
         await self.session.commit()
 
     async def update_notes(self, task_id: int, doctor_id: str, notes: str) -> Optional[DoctorTask]:
-        task = await self.get_by_id(task_id, doctor_id)
+        task = await self.get_by_id(task_id=task_id, doctor_id=doctor_id)
         if task is None:
             return None
         task.notes = notes
