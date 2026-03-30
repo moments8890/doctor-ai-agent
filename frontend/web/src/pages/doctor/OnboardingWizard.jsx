@@ -272,11 +272,9 @@ function Step1Content({ doctorId, progress, updateProgress, setCanAdvance, api }
     (api.ensureOnboardingExamples || (() => Promise.resolve(null)))(doctorId, {
       knowledgeItemId: lastRuleId,
     }).then((data) => {
-      if (data) {
-        updateProgress({ proofData: data });
-        setCanAdvance(true);
-      }
-    }).catch(() => {});
+      if (data) updateProgress({ proofData: data });
+      setCanAdvance(true);
+    }).catch(() => { setCanAdvance(true); });
   }, [allDone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [hintDismissed, setHintDismissed] = useState(false);
