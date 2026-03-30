@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Doctor AI Agent — Performance Analysis &amp; Fix Plan</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Doctor AI Agent — Performance Analysis &amp; Fix
+Plan</h1>
+</header>
+<h1 id="doctor-ai-agent-performance-analysis-fix-plan">Doctor AI Agent —
+Performance Analysis &amp; Fix Plan</h1>
+<p><strong>Context:</strong> 3s production latency using Tencent LKEAP
+(DeepSeek-v3) model <strong>Date:</strong> 2026-03-06</p>
+<hr />
+<h2 id="summary">Summary</h2>
+<p>The 3s latency has two primary causes that stack on each other:</p>
+<ol type="1">
+<li><code>ROUTING_MAX_TOKENS=220</code> is too low — tool call output
+gets truncated → <code>structured_fields</code> is <code>None</code> → a
+<strong>second sequential LLM call</strong> is fired for
+structuring</li>
+<li>A new <code>AsyncOpenAI</code> HTTP client is created <strong>per
+request</strong> — no TCP/TLS connection reuse</li>
+</ol>
+<p>Everything else is additive overhead on top of these two root
+causes.</p>
+<hr />
+<h2
+id="root-cause-1-routing_max_tokens220-forces-a-second-llm-call">Root
+Cause #1 — <code>ROUTING_MAX_TOKENS=220</code> Forces a Second LLM
+Call</h2>
+<p><strong>Files:</strong> <code>services/agent.py:233</code>,
+<code>routers/records.py:560-578</code></p>
+<h3 id="what-happens">What happens</h3>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># services/agent.py</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>routing_max_tokens <span class="op">=</span> <span class="bu">int</span>(os.environ.get(<span class="st">&quot;ROUTING_MAX_TOKENS&quot;</span>, <span class="st">&quot;220&quot;</span>))</span></code></pre></div>
+<p>When a doctor dictates clinical content, the
+<code>add_medical_record</code> tool call must return a JSON object with
+up to 9 fields. A typical dictation like:</p>
+<blockquote>
+<p>“张三，男，58岁，胸闷气促3天，BNP 980，EF
+50%，心衰III级，给予利尿剂调整”</p>
+</blockquote>
+<p>produces tool call output like:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;name&quot;</span><span class="fu">:</span> <span class="st">&quot;add_medical_record&quot;</span><span class="fu">,</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;arguments&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;patient_name&quot;</span><span class="fu">:</span> <span class="st">&quot;张三&quot;</span><span class="fu">,</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;chief_complaint&quot;</span><span class="fu">:</span> <span class="st">&quot;胸闷气促3天&quot;</span><span class="fu">,</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;history_of_present_illness&quot;</span><span class="fu">:</span> <span class="st">&quot;BNP 980pg/mL，EF 50%，心衰III级&quot;</span><span class="fu">,</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;diagnosis&quot;</span><span class="fu">:</span> <span class="st">&quot;心力衰竭 NYHA III级&quot;</span><span class="fu">,</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;treatment_plan&quot;</span><span class="fu">:</span> <span class="st">&quot;利尿剂调整&quot;</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p>That JSON alone is <strong>200–400 tokens</strong>. Plus the required
+chat reply (“好的，张三的情况已记录。”) adds ~20 tokens. <strong>220
+tokens is frequently not enough</strong>, causing the output to be
+truncated. Truncated JSON → <code>json.loads()</code> fails →
+<code>args = {}</code> → <code>structured_fields = None</code>.</p>
+<p>Then in <code>routers/records.py</code>:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># routers/records.py:560-578</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> intent_result.structured_fields:</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Fast path: use tool call output directly — ONE LLM call total ✅</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    record <span class="op">=</span> MedicalRecord(<span class="op">**</span>{k: fields.get(k) <span class="cf">for</span> k <span class="kw">in</span> MedicalRecord.model_fields})</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="co"># FALLBACK: fires a SECOND LLM call 🔴</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    record <span class="op">=</span> <span class="cf">await</span> structure_medical_record(<span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>.join(doctor_ctx))</span></code></pre></div>
+<p><strong>Two sequential LLM calls to LKEAP ≈ 1.5s + 1.5s =
+3s.</strong> This matches exactly the observed production latency.</p>
+<h3 id="fix">Fix</h3>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="va">ROUTING_MAX_TOKENS</span><span class="op">=</span>600</span></code></pre></div>
+<p>600 tokens comfortably covers any realistic clinical dictation in the
+tool call output plus a short chat reply. This single env var change
+likely cuts latency from 3s to ~1.5s.</p>
+<hr />
+<h2 id="root-cause-2-new-asyncopenai-client-created-per-request">Root
+Cause #2 — New <code>AsyncOpenAI</code> Client Created Per Request</h2>
+<p><strong>Files:</strong> <code>services/agent.py:218-223</code>,
+<code>services/structuring.py</code> (same pattern)</p>
+<h3 id="what-happens-1">What happens</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># services/agent.py — inside dispatch(), called on EVERY request</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>client <span class="op">=</span> AsyncOpenAI(</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    base_url<span class="op">=</span>provider[<span class="st">&quot;base_url&quot;</span>],</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    api_key<span class="op">=</span>os.environ.get(provider[<span class="st">&quot;api_key_env&quot;</span>], <span class="st">&quot;nokeyneeded&quot;</span>),</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    timeout<span class="op">=</span><span class="bu">float</span>(os.environ.get(<span class="st">&quot;AGENT_LLM_TIMEOUT&quot;</span>, <span class="st">&quot;45&quot;</span>)),</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    max_retries<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p><code>AsyncOpenAI</code> wraps an <code>httpx.AsyncClient</code>.
+Creating it fresh on every request means:</p>
+<ul>
+<li><strong>New TCP connection + TLS handshake to LKEAP on every single
+request</strong> (~100–300ms)</li>
+<li>No HTTP/2 multiplexing or connection reuse across requests</li>
+<li>The old client and its connection pool are abandoned without
+<code>await client.aclose()</code></li>
+</ul>
+<p>The same pattern exists in <code>services/structuring.py</code> for
+the structuring call.</p>
+<h3 id="fix-module-level-singletons">Fix — module-level singletons</h3>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># services/agent.py — at module level, created ONCE at import time</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>_CLIENT_CACHE: <span class="bu">dict</span>[<span class="bu">str</span>, AsyncOpenAI] <span class="op">=</span> {}</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _get_client(provider_name: <span class="bu">str</span>, provider: <span class="bu">dict</span>) <span class="op">-&gt;</span> AsyncOpenAI:</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> provider_name <span class="kw">not</span> <span class="kw">in</span> _CLIENT_CACHE:</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>        _CLIENT_CACHE[provider_name] <span class="op">=</span> AsyncOpenAI(</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>            base_url<span class="op">=</span>provider[<span class="st">&quot;base_url&quot;</span>],</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>            api_key<span class="op">=</span>os.environ.get(provider[<span class="st">&quot;api_key_env&quot;</span>], <span class="st">&quot;nokeyneeded&quot;</span>),</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>            timeout<span class="op">=</span><span class="bu">float</span>(os.environ.get(<span class="st">&quot;AGENT_LLM_TIMEOUT&quot;</span>, <span class="st">&quot;45&quot;</span>)),</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>            max_retries<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> _CLIENT_CACHE[provider_name]</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Inside dispatch(), replace:</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="co">#   client = AsyncOpenAI(...)</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="co"># With:</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="co">#   client = _get_client(provider_name, provider)</span></span></code></pre></div>
+<p>Apply the same change in <code>services/structuring.py</code>. One
+persistent HTTP connection pool per provider eliminates the per-request
+TLS handshake. <strong>Saves ~150–300ms per request.</strong></p>
+<hr />
+<h2
+id="root-cause-3-full-tool-schema-sends-2500-extra-input-tokens">Root
+Cause #3 — Full Tool Schema Sends ~2,500 Extra Input Tokens</h2>
+<p><strong>File:</strong> <code>services/agent.py</code> —
+<code>_selected_tools()</code>, default
+<code>AGENT_TOOL_SCHEMA_MODE=full</code></p>
+<h3 id="what-happens-2">What happens</h3>
+<p>The <code>_TOOLS</code> list has detailed Chinese descriptions per
+parameter. All 8 tools × 5–10 fields each with full descriptions ≈
+<strong>2,000–3,000 input tokens</strong> just for the tool schema.</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _selected_tools() <span class="op">-&gt;</span> List[<span class="bu">dict</span>]:</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    mode <span class="op">=</span> os.environ.get(<span class="st">&quot;AGENT_TOOL_SCHEMA_MODE&quot;</span>, <span class="st">&quot;full&quot;</span>)  <span class="co"># ← defaults to &quot;full&quot;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> mode <span class="kw">in</span> {<span class="st">&quot;compact&quot;</span>, <span class="st">&quot;lite&quot;</span>}:</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> _TOOLS_COMPACT  <span class="co"># strips all &quot;description&quot; keys (~400 tokens)</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> _TOOLS              <span class="co"># full descriptions (~2,500 tokens)</span></span></code></pre></div>
+<p>The compact version already exists and strips all
+<code>description</code> fields. For intent routing (which only needs
+tool names and parameter names), this is fully sufficient.</p>
+<h3 id="fix-1">Fix</h3>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="va">AGENT_TOOL_SCHEMA_MODE</span><span class="op">=</span>compact</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="va">AGENT_ROUTING_PROMPT_MODE</span><span class="op">=</span>compact</span></code></pre></div>
+<p>Drops input tokens from ~2,500 to ~400 for the routing call.
+<strong>Saves ~100–200ms per request.</strong></p>
+<hr />
+<h2
+id="root-cause-4-synchronous-file-io-blocks-the-event-loop-on-every-request">Root
+Cause #4 — Synchronous File I/O Blocks the Event Loop on Every
+Request</h2>
+<p><strong>File:</strong> <code>services/observability.py</code> —
+<code>_append_jsonl()</code></p>
+<h3 id="what-happens-3">What happens</h3>
+<p>Every <code>trace_block()</code> exit calls <code>add_span()</code>
+which calls <code>_append_jsonl()</code> — a synchronous blocking file
+write:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _append_jsonl(path: Path, payload: Dict[<span class="bu">str</span>, Any]) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    path.parent.mkdir(parents<span class="op">=</span><span class="va">True</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> path.<span class="bu">open</span>(<span class="st">&quot;a&quot;</span>, encoding<span class="op">=</span><span class="st">&quot;utf-8&quot;</span>) <span class="im">as</span> f:          <span class="co"># ← blocking I/O</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>        f.write(json.dumps(payload, ensure_ascii<span class="op">=</span><span class="va">False</span>) <span class="op">+</span> <span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<p>A single <code>/api/records/chat</code> request passes through these
+<code>trace_block()</code> calls:</p>
+<ul>
+<li><code>records.chat.agent_dispatch</code></li>
+<li><code>llm.agent.chat_completion</code></li>
+<li><code>records.chat.structured_fields_to_record</code></li>
+<li><code>records.chat.persist_record</code></li>
+<li><code>structuring.load_prompt</code></li>
+<li><code>structuring.chat_completion</code></li>
+<li><code>structuring.parse_response</code></li>
+</ul>
+<p>That is <strong>5–7 synchronous file writes per request</strong>,
+each blocking the asyncio event loop. On a Tencent Cloud CVM with
+network-attached storage, each write can take 5–20ms — adding
+<strong>35–140ms of cumulative blocking I/O</strong> per request, and
+stalling all other concurrent requests while the event loop is
+blocked.</p>
+<h3 id="fix-async-write-queue">Fix — async write queue</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># services/observability.py</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> asyncio</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> asyncio <span class="im">import</span> Queue</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>_SPAN_WRITE_QUEUE: Queue <span class="op">=</span> Queue(maxsize<span class="op">=</span><span class="dv">5000</span>)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> _disk_writer():</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">&quot;&quot;&quot;Background coroutine: drains the queue and writes to disk non-blocking.&quot;&quot;&quot;</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>        path, payload <span class="op">=</span> <span class="cf">await</span> _SPAN_WRITE_QUEUE.get()</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">try</span>:</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>            path.parent.mkdir(parents<span class="op">=</span><span class="va">True</span>, exist_ok<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>            <span class="cf">with</span> path.<span class="bu">open</span>(<span class="st">&quot;a&quot;</span>, encoding<span class="op">=</span><span class="st">&quot;utf-8&quot;</span>) <span class="im">as</span> f:</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>                f.write(json.dumps(payload, ensure_ascii<span class="op">=</span><span class="va">False</span>) <span class="op">+</span> <span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">except</span> <span class="pp">Exception</span>:</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>            <span class="cf">pass</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>        _SPAN_WRITE_QUEUE.task_done()</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> _enqueue_jsonl(path: Path, payload: <span class="bu">dict</span>) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    <span class="co">&quot;&quot;&quot;Non-blocking enqueue. Drops silently if queue is full.&quot;&quot;&quot;</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">try</span>:</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>        _SPAN_WRITE_QUEUE.put_nowait((path, payload))</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">except</span> asyncio.QueueFull:</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>        <span class="cf">pass</span>  <span class="co"># drop span rather than block the event loop</span></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Replace _append_jsonl(...) calls in add_trace() and add_span() with _enqueue_jsonl(...)</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="co"># Start the writer in main.py lifespan:</span></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a><span class="co">#   asyncio.create_task(_disk_writer())</span></span></code></pre></div>
+<p><strong>Saves ~50–140ms per request and stops event loop
+stalls.</strong></p>
+<hr />
+<h2
+id="root-cause-5-knowledge-context-loaded-sequentially-before-llm-dispatch">Root
+Cause #5 — Knowledge Context Loaded Sequentially Before LLM
+Dispatch</h2>
+<p><strong>File:</strong> <code>routers/records.py:478-491</code></p>
+<h3 id="what-happens-4">What happens</h3>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Sequential: DB query completes FIRST, then LLM call starts</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>knowledge_context <span class="op">=</span> <span class="st">&quot;&quot;</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="cf">with</span> AsyncSessionLocal() <span class="im">as</span> db:</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    knowledge_context <span class="op">=</span> <span class="cf">await</span> load_knowledge_context_for_prompt(db, doctor_id, body.text)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co"># LLM dispatch only starts AFTER knowledge is loaded</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>intent_result <span class="op">=</span> <span class="cf">await</span> agent_dispatch(body.text, knowledge_context<span class="op">=</span>knowledge_context)</span></code></pre></div>
+<p>If knowledge lookup takes 50–150ms (DB query + ranking), this is dead
+sequential time before the LLM call even begins.</p>
+<h3 id="fix-in-memory-cache-with-5-minute-ttl">Fix — in-memory cache
+with 5-minute TTL</h3>
+<p>Most doctors’ knowledge bases don’t change during a clinic session.
+Cache the result:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># services/doctor_knowledge.py</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> typing <span class="im">import</span> Optional, Tuple</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>_KNOWLEDGE_CACHE: <span class="bu">dict</span>[<span class="bu">str</span>, Tuple[<span class="bu">float</span>, <span class="bu">str</span>]] <span class="op">=</span> {}</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>_KNOWLEDGE_CACHE_TTL <span class="op">=</span> <span class="dv">300</span>  <span class="co"># 5 minutes</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> load_knowledge_context_for_prompt_cached(</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    doctor_id: <span class="bu">str</span>, query: <span class="bu">str</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    now <span class="op">=</span> time.time()</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    cached <span class="op">=</span> _KNOWLEDGE_CACHE.get(doctor_id)</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> cached <span class="kw">and</span> now <span class="op">-</span> cached[<span class="dv">0</span>] <span class="op">&lt;</span> _KNOWLEDGE_CACHE_TTL:</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> cached[<span class="dv">1</span>]</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">async</span> <span class="cf">with</span> AsyncSessionLocal() <span class="im">as</span> db:</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>        result <span class="op">=</span> <span class="cf">await</span> load_knowledge_context_for_prompt(db, doctor_id, query)</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>    _KNOWLEDGE_CACHE[doctor_id] <span class="op">=</span> (now, result)</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> result</span></code></pre></div>
+<p>Drops knowledge lookup from 50–150ms to ~0ms on cache hit.
+<strong>Saves ~100ms per request.</strong></p>
+<hr />
+<h2
+id="root-cause-6-maybe_auto_learn_knowledge-blocks-the-response">Root
+Cause #6 — <code>maybe_auto_learn_knowledge</code> Blocks the
+Response</h2>
+<p><strong>File:</strong> <code>routers/records.py:604-609</code></p>
+<h3 id="what-happens-5">What happens</h3>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="cf">with</span> AsyncSessionLocal() <span class="im">as</span> db:</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">await</span> save_record(db, doctor_id, record, patient_id)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">await</span> maybe_auto_learn_knowledge(      <span class="co"># ← awaited before response is returned</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>        db, doctor_id, body.text,</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>        structured_fields<span class="op">=</span>record.model_dump(exclude_none<span class="op">=</span><span class="va">True</span>),</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Doctor waits for this before receiving their confirmation</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> ChatResponse(reply<span class="op">=</span>reply, record<span class="op">=</span>record)</span></code></pre></div>
+<p><code>maybe_auto_learn_knowledge</code> may make additional LLM calls
+to extract knowledge. The doctor waits for this before their
+confirmation message is returned.</p>
+<h3 id="fix-fire-and-forget">Fix — fire and forget</h3>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="cf">with</span> AsyncSessionLocal() <span class="im">as</span> db:</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">await</span> save_record(db, doctor_id, record, patient_id)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Return response immediately; knowledge learning runs in background</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>asyncio.create_task(</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    _background_auto_learn(doctor_id, body.text, record.model_dump(exclude_none<span class="op">=</span><span class="va">True</span>))</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> ChatResponse(reply<span class="op">=</span>reply, record<span class="op">=</span>record)</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> _background_auto_learn(doctor_id: <span class="bu">str</span>, text: <span class="bu">str</span>, fields: <span class="bu">dict</span>) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">try</span>:</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">async</span> <span class="cf">with</span> AsyncSessionLocal() <span class="im">as</span> db:</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>            <span class="cf">await</span> maybe_auto_learn_knowledge(db, doctor_id, text, structured_fields<span class="op">=</span>fields)</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">except</span> <span class="pp">Exception</span> <span class="im">as</span> e:</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>        log(<span class="ss">f&quot;[Chat] background auto-learn failed doctor=</span><span class="sc">{</span>doctor_id<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">&quot;</span>)</span></code></pre></div>
+<p><strong>Saves ~50–200ms per request</strong> (more if LKEAP is called
+for extraction).</p>
+<hr />
+<h2
+id="root-cause-7-6-history-messages-add-3000-extra-input-tokens">Root
+Cause #7 — 6 History Messages Add ~3,000 Extra Input Tokens</h2>
+<p><strong>File:</strong> <code>routers/records.py:93</code></p>
+<h3 id="what-happens-6">What happens</h3>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>_ROUTING_HISTORY_MAX_MESSAGES <span class="op">=</span> <span class="bu">max</span>(<span class="dv">0</span>, <span class="bu">int</span>(os.environ.get(<span class="st">&quot;ROUTING_HISTORY_MAX_MESSAGES&quot;</span>, <span class="st">&quot;6&quot;</span>)))</span></code></pre></div>
+<p>Up to 6 prior messages are sent to the routing LLM. Each clinical
+message is 200–500 tokens. Six messages = up to 3,000 extra input tokens
+per routing call — all to resolve a pronoun (“他”) or a patient name
+from the prior turn, for which 2 messages suffice.</p>
+<h3 id="fix-2">Fix</h3>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="va">ROUTING_HISTORY_MAX_MESSAGES</span><span class="op">=</span>2</span></code></pre></div>
+<p><strong>Saves ~100ms per request</strong> (fewer input tokens =
+faster LKEAP response).</p>
+<hr />
+<h2 id="root-cause-8-lkeap-connection-not-warmed-up-at-startup">Root
+Cause #8 — LKEAP Connection Not Warmed Up at Startup</h2>
+<p><strong>File:</strong> <code>main.py</code> — <code>_warmup()</code>
+function</p>
+<h3 id="what-happens-7">What happens</h3>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> _warmup(config: AppConfig):</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> config.routing_llm <span class="op">==</span> <span class="st">&quot;ollama&quot;</span> <span class="kw">or</span> config.structuring_llm <span class="op">==</span> <span class="st">&quot;ollama&quot;</span>:</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Ollama is warmed up...</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ← No warmup for tencent_lkeap</span></span></code></pre></div>
+<p>Ollama is warmed up at startup. LKEAP is not. The first request after
+every deployment pays the full TCP connection + TLS handshake cost
+(~150–300ms extra on first request).</p>
+<p>With the singleton client fix (Root Cause #2), subsequent requests
+reuse the connection — but only after the first request establishes
+it.</p>
+<h3 id="fix-add-lkeap-to-the-warmup">Fix — add LKEAP to the warmup</h3>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># main.py — inside _warmup(), after existing Ollama block:</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> config.routing_llm <span class="op">==</span> <span class="st">&quot;tencent_lkeap&quot;</span> <span class="kw">or</span> config.structuring_llm <span class="op">==</span> <span class="st">&quot;tencent_lkeap&quot;</span>:</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> config.tencent_lkeap_api_key:</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">try</span>:</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>            <span class="im">from</span> services.agent <span class="im">import</span> _get_client, _PROVIDERS</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>            client <span class="op">=</span> _get_client(<span class="st">&quot;tencent_lkeap&quot;</span>, _PROVIDERS[<span class="st">&quot;tencent_lkeap&quot;</span>])</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>            <span class="cf">await</span> client.chat.completions.create(</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>                model<span class="op">=</span>config.tencent_lkeap_model,</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>                messages<span class="op">=</span>[{<span class="st">&quot;role&quot;</span>: <span class="st">&quot;user&quot;</span>, <span class="st">&quot;content&quot;</span>: <span class="st">&quot;hi&quot;</span>}],</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>                max_tokens<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>            log.info(<span class="st">&quot;[Warmup] LKEAP connection established&quot;</span>)</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>        <span class="cf">except</span> <span class="pp">Exception</span> <span class="im">as</span> e:</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>            log.warning(<span class="ss">f&quot;[Warmup] LKEAP warmup failed (non-fatal): </span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">&quot;</span>)</span></code></pre></div>
+<p><strong>Eliminates cold-start penalty (~150–300ms on first request
+after restart).</strong></p>
+<hr />
+<h2 id="complete-fix-priority-table">Complete Fix Priority Table</h2>
+<table>
+<colgroup>
+<col style="width: 7%" />
+<col style="width: 17%" />
+<col style="width: 25%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>#</th>
+<th>Issue</th>
+<th>Fix Type</th>
+<th>Est. Latency Saved</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>ROUTING_MAX_TOKENS=220</code> truncates args → 2nd LLM
+call</td>
+<td>Env var</td>
+<td><strong>~1,500ms</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>New <code>AsyncOpenAI</code> client per request</td>
+<td>Code</td>
+<td><strong>~200ms</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Full tool schema (~2,500 input tokens)</td>
+<td>Env var</td>
+<td><strong>~150ms</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Synchronous file I/O in <code>trace_block()</code></td>
+<td>Code</td>
+<td><strong>~100ms</strong></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Knowledge context loaded sequentially</td>
+<td>Code</td>
+<td><strong>~100ms</strong></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>maybe_auto_learn_knowledge</code> blocks response</td>
+<td>Code</td>
+<td><strong>~100ms</strong></td>
+</tr>
+<tr>
+<td>7</td>
+<td>6 history messages (~3,000 input tokens)</td>
+<td>Env var</td>
+<td><strong>~100ms</strong></td>
+</tr>
+<tr>
+<td>8</td>
+<td>No LKEAP warmup at startup</td>
+<td>Code</td>
+<td><strong>~200ms (first req)</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Projected latency after all fixes: ~0.8–1.0s</strong> (down
+from 3s), dominated by a single LKEAP API round-trip which cannot be
+further reduced without changing the model.</p>
+<hr />
+<h2 id="quick-wins-env-vars-only-zero-code-change-deploy-now">Quick Wins
+— Env Vars Only (Zero Code Change, Deploy Now)</h2>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Prevent double LLM call — single most impactful change</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="va">ROUTING_MAX_TOKENS</span><span class="op">=</span>600</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Reduce routing input token count</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="va">AGENT_TOOL_SCHEMA_MODE</span><span class="op">=</span>compact</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="va">AGENT_ROUTING_PROMPT_MODE</span><span class="op">=</span>compact</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Reduce history token overhead</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="va">ROUTING_HISTORY_MAX_MESSAGES</span><span class="op">=</span>2</span></code></pre></div>
+<p><strong>Expected result: ~3s → ~1.5s with no code
+changes.</strong></p>
+<hr />
+<h2 id="code-changes-week-1">Code Changes (Week 1)</h2>
+<h3 id="singleton-asyncopenai-clients">1. Singleton
+<code>AsyncOpenAI</code> clients</h3>
+<p>In <code>services/agent.py</code> and
+<code>services/structuring.py</code>, replace per-request client
+creation with module-level singletons (see Root Cause #2 fix above).</p>
+<p><strong>Impact:</strong> ~200ms saved per request.</p>
+<h3 id="async-span-writer">2. Async span writer</h3>
+<p>In <code>services/observability.py</code>, replace
+<code>_append_jsonl()</code> with a non-blocking queue and a background
+writer coroutine (see Root Cause #4 fix above). Start the coroutine in
+<code>main.py</code> lifespan.</p>
+<p><strong>Impact:</strong> ~100ms saved per request, eliminates event
+loop stalls under concurrent load.</p>
+<h3 id="background-maybe_auto_learn_knowledge">3. Background
+<code>maybe_auto_learn_knowledge</code></h3>
+<p>In <code>routers/records.py</code>, move
+<code>maybe_auto_learn_knowledge</code> to
+<code>asyncio.create_task()</code> after returning the response (see
+Root Cause #6 fix above).</p>
+<p><strong>Impact:</strong> ~100ms saved per request.</p>
+<h3 id="knowledge-context-cache">4. Knowledge context cache</h3>
+<p>In <code>services/doctor_knowledge.py</code>, add a 5-minute
+in-memory TTL cache for <code>load_knowledge_context_for_prompt</code>
+(see Root Cause #5 fix above).</p>
+<p><strong>Impact:</strong> ~100ms saved per request on cache hit.</p>
+<h3 id="lkeap-warmup">5. LKEAP warmup</h3>
+<p>In <code>main.py</code> <code>_warmup()</code>, add a LKEAP warmup
+call after the Ollama block (see Root Cause #8 fix above).</p>
+<p><strong>Impact:</strong> Eliminates cold-start penalty on first
+request after deployment.</p>
+<hr />
+<h2 id="projected-latency-breakdown-after-all-fixes">Projected Latency
+Breakdown After All Fixes</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM call #1 (routing + structured fields)</td>
+<td>~1,500ms</td>
+<td>~1,000ms</td>
+</tr>
+<tr>
+<td>LLM call #2 (structuring fallback)</td>
+<td>~1,500ms</td>
+<td><strong>0ms</strong> (eliminated)</td>
+</tr>
+<tr>
+<td>TCP/TLS handshake</td>
+<td>~200ms</td>
+<td><strong>0ms</strong> (connection reused)</td>
+</tr>
+<tr>
+<td>Knowledge context load</td>
+<td>~100ms</td>
+<td><strong>~0ms</strong> (cached)</td>
+</tr>
+<tr>
+<td>Span disk writes</td>
+<td>~100ms</td>
+<td><strong>~0ms</strong> (async queue)</td>
+</tr>
+<tr>
+<td>History token overhead</td>
+<td>~100ms</td>
+<td><strong>~30ms</strong> (2 messages)</td>
+</tr>
+<tr>
+<td><code>maybe_auto_learn_knowledge</code></td>
+<td>~100ms</td>
+<td><strong>0ms</strong> (background)</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>~3,600ms</strong></td>
+<td><strong>~1,030ms</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The remaining ~1,000ms is the irreducible cost of one LKEAP API
+round-trip. To go below 1s, the only options are: - Switch to a
+faster/smaller model for routing (e.g., DeepSeek-V2.5 or a flash
+variant) and use DeepSeek-V3 only for the structuring fallback - Enable
+streaming responses so the doctor sees output token-by-token instead of
+waiting for the full response</p>
+</body>
+</html>

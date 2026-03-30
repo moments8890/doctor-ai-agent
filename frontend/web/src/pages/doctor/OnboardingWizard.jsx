@@ -661,40 +661,46 @@ function Step3Content({ doctorId, progress, setCanAdvance }) {
 
 // ── Step 4: 体验患者预问诊 (embeds real patient interview with LLM) ───────────
 
-function Step4Content({ doctorId, setCanAdvance, api }) {
+function Step4Content({ doctorId, progress, updateProgress, setCanAdvance, api }) {
   const [ready, setReady] = useState(false);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    setCanAdvance(true); // Always advanceable — this is a demo step
-    // Create a patient entry and store the token so the real patient page can auth
+    setCanAdvance(true);
+    // Reuse existing interview token from progress if available
+    const savedToken = progress?.interviewToken;
+    if (savedToken) {
+      const prevToken = localStorage.getItem("patient_portal_token");
+      localStorage.setItem("patient_portal_token", savedToken);
+      localStorage.setItem("_wizard_prev_patient_token", prevToken || "");
+      setReady(true);
+      return () => {
+        const prev = localStorage.getItem("_wizard_prev_patient_token");
+        if (prev) localStorage.setItem("patient_portal_token", prev);
+        else localStorage.removeItem("patient_portal_token");
+        localStorage.removeItem("_wizard_prev_patient_token");
+      };
+    }
+    // First time — create patient and save token to progress
     (async () => {
       try {
-        // Use unique name to avoid resuming old interview sessions
         const demoName = `体验患者${Date.now().toString(36).slice(-4)}`;
         const data = await api.createOnboardingPatientEntry(doctorId, { patientName: demoName, gender: "女", age: 65 });
         const patientToken = data?.portal_token || data?.token;
         if (patientToken) {
-          // Save token for the patient iframe to pick up
+          updateProgress({ interviewToken: patientToken });
           const prevToken = localStorage.getItem("patient_portal_token");
           localStorage.setItem("patient_portal_token", patientToken);
           localStorage.setItem("_wizard_prev_patient_token", prevToken || "");
-          setReady(true);
-        } else {
-          setReady(true); // Fall back to mock
         }
+        setReady(true);
       } catch {
-        setReady(true); // Fall back to mock
+        setReady(true);
       }
     })();
     return () => {
-      // Restore previous patient token on unmount
       const prev = localStorage.getItem("_wizard_prev_patient_token");
-      if (prev) {
-        localStorage.setItem("patient_portal_token", prev);
-      } else {
-        localStorage.removeItem("patient_portal_token");
-      }
+      if (prev) localStorage.setItem("patient_portal_token", prev);
+      else localStorage.removeItem("patient_portal_token");
       localStorage.removeItem("_wizard_prev_patient_token");
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -707,7 +713,7 @@ function Step4Content({ doctorId, setCanAdvance, api }) {
 
   return (
     <>
-      <ContextCard>下面是患者看到的预问诊界面 — 点击症状开始，或自己输入</ContextCard>
+      <ContextCard>下面是患者看到的预问诊界面，假装你是患者，体验一下和AI的沟通模式</ContextCard>
 
       <Box sx={{
         mx: 2, mb: 1,
@@ -938,7 +944,7 @@ export default function OnboardingWizard() {
       case 2: return <Step1Content doctorId={doctorId} progress={progress} updateProgress={updateProgress} setCanAdvance={setCanAdvance} api={api} />;
       case 3: return <Step2Content doctorId={doctorId} progress={progress} updateProgress={updateProgress} setCanAdvance={setCanAdvance} api={api} />;
       case 4: return <Step3Content doctorId={doctorId} progress={progress} setCanAdvance={setCanAdvance} />;
-      case 5: return <Step4Content doctorId={doctorId} setCanAdvance={setCanAdvance} api={api} />;
+      case 5: return <Step4Content doctorId={doctorId} progress={progress} updateProgress={updateProgress} setCanAdvance={setCanAdvance} api={api} />;
       case 6: return <Step5Content setCanAdvance={setCanAdvance} />;
       default: return null;
     }

@@ -8,7 +8,6 @@ import LoginPage from "./pages/LoginPage";
 import PatientPage from "./pages/patient/PatientPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import ComponentShowcasePage from "./pages/admin/ComponentShowcasePage";
-import DoctorComponentShowcase from "./components/doctor/Showcase";
 import OnboardingWizard from "./pages/doctor/OnboardingWizard";
 import { useDoctorStore } from "./store/doctorStore";
 import { setWebToken, onAuthExpired } from "./api";
@@ -204,7 +203,6 @@ export default function App() {
       <Route path="/admin/:section" element={<AdminPage />} />
       {/* Component showcases — specific routes BEFORE debug wildcard */}
       <Route path="/debug/components" element={<MobileFrame><MockApiProvider><ComponentShowcasePage /></MockApiProvider></MobileFrame>} />
-      <Route path="/debug/doctor-components" element={<MobileFrame><DoctorComponentShowcase /></MobileFrame>} />
       {/* Mock doctor app — same DoctorPage, mock API, auth required in prod */}
       {doctorRoutes("/debug/doctor", MockApiProvider)}
       {/* Mock patient app — same PatientPage, mock API */}

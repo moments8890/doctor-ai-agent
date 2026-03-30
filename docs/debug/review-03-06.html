@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Doctor AI Agent — High-Level Code Review</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Doctor AI Agent — High-Level Code Review</h1>
+</header>
+<h1 id="doctor-ai-agent-high-level-code-review">Doctor AI Agent —
+High-Level Code Review</h1>
+<p><em>Date: 2026-03-06</em></p>
+<hr />
+<h2 id="status-update-as-of-2026-03-06">Status Update (as of
+2026-03-06)</h2>
+<p>This review captured the initial snapshot. The following items have
+since been mitigated and pushed:</p>
+<ul>
+<li><code>DONE</code> API rate limiting (per doctor, default
+<code>100 req/min</code>) across multiple routers
+(<code>ff8b465</code>)</li>
+<li><code>DONE</code> CI deploy SSH private key handling switched to
+ssh-agent (<code>4ec5bae</code>)</li>
+<li><code>DONE</code> Admin route protection via
+<code>X-Admin-Token</code> / <code>UI_ADMIN_TOKEN</code>
+(<code>f8e89ac</code>)</li>
+<li><code>DONE</code> Additional auth audit logging for insecure
+fallback paths (<code>6e355a5</code>)</li>
+<li><code>DONE</code> Silent prompt-load fallback paths now log explicit
+errors (<code>d3709c0</code>)</li>
+<li><code>DONE</code> UI manage endpoints now enforce token-bound doctor
+scope (<code>c865d64</code>)</li>
+<li><code>DONE</code> Ollama startup warmup now uses explicit timeout +
+exponential backoff retries (1s/2s/4s)</li>
+<li><code>DONE</code> Records/voice/neuro router 5xx responses now avoid
+leaking raw internal exception text</li>
+<li><code>DONE</code> WeChat media/voice user-facing failure messages
+now avoid exposing internal exception details</li>
+<li><code>DONE</code> Token auth failure responses are now standardized
+to generic 401 messages (no raw parser/verify errors)</li>
+<li><code>DONE</code> UI label bind/unbind 404 paths now use generic
+not-found responses (no raw ValueError details)</li>
+<li><code>DONE</code> Admin tunnel-log read errors now return sanitized
+detail (no raw exception text)</li>
+<li><code>DONE</code> Label assignment/removal now uses domain
+exceptions
+(<code>PatientNotFoundError</code>/<code>LabelNotFoundError</code>)
+instead of raw <code>ValueError</code></li>
+<li><code>PARTIAL</code> LLM resilience (timeouts/retry/backoff/circuit
+breaker) is implemented in core LLM paths, but should continue to be
+audited for full endpoint parity</li>
+<li><code>PARTIAL</code> Session handling remains in-memory first; test
+lifecycle hardening was completed, but full Redis/DB-backed redesign is
+still open</li>
+<li><code>PARTIAL</code> Error handling consistency improved in targeted
+hotspots, but full exception taxonomy + consistent structured logging
+across all modules remains open</li>
+<li><code>PARTIAL</code> Data-layer modularization and migrations have
+started (repositories + Alembic present), but full CRUD split/refactor
+is still open</li>
+</ul>
+<hr />
+<h2 id="overview">Overview</h2>
+<p>A WeChat-native AI assistant for specialist doctors (primarily
+cardiology &amp; oncology) that: - Accepts voice/text medical notes from
+doctors via WeChat or mobile app - Structures raw clinical input into
+standardized medical records using LLM - Persists patient data locally
+(SQLite/MySQL) with no mandatory cloud dependency - Manages conversation
+history with rolling-window compression for continuity - Provides task
+scheduling (follow-ups, appointments, emergencies) - Includes local
+speech-to-text (faster-whisper) and vision capabilities - Supports
+multiple LLM backends (Ollama, DeepSeek, Groq, Gemini, Tencent LKEAP,
+OpenAI)</p>
+<p><strong>Phase Status:</strong> Phase 3 in progress. Phases 1-2 (core
+structuring + patient DB + WeChat bot) are complete.</p>
+<p><strong>Technology Stack:</strong> - Backend: FastAPI + SQLAlchemy
+(async) + SQLAdmin - Database: SQLite (dev) / MySQL (production) -
+Frontend: React (web) + WeChat Mini Program - LLM: Multi-provider (local
+Ollama default, cloud APIs fallback) - Speech: faster-whisper (local) +
+OpenAI Whisper API (fallback) - Scheduling: APScheduler for task
+notifications</p>
+<hr />
+<h2 id="critical-issues">Critical Issues</h2>
+<h3 id="llm-calls-have-no-timeouts-retries-or-circuit-breakers">1. LLM
+calls have no timeouts, retries, or circuit breakers</h3>
+<p>No retry logic, no rate-limit handling, no circuit breaker. Ollama
+warmup only at startup; no re-warmup if model unloads. Agent dispatch
+has no timeout — a slow/failing LLM can hang the entire request chain
+indefinitely.</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># main.py — 3 attempts with 1s sleep, but no exponential backoff</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="cf">await</span> client.chat.completions.create(</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    model<span class="op">=</span>model,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    messages<span class="op">=</span>[{<span class="st">&quot;role&quot;</span>: <span class="st">&quot;user&quot;</span>, <span class="st">&quot;content&quot;</span>: <span class="st">&quot;ping&quot;</span>}],</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    max_tokens<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p><strong>Fix:</strong> Add timeout to all LLM calls (30s structuring,
+60s agent dispatch). Exponential backoff retry (1s/2s/4s). Fallback to
+simpler model on timeout.</p>
+<hr />
+<h3 id="session-state-is-fragile-global-dicts">2. Session state is
+fragile global dicts</h3>
+<p><code>services/session.py</code> uses 4 global dicts
+(<code>_sessions</code>, <code>_locks</code>,
+<code>_loaded_from_db</code>, <code>_persist_tasks</code>) plus a
+<code>_pending_turns</code> list. Tests directly mutate these private
+dicts in conftest.py (anti-pattern). Race conditions possible if
+concurrent requests arrive while session is loading from DB.</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>_sessions: Dict[<span class="bu">str</span>, DoctorSession] <span class="op">=</span> {}</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>_locks: Dict[<span class="bu">str</span>, asyncio.Lock] <span class="op">=</span> {}</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>_persist_tasks: Dict[<span class="bu">str</span>, asyncio.Task] <span class="op">=</span> {}</span></code></pre></div>
+<p><strong>Fix:</strong> Migrate to DB-backed session or proper cache
+(Redis/cachetools). Implement explicit session lifecycle. Add RW
+locks.</p>
+<hr />
+<h3 id="error-handling-is-inconsistent-silent-failures-everywhere">3.
+Error handling is inconsistent — silent failures everywhere</h3>
+<p>48+ raw <code>HTTPException</code> raises. Many
+<code>except Exception:</code> blocks that swallow errors silently. No
+custom exception hierarchy (only 1 custom exception exists).</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">Exception</span>:</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    knowledge_context <span class="op">=</span> <span class="st">&quot;&quot;</span>  <span class="co"># routers/records.py — error swallowed</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">Exception</span>:</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> []               <span class="co"># routers/ui.py — error swallowed</span></span></code></pre></div>
+<p><strong>Fix:</strong> Create domain exceptions (PatientNotFoundError,
+InvalidMedicalRecordError). Log all exceptions with context (doctor_id,
+patient_id, operation). Never return generic 500 without structured
+detail.</p>
+<hr />
+<h3 id="no-access-control-on-doctor_id">4. No access control on
+doctor_id</h3>
+<p><code>doctor_id</code> comes from the request body, not the JWT. Any
+authenticated user can read any doctor’s data.</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="at">@router.post</span>(<span class="st">&quot;/chat&quot;</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> chat(req: ChatRequest):</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    doctor_id <span class="op">=</span> req.doctor_id  <span class="co"># not validated against auth token</span></span></code></pre></div>
+<p><strong>Fix:</strong> Extract <code>doctor_id</code> from JWT token.
+Add audit log for all mutations. Unit test that unauthorized doctors
+cannot access others’ data.</p>
+<hr />
+<h3 id="no-input-validation-at-service-layer">5. No input validation at
+service layer</h3>
+<p>Only heuristic-based patient name filtering (regex). No length limits
+on medical record fields (all <code>Text</code> columns). No rate
+limiting on API endpoints.</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>_BAD_NAME_FRAGMENTS <span class="op">=</span> [<span class="st">&quot;叫什么名字&quot;</span>, <span class="st">&quot;这位患者&quot;</span>, <span class="st">&quot;请问&quot;</span>, <span class="st">&quot;患者姓名&quot;</span>]</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>_LEADING_NAME <span class="op">=</span> re.<span class="bu">compile</span>(<span class="vs">r&quot;</span><span class="dv">^\s</span><span class="op">*</span><span class="kw">(</span><span class="pp">[</span><span class="ch">\u4e00</span><span class="pp">-</span><span class="ch">\u9fff</span><span class="pp">]</span><span class="op">{2,4}</span><span class="kw">)</span>(?:<span class="pp">[，,</span><span class="dv">\s</span><span class="pp">]</span><span class="cf">|</span><span class="dv">$</span>)<span class="vs">&quot;</span>)</span></code></pre></div>
+<p><strong>Fix:</strong> Add Pydantic validators at service layer.
+Enforce column constraints. Add API rate limiting (100 req/min per
+doctor).</p>
+<hr />
+<h2 id="major-architectural-issues">Major Architectural Issues</h2>
+<h3 id="data-layer-is-too-thin-no-repository-pattern">6. Data layer is
+too thin — no repository pattern</h3>
+<p><code>db/crud.py</code> is 800+ lines of raw SQLAlchemy queries.
+Business logic directly writes SQL. Hard to mock/test without real DB.
+No protection against N+1 queries.</p>
+<p><strong>Fix:</strong> Create repository classes (PatientRepository,
+RecordRepository). Unit test services with mock repositories.</p>
+<hr />
+<h3 id="no-database-migrations-alembic">7. No database migrations
+(Alembic)</h3>
+<p><code>db/init_db.py</code> calls <code>create_tables()</code> which
+creates all tables at once. Schema changes require manual DB cleanup. No
+rollback strategy.</p>
+<p><strong>Fix:</strong> Adopt Alembic. Create migration per schema
+change. Test migrations locally before production.</p>
+<hr />
+<h3 id="conversation-turns-accumulate-indefinitely">8. Conversation
+turns accumulate indefinitely</h3>
+<p>No TTL or cleanup job. Compression fails are silently ignored,
+leaving orphaned turns.</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="cf">except</span> <span class="pp">Exception</span> <span class="im">as</span> e:</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    log(<span class="ss">f&quot;[Memory:</span><span class="sc">{</span>doctor_id<span class="sc">}</span><span class="ss">] clear persisted turns FAILED: </span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">&quot;</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="co"># exception swallowed, orphaned turns remain</span></span></code></pre></div>
+<p><strong>Fix:</strong> Add <code>created_at</code> to turns; expire
+rows &gt; 7 days old. Implement startup cleanup job. Wrap compress +
+clear in atomic transaction.</p>
+<hr />
+<h3 id="large-files-that-need-splitting">9. Large files that need
+splitting</h3>
+<ul>
+<li><code>services/</code> — 39 files, should be split into sub-packages
+(<code>services/llm/</code>, <code>services/persistence/</code>,
+<code>services/health/</code>)</li>
+<li><code>routers/ui.py</code> — 1049 lines, should be split by
+entity</li>
+<li><code>routers/wechat.py</code> — 851 lines, should extract state
+machine to separate service</li>
+<li><code>db/crud.py</code> — 800+ lines, should be split by entity
+(patients.py, records.py, tasks.py)</li>
+</ul>
+<hr />
+<h3 id="no-api-versioning-or-formal-contract">10. No API versioning or
+formal contract</h3>
+<p>Frontend hardcodes endpoint paths. Mini program has duplicated API
+adapter logic. No versioning.</p>
+<p><strong>Fix:</strong> Version all endpoints
+(<code>/api/v1/...</code>). Generate API clients from OpenAPI
+schema.</p>
+<hr />
+<h2 id="medium-priority-issues">Medium Priority Issues</h2>
+<h3 id="logging-is-inconsistent">Logging is inconsistent</h3>
+<p>Some modules use custom <code>log()</code>, others use
+<code>logging.getLogger(__name__)</code>. No structured/JSON logging for
+production observability. Context variables (doctor_id, trace_id) often
+missing from log lines.</p>
+<p><strong>Fix:</strong> Standardize on <code>logging.getLogger</code>.
+Use structlog for JSON output. Add context vars to all logs.</p>
+<hr />
+<h3 id="health-check-is-a-stub">Health check is a stub</h3>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="at">@app.get</span>(<span class="st">&quot;/healthz&quot;</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> healthz():</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {<span class="st">&quot;status&quot;</span>: <span class="st">&quot;ok&quot;</span>}</span></code></pre></div>
+<p><strong>Fix:</strong> Check DB connectivity, LLM availability, and
+scheduled task status. Add <code>/readyz</code> that returns 503 until
+warmup completes.</p>
+<hr />
+<h3 id="ssh-key-written-to-disk-in-ci">SSH key written to disk in
+CI</h3>
+<p><code>deploy-prod.yml</code> echoes the private key to
+<code>~/.ssh/id_rsa</code> — could appear in logs.</p>
+<p><strong>Fix:</strong> Use GitHub environments for secrets scoping.
+Replace with temporary credentials.</p>
+<hr />
+<h3 id="integration-tests-require-live-services">Integration tests
+require live services</h3>
+<p>E2E tests need real Ollama/DeepSeek running. No fixtures for
+synthetic data. Tests can’t run in isolated CI without Docker
+Compose.</p>
+<p><strong>Fix:</strong> Mark integration tests with
+<code>@pytest.mark.integration</code>, skip by default. Create data
+fixtures for common scenarios.</p>
+<hr />
+<h2 id="whats-working-well">What’s Working Well</h2>
+<ul>
+<li>Core medical structuring logic (intent dispatch, specialist-aware
+prompts for cardiology/oncology)</li>
+<li>Multi-LLM abstraction (Ollama, DeepSeek, Groq, Gemini, Tencent) —
+clean and flexible</li>
+<li>CI/CD pipeline with 80%+ coverage gate and diff-cover
+validation</li>
+<li>Async/await used correctly throughout most of the codebase</li>
+<li>Conversation memory with rolling-window compression is
+well-designed</li>
+<li>Admin UI (SQLAdmin) is polished and useful</li>
+<li>WeChat integration is comprehensive (messaging, media, auth)</li>
+<li>Local-first deployment philosophy (Ollama default, cloud
+fallback)</li>
+</ul>
+<hr />
+<h2 id="priority-summary">Priority Summary</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Fix</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Critical</td>
+<td>LLM timeout + exponential backoff retry</td>
+<td><code>PARTIAL</code></td>
+</tr>
+<tr>
+<td>Critical</td>
+<td>Validate <code>doctor_id</code> from JWT, not request body</td>
+<td><code>PARTIAL</code></td>
+</tr>
+<tr>
+<td>Critical</td>
+<td>Custom exception hierarchy + log all errors with context</td>
+<td><code>PARTIAL</code></td>
+</tr>
+<tr>
+<td>Critical</td>
+<td>Fix session state (DB-backed or proper cache)</td>
+<td><code>PARTIAL</code></td>
+</tr>
+<tr>
+<td>High</td>
+<td>Repository pattern for <code>db/crud.py</code></td>
+<td><code>PARTIAL</code></td>
+</tr>
+<tr>
+<td>High</td>
+<td>Alembic migrations</td>
+<td><code>PARTIAL</code></td>
+</tr>
+<tr>
+<td>High</td>
+<td>Conversation turn TTL + cleanup job</td>
+<td><code>PARTIAL</code></td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>Structured logging (structlog)</td>
+<td><code>OPEN</code></td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>Split large files (<code>services/</code>,
+<code>routers/ui.py</code>, <code>db/crud.py</code>)</td>
+<td><code>OPEN</code></td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>Expand <code>/healthz</code>; add <code>/readyz</code></td>
+<td><code>PARTIAL</code></td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>Fix SSH key in CI deploy</td>
+<td><code>DONE</code></td>
+</tr>
+<tr>
+<td>Low</td>
+<td>API versioning + OpenAPI client generation</td>
+<td><code>OPEN</code></td>
+</tr>
+<tr>
+<td>Low</td>
+<td>Load testing + performance regression gates</td>
+<td><code>OPEN</code></td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

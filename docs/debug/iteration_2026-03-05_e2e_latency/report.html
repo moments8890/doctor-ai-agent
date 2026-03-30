@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Iteration Report: Full E2E Latency Analysis (2026-03-05)</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Iteration Report: Full E2E Latency Analysis
+(2026-03-05)</h1>
+</header>
+<h1 id="iteration-report-full-e2e-latency-analysis-2026-03-05">Iteration
+Report: Full E2E Latency Analysis (2026-03-05)</h1>
+<h2 id="run-snapshot">Run Snapshot</h2>
+<ul>
+<li>Run ID: <code>a524e075</code></li>
+<li>Cases: <code>1003/1003</code> passed, failed=<code>0</code></li>
+<li>Total summed case time: <code>19393.38s</code></li>
+<li>Source log: <code>/tmp/chatlog_full_w8_rerun.log</code></li>
+<li>Trace sources: <code>logs/observability_traces.jsonl</code>,
+<code>logs/observability_spans.jsonl</code></li>
+</ul>
+<h2 id="core-latency-metrics">Core Latency Metrics</h2>
+<ul>
+<li>Case-level (per case): avg <code>19.34s</code>, p50
+<code>18.18s</code>, p95 <code>30.13s</code>, p99 <code>35.79s</code>,
+max <code>41.98s</code></li>
+<li>Turn-level (<code>/api/records/chat</code>): count
+<code>3079</code>, avg <code>6287.03ms</code>, p50
+<code>6128.37ms</code>, p95 <code>8264.51ms</code>, p99
+<code>11408.55ms</code>, max <code>22319.25ms</code></li>
+<li>Total turns observed: <code>3079</code></li>
+</ul>
+<h2 id="latency-attribution">Latency Attribution</h2>
+<ul>
+<li>LLM (<code>agent.chat_completion</code>) total:
+<code>19227658.50ms</code> (99.33% of chat trace time)</li>
+<li>Router dispatch (<code>records.chat.agent_dispatch</code>) total:
+<code>19254116.10ms</code></li>
+<li>DB layer total: <code>35022.52ms</code> (0.18% of chat trace
+time)</li>
+<li>Persist-record span total: <code>38962.59ms</code> (0.20% of chat
+trace time)</li>
+<li>Dispatch overhead excluding LLM: avg <code>8.61ms</code>, p95
+<code>9.93ms</code>, share <code>0.14%</code></li>
+</ul>
+<h2 id="top-contributors-by-span-name-total">Top Contributors (by span
+name total)</h2>
+<ul>
+<li><code>records.chat.agent_dispatch</code>: total
+<code>19254116.10ms</code>, count <code>3073</code>, avg
+<code>6265.58ms</code></li>
+<li><code>agent.chat_completion</code>: total
+<code>19227658.50ms</code>, count <code>3073</code>, avg
+<code>6256.97ms</code></li>
+<li><code>records.chat.structure_medical_record</code>: total
+<code>56755.19ms</code>, count <code>5</code>, avg
+<code>11351.04ms</code></li>
+<li><code>structuring.chat_completion</code>: total
+<code>56695.80ms</code>, count <code>5</code>, avg
+<code>11339.16ms</code></li>
+<li><code>records.chat.persist_record</code>: total
+<code>38962.59ms</code>, count <code>1990</code>, avg
+<code>19.58ms</code></li>
+<li><code>crud.save_record</code>: total <code>24565.97ms</code>, count
+<code>1990</code>, avg <code>12.34ms</code></li>
+<li><code>crud.find_patient_by_name</code>: total
+<code>5364.90ms</code>, count <code>2006</code>, avg
+<code>2.67ms</code></li>
+<li><code>crud.create_patient</code>: total <code>5043.29ms</code>,
+count <code>1004</code>, avg <code>5.02ms</code></li>
+<li><code>records.chat.structured_fields_to_record</code>: total
+<code>164.86ms</code>, count <code>1985</code>, avg
+<code>0.08ms</code></li>
+<li><code>records.chat.complete_task</code>: total <code>66.84ms</code>,
+count <code>10</code>, avg <code>6.68ms</code></li>
+</ul>
+<h2 id="conclusion">Conclusion</h2>
+<ul>
+<li>End-to-end latency is dominated by LLM inference time; database and
+persistence are minor contributors.</li>
+<li>Optimization priority should focus on model serving/inference path
+(model size, concurrency, routing shortcuts).</li>
+</ul>
+<h2 id="artifacts">Artifacts</h2>
+<ul>
+<li>Machine-readable metrics: <code>metrics_summary.json</code></li>
+<li>Slow-trace evidence: <code>top_slowest_chat_traces.csv</code> (top
+100)</li>
+</ul>
+</body>
+</html>

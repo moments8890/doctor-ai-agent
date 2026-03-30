@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Latency Improvement Suggestions</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Latency Improvement Suggestions</h1>
+</header>
+<h1 id="latency-improvement-suggestions">Latency Improvement
+Suggestions</h1>
+<p><em>Based on: <code>metrics_summary.json</code>,
+<code>report.md</code>,
+<code>tencent_lkeap_vs_baselines_2026-03-06.md</code></em></p>
+<hr />
+<h2 id="core-finding">Core Finding</h2>
+<p><strong>LLM inference is 99.33% of all latency.</strong> DB (0.18%),
+persist (0.20%), and dispatch overhead (0.14%) are noise. Do not
+optimize those layers until the LLM path is addressed.</p>
+<hr />
+<h2 id="current-baselines-per-chat-turn">Current Baselines (per chat
+turn)</h2>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Avg/turn</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Local Ollama (single-req)</td>
+<td>~1.15s</td>
+<td>Best case, no concurrency</td>
+</tr>
+<tr>
+<td>Tencent LKEAP (cloud)</td>
+<td>~2.34s</td>
+<td>Best cloud option</td>
+</tr>
+<tr>
+<td>DeepSeek public API</td>
+<td>~3.82s</td>
+<td></td>
+</tr>
+<tr>
+<td>Full E2E run (1003 cases)</td>
+<td><strong>6.29s</strong></td>
+<td>Ollama under concurrent load</td>
+</tr>
+</tbody>
+</table>
+<p>The full-run avg of <strong>6.29s is ~5.5x higher than the
+single-request Ollama baseline of 1.15s.</strong> This gap is almost
+entirely <strong>queueing under concurrent load</strong> — not model
+size or prompt complexity.</p>
+<hr />
+<h2 id="recommended-actions-in-order">Recommended Actions (in
+order)</h2>
+<h3 id="fix-concurrency-degradation-first">1. Fix concurrency
+degradation first</h3>
+<p>The existing plan lists this as Priority 3, but the 5.5x load-induced
+degradation makes it the most urgent bottleneck in practice.</p>
+<ul>
+<li>Benchmark E2E replay at workers = 1, 2, 4, 6, 8</li>
+<li>Select operating point by weighted score:
+<code>0.6*p95 + 0.2*p99 + 0.2*wall_time</code></li>
+<li>Hypothesis: 2–3 workers will give the best p95 tradeoff; beyond
+that, queueing dominates</li>
+</ul>
+<hr />
+<h3 id="expand-deterministic-fast-paths">2. Expand deterministic
+fast-paths</h3>
+<p>Only <strong>5 of 3,073 dispatches</strong> triggered
+<code>structure_medical_record</code> — meaning 99.8% of turns are
+conversational, not structuring. Yet they all pay the same ~6.3s LLM
+cost. Many are simple commands (list, delete, schedule, query) that
+don’t need a model call.</p>
+<p>Target: <strong>30%+ of turns served in &lt;100ms</strong> with zero
+LLM calls. Expected impact: ~20–30% reduction in avg turn latency.</p>
+<p>Expand fast-paths for: - list patients / list tasks - delete patient
+(already partially done) - query records by name - schedule appointment
+/ complete task</p>
+<p>Trigger only on high-confidence command patterns; fall back to LLM on
+ambiguity.</p>
+<hr />
+<h3 id="model-tiering-for-remaining-llm-turns">3. Model tiering for
+remaining LLM turns</h3>
+<p>After fast-paths reduce total LLM call count, split remaining turns:
+- <strong>Simple conversational intents</strong> (ack, clarify, confirm)
+→ lighter/faster model - <strong>Structuring and complex agent
+dispatch</strong> → current heavy model</p>
+<p>Tencent LKEAP at 2.34s/turn is the best cloud option if local hosting
+is replaced. Add config knobs for per-intent model selection.</p>
+<hr />
+<h3 id="token-budget-control">4. Token budget control</h3>
+<p>Cap <code>max_tokens</code> on non-clinical responses (command acks,
+confirmations, list outputs). Apply only to non-structuring turns to
+avoid truncating medical data.</p>
+<p>Expected impact: ~10% reduction in avg LLM call duration.</p>
+<hr />
+<h2 id="what-not-to-do">What NOT to Do</h2>
+<ul>
+<li>Do not optimize DB or persistence — they are 0.18% of latency</li>
+<li>Do not add LLM response caching — medical notes are unique per
+turn</li>
+<li>Do not switch models before fixing the concurrency problem — you
+will benchmark the wrong bottleneck</li>
+</ul>
+<hr />
+<h2 id="suggested-iteration-sequence">Suggested Iteration Sequence</h2>
+<p><strong>Iteration A:</strong> Concurrency benchmarking + fast-path
+expansion - Run E2E at multiple worker counts; pick optimal setting -
+Expand fast-paths for list / delete / query / schedule / task-complete -
+Re-run full 1003-case corpus; compare avg/p95/p99 before and after</p>
+<p><strong>Iteration B:</strong> Model tiering - Route low-complexity
+turns to faster model - Verify no regression in E2E pass rate</p>
+<p><strong>Iteration C:</strong> Token budget + observability - Cap
+response length for non-clinical turns - Add run-scoped metrics endpoint
+(per <code>optimization_plan.md</code> Priority 5)</p>
+</body>
+</html>

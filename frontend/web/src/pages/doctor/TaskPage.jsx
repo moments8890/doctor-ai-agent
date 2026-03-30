@@ -205,7 +205,7 @@ function CreateTaskSheet({ open, onClose, doctorId, onCreated }) {
 }
 
 // ── Main page ──
-const VALID_TABS = new Set(["followups", "sent"]);
+const VALID_TABS = new Set(["followups", "completed", "sent"]);
 
 export default function TaskPage({ doctorId, urlSubpage }) {
   const api = useApi();
@@ -417,7 +417,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
 
   const showMessages = filter === "all" || filter === "messages";
   const showFollowups = filter === "all" || filter === "followups";
-  const showSent = filter === "all" || filter === "sent";
+  const showSent = filter === "all" || filter === "completed" || filter === "sent";
 
   const showDetail = !!urlSubpage && urlSubpage !== "tasks";
   const mobileSubpage = showDetail ? (
@@ -485,10 +485,10 @@ export default function TaskPage({ doctorId, urlSubpage }) {
             <FilterBar
               items={[
                 { key: "followups", label: "待完成", activeColor: COLOR.warning },
-                { key: "sent", label: "已完成", activeColor: COLOR.text4 },
+                { key: "completed", label: "已完成", activeColor: COLOR.text4 },
               ]}
               active={filter}
-              counts={{ followups: allPendingItems.length, sent: recentlySent.length }}
+              counts={{ followups: allPendingItems.length, completed: recentlySent.length }}
               onChange={handleFilter}
               dividers
             />

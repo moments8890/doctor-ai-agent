@@ -555,7 +555,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
     />
   ) : selectedId && viewParam === "chat" ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt, overflow: "hidden" }}>
-      <SubpageHeader title={`${selectedPatient?.name || ""} · 消息`} onBack={() => navigate(`/doctor/patients/${selectedId}`)} sx={{ flexShrink: 0 }} />
+      <SubpageHeader title={`${selectedPatient?.name || ""} · 消息`} onBack={() => navigate(-1)} sx={{ flexShrink: 0 }} />
       <Box sx={{ flex: 1, overflow: "auto" }}>
         <PatientChatPage patientId={selectedId} doctorId={doctorId} bubbleView patientName={selectedPatient?.name} />
       </Box>

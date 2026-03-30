@@ -160,6 +160,13 @@
           "title": "安排3个月后PET-CT复查（评估Aβ清除情况）",
           "task_type": "checkup",
           "due_days": 76
+        },
+        {
+          "title": "术后2周复查切口愈合",
+          "task_type": "checkup",
+          "due_days": -2,
+          "content": "已完成：切口Ⅰ期愈合，ICG荧光示吻合口通畅",
+          "status": "completed"
         }
       ],
       "phone": "13912345678"
@@ -514,6 +521,13 @@
           "title": "预约PET-CT（Aβ + FDG双示踪）— 确认AD亚型",
           "task_type": "checkup",
           "due_days": 7
+        },
+        {
+          "title": "预约前庭功能检查 — 排除外周性眩晕",
+          "task_type": "checkup",
+          "due_days": -5,
+          "content": "已完成：前庭功能正常，排除外周性眩晕",
+          "status": "completed"
         }
       ],
       "phone": "18621345678"

@@ -12,7 +12,7 @@ A personal AI follow-up copilot for specialists managing private patients outsid
 ./cli.py stop        # stops everything
 ```
 
-For production/VM deployment and LLM provider setup, see [`docs/dev/index.md`](docs/dev/index.md).
+For production/VM deployment and LLM provider setup, see [`docs/dev/README.md`](docs/dev/README.md).
 
 ## New Here?
 
@@ -25,5 +25,5 @@ Start with **[`docs/architecture.md`](docs/architecture.md)** — it covers what
 | **Repo rules** | [`AGENTS.md`](AGENTS.md) | Code style, testing policy, push rules, cascading impact checklist |
 | **Architecture** | [`docs/architecture.md`](docs/architecture.md) | System layers, agent pipeline, DB schema, prompt system, startup |
 | **Product** | [`docs/product/README.md`](docs/product/README.md) | North star, strategy, roadmap, feature status, CDS decisions |
-| **UI / UX** | [`docs/ux/UI-DESIGN.md`](docs/ux/UI-DESIGN.md) | Design system, components, tokens, patterns |
-| **Dev ops** | [`docs/dev/index.md`](docs/dev/index.md) | Testing, deployment, LLM providers, patient sim |
+| **UI / UX** | [`docs/ux/README.md`](docs/ux/README.md) | Design system, components, tokens, patterns |
+| **Dev ops** | [`docs/dev/README.md`](docs/dev/README.md) | Testing, deployment, LLM providers, patient sim |

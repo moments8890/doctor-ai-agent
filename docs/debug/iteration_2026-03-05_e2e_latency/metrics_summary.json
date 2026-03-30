@@ -1,0 +1,194 @@
+{
+  "run": {
+    "run_id": "a524e075",
+    "source_log": "/tmp/chatlog_full_w8_rerun.log",
+    "traces_jsonl": "logs/observability_traces.jsonl",
+    "spans_jsonl": "logs/observability_spans.jsonl"
+  },
+  "result": {
+    "passed": 1003,
+    "total_cases": 1003,
+    "failed": 0,
+    "total_time_s": 19393.38
+  },
+  "case_latency_s": {
+    "count": 1003,
+    "avg_s": 19.33529411764706,
+    "p50_s": 18.18,
+    "p95_s": 30.13,
+    "p99_s": 35.79,
+    "max_s": 41.98
+  },
+  "turns": {
+    "total_turns": 3079
+  },
+  "trace_latency_ms": {
+    "count": 3079,
+    "avg_ms": 6287.034159242582,
+    "p50_ms": 6128.367917030118,
+    "p95_ms": 8264.510790933855,
+    "p99_ms": 11408.546624938026,
+    "max_ms": 22319.24570805859
+  },
+  "attribution": {
+    "trace_sum_ms": 19357778.17630791,
+    "llm_sum_ms": 19227658.49863773,
+    "dispatch_sum_ms": 19254116.097366553,
+    "db_sum_ms": 35022.522256709635,
+    "persist_sum_ms": 38962.58642536122,
+    "llm_share_pct": 99.32781708476526,
+    "db_share_pct": 0.18092222122667928,
+    "persist_share_pct": 0.201276128233806,
+    "dispatch_overhead_avg_ms": 8.6096969504804,
+    "dispatch_overhead_p95_ms": 9.933707886375487,
+    "dispatch_overhead_share_pct": 0.13741268929216105
+  },
+  "layer_totals": [
+    {
+      "layer": "router",
+      "count": 7108,
+      "total_ms": 19350289.14759987,
+      "avg_ms": 2722.3254287563122
+    },
+    {
+      "layer": "llm",
+      "count": 3088,
+      "total_ms": 19284365.0542209,
+      "avg_ms": 6244.936869890188
+    },
+    {
+      "layer": "db",
+      "count": 5019,
+      "total_ms": 35022.522256709635,
+      "avg_ms": 6.977988096574943
+    },
+    {
+      "layer": "agent",
+      "count": 6,
+      "total_ms": 1.2584988726302981,
+      "avg_ms": 0.2097498121050497
+    }
+  ],
+  "top_span_names": [
+    {
+      "name": "records.chat.agent_dispatch",
+      "count": 3073,
+      "total_ms": 19254116.097366594,
+      "avg_ms": 6265.576341479529
+    },
+    {
+      "name": "agent.chat_completion",
+      "count": 3073,
+      "total_ms": 19227658.498637736,
+      "avg_ms": 6256.966644529039
+    },
+    {
+      "name": "records.chat.structure_medical_record",
+      "count": 5,
+      "total_ms": 56755.19404106308,
+      "avg_ms": 11351.038808212616
+    },
+    {
+      "name": "structuring.chat_completion",
+      "count": 5,
+      "total_ms": 56695.8026670618,
+      "avg_ms": 11339.16053341236
+    },
+    {
+      "name": "records.chat.persist_record",
+      "count": 1990,
+      "total_ms": 38962.58642536122,
+      "avg_ms": 19.57918915847298
+    },
+    {
+      "name": "crud.save_record",
+      "count": 1990,
+      "total_ms": 24565.96808717586,
+      "avg_ms": 12.344707581495408
+    },
+    {
+      "name": "crud.find_patient_by_name",
+      "count": 2006,
+      "total_ms": 5364.901044173166,
+      "avg_ms": 2.6744272403654867
+    },
+    {
+      "name": "crud.create_patient",
+      "count": 1004,
+      "total_ms": 5043.294208357111,
+      "avg_ms": 5.0232014027461265
+    },
+    {
+      "name": "records.chat.structured_fields_to_record",
+      "count": 1985,
+      "total_ms": 164.86189258284867,
+      "avg_ms": 0.08305385016768195
+    },
+    {
+      "name": "records.chat.complete_task",
+      "count": 10,
+      "total_ms": 66.83720787987113,
+      "avg_ms": 6.683720787987113
+    },
+    {
+      "name": "records.chat.schedule_appointment",
+      "count": 10,
+      "total_ms": 64.97270741965622,
+      "avg_ms": 6.497270741965622
+    },
+    {
+      "name": "records.chat.delete_patient.fastpath",
+      "count": 6,
+      "total_ms": 50.142291001975536,
+      "avg_ms": 8.357048500329256
+    },
+    {
+      "name": "records.chat.list_patients",
+      "count": 9,
+      "total_ms": 36.40870889648795,
+      "avg_ms": 4.045412099609773
+    },
+    {
+      "name": "crud.get_all_patients",
+      "count": 9,
+      "total_ms": 28.148249723017216,
+      "avg_ms": 3.1275833025574684
+    },
+    {
+      "name": "records.chat.create_patient",
+      "count": 4,
+      "total_ms": 27.11666713003069,
+      "avg_ms": 6.779166782507673
+    },
+    {
+      "name": "records.chat.query_records",
+      "count": 6,
+      "total_ms": 23.84704095311463,
+      "avg_ms": 3.974506825519105
+    },
+    {
+      "name": "records.chat.list_tasks",
+      "count": 10,
+      "total_ms": 21.08325099106878,
+      "avg_ms": 2.108325099106878
+    },
+    {
+      "name": "crud.find_patients_by_exact_name",
+      "count": 6,
+      "total_ms": 14.450790244154632,
+      "avg_ms": 2.408465040692439
+    },
+    {
+      "name": "structuring.load_prompt",
+      "count": 5,
+      "total_ms": 10.370458126999438,
+      "avg_ms": 2.0740916253998876
+    },
+    {
+      "name": "crud.get_records_for_patient",
+      "count": 4,
+      "total_ms": 5.7598770363256335,
+      "avg_ms": 1.4399692590814084
+    }
+  ]
+}

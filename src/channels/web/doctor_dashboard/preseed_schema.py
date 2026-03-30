@@ -51,6 +51,7 @@ class SeedTask(BaseModel):
     task_type: str  # follow_up | checkup | general
     due_days: int  # days from now until due
     content: Optional[str] = None
+    status: str = "pending"  # pending | completed
 
 
 class SeedPatient(BaseModel):

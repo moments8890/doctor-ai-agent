@@ -41,7 +41,7 @@ All documentation lives under `docs/`. These are the canonical folders:
 
 `README.md` § "Documentation" is the master registry.
 The 5 entrypoints are: `AGENTS.md`, `docs/architecture.md`, `docs/product/README.md`,
-`docs/ux/UI-DESIGN.md`, `docs/dev/index.md`. Before creating a new doc, check if
+`docs/ux/README.md`, `docs/dev/README.md`. Before creating a new doc, check if
 a canonical entrypoint already covers the topic.
 
 ## Read Before Doing
@@ -52,12 +52,12 @@ Before starting any task, read the relevant docs for context:
 |-----------|-----------|
 | **Any feature work** | `docs/product/README.md` (product vision), `docs/architecture.md` (system design) |
 | **Backend / API** | `docs/architecture.md` §3-6 (pipeline, intents, prompts, DB schema) |
-| **Frontend / UI** | `docs/ux/UI-DESIGN.md` (components, tokens), `docs/ux/design-spec.md` (UX flows) |
+| **Frontend / UI** | `docs/ux/README.md` (components, tokens), `docs/ux/design-spec.md` (UX flows) |
 | **Diagnosis / CDS** | `docs/architecture.md` §7 (CDS pipeline) |
 | **Patient portal** | `docs/architecture.md` §8 (channels) |
 | **Prompts / LLM** | `src/agent/prompts/README.md`, `docs/dev/llm-prompting-guide.md` |
 | **Testing** | `docs/TESTING.md`, `docs/dev/patient-simulation-guide.md` |
-| **Deploy / Release** | `docs/dev/index.md`, `docs/deploy/tecenet-deployment/index.md` |
+| **Deploy / Release** | `docs/dev/README.md`, `docs/deploy/tecenet-deployment/index.md` |
 | **New feature design** | `docs/product/roadmap.md` (what's left), `docs/product/README.md` (product vision) |
 
 Do not start implementation without understanding how your change fits the existing system.
@@ -70,7 +70,7 @@ Do not start implementation without understanding how your change fits the exist
 
 ## UI Design
 
-Always read `docs/ux/UI-DESIGN.md` before making any visual or UI decisions.
+Always read `docs/ux/README.md` before making any visual or UI decisions.
 It defines which components to use for buttons, list rows, page layout,
 knowledge base UI, and patient page patterns. Do not deviate without explicit user approval.
 
@@ -268,7 +268,7 @@ If a category has no impact, write "None." Do not omit the category. This sectio
 8. **Keep docs current** — whenever designing or implementing a feature, update all affected canonical documents. Start from the 5 entrypoints in `README.md` § "Documentation":
    - `docs/architecture.md` — if schema, services, pipelines, intents, prompt system, or module boundaries changed
    - `docs/product/roadmap.md` — if a roadmap item's status changed (started, completed, deferred)
-   - `docs/ux/UI-DESIGN.md` — if new components were added or existing patterns changed
+   - `docs/ux/README.md` — if new components were added or existing patterns changed
    - `src/agent/prompts/README.md` — if prompt files, intent routing, or LLM contracts changed
    - Do not defer doc updates to a separate task — update docs in the same work session as the code change
 

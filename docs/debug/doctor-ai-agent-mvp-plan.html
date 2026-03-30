@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Doctor AI Agent — MVP Critical Path Plan</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Doctor AI Agent — MVP Critical Path Plan</h1>
+</header>
+<h1 id="doctor-ai-agent-mvp-critical-path-plan">Doctor AI Agent — MVP
+Critical Path Plan</h1>
+<p><strong>Based on:</strong> Critical review of
+<code>moments8890/doctor-ai-agent</code> <strong>Date:</strong>
+2026-03-06</p>
+<hr />
+<h2 id="guiding-principle">Guiding Principle</h2>
+<p>The 19 issues from the review aren’t equal. For a small-scale MVP
+(1–5 specialist doctors, private practice, real patient data), think in
+three layers:</p>
+<ol type="1">
+<li><strong>Will it lose data?</strong></li>
+<li><strong>Will it expose data?</strong></li>
+<li><strong>Will doctors trust it?</strong></li>
+</ol>
+<p>Everything else can wait.</p>
+<hr />
+<h2 id="immediate-do-before-writing-any-new-feature-code">Immediate — Do
+Before Writing Any New Feature Code</h2>
+<p>These are all trivially fast and unblock everything else. No reason
+not to do them today.</p>
+<h3 id="pin-all-dependencies">1. Pin All Dependencies</h3>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> freeze <span class="op">&gt;</span> requirements.txt</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> commit <span class="at">-m</span> <span class="st">&quot;pin all dependencies&quot;</span></span></code></pre></div>
+<p><strong>Time:</strong> 30 minutes. No excuse to skip this.</p>
+<hr />
+<h3 id="remove-hardcoded-wechat-appid">2. Remove Hardcoded WeChat
+AppID</h3>
+<p><strong>File:</strong> <code>project.config.json</code></p>
+<p>Move to <code>.gitignore</code>, add a
+<code>project.config.json.example</code> with a placeholder:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="er">&quot;appid&quot;:</span> <span class="er">&quot;WECHAT_MINI_PROGRAM_APPID&quot;</span></span></code></pre></div>
+<p><strong>Time:</strong> 1 hour.</p>
+<hr />
+<h3 id="add-a-startup-guard-against-sqlite-in-production">3. Add a
+Startup Guard Against SQLite in Production</h3>
+<p><strong>File:</strong> <code>db/engine.py</code></p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os, sys</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>db_url <span class="op">=</span> os.getenv(<span class="st">&quot;DATABASE_URL&quot;</span>, <span class="st">&quot;&quot;</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">not</span> db_url <span class="kw">or</span> db_url.startswith(<span class="st">&quot;sqlite&quot;</span>):</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> os.getenv(<span class="st">&quot;ENVIRONMENT&quot;</span>) <span class="op">!=</span> <span class="st">&quot;development&quot;</span>:</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>        sys.exit(<span class="st">&quot;ERROR: DATABASE_URL must point to MySQL/PostgreSQL in production.&quot;</span>)</span></code></pre></div>
+<p>Forces discipline without breaking local dev.</p>
+<p><strong>Time:</strong> 1 hour.</p>
+<hr />
+<h3 id="fix-auth-to-fail-closed">4. Fix Auth to Fail Closed</h3>
+<p>Find every call to
+<code>resolve_doctor_id_from_auth_or_fallback()</code> and make it raise
+HTTP 401 when auth is missing or invalid. The fallback path should only
+be reachable when <code>ENVIRONMENT=development</code>.</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> get_current_doctor(token: <span class="bu">str</span> <span class="op">=</span> Depends(oauth2_scheme)) <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    doctor_id <span class="op">=</span> <span class="cf">await</span> verify_token(token)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> doctor_id:</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">raise</span> HTTPException(status_code<span class="op">=</span><span class="dv">401</span>, detail<span class="op">=</span><span class="st">&quot;Invalid or missing authentication&quot;</span>)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> doctor_id</span></code></pre></div>
+<p><strong>Time:</strong> Half a day.</p>
+<hr />
+<h2
+id="week-1-the-two-issues-that-determine-if-this-system-is-safe">Week 1
+— The Two Issues That Determine If This System Is Safe</h2>
+<p>If you only fix two things this week, make it these.</p>
+<hr />
+<h3 id="priority-1-ai-record-confirmation-gate">Priority 1: AI Record
+Confirmation Gate</h3>
+<p><strong>Files affected:</strong> <code>routers/records.py</code>,
+<code>services/structuring.py</code>, <code>db/models.py</code>,
+<code>db/crud.py</code></p>
+<p><strong>Why this is the most important change:</strong></p>
+<p>Right now the LLM writes directly to <code>medical_records</code>
+with no human review step. A hallucinated dosage or negated diagnosis
+goes straight into the permanent record. The feasibility report states
+“所有内容在医生确认后形成结构化数据” — but the code does not enforce
+this.</p>
+<p><strong>The fix — two-step flow:</strong></p>
+<pre><code>Doctor dictates
+    ↓
+LLM structures → stored in `pending_records` table (NOT medical_records)
+    ↓
+System sends preview back to doctor via WeChat:
+
+    &quot;已生成病历草稿，请确认：
+     主诉：胸闷气促3天
+     诊断：心力衰竭 NYHA III级
+     处理：调整利尿剂剂量
+     回复【确认】保存，或直接修改内容发送&quot;
+
+    ↓
+Doctor replies &quot;确认&quot;
+    → record moves from pending_records → medical_records
+Doctor replies with edits
+    → re-structure → show preview again
+No reply in 10 minutes
+    → flag as abandoned, notify doctor</code></pre>
+<p><strong>New table needed:</strong></p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> pending_records (</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>          <span class="dt">VARCHAR</span>(<span class="dv">64</span>) <span class="kw">PRIMARY</span> <span class="kw">KEY</span>,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    doctor_id   <span class="dt">VARCHAR</span>(<span class="dv">64</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    patient_id  <span class="dt">INT</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    draft_json  TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,          <span class="co">-- structured MedicalRecord JSON</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    raw_input   TEXT,                   <span class="co">-- original dictation for reference</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    status      <span class="dt">VARCHAR</span>(<span class="dv">16</span>) <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;awaiting_confirmation&#39;</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    created_at  DATETIME <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="fu">CURRENT_TIMESTAMP</span>,</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    expires_at  DATETIME <span class="kw">NOT</span> <span class="kw">NULL</span>,      <span class="co">-- created_at + 10 minutes</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">INDEX</span> (doctor_id, status)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p><strong>Time:</strong> 3–4 days. Non-negotiable for clinical use.</p>
+<hr />
+<h3 id="priority-2-durable-message-handling">Priority 2: Durable Message
+Handling</h3>
+<p><strong>Files affected:</strong> <code>routers/wechat.py</code>,
+<code>db/models.py</code>, <code>db/crud.py</code></p>
+<p><strong>Why:</strong></p>
+<p>If the process crashes between WeChat receiving a message and the LLM
+finishing, the message is silently lost. The doctor thinks it was saved.
+It wasn’t.</p>
+<p><strong>New table needed:</strong></p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> pending_messages (</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>          <span class="dt">VARCHAR</span>(<span class="dv">64</span>) <span class="kw">PRIMARY</span> <span class="kw">KEY</span>,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    doctor_id   <span class="dt">VARCHAR</span>(<span class="dv">64</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    raw_content TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    msg_type    <span class="dt">VARCHAR</span>(<span class="dv">16</span>) <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;text&#39;</span>,  <span class="co">-- text, voice, image</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    status      <span class="dt">VARCHAR</span>(<span class="dv">16</span>) <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="st">&#39;pending&#39;</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    error       TEXT,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    created_at  DATETIME <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="fu">CURRENT_TIMESTAMP</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    processed_at DATETIME,</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">INDEX</span> (status, created_at)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p><strong>The fix — in <code>routers/wechat.py</code>, before any
+<code>asyncio.create_task()</code>:</strong></p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>msg_id <span class="op">=</span> <span class="cf">await</span> db.create_pending_message(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    doctor_id<span class="op">=</span>doctor_id,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    raw_content<span class="op">=</span>raw_text,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    status<span class="op">=</span><span class="st">&quot;pending&quot;</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>asyncio.create_task(process_and_mark(msg_id, ...))</span></code></pre></div>
+<p><strong>The background task:</strong></p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> process_and_mark(msg_id: <span class="bu">str</span>, ...):</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">try</span>:</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>        <span class="cf">await</span> process_message(...)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">await</span> db.update_pending_message(msg_id, status<span class="op">=</span><span class="st">&quot;done&quot;</span>)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">except</span> <span class="pp">Exception</span> <span class="im">as</span> e:</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">await</span> db.update_pending_message(msg_id, status<span class="op">=</span><span class="st">&quot;failed&quot;</span>, error<span class="op">=</span><span class="bu">str</span>(e))</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>        log.error(<span class="ss">f&quot;Message </span><span class="sc">{</span>msg_id<span class="sc">}</span><span class="ss"> processing failed: </span><span class="sc">{</span>e<span class="sc">}</span><span class="ss">&quot;</span>)</span></code></pre></div>
+<p><strong>On startup — recovery job:</strong></p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> recover_pending_messages():</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">&quot;&quot;&quot;Pick up any messages that were pending before last restart.&quot;&quot;&quot;</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    cutoff <span class="op">=</span> datetime.utcnow() <span class="op">-</span> timedelta(seconds<span class="op">=</span><span class="dv">60</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    pending <span class="op">=</span> <span class="cf">await</span> db.list_pending_messages(status<span class="op">=</span><span class="st">&quot;pending&quot;</span>, older_than<span class="op">=</span>cutoff)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> msg <span class="kw">in</span> pending:</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>        asyncio.create_task(process_and_mark(msg.<span class="bu">id</span>, ...))</span></code></pre></div>
+<p>No message is ever silently dropped, even across restarts.</p>
+<p><strong>Time:</strong> 2–3 days.</p>
+<hr />
+<h2 id="week-2-make-it-production-deployable">Week 2 — Make It
+Production-Deployable</h2>
+<h3 id="switch-to-mysql-with-real-persistence">Switch to MySQL with Real
+Persistence</h3>
+<p>Do this as one unit — the database switch and backup setup belong
+together.</p>
+<p><strong>Step 1:</strong> Provision Tencent Cloud TencentDB for MySQL
+(not a Docker container).</p>
+<p><strong>Step 2:</strong> Set <code>DATABASE_URL</code> in the
+production <code>.env</code> file:</p>
+<pre><code>DATABASE_URL=mysql+aiomysql://user:pass@host:3306/doctor_ai</code></pre>
+<p><strong>Step 3:</strong> Mount MySQL data on a separate persistent
+disk (if self-hosting).</p>
+<p><strong>Step 4:</strong> Set up a daily backup cron to Tencent
+COS:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># /etc/cron.d/doctor-ai-backup</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="ex">0</span> 2 <span class="pp">*</span> <span class="pp">*</span> <span class="pp">*</span> appuser mysqldump <span class="at">-u</span> root <span class="at">-p</span><span class="va">$DB_PASS</span> doctor_ai <span class="dt">\</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">gzip</span> <span class="kw">|</span> <span class="ex">coscmd</span> upload <span class="at">-</span> backups/<span class="va">$(</span><span class="fu">date</span> +<span class="dt">\%</span>Y-<span class="dt">\%</span>m-<span class="dt">\%</span>d<span class="va">)</span>.sql.gz</span></code></pre></div>
+<p><strong>Time:</strong> Half a day once TencentDB is provisioned.</p>
+<hr />
+<h3 id="real-production-deployment">Real Production Deployment</h3>
+<p>Replace <code>dev.sh vm-up</code> with systemd + nginx.</p>
+<p><strong><code>/etc/systemd/system/doctor-ai.service</code>:</strong></p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode ini"><code class="sourceCode ini"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">[Unit]</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="dt">Description</span><span class="ot">=</span><span class="st">Doctor AI Agent API</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="dt">After</span><span class="ot">=</span><span class="st">network.target mysql.service</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="kw">[Service]</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="dt">User</span><span class="ot">=</span><span class="st">appuser</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="dt">WorkingDirectory</span><span class="ot">=</span><span class="st">/app</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="dt">ExecStart</span><span class="ot">=</span><span class="st">/app/.venv/bin/uvicorn main:app \</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="dt">    --host 127.0.0.1 \</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="dt">    --port 8000 \</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="dt">    --workers 2</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="dt">Restart</span><span class="ot">=</span><span class="st">always</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="dt">RestartSec</span><span class="ot">=</span><span class="dv">5</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="dt">EnvironmentFile</span><span class="ot">=</span><span class="st">/app/.env</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a><span class="kw">[Install]</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="dt">WantedBy</span><span class="ot">=</span><span class="st">multi-user.target</span></span></code></pre></div>
+<p><strong><code>/etc/nginx/sites-available/doctor-ai</code>:</strong></p>
+<pre class="nginx"><code>server {
+    listen 443 ssl;
+    server_name your-domain.com;
+
+    ssl_certificate     /etc/ssl/doctor-ai.crt;
+    ssl_certificate_key /etc/ssl/doctor-ai.key;
+
+    location / {
+        proxy_pass         http://127.0.0.1:8000;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$host$request_uri;
+}</code></pre>
+<p>No <code>--reload</code>. No Cloudflare tunnel. Auto-starts on
+reboot.</p>
+<p><strong>Time:</strong> 1 day.</p>
+<hr />
+<h3 id="add-the-audit-log-table">Add the Audit Log Table</h3>
+<p><strong>New table:</strong></p>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> audit_log (</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">id</span>            BIGINT AUTO_INCREMENT <span class="kw">PRIMARY</span> <span class="kw">KEY</span>,</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    ts            DATETIME(<span class="dv">3</span>) <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="fu">CURRENT_TIMESTAMP</span>(<span class="dv">3</span>),</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>    doctor_id     <span class="dt">VARCHAR</span>(<span class="dv">64</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    action        <span class="dt">VARCHAR</span>(<span class="dv">32</span>) <span class="kw">NOT</span> <span class="kw">NULL</span>,   <span class="co">-- READ, WRITE, DELETE, LOGIN</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    resource_type <span class="dt">VARCHAR</span>(<span class="dv">32</span>),            <span class="co">-- patient, record, task</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    resource_id   <span class="dt">VARCHAR</span>(<span class="dv">64</span>),</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    ip            <span class="dt">VARCHAR</span>(<span class="dv">45</span>),</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    trace_id      <span class="dt">VARCHAR</span>(<span class="dv">64</span>),</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>    ok            <span class="dt">BOOLEAN</span> <span class="kw">NOT</span> <span class="kw">NULL</span> <span class="kw">DEFAULT</span> <span class="kw">TRUE</span>,</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">INDEX</span> (doctor_id, ts),</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">INDEX</span> (resource_type, resource_id)</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p><strong>New helper in <code>services/audit.py</code>:</strong></p>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="cf">async</span> <span class="kw">def</span> audit(</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    doctor_id: <span class="bu">str</span>,</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    action: <span class="bu">str</span>,</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    resource_type: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    resource_id: <span class="bu">str</span> <span class="op">|</span> <span class="va">None</span> <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    ok: <span class="bu">bool</span> <span class="op">=</span> <span class="va">True</span>,</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="va">None</span>:</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">async</span> <span class="cf">with</span> get_session() <span class="im">as</span> session:</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>        session.add(AuditLog(</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>            doctor_id<span class="op">=</span>doctor_id,</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>            action<span class="op">=</span>action,</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>            resource_type<span class="op">=</span>resource_type,</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>            resource_id<span class="op">=</span>resource_id,</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>            ok<span class="op">=</span>ok,</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>        ))</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">await</span> session.commit()</span></code></pre></div>
+<p>Call from every router on every patient record create, read, update,
+delete.</p>
+<p><strong>Time:</strong> 1 day.</p>
+<hr />
+<h2 id="week-3-close-the-remaining-safety-gaps">Week 3 — Close the
+Remaining Safety Gaps</h2>
+<p>By now the system is reliable enough for real use. Week 3 closes the
+remaining gaps.</p>
+<h3 id="separate-patient-vs.-doctor-wechat-pipelines">Separate Patient
+vs. Doctor WeChat Pipelines</h3>
+<p><strong>File:</strong> <code>routers/wechat.py</code></p>
+<p>Route messages from patient WeChat OpenIDs to a sandboxed handler
+that has no access to <code>delete_patient</code>,
+<code>list_patients</code>, or any tool that touches other patients’
+data. Only the doctor-origin pipeline gets full agent access.</p>
+<p>Add a lookup at the top of the WeChat message handler:</p>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>sender_role <span class="op">=</span> <span class="cf">await</span> db.get_sender_role(open_id)  <span class="co"># &quot;doctor&quot; | &quot;patient&quot; | &quot;unknown&quot;</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> sender_role <span class="op">==</span> <span class="st">&quot;doctor&quot;</span>:</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">await</span> handle_doctor_message(msg, doctor_id)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="cf">elif</span> sender_role <span class="op">==</span> <span class="st">&quot;patient&quot;</span>:</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">await</span> handle_patient_message(msg, patient_id)  <span class="co"># sandboxed, no destructive tools</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">await</span> reply(msg, <span class="st">&quot;您好，请联系您的医生开通服务。&quot;</span>)</span></code></pre></div>
+<p><strong>Time:</strong> 1 day of routing logic, assuming
+doctor/patient OpenID mapping exists in the DB.</p>
+<hr />
+<h3 id="flush-session-turns-to-db-synchronously">Flush Session Turns to
+DB Synchronously</h3>
+<p><strong>File:</strong> <code>services/session.py</code></p>
+<p>After the pending_message fix, ensure conversation turns are written
+to the DB <strong>before</strong> returning the response — not lazily
+via <code>_flush_pending_turns()</code>.</p>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Before returning the response to the caller:</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="cf">await</span> db.append_conversation_turn(doctor_id, turn)  <span class="co"># awaited, not fire-and-forget</span></span></code></pre></div>
+<p>Makes process restarts invisible to the doctor. Their context is
+always recoverable from the DB.</p>
+<p><strong>Time:</strong> Half a day.</p>
+<hr />
+<h3 id="start-the-nmpa-regulatory-conversation">Start the NMPA
+Regulatory Conversation</h3>
+<p>This is not engineering work, but it has a 12–24 month lead time.</p>
+<p>The system performs clinical decision support (risk scores, guideline
+alerts), which likely classifies it as a Class II medical device under
+China’s 医疗器械监督管理条例. Operating without NMPA registration
+exposes the operator to legal liability if any patient harm occurs.</p>
+<p><strong>Actions this week:</strong> 1. Engage a Chinese regulatory
+affairs consultant to formally classify the product 2. Scope the MVP to
+stay within the lowest-risk classification — Phase 1 (transcription and
+documentation only) is lower risk than Phase 2/3 (risk stratification,
+decision support) 3. Ensure all AI outputs visible to the doctor are
+labeled “仅供参考，请医生确认” (for reference only, please confirm)</p>
+<p><strong>Time:</strong> No engineering time. Business/legal action
+only.</p>
+<hr />
+<h2 id="what-to-explicitly-defer">What to Explicitly Defer</h2>
+<p>These are real issues but not MVP blockers at small scale (1–5
+doctors).</p>
+<table>
+<colgroup>
+<col style="width: 38%" />
+<col style="width: 61%" />
+</colgroup>
+<thead>
+<tr>
+<th>Issue</th>
+<th>Why Defer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Encryption at rest</td>
+<td>Enable TencentDB encrypted storage (one checkbox at provisioning) —
+covers you at infrastructure level without app changes</td>
+</tr>
+<tr>
+<td>APScheduler race condition</td>
+<td>Only matters with multiple server instances; don’t run multiple
+instances at MVP</td>
+</tr>
+<tr>
+<td>Multi-tenancy isolation audit</td>
+<td>Do as a careful PR code review pass, not a full rewrite</td>
+</tr>
+<tr>
+<td>Context compression (120-char limit)</td>
+<td>Real issue but no acute harm at small patient volumes; fix before
+scaling</td>
+</tr>
+<tr>
+<td>Regex fallback alerting</td>
+<td>Add logging now, skip alerting infrastructure until you have more
+users</td>
+</tr>
+<tr>
+<td>Knowledge crawl validation</td>
+<td>Don’t ship Phase 3 features until Phase 1 + 2 are stable</td>
+</tr>
+<tr>
+<td>Confidence scores on AI output</td>
+<td>Important UX improvement but not a safety blocker once the
+confirmation gate exists</td>
+</tr>
+<tr>
+<td>Nice-to-have features</td>
+<td>All of them — none until this list is done</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="mvp-completion-checklist">MVP Completion Checklist</h2>
+<p>You are ready for real patients when all of these are true:</p>
+<ul class="task-list">
+<li><label><input type="checkbox" /><code>pip freeze</code>-pinned
+<code>requirements.txt</code> committed</label></li>
+<li><label><input type="checkbox" />WeChat AppID removed from version
+control</label></li>
+<li><label><input type="checkbox" />Auth fails with 401 on every route —
+no fallback path in production</label></li>
+<li><label><input type="checkbox" />Startup crashes if
+<code>DATABASE_URL</code> is not set or points to SQLite</label></li>
+<li><label><input type="checkbox" />All AI-generated records go through
+doctor confirmation before hitting
+<code>medical_records</code></label></li>
+<li><label><input type="checkbox" />Every WeChat message is durably
+persisted in <code>pending_messages</code> before async
+processing</label></li>
+<li><label><input type="checkbox" />Startup recovery job re-queues any
+<code>pending</code> messages from before last restart</label></li>
+<li><label><input type="checkbox" />Server uses MySQL (TencentDB) — not
+SQLite</label></li>
+<li><label><input type="checkbox" />Daily automated backup to Tencent
+COS is running and has been tested with a restore</label></li>
+<li><label><input type="checkbox" />Server runs under systemd with nginx
+TLS termination — no <code>--reload</code>, no Cloudflare
+tunnel</label></li>
+<li><label><input type="checkbox" />Audit log table exists and is being
+written on every patient record operation</label></li>
+<li><label><input type="checkbox" />Patient WeChat messages are routed
+to a sandboxed pipeline with no destructive tools</label></li>
+<li><label><input type="checkbox" />Conversation turns are flushed to DB
+synchronously before each response is returned</label></li>
+<li><label><input type="checkbox" />NMPA regulatory consultation has
+been initiated</label></li>
+</ul>
+<hr />
+<h2 id="estimated-timeline">Estimated Timeline</h2>
+<table>
+<colgroup>
+<col style="width: 27%" />
+<col style="width: 31%" />
+<col style="width: 40%" />
+</colgroup>
+<thead>
+<tr>
+<th>Week</th>
+<th>Focus</th>
+<th>Outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Day 1</td>
+<td>Dependency pinning, AppID removal, startup guard, auth fix</td>
+<td>Baseline security hardened</td>
+</tr>
+<tr>
+<td>Week 1</td>
+<td>Confirmation gate + durable message handling</td>
+<td>Data loss and hallucination risks closed</td>
+</tr>
+<tr>
+<td>Week 2</td>
+<td>MySQL + backup + systemd/nginx + audit log</td>
+<td>Production-deployable infrastructure</td>
+</tr>
+<tr>
+<td>Week 3</td>
+<td>Patient/doctor pipeline split + session durability + NMPA start</td>
+<td>All P0/P1 issues resolved</td>
+</tr>
+</tbody>
+</table>
+<p>Total: ~3 weeks of focused engineering work for a small team,
+assuming Tencent Cloud infrastructure (TencentDB, CVM, COS) is already
+provisioned or can be provisioned in parallel.</p>
+</body>
+</html>

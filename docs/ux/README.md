@@ -136,7 +136,7 @@ Two page types with distinct layouts:
 
 ```
 ┌─────────────────────────────────────┐
-│  ‹ back   Title            Action   │  SubpageHeader, 48px.
+│  ‹ back   Title                     │  SubpageHeader, 48px. No right action.
 ├─────────────────────────────────────┤
 │                                     │
 │          CONTENT (flex: 1)          │  Scrollable. No bottom nav.
@@ -146,7 +146,8 @@ Two page types with distinct layouts:
 └─────────────────────────────────────┘
 ```
 
-Subpages hide the bottom nav and show a back button. Pages using
+Subpages hide the bottom nav and show a back button. The top bar has
+no right action — actions belong in the content area. Pages using
 `PageSkeleton` with `mobileView` get Slide transitions automatically.
 
 ---
@@ -167,23 +168,25 @@ Subpages hide the bottom nav and show a back button. Pages using
 | **Height** | 48px |
 | **Back (‹)** | Chevron only, no text. 44x48px tap area. Present on subpages, hidden on root tabs. |
 | **Title** | `TYPE.title` (16px/600), centered. Page name or patient name. |
-| **Action** | Max 1 BarButton. Max 2 Chinese characters. Green `#07C160`, `TYPE.action` (15px/400). |
-| **No icons** | Text-only. Icons belong in content area. |
-| **Overflow** | If 2+ actions needed, put extras in content area. |
+| **Action** | Rarely used. Only for progress indicators (e.g., 患者端预览 shows submit/%). |
+| **No icons in top bar** | Text-only if used. Icons and actions belong in content area. |
+| **Default** | Subpages have no right action. Put actions in content area instead. |
 
 **Per-page examples:**
 
-| Page | ‹ | Title | Action |
-|------|---|-------|--------|
-| 我的AI | — | 我的AI | — |
-| 患者 | — | 患者 | — |
-| 患者详情 | ‹ | 李复诊 | 门诊 |
-| 对话 | ‹ | 对话工作区 | 清空 |
-| 诊断审核 | ‹ | 诊断审核 | 完成 |
-| 新建病历 | ‹ | 新建病历 | 46% |
-| 任务 | — | 任务 | — |
-| 设置 | — | 设置 | — |
-| 患者端预览 | ‹ | 患者端预览 | 57% |
+| Page | Type | ‹ | Title | Right action |
+|------|------|---|-------|-------------|
+| 我的AI | tab | — | 我的AI | — |
+| 患者 | tab | — | 患者 | — |
+| 审核 | tab | — | 审核 | — |
+| 任务 | tab | — | 任务 | — |
+| 患者详情 | subpage | ‹ | 李复诊 | — |
+| 患者·消息 | subpage | ‹ | 李复诊·消息 | — |
+| 对话 | subpage | ‹ | 对话工作区 | — |
+| 诊断审核 | subpage | ‹ | 诊断审核 | — |
+| 新建病历 | subpage | ‹ | 新建病历 | — |
+| 设置 | subpage | ‹ | 设置 | — |
+| 患者端预览 | subpage | ‹ | 患者端预览 | 提交/进度% |
 
 ---
 

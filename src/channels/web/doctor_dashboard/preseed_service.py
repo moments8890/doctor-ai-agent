@@ -75,7 +75,26 @@ async def is_seeded(db: AsyncSession, doctor_id: str) -> bool:
 
 
 async def cleanup_seed_data(db: AsyncSession, doctor_id: str) -> None:
-    """Delete all preseed data for a doctor. Order respects FK relationships."""
+    """Delete all preseed data + onboarding 体验患者 for a doctor. Order respects FK relationships."""
+    # 0. Find 体验患者* from onboarding wizard (not tagged with seed_source)
+    onboarding_patients = (await db.execute(
+        select(Patient).where(
+            Patient.doctor_id == doctor_id,
+            Patient.name.like("体验患者%"),
+        )
+    )).scalars().all()
+    for p in onboarding_patients:
+        pid = p.id
+        await db.execute(delete(AISuggestion).where(AISuggestion.record_id.in_(
+            select(MedicalRecordDB.id).where(MedicalRecordDB.patient_id == pid)
+        )))
+        await db.execute(delete(MessageDraft).where(MessageDraft.source_message_id.in_(
+            select(PatientMessage.id).where(PatientMessage.patient_id == pid)
+        )))
+        await db.execute(delete(DoctorTask).where(DoctorTask.patient_id == pid))
+        await db.execute(delete(PatientMessage).where(PatientMessage.patient_id == pid))
+        await db.execute(delete(MedicalRecordDB).where(MedicalRecordDB.patient_id == pid))
+        await db.delete(p)
     # 1. AI suggestions (FK → records)
     await db.execute(delete(AISuggestion).where(
         AISuggestion.doctor_id == doctor_id,
@@ -267,14 +286,16 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
 
         # Tasks
         for t_spec in p_spec.tasks:
+            is_done = t_spec.status == "completed"
             task = DoctorTask(
                 doctor_id=doctor_id,
                 patient_id=patient.id,
                 task_type=t_spec.task_type,
                 title=t_spec.title,
                 content=t_spec.content,
-                status="pending",
+                status=t_spec.status,
                 due_at=now + timedelta(days=t_spec.due_days),
+                completed_at=_ts(-t_spec.due_days) if is_done else None,
                 source_type="manual",
                 seed_source=_SEED_SOURCE,
             )

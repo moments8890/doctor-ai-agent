@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Optimization Execution Plan (Ranked by Expected Latency Impact)</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Optimization Execution Plan (Ranked by Expected
+Latency Impact)</h1>
+</header>
+<h1
+id="optimization-execution-plan-ranked-by-expected-latency-impact">Optimization
+Execution Plan (Ranked by Expected Latency Impact)</h1>
+<h2 id="goal">Goal</h2>
+<p>Reduce <code>/api/records/chat</code> end-to-end latency (especially
+P95/P99) for human-language E2E workloads.</p>
+<h2 id="baseline-from-this-run">Baseline (from this run)</h2>
+<ul>
+<li>Dataset: 1003 cases, 3079 chat turns</li>
+<li>Turn latency: avg 6287ms, p95 8265ms, p99 11409ms, max 22319ms</li>
+<li>Attribution: LLM inference dominates (99.33% of chat trace
+time)</li>
+</ul>
+<h2
+id="priority-1-split-model-tiers-fast-router-vs-heavy-structuring">Priority
+1 — Split model tiers (fast router vs heavy structuring)</h2>
+<ul>
+<li>Why: Dominant cost is <code>agent.chat_completion</code>; routing
+simple intents with a lighter model should cut most turns.</li>
+<li>Actions:
+<ol type="1">
+<li>Keep current heavy model for complex structuring only.</li>
+<li>Route simple deterministic intents (list/query/delete/task commands)
+to lighter local model.</li>
+<li>Add config knobs for per-intent model selection.</li>
+</ol></li>
+<li>Success criteria:
+<ul>
+<li>P95 turn latency drops &gt;= 25%</li>
+<li>No regression in task/patient CRUD E2E pass rate</li>
+</ul></li>
+<li>Risk:
+<ul>
+<li>Intent misclassification causing wrong path.</li>
+</ul></li>
+<li>Guardrail:
+<ul>
+<li>Fallback to heavy model when confidence is low.</li>
+</ul></li>
+</ul>
+<h2 id="priority-2-add-deterministic-fast-paths-to-bypass-llm">Priority
+2 — Add deterministic fast-paths to bypass LLM</h2>
+<ul>
+<li>Why: Many admin/task/patient operations are syntax-driven and
+currently still pay LLM cost.</li>
+<li>Actions:
+<ol type="1">
+<li>Expand existing fast-path handlers for:
+delete/list/query/schedule/complete commands.</li>
+<li>Normalize Chinese ordinal parsing and same-name disambiguation
+without model roundtrip.</li>
+<li>Keep LLM only for ambiguous/narrative inputs.</li>
+</ol></li>
+<li>Success criteria:
+<ul>
+<li><blockquote>
+<p>= 30% of turns served by non-LLM fast path in corpus replay</p>
+</blockquote></li>
+<li>Fast-path turn avg &lt; 100ms (server-side)</li>
+</ul></li>
+<li>Risk:
+<ul>
+<li>Rule conflicts with free-text clinical notes.</li>
+</ul></li>
+<li>Guardrail:
+<ul>
+<li>Trigger fast-path only on high-confidence command patterns.</li>
+</ul></li>
+</ul>
+<h2 id="priority-3-concurrency-tuning-for-model-serving">Priority 3 —
+Concurrency tuning for model serving</h2>
+<ul>
+<li>Why: Outliers align with concurrent pressure; p99 spikes during high
+parallel load.</li>
+<li>Actions:
+<ol type="1">
+<li>Benchmark replay under workers=2/4/6/8.</li>
+<li>Measure wall time + p95/p99 simultaneously.</li>
+<li>Set recommended default worker/concurrency in scripts.</li>
+</ol></li>
+<li>Success criteria:
+<ul>
+<li>Keep throughput near max while reducing p99 &gt;= 15%</li>
+</ul></li>
+<li>Risk:
+<ul>
+<li>Lower worker count improves tail latency but hurts total
+runtime.</li>
+</ul></li>
+<li>Guardrail:
+<ul>
+<li>Select operating point by weighted score:
+<code>0.6*p95 + 0.2*p99 + 0.2*wall_time</code>.</li>
+</ul></li>
+</ul>
+<h2 id="priority-4-promptresponse-token-budget-control">Priority 4 —
+Prompt/response token budget control</h2>
+<ul>
+<li>Why: Long prompts and verbose outputs increase inference
+latency.</li>
+<li>Actions:
+<ol type="1">
+<li>Minimize runtime prompt extensions for non-structuring flows.</li>
+<li>Cap generation length for command/ack responses.</li>
+<li>Add concise response mode for E2E replay.</li>
+</ol></li>
+<li>Success criteria:
+<ul>
+<li>Avg turn latency -10% without semantic regressions</li>
+</ul></li>
+<li>Risk:
+<ul>
+<li>Over-truncation may omit critical medical details.</li>
+</ul></li>
+<li>Guardrail:
+<ul>
+<li>Apply cap only to non-clinical command responses.</li>
+</ul></li>
+</ul>
+<h2
+id="priority-5-observability-improvements-for-run-scoped-diagnosis">Priority
+5 — Observability improvements for run-scoped diagnosis</h2>
+<ul>
+<li>Why: In-memory <code>/api/admin/observability</code> window is
+bounded; run-level JSONL analysis is external.</li>
+<li>Actions:
+<ol type="1">
+<li>Add run_id filter endpoint reading persisted JSONL.</li>
+<li>Add per-run breakdown dashboard (LLM/DB/router split).</li>
+<li>Export p50/p95/p99 by case family (BASE/AUTO/SAMENAME).</li>
+</ol></li>
+<li>Success criteria:
+<ul>
+<li>One-command report generation for each E2E run</li>
+</ul></li>
+<li>Risk:
+<ul>
+<li>Higher metrics I/O if unbounded.</li>
+</ul></li>
+<li>Guardrail:
+<ul>
+<li>Time-window and run_id filters with max limits.</li>
+</ul></li>
+</ul>
+<h2 id="recommended-execution-sequence-2-3-iterations">Recommended
+Execution Sequence (2-3 iterations)</h2>
+<ol type="1">
+<li>Iteration A:
+<ul>
+<li>Implement Priority 2 fast-path expansion + tests.</li>
+<li>Replay half/full and capture before/after.</li>
+</ul></li>
+<li>Iteration B:
+<ul>
+<li>Implement Priority 1 model-tier split + fallback.</li>
+<li>Tune with Priority 3 benchmark matrix.</li>
+</ul></li>
+<li>Iteration C:
+<ul>
+<li>Apply Priority 4 token controls.</li>
+<li>Add Priority 5 run-scoped observability endpoint.</li>
+</ul></li>
+</ol>
+<h2 id="verification-protocol">Verification Protocol</h2>
+<ul>
+<li>Functional:
+<ul>
+<li><code>./dev.sh test integration-full</code></li>
+<li><code>./dev.sh e2e full</code></li>
+</ul></li>
+<li>Performance:
+<ul>
+<li>Compare baseline vs new run on:
+<ul>
+<li>Turn avg/p95/p99</li>
+<li>Max latency</li>
+<li>Total replay wall time</li>
+</ul></li>
+<li>Require no drop in pass rate.</li>
+</ul></li>
+</ul>
+<h2 id="deliverables">Deliverables</h2>
+<ul>
+<li>Updated metrics JSON + markdown report per run</li>
+<li>Slow-trace CSV snapshots before/after</li>
+<li>Change log with latency deltas and rollback switch</li>
+</ul>
+</body>
+</html>
