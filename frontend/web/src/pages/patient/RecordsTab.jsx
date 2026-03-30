@@ -25,7 +25,7 @@ import SectionLoading from "../../components/SectionLoading";
 import StatusBadge from "../../components/StatusBadge";
 import { TYPE, COLOR, RADIUS } from "../../theme";
 import { RECORD_TYPE_LABEL, formatDate } from "./constants";
-import { RECORD_TYPE_BADGE } from "../doctor/constants";
+import { RECORD_TYPE_BADGE } from "../../shared/badgeConfigs";
 import RecordDetail from "./subpages/RecordDetail";
 
 const _DL = { pending: "诊断中", completed: "待审核", confirmed: "已确认", failed: "诊断失败" };

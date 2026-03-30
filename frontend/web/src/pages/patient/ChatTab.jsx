@@ -35,7 +35,7 @@ import ListCard from "../../components/ListCard";
 import IconBadge from "../../components/IconBadge";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { LAST_SEEN_CHAT_KEY } from "./constants";
-import { RECORD_TYPE_BADGE } from "../doctor/constants";
+import { RECORD_TYPE_BADGE } from "../../shared/badgeConfigs";
 
 const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
