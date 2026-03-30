@@ -109,7 +109,7 @@
           "description_zh": "腾讯云 LKEAP（OpenAI 兼容）API 基地址。"
         },
         "TENCENT_LKEAP_MODEL": {
-          "value": "deepseek-v3",
+          "value": "deepseek-v3.2",
           "description": "Tencent LKEAP model name for routing/structuring.",
           "description_zh": "路由/结构化使用的腾讯云 LKEAP 模型名。"
         },
