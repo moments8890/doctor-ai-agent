@@ -20,6 +20,9 @@ import {
 import SendIcon from "@mui/icons-material/Send";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import MsgAvatar from "../../components/MsgAvatar";
 
 import { usePatientApi } from "../../api/PatientApiContext";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
@@ -182,11 +185,12 @@ export default function InterviewPage({ token, onBack, onLogout }) {
       {/* Chat */}
       <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 2 }}>
         {messages.map((msg, i) => (
-          <Box key={i} sx={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", mb: 1.5 }}>
+          <Box key={i} sx={{ display: "flex", alignItems: "flex-start", gap: 1, mb: 1.5, flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
+            <MsgAvatar isUser={msg.role === "user"} size={32} />
             <Box sx={{
-              maxWidth: "80%", px: 2, py: 1.5, borderRadius: 2,
+              maxWidth: "75%", px: 2, py: 1.5, borderRadius: 2,
               bgcolor: msg.role === "user" ? COLOR.wechatGreen : COLOR.white,
-              color: COLOR.text2, fontSize: "0.9rem", lineHeight: 1.6,
+              color: COLOR.text2, fontSize: TYPE.body.fontSize, lineHeight: 1.6,
               whiteSpace: "pre-wrap", wordBreak: "break-word",
             }}>{msg.content}</Box>
           </Box>
@@ -317,7 +321,13 @@ export default function InterviewPage({ token, onBack, onLogout }) {
               const val = collected[f];
               return (
                 <Box key={f}>
-                  <Typography variant="caption" color="text.secondary">{val ? "✅" : "⬜"} {FIELD_LABELS[f]}</Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    {val
+                      ? <CheckCircleOutlineIcon sx={{ fontSize: 14, color: COLOR.primary }} />
+                      : <RadioButtonUncheckedIcon sx={{ fontSize: 14, color: COLOR.border }} />
+                    }
+                    <Typography variant="caption" color="text.secondary">{FIELD_LABELS[f]}</Typography>
+                  </Box>
                   {val && <Typography variant="body2" sx={{ ml: 3 }}>{val}</Typography>}
                 </Box>
               );
