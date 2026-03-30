@@ -6,7 +6,7 @@
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import { COLOR } from "../../theme";
 
 // ---------------------------------------------------------------------------
@@ -54,7 +54,7 @@ export const NAV_TABS = [
   { key: "chat", label: "主页", icon: <ChatOutlinedIcon />, title: "AI 健康助手" },
   { key: "records", label: "病历", icon: <DescriptionOutlinedIcon />, title: "病历" },
   { key: "tasks", label: "任务", icon: <AssignmentOutlinedIcon />, title: "任务" },
-  { key: "profile", label: "设置", icon: <SettingsOutlinedIcon />, title: "设置" },
+  { key: "profile", label: "我的", icon: <PersonOutlineIcon />, title: "我的" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -66,6 +66,22 @@ export const PAGE_LAYOUT = {
   display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt,
   position: "relative", overflow: "hidden",
 };
+
+// ---------------------------------------------------------------------------
+// Filter configs
+// ---------------------------------------------------------------------------
+
+export const PATIENT_RECORD_TABS = [
+  { key: "", label: "全部" },
+  { key: "medical", label: "病历", types: ["visit", "dictation", "import"] },
+  { key: "interview", label: "问诊", types: ["interview_summary"] },
+];
+
+export const PATIENT_TASK_FILTERS = [
+  { key: "all", label: "全部" },
+  { key: "pending", label: "待完成" },
+  { key: "done", label: "已完成" },
+];
 
 // ---------------------------------------------------------------------------
 // Helpers
