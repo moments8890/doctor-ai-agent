@@ -610,14 +610,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
       />
       {/* Patient picker sheet — shown when starting interview without a patient */}
       <SheetDialog open={showPatientPicker} onClose={() => setShowPatientPicker(false)} title="选择患者">
-        <ListCard
-          avatar={<NameAvatar name="+" size={36} />}
-          title="新建患者"
-          subtitle="在对话中输入患者信息"
-          chevron
-          onClick={() => handlePickPatient(null)}
-          sx={{ borderBottom: `1px solid ${COLOR.border}` }}
-        />
+        <NewItemCard title="新建患者" subtitle="在对话中输入患者信息" onClick={() => handlePickPatient(null)} />
         {patients.map((p) => {
           const genderZh = p.gender === "male" ? "男" : p.gender === "female" ? "女" : p.gender || "";
           return (
