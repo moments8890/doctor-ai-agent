@@ -27,7 +27,11 @@ async def _backfill_missing_columns() -> None:
 
     SQLite supports ADD COLUMN but not DROP/RENAME, so this only handles
     the common case of new nullable columns added to models.
+    Skipped for MySQL/PostgreSQL where Alembic handles schema evolution.
     """
+    from db.engine import DATABASE_URL
+    if not DATABASE_URL.startswith("sqlite"):
+        return
     async with engine.begin() as conn:
         for table in Base.metadata.sorted_tables:
             existing = await conn.execute(text(f"PRAGMA table_info('{table.name}')"))
