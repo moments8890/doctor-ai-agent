@@ -24,9 +24,9 @@ import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
 import AddIcon from "@mui/icons-material/Add";
-import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
-import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import MsgAvatar from "../../components/MsgAvatar";
+import { SHARED_ICON_BADGES } from "../../shared/badgeConfigs";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import { usePatientApi } from "../../api/PatientApiContext";
@@ -45,8 +45,12 @@ const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
 function QuickActions({ onNewInterview, onViewRecords }) {
   const actions = [
-    { label: "新问诊", subtitle: "AI帮您整理病情", icon: <AddIcon sx={{ fontSize: ICON.xl, color: COLOR.primary }} />, onClick: onNewInterview },
-    { label: "我的病历", subtitle: "查看历史记录", icon: <DescriptionOutlinedIcon sx={{ fontSize: ICON.xl, color: "#1B6EF3" }} />, onClick: onViewRecords },
+    { label: "新问诊", subtitle: "AI帮您整理病情",
+      icon: <IconBadge config={{ icon: AddIcon, bg: COLOR.primary }} size={36} solid />,
+      onClick: onNewInterview },
+    { label: "我的病历", subtitle: "查看历史记录",
+      icon: <IconBadge config={{ icon: DescriptionOutlinedIcon, bg: COLOR.accent }} size={36} solid />,
+      onClick: onViewRecords },
   ];
   return (
     <Box sx={{ display: "flex", gap: 1, px: 2, py: 1.5 }}>
@@ -59,11 +63,7 @@ function QuickActions({ onNewInterview, onViewRecords }) {
             boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
             "&:active": { bgcolor: COLOR.surface },
           }}>
-          <Box sx={{ width: 36, height: 36, borderRadius: RADIUS.md,
-            bgcolor: a.label === "新问诊" ? COLOR.successLight : "#E8F0FE",
-            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            {a.icon}
-          </Box>
+          {a.icon}
           <Box>
             <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>{a.label}</Typography>
             <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{a.subtitle}</Typography>
@@ -189,10 +189,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
     if (src === "patient") {
       return (
         <Box key={msg.id || i} sx={{ display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1, mb: 1.5 }}>
-          <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: COLOR.recordBlue,
-            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <PersonOutlineIcon sx={{ color: COLOR.white, fontSize: ICON.md }} />
-          </Box>
+            <IconBadge config={SHARED_ICON_BADGES.patient} size={32} solid />
           <Box sx={{
             maxWidth: "75%", px: 1.5, py: 1, borderRadius: `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}`,
             bgcolor: COLOR.wechatGreen, color: COLOR.text2, fontSize: TYPE.body.fontSize, lineHeight: 1.7,
@@ -248,10 +245,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
     // AI message (left aligned) — with triage enrichment
     return (
       <Box key={msg.id || i} sx={{ display: "flex", alignItems: "flex-end", gap: 1, mb: 1.5 }}>
-        <Box sx={{ width: 32, height: 32, borderRadius: RADIUS.sm, bgcolor: COLOR.primary,
-          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <SmartToyOutlinedIcon sx={{ color: COLOR.white, fontSize: ICON.md }} />
-        </Box>
+        <MsgAvatar isUser={false} size={32} />
         <Box sx={{ maxWidth: "75%" }}>
           {msg.triage_category === "diagnosis_confirmation" && (
             <Box sx={{ mb: 0.5, px: 1.5, py: 1, borderRadius: `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`, bgcolor: COLOR.successLight, border: `0.5px solid ${COLOR.successLight}` }}>

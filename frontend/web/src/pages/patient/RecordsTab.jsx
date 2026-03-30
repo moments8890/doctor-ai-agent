@@ -3,8 +3,8 @@
  *
  * Extracted from PatientPage.jsx. Shows:
  *  - NewItemCard for creating a new record (starts interview)
- *  - List view or timeline view toggle
- *  - When urlSubpage is a numeric record ID, renders RecordDetail instead
+ *  - FilterBar for list/timeline view toggle + record type filter
+ *  - When urlSubpage is a numeric record ID, renders RecordDetail via PageSkeleton slide
  *
  * Props:
  *  - token: string — patient auth token
@@ -14,7 +14,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { usePatientApi } from "../../api/PatientApiContext";
 import ListCard from "../../components/ListCard";
 import NewItemCard from "../../components/NewItemCard";
@@ -23,8 +23,10 @@ import DateAvatar from "../../components/DateAvatar";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
 import StatusBadge from "../../components/StatusBadge";
+import FilterBar from "../../components/FilterBar";
+import PageSkeleton from "../../components/PageSkeleton";
 import { TYPE, COLOR, RADIUS } from "../../theme";
-import { RECORD_TYPE_LABEL, formatDate } from "./constants";
+import { RECORD_TYPE_LABEL, formatDate, PATIENT_RECORD_TABS } from "./constants";
 import { RECORD_TYPE_BADGE } from "../../shared/badgeConfigs";
 import RecordDetail from "./subpages/RecordDetail";
 
@@ -158,6 +160,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [recordView, setRecordView] = useState("list"); // "list" or "timeline"
+  const [typeFilter, setTypeFilter] = useState("");
 
   const loadRecords = useCallback(() => {
     setLoading(true);
@@ -168,87 +171,90 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
 
   useEffect(() => { loadRecords(); }, [loadRecords]);
 
+  const filteredRecords = typeFilter
+    ? records.filter(rec => {
+        const tab = PATIENT_RECORD_TABS.find(t => t.key === typeFilter);
+        return tab?.types?.includes(rec.record_type);
+      })
+    : records;
+
   // URL-driven record detail: /patient/records/:recordId
-  if (urlSubpage && urlSubpage !== "interview") {
-    return (
-      <RecordDetail
-        recordId={urlSubpage}
-        token={token}
-        onBack={() => navigate("/patient/records")}
-      />
-    );
-  }
+  const detailSubpage = (urlSubpage && urlSubpage !== "interview") ? (
+    <RecordDetail
+      recordId={urlSubpage}
+      token={token}
+      onBack={() => navigate(-1)}
+    />
+  ) : null;
 
   if (loading) {
     return <SectionLoading py={6} />;
   }
 
   return (
-    <Box sx={{ flex: 1, overflowY: "auto", position: "relative" }}>
-      {/* New record row */}
-      <NewItemCard title="新建病历" subtitle="开始AI预问诊" onClick={onNewRecord} />
+    <PageSkeleton
+      title="病历"
+      isMobile
+      mobileView={detailSubpage}
+      listPane={
+        <Box sx={{ flex: 1, overflowY: "auto", position: "relative" }}>
+          <NewItemCard title="新建病历" subtitle="开始AI预问诊" onClick={onNewRecord} />
 
-      {/* Section label + view toggle */}
-      {records.length > 0 && (
-        <>
-          <Box sx={{ px: 2, py: 1 }}>
-            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-              最近 · {records.length}份病历
-            </Typography>
-          </Box>
-          <Box sx={{ display: "flex", gap: 1, px: 2, py: 1 }}>
-            {[{ key: "list", label: "病历" }, { key: "timeline", label: "时间线" }].map(v => (
-              <Box
-                key={v.key}
-                onClick={() => setRecordView(v.key)}
-                sx={{
-                  px: 1.5, py: 0.5, borderRadius: RADIUS.sm, cursor: "pointer",
-                  fontSize: TYPE.secondary.fontSize, fontWeight: recordView === v.key ? 600 : 400,
-                  bgcolor: recordView === v.key ? COLOR.primary : COLOR.white,
-                  color: recordView === v.key ? COLOR.white : COLOR.text3,
-                  border: recordView === v.key ? "none" : `0.5px solid ${COLOR.border}`,
-                }}
-              >
-                {v.label}
+          {records.length > 0 && (
+            <>
+              <Box sx={{ px: 2, py: 1 }}>
+                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+                  最近 · {records.length}份病历
+                </Typography>
               </Box>
-            ))}
-          </Box>
-        </>
-      )}
-
-      {/* Record list */}
-      {records.length === 0 ? (
-        <EmptyState title="暂无病历记录" subtitle="点击上方「新建病历」开始预问诊" />
-      ) : recordView === "list" ? (
-        <Box sx={{ bgcolor: COLOR.white }}>
-          {records.map(rec => {
-            const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
-            const chief = rec.structured?.chief_complaint;
-            const preview = chief || (rec.content || "").replace(/\n/g, " ").slice(0, 40) || "（内容为空）";
-            const ds = rec.diagnosis_status;
-            const dsLabel = ds ? _DL[ds] : null;
-            return (
-              <ListCard
-                key={rec.id}
-                avatar={<IconBadge config={RECORD_TYPE_BADGE[rec.record_type]} />}
-                title={typeLabel}
-                subtitle={preview}
-                right={
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    {dsLabel && (
-                      <StatusBadge label={dsLabel} colorMap={_DC} fallbackColor={COLOR.text4} />
-                    )}
-                    <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{formatDate(rec.created_at)}</Typography>
-                  </Box>
-                }
-                onClick={() => navigate(`/patient/records/${rec.id}`)}
+              <FilterBar
+                items={[{ key: "list", label: "病历" }, { key: "timeline", label: "时间线" }]}
+                active={recordView}
+                onChange={setRecordView}
               />
-            );
-          })}
+              <FilterBar
+                items={PATIENT_RECORD_TABS}
+                active={typeFilter}
+                onChange={setTypeFilter}
+              />
+            </>
+          )}
+
+          {/* Record list or empty state */}
+          {filteredRecords.length === 0 ? (
+            <EmptyState title="暂无病历记录" subtitle="点击上方「新建病历」开始预问诊" />
+          ) : recordView === "list" ? (
+            <Box sx={{ bgcolor: COLOR.white }}>
+              {filteredRecords.map(rec => {
+                const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
+                const chief = rec.structured?.chief_complaint;
+                const preview = chief || (rec.content || "").replace(/\n/g, " ").slice(0, 40) || "（内容为空）";
+                const ds = rec.diagnosis_status;
+                const dsLabel = ds ? _DL[ds] : null;
+                return (
+                  <ListCard
+                    key={rec.id}
+                    avatar={<IconBadge config={RECORD_TYPE_BADGE[rec.record_type]} />}
+                    title={typeLabel}
+                    subtitle={preview}
+                    right={
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        {dsLabel && (
+                          <StatusBadge label={dsLabel} colorMap={_DC} fallbackColor={COLOR.text4} />
+                        )}
+                        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{formatDate(rec.created_at)}</Typography>
+                      </Box>
+                    }
+                    onClick={() => navigate(`/patient/records/${rec.id}`)}
+                  />
+                );
+              })}
+            </Box>
+          ) : (
+            <TimelineView records={filteredRecords} navigate={navigate} />
+          )}
         </Box>
-      ) : (
-        <TimelineView records={records} navigate={navigate} />
-      )}
-    </Box>
+      }
+    />
   );
 }
