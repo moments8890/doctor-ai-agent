@@ -43,7 +43,14 @@ def _get_providers() -> dict:
         "siliconflow": {
             "base_url": "https://api.siliconflow.cn/v1",
             "api_key_env": "SILICONFLOW_API_KEY",
-            "model": os.environ.get("SILICONFLOW_MODEL", "Qwen/Qwen2.5-72B-Instruct"),
+            "model": os.environ.get("SILICONFLOW_MODEL", "Qwen/Qwen3-32B"),
+        },
+
+        # ── China cloud providers (Alibaba) ─────────────────────────
+        "dashscope": {
+            "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "api_key_env": "DASHSCOPE_API_KEY",
+            "model": os.environ.get("DASHSCOPE_MODEL", "qwen-plus"),
         },
 
         # ── Multi-model routers ──────────────────────────────────────
