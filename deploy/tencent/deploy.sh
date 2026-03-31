@@ -12,9 +12,9 @@ echo "=== deploy started at $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
 cd "$APP_DIR"
 
-# Pull latest
-git fetch origin
-git reset --hard origin/main
+# Pull latest (from gitee — webhook triggers on gitee push)
+git fetch gitee
+git reset --hard gitee/main
 
 # Python deps
 "$VENV/bin/pip" install -q -r requirements.txt
