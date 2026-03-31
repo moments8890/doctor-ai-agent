@@ -342,17 +342,21 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
         <LinearProgress variant="determinate"
           value={session.progress.pct || 0}
           sx={{ height: 6, borderRadius: 3, bgcolor: COLOR.border,
-            "& .MuiLinearProgress-bar": { bgcolor: COLOR.primary, borderRadius: 3 } }} />
+            "& .MuiLinearProgress-bar": { bgcolor: session.progress.can_complete ? COLOR.primary : COLOR.text4, borderRadius: 3 } }} />
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 0.5 }}>
-          <Typography variant="caption" sx={{ color: session.status === "ready_for_confirm" ? COLOR.successText : COLOR.text4 }}>
-            {session.status === "ready_for_confirm" ? "信息已完整，可以生成病历了" :
-             session.sessionId ? `${session.progress.pct || 0}%` : ""}
+          <Typography variant="caption" sx={{ color: session.progress.can_complete ? COLOR.successText : COLOR.text4 }}>
+            {session.status === "draft_created" ? "" :
+             session.progress.can_complete
+               ? `必填 ${session.progress.required_count || 0}/${session.progress.required_total || 0} 已完成`
+               : session.sessionId
+                 ? `必填 ${session.progress.required_count || 0}/${session.progress.required_total || 0}`
+                 : ""}
           </Typography>
           {session.sessionId && session.status !== "draft_created" && (
             <Button size="small"
-              variant={session.status === "ready_for_confirm" ? "contained" : "text"}
+              variant={session.progress.can_complete ? "contained" : "text"}
               disableElevation
-              sx={session.status === "ready_for_confirm"
+              sx={session.progress.can_complete
                 ? { bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover }, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
                 : { color: COLOR.text4, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
               }
@@ -361,32 +365,37 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
             </Button>
           )}
         </Box>
-        {/* Missing field hints */}
+        {/* Recommended missing field hints */}
         {session.status !== "draft_created" && (() => {
           const fields = session.progress?.fields || {};
-          const empty = Object.entries(fields)
-            .filter(([, f]) => f.status === "empty")
+          const recommended = Object.entries(fields)
+            .filter(([, f]) => f.status === "empty" && f.priority === "recommended")
             .map(([, f]) => f.label);
-          if (empty.length === 0) return null;
+          if (recommended.length === 0) return null;
           return (
             <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, mt: 0.5 }}>
-              <Typography variant="caption" sx={{ color: COLOR.text4, mr: 0.5, flexShrink: 0 }}>待补充：</Typography>
-              {empty.map((text, i) => (
+              <Typography variant="caption" sx={{ color: COLOR.text4, mr: 0.5, flexShrink: 0 }}>
+                {session.progress.can_complete ? "建议补充：" : "待补充："}
+              </Typography>
+              {recommended.map((text, i) => (
                 <Box key={i} sx={{
                   display: { xs: i >= 3 ? "none" : "inline-flex", md: i >= 5 ? "none" : "inline-flex" },
                   px: 1, py: 0.5, borderRadius: "10px",
-                  fontSize: "11px", bgcolor: COLOR.warningLight, color: "#e65100", border: "1px solid #ffe0b2" }}>
+                  fontSize: "11px",
+                  bgcolor: session.progress.can_complete ? COLOR.surfaceAlt : COLOR.warningLight,
+                  color: session.progress.can_complete ? COLOR.text3 : "#e65100",
+                  border: session.progress.can_complete ? `1px solid ${COLOR.border}` : "1px solid #ffe0b2" }}>
                   {text}
                 </Box>
               ))}
-              {empty.length > 3 && (
+              {recommended.length > 3 && (
                 <Typography variant="caption" sx={{ color: COLOR.text4, display: { xs: "inline", md: "none" }, fontSize: "11px" }}>
-                  +{empty.length - 3}
+                  +{recommended.length - 3}
                 </Typography>
               )}
-              {empty.length > 5 && (
+              {recommended.length > 5 && (
                 <Typography variant="caption" sx={{ color: COLOR.text4, display: { xs: "none", md: "inline" }, fontSize: "11px" }}>
-                  +{empty.length - 5}
+                  +{recommended.length - 5}
                 </Typography>
               )}
             </Box>
@@ -461,11 +470,11 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
       )}
 
       {/* Ready-for-confirm floating banner — draws attention to "完成" */}
-      {session.status === "ready_for_confirm" && (
+      {(session.status === "ready_for_confirm" || (session.progress.can_complete && session.status === "interviewing")) && (
         <Box sx={{ px: 2, py: 1.5, borderTop: `1px solid ${COLOR.primary}`, bgcolor: COLOR.primaryLight,
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text1, fontWeight: 500 }}>
-            病历信息已足够，可以生成AI诊断建议
+            {session.status === "ready_for_confirm" ? "病历信息已足够，可以生成AI诊断建议" : "必填信息已完成，可以生成病历"}
           </Typography>
           <Button size="small" variant="contained" disableElevation
             sx={{ bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover },

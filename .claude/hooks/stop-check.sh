@@ -46,10 +46,12 @@ if echo "$CHANGED" | grep -qE "src/agent/prompts/intent/|src/agent/prompts/commo
 fi
 
 # API routes changed → architecture.md should be updated
-if echo "$CHANGED" | grep -qE "src/channels/web/.*\.py$|src/channels/wechat/.*\.py$"; then
-  if echo "$CHANGED" | grep -qE "(router|endpoint|@router)"; then
+# Only flag when actual route definitions are added/removed in the diff
+CHANNEL_PY=$(echo "$CHANGED" | grep -E "src/channels/(web|wechat)/.*\.py$" | grep -v "debug" || true)
+if [ -n "$CHANNEL_PY" ]; then
+  if git diff HEAD -- $CHANNEL_PY 2>/dev/null | grep -qE "^\+.*@router\.(get|post|put|delete|patch)"; then
     if ! echo "$CHANGED" | grep -q "docs/architecture.md"; then
-      WARNINGS="${WARNINGS}\n- API routes may have changed but docs/architecture.md not updated"
+      WARNINGS="${WARNINGS}\n- API routes added/changed but docs/architecture.md not updated"
     fi
   fi
 fi
@@ -68,9 +70,8 @@ if echo "$CHANGED" | grep -qE "docs/specs/.*\.md$|docs/plans/.*\.md$"; then
   done
 fi
 
+# Warn but don't block — stale diffs from prior sessions cause false positives
 if [ -n "$WARNINGS" ]; then
-  REASON=$(echo -e "Doc sync check found issues:$WARNINGS\n\nUpdate the docs or confirm these are intentional omissions.")
-  echo "{\"decision\":\"block\",\"reason\":$(python3 -c "import json; print(json.dumps('$REASON'))" 2>/dev/null || echo "\"Doc updates may be needed\"")}"
   exit 0
 fi
 

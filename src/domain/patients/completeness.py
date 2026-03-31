@@ -53,6 +53,43 @@ def check_completeness(collected: Dict[str, str], *, mode: str = "patient") -> L
     return missing
 
 
+def get_completeness_state(collected: Dict[str, str], *, mode: str = "patient") -> dict:
+    """Return tiered completeness info with can_complete flag.
+
+    Returns dict with keys:
+        can_complete: True if all REQUIRED fields are filled
+        required_missing: missing from REQUIRED
+        recommended_missing: missing from recommended tier (mode-dependent)
+        optional_missing: missing from optional tier (mode-dependent)
+        next_focus: first recommended_missing, or first optional if recommended empty
+    """
+    required_missing = [f for f in REQUIRED if not collected.get(f)]
+
+    if mode == "doctor":
+        rec_fields = tuple(f for f in DOCTOR_RECOMMENDED if f not in REQUIRED)
+        opt_fields = DOCTOR_OPTIONAL
+    else:
+        rec_fields = tuple(f for f in SUBJECTIVE_RECOMMENDED if f not in REQUIRED)
+        opt_fields = SUBJECTIVE_OPTIONAL
+
+    recommended_missing = [f for f in rec_fields if not collected.get(f)]
+    optional_missing = [f for f in opt_fields if not collected.get(f)]
+
+    next_focus: str | None = None
+    if recommended_missing:
+        next_focus = recommended_missing[0]
+    elif optional_missing:
+        next_focus = optional_missing[0]
+
+    return {
+        "can_complete": len(required_missing) == 0,
+        "required_missing": required_missing,
+        "recommended_missing": recommended_missing,
+        "optional_missing": optional_missing,
+        "next_focus": next_focus,
+    }
+
+
 def count_filled(collected: Dict[str, str], *, mode: str = "patient") -> int:
     """Count how many collectable fields have values."""
     fields = DOCTOR_ALL if mode == "doctor" else PATIENT_ALL

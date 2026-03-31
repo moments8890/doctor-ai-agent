@@ -35,7 +35,7 @@ class InterviewLLMResponse(BaseModel):
 
     reply: str = Field(
         default="请继续描述您的情况。",
-        description="给患者的自然语言回复（先回应，再提问）",
+        description="给医生或患者的自然语言回复（先回应，再提问）",
     )
     extracted: ExtractedClinicalFields = Field(
         default_factory=ExtractedClinicalFields,
@@ -60,6 +60,22 @@ FIELD_LABELS = {
     "diagnosis": "诊断",
     "treatment_plan": "治疗方案",
     "orders_followup": "医嘱及随访",
+}
+
+FIELD_META = {
+    "chief_complaint": {"hint": "促使就诊的主要症状+持续时间", "example": "腹痛3天", "tier": "required"},
+    "present_illness": {"hint": "症状详情、演变、已做检查", "example": "脐周阵发性钝痛，无放射，进食后加重", "tier": "required"},
+    "past_history": {"hint": "既往疾病、手术、长期用药", "example": "高血压10年，口服氨氯地平", "tier": "recommended"},
+    "allergy_history": {"hint": "药物/食物过敏", "example": "青霉素过敏", "tier": "recommended"},
+    "family_history": {"hint": "家族遗传病史", "example": "父亲糖尿病", "tier": "recommended"},
+    "personal_history": {"hint": "吸烟、饮酒、职业暴露", "example": "吸烟20年，1包/天", "tier": "recommended"},
+    "marital_reproductive": {"hint": "婚育情况", "example": "已婚，育1子", "tier": "optional"},
+    "physical_exam": {"hint": "生命体征、阳性/阴性体征", "example": "腹软，脐周压痛，无反跳痛", "tier": "recommended"},
+    "specialist_exam": {"hint": "专科特殊检查", "example": "肛门指检未触及肿物", "tier": "optional"},
+    "auxiliary_exam": {"hint": "化验、影像结果", "example": "血常规WBC 12.5×10⁹/L", "tier": "optional"},
+    "diagnosis": {"hint": "初步诊断或印象", "example": "急性胃肠炎", "tier": "recommended"},
+    "treatment_plan": {"hint": "处方、处置、建议", "example": "口服蒙脱石散，清淡饮食", "tier": "recommended"},
+    "orders_followup": {"hint": "医嘱及复诊安排", "example": "3天后复诊，如加重急诊", "tier": "optional"},
 }
 
 
@@ -89,6 +105,11 @@ _PATIENT_PHASES = [
 
 def _build_progress(collected: Dict[str, str], mode: str = "patient") -> dict:
     """Build structured progress metadata for UI rendering."""
+    from domain.patients.completeness import (
+        REQUIRED, DOCTOR_RECOMMENDED, DOCTOR_OPTIONAL,
+        SUBJECTIVE_RECOMMENDED, SUBJECTIVE_OPTIONAL,
+    )
+
     _PATIENT_FIELDS = {
         "chief_complaint", "present_illness", "past_history",
         "allergy_history", "family_history", "personal_history", "marital_reproductive",
@@ -116,12 +137,32 @@ def _build_progress(collected: Dict[str, str], mode: str = "patient") -> dict:
                 phase = phase_name
                 break
 
+    # Grouped completeness counts
+    can_complete = all(collected.get(f) for f in REQUIRED)
+
+    if mode == "doctor":
+        req_fields = list(REQUIRED)
+        rec_fields = [f for f in DOCTOR_RECOMMENDED if f not in REQUIRED]
+    else:
+        req_fields = list(REQUIRED)
+        rec_fields = [f for f in SUBJECTIVE_RECOMMENDED if f not in REQUIRED]
+
+    required_count = sum(1 for f in req_fields if collected.get(f))
+    required_total = len(req_fields)
+    recommended_count = sum(1 for f in rec_fields if collected.get(f))
+    recommended_total = len(rec_fields)
+
     return {
         "filled": filled,
         "total": total,
         "pct": pct,
         "phase": phase,
         "fields": fields,
+        "can_complete": can_complete,
+        "required_count": required_count,
+        "required_total": required_total,
+        "recommended_count": recommended_count,
+        "recommended_total": recommended_total,
     }
 
 

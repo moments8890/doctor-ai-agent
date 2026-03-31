@@ -24,6 +24,7 @@ def release_session_lock(session_id: str) -> None:
 
 from domain.patients.completeness import (
     check_completeness,
+    get_completeness_state,
     merge_extracted,
     total_fields,
 )
@@ -35,6 +36,7 @@ from domain.patients.interview_models import (
     InterviewLLMResponse,
     InterviewResponse,
     FIELD_LABELS,
+    FIELD_META,
     _FIELD_PRIORITY,
     _PATIENT_PHASES,
     _build_progress,
@@ -65,6 +67,7 @@ async def _call_interview_llm(
     previous_history: Optional[str] = None,
     mode: str = "patient",
     doctor_id: str = "",
+    completeness_state: dict = None,
 ) -> Dict[str, Any]:
     """Call LLM with interview prompt. Returns parsed {reply, extracted}."""
     from agent.llm import structured_call
@@ -74,12 +77,51 @@ async def _call_interview_llm(
     missing = check_completeness(collected, mode=mode)
     missing_labels = [FIELD_LABELS.get(f, f) for f in missing]
 
-    # Build patient context (L6 Patient — goes into system for conversation_mode)
+    # Build rich XML context for LLM
+    state = completeness_state or get_completeness_state(collected, mode=mode)
+
+    # Completion state XML
+    req_missing_str = "、".join(FIELD_LABELS.get(f, f) for f in state["required_missing"]) or "无"
+    rec_missing_str = "、".join(FIELD_LABELS.get(f, f) for f in state["recommended_missing"]) or "无"
+    opt_missing_str = "、".join(FIELD_LABELS.get(f, f) for f in state["optional_missing"]) or "无"
+
+    next_focus = state.get("next_focus")
+    next_focus_xml = ""
+    if next_focus and next_focus in FIELD_META:
+        meta = FIELD_META[next_focus]
+        next_focus_xml = f'  <next_focus field="{next_focus}" hint="{meta["hint"]}" example="{meta["example"]}">{FIELD_LABELS.get(next_focus, next_focus)}</next_focus>\n'
+
+    completion_xml = (
+        f"<completion_state>\n"
+        f"  <can_complete>{str(state['can_complete']).lower()}</can_complete>\n"
+        f"  <required_missing>{req_missing_str}</required_missing>\n"
+        f"  <recommended_missing>{rec_missing_str}</recommended_missing>\n"
+        f"  <optional_missing>{opt_missing_str}</optional_missing>\n"
+        f"{next_focus_xml}"
+        f"</completion_state>"
+    )
+
+    # Field guidance XML for missing recommended fields
+    guidance_parts = []
+    for field_key in (state["recommended_missing"] + state["optional_missing"])[:5]:
+        if field_key in FIELD_META:
+            meta = FIELD_META[field_key]
+            guidance_parts.append(
+                f'  <field key="{field_key}">\n'
+                f'    <label>{FIELD_LABELS.get(field_key, field_key)}</label>\n'
+                f'    <hint>{meta["hint"]}</hint>\n'
+                f'    <example>{meta["example"]}</example>\n'
+                f'  </field>'
+            )
+    field_guidance_xml = "<field_guidance>\n" + "\n".join(guidance_parts) + "\n</field_guidance>" if guidance_parts else ""
+
     context_lines = [
         f"患者信息：{patient_info['name']}，{patient_info['gender']}，{patient_info['age']}岁",
         f"已收集：{json.dumps(collected, ensure_ascii=False)}",
-        f"待收集：{'、'.join(missing_labels) if missing_labels else '无（可进入确认）'}",
+        completion_xml,
     ]
+    if field_guidance_xml:
+        context_lines.append(field_guidance_xml)
     if previous_history:
         context_lines.append(f"既往就诊记录：{previous_history}")
     patient_context = "\n".join(context_lines)
@@ -190,6 +232,8 @@ async def _interview_turn_inner(session_id: str, patient_text: str) -> Interview
     patient_info = await _load_patient_info(session.patient_id)
     previous_history = await _load_previous_history(session.patient_id, session.doctor_id)
 
+    completeness_state = get_completeness_state(session.collected, mode=mode)
+
     llm_response = None
     last_error = None
     for attempt in range(3):
@@ -201,6 +245,7 @@ async def _interview_turn_inner(session_id: str, patient_text: str) -> Interview
                 previous_history=previous_history,
                 mode=session.mode,
                 doctor_id=session.doctor_id,
+                completeness_state=completeness_state,
             )
             break
         except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
@@ -239,7 +284,19 @@ async def _interview_turn_inner(session_id: str, patient_text: str) -> Interview
     missing = check_completeness(session.collected, mode=mode)
 
     reply = llm_response.get("reply", "请继续描述您的情况。" if mode == "patient" else "收到，已记录。")
-    ready_to_review = len(missing) == 0
+
+    # Post-processing guard: if can_complete, soften any blocking language
+    state = get_completeness_state(session.collected, mode=mode)
+    if state["can_complete"] and any(kw in reply for kw in ("还需要", "必须", "还缺")):
+        # Replace blocking language with permissive language
+        import re
+        reply = re.sub(r"还需要补充.+?[。；]?", "如方便可再补充", reply)
+        reply = re.sub(r"必须.+?[。；]?", "", reply)
+        reply = re.sub(r"还缺.+?[。；]?", "", reply)
+        if not reply.strip():
+            reply = "已记录。现在可以点击"完成"生成病历。"
+
+    ready_to_review = state["can_complete"] if mode == "doctor" else len(missing) == 0
     if ready_to_review and mode == "patient":
         session.status = InterviewStatus.reviewing
         if not resumed_from_review:
