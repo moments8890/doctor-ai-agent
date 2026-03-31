@@ -36,6 +36,7 @@ const NAV_SECTIONS = [
 		items: [
 			{ key: "overview", label: "总览" },
 			{ key: "doctors", label: "医生" },
+			{ key: "cleanup", label: "数据清理" },
 		],
 	},
 	...Object.entries(TABLE_GROUPS).map(([groupName, keys]) => ({
@@ -156,6 +157,165 @@ function Sidebar({ activeKey, onSelect, doctorCount }) {
 	);
 }
 
+// ── Cleanup Panel ────────────────────────────────────────────────────────────
+function AdminCleanup() {
+	const [preview, setPreview] = useState(null);
+	const [loading, setLoading] = useState(false);
+	const [executing, setExecuting] = useState(false);
+	const [result, setResult] = useState(null);
+	const [error, setError] = useState("");
+
+	const token = localStorage.getItem(ADMIN_TOKEN_KEY) || (DEV_MODE ? "dev" : "");
+	const headers = { "X-Admin-Token": token };
+
+	async function loadPreview() {
+		setLoading(true);
+		setError("");
+		setResult(null);
+		try {
+			const res = await fetch("/api/admin/cleanup/preview", { headers });
+			if (!res.ok) throw new Error(`${res.status}`);
+			setPreview(await res.json());
+		} catch (e) {
+			setError(e.message);
+		} finally {
+			setLoading(false);
+		}
+	}
+
+	async function executeCleanup(action) {
+		if (!confirm(`确认执行清理: ${action}？此操作不可撤销。`)) return;
+		setExecuting(true);
+		setError("");
+		try {
+			const res = await fetch(`/api/admin/cleanup/execute?action=${action}`, {
+				method: "POST",
+				headers,
+			});
+			if (!res.ok) throw new Error(`${res.status}`);
+			setResult(await res.json());
+			loadPreview(); // refresh
+		} catch (e) {
+			setError(e.message);
+		} finally {
+			setExecuting(false);
+		}
+	}
+
+	useEffect(() => { loadPreview(); }, []); // eslint-disable-line
+
+	const S = {
+		section: { background: GH.card, border: `1px solid ${GH.border}`, borderRadius: 8, marginBottom: 12, overflow: "hidden" },
+		header: { padding: "8px 14px", fontSize: 12, fontWeight: 600, color: GH.text, borderBottom: `1px solid ${GH.border}`, background: GH.hoverBg, display: "flex", justifyContent: "space-between", alignItems: "center" },
+		row: { padding: "6px 14px", fontSize: 11, color: GH.text, borderBottom: `1px solid ${GH.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" },
+		badge: (color) => ({ fontSize: 10, fontWeight: 500, padding: "1px 6px", borderRadius: 3, background: `${color}22`, color }),
+		btn: { fontSize: 11, fontWeight: 600, padding: "4px 12px", borderRadius: 4, border: "none", cursor: "pointer" },
+		btnDanger: { background: "rgba(248,81,73,0.15)", color: GH.red },
+		btnPrimary: { background: "rgba(63,185,80,0.15)", color: GH.green },
+	};
+
+	return (
+		<div style={{ padding: "10px 16px" }}>
+			{error && <div style={{ padding: "8px 12px", fontSize: 12, color: GH.red, background: "rgba(248,81,73,0.12)", borderRadius: 6, marginBottom: 12 }}>错误: {error}</div>}
+			{result && (
+				<div style={{ padding: "8px 12px", fontSize: 12, color: GH.green, background: "rgba(63,185,80,0.12)", borderRadius: 6, marginBottom: 12 }}>
+					清理完成: {Object.entries(result.deleted || {}).filter(([, v]) => v > 0).map(([k, v]) => `${k}: ${v}`).join(", ") || "无数据删除"}
+				</div>
+			)}
+			{loading && <div style={{ fontSize: 12, color: GH.textMuted, padding: "10px 0" }}>扫描中...</div>}
+			{preview && (
+				<>
+					{/* Summary */}
+					<div style={{ ...S.section }}>
+						<div style={S.header}>
+							<span>扫描摘要</span>
+							<button style={{ ...S.btn, ...S.btnPrimary }} onClick={loadPreview} disabled={loading}>重新扫描</button>
+						</div>
+						<div style={S.row}>
+							<span>待清理总行数</span>
+							<span style={{ fontSize: 18, fontWeight: 700, color: preview.summary.total_rows_to_delete > 0 ? GH.orange : GH.green }}>
+								{preview.summary.total_rows_to_delete}
+							</span>
+						</div>
+					</div>
+
+					{/* Test doctors */}
+					<div style={S.section}>
+						<div style={S.header}>
+							<span>测试医生 <span style={S.badge(GH.red)}>{preview.test_doctors.length}</span></span>
+							{preview.test_doctors.length > 0 && (
+								<button style={{ ...S.btn, ...S.btnDanger }} onClick={() => executeCleanup("test_doctors")} disabled={executing}>
+									{executing ? "清理中..." : "清理测试数据"}
+								</button>
+							)}
+						</div>
+						{preview.test_doctors.map((d, i) => (
+							<div key={i} style={S.row}>
+								<span><span style={{ color: GH.blue }}>{d.doctor_id}</span> · {d.name}</span>
+								<span style={{ color: GH.textMuted }}>{d.patient_count}患者 · {d.record_count}病历 · {d.reason}</span>
+							</div>
+						))}
+						{preview.test_doctors.length === 0 && <div style={{ ...S.row, color: GH.textMuted }}>无测试医生</div>}
+					</div>
+
+					{/* Stale patients */}
+					<div style={S.section}>
+						<div style={S.header}>
+							<span>过期患者 <span style={S.badge(GH.orange)}>{preview.stale_patients.length}</span></span>
+							{preview.stale_patients.length > 0 && (
+								<button style={{ ...S.btn, ...S.btnDanger }} onClick={() => executeCleanup("stale_patients")} disabled={executing}>清理</button>
+							)}
+						</div>
+						{preview.stale_patients.map((p, i) => (
+							<div key={i} style={S.row}>
+								<span>#{p.id} · {p.name} · <span style={{ color: GH.textMuted }}>{p.doctor_id}</span></span>
+								<span style={{ color: GH.textMuted }}>{p.created_at} · {p.reason}</span>
+							</div>
+						))}
+						{preview.stale_patients.length === 0 && <div style={{ ...S.row, color: GH.textMuted }}>无过期患者</div>}
+					</div>
+
+					{/* Orphaned records */}
+					<div style={S.section}>
+						<div style={S.header}>
+							<span>孤立记录 <span style={S.badge(GH.textMuted)}>{preview.orphaned_records.length}</span></span>
+							{preview.orphaned_records.length > 0 && (
+								<button style={{ ...S.btn, ...S.btnDanger }} onClick={() => executeCleanup("orphaned_records")} disabled={executing}>清理</button>
+							)}
+						</div>
+						{preview.orphaned_records.length === 0 && <div style={{ ...S.row, color: GH.textMuted }}>无孤立记录</div>}
+					</div>
+
+					{/* Duplicate doctors */}
+					<div style={S.section}>
+						<div style={S.header}>
+							<span>重复医生 <span style={S.badge(GH.blue)}>{preview.duplicate_doctors.length}</span></span>
+							<span style={{ fontSize: 10, color: GH.textMuted }}>需人工审查</span>
+						</div>
+						{preview.duplicate_doctors.map((g, i) => (
+							<div key={i} style={{ ...S.row, flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+								<span><strong>{g.name || "(空名称)"}</strong> × {g.count}</span>
+								<div style={{ fontSize: 10, color: GH.textMuted, fontFamily: "ui-monospace, monospace", wordBreak: "break-all" }}>
+									{g.doctor_ids.join(", ")}
+								</div>
+							</div>
+						))}
+						{preview.duplicate_doctors.length === 0 && <div style={{ ...S.row, color: GH.textMuted }}>无重复医生</div>}
+					</div>
+
+					{/* Clean all */}
+					{preview.summary.total_rows_to_delete > 0 && (
+						<button style={{ ...S.btn, ...S.btnDanger, padding: "8px 20px", fontSize: 13 }}
+							onClick={() => executeCleanup("all")} disabled={executing}>
+							{executing ? "清理中..." : `一键清理全部 (${preview.summary.total_rows_to_delete} 行)`}
+						</button>
+					)}
+				</>
+			)}
+		</div>
+	);
+}
+
 // ── Main dashboard (after auth) ───────────────────────────────────────────────
 function AdminDashboard({ onLockout }) {
 	const { section } = useParams();
@@ -165,6 +325,7 @@ function AdminDashboard({ onLockout }) {
 	function deriveKey() {
 		if (!section || section === "overview") return "overview";
 		if (section === "doctors") return "doctors";
+		if (section === "cleanup") return "cleanup";
 		if (ALL_TABLE_KEYS.includes(section)) return section;
 		return "overview";
 	}
@@ -267,6 +428,7 @@ function AdminDashboard({ onLockout }) {
 				{activeKey === "doctors" && !selectedDoctor && (
 					<DoctorList onDoctorClick={(id) => setSelectedDoctor(id)} />
 				)}
+				{activeKey === "cleanup" && <AdminCleanup />}
 				{isTableKey && <AdminRawData forcedTable={activeKey} />}
 			</Box>
 		</Box>
