@@ -294,7 +294,7 @@ async def _interview_turn_inner(session_id: str, patient_text: str) -> Interview
         reply = re.sub(r"必须.+?[。；]?", "", reply)
         reply = re.sub(r"还缺.+?[。；]?", "", reply)
         if not reply.strip():
-            reply = "已记录。现在可以点击"完成"生成病历。"
+            reply = "已记录。现在可以点击「完成」生成病历。"
 
     ready_to_review = state["can_complete"] if mode == "doctor" else len(missing) == 0
     if ready_to_review and mode == "patient":
