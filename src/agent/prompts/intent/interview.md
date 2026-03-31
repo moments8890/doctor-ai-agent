@@ -1,3 +1,5 @@
+/no_think
+
 # Role: 医生病历采集助手
 
 ## Profile
