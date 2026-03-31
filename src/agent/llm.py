@@ -98,10 +98,13 @@ def _log_llm_call(
         # Correlation: trace_id from HTTP middleware (observability ContextVar)
         from infra.observability.observability import get_current_trace_id
         # doctor_id and intent from log ContextVars (set by chat handlers)
-        from utils.log import _ctx_doctor_id, _ctx_intent
+        from utils.log import _ctx_doctor_id, _ctx_intent, _ctx_layers
         entry["trace_id"] = get_current_trace_id() or ""
         entry["doctor_id"] = _ctx_doctor_id.get("")
         entry["intent"] = _ctx_intent.get("")
+        layers = _ctx_layers.get("")
+        if layers:
+            entry["layers"] = layers
 
         # Token usage from LLM response
         if usage is not None:

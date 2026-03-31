@@ -708,7 +708,7 @@ function Step4Content({ doctorId, progress, updateProgress, setCanAdvance, api }
   const starterSuggestions = "最近记性变差了,头痛头晕好几天了,脖子伤口有点肿,走路不太稳,经常忘记吃药";
   const basePath = ready && localStorage.getItem("patient_portal_token")
     ? "/patient/records/interview"
-    : "/debug/patient/records/interview";
+    : "/mock/patient/records/interview";
   const iframeSrc = `${basePath}?starter_suggestions=${encodeURIComponent(starterSuggestions)}`;
 
   return (

@@ -24,6 +24,7 @@ import SectionLabel from "../../components/SectionLabel";
 import ActionRow from "../../components/ActionRow";
 import SubpageHeader from "../../components/SubpageHeader";
 import FilterBar from "../../components/FilterBar";
+import CitationPopover from "../../components/CitationPopover";
 import { TYPE, COLOR, RADIUS, HIGHLIGHT_ROW_SX } from "../../theme";
 /* ── Case memory helpers ──────────────────────────────────────────────────── */
 

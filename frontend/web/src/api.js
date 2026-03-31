@@ -100,25 +100,6 @@ async function adminRequest(url, options = {}) {
   }
 }
 
-let _debugToken = "";
-let _debugAuthErrorHandler = null;
-
-export function setDebugToken(token) { _debugToken = token || ""; }
-export function onDebugAuthError(handler) { _debugAuthErrorHandler = handler; }
-
-async function debugRequest(url, options = {}) {
-  const headers = { ...(options.headers || {}) };
-  if (_debugToken) headers["X-Debug-Token"] = _debugToken;
-  try {
-    return await request(url, { ...options, headers });
-  } catch (err) {
-    if (err.status === 403 || err.status === 503) {
-      _debugAuthErrorHandler?.();
-    }
-    throw err;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Unified auth API
 // ---------------------------------------------------------------------------
@@ -179,29 +160,9 @@ export async function unifiedRegisterPatient(phone, name, yearOfBirth, doctorId,
   return res.json();
 }
 
-export async function unifiedMe(token) {
-  const res = await fetch(apiUrl("/api/auth/unified/me"), {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error("Token invalid");
-  return res.json();
-}
-
 export async function unifiedListDoctors() {
   const res = await fetch(apiUrl("/api/auth/unified/doctors"));
   return res.json();
-}
-
-// ---------------------------------------------------------------------------
-// Legacy invite login (kept for backward compat)
-// ---------------------------------------------------------------------------
-
-export async function inviteLogin(code, specialty) {
-  return request("/api/auth/invite/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code, specialty: specialty || undefined }),
-  });
 }
 
 export async function getAdminInviteCodes() {
@@ -482,16 +443,6 @@ export async function deletePatient(patientId, doctorId) {
   return request(`/api/manage/patients/${patientId}?${qs.toString()}`, { method: "DELETE" });
 }
 
-export async function getAdminDbView({ doctorId, patientName, dateFrom, dateTo, limit = 100 }) {
-  const qs = new URLSearchParams();
-  if (doctorId) qs.set("doctor_id", doctorId);
-  if (patientName) qs.set("patient_name", patientName);
-  if (dateFrom) qs.set("date_from", dateFrom);
-  if (dateTo) qs.set("date_to", dateTo);
-  qs.set("limit", String(limit));
-  return adminRequest(`/api/admin/db-view?${qs.toString()}`);
-}
-
 export async function getAdminTables({ doctorId, patientName, dateFrom, dateTo }) {
   const qs = new URLSearchParams();
   if (doctorId) qs.set("doctor_id", doctorId);
@@ -516,34 +467,6 @@ export async function getAdminFilterOptions({ doctorId } = {}) {
   const qs = new URLSearchParams();
   if (doctorId) qs.set("doctor_id", doctorId);
   return adminRequest(`/api/admin/filter-options?${qs.toString()}`);
-}
-
-export async function getAdminObservability({
-  traceLimit = 80,
-  summaryLimit = 500,
-  spanLimit = 200,
-  slowSpanLimit = 30,
-  scope = "public",
-  traceId = "",
-} = {}) {
-  const qs = new URLSearchParams({
-    trace_limit: String(traceLimit),
-    summary_limit: String(summaryLimit),
-    span_limit: String(spanLimit),
-    slow_span_limit: String(slowSpanLimit),
-    scope,
-  });
-  if (traceId) qs.set("trace_id", traceId);
-  return adminRequest(`/api/admin/observability?${qs.toString()}`);
-}
-
-export async function clearAdminObservabilityTraces() {
-  return adminRequest("/api/admin/observability/traces", { method: "DELETE" });
-}
-
-export async function seedAdminObservabilitySamples(count = 3) {
-  const qs = new URLSearchParams({ count: String(count) });
-  return adminRequest(`/api/admin/observability/sample?${qs.toString()}`, { method: "POST" });
 }
 
 export async function getAdminRuntimeConfig() {
@@ -590,51 +513,6 @@ export async function reloadAdminRoutingKeywords(token) {
 
 export async function getAdminRoutingMetrics() {
   return adminRequest("/api/admin/routing-metrics");
-}
-
-export async function resetAdminRoutingMetrics() {
-  return adminRequest("/api/admin/routing-metrics/reset", { method: "POST" });
-}
-
-export async function getDebugLogs({ level = "WARNING", limit = 200, source = "app" } = {}) {
-  const qs = new URLSearchParams({ level, limit: String(limit), source });
-  return debugRequest(`/api/debug/logs?${qs.toString()}`);
-}
-
-export async function getDebugObservability({
-  traceLimit = 80,
-  summaryLimit = 500,
-  spanLimit = 300,
-  slowSpanLimit = 30,
-  scope = "public",
-  traceId = "",
-} = {}) {
-  const qs = new URLSearchParams({
-    trace_limit: String(traceLimit),
-    summary_limit: String(summaryLimit),
-    span_limit: String(spanLimit),
-    slow_span_limit: String(slowSpanLimit),
-    scope,
-  });
-  if (traceId) qs.set("trace_id", traceId);
-  return debugRequest(`/api/debug/observability?${qs.toString()}`);
-}
-
-export async function clearDebugObservabilityTraces() {
-  return debugRequest("/api/debug/observability/traces", { method: "DELETE" });
-}
-
-export async function seedDebugObservabilitySamples(count = 3) {
-  const qs = new URLSearchParams({ count: String(count) });
-  return debugRequest(`/api/debug/observability/sample?${qs.toString()}`, { method: "POST" });
-}
-
-export async function getDebugRoutingMetrics() {
-  return debugRequest("/api/debug/routing-metrics");
-}
-
-export async function resetDebugRoutingMetrics() {
-  return debugRequest("/api/debug/routing-metrics/reset", { method: "POST" });
 }
 
 export async function getTasks(doctorId, status = null) {
@@ -695,14 +573,6 @@ export async function getTaskRecord(recordId, doctorId) {
   return request(`/api/tasks/record/${recordId}?${qs.toString()}`);
 }
 
-
-export async function confirmPendingRecordById(pendingId) {
-  return request(`/api/records/pending/${encodeURIComponent(pendingId)}/confirm`, { method: "POST" });
-}
-
-export async function abandonPendingRecordById(pendingId) {
-  return request(`/api/records/pending/${encodeURIComponent(pendingId)}/abandon`, { method: "POST" });
-}
 
 export async function clearContext(doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
@@ -805,21 +675,6 @@ async function patientRequest(url, patientToken, options = {}) {
   }
 }
 
-export async function patientSession(doctorId, patientName) {
-  return fetch(apiUrl("/api/patient/session"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ doctor_id: doctorId, patient_name: patientName }),
-  }).then(async (res) => {
-    if (!res.ok) {
-      const err = new Error(await readError(res));
-      err.status = res.status;
-      throw err;
-    }
-    return res.json();
-  });
-}
-
 export async function getPatientMe(patientToken) {
   return patientRequest("/api/patient/me", patientToken);
 }
@@ -840,39 +695,6 @@ export async function sendPatientMessage(patientToken, text) {
 // Patient interview API (ADR 0016)
 // ---------------------------------------------------------------------------
 
-export async function listDoctors() {
-  const res = await fetch(apiUrl("/api/patient/doctors"));
-  return res.json();
-}
-
-export async function patientRegister(doctorId, name, gender, yearOfBirth, phone) {
-  const res = await fetch(apiUrl("/api/patient/register"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ doctor_id: doctorId, name, gender, year_of_birth: yearOfBirth, phone }),
-  });
-  if (!res.ok) {
-    const err = new Error(await readError(res));
-    err.status = res.status;
-    throw err;
-  }
-  return res.json();
-}
-
-export async function patientLogin(phone, yearOfBirth, doctorId) {
-  const res = await fetch(apiUrl("/api/patient/login"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, year_of_birth: yearOfBirth, doctor_id: doctorId || undefined }),
-  });
-  if (!res.ok) {
-    const err = new Error(await readError(res));
-    err.status = res.status;
-    throw err;
-  }
-  return res.json();
-}
-
 export async function interviewStart(token) {
   return patientRequest("/api/patient/interview/start", token, { method: "POST" });
 }
@@ -883,10 +705,6 @@ export async function interviewTurn(token, sessionId, text) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId, text }),
   });
-}
-
-export async function interviewCurrent(token) {
-  return patientRequest("/api/patient/interview/current", token);
 }
 
 export async function interviewConfirm(token, sessionId) {
@@ -903,22 +721,6 @@ export async function interviewCancel(token, sessionId) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId }),
   });
-}
-
-export async function patientUpload(token, file) {
-  const form = new FormData();
-  form.append("file", file);
-  const res = await fetch(apiUrl("/api/patient/upload"), {
-    method: "POST",
-    headers: { "X-Patient-Token": token },
-    body: form,
-  });
-  if (!res.ok) {
-    const err = new Error(await readError(res));
-    err.status = res.status;
-    throw err;
-  }
-  return res.json();
 }
 
 export async function getKnowledgeItems(doctorId) {

@@ -33,11 +33,6 @@ def _get_or_create_session_id(identity: str) -> str:
     return _session_ids[identity]
 
 
-def get_session_id(identity: str) -> Optional[str]:
-    """Return the current session_id for the identity, or None."""
-    return _session_ids.get(identity)
-
-
 # ---------------------------------------------------------------------------
 # In-memory cache — warm cache over doctor_chat_log
 # ---------------------------------------------------------------------------

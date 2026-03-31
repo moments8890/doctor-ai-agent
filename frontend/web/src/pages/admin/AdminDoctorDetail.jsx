@@ -1,7 +1,8 @@
-/** AdminDoctorDetail — drill-down view for a single doctor */
+/** AdminDoctorDetail — drill-down view for a single doctor (GitHub Dark theme) */
 
 import { Box } from "@mui/material";
 import { useEffect, useState } from "react";
+import { GH } from "./adminTheme";
 
 // ── API helper ─────────────────────────────────────────────────────────────────
 async function fetchJson(url) {
@@ -14,11 +15,11 @@ async function fetchJson(url) {
 	return res.json();
 }
 
-// ── Dense shared styles (mirrors AdminOverview) ────────────────────────────────
+// ── Dense shared styles (dark) ────────────────────────────────────────────────
 const PANEL = {
-	background: "#fff",
-	border: "1px solid #e0e0e0",
-	borderRadius: 4,
+	background: GH.card,
+	border: `1px solid ${GH.border}`,
+	borderRadius: 6,
 	overflow: "hidden",
 	marginBottom: 10,
 };
@@ -26,41 +27,42 @@ const PANEL_HEAD = {
 	padding: "6px 10px",
 	fontSize: 11,
 	fontWeight: 600,
-	color: "#333",
-	borderBottom: "1px solid #f0f0f0",
+	color: GH.text,
+	borderBottom: `1px solid ${GH.border}`,
 	display: "flex",
 	justifyContent: "space-between",
 	alignItems: "center",
-	background: "#fafafa",
+	background: GH.hoverBg,
 };
 const TH = {
 	textAlign: "left",
 	padding: "4px 8px",
 	fontSize: 10,
-	color: "#888",
+	color: GH.textMuted,
 	fontWeight: 500,
 	textTransform: "uppercase",
 	letterSpacing: "0.3px",
-	background: "#f9f9f9",
-	borderBottom: "1px solid #eee",
+	background: GH.hoverBg,
+	borderBottom: `1px solid ${GH.border}`,
 	whiteSpace: "nowrap",
 };
 const TD = {
 	padding: "4px 8px",
-	borderBottom: "1px solid #f5f5f5",
+	borderBottom: `1px solid ${GH.border}`,
 	whiteSpace: "nowrap",
 	fontSize: 11,
+	color: GH.text,
 };
 
-// ── Dense chip ─────────────────────────────────────────────────────────────────
+// ── Dense chip (dark) ─────────────────────────────────────────────────────────
 function DenseChip({ label, color = "gray" }) {
 	const MAP = {
-		green: { bg: "#e8f5e9", fg: "#2e7d32" },
-		red: { bg: "#fce4ec", fg: "#c62828" },
-		amber: { bg: "#fff3e0", fg: "#e65100" },
-		blue: { bg: "#e3f2fd", fg: "#1565c0" },
-		purple: { bg: "#f3e5f5", fg: "#6a1b9a" },
-		gray: { bg: "#f5f5f5", fg: "#888" },
+		green: { bg: "rgba(63,185,80,0.15)", fg: GH.green },
+		red: { bg: "rgba(248,81,73,0.15)", fg: GH.red },
+		amber: { bg: "rgba(247,129,102,0.15)", fg: GH.orange },
+		blue: { bg: "rgba(88,166,255,0.15)", fg: GH.blue },
+		purple: { bg: "rgba(188,140,255,0.15)", fg: "#bc8cff" },
+		gray: { bg: "rgba(139,148,158,0.15)", fg: GH.textMuted },
 	};
 	const { bg, fg } = MAP[color] || MAP.gray;
 	return (
@@ -110,7 +112,7 @@ function fmtFull(ts) {
 function SetupChecklist({ setup }) {
 	if (!setup) return null;
 	const items = [
-		{ label: `KB×${setup.kb_count ?? 0}`, ok: (setup.kb_count ?? 0) > 0 },
+		{ label: `KB\u00d7${setup.kb_count ?? 0}`, ok: (setup.kb_count ?? 0) > 0 },
 		{ label: "首患者", ok: !!setup.has_patients },
 		{ label: "首AI", ok: !!setup.has_ai_usage },
 		{ label: "首病历", ok: !!setup.has_records },
@@ -122,16 +124,16 @@ function SetupChecklist({ setup }) {
 			{items.map((item, i) => (
 				<span
 					key={i}
-					style={{ color: item.ok ? "#2e7d32" : "#c62828", fontWeight: 500 }}
+					style={{ color: item.ok ? GH.green : GH.red, fontWeight: 500 }}
 				>
-					{item.ok ? "✓" : "✗"}&nbsp;{item.label}
+					{item.ok ? "\u2713" : "\u2717"}&nbsp;{item.label}
 				</span>
 			))}
 		</span>
 	);
 }
 
-// ── Doctor header ──────────────────────────────────────────────────────────────
+// ── Doctor header (dark) ──────────────────────────────────────────────────────
 function DoctorHeader({ doctor, onBack }) {
 	if (!doctor) return null;
 	return (
@@ -142,36 +144,36 @@ function DoctorHeader({ doctor, onBack }) {
 				display: "flex",
 				justifyContent: "space-between",
 				alignItems: "center",
-				background: "#fff",
-				border: "1px solid #e0e0e0",
-				borderRadius: 1,
+				background: GH.card,
+				border: `1px solid ${GH.border}`,
+				borderRadius: 1.5,
 				mb: 1.25,
 			}}
 		>
 			<Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
 				<span
 					style={{
-						color: "#1565c0",
+						color: GH.blue,
 						cursor: "pointer",
 						fontSize: 11,
 						userSelect: "none",
 					}}
 					onClick={onBack}
 				>
-					← 返回
+					&larr; 返回
 				</span>
-				<span style={{ fontSize: 13, fontWeight: 700 }}>
+				<span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>
 					{doctor.name || doctor.doctor_id}
 				</span>
 				{doctor.department && (
-					<span style={{ fontSize: 11, color: "#666" }}>
+					<span style={{ fontSize: 11, color: GH.textMuted }}>
 						{doctor.department}
 					</span>
 				)}
-				<span style={{ fontSize: 10, color: "#888", fontFamily: "monospace" }}>
-					· ID:&nbsp;{doctor.doctor_id}
-					&nbsp;· 注册&nbsp;{fmtDate(doctor.created_at)}
-					&nbsp;· 最后活跃&nbsp;{fmtTime(doctor.last_active)}
+				<span style={{ fontSize: 10, color: GH.textMuted, fontFamily: "monospace" }}>
+					&middot; ID:&nbsp;{doctor.doctor_id}
+					&nbsp;&middot; 注册&nbsp;{fmtDate(doctor.created_at)}
+					&nbsp;&middot; 最后活跃&nbsp;{fmtTime(doctor.last_active)}
 				</span>
 			</Box>
 			<SetupChecklist setup={doctor.setup} />
@@ -179,7 +181,7 @@ function DoctorHeader({ doctor, onBack }) {
 	);
 }
 
-// ── Stat strip for doctor ──────────────────────────────────────────────────────
+// ── Stat strip for doctor (dark) ──────────────────────────────────────────────
 function DoctorStatStrip({ doctor }) {
 	if (!doctor) return null;
 	const s = doctor.stats_7d || {};
@@ -188,12 +190,12 @@ function DoctorStatStrip({ doctor }) {
 		s.ai_adoption != null ? Math.round(s.ai_adoption * 100) : null;
 	const adoptionColor =
 		adoptionRate == null
-			? "#888"
+			? GH.textMuted
 			: adoptionRate >= 70
-				? "#2e7d32"
+				? GH.green
 				: adoptionRate >= 40
-					? "#e65100"
-					: "#c62828";
+					? GH.orange
+					: GH.red;
 
 	const taskRate =
 		(s.tasks_total ?? 0) > 0
@@ -205,13 +207,13 @@ function DoctorStatStrip({ doctor }) {
 			label: "患者",
 			value: s.patients ?? "—",
 			sub: s.patients_delta != null ? `+${s.patients_delta} 本周` : "7d",
-			color: "#1a1a1a",
+			color: GH.text,
 		},
 		{
 			label: "消息 7d",
 			value: s.messages ?? "—",
 			sub: "",
-			color: "#1a1a1a",
+			color: GH.text,
 		},
 		{
 			label: "AI采纳率",
@@ -226,19 +228,19 @@ function DoctorStatStrip({ doctor }) {
 			label: "病历 7d",
 			value: s.records ?? "—",
 			sub: "",
-			color: "#1a1a1a",
+			color: GH.text,
 		},
 		{
 			label: "任务完成率",
 			value: taskRate != null ? `${taskRate}%` : "—",
 			sub: taskRate != null ? `${s.tasks_done ?? 0}/${s.tasks_total ?? 0}` : "",
-			color: taskRate == null ? "#888" : taskRate >= 70 ? "#2e7d32" : "#e65100",
+			color: taskRate == null ? GH.textMuted : taskRate >= 70 ? GH.green : GH.orange,
 		},
 		{
 			label: "平均响应",
 			value: "—",
 			sub: "",
-			color: "#888",
+			color: GH.textMuted,
 		},
 	];
 
@@ -247,9 +249,9 @@ function DoctorStatStrip({ doctor }) {
 			style={{
 				display: "flex",
 				gap: 0,
-				background: "#fff",
-				border: "1px solid #e0e0e0",
-				borderRadius: 4,
+				background: GH.card,
+				border: `1px solid ${GH.border}`,
+				borderRadius: 6,
 				overflow: "hidden",
 				marginBottom: 10,
 			}}
@@ -260,13 +262,13 @@ function DoctorStatStrip({ doctor }) {
 					style={{
 						flex: 1,
 						padding: "8px 12px",
-						borderRight: i < cells.length - 1 ? "1px solid #f0f0f0" : "none",
+						borderRight: i < cells.length - 1 ? `1px solid ${GH.border}` : "none",
 					}}
 				>
 					<div
 						style={{
 							fontSize: 10,
-							color: "#888",
+							color: GH.textMuted,
 							textTransform: "uppercase",
 							letterSpacing: "0.3px",
 						}}
@@ -283,21 +285,21 @@ function DoctorStatStrip({ doctor }) {
 					>
 						{c.value}
 					</div>
-					<div style={{ fontSize: 10, color: "#999" }}>{c.sub || "\u00a0"}</div>
+					<div style={{ fontSize: 10, color: GH.textMuted }}>{c.sub || "\u00a0"}</div>
 				</div>
 			))}
 		</div>
 	);
 }
 
-// ── Patient table ──────────────────────────────────────────────────────────────
+// ── Patient table (dark) ──────────────────────────────────────────────────────
 function PatientTable({ patients, selectedPatientId, onPatientClick }) {
 	if (!patients) return null;
 	return (
 		<div style={{ ...PANEL, marginBottom: 10 }}>
 			<div style={PANEL_HEAD}>
 				<span>患者列表</span>
-				<span style={{ fontSize: 10, color: "#888" }}>
+				<span style={{ fontSize: 10, color: GH.textMuted }}>
 					{patients.length} 人
 				</span>
 			</div>
@@ -329,15 +331,15 @@ function PatientTable({ patients, selectedPatientId, onPatientClick }) {
 								key={p.patient_id || i}
 								style={{
 									background: isSelected
-										? "#e3f2fd"
+										? "rgba(88,166,255,0.12)"
 										: hasPending
-											? "#fce4ec"
+											? "rgba(248,81,73,0.08)"
 											: "transparent",
 									cursor: "pointer",
 								}}
 								onClick={() => onPatientClick(p)}
 							>
-								<td style={{ ...TD, color: "#1565c0" }}>
+								<td style={{ ...TD, color: GH.blue }}>
 									{p.name || p.patient_id}
 								</td>
 								<td style={TD}>
@@ -378,15 +380,15 @@ function PatientTable({ patients, selectedPatientId, onPatientClick }) {
 function dotColor(type) {
 	switch (type) {
 		case "message":
-			return "#1565c0";
+			return GH.blue;
 		case "ai_suggestion":
-			return "#6a1b9a";
+			return "#bc8cff";
 		case "record":
-			return "#2e7d32";
+			return GH.green;
 		case "task":
-			return "#e65100";
+			return GH.orange;
 		default:
-			return "#888";
+			return GH.textMuted;
 	}
 }
 
@@ -415,7 +417,7 @@ function statusColor(status) {
 	return "gray";
 }
 
-// ── Case timeline ──────────────────────────────────────────────────────────────
+// ── Case timeline (dark) ──────────────────────────────────────────────────────
 function CaseTimeline({ doctorId, patientId, patientName }) {
 	const [events, setEvents] = useState(null);
 	const [error, setError] = useState("");
@@ -439,20 +441,20 @@ function CaseTimeline({ doctorId, patientId, patientName }) {
 					href={`/debug?doctor_id=${doctorId}&patient_id=${patientId}`}
 					target="_blank"
 					rel="noopener noreferrer"
-					style={{ fontSize: 10, color: "#1565c0", textDecoration: "none" }}
+					style={{ fontSize: 10, color: GH.blue, textDecoration: "none" }}
 				>
-					查看LLM调用 →
+					查看LLM调用 &rarr;
 				</a>
 			</div>
 			<div style={{ padding: "6px 10px" }}>
-				{loading && <div style={{ fontSize: 11, color: "#888" }}>加载中…</div>}
+				{loading && <div style={{ fontSize: 11, color: GH.textMuted }}>加载中...</div>}
 				{error && (
-					<div style={{ fontSize: 11, color: "#c62828" }}>
+					<div style={{ fontSize: 11, color: GH.red }}>
 						加载失败: {error}
 					</div>
 				)}
 				{!loading && !error && events && events.length === 0 && (
-					<div style={{ fontSize: 11, color: "#888" }}>暂无时间线数据</div>
+					<div style={{ fontSize: 11, color: GH.textMuted }}>暂无时间线数据</div>
 				)}
 				{!loading &&
 					!error &&
@@ -466,7 +468,7 @@ function CaseTimeline({ doctorId, patientId, patientName }) {
 								paddingTop: 4,
 								paddingBottom: 4,
 								borderBottom:
-									i < events.length - 1 ? "1px solid #f5f5f5" : "none",
+									i < events.length - 1 ? `1px solid ${GH.border}` : "none",
 							}}
 						>
 							{/* Timestamp */}
@@ -474,7 +476,7 @@ function CaseTimeline({ doctorId, patientId, patientName }) {
 								style={{
 									fontFamily: "monospace",
 									fontSize: 10,
-									color: "#888",
+									color: GH.textMuted,
 									minWidth: 72,
 									flexShrink: 0,
 								}}
@@ -495,7 +497,7 @@ function CaseTimeline({ doctorId, patientId, patientName }) {
 							<span
 								style={{
 									fontSize: 10,
-									color: "#888",
+									color: GH.textMuted,
 									minWidth: 42,
 									flexShrink: 0,
 								}}
@@ -506,7 +508,7 @@ function CaseTimeline({ doctorId, patientId, patientName }) {
 							<span
 								style={{
 									fontSize: 11,
-									color: "#333",
+									color: GH.text,
 									flex: 1,
 									overflow: "hidden",
 									textOverflow: "ellipsis",
@@ -526,7 +528,7 @@ function CaseTimeline({ doctorId, patientId, patientName }) {
 	);
 }
 
-// ── Doctor list (fallback when no doctor selected) ─────────────────────────────
+// ── Doctor list (fallback when no doctor selected, dark) ─────────────────────
 function DoctorList({ onDoctorClick }) {
 	const [doctors, setDoctors] = useState(null);
 	const [loading, setLoading] = useState(true);
@@ -542,13 +544,13 @@ function DoctorList({ onDoctorClick }) {
 
 	if (loading)
 		return (
-			<div style={{ padding: "20px 16px", fontSize: 12, color: "#888" }}>
-				加载中…
+			<div style={{ padding: "20px 16px", fontSize: 12, color: GH.textMuted }}>
+				加载中...
 			</div>
 		);
 	if (error)
 		return (
-			<div style={{ padding: "12px 16px", fontSize: 12, color: "#c62828" }}>
+			<div style={{ padding: "12px 16px", fontSize: 12, color: GH.red }}>
 				加载失败: {error}
 			</div>
 		);
@@ -558,7 +560,7 @@ function DoctorList({ onDoctorClick }) {
 			<div style={PANEL}>
 				<div style={PANEL_HEAD}>
 					<span>选择医生</span>
-					<span style={{ fontSize: 10, color: "#888" }}>
+					<span style={{ fontSize: 10, color: GH.textMuted }}>
 						{(doctors || []).length} 人
 					</span>
 				</div>
@@ -579,7 +581,7 @@ function DoctorList({ onDoctorClick }) {
 								style={{ cursor: "pointer" }}
 								onClick={() => onDoctorClick?.(d.doctor_id)}
 							>
-								<td style={{ ...TD, color: "#1565c0" }}>
+								<td style={{ ...TD, color: GH.blue }}>
 									{d.name || d.doctor_id}
 								</td>
 								<td style={TD}>{d.specialty || d.department || "—"}</td>
@@ -627,8 +629,8 @@ export default function AdminDoctorDetail({ doctorId, onBack }) {
 
 	if (loading) {
 		return (
-			<div style={{ padding: "20px 16px", fontSize: 12, color: "#888" }}>
-				加载中…
+			<div style={{ padding: "20px 16px", fontSize: 12, color: GH.textMuted }}>
+				加载中...
 			</div>
 		);
 	}
@@ -638,9 +640,9 @@ export default function AdminDoctorDetail({ doctorId, onBack }) {
 				<div
 					style={{
 						fontSize: 12,
-						color: "#c62828",
-						background: "#fce4ec",
-						borderRadius: 4,
+						color: GH.red,
+						background: "rgba(248,81,73,0.12)",
+						borderRadius: 6,
 						padding: "8px 12px",
 					}}
 				>
@@ -649,14 +651,14 @@ export default function AdminDoctorDetail({ doctorId, onBack }) {
 				<span
 					style={{
 						fontSize: 11,
-						color: "#1565c0",
+						color: GH.blue,
 						cursor: "pointer",
 						marginTop: 8,
 						display: "inline-block",
 					}}
 					onClick={onBack}
 				>
-					← 返回
+					&larr; 返回
 				</span>
 			</div>
 		);

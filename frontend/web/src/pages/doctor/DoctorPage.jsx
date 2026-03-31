@@ -766,10 +766,10 @@ export default function DoctorPage() {
 
   const { pendingTaskCount, reviewCount, followupCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
-  // Redirect to onboarding wizard on first login (skip for /debug and wizard subpages)
+  // Redirect to onboarding wizard on first login (skip for /mock and wizard subpages)
   useEffect(() => {
     if (!doctorId) return;
-    if (window.location.pathname.startsWith("/debug")) return;
+    if (window.location.pathname.startsWith("/mock")) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("wizard") === "1" || params.get("onboarding") === "1") return;
     if (!isWizardDone(doctorId)) {

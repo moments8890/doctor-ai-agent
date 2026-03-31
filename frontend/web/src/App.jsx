@@ -21,6 +21,14 @@ import { isMiniApp } from "./utils/env";
 
 const DEV_MODE = import.meta.env.DEV; // true in `vite dev`, false in `vite build`
 
+function DebugRedirect() {
+	useEffect(() => {
+		const token = DEV_MODE ? "dev" : (localStorage.getItem("debugToken") || "");
+		window.location.href = `/api/debug/dashboard?token=${encodeURIComponent(token)}`;
+	}, []);
+	return null;
+}
+
 /**
  * On wide screens (>520px), constrains the app to a phone-shaped container
  * with 9:19.5 aspect ratio. Uses CSS min() to pick whichever dimension
@@ -257,9 +265,9 @@ export default function App() {
 			<Route path="/admin/login" element={<AdminLoginPage />} />
 			<Route path="/admin" element={<AdminPage />} />
 			<Route path="/admin/:section" element={<AdminPage />} />
-			{/* Component showcases — specific routes BEFORE debug wildcard */}
+			{/* Component showcases */}
 			<Route
-				path="/debug/components"
+				path="/mock/components"
 				element={
 					<MobileFrame>
 						<MockApiProvider>
@@ -268,14 +276,14 @@ export default function App() {
 					</MobileFrame>
 				}
 			/>
-			{/* Mock doctor app — same DoctorPage, mock API, auth required in prod */}
-			{doctorRoutes("/debug/doctor", MockApiProvider)}
+			{/* Mock doctor app — same DoctorPage, mock API */}
+			{doctorRoutes("/mock/doctor", MockApiProvider)}
 			{/* Mock patient app — same PatientPage, mock API */}
-			{patientRoutes("/debug/patient", PatientMockApiProvider)}
-			<Route
-				path="/debug/doctor-pages"
-				element={<Navigate to="/debug/doctor" replace />}
-			/>
+			{patientRoutes("/mock/patient", PatientMockApiProvider)}
+			{/* /mock index → default to mock doctor */}
+			<Route path="/mock" element={<Navigate to="/mock/doctor" replace />} />
+			{/* Debug dashboard — served by backend, proxied via Vite */}
+			<Route path="/debug" element={<DebugRedirect />} />
 			<Route path="*" element={<Navigate to="/" replace />} />
 		</Routes>
 	);

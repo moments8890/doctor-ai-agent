@@ -9,7 +9,6 @@ remain for command compatibility but no longer persist to DB.
 from __future__ import annotations
 
 import re
-from datetime import datetime
 from typing import Optional, Tuple, Dict, Any
 
 
@@ -19,8 +18,6 @@ _CRON_RE = re.compile(r"^\s*通知计划[：:\s]*(\S+\s+\S+\s+\S+\s+\S+\s+\S+)\s
 _IMMEDIATE_RE = re.compile(r"^\s*通知计划[：:\s]*(立即|实时)\s*$")
 _SHOW_RE = re.compile(r"^\s*(通知设置|查看通知设置)\s*$")
 _TRIGGER_RE = re.compile(r"^\s*(立即发送待办|立即触发通知|发送待办通知)\s*$")
-_SIMPLE_CRON_MIN_RE = re.compile(r"^\*/(\d+)\s+\*\s+\*\s+\*\s+\*$")
-
 
 def parse_notify_command(text: str) -> Optional[Tuple[str, Dict[str, Any]]]:
     raw = (text or "").strip()
@@ -51,29 +48,6 @@ def parse_notify_command(text: str) -> Optional[Tuple[str, Dict[str, Any]]]:
         return ("trigger_now", {})
 
     return None
-
-
-def parse_simple_cron_minutes(cron_expr: str) -> Optional[int]:
-    """Support simple cron format: */N * * * *"""
-    m = _SIMPLE_CRON_MIN_RE.match((cron_expr or "").strip())
-    if not m:
-        return None
-    try:
-        val = int(m.group(1))
-        return val if val >= 1 else None
-    except (TypeError, ValueError):
-        return None
-
-
-def should_auto_run_now(
-    pref: Optional[Any] = None,
-    now: Optional[datetime] = None,
-    *,
-    include_manual: bool = False,
-    force: bool = False,
-) -> bool:
-    """Always returns True — DoctorNotifyPreference table removed."""
-    return True
 
 
 def format_notify_pref(pref: Optional[Any] = None) -> str:

@@ -51,15 +51,6 @@ class PatientSearchCriteria:
     keywords: list[str] = field(default_factory=list)  # diagnosis / treatment terms
     days_since_visit: Optional[int] = None  # only return patients with a record within N days
 
-    def is_empty(self) -> bool:
-        return (
-            self.surname is None
-            and self.gender is None
-            and self.age_min is None
-            and self.age_max is None
-            and not self.keywords
-            and self.days_since_visit is None
-        )
 
 
 _CN_NUMS = {"零": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4,

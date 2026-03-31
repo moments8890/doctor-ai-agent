@@ -1,5 +1,5 @@
 /**
- * @route /debug/components
+ * @route /mock/components
  *
  * Reusable component showcase — shared UI plus doctor-specific reusable UI,
  * grouped by category with collapsible sections.
@@ -691,7 +691,7 @@ export default function ComponentShowcasePage() {
       </Group>
 
       <Box sx={{ display: "flex", gap: 1, justifyContent: "center", mt: 2, mb: 4 }}>
-        <Box onClick={() => window.location.href = "/debug/doctor"}
+        <Box onClick={() => window.location.href = "/mock/doctor"}
           sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.accent, cursor: "pointer", textDecoration: "underline" }}>
           Mock Pages
         </Box>

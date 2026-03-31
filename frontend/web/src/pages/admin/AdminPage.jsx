@@ -1,11 +1,11 @@
 /** @route /admin, /admin/:section
- *  3-tab admin shell: 总览 | 医生 | 原始数据
+ *  GitHub Dark sidebar admin shell
  */
 
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
 import { useEffect, useState } from "react";
-import { Navigate, useLocation, useParams } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
 	getAdminRoutingMetrics,
 	onAdminAuthError,
@@ -14,7 +14,7 @@ import {
 import { adminTheme } from "../../theme";
 import AdminDoctorDetail, { DoctorList } from "./AdminDoctorDetail";
 import AdminOverview from "./AdminOverview";
-import AdminRawData from "./AdminRawData";
+import AdminRawData, { TABLE_GROUPS } from "./AdminRawData";
 
 const ADMIN_TOKEN_KEY = "adminToken";
 const DEV_MODE = import.meta.env.DEV;
@@ -22,86 +22,136 @@ const DEV_MODE = import.meta.env.DEV;
 // In dev mode, set token synchronously before any component renders
 if (DEV_MODE) setAdminToken("dev");
 
-// ── Tab bar ────────────────────────────────────────────────────────────────────
-const TABS = [
-	{ key: "overview", label: "总览" },
-	{ key: "doctors", label: "医生" },
-	{ key: "raw", label: "原始数据" },
+// ── GitHub Dark palette ──────────────────────────────────────────────────────
+import { GH } from "./adminTheme";
+export { GH };
+
+// All DB table keys (flat)
+const ALL_TABLE_KEYS = Object.values(TABLE_GROUPS).flat();
+
+// ── Sidebar nav definition ───────────────────────────────────────────────────
+const NAV_SECTIONS = [
+	{
+		label: "数据",
+		items: [
+			{ key: "overview", label: "总览" },
+			{ key: "doctors", label: "医生" },
+		],
+	},
+	...Object.entries(TABLE_GROUPS).map(([groupName, keys]) => ({
+		label: `数据库 · ${groupName}`,
+		items: keys.map((key) => ({ key, label: key })),
+	})),
 ];
 
-function TopBar({ doctorCount }) {
+// ── Sidebar component ────────────────────────────────────────────────────────
+function Sidebar({ activeKey, onSelect, doctorCount }) {
 	return (
 		<Box
 			sx={{
-				background: "#1a1a2e",
-				color: "#ccc",
-				px: 2,
-				py: 0.75,
+				width: 200,
+				minWidth: 200,
+				height: "100vh",
+				position: "fixed",
+				top: 0,
+				left: 0,
+				background: GH.card,
+				borderRight: `1px solid ${GH.border}`,
 				display: "flex",
-				justifyContent: "space-between",
-				alignItems: "center",
-				fontSize: 11,
+				flexDirection: "column",
+				overflowY: "auto",
+				zIndex: 10,
+				"&::-webkit-scrollbar": { width: 6 },
+				"&::-webkit-scrollbar-thumb": { background: GH.border, borderRadius: 3 },
 			}}
 		>
-			<span>
-				<strong style={{ color: "#fff", fontSize: 12 }}>Doctor AI Admin</strong>{" "}
-				· beta
+			{/* Logo / title */}
+			<Box sx={{ px: 1.5, py: 1.5, borderBottom: `1px solid ${GH.border}` }}>
+				<Typography
+					sx={{ fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.3 }}
+				>
+					鲸鱼随行 Admin
+				</Typography>
 				{doctorCount != null && (
-					<span style={{ marginLeft: 6, color: "#888" }}>
-						· {doctorCount} 医生
-					</span>
+					<Typography sx={{ fontSize: 10, color: GH.textMuted, mt: 0.25 }}>
+						{doctorCount} 位医生
+					</Typography>
 				)}
-			</span>
-			<a
-				href="/debug"
-				style={{ color: "#64b5f6", textDecoration: "none", fontSize: 11 }}
-			>
-				Debug Dashboard →
-			</a>
-		</Box>
-	);
-}
+			</Box>
 
-function TabBar({ active, onSelect, doctorCount }) {
-	return (
-		<Box
-			sx={{
-				background: "#fff",
-				borderBottom: "1px solid #ddd",
-				px: 2,
-				display: "flex",
-				gap: 0,
-			}}
-		>
-			{TABS.map((tab) => {
-				const isActive = active === tab.key;
-				return (
-					<Box
-						key={tab.key}
-						onClick={() => onSelect(tab.key)}
-						sx={{
-							px: 1.75,
-							py: 1,
-							fontSize: 12,
-							fontWeight: isActive ? 600 : 500,
-							color: isActive ? "#1565c0" : "#666",
-							borderBottom: isActive
-								? "2px solid #1565c0"
-								: "2px solid transparent",
-							cursor: "pointer",
-							userSelect: "none",
-							"&:hover": { color: "#1565c0" },
-						}}
-					>
-						{tab.label}
-						{tab.key === "doctors" && doctorCount != null && (
-							<span style={{ fontSize: 10, color: "#999", marginLeft: 3 }}>
-								{doctorCount}
-							</span>
-						)}
+			{/* Nav sections */}
+			<Box sx={{ flex: 1, py: 0.5 }}>
+				{NAV_SECTIONS.map((section) => (
+					<Box key={section.label} sx={{ mb: 0.5 }}>
+						<Typography
+							sx={{
+								fontSize: 10.5,
+								fontWeight: 600,
+								color: GH.textMuted,
+								textTransform: "uppercase",
+								letterSpacing: "0.5px",
+								px: 1.5,
+								pt: 1,
+								pb: 0.25,
+								userSelect: "none",
+							}}
+						>
+							{section.label}
+						</Typography>
+						{section.items.map((item) => {
+							const isActive = activeKey === item.key;
+							return (
+								<Box
+									key={item.key}
+									onClick={() => onSelect(item.key)}
+									sx={{
+										px: 1.5,
+										py: 0.5,
+										fontSize: 12,
+										color: isActive ? "#fff" : GH.text,
+										background: isActive ? GH.hoverBg : "transparent",
+										borderLeft: isActive
+											? `2px solid ${GH.orange}`
+											: "2px solid transparent",
+										cursor: "pointer",
+										userSelect: "none",
+										fontFamily:
+											ALL_TABLE_KEYS.includes(item.key)
+												? "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+												: "inherit",
+										"&:hover": {
+											background: GH.hoverBg,
+											color: "#fff",
+										},
+									}}
+								>
+									{item.label}
+								</Box>
+							);
+						})}
 					</Box>
-				);
-			})}
+				))}
+			</Box>
+
+			{/* Bottom link */}
+			<Box
+				sx={{
+					px: 1.5,
+					py: 1.25,
+					borderTop: `1px solid ${GH.border}`,
+				}}
+			>
+				<a
+					href="/debug"
+					style={{
+						color: GH.blue,
+						textDecoration: "none",
+						fontSize: 11,
+					}}
+				>
+					&larr; Debug Dashboard
+				</a>
+			</Box>
 		</Box>
 	);
 }
@@ -109,20 +159,27 @@ function TabBar({ active, onSelect, doctorCount }) {
 // ── Main dashboard (after auth) ───────────────────────────────────────────────
 function AdminDashboard({ onLockout }) {
 	const { section } = useParams();
+	const navigate = useNavigate();
 
-	// Derive initial tab from URL section
-	function initialTab() {
+	// Derive active key from URL section
+	function deriveKey() {
 		if (!section || section === "overview") return "overview";
 		if (section === "doctors") return "doctors";
-		// Raw data tables
-		return "raw";
+		if (ALL_TABLE_KEYS.includes(section)) return section;
+		return "overview";
 	}
 
-	const [activeTab, setActiveTab] = useState(initialTab);
+	const [activeKey, setActiveKey] = useState(deriveKey);
 	const [selectedDoctor, setSelectedDoctor] = useState(null);
 	const [doctorCount, setDoctorCount] = useState(null);
 
-	// Fetch doctor count for tab badge (best effort)
+	// Sync URL section → activeKey when URL changes externally
+	useEffect(() => {
+		setActiveKey(deriveKey());
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [section]);
+
+	// Fetch doctor count for sidebar badge (best effort)
 	useEffect(() => {
 		fetch("/api/admin/doctors", {
 			headers: DEV_MODE
@@ -139,39 +196,79 @@ function AdminDashboard({ onLockout }) {
 			.catch(() => {});
 	}, []);
 
-	function handleDoctorClick(doctorId) {
-		setSelectedDoctor(doctorId);
-		setActiveTab("doctors");
+	function handleSelect(key) {
+		setActiveKey(key);
+		if (key !== "doctors") setSelectedDoctor(null);
+		// Update URL
+		if (key === "overview") navigate("/admin/overview");
+		else navigate(`/admin/${key}`);
 	}
 
+	function handleDoctorClick(doctorId) {
+		setSelectedDoctor(doctorId);
+		setActiveKey("doctors");
+		navigate("/admin/doctors");
+	}
+
+	// Determine what content to show
+	const isTableKey = ALL_TABLE_KEYS.includes(activeKey);
+
 	return (
-		<Box sx={{ minHeight: "100vh", background: "#f8f8f8" }}>
-			<TopBar doctorCount={doctorCount} />
-			<TabBar
-				active={activeTab}
-				onSelect={(tab) => {
-					setActiveTab(tab);
-					if (tab !== "doctors") setSelectedDoctor(null);
-				}}
+		<Box sx={{ minHeight: "100vh", background: GH.bg, color: GH.text }}>
+			<Sidebar
+				activeKey={activeKey}
+				onSelect={handleSelect}
 				doctorCount={doctorCount}
 			/>
 
-			{activeTab === "overview" && (
-				<AdminOverview onDoctorClick={handleDoctorClick} />
-			)}
-			{activeTab === "doctors" && selectedDoctor && (
-				<AdminDoctorDetail
-					doctorId={selectedDoctor}
-					onBack={() => {
-						setSelectedDoctor(null);
-						setActiveTab("overview");
+			{/* Main content area */}
+			<Box sx={{ ml: "200px", minHeight: "100vh" }}>
+				{/* Top bar */}
+				<Box
+					sx={{
+						px: 2,
+						py: 0.75,
+						borderBottom: `1px solid ${GH.border}`,
+						display: "flex",
+						justifyContent: "space-between",
+						alignItems: "center",
+						background: GH.card,
 					}}
-				/>
-			)}
-			{activeTab === "doctors" && !selectedDoctor && (
-				<DoctorList onDoctorClick={(id) => setSelectedDoctor(id)} />
-			)}
-			{activeTab === "raw" && <AdminRawData />}
+				>
+					<Typography sx={{ fontSize: 12, color: GH.text, fontWeight: 600 }}>
+						{activeKey === "overview" && "总览"}
+						{activeKey === "doctors" && "医生"}
+						{isTableKey && activeKey}
+					</Typography>
+					<a
+						href="/debug"
+						style={{
+							color: GH.blue,
+							textDecoration: "none",
+							fontSize: 11,
+						}}
+					>
+						Debug Dashboard &rarr;
+					</a>
+				</Box>
+
+				{/* Page content */}
+				{activeKey === "overview" && (
+					<AdminOverview onDoctorClick={handleDoctorClick} />
+				)}
+				{activeKey === "doctors" && selectedDoctor && (
+					<AdminDoctorDetail
+						doctorId={selectedDoctor}
+						onBack={() => {
+							setSelectedDoctor(null);
+						}}
+					/>
+				)}
+				{activeKey === "doctors" && !selectedDoctor && (
+					<DoctorList onDoctorClick={(id) => setSelectedDoctor(id)} />
+				)}
+				{isTableKey && <AdminRawData forcedTable={activeKey} />}
+			</Box>
 		</Box>
 	);
 }
@@ -190,6 +287,8 @@ export default function AdminPage() {
 		setAdminToken("");
 		setStatus("locked");
 	}
+
+	useEffect(() => { document.title = "[admin] 鲸鱼随行"; }, []);
 
 	useEffect(() => {
 		if (DEV_MODE) return;

@@ -4,7 +4,7 @@
  * Each row shows title, summary, usage count + recency, and navigates
  * to the detail page on tap. No inline expand/collapse or delete.
  *
- * @see /debug/doctor/settings/knowledge
+ * @see /mock/doctor/settings/knowledge
  */
 import { useState } from "react";
 import { Box, InputAdornment, TextField, Typography } from "@mui/material";

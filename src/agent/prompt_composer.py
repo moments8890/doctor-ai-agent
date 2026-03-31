@@ -21,7 +21,7 @@ from typing import Dict, List, Optional
 
 from agent.prompt_config import LayerConfig, INTENT_LAYERS, ROUTING_LAYERS, REVIEW_LAYERS, PATIENT_INTERVIEW_LAYERS
 from agent.types import IntentType
-from utils.log import log
+from utils.log import log, _ctx_layers
 from utils.prompt_loader import get_prompt_sync
 
 
@@ -139,6 +139,19 @@ async def compose_messages(
         messages.append({"role": "user", "content": user_msg})
 
         log(f"[composer] intent={config.intent} pattern=single system={len(system_msg)}chars user={len(user_msg)}chars{kb_note} history={len(history or [])}turns")
+
+    # Track active layers for LLM call logging
+    active = ["L1"]
+    if config.domain:
+        active.append("L2")
+    active.append("L3")
+    if config.load_knowledge and doctor_knowledge:
+        active.append("L4")
+    if config.patient_context and patient_context:
+        active.append("L6")
+    if doctor_message:
+        active.append("L7")
+    _ctx_layers.set(",".join(active))
 
     return messages
 

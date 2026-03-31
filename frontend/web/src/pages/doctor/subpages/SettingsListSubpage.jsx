@@ -5,7 +5,7 @@
  * knowledge), general section (about), and logout button.
  * Used by both real SettingsPage (API data) and MockPages (static data).
  *
- * @see /debug/doctor-pages → 设置
+ * @see /mock/doctor-pages → 设置
  */
 import { Box, CircularProgress, Typography } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";

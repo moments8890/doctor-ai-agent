@@ -25,8 +25,10 @@ from db.models import (
     AISuggestion,
     SuggestionDecision,
     Doctor,
+    DoctorChatLog,
     DoctorKnowledgeItem,
     DoctorTask,
+    InterviewSessionDB,
     MedicalRecordDB,
     Patient,
     PatientMessage,
@@ -59,12 +61,55 @@ def _cutoff_days(n: int) -> datetime:
 
 @router.get("/api/admin/overview")
 async def admin_overview(db: AsyncSession = Depends(get_db)) -> dict:
-    """Aggregated platform stats + alert items for the overview dashboard."""
-    cutoff_24h = _cutoff_24h()
+    """Aggregated platform metrics for a pre-launch medical AI dashboard."""
+    now = _now_utc()
+    cutoff_7d = _cutoff_days(7)
+    cutoff_14d = _cutoff_days(14)
     cutoff_3d = _cutoff_days(3)
 
-    # Active doctors (ever logged in / have patients)
-    active_doctors_count = (
+    def _change_pct(current: int | float, prev: int | float) -> int:
+        return round(((current - prev) / max(prev, 1)) * 100)
+
+    # -----------------------------------------------------------------------
+    # HERO: active_doctors
+    # -----------------------------------------------------------------------
+    # Distinct doctor_ids seen in any activity table in the 7d window
+    activity_tables = [
+        (InterviewSessionDB, InterviewSessionDB.doctor_id, InterviewSessionDB.created_at),
+        (MedicalRecordDB, MedicalRecordDB.doctor_id, MedicalRecordDB.created_at),
+        (PatientMessage, PatientMessage.doctor_id, PatientMessage.created_at),
+        (DoctorChatLog, DoctorChatLog.doctor_id, DoctorChatLog.created_at),
+    ]
+
+    active_ids_cur: set[str] = set()
+    active_ids_prev: set[str] = set()
+    for _model, did_col, ts_col in activity_tables:
+        rows_cur = (
+            await db.execute(
+                apply_exclude_test_doctors(
+                    select(func.distinct(did_col)).where(ts_col >= cutoff_7d),
+                    did_col,
+                )
+            )
+        ).scalars().all()
+        active_ids_cur.update(rows_cur)
+
+        rows_prev = (
+            await db.execute(
+                apply_exclude_test_doctors(
+                    select(func.distinct(did_col)).where(
+                        and_(ts_col >= cutoff_14d, ts_col < cutoff_7d)
+                    ),
+                    did_col,
+                )
+            )
+        ).scalars().all()
+        active_ids_prev.update(rows_prev)
+
+    active_cur = len(active_ids_cur)
+    active_prev = len(active_ids_prev)
+
+    total_doctors = (
         await db.execute(
             apply_exclude_test_doctors(
                 select(func.count()).select_from(Doctor),
@@ -73,60 +118,344 @@ async def admin_overview(db: AsyncSession = Depends(get_db)) -> dict:
         )
     ).scalar() or 0
 
-    # Messages in last 24h
-    msgs_24h = (
+    # -----------------------------------------------------------------------
+    # HERO: interviews
+    # -----------------------------------------------------------------------
+    interviews_started_cur = (
         await db.execute(
             apply_exclude_test_doctors(
-                select(func.count()).select_from(PatientMessage).where(
-                    PatientMessage.created_at >= cutoff_24h
+                select(func.count()).select_from(InterviewSessionDB).where(
+                    InterviewSessionDB.created_at >= cutoff_7d
                 ),
-                PatientMessage.doctor_id,
+                InterviewSessionDB.doctor_id,
             )
         )
     ).scalar() or 0
 
-    # Records in last 24h
-    records_24h = (
+    _completed_statuses = ("confirmed", "draft_created")
+    interviews_completed_cur = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(func.count()).select_from(InterviewSessionDB).where(
+                    and_(
+                        InterviewSessionDB.created_at >= cutoff_7d,
+                        InterviewSessionDB.status.in_(_completed_statuses),
+                    )
+                ),
+                InterviewSessionDB.doctor_id,
+            )
+        )
+    ).scalar() or 0
+
+    interviews_started_prev = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(func.count()).select_from(InterviewSessionDB).where(
+                    and_(
+                        InterviewSessionDB.created_at >= cutoff_14d,
+                        InterviewSessionDB.created_at < cutoff_7d,
+                    )
+                ),
+                InterviewSessionDB.doctor_id,
+            )
+        )
+    ).scalar() or 0
+
+    completion_rate = round(
+        interviews_completed_cur / max(interviews_started_cur, 1), 2
+    )
+
+    # -----------------------------------------------------------------------
+    # HERO: ai_acceptance
+    # -----------------------------------------------------------------------
+    ai_rows_cur = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(AISuggestion.decision, func.count().label("cnt"))
+                .where(
+                    and_(
+                        AISuggestion.decided_at >= cutoff_7d,
+                        AISuggestion.decision.isnot(None),
+                    )
+                )
+                .group_by(AISuggestion.decision),
+                AISuggestion.doctor_id,
+            )
+        )
+    ).all()
+    ai_cur: dict[str, int] = {}
+    for decision, cnt in ai_rows_cur:
+        ai_cur[decision] = ai_cur.get(decision, 0) + cnt
+
+    ai_confirmed_cur = ai_cur.get(SuggestionDecision.confirmed, 0) + ai_cur.get("confirmed", 0)
+    ai_edited_cur = ai_cur.get(SuggestionDecision.edited, 0) + ai_cur.get("edited", 0)
+    ai_rejected_cur = ai_cur.get(SuggestionDecision.rejected, 0) + ai_cur.get("rejected", 0)
+    ai_total_cur = ai_confirmed_cur + ai_edited_cur + ai_rejected_cur
+    ai_rate_cur = round(ai_confirmed_cur / max(ai_total_cur, 1), 2)
+
+    ai_rows_prev = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(AISuggestion.decision, func.count().label("cnt"))
+                .where(
+                    and_(
+                        AISuggestion.decided_at >= cutoff_14d,
+                        AISuggestion.decided_at < cutoff_7d,
+                        AISuggestion.decision.isnot(None),
+                    )
+                )
+                .group_by(AISuggestion.decision),
+                AISuggestion.doctor_id,
+            )
+        )
+    ).all()
+    ai_prev: dict[str, int] = {}
+    for decision, cnt in ai_rows_prev:
+        ai_prev[decision] = ai_prev.get(decision, 0) + cnt
+
+    ai_confirmed_prev = ai_prev.get(SuggestionDecision.confirmed, 0) + ai_prev.get("confirmed", 0)
+    ai_edited_prev = ai_prev.get(SuggestionDecision.edited, 0) + ai_prev.get("edited", 0)
+    ai_rejected_prev = ai_prev.get(SuggestionDecision.rejected, 0) + ai_prev.get("rejected", 0)
+    ai_total_prev = ai_confirmed_prev + ai_edited_prev + ai_rejected_prev
+    ai_rate_prev = round(ai_confirmed_prev / max(ai_total_prev, 1), 2)
+
+    # -----------------------------------------------------------------------
+    # HERO: unanswered_messages
+    # -----------------------------------------------------------------------
+    # Inbound messages with no subsequent outbound for the same patient
+    latest_outbound = (
+        select(
+            PatientMessage.patient_id,
+            func.max(PatientMessage.created_at).label("last_out"),
+        )
+        .where(PatientMessage.direction == "outbound")
+        .group_by(PatientMessage.patient_id)
+        .subquery()
+    )
+
+    unanswered_rows = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(PatientMessage.created_at)
+                .outerjoin(
+                    latest_outbound,
+                    PatientMessage.patient_id == latest_outbound.c.patient_id,
+                )
+                .where(
+                    and_(
+                        PatientMessage.direction == "inbound",
+                        # No outbound at all, or last outbound before this inbound
+                        (latest_outbound.c.last_out.is_(None))
+                        | (PatientMessage.created_at > latest_outbound.c.last_out),
+                    )
+                )
+                .order_by(PatientMessage.created_at.asc()),
+                PatientMessage.doctor_id,
+            )
+        )
+    ).scalars().all()
+
+    unanswered_count = len(unanswered_rows)
+    if unanswered_rows:
+        oldest_ts = unanswered_rows[0]
+        if oldest_ts and oldest_ts.tzinfo is None:
+            oldest_ts = oldest_ts.replace(tzinfo=timezone.utc)
+        oldest_hours = round(
+            (now - oldest_ts).total_seconds() / 3600, 1
+        ) if oldest_ts else 0.0
+    else:
+        oldest_hours = 0.0
+
+    # -----------------------------------------------------------------------
+    # HERO: system_health (24h window, from llm_calls.jsonl)
+    # -----------------------------------------------------------------------
+    cutoff_24h_iso = (_now_utc() - timedelta(hours=24)).isoformat()
+    llm_total = 0
+    llm_errors = 0
+    latencies: list[float] = []
+    try:
+        import json as _json
+
+        llm_log = Path(__file__).resolve().parents[4] / "logs" / "llm_calls.jsonl"
+        if llm_log.exists():
+            with open(llm_log, encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entry = _json.loads(line)
+                        if entry.get("timestamp", "") >= cutoff_24h_iso:
+                            llm_total += 1
+                            if entry.get("status") == "error":
+                                llm_errors += 1
+                            lat = entry.get("latency_ms")
+                            if lat is not None:
+                                latencies.append(float(lat))
+                    except (ValueError, _json.JSONDecodeError):
+                        pass
+    except OSError:
+        pass
+
+    latencies.sort()
+    p95_latency = (
+        latencies[int(len(latencies) * 0.95)] if latencies else 0
+    )
+    error_rate = round(llm_errors / max(llm_total, 1), 3)
+
+    # -----------------------------------------------------------------------
+    # SECONDARY: new_records
+    # -----------------------------------------------------------------------
+    records_cur = (
         await db.execute(
             apply_exclude_test_doctors(
                 select(func.count()).select_from(MedicalRecordDB).where(
-                    MedicalRecordDB.created_at >= cutoff_24h
+                    MedicalRecordDB.created_at >= cutoff_7d
+                ),
+                MedicalRecordDB.doctor_id,
+            )
+        )
+    ).scalar() or 0
+    records_prev = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(func.count()).select_from(MedicalRecordDB).where(
+                    and_(
+                        MedicalRecordDB.created_at >= cutoff_14d,
+                        MedicalRecordDB.created_at < cutoff_7d,
+                    )
                 ),
                 MedicalRecordDB.doctor_id,
             )
         )
     ).scalar() or 0
 
-    # AI suggestions breakdown (all-time)
-    ai_rows = (
+    # SECONDARY: ai_replies (outbound messages)
+    ai_replies_cur = (
         await db.execute(
             apply_exclude_test_doctors(
-                select(AISuggestion.decision, func.count().label("cnt"))
-                .group_by(AISuggestion.decision),
-                AISuggestion.doctor_id,
+                select(func.count()).select_from(PatientMessage).where(
+                    and_(
+                        PatientMessage.direction == "outbound",
+                        PatientMessage.created_at >= cutoff_7d,
+                    )
+                ),
+                PatientMessage.doctor_id,
             )
         )
-    ).all()
-    ai_breakdown: dict = {}
-    ai_total = 0
-    for decision, cnt in ai_rows:
-        key = decision if decision else "undecided"
-        ai_breakdown[key] = cnt
-        ai_total += cnt
-
-    # Pending tasks (all doctors)
-    pending_tasks_count = (
+    ).scalar() or 0
+    ai_replies_prev = (
         await db.execute(
             apply_exclude_test_doctors(
-                select(func.count()).select_from(DoctorTask).where(
-                    DoctorTask.status == TaskStatus.pending
+                select(func.count()).select_from(PatientMessage).where(
+                    and_(
+                        PatientMessage.direction == "outbound",
+                        PatientMessage.created_at >= cutoff_14d,
+                        PatientMessage.created_at < cutoff_7d,
+                    )
                 ),
-                DoctorTask.doctor_id,
+                PatientMessage.doctor_id,
             )
         )
     ).scalar() or 0
 
-    # Overdue tasks (due_at < now, still pending)
+    # SECONDARY: patient_messages (inbound)
+    patient_msgs_cur = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(func.count()).select_from(PatientMessage).where(
+                    and_(
+                        PatientMessage.direction == "inbound",
+                        PatientMessage.created_at >= cutoff_7d,
+                    )
+                ),
+                PatientMessage.doctor_id,
+            )
+        )
+    ).scalar() or 0
+    patient_msgs_prev = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(func.count()).select_from(PatientMessage).where(
+                    and_(
+                        PatientMessage.direction == "inbound",
+                        PatientMessage.created_at >= cutoff_14d,
+                        PatientMessage.created_at < cutoff_7d,
+                    )
+                ),
+                PatientMessage.doctor_id,
+            )
+        )
+    ).scalar() or 0
+
+    # SECONDARY: new_patients
+    patients_cur = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(func.count()).select_from(Patient).where(
+                    Patient.created_at >= cutoff_7d
+                ),
+                Patient.doctor_id,
+            )
+        )
+    ).scalar() or 0
+    patients_prev = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(func.count()).select_from(Patient).where(
+                    and_(
+                        Patient.created_at >= cutoff_14d,
+                        Patient.created_at < cutoff_7d,
+                    )
+                ),
+                Patient.doctor_id,
+            )
+        )
+    ).scalar() or 0
+
+    # SECONDARY: new_knowledge
+    kb_cur = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(func.count()).select_from(DoctorKnowledgeItem).where(
+                    DoctorKnowledgeItem.created_at >= cutoff_7d
+                ),
+                DoctorKnowledgeItem.doctor_id,
+            )
+        )
+    ).scalar() or 0
+    kb_prev = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(func.count()).select_from(DoctorKnowledgeItem).where(
+                    and_(
+                        DoctorKnowledgeItem.created_at >= cutoff_14d,
+                        DoctorKnowledgeItem.created_at < cutoff_7d,
+                    )
+                ),
+                DoctorKnowledgeItem.doctor_id,
+            )
+        )
+    ).scalar() or 0
+
+    # SECONDARY: avg_interview_turns (completed interviews in 7d)
+    avg_turns_row = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(func.avg(InterviewSessionDB.turn_count))
+                .where(
+                    and_(
+                        InterviewSessionDB.created_at >= cutoff_7d,
+                        InterviewSessionDB.status.in_(_completed_statuses),
+                    )
+                ),
+                InterviewSessionDB.doctor_id,
+            )
+        )
+    ).scalar()
+    avg_interview_turns = round(float(avg_turns_row), 1) if avg_turns_row else 0.0
+
+    # SECONDARY: overdue_tasks
     overdue_count = (
         await db.execute(
             apply_exclude_test_doctors(
@@ -134,7 +463,7 @@ async def admin_overview(db: AsyncSession = Depends(get_db)) -> dict:
                     and_(
                         DoctorTask.status == TaskStatus.pending,
                         DoctorTask.due_at != None,  # noqa: E711
-                        DoctorTask.due_at < _now_utc(),
+                        DoctorTask.due_at < now,
                     )
                 ),
                 DoctorTask.doctor_id,
@@ -142,7 +471,59 @@ async def admin_overview(db: AsyncSession = Depends(get_db)) -> dict:
         )
     ).scalar() or 0
 
-    # Alerts: sample overdue task records
+    # SECONDARY: response_gap_p50_hours
+    # For each inbound message in 7d that got a reply, compute time to first
+    # subsequent outbound for the same patient.
+    inbound_7d = (
+        await db.execute(
+            apply_exclude_test_doctors(
+                select(PatientMessage)
+                .where(
+                    and_(
+                        PatientMessage.direction == "inbound",
+                        PatientMessage.created_at >= cutoff_7d,
+                    )
+                )
+                .order_by(PatientMessage.created_at.asc()),
+                PatientMessage.doctor_id,
+            )
+        )
+    ).scalars().all()
+
+    response_gaps: list[float] = []
+    for msg in inbound_7d:
+        first_reply = (
+            await db.execute(
+                select(PatientMessage.created_at)
+                .where(
+                    and_(
+                        PatientMessage.patient_id == msg.patient_id,
+                        PatientMessage.direction == "outbound",
+                        PatientMessage.created_at > msg.created_at,
+                    )
+                )
+                .order_by(PatientMessage.created_at.asc())
+                .limit(1)
+            )
+        ).scalar()
+        if first_reply:
+            in_ts = msg.created_at
+            out_ts = first_reply
+            if in_ts and in_ts.tzinfo is None:
+                in_ts = in_ts.replace(tzinfo=timezone.utc)
+            if out_ts and out_ts.tzinfo is None:
+                out_ts = out_ts.replace(tzinfo=timezone.utc)
+            gap_hours = (out_ts - in_ts).total_seconds() / 3600
+            response_gaps.append(gap_hours)
+
+    response_gaps.sort()
+    response_gap_p50 = (
+        round(response_gaps[len(response_gaps) // 2], 1) if response_gaps else 0.0
+    )
+
+    # -----------------------------------------------------------------------
+    # ALERTS (same format as before)
+    # -----------------------------------------------------------------------
     overdue_tasks_rows = (
         await db.execute(
             apply_exclude_test_doctors(
@@ -150,7 +531,7 @@ async def admin_overview(db: AsyncSession = Depends(get_db)) -> dict:
                     and_(
                         DoctorTask.status == TaskStatus.pending,
                         DoctorTask.due_at != None,  # noqa: E711
-                        DoctorTask.due_at < _now_utc(),
+                        DoctorTask.due_at < now,
                     )
                 ).order_by(DoctorTask.due_at.asc()).limit(10),
                 DoctorTask.doctor_id,
@@ -167,7 +548,6 @@ async def admin_overview(db: AsyncSession = Depends(get_db)) -> dict:
         for t in overdue_tasks_rows
     ]
 
-    # Alerts: inactive doctors (updated_at > 3 days ago or no recent patients)
     inactive_doctors_rows = (
         await db.execute(
             apply_exclude_test_doctors(
@@ -188,48 +568,72 @@ async def admin_overview(db: AsyncSession = Depends(get_db)) -> dict:
         for d in inactive_doctors_rows
     ]
 
-    # AI suggestions summary
-    ai_accepted = ai_breakdown.get(SuggestionDecision.confirmed, 0) + ai_breakdown.get("confirmed", 0)
-    ai_edited = ai_breakdown.get(SuggestionDecision.edited, 0) + ai_breakdown.get("edited", 0)
-    ai_rejected = ai_breakdown.get(SuggestionDecision.rejected, 0) + ai_breakdown.get("rejected", 0)
-
-    # LLM calls in last hour (read from jsonl log)
-    llm_calls_1h = 0
-    llm_errors = 0
-    try:
-        import json as _json
-        llm_log = Path(__file__).resolve().parents[4] / "logs" / "llm_calls.jsonl"
-        if llm_log.exists():
-            hour_ago_iso = (_now_utc() - timedelta(hours=1)).isoformat()
-            with open(llm_log, encoding="utf-8", errors="replace") as fh:
-                for line in fh:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        entry = _json.loads(line)
-                        if entry.get("timestamp", "") >= hour_ago_iso:
-                            llm_calls_1h += 1
-                            if entry.get("status") == "error":
-                                llm_errors += 1
-                    except (ValueError, _json.JSONDecodeError):
-                        pass
-    except OSError:
-        pass
-
+    # -----------------------------------------------------------------------
+    # Assemble response
+    # -----------------------------------------------------------------------
     return {
-        "stats": {
-            "active_doctors": active_doctors_count,
-            "total_doctors": active_doctors_count,
-            "messages_24h": msgs_24h,
-            "records_24h": records_24h,
-            "suggestions_24h": ai_total,
-            "suggestions_detail": f"采纳{ai_accepted} 编辑{ai_edited} 拒绝{ai_rejected}",
-            "pending_tasks": pending_tasks_count,
+        "hero": {
+            "active_doctors": {
+                "current": active_cur,
+                "total": total_doctors,
+                "prev": active_prev,
+                "change_pct": _change_pct(active_cur, active_prev),
+            },
+            "interviews": {
+                "started": interviews_started_cur,
+                "completed": interviews_completed_cur,
+                "completion_rate": completion_rate,
+                "prev_started": interviews_started_prev,
+                "change_pct": _change_pct(interviews_started_cur, interviews_started_prev),
+            },
+            "ai_acceptance": {
+                "confirmed": ai_confirmed_cur,
+                "edited": ai_edited_cur,
+                "rejected": ai_rejected_cur,
+                "rate": ai_rate_cur,
+                "prev_rate": ai_rate_prev,
+                "change_pct": _change_pct(ai_rate_cur * 100, ai_rate_prev * 100),
+            },
+            "unanswered_messages": {
+                "count": unanswered_count,
+                "oldest_hours": oldest_hours,
+            },
+            "system_health": {
+                "error_rate": error_rate,
+                "p95_latency_ms": p95_latency,
+                "calls_24h": llm_total,
+                "errors_24h": llm_errors,
+            },
+        },
+        "secondary": {
+            "new_records": {
+                "current": records_cur,
+                "prev": records_prev,
+                "change_pct": _change_pct(records_cur, records_prev),
+            },
+            "ai_replies": {
+                "current": ai_replies_cur,
+                "prev": ai_replies_prev,
+                "change_pct": _change_pct(ai_replies_cur, ai_replies_prev),
+            },
+            "patient_messages": {
+                "current": patient_msgs_cur,
+                "prev": patient_msgs_prev,
+                "change_pct": _change_pct(patient_msgs_cur, patient_msgs_prev),
+            },
+            "new_patients": {
+                "current": patients_cur,
+                "prev": patients_prev,
+                "change_pct": _change_pct(patients_cur, patients_prev),
+            },
+            "new_knowledge": {
+                "current": kb_cur,
+                "prev": kb_prev,
+                "change_pct": _change_pct(kb_cur, kb_prev),
+            },
+            "avg_interview_turns": avg_interview_turns,
             "overdue_tasks": overdue_count,
-            "tasks_detail": f"逾期{overdue_count}" if overdue_count else "",
-            "llm_calls_1h": llm_calls_1h,
-            "llm_detail": f"err {llm_errors}" if llm_errors else "",
+            "response_gap_p50_hours": response_gap_p50,
         },
         "alerts": overdue_alerts + inactive_alerts,
     }

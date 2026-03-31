@@ -7,7 +7,7 @@
  *
  * Used by both real ReviewPage (API data) and MockPages (static data).
  *
- * @see /debug/doctor-pages → 诊断审核
+ * @see /mock/doctor-pages → 诊断审核
  */
 import { useState } from "react";
 import { Box, TextField, Typography } from "@mui/material";

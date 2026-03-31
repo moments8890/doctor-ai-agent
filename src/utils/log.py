@@ -18,6 +18,7 @@ import structlog
 _ctx_doctor_id: ContextVar[str] = ContextVar("doctor_id", default="")
 _ctx_trace_id: ContextVar[str] = ContextVar("trace_id", default="")
 _ctx_intent: ContextVar[str] = ContextVar("intent", default="")
+_ctx_layers: ContextVar[str] = ContextVar("layers", default="")
 
 
 def bind_log_context(
