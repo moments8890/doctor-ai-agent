@@ -33,8 +33,7 @@ const FIELD_LABELS = {
 
 export default function InterviewCompleteDialog({ open, fields, fieldCount, onSave, onSaveAndDiagnose, onClose }) {
   const entries = Object.entries(FIELD_LABELS)
-    .filter(([key]) => fields?.[key])
-    .map(([key, label]) => ({ key, label, value: fields[key] }));
+    .map(([key, label]) => ({ key, label, value: fields?.[key] || null }));
 
   return (
     <SheetDialog
@@ -65,8 +64,8 @@ export default function InterviewCompleteDialog({ open, fields, fieldCount, onSa
             <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.3 }}>
               {label}
             </Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-              {value}
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: value ? COLOR.text2 : COLOR.text4, whiteSpace: "pre-wrap", lineHeight: 1.6, fontStyle: value ? "normal" : "italic" }}>
+              {value || "—"}
             </Typography>
           </Box>
         ))}
