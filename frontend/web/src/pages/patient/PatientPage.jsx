@@ -144,8 +144,10 @@ export default function PatientPage() {
   // ---------------------------------------------------------------------------
   return (
     <Box sx={PAGE_LAYOUT}>
-      {/* Page header — hidden when a subpage renders its own */}
-      {!urlSubpage && <SubpageHeader title={NAV_TABS.find(t => t.key === tab)?.title || "AI 健康助手"} />}
+      {/* Page header — only for tabs without their own PageSkeleton header */}
+      {!urlSubpage && tab !== "records" && tab !== "profile" && (
+        <SubpageHeader title={NAV_TABS.find(t => t.key === tab)?.title || "AI 健康助手"} />
+      )}
 
       {/* Content area — Fade transition matches DoctorPage */}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>

@@ -24,6 +24,7 @@ from channels.web.doctor_dashboard.teaching_handlers import router as _teaching_
 from channels.web.doctor_dashboard.draft_handlers import router as _draft_router
 from channels.web.doctor_dashboard.ai_activity_handlers import router as _ai_activity_router
 from channels.web.doctor_dashboard.review_queue_handlers import router as _review_queue_router
+from channels.web.doctor_dashboard.admin_overview import router as _admin_overview_router
 
 router = APIRouter(tags=["ui"])
 
@@ -45,3 +46,4 @@ router.include_router(_teaching_router)
 router.include_router(_draft_router)
 router.include_router(_ai_activity_router)
 router.include_router(_review_queue_router)
+router.include_router(_admin_overview_router)

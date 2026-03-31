@@ -1,3 +1,4 @@
+/no_think
 # Role: 医生AI临床助手
 
 ## Profile

@@ -39,7 +39,7 @@ function MsgBubble({ msg }) {
 
 export default function InterviewPage({ doctorId, sessionId: resumeSessionId, patientContext, prePopulated, onComplete, onCancel }) {
   const navigate = useAppNavigate();
-  const { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession, confirmCarryForward, triggerDiagnosis, updateInterviewField } = useApi();
+  const { doctorInterviewTurn, doctorInterviewConfirm, doctorInterviewCancel, doctorInterviewGetSession, confirmCarryForward, triggerDiagnosis, updateInterviewField, ocrImage } = useApi();
   const patientName = patientContext?.name;
   const importFieldCount = prePopulated ? Object.values(prePopulated).filter(v => v && v.trim()).length : 0;
   const welcomeMsg = importFieldCount > 0
@@ -58,6 +58,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
   const [importChoice, setImportChoice] = useState(null);
   const cameraInputRef = useRef(null);
+  const fileInputRef = useRef(null);
   const voiceSupported = isVoiceSupported();
   const [session, setSession] = useState({
     sessionId: resumeSessionId || null,
@@ -207,14 +208,13 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
     setActionPanelOpen(false);
     if (action === "camera") cameraInputRef.current?.click();
     else if (action === "gallery") cameraInputRef.current?.click();
-    else if (action === "file") cameraInputRef.current?.click();
+    else if (action === "file") fileInputRef.current?.click();
   }
 
   async function handleCameraFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const { ocrImage } = api;
       if (ocrImage) {
         const result = await ocrImage(file);
         if (result?.text) setImportChoice({ text: result.text });
@@ -491,8 +491,11 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
         </>
       )}
 
-      {/* Hidden camera input */}
+      {/* Hidden camera/gallery input (images only) */}
       <input ref={cameraInputRef} type="file" accept="image/*" capture="environment"
+        style={{ display: "none" }} onChange={handleCameraFile} />
+      {/* Hidden file input (documents + images) */}
+      <input ref={fileInputRef} type="file" accept="image/*,.pdf,.doc,.docx"
         style={{ display: "none" }} onChange={handleCameraFile} />
 
       {/* Action panel (camera, gallery, file) */}

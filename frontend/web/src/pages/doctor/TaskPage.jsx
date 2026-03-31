@@ -442,7 +442,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
       listPane={
       <Box sx={{ flex: 1, overflow: "auto", pb: "80px" }}>
         {origin === "patient_submit" && (
-          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 15 }}>
+          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.5 }}>
             <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
               已创建审核任务
             </Typography>
@@ -452,7 +452,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
           </Box>
         )}
         {origin === "review_finalize" && (
-          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 15 }}>
+          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.5 }}>
             <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
               已生成随访任务
             </Typography>

@@ -8,48 +8,42 @@
       "description_zh": "LLM 提供商路由与模型选择。",
       "settings": {
         "ROUTING_LLM": {
-          "value": "deepseek",
-          "description": "Provider for intent/tool routing. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
-          "description_zh": "意图/工具路由使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
+          "value": "siliconflow",
+          "description": "Provider for intent routing. Production: siliconflow (247ms, 8/8 accuracy). Fallback: dashscope, deepseek.",
+          "description_zh": "意图路由提供商。生产：siliconflow（247ms, 8/8 准确率）。备用：dashscope, deepseek。",
           "options": [
-            "ollama",
-            "deepseek",
-            "groq",
-            "cerebras",
-            "sambanova",
             "siliconflow",
-            "openrouter",
-            "tencent_lkeap"
+            "dashscope",
+            "deepseek",
+            "tencent_lkeap",
+            "groq",
+            "ollama"
           ]
         },
         "STRUCTURING_LLM": {
-          "value": "deepseek",
-          "description": "Provider for medical record structuring. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
-          "description_zh": "病历结构化使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
+          "value": "siliconflow",
+          "description": "Provider for medical record structuring. Production: siliconflow. Fallback: dashscope, deepseek.",
+          "description_zh": "病历结构化提供商。生产：siliconflow。备用：dashscope, deepseek。",
           "options": [
-            "ollama",
-            "deepseek",
-            "groq",
-            "cerebras",
-            "sambanova",
             "siliconflow",
-            "openrouter",
-            "tencent_lkeap"
+            "dashscope",
+            "deepseek",
+            "tencent_lkeap",
+            "groq",
+            "ollama"
           ]
         },
         "DIAGNOSIS_LLM": {
-          "value": "tencent_lkeap",
-          "description": "LLM provider for diagnosis pipeline. Falls back to STRUCTURING_LLM if empty.",
-          "description_zh": "诊断管道使用的LLM提供商。为空时使用STRUCTURING_LLM。",
+          "value": "siliconflow",
+          "description": "Provider for diagnosis pipeline. Falls back to STRUCTURING_LLM if empty.",
+          "description_zh": "诊断管道提供商。为空时使用 STRUCTURING_LLM。",
           "options": [
-            "ollama",
-            "deepseek",
-            "groq",
-            "cerebras",
-            "sambanova",
             "siliconflow",
-            "openrouter",
-            "tencent_lkeap"
+            "dashscope",
+            "deepseek",
+            "tencent_lkeap",
+            "groq",
+            "ollama"
           ]
         },
         "INTENT_PROVIDER": {
@@ -103,6 +97,31 @@
           "description": "OpenAI API key.",
           "description_zh": "OpenAI API Key。"
         },
+        "SILICONFLOW_API_KEY": {
+          "value": "<SILICONFLOW_API_KEY>",
+          "description": "SiliconFlow API key. Primary production provider.",
+          "description_zh": "硅基流动 API Key。主生产提供商。"
+        },
+        "SILICONFLOW_MODEL": {
+          "value": "Qwen/Qwen2.5-32B-Instruct",
+          "description": "SiliconFlow model. Recommended: Qwen/Qwen2.5-32B-Instruct (247ms, 8/8 accuracy, ¥1.26/M).",
+          "description_zh": "硅基流动模型。推荐：Qwen/Qwen2.5-32B-Instruct（247ms, 8/8 准确率, ¥1.26/M）。"
+        },
+        "DASHSCOPE_API_KEY": {
+          "value": "<DASHSCOPE_API_KEY>",
+          "description": "Alibaba DashScope (Bailian) API key. Backup provider.",
+          "description_zh": "阿里云百炼 API Key。备用提供商。"
+        },
+        "DASHSCOPE_MODEL": {
+          "value": "qwen-turbo",
+          "description": "DashScope model. Recommended: qwen-turbo (379ms, 8/8 accuracy, ¥0.30/M).",
+          "description_zh": "百炼模型。推荐：qwen-turbo（379ms, 8/8 准确率, ¥0.30/M）。"
+        },
+        "DEEPSEEK_API_KEY": {
+          "value": "<DEEPSEEK_API_KEY>",
+          "description": "DeepSeek API key. Second backup provider.",
+          "description_zh": "DeepSeek API Key。第二备用提供商。"
+        },
         "TENCENT_LKEAP_BASE_URL": {
           "value": "https://api.lkeap.cloud.tencent.com/v1",
           "description": "Tencent LKEAP OpenAI-compatible API base URL.",
@@ -110,8 +129,8 @@
         },
         "TENCENT_LKEAP_MODEL": {
           "value": "deepseek-v3.2",
-          "description": "Tencent LKEAP model name for routing/structuring.",
-          "description_zh": "路由/结构化使用的腾讯云 LKEAP 模型名。"
+          "description": "Tencent LKEAP model name.",
+          "description_zh": "腾讯云 LKEAP 模型名。"
         },
         "TENCENT_LKEAP_API_KEY": {
           "value": "<TENCENT_LKEAP_API_KEY>",
@@ -120,13 +139,8 @@
         },
         "GROQ_API_KEY": {
           "value": "",
-          "description": "Groq API key.",
-          "description_zh": "Groq API Key。"
-        },
-        "DEEPSEEK_API_KEY": {
-          "value": "<DEEPSEEK_API_KEY>",
-          "description": "DeepSeek API key.",
-          "description_zh": "DeepSeek API Key。"
+          "description": "Groq API key (local dev only).",
+          "description_zh": "Groq API Key（仅本地开发）。"
         },
         "GEMINI_API_KEY": {
           "value": "",

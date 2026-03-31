@@ -64,7 +64,9 @@ def _apply_created_at_filters(stmt, model, dt_from: datetime | None, dt_to_exclu
 # doctor_id prefixes used exclusively by automated tests.
 # Rows belonging to these doctors are hidden from production UI views by default
 # so test noise never appears alongside real clinical data.
-E2E_DOCTOR_PREFIXES: tuple[str, ...] = ("inttest_", "chatlog_e2e_")
+E2E_DOCTOR_PREFIXES: tuple[str, ...] = (
+    "inttest_", "chatlog_e2e_", "debug_", "intsim_", "clean_", "demo_",
+)
 
 
 def apply_exclude_test_doctors(stmt, doctor_id_col):

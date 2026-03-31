@@ -8,33 +8,29 @@
       "description_zh": "LLM 提供商路由与模型选择。",
       "settings": {
         "ROUTING_LLM": {
-          "value": "ollama",
-          "description": "Provider for intent/tool routing. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
-          "description_zh": "意图/工具路由使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
+          "value": "groq",
+          "description": "Provider for intent routing. Local dev: groq (free). Production: siliconflow.",
+          "description_zh": "意图路由提供商。本地开发：groq（免费）。生产：siliconflow。",
           "options": [
-            "ollama",
-            "deepseek",
-            "groq",
-            "cerebras",
-            "sambanova",
             "siliconflow",
-            "openrouter",
-            "tencent_lkeap"
+            "dashscope",
+            "deepseek",
+            "tencent_lkeap",
+            "groq",
+            "ollama"
           ]
         },
         "STRUCTURING_LLM": {
-          "value": "ollama",
-          "description": "Provider for medical record structuring. Note: Ollama is LAN/local LLM (can be slower); DeepSeek is online LLM (billed).",
-          "description_zh": "病历结构化使用的提供商。说明：Ollama 通常是局域网/本地 LLM（可能较慢）；DeepSeek 是在线 LLM（按量计费）。",
+          "value": "groq",
+          "description": "Provider for medical record structuring. Local dev: groq. Production: siliconflow.",
+          "description_zh": "病历结构化提供商。本地开发：groq。生产：siliconflow。",
           "options": [
-            "ollama",
-            "deepseek",
-            "groq",
-            "cerebras",
-            "sambanova",
             "siliconflow",
-            "openrouter",
-            "tencent_lkeap"
+            "dashscope",
+            "deepseek",
+            "tencent_lkeap",
+            "groq",
+            "ollama"
           ]
         },
         "LLM_PROVIDER_STRICT_MODE": {
@@ -61,15 +57,40 @@
           "description": "OpenAI API key.",
           "description_zh": "OpenAI API Key。"
         },
+        "SILICONFLOW_API_KEY": {
+          "value": "",
+          "description": "SiliconFlow API key. Primary production provider.",
+          "description_zh": "硅基流动 API Key。主生产提供商。"
+        },
+        "SILICONFLOW_MODEL": {
+          "value": "Qwen/Qwen2.5-32B-Instruct",
+          "description": "SiliconFlow model. Production: Qwen/Qwen2.5-32B-Instruct.",
+          "description_zh": "硅基流动模型。生产：Qwen/Qwen2.5-32B-Instruct。"
+        },
+        "DASHSCOPE_API_KEY": {
+          "value": "",
+          "description": "Alibaba DashScope API key. Backup provider.",
+          "description_zh": "阿里云百炼 API Key。备用提供商。"
+        },
+        "DASHSCOPE_MODEL": {
+          "value": "qwen-turbo",
+          "description": "DashScope model. Backup: qwen-turbo.",
+          "description_zh": "百炼模型。备用：qwen-turbo。"
+        },
+        "DEEPSEEK_API_KEY": {
+          "value": "",
+          "description": "DeepSeek API key. Second backup.",
+          "description_zh": "DeepSeek API Key。第二备用。"
+        },
         "TENCENT_LKEAP_BASE_URL": {
           "value": "https://api.lkeap.cloud.tencent.com/v1",
           "description": "Tencent LKEAP OpenAI-compatible API base URL.",
           "description_zh": "腾讯云 LKEAP（OpenAI 兼容）API 基地址。"
         },
         "TENCENT_LKEAP_MODEL": {
-          "value": "deepseek-v3-1",
-          "description": "Tencent LKEAP model name for routing/structuring.",
-          "description_zh": "路由/结构化使用的腾讯云 LKEAP 模型名。"
+          "value": "deepseek-v3.2",
+          "description": "Tencent LKEAP model name.",
+          "description_zh": "腾讯云 LKEAP 模型名。"
         },
         "TENCENT_LKEAP_API_KEY": {
           "value": "",
@@ -78,13 +99,8 @@
         },
         "GROQ_API_KEY": {
           "value": "",
-          "description": "Groq API key.",
-          "description_zh": "Groq API Key。"
-        },
-        "DEEPSEEK_API_KEY": {
-          "value": "",
-          "description": "DeepSeek API key.",
-          "description_zh": "DeepSeek API Key。"
+          "description": "Groq API key (local dev only).",
+          "description_zh": "Groq API Key（仅本地开发）。"
         },
         "GEMINI_API_KEY": {
           "value": "",

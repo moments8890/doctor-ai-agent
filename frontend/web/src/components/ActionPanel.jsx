@@ -9,7 +9,6 @@ const actions = [
   { key: "camera", label: "拍照", Icon: CameraAltOutlinedIcon, color: COLOR.primary },
   { key: "gallery", label: "相册", Icon: PhotoLibraryOutlinedIcon, color: COLOR.recordBlue },
   { key: "file", label: "文档", Icon: DescriptionOutlinedIcon, color: COLOR.orange },
-  { key: "patient", label: "患者档案", Icon: PersonSearchOutlinedIcon, color: COLOR.purple },
 ];
 
 export default function ActionPanel({ open, onClose, onAction }) {

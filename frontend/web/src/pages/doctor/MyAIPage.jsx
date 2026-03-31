@@ -217,7 +217,7 @@ export default function MyAIPage({ doctorId }) {
             <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
             <StatColumn value={pendingReview} label="待确认" onClick={() => navigate("/doctor/review?tab=pending")} />
             <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-            <StatColumn value={completedToday} label="今日处理" onClick={() => navigate("/doctor/tasks?tab=sent")} />
+            <StatColumn value={completedToday} label="今日处理" onClick={() => navigate("/doctor/review?tab=completed")} />
           </Box>
 
           {/* Onboarding hint when no knowledge yet */}

@@ -309,6 +309,7 @@ export default function ReviewPage({ recordId }) {
     try {
       await triggerDiagnosis(recordId, doctorId);
       showToast("已提交分析请求");
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
       pollRef.current = setInterval(async () => {
         const found = await fetchSuggestions();
         if (found && pollRef.current) {

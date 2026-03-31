@@ -1,10 +1,12 @@
 """Handler for create_record intent — enters interview flow."""
 from __future__ import annotations
 
+import re
+
 from agent.dispatcher import register
 from agent.tools.resolve import resolve
 from agent.types import IntentType, HandlerResult, TurnContext
-from domain.patients.interview_session import create_session
+from domain.patients.interview_session import create_session, get_active_session
 from domain.patients.interview_turn import interview_turn
 
 
@@ -25,19 +27,25 @@ async def handle_create_record(ctx: TurnContext) -> HandlerResult:
     if "status" in resolved:
         return HandlerResult(reply=resolved["message"])
 
-    # Delegate to existing interview flow
-    # create_session manages its own DB session internally
-    interview = await create_session(
-        doctor_id=ctx.doctor_id,
-        patient_id=resolved["patient_id"],
-        mode="doctor",
-    )
+    patient_id = resolved["patient_id"]
 
-    # Use the full original message as clinical context for the first
-    # interview turn. The routing LLM no longer extracts clinical_text
-    # into params (to keep output short and avoid truncation).
-    clinical_text = ctx.text
-    if clinical_text and patient_name in clinical_text:
+    # Resume existing active session if one exists
+    interview = await get_active_session(patient_id, ctx.doctor_id)
+    if not interview:
+        interview = await create_session(
+            doctor_id=ctx.doctor_id,
+            patient_id=patient_id,
+            mode="doctor",
+        )
+
+    # Extract clinical content by stripping the command prefix (e.g. "给张三建病历，")
+    # so we don't feed non-clinical command text as the first interview turn.
+    clinical_text = ctx.text or ""
+    clinical_text = re.sub(
+        r"^[给为帮].*?[建创]病历[，,：:\s]*", "", clinical_text,
+    ).strip()
+
+    if clinical_text:
         response = await interview_turn(interview.id, clinical_text)
         return HandlerResult(
             reply=response.reply,

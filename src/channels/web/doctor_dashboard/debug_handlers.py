@@ -245,15 +245,21 @@ async def debug_dashboard_page(token: str = Query(..., description="Debug access
     )
 
 
+@router.get("/debug", include_in_schema=False)
+async def debug_page_shortcut(token: str = Query(..., description="Debug access token")):
+    """Short URL alias for the debug dashboard HTML page. Token required."""
+    _require_ui_debug_access(token)
+    return FileResponse(
+        Path(__file__).parent / "debug.html",
+        media_type="text/html",
+    )
+
+
 _LLM_PRICING: dict[str, dict] = {
-    "deepseek": {"input": 2.0, "output": 3.0, "unit": "RMB/M tokens", "note": "cache hit: 0.2 input"},
-    "tencent_lkeap": {"input": 2.0, "output": 8.0, "unit": "RMB/M tokens"},
-    "dashscope": {"input": 0.8, "output": 4.8, "unit": "RMB/M tokens", "note": "qwen-plus"},
-    "siliconflow": {"input": 1.0, "output": 4.0, "unit": "RMB/M tokens", "note": "Qwen3-32B"},
-    "groq": {"input": 0, "output": 0, "unit": "free tier"},
-    "cerebras": {"input": 0, "output": 0, "unit": "free tier"},
-    "sambanova": {"input": 0, "output": 0, "unit": "free tier"},
-    "openrouter": {"input": 0.18, "output": 0.54, "unit": "USD/M tokens"},
+    "deepseek": {"input": 2.0, "output": 8.0, "unit": "RMB/M tokens", "note": "cache hit: 0.1 input"},
+    "tencent_lkeap": {"input": 2.0, "output": 8.0, "unit": "RMB/M tokens", "note": "deepseek-v3.2"},
+    "dashscope": {"input": 0.8, "output": 2.0, "unit": "RMB/M tokens", "note": "qwen-plus"},
+    "siliconflow": {"input": 4.13, "output": 4.13, "unit": "RMB/M tokens", "note": "Qwen2.5-72B"},
 }
 
 
@@ -285,6 +291,7 @@ async def llm_providers(
         result.append({
             "name": name,
             "model": pcfg["model"],
+            "models": pcfg.get("models", [pcfg["model"]]),
             "base_url": pcfg["base_url"],
             "configured": has_key,
             "active": name == active,
@@ -294,16 +301,20 @@ async def llm_providers(
     return {"providers": result, "active": active}
 
 
+_BENCH_TIMEOUT_S = 5  # per-call hard timeout
+
+
 @router.post("/api/debug/llm-benchmark")
 async def llm_benchmark(
     x_debug_token: str | None = Header(default=None, alias="X-Debug-Token"),
     runs: int = Query(default=2, ge=1, le=5),
     providers_csv: str = Query(default="", alias="providers", description="Comma-separated provider names to test. Empty = all configured."),
+    models_csv: str = Query(default="", alias="models", description="Comma-separated model overrides per provider (same order as providers). Empty = use default."),
 ):
     """Run latency benchmark for selected LLM providers.
 
     Tests with a realistic ~3K token medical prompt using streaming.
-    Returns TTFT, total latency, and output token counts per provider.
+    All providers run in parallel; each call has a 5s hard timeout.
     """
     import asyncio
     import os
@@ -321,105 +332,209 @@ async def llm_benchmark(
 
     providers = _get_providers()
     active = os.environ.get("ROUTING_LLM", "")
-    selected = set(p.strip() for p in providers_csv.split(",") if p.strip()) if providers_csv else None
-    results = []
+    selected = [p.strip() for p in providers_csv.split(",") if p.strip()] if providers_csv else None
+    model_overrides_list = [m.strip() for m in models_csv.split(",") if m.strip()] if models_csv else []
+    # Map provider → override model (by position)
+    model_overrides: dict[str, str] = {}
+    if selected and model_overrides_list:
+        for i, name in enumerate(selected):
+            if i < len(model_overrides_list) and model_overrides_list[i]:
+                model_overrides[name] = model_overrides_list[i]
 
+    async def _single_run(client: AsyncOpenAI, model: str, run_idx: int) -> dict:
+        t0 = time.monotonic()
+        ttft = None
+        chunks = 0
+        error_msg = None
+
+        async def _do():
+            nonlocal ttft, chunks
+            _m = model.lower()
+            extra = {"enable_thinking": False} if ("qwen3" in _m or "qwen-3" in _m) else None
+            stream = await client.chat.completions.create(
+                model=model, messages=MESSAGES, max_tokens=150, stream=True, extra_body=extra,
+            )
+            async for chunk in stream:
+                if ttft is None and chunk.choices and chunk.choices[0].delta.content:
+                    ttft = int((time.monotonic() - t0) * 1000)
+                if chunk.choices and chunk.choices[0].delta.content:
+                    chunks += 1
+
+        try:
+            await asyncio.wait_for(_do(), timeout=_BENCH_TIMEOUT_S)
+            total = int((time.monotonic() - t0) * 1000)
+        except asyncio.TimeoutError:
+            total = int((time.monotonic() - t0) * 1000)
+            error_msg = f"timeout ({_BENCH_TIMEOUT_S}s)"
+        except Exception as e:
+            total = int((time.monotonic() - t0) * 1000)
+            error_msg = str(e)[:120]
+        return {"run": run_idx + 1, "ttft_ms": ttft, "total_ms": total,
+                "chunks": chunks, "error": error_msg}
+
+    async def _bench_provider(name: str, pcfg: dict) -> dict:
+        client = AsyncOpenAI(
+            base_url=pcfg["base_url"],
+            api_key=os.environ.get(pcfg.get("api_key_env", ""), ""),
+            timeout=60,  # generous HTTP timeout; _BENCH_TIMEOUT_S enforced via asyncio
+        )
+        model = model_overrides.get(name, pcfg["model"])
+        run_results = [await _single_run(client, model, i) for i in range(runs)]
+
+        valid = [r for r in run_results if r["ttft_ms"] is not None]
+        avg_runs = valid[1:] if len(valid) > 1 else valid
+        avg_ttft = int(sum(r["ttft_ms"] for r in avg_runs) / len(avg_runs)) if avg_runs else None
+        avg_total = int(sum(r["total_ms"] for r in avg_runs) / len(avg_runs)) if avg_runs else None
+        return {"provider": name, "model": model, "active": name == active,
+                "avg_ttft_ms": avg_ttft, "avg_total_ms": avg_total, "runs": run_results}
+
+    # Build tasks for all selected providers, run in parallel
+    tasks = {}
     for name, pcfg in providers.items():
         api_key = os.environ.get(pcfg.get("api_key_env", ""), "")
         if not api_key or name == "ollama":
             continue
         if selected and name not in selected:
             continue
+        tasks[name] = asyncio.create_task(_bench_provider(name, pcfg))
 
-        client = AsyncOpenAI(
-            base_url=pcfg["base_url"], api_key=api_key, timeout=25.0,
-        )
-        model = pcfg["model"]
-        run_results = []
+    results = list(await asyncio.gather(*tasks.values(), return_exceptions=True))
+    # Replace any unexpected exceptions with error entries
+    final = []
+    for name, res in zip(tasks.keys(), results):
+        if isinstance(res, Exception):
+            final.append({"provider": name, "model": providers[name]["model"],
+                          "active": name == active, "avg_ttft_ms": None,
+                          "avg_total_ms": None, "runs": [{"run": 1, "error": str(res)[:120]}]})
+        else:
+            final.append(res)
 
-        for i in range(runs):
-            t0 = time.monotonic()
-            ttft = None
-            chunks = 0
-            error_msg = None
-            try:
-                stream = await client.chat.completions.create(
-                    model=model, messages=MESSAGES, max_tokens=150,
-                    stream=True,
-                )
-                async for chunk in stream:
-                    if ttft is None and chunk.choices and chunk.choices[0].delta.content:
-                        ttft = int((time.monotonic() - t0) * 1000)
-                    if chunk.choices and chunk.choices[0].delta.content:
-                        chunks += 1
-                total = int((time.monotonic() - t0) * 1000)
-            except Exception as e:
-                total = int((time.monotonic() - t0) * 1000)
-                error_msg = str(e)[:120]
-                ttft = None
-
-            run_results.append({
-                "run": i + 1,
-                "ttft_ms": ttft,
-                "total_ms": total,
-                "chunks": chunks,
-                "error": error_msg,
-            })
-
-        # Compute averages (skip first run as warmup if multiple runs)
-        valid = [r for r in run_results if r["ttft_ms"] is not None]
-        avg_runs = valid[1:] if len(valid) > 1 else valid
-        avg_ttft = int(sum(r["ttft_ms"] for r in avg_runs) / len(avg_runs)) if avg_runs else None
-        avg_total = int(sum(r["total_ms"] for r in avg_runs) / len(avg_runs)) if avg_runs else None
-
-        results.append({
-            "provider": name,
-            "model": model,
-            "active": name == active,
-            "avg_ttft_ms": avg_ttft,
-            "avg_total_ms": avg_total,
-            "runs": run_results,
-        })
-
-    # Sort by avg_ttft (fastest first), None at end
-    results.sort(key=lambda r: r["avg_ttft_ms"] if r["avg_ttft_ms"] is not None else 999999)
-    return {"results": results, "active_provider": active, "prompt_tokens": "~3000"}
+    final.sort(key=lambda r: r["avg_ttft_ms"] if r["avg_ttft_ms"] is not None else 999999)
+    return {"results": final, "active_provider": active, "prompt_tokens": "~3000"}
 
 
 # ── Sim Eval ────────────────────────────────────────────────────────────────
+# Loads real production-style scenarios from JSON fixtures.
+# Tests routing, extraction, diagnosis, triage, and followup reply.
 
-_EVAL_SYSTEM = (
-    "你是一位专业的神经外科医生AI助手。请根据患者描述提取结构化信息。\n"
-    "必须以JSON格式返回，包含以下字段：\n"
-    '{"chief_complaint": "主诉(20字以内)", "symptoms": ["症状列表"], '
-    '"history": "既往史", "preliminary_assessment": "初步评估"}\n'
-    "只返回JSON，不要其他文字。"
-)
+import re as _re
 
-_EVAL_SCENARIOS = [
-    {
-        "id": "neuro_headache",
-        "input": "患者男50岁，头痛3天加重1天，伴恶心呕吐，既往高血压10年",
-        "expected_fields": ["chief_complaint", "symptoms", "history"],
-        "expected_keywords": ["头痛", "高血压"],
-    },
-]
+_THINK_STRIP = _re.compile(r"<think>.*?</think>\s*", _re.DOTALL)
+_SCENARIOS_PATH = Path(__file__).resolve().parents[4] / "tests" / "fixtures" / "llm_eval" / "scenarios.json"
+
+
+def _strip_llm(raw: str) -> str:
+    """Strip <think> blocks and markdown fences from LLM output."""
+    text = _THINK_STRIP.sub("", raw).strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1]
+    if text.endswith("```"):
+        text = text.rsplit("```", 1)[0]
+    return text.strip()
+
+
+def _load_eval_scenarios() -> list[dict]:
+    """Load eval scenarios from fixture file, injecting cache-busting randomness."""
+    import random
+    if not _SCENARIOS_PATH.exists():
+        return []
+    scenarios = json.loads(_SCENARIOS_PATH.read_text(encoding="utf-8"))
+    # Inject a unique nonce into each scenario's system message to prevent
+    # provider-side prompt caching from inflating benchmark results.
+    nonce = f"[eval-run-{random.randint(10000,99999)}]"
+    for s in scenarios:
+        msgs = s.get("messages", [])
+        if msgs and msgs[0].get("role") == "system":
+            msgs[0]["content"] = msgs[0]["content"] + f"\n\n<!-- {nonce} -->"
+    return scenarios
+
+
+def _check_scenario(scenario: dict, parsed, raw_output: str) -> tuple[bool, str]:
+    """Validate LLM output against scenario checks. Returns (passed, reason)."""
+    checks = scenario.get("check_fields", {})
+    keywords = scenario.get("check_keywords", [])
+    max_len = scenario.get("check_max_length")
+    flat = json.dumps(parsed, ensure_ascii=False) if parsed else raw_output
+
+    # Field checks
+    for field_path, expected in checks.items():
+        value = parsed
+        for part in field_path.split("."):
+            if isinstance(value, dict):
+                value = value.get(part)
+            else:
+                value = None
+                break
+        if expected == "non_empty":
+            if not value:
+                return False, f"field '{field_path}' empty"
+        elif expected == "non_empty_array":
+            if not isinstance(value, list) or len(value) == 0:
+                return False, f"field '{field_path}' not non-empty array"
+        elif value != expected:
+            return False, f"field '{field_path}': got {value!r}, expected {expected!r}"
+
+    # Keyword checks
+    for kw in keywords:
+        if kw not in flat:
+            return False, f"keyword '{kw}' missing"
+
+    # Length check (for followup replies)
+    if max_len and len(raw_output) > max_len:
+        return False, f"output too long ({len(raw_output)} > {max_len})"
+
+    return True, ""
+
+
+@router.get("/api/debug/llm-eval/scenarios")
+async def llm_eval_scenarios(
+    x_debug_token: str | None = Header(default=None, alias="X-Debug-Token"),
+):
+    """Return eval scenario metadata for display (no LLM calls)."""
+    _require_ui_debug_access(x_debug_token)
+    scenarios = _load_eval_scenarios()
+    items = []
+    for s in scenarios:
+        user_msgs = [m["content"] for m in s["messages"] if m["role"] == "user"]
+        sys_msgs = [m["content"] for m in s["messages"] if m["role"] == "system"]
+        total_chars = sum(len(m["content"]) for m in s["messages"])
+        check_json = s.get("check_json", False)
+        check_fields = list(s.get("check_fields", {}).keys())
+        output_fmt = "JSON" if check_json else "text"
+        if check_json and check_fields:
+            output_fmt = "JSON {" + ", ".join(check_fields) + "}"
+        items.append({
+            "id": s["id"],
+            "task": s.get("task", ""),
+            "description": s.get("description", ""),
+            "input": user_msgs[-1][:300] if user_msgs else "",
+            "system_prompt_preview": sys_msgs[0][:200] + "..." if sys_msgs else "",
+            "input_chars": total_chars,
+            "input_tokens_est": total_chars // 2,  # rough CJK estimate
+            "output_format": output_fmt,
+            "checks": {
+                "json": check_json,
+                "fields": check_fields,
+                "keywords": s.get("check_keywords", []),
+                "max_length": s.get("check_max_length"),
+            },
+        })
+    return {"scenarios": items}
 
 
 @router.post("/api/debug/llm-eval")
 async def llm_eval(
     x_debug_token: str | None = Header(default=None, alias="X-Debug-Token"),
-    providers_csv: str = Query(
-        default="",
-        alias="providers",
-        description="Comma-separated provider names. Empty = all configured.",
-    ),
+    providers_csv: str = Query(default="", alias="providers"),
+    models_csv: str = Query(default="", alias="models"),
 ):
-    """Run structured-output eval for selected LLM providers.
+    """Run multi-scenario eval across provider+model combos.
 
-    Sends a standard medical scenario, validates JSON parsing and
-    field extraction.  Returns per-provider pass/fail with timing.
+    Loads real production-style scenarios from tests/fixtures/llm_eval/scenarios.json.
+    Tests routing, extraction, diagnosis, triage, followup with actual prompt formats.
+    All combos run in parallel. Returns pass/fail + latency per scenario.
     """
+    import asyncio
     import os
     import time
     from openai import AsyncOpenAI
@@ -427,89 +542,118 @@ async def llm_eval(
     _require_ui_debug_access(x_debug_token)
     from infra.llm.client import _get_providers
 
-    providers = _get_providers()
-    selected = (
-        set(p.strip() for p in providers_csv.split(",") if p.strip())
-        if providers_csv
-        else None
-    )
-    scenario = _EVAL_SCENARIOS[0]
-    messages = [
-        {"role": "system", "content": _EVAL_SYSTEM},
-        {"role": "user", "content": scenario["input"]},
-    ]
+    scenarios = _load_eval_scenarios()
+    if not scenarios:
+        return {"results": [], "scenario_count": 0, "error": "No scenarios found"}
 
-    results = []
+    providers = _get_providers()
+    selected = [p.strip() for p in providers_csv.split(",") if p.strip()] if providers_csv else None
+    model_overrides_list = [m.strip() for m in models_csv.split(",") if m.strip()] if models_csv else []
+    model_overrides: dict[str, str] = {}
+    if selected and model_overrides_list:
+        for i, name in enumerate(selected):
+            if i < len(model_overrides_list) and model_overrides_list[i]:
+                model_overrides[name] = model_overrides_list[i]
+
+    def _needs_nothink(model: str) -> bool:
+        m = model.lower()
+        return "qwen3" in m or "qwen-3" in m
+
+    async def _eval_one(client: AsyncOpenAI, model: str, scenario: dict) -> dict:
+        t0 = time.monotonic()
+        error_msg = None
+        raw_output = ""
+        parsed = None
+        passed = False
+        reason = ""
+
+        messages = scenario["messages"]
+        extra = {"enable_thinking": False} if _needs_nothink(model) else None
+        check_json = scenario.get("check_json", True)
+
+        try:
+            resp = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=model, messages=messages, max_tokens=800, extra_body=extra,
+                ),
+                timeout=20,
+            )
+            raw_output = (resp.choices[0].message.content or "").strip()
+            text = _strip_llm(raw_output)
+
+            if check_json:
+                parsed = json.loads(text)
+            else:
+                parsed = None  # free-text output (e.g. followup reply)
+
+            passed, reason = _check_scenario(scenario, parsed, raw_output)
+        except asyncio.TimeoutError:
+            error_msg = "timeout (20s)"
+        except json.JSONDecodeError:
+            error_msg = "JSON parse failed"
+        except Exception as e:
+            error_msg = str(e)[:150]
+
+        # Extract last user message as the test input
+        user_msgs = [m["content"] for m in scenario["messages"] if m["role"] == "user"]
+        input_text = user_msgs[-1] if user_msgs else ""
+
+        return {
+            "scenario_id": scenario["id"],
+            "task": scenario["task"],
+            "description": scenario.get("description", ""),
+            "input": input_text[:200],
+            "total_ms": int((time.monotonic() - t0) * 1000),
+            "passed": passed,
+            "error": error_msg,
+            "reason": reason,
+            "raw_output": raw_output[:600],
+        }
+
+    async def _eval_provider(name: str, pcfg: dict) -> dict:
+        model = model_overrides.get(name, pcfg["model"])
+        client = AsyncOpenAI(
+            base_url=pcfg["base_url"],
+            api_key=os.environ.get(pcfg.get("api_key_env", ""), ""),
+            timeout=60,
+        )
+        scenario_results = []
+        for s in scenarios:
+            r = await _eval_one(client, model, s)
+            scenario_results.append(r)
+
+        passed = sum(1 for r in scenario_results if r["passed"])
+        total = len(scenario_results)
+        avg_ms = int(sum(r["total_ms"] for r in scenario_results) / total) if total else 0
+        return {
+            "provider": name,
+            "model": model,
+            "score": f"{passed}/{total}",
+            "passed": passed,
+            "total": total,
+            "avg_ms": avg_ms,
+            "scenarios": scenario_results,
+        }
+
+    # Run all providers in parallel
+    tasks = {}
     for name, pcfg in providers.items():
         api_key = os.environ.get(pcfg.get("api_key_env", ""), "")
         if not api_key or name == "ollama":
             continue
         if selected and name not in selected:
             continue
+        tasks[name] = asyncio.create_task(_eval_provider(name, pcfg))
 
-        client = AsyncOpenAI(
-            base_url=pcfg["base_url"], api_key=api_key, timeout=30.0,
-        )
-        model = pcfg["model"]
-        t0 = time.monotonic()
-        error_msg = None
-        raw_output = ""
-        parsed = None
-        fields_present: list[str] = []
-        fields_missing: list[str] = []
-        keywords_found: list[str] = []
-        keywords_missing: list[str] = []
-        passed = False
+    raw_results = list(await asyncio.gather(*tasks.values(), return_exceptions=True))
+    final = []
+    for name, res in zip(tasks.keys(), raw_results):
+        if isinstance(res, Exception):
+            final.append({"provider": name, "model": providers[name]["model"],
+                          "score": "0/0", "passed": 0, "total": 0, "avg_ms": 0,
+                          "scenarios": [], "error": str(res)[:150]})
+        else:
+            final.append(res)
 
-        try:
-            resp = await client.chat.completions.create(
-                model=model, messages=messages, max_tokens=300,
-            )
-            raw_output = (resp.choices[0].message.content or "").strip()
-            # Strip markdown fences if present
-            text = raw_output
-            if text.startswith("```"):
-                text = text.split("\n", 1)[-1]
-            if text.endswith("```"):
-                text = text.rsplit("```", 1)[0]
-            text = text.strip()
-            parsed = json.loads(text)
-
-            for f in scenario["expected_fields"]:
-                if f in parsed and parsed[f]:
-                    fields_present.append(f)
-                else:
-                    fields_missing.append(f)
-
-            flat = json.dumps(parsed, ensure_ascii=False)
-            for kw in scenario["expected_keywords"]:
-                if kw in flat:
-                    keywords_found.append(kw)
-                else:
-                    keywords_missing.append(kw)
-
-            passed = len(fields_missing) == 0 and len(keywords_missing) == 0
-
-        except json.JSONDecodeError:
-            error_msg = "JSON parse failed"
-        except Exception as e:
-            error_msg = str(e)[:150]
-
-        total_ms = int((time.monotonic() - t0) * 1000)
-
-        results.append({
-            "provider": name,
-            "model": model,
-            "total_ms": total_ms,
-            "passed": passed,
-            "error": error_msg,
-            "fields_present": fields_present,
-            "fields_missing": fields_missing,
-            "keywords_found": keywords_found,
-            "keywords_missing": keywords_missing,
-            "raw_output": raw_output[:500],
-            "parsed": parsed,
-        })
-
-    results.sort(key=lambda r: (not r["passed"], r["total_ms"]))
-    return {"results": results, "scenario": scenario["id"]}
+    final.sort(key=lambda r: (-r["passed"], r["avg_ms"]))
+    return {"results": final, "scenario_count": len(scenarios)}

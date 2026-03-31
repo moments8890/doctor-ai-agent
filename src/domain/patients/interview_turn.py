@@ -9,12 +9,19 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
-# Per-session lock to prevent concurrent interview_turn calls on the same session
+# Per-session lock to prevent concurrent interview_turn calls on the same session.
+# Capped to avoid unbounded growth from abandoned sessions.
 _session_locks: dict[str, "_asyncio_lock.Lock"] = {}
+_SESSION_LOCK_CAP = 500
 
 
 def get_session_lock(session_id: str) -> "_asyncio_lock.Lock":
     """Get or create the per-session asyncio.Lock."""
+    if len(_session_locks) >= _SESSION_LOCK_CAP:
+        # Evict oldest half (dict preserves insertion order in Python 3.7+)
+        keys = list(_session_locks.keys())
+        for k in keys[: len(keys) // 2]:
+            _session_locks.pop(k, None)
     return _session_locks.setdefault(session_id, _asyncio_lock.Lock())
 
 
@@ -214,17 +221,18 @@ async def _interview_turn_inner(session_id: str, patient_text: str) -> Interview
     })
     session.turn_count += 1
 
-    # Safety cap — still process but flag it
+    # Safety cap — transition to reviewing so patient can complete
     if session.turn_count >= MAX_TURNS:
         missing = check_completeness(session.collected, mode=mode)
         reply = "我们已经聊了很久了，让我整理一下已有的信息。"
         session.conversation.append({"role": "assistant", "content": reply})
+        session.status = InterviewStatus.reviewing
         await save_session(session)
         return InterviewResponse(
             reply=reply, collected=session.collected,
             progress=_build_progress(session.collected, mode), status=session.status,
             missing=missing,
-            ready_to_review=session.status == InterviewStatus.reviewing,
+            ready_to_review=True,
         )
 
     # Main LLM call (with retry for transient failures)

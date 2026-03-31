@@ -8,20 +8,20 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #0f0f23;
-    --card: #1a1a2e;
-    --card2: #16213e;
-    --border: #2a2a4a;
-    --text: #e0e0e0;
+    --bg: #f5f5f5;
+    --card: #ffffff;
+    --card2: #f0f0f0;
+    --border: #e0e0e0;
+    --text: #1a1a1a;
     --text-muted: #888;
-    --text-dim: #aaa;
-    --green: #4caf50;
-    --yellow: #ff9800;
-    --red: #f44336;
-    --blue: #2196f3;
-    --purple: #9c27b0;
-    --teal: #009688;
-    --orange: #ff5722;
+    --text-dim: #666;
+    --green: #2e7d32;
+    --yellow: #e65100;
+    --red: #c62828;
+    --blue: #1565c0;
+    --purple: #7b1fa2;
+    --teal: #00796b;
+    --orange: #d84315;
     --mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
   }
 
@@ -80,10 +80,10 @@
     background: var(--card2);
     transition: background 0.15s;
   }
-  button:hover { background: #2a2a4a; }
+  button:hover { background: var(--border); }
   button.active { background: var(--blue); color: #fff; border-color: var(--blue); }
-  button.btn-danger { background: #3a1a1a; border-color: var(--red); color: var(--red); }
-  button.btn-danger:hover { background: #5a2a2a; }
+  button.btn-danger { background: #fce4ec; border-color: var(--red); color: var(--red); }
+  button.btn-danger:hover { background: #f8bbd0; }
 
   /* ---- TABS ---- */
   .tabs {
@@ -168,7 +168,7 @@
     flex-wrap: wrap;
   }
 
-  .row-header:hover { background: rgba(255,255,255,0.04); }
+  .row-header:hover { background: rgba(0,0,0,0.03); }
 
   .row-body {
     display: none;
@@ -188,14 +188,14 @@
     flex-shrink: 0;
   }
 
-  .badge-green  { background: rgba(76,175,80,0.2);  color: var(--green); }
-  .badge-yellow { background: rgba(255,152,0,0.2);  color: var(--yellow); }
-  .badge-red    { background: rgba(244,67,54,0.2);  color: var(--red); }
-  .badge-blue   { background: rgba(33,150,243,0.2); color: var(--blue); }
-  .badge-purple { background: rgba(156,39,176,0.2); color: var(--purple); }
-  .badge-teal   { background: rgba(0,150,136,0.2);  color: var(--teal); }
-  .badge-orange { background: rgba(255,87,34,0.2);  color: var(--orange); }
-  .badge-gray   { background: rgba(150,150,150,0.15); color: #aaa; }
+  .badge-green  { background: #e8f5e9; color: var(--green); }
+  .badge-yellow { background: #fff3e0; color: var(--yellow); }
+  .badge-red    { background: #fce4ec; color: var(--red); }
+  .badge-blue   { background: #e3f2fd; color: var(--blue); }
+  .badge-purple { background: #f3e5f5; color: var(--purple); }
+  .badge-teal   { background: #e0f2f1; color: var(--teal); }
+  .badge-orange { background: #fbe9e7; color: var(--orange); }
+  .badge-gray   { background: #f5f5f5; color: #888; }
 
   .method-badge { font-family: var(--mono); font-size: 11px; font-weight: 700; }
   .method-GET    { color: var(--green); }
@@ -229,7 +229,7 @@
   .span-bar-bg {
     flex: 1;
     height: 14px;
-    background: rgba(255,255,255,0.05);
+    background: rgba(0,0,0,0.05);
     border-radius: 3px;
     overflow: hidden;
     position: relative;
@@ -257,10 +257,10 @@
   .badge-error { background: rgba(244,67,54,0.2); color: #f44336; }
   .error-output { color: #f44336; }
   .failed-gen { background: rgba(255,152,0,0.1); border-left: 3px solid #ff9800; padding: 8px 12px; margin: 8px 0; font-size: 13px; color: var(--text); white-space: pre-wrap; }
-  .raw-toggle, .copy-btn { font-size: 10px; padding: 2px 8px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: var(--text-muted); cursor: pointer; }
+  .raw-toggle, .copy-btn { font-size: 10px; padding: 2px 8px; background: rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.1); border-radius: 4px; color: var(--text-muted); cursor: pointer; }
   .raw-toggle { margin-left: auto; }
-  .raw-toggle:hover, .copy-btn:hover { background: rgba(255,255,255,0.15); color: var(--text); }
-  .raw-json { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; font-size: 11px; font-family: var(--mono); white-space: pre-wrap; word-break: break-all; max-height: 600px; overflow-y: auto; color: var(--text-dim); }
+  .raw-toggle:hover, .copy-btn:hover { background: rgba(0,0,0,0.1); color: var(--text); }
+  .raw-json { background: #f5f5f5; padding: 12px; border-radius: 6px; font-size: 11px; font-family: var(--mono); white-space: pre-wrap; word-break: break-all; max-height: 600px; overflow-y: auto; color: var(--text-dim); border: 1px solid var(--border); }
 
   /* ---- LLM MESSAGES ---- */
   .msg-section { border-bottom: 1px solid var(--border); }
@@ -275,10 +275,10 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(255,255,255,0.02);
+    background: rgba(0,0,0,0.02);
     user-select: none;
   }
-  .msg-role-header:hover { background: rgba(255,255,255,0.05); }
+  .msg-role-header:hover { background: rgba(0,0,0,0.05); }
 
   .msg-role-label { flex: 1; }
   .msg-toggle { color: var(--text-muted); font-size: 12px; }
@@ -398,7 +398,7 @@
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.8);
+    background: rgba(0,0,0,0.4);
     z-index: 999;
     display: flex;
     align-items: center;
@@ -501,10 +501,7 @@
 <div class="tabs">
   <div class="tab active" data-tab="llm">LLM Calls</div>
   <div class="tab" data-tab="benchmark">Benchmark</div>
-  <div class="tab" data-tab="benchmark" data-scroll="evalSection" style="font-size:12px;color:var(--text-muted);">Eval</div>
-  <div class="tab" data-tab="requests">Requests</div>
-  <div class="tab" data-tab="errors">Errors <span class="tab-badge" id="errorBadge" style="display:none">0</span></div>
-  <div class="tab" data-tab="health">Health</div>
+  <div class="tab" data-tab="logs">Logs</div>
 </div>
 
 <!-- ===================== TAB: BENCHMARK ===================== -->
@@ -525,8 +522,15 @@
       </select>
       <span id="benchStatus" style="font-size:12px;color:var(--text-muted);"></span>
     </div>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">
-      Select providers above, then click Run. Tests ~3K token medical prompt (streaming) from this server.
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+      <strong>Latency test:</strong> sends a ~3K token system prompt + neurosurgery patient via streaming. Measures TTFT and total time. Tests speed, not correctness.
+      <a href="#" onclick="document.getElementById('benchPrompt').style.display=document.getElementById('benchPrompt').style.display==='none'?'block':'none';return false" style="color:var(--blue);text-decoration:none;margin-left:6px;">Show test prompt ▾</a>
+    </div>
+    <div id="benchPrompt" style="display:none;margin-bottom:12px;background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:10px;font-size:11px;">
+      <div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:4px;">System (×50 repeated, ~3K tokens)</div>
+      <div style="color:var(--text-dim);margin-bottom:8px;">你是一位专业的神经外科医生AI助手，负责帮助医生采集和结构化病历信息。</div>
+      <div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:4px;">User</div>
+      <div style="color:var(--text);">患者男50岁，头痛3天加重1天，伴恶心呕吐，既往高血压10年，请给出鉴别诊断</div>
     </div>
     <!-- Results -->
     <div id="benchResults"></div>
@@ -534,36 +538,17 @@
 
     <!-- Eval section -->
     <div id="evalSection" style="margin-top:32px;border-top:1px solid var(--border);padding-top:20px;">
-      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Structured Output Eval</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">
-        Tests JSON extraction from a standard medical scenario. Checks: JSON parses, required fields present, keywords extracted.
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Correctness Eval</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">
+        <strong>10 real scenarios</strong> using production prompts. Tests routing, extraction, diagnosis, triage, followup.
+        <a href="#" onclick="toggleEvalScenarios();return false" style="color:var(--blue);text-decoration:none;margin-left:6px;">Show test scenarios ▾</a>
       </div>
+      <div id="evalScenarioList" style="display:none;margin-bottom:12px;"></div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
         <button id="evalRunBtn" onclick="runEval()" style="background:#1976d2;color:#fff;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">Run Eval</button>
         <span id="evalStatus" style="font-size:12px;color:var(--text-muted);"></span>
       </div>
       <div id="evalResults"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ===================== TAB: REQUESTS ===================== -->
-<div class="tab-panel" id="panel-requests">
-  <div class="filter-bar">
-    <span class="filter-label">Path:</span>
-    <input type="text" class="filter-text" id="reqSearch" placeholder="filter by path...">
-    <span class="filter-label">Status:</span>
-    <select id="reqStatusFilter">
-      <option value="all">All</option>
-      <option value="2xx">2xx</option>
-      <option value="4xx">4xx</option>
-      <option value="5xx">5xx</option>
-    </select>
-    <span class="filter-label" id="reqCount" style="margin-left:auto;font-size:11px;"></span>
-  </div>
-  <div class="content">
-    <div class="list" id="requestsList">
-      <div class="loading">Loading requests...</div>
     </div>
   </div>
 </div>
@@ -596,14 +581,14 @@
       <div class="loading">Loading LLM calls...</div>
     </div>
     <div id="llmLoadMore" style="display:none;text-align:center;padding:12px;">
-      <button onclick="loadMoreLLM()" style="background:var(--card);border:1px solid rgba(255,255,255,0.15);color:var(--text);padding:8px 24px;border-radius:6px;cursor:pointer;">Load more</button>
+      <button onclick="loadMoreLLM()" style="background:var(--card);border:1px solid rgba(0,0,0,0.1);color:var(--text);padding:8px 24px;border-radius:6px;cursor:pointer;">Load more</button>
       <span id="llmPageInfo" style="font-size:11px;color:var(--text-muted);margin-left:8px;"></span>
     </div>
   </div>
 </div>
 
-<!-- ===================== TAB: ERRORS ===================== -->
-<div class="tab-panel" id="panel-errors">
+<!-- ===================== TAB: LOGS ===================== -->
+<div class="tab-panel" id="panel-logs">
   <div class="filter-bar">
     <span class="filter-label">Source:</span>
     <select id="errSourceFilter">
@@ -611,20 +596,20 @@
       <option value="tasks">tasks.log</option>
       <option value="scheduler">scheduler.log</option>
     </select>
+    <span class="filter-label">Level:</span>
+    <select id="logLevelFilter">
+      <option value="ALL">ALL</option>
+      <option value="DEBUG">DEBUG</option>
+      <option value="INFO">INFO</option>
+      <option value="WARNING">WARNING</option>
+      <option value="ERROR" selected>ERROR</option>
+      <option value="CRITICAL">CRITICAL</option>
+    </select>
     <span class="filter-label" id="errCount" style="margin-left:auto;font-size:11px;"></span>
   </div>
   <div class="content">
     <div class="list" id="errorsList">
-      <div class="loading">Loading errors...</div>
-    </div>
-  </div>
-</div>
-
-<!-- ===================== TAB: HEALTH ===================== -->
-<div class="tab-panel" id="panel-health">
-  <div class="content">
-    <div id="healthContent">
-      <div class="loading">Loading health data...</div>
+      <div class="loading">Loading logs...</div>
     </div>
   </div>
 </div>
@@ -638,11 +623,8 @@ let autoRefreshTimer = null;
 let autoRefreshOn = false;
 
 // Data caches
-let reqData = null;
 let llmData = null;
 let errData = null;
-let healthData = null;
-let routingData = null;
 
 // ============================================================
 // TOKEN MANAGEMENT
@@ -727,7 +709,7 @@ function restoreUrlState() {
   const url = new URL(window.location);
   // Tab from hash
   const hash = url.hash.replace('#', '');
-  const validTabs = ['llm', 'benchmark', 'requests', 'errors', 'health'];
+  const validTabs = ['llm', 'benchmark', 'logs'];
   if (hash && validTabs.includes(hash)) {
     currentTab = hash;
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === hash));
@@ -791,11 +773,9 @@ function stampRefreshed() {
 }
 
 function loadCurrentTab(force) {
-  if (currentTab === 'requests')  loadRequests(force);
-  else if (currentTab === 'llm')  loadLLM(force);
+  if (currentTab === 'llm')  loadLLM(force);
   else if (currentTab === 'benchmark') { loadProviders(); renderBenchHistory(); }
-  else if (currentTab === 'errors') loadErrors(force);
-  else if (currentTab === 'health') loadHealth(force);
+  else if (currentTab === 'logs') loadLogs(force);
 }
 
 // ============================================================
@@ -871,125 +851,6 @@ function toggleMsgSection(evt, id) {
 }
 
 // ============================================================
-// TAB 1: REQUESTS
-// ============================================================
-async function loadRequests(force) {
-  if (!force && reqData) { renderRequests(); return; }
-  const data = await apiFetch(`/api/debug/observability?trace_limit=100&span_limit=300`);
-  if (!data) return;
-  reqData = data;
-  stampRefreshed();
-  renderRequests();
-}
-
-function renderRequests() {
-  const search = document.getElementById('reqSearch').value.toLowerCase();
-  const statusF = document.getElementById('reqStatusFilter').value;
-  const traces = (reqData && reqData.recent_traces) || [];
-
-  let filtered = traces.filter(t => {
-    if (search && !(t.path || '').toLowerCase().includes(search)) return false;
-    if (statusF !== 'all' && statusGroup(t.status_code) !== statusF) return false;
-    return true;
-  });
-
-  document.getElementById('reqCount').textContent = `${filtered.length} / ${traces.length} requests`;
-
-  const container = document.getElementById('requestsList');
-  if (!filtered.length) {
-    container.innerHTML = '<div class="empty-state">No matching requests</div>';
-    return;
-  }
-
-  // Group spans by trace_id for waterfall use
-  const spansByTrace = {};
-  ((reqData && reqData.recent_spans) || []).forEach(s => {
-    if (!spansByTrace[s.trace_id]) spansByTrace[s.trace_id] = [];
-    spansByTrace[s.trace_id].push(s);
-  });
-
-  container.innerHTML = filtered.map(t => {
-    const tid = t.trace_id || '';
-    const shortTid = tid.slice(0, 8);
-    const spans = spansByTrace[tid] || [];
-    const bodyId = `req-body-${shortTid}`;
-
-    return `
-    <div class="row-card">
-      <div class="row-header" onclick="expandRequest('${escHtml(tid)}', '${bodyId}')">
-        <span class="method-badge method-${escHtml(t.method || 'GET')}">${escHtml(t.method || 'GET')}</span>
-        <span class="path-text">${escHtml(t.path || '')}</span>
-        <span class="badge ${statusBadgeClass(t.status_code)}">${t.status_code || '?'}</span>
-        <span class="latency-text">${fmtMs(t.latency_ms)}</span>
-        <span class="ts">${fmtTs(t.started_at)}</span>
-        <span class="trace-id-text">${escHtml(shortTid)}</span>
-      </div>
-      <div class="row-body" id="${bodyId}">
-        ${renderWaterfall(spans, t.latency_ms)}
-        <div id="llm-linked-${shortTid}" style="padding:0 14px 12px">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">LLM calls loading...</div>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-async function expandRequest(traceId, bodyId) {
-  const body = document.getElementById(bodyId);
-  if (!body) return;
-  const isOpen = body.classList.toggle('open');
-  if (!isOpen) return;
-
-  // Load linked LLM calls
-  const shortTid = traceId.slice(0, 8);
-  const llmEl = document.getElementById(`llm-linked-${shortTid}`);
-  if (!llmEl || llmEl.dataset.loaded) return;
-  llmEl.dataset.loaded = '1';
-
-  const data = await apiFetch(`/api/debug/llm-calls?trace_id=${encodeURIComponent(traceId)}&limit=10`);
-  if (!data || !data.calls || !data.calls.length) {
-    llmEl.innerHTML = '<div style="font-size:11px;color:var(--text-muted);padding-top:4px;">No LLM calls for this trace</div>';
-    return;
-  }
-
-  llmEl.innerHTML = `<div style="font-size:11px;color:var(--text-muted);margin-top:8px;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Linked LLM Calls</div>` +
-    data.calls.map((c, i) => {
-      const cid = `linked-llm-${shortTid}-${i}`;
-      return buildLlmCard(c, cid);
-    }).join('');
-}
-
-function renderWaterfall(spans, totalMs) {
-  if (!spans.length) return '<div style="padding:12px 14px;font-size:12px;color:var(--text-muted);">No spans</div>';
-
-  const maxMs = Math.max(totalMs || 0, ...spans.map(s => s.latency_ms || 0), 1);
-  const layerColors = {
-    router: '#2196f3', llm: '#9c27b0', db: '#4caf50',
-    cache: '#ff9800', handler: '#009688',
-  };
-
-  return `<div class="waterfall">
-    <div class="waterfall-title">Span Waterfall</div>
-    ${spans.map(s => {
-      const pct = Math.min(100, ((s.latency_ms || 0) / maxMs) * 100);
-      const color = layerColors[s.layer] || '#607d8b';
-      const statusCol = s.status === 'error' ? 'var(--red)' : color;
-      return `<div class="span-row">
-        <div class="span-label" title="${escHtml(s.name)}">${escHtml(s.name)}</div>
-        <div class="span-bar-bg">
-          <div class="span-bar" style="width:${pct}%;background:${statusCol};"></div>
-        </div>
-        <div class="span-ms">${fmtMs(s.latency_ms)}</div>
-      </div>`;
-    }).join('')}
-  </div>`;
-}
-
-// Live filters
-document.getElementById('reqSearch').addEventListener('input', renderRequests);
-document.getElementById('reqStatusFilter').addEventListener('change', renderRequests);
-
-// ============================================================
 // TAB: BENCHMARK
 // ============================================================
 let benchHistory = JSON.parse(localStorage.getItem('llm_bench_history') || '[]');
@@ -1029,10 +890,13 @@ function renderProviderList() {
       ';color:#fff;padding:1px 5px;border-radius:3px;margin-right:3px;">' + r + '</span>'
     ).join('');
     const rowBg = p.active ? 'background:rgba(76,175,80,0.08);' : '';
-    html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);' + rowBg + '">';
+    html += '<tr style="border-bottom:1px solid rgba(0,0,0,0.04);' + rowBg + '">';
     html += '<td style="padding:6px 8px;"><input type="checkbox" class="bench-check" data-provider="' + p.name + '" ' + checked + ' ' + disabled + '></td>';
     html += '<td style="padding:6px 8px;font-family:var(--mono);">' + p.name + '</td>';
-    html += '<td style="padding:6px 8px;font-size:11px;color:var(--text-dim);">' + p.model + '</td>';
+    const modelOptions = (p.models || [p.model]).map(m =>
+      '<option value="' + m + '"' + (m === p.model ? ' selected' : '') + '>' + m + '</option>'
+    ).join('');
+    html += '<td style="padding:6px 8px;"><select class="bench-model" data-provider="' + p.name + '" style="background:var(--card2);border:1px solid var(--border);color:var(--text-dim);font-size:11px;font-family:var(--mono);padding:2px 4px;border-radius:4px;width:100%;min-width:120px;" ' + (p.configured ? '' : 'disabled') + '>' + modelOptions + '</select></td>';
     const pr = p.pricing || {};
     const priceText = pr.unit ? (pr.input + '/' + pr.output + ' ' + pr.unit + (pr.note ? ' (' + pr.note + ')' : '')) : '—';
     html += '<td style="padding:6px 8px;font-size:11px;color:var(--text-dim);">' + priceText + '</td>';
@@ -1045,11 +909,18 @@ function renderProviderList() {
 }
 
 function getSelectedProviders() {
-  return Array.from(document.querySelectorAll('.bench-check:checked')).map(c => c.dataset.provider);
+  const checks = Array.from(document.querySelectorAll('.bench-check:checked'));
+  const providers = checks.map(c => c.dataset.provider);
+  const models = providers.map(name => {
+    const input = document.querySelector('.bench-model[data-provider="' + name + '"]');
+    const defaultModel = (benchProviders.find(p => p.name === name) || {}).model || '';
+    return input && input.value.trim() !== defaultModel ? input.value.trim() : '';
+  });
+  return { providers, models };
 }
 
 async function runBenchmark() {
-  const selected = getSelectedProviders();
+  const { providers: selected, models } = getSelectedProviders();
   if (selected.length === 0) {
     document.getElementById('benchStatus').textContent = 'Select at least one provider';
     return;
@@ -1063,7 +934,9 @@ async function runBenchmark() {
   document.getElementById('benchResults').innerHTML = '<div class="loading">Running benchmark...</div>';
 
   try {
-    const res = await fetch('/api/debug/llm-benchmark?runs=' + runs + '&providers=' + encodeURIComponent(selected.join(',')), {
+    let url = '/api/debug/llm-benchmark?runs=' + runs + '&providers=' + encodeURIComponent(selected.join(','));
+    if (models.some(m => m)) url += '&models=' + encodeURIComponent(models.join(','));
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'X-Debug-Token': getToken() },
     });
@@ -1111,10 +984,11 @@ function renderBenchResults(data) {
     const ttft = r.avg_ttft_ms != null ? r.avg_ttft_ms + 'ms' : 'ERR';
     const total = r.avg_total_ms != null ? r.avg_total_ms + 'ms' : 'ERR';
     const runDetails = r.runs.map(run => {
-      if (run.error) return '<span style="color:var(--red);">ERR</span>';
+      if (run.error && run.ttft_ms != null) return '<span style="color:var(--yellow);" title="' + run.error + '">' + run.ttft_ms + 'ms⏱</span>';
+      if (run.error) return '<span style="color:var(--red);" title="' + run.error + '">ERR</span>';
       return (run.ttft_ms || '?') + 'ms';
     }).join(' / ');
-    html += '<tr' + active + ' style="border-bottom:1px solid rgba(255,255,255,0.05);">';
+    html += '<tr' + active + ' style="border-bottom:1px solid rgba(0,0,0,0.05);">';
     html += '<td style="padding:8px;font-family:var(--mono);">' + r.provider + badge + '</td>';
     html += '<td style="padding:8px;font-size:11px;color:var(--text-dim);">' + r.model + '</td>';
     html += '<td style="padding:8px;text-align:right;font-family:var(--mono);color:' + ttftColor(r.avg_ttft_ms) + ';font-weight:600;">' + ttft + '</td>';
@@ -1141,7 +1015,7 @@ function renderBenchHistory() {
   for (const entry of benchHistory.slice(0, 10)) {
     const d = new Date(entry.ts);
     const timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-    html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.03);">';
+    html += '<tr style="border-bottom:1px solid rgba(0,0,0,0.03);">';
     html += '<td style="padding:4px 8px;color:var(--text-dim);font-size:11px;">' + timeStr + '</td>';
     for (const r of (entry.data?.results || [])) {
       const val = r.avg_ttft_ms != null ? r.avg_ttft_ms + 'ms' : 'ERR';
@@ -1157,6 +1031,61 @@ function renderBenchHistory() {
 renderBenchHistory();
 
 // ── Eval ──────────────────────────────────────────────────────
+let evalScenariosLoaded = false;
+const TASK_ZH_MAP = { routing: '意图路由', extraction: '信息提取', diagnosis: '鉴别诊断', triage: '消息分诊', followup: '随访回复' };
+
+async function toggleEvalScenarios() {
+  const el = document.getElementById('evalScenarioList');
+  if (el.style.display !== 'none') { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  if (evalScenariosLoaded) return;
+  el.innerHTML = '<div style="font-size:11px;color:var(--text-muted);">Loading scenarios...</div>';
+  try {
+    const data = await apiFetch('/api/debug/llm-eval/scenarios');
+    const scenarios = data.scenarios || [];
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:11px;background:var(--card);border:1px solid var(--border);border-radius:4px;">';
+    html += '<tr style="border-bottom:1px solid var(--border);">';
+    html += '<th style="padding:4px 8px;color:var(--text-muted);text-align:left;">Scenario</th>';
+    html += '<th style="padding:4px 8px;color:var(--text-muted);text-align:left;width:70px;">Task</th>';
+    html += '<th style="padding:4px 8px;color:var(--text-muted);text-align:right;width:60px;">Input</th>';
+    html += '<th style="padding:4px 8px;color:var(--text-muted);text-align:left;">Output</th>';
+    html += '<th style="padding:4px 8px;color:var(--text-muted);text-align:left;">User Input</th>';
+    html += '<th style="padding:4px 8px;color:var(--text-muted);text-align:left;">Checks</th>';
+    html += '</tr>';
+    for (const s of scenarios) {
+      const esc = (t) => (t || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const taskTag = TASK_ZH_MAP[s.task] || s.task;
+      const checks = [];
+      if (s.checks.json) checks.push('JSON');
+      if (s.checks.fields.length) checks.push(s.checks.fields.join(', '));
+      if (s.checks.keywords.length) checks.push('kw: ' + s.checks.keywords.join(', '));
+      const tokEst = s.input_tokens_est ? '~' + s.input_tokens_est + ' tok' : '—';
+      const maxLen = s.checks.max_length ? ' max ' + s.checks.max_length + '字' : '';
+      html += '<tr style="border-bottom:1px solid rgba(0,0,0,0.04);cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'table-row\':\'none\'">';
+      html += '<td style="padding:4px 8px;color:var(--text-dim);">' + esc(s.description || s.id) + '</td>';
+      html += '<td style="padding:4px 8px;"><span style="font-size:10px;background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:3px;">' + taskTag + '</span></td>';
+      html += '<td style="padding:4px 8px;text-align:right;font-family:var(--mono);font-size:10px;color:var(--text-muted);">' + tokEst + '</td>';
+      html += '<td style="padding:4px 8px;font-size:10px;color:var(--text-dim);">' + esc(s.output_format) + maxLen + '</td>';
+      html += '<td style="padding:4px 8px;max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(s.input) + '</td>';
+      html += '<td style="padding:4px 8px;color:var(--text-muted);font-size:10px;">' + checks.join(' · ') + '</td>';
+      html += '</tr>';
+      // Expandable: full input + system prompt preview
+      html += '<tr style="display:none;"><td colspan="6" style="padding:8px 8px 8px 24px;background:#f5f5f5;">';
+      html += '<div style="margin-bottom:4px;"><span style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">System prompt (preview):</span></div>';
+      html += '<div style="color:var(--text-dim);font-size:10px;margin-bottom:8px;white-space:pre-wrap;">' + esc(s.system_prompt_preview) + '</div>';
+      html += '<div style="margin-bottom:4px;"><span style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">User input:</span></div>';
+      html += '<div style="color:var(--text);font-size:11px;white-space:pre-wrap;">' + esc(s.input) + '</div>';
+      html += '</td></tr>';
+    }
+    html += '</table>';
+    html += '<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Click any row to see full system prompt preview</div>';
+    el.innerHTML = html;
+    evalScenariosLoaded = true;
+  } catch (e) {
+    el.innerHTML = '<div style="color:var(--red);font-size:11px;">Failed to load scenarios: ' + e.message + '</div>';
+  }
+}
+
 async function runEval() {
   const selected = getSelectedProviders();
   if (selected.length === 0) {
@@ -1194,44 +1123,49 @@ function renderEvalResults(data) {
     el.innerHTML = '<div class="empty-state">No results</div>';
     return;
   }
-  let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
-  html += '<tr style="border-bottom:1px solid var(--border);text-align:left;">';
-  html += '<th style="padding:8px;color:var(--text-muted);">Provider</th>';
-  html += '<th style="padding:8px;color:var(--text-muted);">Model</th>';
-  html += '<th style="padding:8px;color:var(--text-muted);text-align:center;">Result</th>';
-  html += '<th style="padding:8px;color:var(--text-muted);text-align:right;">Time</th>';
-  html += '<th style="padding:8px;color:var(--text-muted);">Fields</th>';
-  html += '<th style="padding:8px;color:var(--text-muted);">Keywords</th>';
-  html += '</tr>';
-  for (const r of data.results) {
-    const passBadge = r.error
-      ? '<span style="color:var(--red);font-weight:600;">ERROR</span>'
-      : r.passed
-        ? '<span style="color:var(--green);font-weight:600;">PASS</span>'
-        : '<span style="color:var(--red);font-weight:600;">FAIL</span>';
-    const fields = (r.fields_present || []).map(f => '<span style="color:var(--green);font-size:11px;">✓' + f + '</span>').join(' ')
-      + ' ' + (r.fields_missing || []).map(f => '<span style="color:var(--red);font-size:11px;">✗' + f + '</span>').join(' ');
-    const kws = (r.keywords_found || []).map(k => '<span style="color:var(--green);font-size:11px;">✓' + k + '</span>').join(' ')
-      + ' ' + (r.keywords_missing || []).map(k => '<span style="color:var(--red);font-size:11px;">✗' + k + '</span>').join(' ');
-    const rowBg = r.passed ? 'background:rgba(76,175,80,0.06);' : r.error ? 'background:rgba(244,67,54,0.06);' : '';
-    html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);' + rowBg + 'cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'table-row\':\'none\'">';
-    html += '<td style="padding:8px;font-family:var(--mono);">' + r.provider + '</td>';
-    html += '<td style="padding:8px;font-size:11px;color:var(--text-dim);">' + r.model + '</td>';
-    html += '<td style="padding:8px;text-align:center;">' + passBadge + '</td>';
-    html += '<td style="padding:8px;text-align:right;font-family:var(--mono);">' + r.total_ms + 'ms</td>';
-    html += '<td style="padding:8px;">' + fields + '</td>';
-    html += '<td style="padding:8px;">' + kws + '</td>';
+  const TASK_ZH = { routing: '意图路由', extraction: '信息提取', diagnosis: '鉴别诊断', triage: '消息分诊', followup: '随访回复' };
+  let html = '';
+  for (const prov of data.results) {
+    const scoreParts = (prov.score || '0/0').split('/');
+    const scoreColor = parseInt(scoreParts[0]) === parseInt(scoreParts[1]) ? 'var(--green)' : 'var(--red)';
+    html += '<div style="margin-bottom:16px;">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
+    html += '<span style="font-family:var(--mono);font-size:14px;font-weight:600;">' + prov.provider + '</span>';
+    html += '<span style="font-size:11px;color:var(--text-dim);">' + prov.model + '</span>';
+    html += '<span style="font-size:13px;font-weight:700;color:' + scoreColor + ';">' + prov.score + '</span>';
+    html += '<span style="font-size:11px;color:var(--text-muted);">avg ' + prov.avg_ms + 'ms</span>';
+    html += '</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    html += '<tr style="border-bottom:1px solid var(--border);">';
+    html += '<th style="padding:4px 8px;color:var(--text-muted);width:60px;">Result</th>';
+    html += '<th style="padding:4px 8px;color:var(--text-muted);">Scenario</th>';
+    html += '<th style="padding:4px 8px;color:var(--text-muted);">Task</th>';
+    html += '<th style="padding:4px 8px;color:var(--text-muted);text-align:right;">Time</th>';
     html += '</tr>';
-    // Expandable raw output row
-    const errLine = r.error ? '<div style="color:var(--red);margin-bottom:4px;">' + r.error + '</div>' : '';
-    const rawText = (r.raw_output || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    html += '<tr style="display:none;"><td colspan="6" style="padding:8px 8px 12px 8px;background:rgba(0,0,0,0.15);">';
-    html += errLine;
-    html += '<pre style="margin:0;font-size:11px;white-space:pre-wrap;color:var(--text-dim);max-height:200px;overflow:auto;">' + rawText + '</pre>';
-    html += '</td></tr>';
+    for (const s of (prov.scenarios || [])) {
+      const badge = s.error ? '<span style="color:var(--red);font-weight:600;">ERR</span>'
+        : s.passed ? '<span style="color:var(--green);font-weight:600;">PASS</span>'
+        : '<span style="color:var(--red);font-weight:600;">FAIL</span>';
+      const rowBg = s.passed ? '' : 'background:rgba(244,67,54,0.06);';
+      const taskTag = TASK_ZH[s.task] || s.task;
+      html += '<tr style="border-bottom:1px solid rgba(0,0,0,0.04);' + rowBg + 'cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'table-row\':\'none\'">';
+      html += '<td style="padding:4px 8px;">' + badge + '</td>';
+      html += '<td style="padding:4px 8px;color:var(--text-dim);font-size:11px;">' + (s.description || s.scenario_id) + '</td>';
+      html += '<td style="padding:4px 8px;"><span style="font-size:10px;background:rgba(0,0,0,0.06);padding:1px 5px;border-radius:3px;">' + taskTag + '</span></td>';
+      html += '<td style="padding:4px 8px;text-align:right;font-family:var(--mono);font-size:11px;">' + s.total_ms + 'ms</td>';
+      html += '</tr>';
+      // Expandable detail row: input + output
+      const esc = (t) => (t || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      let detail = '';
+      if (s.input) detail += '<div style="margin-bottom:6px;"><span style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Input:</span><div style="color:var(--text);font-size:11px;margin-top:2px;">' + esc(s.input) + '</div></div>';
+      if (s.reason) detail += '<div style="margin-bottom:6px;color:' + (s.passed ? 'var(--green)' : 'var(--red)') + ';font-size:11px;">' + esc(s.reason) + '</div>';
+      if (s.error) detail += '<div style="color:var(--red);font-size:11px;margin-bottom:6px;">' + esc(s.error) + '</div>';
+      if (s.raw_output) detail += '<div><span style="color:var(--text-muted);font-size:10px;text-transform:uppercase;">Output:</span><pre style="margin:2px 0 0;font-size:11px;white-space:pre-wrap;color:var(--text-dim);max-height:150px;overflow:auto;">' + esc(s.raw_output) + '</pre></div>';
+      html += '<tr style="display:none;"><td colspan="4" style="padding:8px 8px 12px 24px;background:#f5f5f5;">' + detail + '</td></tr>';
+    }
+    html += '</table></div>';
   }
-  html += '</table>';
-  html += '<div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Scenario: 神经外科头痛 | Click row to expand raw output</div>';
+  html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Click any scenario row to see input and output</div>';
   el.innerHTML = html;
 }
 
@@ -1546,7 +1480,7 @@ function buildLlmCard(c, cid) {
       : '';
     const errorPreview = c.error.length > 300 ? c.error.slice(0, 300) + '...' : c.error;
     outputHtml = `
-      <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);">
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,0,0,0.08);">
         ${failedGens.length ? `<div class="msg-section"><div class="msg-role-header" style="cursor:default;"><span class="msg-role-label" style="color:#ff9800;font-weight:bold;">MODEL OUTPUT (rejected by provider)</span></div>${failedHtml}</div>` : ''}
         <div class="msg-section">
           <div class="msg-role-header" onclick="toggleMsgSection(event,'err-${cid}')">
@@ -1560,7 +1494,7 @@ function buildLlmCard(c, cid) {
   } else if (output != null) {
     const outputText = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
     outputHtml = `
-      <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);">
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,0,0,0.08);">
         <div class="msg-section">
           <div class="msg-role-header" onclick="toggleMsgSection(event,'out-${cid}')">
             <span class="msg-role-label" style="color:var(--green);font-weight:bold;">OUTPUT</span>
@@ -1577,7 +1511,7 @@ function buildLlmCard(c, cid) {
   let rawHtml = '';
   if (rawMessages) {
     const rawJson = JSON.stringify(rawMessages, null, 2);
-    rawHtml = `<div id="raw-${cid}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Raw Messages (as sent to API)</span><button class="copy-btn" onclick="event.stopPropagation();copyContent('rawjson-${cid}',this)">Copy</button></div><div class="raw-json" id="rawjson-${cid}">${escHtml(rawJson)}</div></div>`;
+    rawHtml = `<div id="raw-${cid}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,0,0,0.08);"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Raw Messages (as sent to API)</span><button class="copy-btn" onclick="event.stopPropagation();copyContent('rawjson-${cid}',this)">Copy</button></div><div class="raw-json" id="rawjson-${cid}">${escHtml(rawJson)}</div></div>`;
   }
 
   const errorBadge = isError ? '<span class="badge badge-error">ERROR</span>' : '';
@@ -1610,25 +1544,20 @@ document.getElementById('llmOpFilter').addEventListener('change', () => { llmDat
 document.getElementById('llmSearch').addEventListener('input', renderLLM);
 
 // ============================================================
-// TAB 3: ERRORS
+// TAB 3: LOGS
 // ============================================================
-async function loadErrors(force) {
-  if (!force && errData) { renderErrors(); return; }
+async function loadLogs(force) {
+  if (!force && errData) { renderLogs(); return; }
   const source = document.getElementById('errSourceFilter').value;
-  const data = await apiFetch(`/api/debug/logs?level=ERROR&limit=100&source=${source}`);
+  const level = document.getElementById('logLevelFilter').value;
+  const data = await apiFetch(`/api/debug/logs?level=${encodeURIComponent(level)}&limit=200&source=${encodeURIComponent(source)}`);
   if (!data) return;
   errData = data;
   stampRefreshed();
-  renderErrors();
-
-  // Update badge
-  const count = (data.lines || []).length;
-  const badge = document.getElementById('errorBadge');
-  badge.style.display = count ? '' : 'none';
-  badge.textContent = count > 99 ? '99+' : String(count);
+  renderLogs();
 }
 
-function parseErrorLine(raw) {
+function parseLogLine(raw) {
   try {
     const obj = JSON.parse(raw);
     return {
@@ -1636,36 +1565,51 @@ function parseErrorLine(raw) {
       event: obj.event || obj.message || obj.msg || raw,
       trace_id: obj.trace_id || obj.traceId || null,
       doctor_id: obj.doctor_id || null,
-      level: obj.level || 'error',
+      level: (obj.level || 'info').toUpperCase(),
       extra: obj,
     };
   } catch {
-    return { timestamp: '', event: raw, trace_id: null, doctor_id: null, level: 'error', extra: null };
+    return { timestamp: '', event: raw, trace_id: null, doctor_id: null, level: 'INFO', extra: null };
   }
 }
 
-function renderErrors() {
+function levelBorderColor(level) {
+  const map = { ERROR: 'var(--red)', CRITICAL: 'var(--red)', WARNING: 'var(--yellow)', INFO: 'var(--blue)', DEBUG: 'var(--text-muted)' };
+  return map[level] || 'var(--border)';
+}
+
+function levelBadgeStyle(level) {
+  const map = {
+    ERROR: 'background:#fce4ec;color:#c62828;',
+    CRITICAL: 'background:#f8bbd0;color:#b71c1c;',
+    WARNING: 'background:#fff3e0;color:#e65100;',
+    INFO: 'background:#e3f2fd;color:#1565c0;',
+    DEBUG: 'background:#f5f5f5;color:#888;',
+  };
+  return map[level] || 'background:#f5f5f5;color:#888;';
+}
+
+function renderLogs() {
   const lines = (errData && errData.lines) || [];
-  document.getElementById('errCount').textContent = `${lines.length} errors`;
+  document.getElementById('errCount').textContent = `${lines.length} lines`;
 
   const container = document.getElementById('errorsList');
   if (!lines.length) {
-    container.innerHTML = '<div class="empty-state">No errors found</div>';
+    container.innerHTML = '<div class="empty-state">No log lines found</div>';
     return;
   }
 
   container.innerHTML = lines.slice().reverse().map((raw, i) => {
-    const p = parseErrorLine(raw);
-    const traceLink = p.trace_id
-      ? `<span class="error-trace-link" onclick="gotoTrace('${escHtml(p.trace_id)}')" title="View trace">${escHtml(p.trace_id.slice(0, 8))}</span>`
-      : '';
-    const eid = `err-${i}`;
+    const p = parseLogLine(raw);
+    const eid = `log-${i}`;
     const hasDetail = raw.length > 120;
-    return `<div class="row-card" style="border-left:3px solid var(--red);">
+    const borderColor = levelBorderColor(p.level);
+    const badgeStyle = levelBadgeStyle(p.level);
+    return `<div class="row-card" style="border-left:3px solid ${borderColor};">
       <div class="row-header" ${hasDetail ? `onclick="toggleRowBody('body-${eid}')"` : ''} style="cursor:${hasDetail ? 'pointer' : 'default'};">
-        <span class="badge" style="background:rgba(244,67,54,0.2);color:#f44336;">ERROR</span>
+        <span class="badge" style="${badgeStyle}">${escHtml(p.level)}</span>
         <span style="flex:1;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(p.event.slice(0, 100))}</span>
-        ${traceLink ? `<span style="margin-left:8px;">${traceLink}</span>` : ''}
+        ${p.trace_id ? `<span style="font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-left:8px;">${escHtml(p.trace_id.slice(0, 8))}</span>` : ''}
         ${p.doctor_id ? `<span style="font-size:11px;color:var(--text-muted);">${escHtml(p.doctor_id)}</span>` : ''}
         <span class="ts">${escHtml(fmtTs(p.timestamp))}</span>
       </div>
@@ -1674,112 +1618,8 @@ function renderErrors() {
   }).join('');
 }
 
-function gotoTrace(traceId) {
-  switchTab('requests');
-  setTimeout(() => {
-    document.getElementById('reqSearch').value = traceId.slice(0, 8);
-    renderRequests();
-  }, 100);
-}
-
-document.getElementById('errSourceFilter').addEventListener('change', () => { errData = null; loadErrors(true); });
-
-// ============================================================
-// TAB 4: HEALTH
-// ============================================================
-async function loadHealth(force) {
-  if (!force && healthData && routingData) { renderHealth(); return; }
-  const [hz, obs, routing] = await Promise.all([
-    apiFetch('/healthz'),
-    apiFetch('/api/debug/observability?trace_limit=200&summary_limit=500'),
-    apiFetch('/api/debug/routing-metrics'),
-  ]);
-  healthData = { hz, obs };
-  routingData = routing;
-  stampRefreshed();
-  renderHealth();
-}
-
-function renderHealth() {
-  const container = document.getElementById('healthContent');
-  const hz = healthData && healthData.hz;
-  const obs = healthData && healthData.obs;
-
-  let html = '';
-
-  // Status cards
-  html += '<div class="section-header">System Status</div>';
-  html += '<div class="health-grid">';
-
-  if (hz) {
-    const checks = hz.checks || {};
-    const overall = hz.status || 'unknown';
-    html += healthMetricCard('Overall', overall.toUpperCase(), overall === 'ok' ? 'val-green' : 'val-red', '');
-
-    Object.entries(checks).forEach(([k, v]) => {
-      const isOk = typeof v === 'object' ? v.ok : v;
-      const st = isOk === true ? 'ok' : isOk === false ? 'error' : String(v.status || v || 'unknown');
-      const cls = st === 'ok' ? 'val-green' : st === 'warn' ? 'val-yellow' : 'val-red';
-      html += healthMetricCard(k, st.toUpperCase(), cls, v.error || '');
-    });
-  } else {
-    html += healthMetricCard('Status', 'N/A', 'val-gray', 'Could not reach /healthz');
-  }
-
-  html += '</div>';
-
-  // Latency summary
-  if (obs && obs.summary) {
-    html += '<div class="section-header">Latency (recent requests)</div>';
-    html += '<div class="health-grid">';
-    const s = obs.summary;
-    html += healthMetricCard('p50', s.p50_ms != null ? `${Math.round(s.p50_ms)}ms` : '—', latencyClass(s.p50_ms), '');
-    html += healthMetricCard('p95', s.p95_ms != null ? `${Math.round(s.p95_ms)}ms` : '—', latencyClass(s.p95_ms), '');
-    html += healthMetricCard('p99', s.p99_ms != null ? `${Math.round(s.p99_ms)}ms` : '—', latencyClass(s.p99_ms), '');
-    html += healthMetricCard('Count', s.count != null ? String(s.count) : '0', 'val-blue', 'requests measured');
-    html += '</div>';
-  }
-
-  // Routing metrics
-  if (routingData) {
-    html += '<div class="section-header">Fast Router vs LLM</div>';
-    html += '<div class="health-grid">';
-    const rd = routingData;
-    const fast = rd.fast_route_hits || 0;
-    const llm = rd.llm_route_hits || 0;
-    const total = fast + llm;
-    const pct = total > 0 ? Math.round((fast / total) * 100) : 0;
-    html += healthMetricCard('Fast-Route Hits', String(fast), 'val-green', '');
-    html += healthMetricCard('LLM Hits', String(llm), 'val-purple', '');
-    html += healthMetricCard('Hit Rate', `${pct}%`, pct >= 50 ? 'val-green' : 'val-yellow', 'fast route %');
-
-    // Show individual route details if present
-    if (rd.routes) {
-      const entries = Object.entries(rd.routes).sort((a, b) => (b[1].hits || 0) - (a[1].hits || 0));
-      entries.forEach(([route, info]) => {
-        html += healthMetricCard(route, String(info.hits || 0), 'val-blue', info.last_match ? fmtTs(info.last_match) : '');
-      });
-    }
-    html += '</div>';
-  }
-
-  container.innerHTML = html;
-}
-
-function healthMetricCard(label, value, valueClass, sub) {
-  return `<div class="health-card">
-    <div class="health-card-label">${escHtml(label)}</div>
-    <div class="health-card-value ${valueClass}">${escHtml(value)}</div>
-    ${sub ? `<div class="health-card-sub">${escHtml(sub)}</div>` : ''}
-  </div>`;
-}
-
-function latencyClass(ms) {
-  if (ms == null) return 'val-gray';
-  if (ms < 300) return 'val-green';
-  if (ms < 1000) return 'val-yellow';
-  return 'val-red';
-}
+document.getElementById('errSourceFilter').addEventListener('change', () => { errData = null; loadLogs(true); });
+document.getElementById('logLevelFilter').addEventListener('change', () => { errData = null; loadLogs(true); });
 
 // ============================================================
 // INIT

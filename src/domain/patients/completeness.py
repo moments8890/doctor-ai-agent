@@ -49,7 +49,7 @@ def check_completeness(collected: Dict[str, str], *, mode: str = "patient") -> L
     missing = [f for f in REQUIRED if not collected.get(f)]
     if not missing:
         recommended = DOCTOR_RECOMMENDED if mode == "doctor" else SUBJECTIVE_RECOMMENDED
-        missing = [f for f in recommended if f not in collected]
+        missing = [f for f in recommended if not collected.get(f)]
     return missing
 
 

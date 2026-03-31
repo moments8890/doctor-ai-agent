@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Dense Design Mockup</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; background: #f8f8f8; color: #1a1a1a; font-size: 12px; line-height: 1.4; }
+.mono { font-family: 'SF Mono', 'Consolas', 'Monaco', monospace; font-size: 11px; }
+
+/* ── Layout ── */
+.topbar { background: #1a1a2e; color: #ccc; padding: 6px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 11px; }
+.topbar strong { color: #fff; font-size: 12px; }
+.topbar a { color: #64b5f6; text-decoration: none; font-size: 11px; }
+.tabs { background: #fff; border-bottom: 1px solid #ddd; padding: 0 16px; display: flex; gap: 0; }
+.tab { padding: 8px 14px; font-size: 12px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; }
+.tab.active { color: #1565c0; border-bottom-color: #1565c0; font-weight: 600; }
+.tab .ct { font-size: 10px; color: #999; margin-left: 3px; }
+.page { padding: 10px 16px; }
+
+/* ── Grid ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+.grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+
+/* ── Stat Strip ── */
+.stat-strip { display: flex; gap: 0; background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+.stat-cell { flex: 1; padding: 8px 12px; border-right: 1px solid #f0f0f0; }
+.stat-cell:last-child { border-right: none; }
+.stat-cell .label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.3px; }
+.stat-cell .val { font-size: 18px; font-weight: 700; margin-top: 1px; }
+.stat-cell .sub { font-size: 10px; color: #999; }
+.val.red { color: #d32f2f; }
+.val.amber { color: #e65100; }
+.val.green { color: #2e7d32; }
+.val.blue { color: #1565c0; }
+
+/* ── Panel ── */
+.panel { background: #fff; border: 1px solid #e0e0e0; border-radius: 4px; margin-bottom: 10px; overflow: hidden; }
+.panel-head { padding: 6px 10px; font-size: 11px; font-weight: 600; color: #333; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; background: #fafafa; }
+.panel-head .action { font-size: 10px; color: #1565c0; text-decoration: none; font-weight: 400; }
+
+/* ── Dense Table ── */
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 4px 8px; font-size: 10px; color: #888; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3px; background: #f9f9f9; border-bottom: 1px solid #eee; white-space: nowrap; }
+td { padding: 4px 8px; border-bottom: 1px solid #f5f5f5; white-space: nowrap; font-size: 11px; }
+tr:hover td { background: #f5f8ff; }
+td.dim { color: #aaa; }
+td.clickable { color: #1565c0; cursor: pointer; }
+td.clickable:hover { text-decoration: underline; }
+.row-warn { background: #fffde7; }
+.row-alert { background: #fff3e0; }
+.row-error { background: #fce4ec; }
+
+/* ── Chips ── */
+.c { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: 500; }
+.c-g { background: #e8f5e9; color: #2e7d32; }
+.c-r { background: #fce4ec; color: #c62828; }
+.c-a { background: #fff3e0; color: #e65100; }
+.c-b { background: #e3f2fd; color: #1565c0; }
+.c-y { background: #fffde7; color: #f57f17; }
+.c-x { background: #f5f5f5; color: #888; }
+
+/* ── Alert Strip ── */
+.alert-strip { margin-bottom: 10px; }
+.alert-row { display: flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 11px; border-radius: 3px; margin-bottom: 3px; }
+.alert-row.err { background: #fce4ec; color: #b71c1c; }
+.alert-row.warn { background: #fff8e1; color: #e65100; }
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.dot.red { background: #d32f2f; }
+.dot.amber { background: #ff9800; }
+
+/* ── Checklist ── */
+.ck { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; margin-right: 10px; }
+.ck-ok { color: #2e7d32; }
+.ck-no { color: #d32f2f; }
+.ck-warn { color: #e65100; }
+
+/* ── Timeline ── */
+.tl { padding: 6px 10px; }
+.tl-row { display: flex; gap: 8px; padding: 3px 0; border-bottom: 1px solid #f8f8f8; align-items: flex-start; }
+.tl-t { width: 40px; font-size: 10px; color: #999; font-family: monospace; flex-shrink: 0; padding-top: 1px; }
+.tl-d { width: 8px; height: 8px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; }
+.tl-d.msg { background: #2196f3; }
+.tl-d.ai { background: #9c27b0; }
+.tl-d.rec { background: #4caf50; }
+.tl-d.task { background: #ff9800; }
+.tl-d.err { background: #f44336; }
+.tl-b { flex: 1; font-size: 11px; }
+.tl-b .detail { color: #888; font-size: 10px; }
+
+/* ── Raw Data ── */
+.raw-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
+.raw-t { padding: 3px 8px; border-radius: 3px; font-size: 11px; cursor: pointer; border: 1px solid #e0e0e0; color: #555; }
+.raw-t.active { background: #1565c0; color: #fff; border-color: #1565c0; }
+.raw-t .n { font-size: 9px; color: #aaa; margin-left: 2px; }
+.raw-t.active .n { color: rgba(255,255,255,0.6); }
+.grp { font-size: 9px; color: #999; text-transform: uppercase; letter-spacing: 0.4px; padding: 0 4px; align-self: center; }
+
+/* ── Section label ── */
+.sec-label { background: #1565c0; color: #fff; padding: 5px 16px; font-size: 12px; font-weight: 600; margin-top: 20px; }
+.sec-label:first-child { margin-top: 0; }
+.sec-desc { background: #e3f2fd; padding: 4px 16px; font-size: 11px; color: #1565c0; }
+.divider { border: none; border-top: 2px dashed #ccc; margin: 20px 0 0; }
+</style>
+</head>
+<body>
+
+<div class="sec-label">总览 — Stats + Alerts + Activity Feed</div>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div><strong>Doctor AI Admin</strong> · beta · 3 doctors · 23 patients</div>
+  <div><a href="#">Debug Dashboard →</a></div>
+</div>
+<div class="tabs">
+  <div class="tab active">总览</div>
+  <div class="tab">医生 <span class="ct">3</span></div>
+  <div class="tab">原始数据</div>
+</div>
+
+<div class="page">
+
+<!-- Stat Strip -->
+<div class="stat-strip">
+  <div class="stat-cell">
+    <div class="label">活跃医生</div>
+    <div class="val green">2<span style="font-size:12px;color:#999;">/3</span></div>
+    <div class="sub">赵医生 4天未活跃</div>
+  </div>
+  <div class="stat-cell">
+    <div class="label">患者消息 24h</div>
+    <div class="val">17</div>
+    <div class="sub">回复 15 · <span style="color:#e65100;">待回复 2</span></div>
+  </div>
+  <div class="stat-cell">
+    <div class="label">病历 24h</div>
+    <div class="val">4</div>
+    <div class="sub">完整 3 · 缺字段 1</div>
+  </div>
+  <div class="stat-cell">
+    <div class="label">AI建议</div>
+    <div class="val">6</div>
+    <div class="sub">采纳 4 · 编辑 1 · <span style="color:#c62828;">拒绝 1</span></div>
+  </div>
+  <div class="stat-cell">
+    <div class="label">任务</div>
+    <div class="val amber">3</div>
+    <div class="sub"><span style="color:#c62828;">1 逾期 &gt;24h</span></div>
+  </div>
+  <div class="stat-cell">
+    <div class="label">LLM调用 1h</div>
+    <div class="val">23</div>
+    <div class="sub">err 0 · avg 1.2s</div>
+  </div>
+</div>
+
+<!-- Alerts -->
+<div class="alert-strip">
+  <div class="alert-row err"><span class="dot red"></span><strong>逾期:</strong>&nbsp;王医生 → 李明 "复查头颅CT" 逾期 28h</div>
+  <div class="alert-row warn"><span class="dot amber"></span><strong>待回复:</strong>&nbsp;张医生 2 条消息 &gt;2h 未回复 (刘芳, 陈伟)</div>
+  <div class="alert-row warn"><span class="dot amber"></span><strong>不活跃:</strong>&nbsp;赵医生 4 天未登录 · 知识库仅 1 条</div>
+</div>
+
+<div class="grid-2">
+
+<!-- Left: Doctor Table -->
+<div class="panel">
+  <div class="panel-head">医生 <span class="action">详情 →</span></div>
+  <table>
+    <thead><tr>
+      <th>医生</th><th>科室</th><th>患者</th><th>今日消息</th><th>AI采纳</th><th>待处理</th><th>最后活跃</th><th>KB</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td class="clickable">王医生</td><td>神外</td><td>12</td><td>9</td>
+        <td><span class="c c-g">82%</span></td>
+        <td><span class="c c-r">1逾期</span></td>
+        <td class="mono">14:32</td><td>8</td>
+      </tr>
+      <tr>
+        <td class="clickable">张医生</td><td>心内</td><td>8</td><td>6</td>
+        <td><span class="c c-a">60%</span></td>
+        <td><span class="c c-a">2消息</span></td>
+        <td class="mono">13:48</td><td>5</td>
+      </tr>
+      <tr class="row-warn">
+        <td class="clickable">赵医生</td><td>骨科</td><td>3</td><td>0</td>
+        <td><span class="c c-x">—</span></td>
+        <td>—</td>
+        <td class="mono dim">03-26</td><td><span class="c c-r">1</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Right: Recent Activity -->
+<div class="panel">
+  <div class="panel-head">最近活动 <span class="action">全部 →</span></div>
+  <table>
+    <thead><tr>
+      <th>时间</th><th>医生</th><th>类型</th><th>详情</th><th>状态</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">14:32</td><td>王</td><td>AI建议</td>
+        <td>赵强 · 鉴别诊断 3项</td><td><span class="c c-g">采纳</span></td>
+      </tr>
+      <tr>
+        <td class="mono">14:15</td><td>王</td><td>病历</td>
+        <td>赵强 · 头痛3天加重</td><td><span class="c c-b">完整</span></td>
+      </tr>
+      <tr class="row-alert">
+        <td class="mono">13:48</td><td>张</td><td>消息</td>
+        <td>刘芳 · "药吃完了需要续方"</td><td><span class="c c-a">待回复</span></td>
+      </tr>
+      <tr>
+        <td class="mono">13:20</td><td>张</td><td>任务</td>
+        <td>陈伟 · 随访电话</td><td><span class="c c-g">完成</span></td>
+      </tr>
+      <tr>
+        <td class="mono">11:05</td><td>王</td><td>AI建议</td>
+        <td>李明 · 鉴别诊断</td><td><span class="c c-r">拒绝</span></td>
+      </tr>
+      <tr>
+        <td class="mono">10:42</td><td>王</td><td>病历</td>
+        <td>李明 · 左膝疼痛2周</td><td><span class="c c-a">缺既往史</span></td>
+      </tr>
+      <tr>
+        <td class="mono">09:30</td><td>张</td><td>消息</td>
+        <td>陈伟 · "复查结果出了"</td><td><span class="c c-g">已回复</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- grid-2 -->
+
+<!-- Bottom: Task Pipeline + AI Suggestions side by side -->
+<div class="grid-2">
+<div class="panel">
+  <div class="panel-head">任务管道 <span class="action">全部 31 →</span></div>
+  <table>
+    <thead><tr>
+      <th>医生</th><th>患者</th><th>任务</th><th>创建</th><th>状态</th><th>耗时</th>
+    </tr></thead>
+    <tbody>
+      <tr class="row-error">
+        <td>王</td><td class="clickable">李明</td><td>复查头颅CT</td>
+        <td class="mono">03-28</td><td><span class="c c-r">逾期</span></td><td class="mono">48h</td>
+      </tr>
+      <tr>
+        <td>张</td><td class="clickable">刘芳</td><td>处方续方</td>
+        <td class="mono">今天</td><td><span class="c c-a">待处理</span></td><td class="mono">2h</td>
+      </tr>
+      <tr>
+        <td>王</td><td class="clickable">赵强</td><td>入院检查</td>
+        <td class="mono">今天</td><td><span class="c c-y">进行中</span></td><td class="mono">30m</td>
+      </tr>
+      <tr>
+        <td>张</td><td class="clickable">陈伟</td><td>随访电话</td>
+        <td class="mono">今天</td><td><span class="c c-g">完成</span></td><td class="mono">4h</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<div class="panel">
+  <div class="panel-head">AI建议 (近24h) <span class="action">全部 42 →</span></div>
+  <table>
+    <thead><tr>
+      <th>时间</th><th>医生</th><th>患者</th><th>类型</th><th>结果</th><th>编辑量</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">14:32</td><td>王</td><td class="clickable">赵强</td>
+        <td>鉴别诊断</td><td><span class="c c-g">采纳</span></td><td>0%</td>
+      </tr>
+      <tr>
+        <td class="mono">14:20</td><td>王</td><td class="clickable">赵强</td>
+        <td>病历提取</td><td><span class="c c-g">采纳</span></td><td>5%</td>
+      </tr>
+      <tr class="row-alert">
+        <td class="mono">11:05</td><td>王</td><td class="clickable">李明</td>
+        <td>鉴别诊断</td><td><span class="c c-r">拒绝</span></td><td>—</td>
+      </tr>
+      <tr>
+        <td class="mono">10:50</td><td>王</td><td class="clickable">李明</td>
+        <td>病历提取</td><td><span class="c c-b">编辑</span></td><td>35%</td>
+      </tr>
+      <tr>
+        <td class="mono">09:15</td><td>张</td><td class="clickable">陈伟</td>
+        <td>回复草稿</td><td><span class="c c-g">采纳</span></td><td>10%</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</div>
+
+</div><!-- page -->
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<hr class="divider">
+<div class="sec-label" style="background:#6a1b9a;">医生 Drill-Down — 王医生</div>
+<div class="sec-desc" style="background:#f3e5f5;color:#6a1b9a;">Click any doctor name → this view. Setup checklist + stats + patient table + case timeline.</div>
+
+<div class="topbar">
+  <div><strong>Doctor AI Admin</strong> · 王医生 · 神经外科</div>
+  <div><a href="#">← 返回</a> · <a href="#">Debug →</a></div>
+</div>
+<div class="tabs">
+  <div class="tab">总览</div>
+  <div class="tab active">医生 <span class="ct">3</span></div>
+  <div class="tab">原始数据</div>
+</div>
+
+<div class="page">
+
+<!-- Doctor Header: compact -->
+<div class="panel">
+  <div style="padding:8px 10px;display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <strong style="font-size:14px;">王医生</strong>
+      <span style="color:#888;margin-left:8px;">神经外科 · ID: d_001 · 注册 2026-03-15 · 最后活跃 14:32</span>
+    </div>
+    <div>
+      <span class="ck ck-ok">✓ 邀请码</span>
+      <span class="ck ck-ok">✓ KB×8</span>
+      <span class="ck ck-ok">✓ 上下文</span>
+      <span class="ck ck-ok">✓ 首患者</span>
+      <span class="ck ck-ok">✓ 首AI</span>
+      <span class="ck ck-ok">✓ 首病历</span>
+    </div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stat-strip">
+  <div class="stat-cell">
+    <div class="label">患者</div>
+    <div class="val blue">12</div>
+    <div class="sub">本周 +3</div>
+  </div>
+  <div class="stat-cell">
+    <div class="label">消息 7d</div>
+    <div class="val">34</div>
+    <div class="sub">入 22 · AI 28</div>
+  </div>
+  <div class="stat-cell">
+    <div class="label">AI采纳率</div>
+    <div class="val green">82%</div>
+    <div class="sub">采纳14 编辑2 拒绝1</div>
+  </div>
+  <div class="stat-cell">
+    <div class="label">病历 7d</div>
+    <div class="val">6</div>
+    <div class="sub">完整5 缺字段1</div>
+  </div>
+  <div class="stat-cell">
+    <div class="label">任务完成率</div>
+    <div class="val amber">78%</div>
+    <div class="sub">完成7 逾期1 待处理1</div>
+  </div>
+  <div class="stat-cell">
+    <div class="label">平均响应</div>
+    <div class="val">18m</div>
+    <div class="sub">最快 2m · 最慢 4h</div>
+  </div>
+</div>
+
+<!-- Patient Table -->
+<div class="panel">
+  <div class="panel-head">患者 (12)</div>
+  <table>
+    <thead><tr>
+      <th>患者</th><th>性别/年龄</th><th>注册</th><th>消息数</th><th>病历</th><th>AI建议</th><th>待处理</th><th>最后消息</th><th>状态</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td class="clickable">赵强</td><td>男50</td><td class="mono">今天</td>
+        <td>3</td><td>1</td><td><span class="c c-g">2/2采纳</span></td>
+        <td>—</td><td class="mono">14:10</td><td><span class="c c-g">正常</span></td>
+      </tr>
+      <tr class="row-error">
+        <td class="clickable">李明</td><td>男62</td><td class="mono">03-20</td>
+        <td>12</td><td>2</td><td><span class="c c-r">1拒绝</span></td>
+        <td><span class="c c-r">1逾期</span></td><td class="mono">11:05</td><td><span class="c c-r">关注</span></td>
+      </tr>
+      <tr>
+        <td class="clickable">周红</td><td>女45</td><td class="mono">03-22</td>
+        <td>8</td><td>1</td><td><span class="c c-g">3/3采纳</span></td>
+        <td>—</td><td class="mono">昨16:30</td><td><span class="c c-g">正常</span></td>
+      </tr>
+      <tr>
+        <td class="clickable">吴刚</td><td>男71</td><td class="mono">03-18</td>
+        <td>15</td><td>3</td><td><span class="c c-b">2编辑</span></td>
+        <td>1任务</td><td class="mono">昨09:20</td><td><span class="c c-g">正常</span></td>
+      </tr>
+      <tr>
+        <td class="clickable">孙丽</td><td>女38</td><td class="mono">03-25</td>
+        <td>4</td><td>1</td><td><span class="c c-g">1/1采纳</span></td>
+        <td>—</td><td class="mono">03-28</td><td><span class="c c-g">正常</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Case Timeline for 赵强 -->
+<div class="panel">
+  <div class="panel-head">案例时间线 — 赵强 (今天) <span class="action">查看LLM调用 → · 查看原始数据 →</span></div>
+  <div class="tl">
+    <div class="tl-row">
+      <div class="tl-t">14:32</div><div class="tl-d ai"></div>
+      <div class="tl-b">AI建议: 鉴别诊断 <span class="c c-g">采纳</span> <span class="detail">· 高血压脑出血(高) · 蛛网膜下腔出血(中) · 脑膜炎(低) · trace: <span class="mono">a3f2c1</span></span></div>
+    </div>
+    <div class="tl-row">
+      <div class="tl-t">14:20</div><div class="tl-d ai"></div>
+      <div class="tl-b">AI建议: 病历提取 <span class="c c-g">采纳</span> <span class="detail">· 编辑量 5% · trace: <span class="mono">b1e4d2</span></span></div>
+    </div>
+    <div class="tl-row">
+      <div class="tl-t">14:15</div><div class="tl-d rec"></div>
+      <div class="tl-b">病历创建 <span class="c c-b">完整</span> <span class="detail">· 主诉: 头痛3天加重1天 · 既往: 高血压10年 · BP 170/100 · record: <span class="mono">r_0047</span></span></div>
+    </div>
+    <div class="tl-row">
+      <div class="tl-t">14:12</div><div class="tl-d msg"></div>
+      <div class="tl-b">AI回复 <span class="detail">· "请告诉我您头痛的具体位置和性质..." · session: <span class="mono">s_0023</span></span></div>
+    </div>
+    <div class="tl-row">
+      <div class="tl-t">14:10</div><div class="tl-d msg"></div>
+      <div class="tl-b">患者消息 <span class="detail">· "头痛3天了，越来越严重，今天还吐了，我有高血压好多年了"</span></div>
+    </div>
+    <div class="tl-row">
+      <div class="tl-t">14:02</div><div class="tl-d msg"></div>
+      <div class="tl-b">患者注册 <span class="detail">· 男50岁 · 王医生邀请 · patient: <span class="mono">p_0023</span></span></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- page -->
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<hr class="divider">
+<div class="sec-label" style="background:#37474f;">原始数据 — Grouped Table Browser</div>
+
+<div class="topbar">
+  <div><strong>Doctor AI Admin</strong></div>
+</div>
+<div class="tabs">
+  <div class="tab">总览</div>
+  <div class="tab">医生 <span class="ct">3</span></div>
+  <div class="tab active">原始数据</div>
+</div>
+
+<div class="page">
+<div class="panel">
+  <div class="raw-tabs">
+    <span class="grp">核心</span>
+    <div class="raw-t active">doctors <span class="n">3</span></div>
+    <div class="raw-t">patients <span class="n">23</span></div>
+    <div class="raw-t">patient_messages <span class="n">156</span></div>
+    <div class="raw-t">medical_records <span class="n">18</span></div>
+    <div class="raw-t">ai_suggestions <span class="n">42</span></div>
+    <div class="raw-t">doctor_tasks <span class="n">31</span></div>
+    <div class="raw-t">message_drafts <span class="n">89</span></div>
+    <span class="grp">设置</span>
+    <div class="raw-t">knowledge_items <span class="n">24</span></div>
+    <div class="raw-t">doctor_contexts <span class="n">6</span></div>
+    <div class="raw-t">interview_sessions <span class="n">15</span></div>
+    <div class="raw-t">chat_log <span class="n">210</span></div>
+    <span class="grp">系统</span>
+    <div class="raw-t">audit_log <span class="n">340</span></div>
+    <div class="raw-t">invite_codes <span class="n">5</span></div>
+    <div class="raw-t">prompts <span class="n">8</span></div>
+    <div class="raw-t">config</div>
+    <div class="raw-t">labels <span class="n">12</span></div>
+  </div>
+  <table>
+    <thead><tr>
+      <th>id</th><th>name</th><th>specialty</th><th>phone</th><th>created_at</th><th>last_active</th><th>patients</th><th>kb_count</th><th>invite_code</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">d_001</td><td>王医生</td><td>神经外科</td><td class="mono">138****1234</td>
+        <td class="mono">2026-03-15 09:30</td><td class="mono">14:32:15</td><td>12</td><td>8</td><td class="mono dim">INV-A1B2</td>
+      </tr>
+      <tr>
+        <td class="mono">d_002</td><td>张医生</td><td>心内科</td><td class="mono">139****5678</td>
+        <td class="mono">2026-03-18 14:20</td><td class="mono">13:48:02</td><td>8</td><td>5</td><td class="mono dim">INV-C3D4</td>
+      </tr>
+      <tr class="row-warn">
+        <td class="mono">d_003</td><td>赵医生</td><td>骨科</td><td class="mono">137****9012</td>
+        <td class="mono">2026-03-20 10:15</td><td class="mono dim">03-26 16:40</td><td>3</td><td><span style="color:#c62828;">1</span></td><td class="mono dim">INV-E5F6</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</div>
+
+<div style="padding:20px;text-align:center;color:#999;font-size:10px;">
+  Admin Dashboard Design Mockup · Dense Layout · 2026-03-30
+</div>
+
+</body>
+</html>

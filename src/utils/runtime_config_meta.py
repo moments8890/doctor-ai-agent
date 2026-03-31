@@ -270,8 +270,8 @@ CONFIG_DESCRIPTIONS_ZH: Dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 CONFIG_ALLOWED_VALUES: Dict[str, List[str]] = {
-    "ROUTING_LLM": ["deepseek", "groq", "cerebras", "sambanova", "siliconflow", "openrouter", "tencent_lkeap", "ollama"],
-    "STRUCTURING_LLM": ["deepseek", "groq", "cerebras", "sambanova", "siliconflow", "openrouter", "tencent_lkeap", "ollama"],
+    "ROUTING_LLM": ["deepseek", "groq", "cerebras", "sambanova", "siliconflow", "openrouter", "dashscope", "tencent_lkeap", "ollama"],
+    "STRUCTURING_LLM": ["deepseek", "groq", "cerebras", "sambanova", "siliconflow", "openrouter", "dashscope", "tencent_lkeap", "ollama"],
     "LLM_PROVIDER_STRICT_MODE": ["true", "false"],
     "KNOWLEDGE_AUTO_LEARN_ENABLED": ["true", "false"],
     "VISION_LLM": ["ollama", "gemini", "openai"],
