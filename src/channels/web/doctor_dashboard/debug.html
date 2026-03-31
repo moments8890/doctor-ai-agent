@@ -501,6 +501,7 @@
 <div class="tabs">
   <div class="tab active" data-tab="llm">LLM Calls</div>
   <div class="tab" data-tab="benchmark">Benchmark</div>
+  <div class="tab" data-tab="benchmark" data-scroll="evalSection" style="font-size:12px;color:var(--text-muted);">Eval</div>
   <div class="tab" data-tab="requests">Requests</div>
   <div class="tab" data-tab="errors">Errors <span class="tab-badge" id="errorBadge" style="display:none">0</span></div>
   <div class="tab" data-tab="health">Health</div>
@@ -530,6 +531,19 @@
     <!-- Results -->
     <div id="benchResults"></div>
     <div id="benchHistory" style="margin-top:24px;"></div>
+
+    <!-- Eval section -->
+    <div id="evalSection" style="margin-top:32px;border-top:1px solid var(--border);padding-top:20px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;">Structured Output Eval</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">
+        Tests JSON extraction from a standard medical scenario. Checks: JSON parses, required fields present, keywords extracted.
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <button id="evalRunBtn" onclick="runEval()" style="background:#1976d2;color:#fff;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">Run Eval</button>
+        <span id="evalStatus" style="font-size:12px;color:var(--text-muted);"></span>
+      </div>
+      <div id="evalResults"></div>
+    </div>
   </div>
 </div>
 
@@ -689,7 +703,14 @@ async function apiFetch(path) {
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     const name = tab.dataset.tab;
+    const scrollTo = tab.dataset.scroll;
     switchTab(name);
+    if (scrollTo) {
+      setTimeout(() => {
+        const el = document.getElementById(scrollTo);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
   });
 });
 
@@ -731,7 +752,11 @@ function restoreUrlState() {
 
 function switchTab(name) {
   currentTab = name;
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.tab').forEach(t => {
+    // Eval sub-tab shares data-tab="benchmark" — only highlight if no scroll attr or if it's the plain tab
+    const match = t.dataset.tab === name && !t.dataset.scroll;
+    t.classList.toggle('active', match);
+  });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
   persistUrlState();
   loadCurrentTab(false);
@@ -989,6 +1014,7 @@ function renderProviderList() {
   html += '<th style="padding:6px 8px;text-align:left;width:30px;"></th>';
   html += '<th style="padding:6px 8px;text-align:left;color:var(--text-muted);">Provider</th>';
   html += '<th style="padding:6px 8px;text-align:left;color:var(--text-muted);">Model</th>';
+  html += '<th style="padding:6px 8px;text-align:left;color:var(--text-muted);">Price</th>';
   html += '<th style="padding:6px 8px;text-align:left;color:var(--text-muted);">Status</th>';
   html += '<th style="padding:6px 8px;text-align:left;color:var(--text-muted);">Role</th>';
   html += '</tr>';
@@ -1007,6 +1033,9 @@ function renderProviderList() {
     html += '<td style="padding:6px 8px;"><input type="checkbox" class="bench-check" data-provider="' + p.name + '" ' + checked + ' ' + disabled + '></td>';
     html += '<td style="padding:6px 8px;font-family:var(--mono);">' + p.name + '</td>';
     html += '<td style="padding:6px 8px;font-size:11px;color:var(--text-dim);">' + p.model + '</td>';
+    const pr = p.pricing || {};
+    const priceText = pr.unit ? (pr.input + '/' + pr.output + ' ' + pr.unit + (pr.note ? ' (' + pr.note + ')' : '')) : '—';
+    html += '<td style="padding:6px 8px;font-size:11px;color:var(--text-dim);">' + priceText + '</td>';
     html += '<td style="padding:6px 8px;">' + statusBadge + '</td>';
     html += '<td style="padding:6px 8px;">' + (roleBadges || '<span style="color:var(--text-muted);font-size:11px;">—</span>') + '</td>';
     html += '</tr>';
@@ -1126,6 +1155,85 @@ function renderBenchHistory() {
 
 // Render saved history on load
 renderBenchHistory();
+
+// ── Eval ──────────────────────────────────────────────────────
+async function runEval() {
+  const selected = getSelectedProviders();
+  if (selected.length === 0) {
+    document.getElementById('evalStatus').textContent = 'Select providers above first';
+    return;
+  }
+  const btn = document.getElementById('evalRunBtn');
+  const status = document.getElementById('evalStatus');
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  status.textContent = 'Evaluating ' + selected.join(', ') + '...';
+  document.getElementById('evalResults').innerHTML = '<div class="loading">Running eval...</div>';
+
+  try {
+    const res = await fetch('/api/debug/llm-eval?providers=' + encodeURIComponent(selected.join(',')), {
+      method: 'POST',
+      headers: { 'X-Debug-Token': getToken() },
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    renderEvalResults(data);
+    status.textContent = 'Done at ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    document.getElementById('evalResults').innerHTML = '<div class="empty-state" style="color:var(--red);">Eval failed: ' + e.message + '</div>';
+    status.textContent = 'Failed';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Run Eval';
+  }
+}
+
+function renderEvalResults(data) {
+  const el = document.getElementById('evalResults');
+  if (!data.results || data.results.length === 0) {
+    el.innerHTML = '<div class="empty-state">No results</div>';
+    return;
+  }
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+  html += '<tr style="border-bottom:1px solid var(--border);text-align:left;">';
+  html += '<th style="padding:8px;color:var(--text-muted);">Provider</th>';
+  html += '<th style="padding:8px;color:var(--text-muted);">Model</th>';
+  html += '<th style="padding:8px;color:var(--text-muted);text-align:center;">Result</th>';
+  html += '<th style="padding:8px;color:var(--text-muted);text-align:right;">Time</th>';
+  html += '<th style="padding:8px;color:var(--text-muted);">Fields</th>';
+  html += '<th style="padding:8px;color:var(--text-muted);">Keywords</th>';
+  html += '</tr>';
+  for (const r of data.results) {
+    const passBadge = r.error
+      ? '<span style="color:var(--red);font-weight:600;">ERROR</span>'
+      : r.passed
+        ? '<span style="color:var(--green);font-weight:600;">PASS</span>'
+        : '<span style="color:var(--red);font-weight:600;">FAIL</span>';
+    const fields = (r.fields_present || []).map(f => '<span style="color:var(--green);font-size:11px;">✓' + f + '</span>').join(' ')
+      + ' ' + (r.fields_missing || []).map(f => '<span style="color:var(--red);font-size:11px;">✗' + f + '</span>').join(' ');
+    const kws = (r.keywords_found || []).map(k => '<span style="color:var(--green);font-size:11px;">✓' + k + '</span>').join(' ')
+      + ' ' + (r.keywords_missing || []).map(k => '<span style="color:var(--red);font-size:11px;">✗' + k + '</span>').join(' ');
+    const rowBg = r.passed ? 'background:rgba(76,175,80,0.06);' : r.error ? 'background:rgba(244,67,54,0.06);' : '';
+    html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);' + rowBg + 'cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'table-row\':\'none\'">';
+    html += '<td style="padding:8px;font-family:var(--mono);">' + r.provider + '</td>';
+    html += '<td style="padding:8px;font-size:11px;color:var(--text-dim);">' + r.model + '</td>';
+    html += '<td style="padding:8px;text-align:center;">' + passBadge + '</td>';
+    html += '<td style="padding:8px;text-align:right;font-family:var(--mono);">' + r.total_ms + 'ms</td>';
+    html += '<td style="padding:8px;">' + fields + '</td>';
+    html += '<td style="padding:8px;">' + kws + '</td>';
+    html += '</tr>';
+    // Expandable raw output row
+    const errLine = r.error ? '<div style="color:var(--red);margin-bottom:4px;">' + r.error + '</div>' : '';
+    const rawText = (r.raw_output || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    html += '<tr style="display:none;"><td colspan="6" style="padding:8px 8px 12px 8px;background:rgba(0,0,0,0.15);">';
+    html += errLine;
+    html += '<pre style="margin:0;font-size:11px;white-space:pre-wrap;color:var(--text-dim);max-height:200px;overflow:auto;">' + rawText + '</pre>';
+    html += '</td></tr>';
+  }
+  html += '</table>';
+  html += '<div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Scenario: 神经外科头痛 | Click row to expand raw output</div>';
+  el.innerHTML = html;
+}
 
 // ============================================================
 // TAB 2: LLM CALLS

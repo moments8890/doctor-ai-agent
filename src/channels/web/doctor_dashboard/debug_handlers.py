@@ -245,6 +245,18 @@ async def debug_dashboard_page(token: str = Query(..., description="Debug access
     )
 
 
+_LLM_PRICING: dict[str, dict] = {
+    "deepseek": {"input": 2.0, "output": 3.0, "unit": "RMB/M tokens", "note": "cache hit: 0.2 input"},
+    "tencent_lkeap": {"input": 2.0, "output": 8.0, "unit": "RMB/M tokens"},
+    "dashscope": {"input": 0.8, "output": 4.8, "unit": "RMB/M tokens", "note": "qwen-plus"},
+    "siliconflow": {"input": 1.0, "output": 4.0, "unit": "RMB/M tokens", "note": "Qwen3-32B"},
+    "groq": {"input": 0, "output": 0, "unit": "free tier"},
+    "cerebras": {"input": 0, "output": 0, "unit": "free tier"},
+    "sambanova": {"input": 0, "output": 0, "unit": "free tier"},
+    "openrouter": {"input": 0.18, "output": 0.54, "unit": "USD/M tokens"},
+}
+
+
 @router.get("/api/debug/llm-providers")
 async def llm_providers(
     x_debug_token: str | None = Header(default=None, alias="X-Debug-Token"),
@@ -277,6 +289,7 @@ async def llm_providers(
             "configured": has_key,
             "active": name == active,
             "roles": roles,
+            "pricing": _LLM_PRICING.get(name, {}),
         })
     return {"providers": result, "active": active}
 
@@ -371,3 +384,132 @@ async def llm_benchmark(
     # Sort by avg_ttft (fastest first), None at end
     results.sort(key=lambda r: r["avg_ttft_ms"] if r["avg_ttft_ms"] is not None else 999999)
     return {"results": results, "active_provider": active, "prompt_tokens": "~3000"}
+
+
+# ── Sim Eval ────────────────────────────────────────────────────────────────
+
+_EVAL_SYSTEM = (
+    "你是一位专业的神经外科医生AI助手。请根据患者描述提取结构化信息。\n"
+    "必须以JSON格式返回，包含以下字段：\n"
+    '{"chief_complaint": "主诉(20字以内)", "symptoms": ["症状列表"], '
+    '"history": "既往史", "preliminary_assessment": "初步评估"}\n'
+    "只返回JSON，不要其他文字。"
+)
+
+_EVAL_SCENARIOS = [
+    {
+        "id": "neuro_headache",
+        "input": "患者男50岁，头痛3天加重1天，伴恶心呕吐，既往高血压10年",
+        "expected_fields": ["chief_complaint", "symptoms", "history"],
+        "expected_keywords": ["头痛", "高血压"],
+    },
+]
+
+
+@router.post("/api/debug/llm-eval")
+async def llm_eval(
+    x_debug_token: str | None = Header(default=None, alias="X-Debug-Token"),
+    providers_csv: str = Query(
+        default="",
+        alias="providers",
+        description="Comma-separated provider names. Empty = all configured.",
+    ),
+):
+    """Run structured-output eval for selected LLM providers.
+
+    Sends a standard medical scenario, validates JSON parsing and
+    field extraction.  Returns per-provider pass/fail with timing.
+    """
+    import os
+    import time
+    from openai import AsyncOpenAI
+
+    _require_ui_debug_access(x_debug_token)
+    from infra.llm.client import _get_providers
+
+    providers = _get_providers()
+    selected = (
+        set(p.strip() for p in providers_csv.split(",") if p.strip())
+        if providers_csv
+        else None
+    )
+    scenario = _EVAL_SCENARIOS[0]
+    messages = [
+        {"role": "system", "content": _EVAL_SYSTEM},
+        {"role": "user", "content": scenario["input"]},
+    ]
+
+    results = []
+    for name, pcfg in providers.items():
+        api_key = os.environ.get(pcfg.get("api_key_env", ""), "")
+        if not api_key or name == "ollama":
+            continue
+        if selected and name not in selected:
+            continue
+
+        client = AsyncOpenAI(
+            base_url=pcfg["base_url"], api_key=api_key, timeout=30.0,
+        )
+        model = pcfg["model"]
+        t0 = time.monotonic()
+        error_msg = None
+        raw_output = ""
+        parsed = None
+        fields_present: list[str] = []
+        fields_missing: list[str] = []
+        keywords_found: list[str] = []
+        keywords_missing: list[str] = []
+        passed = False
+
+        try:
+            resp = await client.chat.completions.create(
+                model=model, messages=messages, max_tokens=300,
+            )
+            raw_output = (resp.choices[0].message.content or "").strip()
+            # Strip markdown fences if present
+            text = raw_output
+            if text.startswith("```"):
+                text = text.split("\n", 1)[-1]
+            if text.endswith("```"):
+                text = text.rsplit("```", 1)[0]
+            text = text.strip()
+            parsed = json.loads(text)
+
+            for f in scenario["expected_fields"]:
+                if f in parsed and parsed[f]:
+                    fields_present.append(f)
+                else:
+                    fields_missing.append(f)
+
+            flat = json.dumps(parsed, ensure_ascii=False)
+            for kw in scenario["expected_keywords"]:
+                if kw in flat:
+                    keywords_found.append(kw)
+                else:
+                    keywords_missing.append(kw)
+
+            passed = len(fields_missing) == 0 and len(keywords_missing) == 0
+
+        except json.JSONDecodeError:
+            error_msg = "JSON parse failed"
+        except Exception as e:
+            error_msg = str(e)[:150]
+
+        total_ms = int((time.monotonic() - t0) * 1000)
+
+        results.append({
+            "provider": name,
+            "model": model,
+            "total_ms": total_ms,
+            "passed": passed,
+            "error": error_msg,
+            "fields_present": fields_present,
+            "fields_missing": fields_missing,
+            "keywords_found": keywords_found,
+            "keywords_missing": keywords_missing,
+            "raw_output": raw_output[:500],
+            "parsed": parsed,
+        })
+
+    results.sort(key=lambda r: (not r["passed"], r["total_ms"]))
+    return {"results": results, "scenario": scenario["id"]}
