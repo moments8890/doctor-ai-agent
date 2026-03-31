@@ -5,7 +5,7 @@
  * 显示在患者列表右侧（替代患者详情面板）。
  */
 import { useEffect, useRef, useState } from "react";
-import { Alert, Box, Button, CircularProgress, IconButton, LinearProgress, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, IconButton, Stack, Typography } from "@mui/material";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import MicIcon from "@mui/icons-material/Mic";
@@ -337,71 +337,30 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
         }}
       />
 
-      {/* Progress bar + missing fields + confirm */}
-      <Box sx={{ px: 1.5, py: 0.5, bgcolor: COLOR.white, borderBottom: `1px solid ${COLOR.border}` }}>
-        <LinearProgress variant="determinate"
-          value={session.progress.pct || 0}
-          sx={{ height: 6, borderRadius: 3, bgcolor: COLOR.border,
-            "& .MuiLinearProgress-bar": { bgcolor: session.progress.can_complete ? COLOR.primary : COLOR.text4, borderRadius: 3 } }} />
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 0.5 }}>
-          <Typography variant="caption" sx={{ color: session.progress.can_complete ? COLOR.successText : COLOR.text4 }}>
-            {session.status === "draft_created" ? "" :
-             session.progress.can_complete
-               ? `必填 ${session.progress.required_count || 0}/${session.progress.required_total || 0} 已完成`
-               : session.sessionId
-                 ? `必填 ${session.progress.required_count || 0}/${session.progress.required_total || 0}`
-                 : ""}
-          </Typography>
-          {session.sessionId && session.status !== "draft_created" && (
-            <Button size="small"
-              variant={session.progress.can_complete ? "contained" : "text"}
-              disableElevation
-              sx={session.progress.can_complete
-                ? { bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover }, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
-                : { color: COLOR.text4, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
-              }
-              onClick={() => setShowCompleteDialog(true)} disabled={loading}>
-              完成
-            </Button>
-          )}
+      {/* Compact status line: counts + 完成 button */}
+      {session.sessionId && session.status !== "draft_created" && (
+        <Box sx={{ px: 1.5, py: 0.75, bgcolor: COLOR.white, borderBottom: `1px solid ${COLOR.border}`,
+          display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Typography variant="caption" sx={{ color: session.progress.can_complete ? COLOR.successText : COLOR.text4, fontWeight: 500 }}>
+              必填 {session.progress.required_count || 0}/{session.progress.required_total || 0}{session.progress.can_complete ? " ✓" : ""}
+            </Typography>
+            <Typography variant="caption" sx={{ color: COLOR.text4 }}>
+              其他 {(session.progress.filled || 0) - (session.progress.required_count || 0)}/{(session.progress.total || 0) - (session.progress.required_total || 0)}
+            </Typography>
+          </Box>
+          <Button size="small"
+            variant={session.progress.can_complete ? "contained" : "text"}
+            disableElevation
+            sx={session.progress.can_complete
+              ? { bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover }, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
+              : { color: COLOR.text4, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
+            }
+            onClick={() => setShowCompleteDialog(true)} disabled={loading}>
+            完成
+          </Button>
         </Box>
-        {/* Recommended missing field hints */}
-        {session.status !== "draft_created" && (() => {
-          const fields = session.progress?.fields || {};
-          const recommended = Object.entries(fields)
-            .filter(([, f]) => f.status === "empty" && f.priority === "recommended")
-            .map(([, f]) => f.label);
-          if (recommended.length === 0) return null;
-          return (
-            <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, mt: 0.5 }}>
-              <Typography variant="caption" sx={{ color: COLOR.text4, mr: 0.5, flexShrink: 0 }}>
-                {session.progress.can_complete ? "建议补充：" : "待补充："}
-              </Typography>
-              {recommended.map((text, i) => (
-                <Box key={i} sx={{
-                  display: { xs: i >= 3 ? "none" : "inline-flex", md: i >= 5 ? "none" : "inline-flex" },
-                  px: 1, py: 0.5, borderRadius: "10px",
-                  fontSize: "11px",
-                  bgcolor: session.progress.can_complete ? COLOR.surfaceAlt : COLOR.warningLight,
-                  color: session.progress.can_complete ? COLOR.text3 : "#e65100",
-                  border: session.progress.can_complete ? `1px solid ${COLOR.border}` : "1px solid #ffe0b2" }}>
-                  {text}
-                </Box>
-              ))}
-              {recommended.length > 3 && (
-                <Typography variant="caption" sx={{ color: COLOR.text4, display: { xs: "inline", md: "none" }, fontSize: "11px" }}>
-                  +{recommended.length - 3}
-                </Typography>
-              )}
-              {recommended.length > 5 && (
-                <Typography variant="caption" sx={{ color: COLOR.text4, display: { xs: "none", md: "inline" }, fontSize: "11px" }}>
-                  +{recommended.length - 5}
-                </Typography>
-              )}
-            </Box>
-          );
-        })()}
-      </Box>
+      )}
 
       {/* Import preview card — fields extracted from photo/PDF/text import */}
       {importItems.length > 0 && session.status !== "draft_created" && (
@@ -469,21 +428,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
         />
       )}
 
-      {/* Ready-for-confirm floating banner — draws attention to "完成" */}
-      {(session.status === "ready_for_confirm" || (session.progress.can_complete && session.status === "interviewing")) && (
-        <Box sx={{ px: 2, py: 1.5, borderTop: `1px solid ${COLOR.primary}`, bgcolor: COLOR.primaryLight,
-          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text1, fontWeight: 500 }}>
-            {session.status === "ready_for_confirm" ? "病历信息已足够，可以生成AI诊断建议" : "必填信息已完成，可以生成病历"}
-          </Typography>
-          <Button size="small" variant="contained" disableElevation
-            sx={{ bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover },
-              fontSize: TYPE.caption.fontSize, px: 2, py: 0.5, minWidth: "auto", flexShrink: 0 }}
-            onClick={() => setShowCompleteDialog(true)} disabled={loading}>
-            生成诊断
-          </Button>
-        </Box>
-      )}
+      {/* Bottom banner removed — single 完成 button in status line is sufficient */}
 
       {/* Input bar — WeChat style: voice toggle | text input | + actions | send */}
       {session.status !== "draft_created" && (
