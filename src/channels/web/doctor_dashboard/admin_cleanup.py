@@ -26,6 +26,7 @@ from db.models import (
     DoctorTask,
     InterviewSessionDB,
     MedicalRecordDB,
+    MessageDraft,
     Patient,
     PatientMessage,
 )
@@ -177,14 +178,15 @@ async def _find_duplicate_doctors(db: AsyncSession) -> list[dict[str, Any]]:
 # Order matters: delete from leaf tables first to avoid FK issues on DBs
 # without deferred constraints.
 _CASCADE_TABLES = [
-    ("ai_suggestions", AISuggestion),
-    ("patient_messages", PatientMessage),
-    ("doctor_chat_log", DoctorChatLog),
-    ("interview_sessions", InterviewSessionDB),
-    ("doctor_tasks", DoctorTask),
-    ("medical_records", MedicalRecordDB),
-    ("doctor_knowledge_items", DoctorKnowledgeItem),
-    ("patients", Patient),
+    ("message_drafts", MessageDraft),       # → patient_messages.id
+    ("ai_suggestions", AISuggestion),       # → medical_records.id
+    ("patient_messages", PatientMessage),    # → patients.id, doctors.doctor_id
+    ("doctor_chat_log", DoctorChatLog),      # → doctors.doctor_id
+    ("interview_sessions", InterviewSessionDB),  # → doctors, patients
+    ("doctor_tasks", DoctorTask),            # → doctors, patients, medical_records
+    ("medical_records", MedicalRecordDB),    # → patients, doctors
+    ("doctor_knowledge_items", DoctorKnowledgeItem),  # → doctors
+    ("patients", Patient),                   # → doctors
 ]
 
 
@@ -287,11 +289,15 @@ async def cleanup_execute(
         stale = await _find_stale_patients(db)
         if stale:
             stale_ids = [p["id"] for p in stale]
-            # Delete messages for these patients first
-            result = await db.execute(
-                delete(PatientMessage).where(PatientMessage.patient_id.in_(stale_ids))
-            )
-            deleted["patient_messages"] = deleted.get("patient_messages", 0) + result.rowcount
+            # Delete drafts, messages, tasks, records for these patients first
+            for label, model, col in [
+                ("message_drafts", MessageDraft, MessageDraft.patient_id),
+                ("patient_messages", PatientMessage, PatientMessage.patient_id),
+                ("doctor_tasks", DoctorTask, DoctorTask.patient_id),
+                ("medical_records", MedicalRecordDB, MedicalRecordDB.patient_id),
+            ]:
+                result = await db.execute(delete(model).where(col.in_(stale_ids)))
+                deleted[label] = deleted.get(label, 0) + result.rowcount
             # Then the patients themselves
             result = await db.execute(
                 delete(Patient).where(Patient.id.in_(stale_ids))
@@ -301,6 +307,7 @@ async def cleanup_execute(
     if action in ("orphaned_records", "all"):
         doctor_ids_subq = select(Doctor.doctor_id)
         orphan_tables = [
+            ("message_drafts", MessageDraft),
             ("ai_suggestions", AISuggestion),
             ("patient_messages", PatientMessage),
             ("doctor_tasks", DoctorTask),
