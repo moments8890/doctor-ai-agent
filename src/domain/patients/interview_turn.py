@@ -84,59 +84,53 @@ async def _call_interview_llm(
     missing = check_completeness(collected, mode=mode)
     missing_labels = [FIELD_LABELS.get(f, f) for f in missing]
 
-    # Build rich XML context for LLM
+    # Build compact flat-text context (no XML — saves ~770 chars vs XML format)
     state = completeness_state or get_completeness_state(collected, mode=mode)
 
-    # Completion state XML
-    req_missing_str = "、".join(FIELD_LABELS.get(f, f) for f in state["required_missing"]) or "无"
-    rec_missing_str = "、".join(FIELD_LABELS.get(f, f) for f in state["recommended_missing"]) or "无"
-    opt_missing_str = "、".join(FIELD_LABELS.get(f, f) for f in state["optional_missing"]) or "无"
+    clean_collected = {k: v for k, v in collected.items() if not k.startswith("_")}
+    can_str = "是" if state["can_complete"] else "否"
 
-    next_focus = state.get("next_focus")
-    next_focus_xml = ""
-    if next_focus and next_focus in FIELD_META:
-        meta = FIELD_META[next_focus]
-        next_focus_xml = f'  <next_focus field="{next_focus}" hint="{meta["hint"]}" example="{meta["example"]}">{FIELD_LABELS.get(next_focus, next_focus)}</next_focus>\n'
+    # "待补充" with inline hints (top 3 recommended/optional fields)
+    guide_parts = []
+    for fk in (state["recommended_missing"] + state["optional_missing"])[:3]:
+        meta = FIELD_META.get(fk)
+        label = FIELD_LABELS.get(fk, fk)
+        if meta:
+            guide_parts.append(f'{label}({meta["hint"]},如"{meta["example"]}")')
+        else:
+            guide_parts.append(label)
 
-    completion_xml = (
-        f"<completion_state>\n"
-        f"  <can_complete>{str(state['can_complete']).lower()}</can_complete>\n"
-        f"  <required_missing>{req_missing_str}</required_missing>\n"
-        f"  <recommended_missing>{rec_missing_str}</recommended_missing>\n"
-        f"  <optional_missing>{opt_missing_str}</optional_missing>\n"
-        f"{next_focus_xml}"
-        f"</completion_state>"
-    )
-
-    # Field guidance XML for missing recommended fields
-    guidance_parts = []
-    for field_key in (state["recommended_missing"] + state["optional_missing"])[:5]:
-        if field_key in FIELD_META:
-            meta = FIELD_META[field_key]
-            guidance_parts.append(
-                f'  <field key="{field_key}">\n'
-                f'    <label>{FIELD_LABELS.get(field_key, field_key)}</label>\n'
-                f'    <hint>{meta["hint"]}</hint>\n'
-                f'    <example>{meta["example"]}</example>\n'
-                f'  </field>'
-            )
-    field_guidance_xml = "<field_guidance>\n" + "\n".join(guidance_parts) + "\n</field_guidance>" if guidance_parts else ""
+    # Required missing (only when can_complete is False)
+    req_parts = []
+    if not state["can_complete"]:
+        for fk in state["required_missing"]:
+            meta = FIELD_META.get(fk)
+            label = FIELD_LABELS.get(fk, fk)
+            if meta:
+                req_parts.append(f'{label}({meta["hint"]},如"{meta["example"]}")')
+            else:
+                req_parts.append(label)
 
     context_lines = [
-        f"患者信息：{patient_info['name']}，{patient_info['gender']}，{patient_info['age']}岁",
-        f"已收集：{json.dumps(collected, ensure_ascii=False)}",
-        completion_xml,
+        f"患者：{patient_info['name']}，{patient_info['gender']}，{patient_info['age']}岁",
+        f"已收集：{json.dumps(clean_collected, ensure_ascii=False)}",
+        f"可完成：{can_str}",
     ]
-    if field_guidance_xml:
-        context_lines.append(field_guidance_xml)
+    if req_parts:
+        context_lines.append(f"必填缺：{'｜'.join(req_parts)}")
+    if guide_parts:
+        context_lines.append(f"待补充：{'｜'.join(guide_parts)}")
     if previous_history:
-        context_lines.append(f"既往就诊记录：{previous_history}")
+        prev = previous_history.replace("\n", " ").strip()
+        if len(prev) > 100:
+            prev = prev[:100] + "..."
+        context_lines.append(f"上次：{prev}")
     patient_context = "\n".join(context_lines)
 
     # Build conversation history as message dicts
     history = [
         {"role": turn.get("role", "user"), "content": turn.get("content", "")}
-        for turn in conversation[-20:]
+        for turn in conversation[-6:]
     ]
 
     # Composer handles everything: layers 1-5 → system, history, layer 6 → user

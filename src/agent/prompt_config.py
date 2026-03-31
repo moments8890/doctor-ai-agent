@@ -52,7 +52,7 @@ INTENT_LAYERS: dict[IntentType, LayerConfig] = {
         patient_context=True,
     ),
     IntentType.create_record: LayerConfig(
-        domain=True,
+        domain=False,  # L2 specialty not needed for field extraction (saves ~150 tokens)
         intent="interview",
         load_knowledge=False,  # Interview = structured extraction, not medical Q&A.
                                # L3 intent rules already define fields and examples.
