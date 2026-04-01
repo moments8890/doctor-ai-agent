@@ -65,7 +65,11 @@ async def _upsert_web_doctor(doctor_id: str, name: Optional[str], specialty: Opt
 
 
 async def _resolve_invite_doctor_id(code: str) -> tuple[str, Optional[str], Optional[str]]:
-    """Validate invite code and return (doctor_id, doctor_name, new_doctor_id_or_None)."""
+    """Validate invite code and return (doctor_id, doctor_name, new_doctor_id_or_None).
+
+    Multi-use codes (max_uses > 1): always create a new doctor per login.
+    Single-use codes (max_uses == 1): bind doctor_id on first use, reuse on subsequent.
+    """
     from channels.web.auth.routes import _invite_is_usable
     now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
@@ -74,6 +78,15 @@ async def _resolve_invite_doctor_id(code: str) -> tuple[str, Optional[str], Opti
         ).scalar_one_or_none()
         if invite is None or not _invite_is_usable(invite, now):
             raise HTTPException(status_code=401, detail="Invalid or inactive invite code")
+
+        is_multi_use = (invite.max_uses or 1) > 1
+
+        if is_multi_use:
+            # Multi-use beta code: every login creates a fresh doctor
+            new_doctor_id = f"inv_{secrets.token_urlsafe(8)}"
+            return new_doctor_id, invite.doctor_name, new_doctor_id
+
+        # Single-use code: reuse bound doctor_id or create new
         new_doctor_id = None
         if invite.doctor_id is None:
             new_doctor_id = f"inv_{secrets.token_urlsafe(8)}"
@@ -82,7 +95,11 @@ async def _resolve_invite_doctor_id(code: str) -> tuple[str, Optional[str], Opti
 
 
 async def _bind_new_doctor_to_invite(code: str, new_doctor_id: str) -> str:
-    """Write new_doctor_id back to invite code row. Returns final doctor_id (may differ on race)."""
+    """Write new_doctor_id back to invite code row. Returns final doctor_id (may differ on race).
+
+    Multi-use codes: only increment used_count, never bind doctor_id.
+    Single-use codes: bind doctor_id on first use.
+    """
     from channels.web.auth.routes import _invite_is_usable
     now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
@@ -93,12 +110,20 @@ async def _bind_new_doctor_to_invite(code: str, new_doctor_id: str) -> str:
         ).scalar_one_or_none()
         if invite_row is None or not _invite_is_usable(invite_row, now):
             raise HTTPException(status_code=401, detail="Invite code expired or usage limit reached")
-        if invite_row.doctor_id is None:
-            invite_row.doctor_id = new_doctor_id
-            invite_row.used_count = (invite_row.used_count or 0) + 1
+
+        is_multi_use = (invite_row.max_uses or 1) > 1
+        invite_row.used_count = (invite_row.used_count or 0) + 1
+
+        if is_multi_use:
+            # Never bind doctor_id — keep it None for next user
             await session.commit()
             return new_doctor_id
-        invite_row.used_count = (invite_row.used_count or 0) + 1
+
+        # Single-use: bind on first use
+        if invite_row.doctor_id is None:
+            invite_row.doctor_id = new_doctor_id
+            await session.commit()
+            return new_doctor_id
         await session.commit()
         if invite_row.doctor_id != new_doctor_id:
             return invite_row.doctor_id
