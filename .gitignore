@@ -58,8 +58,9 @@ train
 .gstack/
 tests/prompts/.env
 
-# Generated QA walkthroughs and assets
-docs/qa/
+# Generated QA report artifacts (HTML, screenshots) — not canonical checklists
+docs/qa/*-report/
+docs/qa/*.html
 
 # Demo simulation state
 scripts/.demo_state.json
