@@ -344,7 +344,23 @@ async def run_diagnosis(
         or "deepseek"
     )
     provider_name = raw_provider
-    provider = _resolve_provider(provider_name)
+    try:
+        provider = _resolve_provider(provider_name)
+    except RuntimeError as resolve_err:
+        log(f"[diagnosis] provider resolution failed: {resolve_err}", level="error")
+        if record_id is not None:
+            try:
+                from db.models.records import RecordStatus as RS
+                async with AsyncSessionLocal() as fail_db:
+                    rec = (await fail_db.execute(
+                        select(MedicalRecordDB).where(MedicalRecordDB.id == record_id).limit(1)
+                    )).scalar_one_or_none()
+                    if rec is not None:
+                        rec.status = RS.diagnosis_failed.value
+                        await fail_db.commit()
+            except Exception:
+                pass
+        return {"error": str(resolve_err), "status": "failed"}
 
     model_name = provider.get("model", "deepseek-chat")
     _tag = f"[diagnosis:{provider_name}:{model_name}]"
@@ -427,15 +443,25 @@ async def run_diagnosis(
         if not os.environ.get("DIAGNOSIS_LLM"):
             os.environ["DIAGNOSIS_LLM"] = provider_name
 
+        _DIAGNOSIS_TIMEOUT = int(os.environ.get("DIAGNOSIS_TIMEOUT", "10"))
+
         try:
-            llm_result = await _structured_call_for_diagnosis(
-                composed, env_var="DIAGNOSIS_LLM",
+            llm_result = await asyncio.wait_for(
+                _structured_call_for_diagnosis(composed, env_var="DIAGNOSIS_LLM"),
+                timeout=_DIAGNOSIS_TIMEOUT,
             )
+        except asyncio.TimeoutError:
+            log(f"{_tag} LLM call timed out after {_DIAGNOSIS_TIMEOUT}s", level="error")
+            llm_error = f"诊断超时（{_DIAGNOSIS_TIMEOUT}秒），请重试"
         except Exception as primary_err:
             try:
-                llm_result = await _try_cloud_fallback(
-                    primary_err, provider_name, composed,
+                llm_result = await asyncio.wait_for(
+                    _try_cloud_fallback(primary_err, provider_name, composed),
+                    timeout=_DIAGNOSIS_TIMEOUT,
                 )
+            except asyncio.TimeoutError:
+                log(f"{_tag} cloud fallback timed out after {_DIAGNOSIS_TIMEOUT}s", level="error")
+                llm_error = f"诊断超时（{_DIAGNOSIS_TIMEOUT}秒），请重试"
             except Exception as exc:
                 log(f"{_tag} LLM call failed: {exc}", level="error")
                 llm_error = str(exc)
@@ -444,6 +470,19 @@ async def run_diagnosis(
 
         if llm_error or llm_result is None:
             err_msg = llm_error or "Empty LLM response"
+            # Mark record as diagnosis_failed so frontend stops polling
+            if record_id is not None:
+                try:
+                    from db.models.records import RecordStatus as RS
+                    async with AsyncSessionLocal() as fail_db:
+                        rec = (await fail_db.execute(
+                            select(MedicalRecordDB).where(MedicalRecordDB.id == record_id).limit(1)
+                        )).scalar_one_or_none()
+                        if rec is not None:
+                            rec.status = RS.diagnosis_failed.value
+                            await fail_db.commit()
+                except Exception as status_err:
+                    log(f"{_tag} failed to update record status: {status_err}", level="warning")
             return {"error": err_msg, "status": "failed"}
 
         log(f"{_tag} structured response: {llm_result.model_dump()}")

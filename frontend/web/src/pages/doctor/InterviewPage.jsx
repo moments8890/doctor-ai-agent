@@ -275,11 +275,11 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
     }
   }
 
-  async function handleConfirm() {
+  async function handleConfirm(nameOverride) {
     if (!session.sessionId) return null;
     setLoading(true);
     try {
-      const data = await doctorInterviewConfirm(session.sessionId, doctorId);
+      const data = await doctorInterviewConfirm(session.sessionId, doctorId, nameOverride);
       setMessages(prev => [...prev, {
         role: "assistant",
         content: data.preview
@@ -299,12 +299,12 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
     }
   }
 
-  async function handleSaveOnly() {
-    await handleConfirm();
+  async function handleSaveOnly(nameOverride) {
+    await handleConfirm(nameOverride);
   }
 
-  async function handleSaveAndDiagnose() {
-    const data = await handleConfirm();
+  async function handleSaveAndDiagnose(nameOverride) {
+    const data = await handleConfirm(nameOverride);
     if (!data) return;
     const recordId = data.pending_id;
     if (!recordId) return;
@@ -342,7 +342,11 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
       {session.sessionId && session.status !== "draft_created" && (
         <Box sx={{ px: 1.5, py: 0.75, bgcolor: COLOR.white, borderBottom: `1px solid ${COLOR.border}`,
           display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="caption" sx={{ color: session.collected?._patient_name ? COLOR.text1 : COLOR.text4, fontWeight: session.collected?._patient_name ? 600 : 400 }}>
+              {session.collected?._patient_name || "未命名"}
+            </Typography>
+            <Typography variant="caption" sx={{ color: COLOR.text4 }}>·</Typography>
             <Typography variant="caption" sx={{ color: session.progress.can_complete ? COLOR.successText : COLOR.text4, fontWeight: 500 }}>
               必填 {session.progress.required_count || 0}/{session.progress.required_total || 0}{session.progress.can_complete ? " ✓" : ""}
             </Typography>
@@ -357,7 +361,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
               ? { bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover }, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
               : { color: COLOR.text4, fontSize: TYPE.caption.fontSize, py: 0, minHeight: 24 }
             }
-            onClick={() => setShowCompleteDialog(true)} disabled={loading}>
+            onClick={() => setShowCompleteDialog(true)} disabled={loading || !session.progress.can_complete}>
             完成
           </Button>
         </Box>

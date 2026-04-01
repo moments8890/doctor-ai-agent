@@ -3,13 +3,14 @@
  *
  * Props:
  *  - open: boolean
- *  - fields: { chief_complaint: "...", present_illness: "...", ... }
+ *  - fields: { chief_complaint: "...", present_illness: "...", _patient_name: "...", ... }
  *  - fieldCount: { filled: number, total: number }
- *  - onSave: () => void
- *  - onSaveAndDiagnose: () => void
+ *  - onSave: (nameOverride?: string) => void
+ *  - onSaveAndDiagnose: (nameOverride?: string) => void
  *  - onClose: () => void
  */
-import { Box, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
+import { Box, TextField, Typography } from "@mui/material";
 import { TYPE, COLOR } from "../../theme";
 import AppButton from "../AppButton";
 import SheetDialog from "../SheetDialog";
@@ -32,6 +33,18 @@ const FIELD_LABELS = {
 };
 
 export default function InterviewCompleteDialog({ open, fields, fieldCount, onSave, onSaveAndDiagnose, onClose }) {
+  const patientName = fields?._patient_name || "";
+  const patientGender = fields?._patient_gender;
+  const patientAge = fields?._patient_age;
+
+  const [nameInput, setNameInput] = useState(patientName);
+  useEffect(() => { setNameInput(patientName); }, [patientName]);
+
+  const effectiveName = nameInput.trim();
+  const hasName = !!effectiveName;
+  // Only pass override if the user typed a different name than what the LLM extracted
+  const nameOverride = effectiveName !== patientName ? effectiveName : undefined;
+
   const entries = Object.entries(FIELD_LABELS)
     .map(([key, label]) => ({ key, label, value: fields?.[key] || null }));
 
@@ -46,13 +59,36 @@ export default function InterviewCompleteDialog({ open, fields, fieldCount, onSa
       footer={
         <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
           <AppButton variant="secondary" size="md" fullWidth onClick={onClose}>返回</AppButton>
-          <AppButton variant="secondary" size="md" fullWidth onClick={onSave}>保存</AppButton>
+          <AppButton variant="secondary" size="md" fullWidth onClick={() => onSave(nameOverride)} disabled={!hasName}>保存</AppButton>
           <Box sx={{ gridColumn: "1 / -1" }}>
-            <AppButton variant="primary" size="md" fullWidth onClick={onSaveAndDiagnose}>保存并诊断 →</AppButton>
+            <AppButton variant="primary" size="md" fullWidth onClick={() => onSaveAndDiagnose(nameOverride)} disabled={!hasName}>保存并诊断 →</AppButton>
           </Box>
         </Box>
       }
     >
+        {/* Patient demographics header — editable name when missing */}
+        <Box sx={{ py: 1.5, mb: 0.5, borderBottom: `1px solid ${COLOR.border}`, display: "flex", alignItems: "baseline", gap: 1 }}>
+          {patientName ? (
+            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+              {patientName}
+            </Typography>
+          ) : (
+            <TextField
+              size="small"
+              placeholder="请输入患者姓名"
+              value={nameInput}
+              onChange={e => setNameInput(e.target.value)}
+              autoFocus
+              sx={{ flex: 1, "& .MuiInputBase-input": { fontSize: TYPE.heading.fontSize, fontWeight: 600, py: 0.5 } }}
+            />
+          )}
+          {(patientGender || patientAge) && (
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3 }}>
+              {[patientGender, patientAge ? `${patientAge}岁` : null].filter(Boolean).join(" · ")}
+            </Typography>
+          )}
+        </Box>
+
         {entries.length === 0 && (
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, py: 2, textAlign: "center" }}>
             暂无提取到的字段

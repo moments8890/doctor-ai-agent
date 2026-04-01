@@ -229,6 +229,16 @@ export default function ReviewPage({ recordId }) {
     try {
       const data = await getSuggestions(recordId, doctorId);
       const items = Array.isArray(data) ? data : (data.suggestions || data.items || []);
+      // Update record status from API response
+      if (data.status) {
+        setRecord((prev) => prev ? { ...prev, status: data.status } : prev);
+      }
+      // Stop polling on failure
+      if (data.status === "diagnosis_failed") {
+        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+        setSuggestions([]);
+        return false;
+      }
       if (items.length > 0) {
         setSuggestions(items);
         if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -309,6 +319,7 @@ export default function ReviewPage({ recordId }) {
   async function handleTriggerDiagnosis() {
     try {
       await triggerDiagnosis(recordId, doctorId);
+      setRecord((prev) => prev ? { ...prev, status: "pending_review" } : prev);
       showToast("已提交分析请求");
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
       pollRef.current = setInterval(async () => {
@@ -354,6 +365,7 @@ export default function ReviewPage({ recordId }) {
 
   const hasSuggestions = suggestions && suggestions.length > 0;
   const isPendingReview = record?.review_status === "pending_review" || record?.status === "pending_review";
+  const isDiagnosisFailed = record?.status === "diagnosis_failed";
   const bannerTitle = source === "patient_preview"
     ? "患者预问诊已提交"
     : "";
@@ -390,8 +402,23 @@ export default function ReviewPage({ recordId }) {
         {/* Polling state: no suggestions yet, record pending review */}
         {!loading && !hasSuggestions && isPendingReview && <LoadingSkeleton />}
 
+        {/* Diagnosis failed — show retry */}
+        {!loading && !hasSuggestions && isDiagnosisFailed && (
+          <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 2.5, textAlign: "center" }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.danger, mb: 1 }}>
+              AI 诊断超时，请重试
+            </Typography>
+            <Box
+              onClick={handleTriggerDiagnosis}
+              sx={{ display: "inline-flex", alignItems: "center", minHeight: 32, fontSize: TYPE.body.fontSize, color: COLOR.primary, cursor: "pointer", "&:active": { opacity: 0.6 } }}
+            >
+              重新分析
+            </Box>
+          </Box>
+        )}
+
         {/* Trigger button: no suggestions, record NOT pending review */}
-        {!loading && !hasSuggestions && !isPendingReview && (
+        {!loading && !hasSuggestions && !isPendingReview && !isDiagnosisFailed && (
           <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 2.5, textAlign: "center" }}>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mb: 1 }}>
               可生成 AI 诊断建议

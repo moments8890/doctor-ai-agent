@@ -278,9 +278,10 @@ async def _interview_turn_inner(session_id: str, patient_text: str) -> Interview
     merge_extracted(session.collected, llm_response["extracted"])
 
     # Store patient metadata in collected with underscore prefix (not clinical fields)
+    # Always update — corrections ("不对，名字应该是X") must overwrite previous values
     for meta_key in ("patient_name", "patient_gender", "patient_age"):
         meta_val = llm_response.get(meta_key)
-        if meta_val and not session.collected.get(f"_{meta_key}"):
+        if meta_val:
             session.collected[f"_{meta_key}"] = meta_val
 
     missing = check_completeness(session.collected, mode=mode)

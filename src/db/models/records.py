@@ -16,6 +16,7 @@ from db.models.base import _utcnow
 class RecordStatus(str, Enum):
     interview_active = "interview_active"
     pending_review = "pending_review"
+    diagnosis_failed = "diagnosis_failed"
     completed = "completed"
 
 

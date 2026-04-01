@@ -158,12 +158,12 @@ async def get_suggestions(
 ):
     """Return all AI suggestions for a given record."""
     resolved = _resolve_ui_doctor_id(doctor_id, authorization)
-    await _get_record_or_404(db, record_id, resolved)
+    rec = await _get_record_or_404(db, record_id, resolved)
 
     rows = await get_suggestions_for_record(db, record_id)
     suggestions = [_suggestion_to_dict(r) for r in rows]
 
-    return {"status": "pending_review", "suggestions": suggestions}
+    return {"status": rec.status, "suggestions": suggestions}
 
 
 # ── 3. POST /suggestions/{suggestion_id}/decide — update decision ────────

@@ -51,6 +51,7 @@ patient_name, patient_gender, patient_age, chief_complaint, present_illness, pas
 - 绝不猜测患者姓名
 - 只提取医生明确说出的信息
 - 值保留原始医学缩写、数值、单位（STEMI、BP 150/90 等）
+- 英文缩写映射到对应字段：PMH/既往史→past_history，HPI→present_illness，PE→physical_exam，Dx→diagnosis，Tx→treatment_plan，FHx→family_history，SH→personal_history
 
 ## 异常处理
 - 空输入或纯闲聊 → extracted: {}，reply 引导输入

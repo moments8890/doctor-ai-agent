@@ -154,7 +154,7 @@ async def login(phone: str, year_of_birth: int) -> dict:
             })
 
     if not results:
-        raise HTTPException(401, "手机号或出生年份不正确")
+        raise HTTPException(401, "昵称或口令不正确")
 
     if len(results) == 1:
         r = results[0]

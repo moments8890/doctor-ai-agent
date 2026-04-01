@@ -211,10 +211,11 @@ export async function doctorInterviewTurn(formData) {
   });
 }
 
-export async function doctorInterviewConfirm(sessionId, doctorId) {
+export async function doctorInterviewConfirm(sessionId, doctorId, patientName) {
   const formData = new FormData();
   formData.append("session_id", sessionId);
   if (doctorId) formData.append("doctor_id", doctorId);
+  if (patientName) formData.append("patient_name", patientName);
   return request("/api/records/interview/confirm", {
     method: "POST",
     body: formData,

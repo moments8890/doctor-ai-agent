@@ -25,6 +25,7 @@ router = APIRouter()
 async def interview_confirm_endpoint(
     session_id: str = Form(...),
     doctor_id: str = Form(default=""),
+    patient_name: Optional[str] = Form(default=None),
     authorization: Optional[str] = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -70,6 +71,10 @@ async def interview_confirm_endpoint(
     # Deferred patient creation — if patient_id is still None, create now
     if session.patient_id is None:
         from agent.tools.resolve import resolve
+
+        # Allow frontend to override name (e.g. when LLM didn't extract one)
+        if patient_name and patient_name.strip():
+            collected["_patient_name"] = patient_name.strip()
 
         patient_name = collected.get("_patient_name")
         patient_gender = collected.get("_patient_gender")
