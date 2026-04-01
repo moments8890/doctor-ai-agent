@@ -127,7 +127,13 @@ async def compose_messages(
         # L4-L7 (Doctor Rules+Patient+Input) → user message with XML tags
         user_parts = []
         if doctor_knowledge:
-            user_parts.append(f"<doctor_knowledge>\n{doctor_knowledge}\n</doctor_knowledge>")
+            user_parts.append(
+                f"<doctor_knowledge>\n"
+                f"以下是可引用的医生知识规则。若在 detail 中使用其中任何内容，"
+                f"必须在该 detail 末尾追加对应的 [KB-{{id}}] 引用标签。\n"
+                f"{doctor_knowledge}\n"
+                f"</doctor_knowledge>"
+            )
         if config.patient_context and patient_context:
             user_parts.append(f"<patient_context>\n{patient_context}\n</patient_context>")
         user_parts.append(f"<doctor_request>\n{doctor_message}\n</doctor_request>")
