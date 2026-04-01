@@ -48,6 +48,7 @@ import BarButton from "../../components/BarButton";
 import SuggestionChips from "../../components/SuggestionChips";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
+import { dp } from "../../utils/doctorBasePath";
 
 function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, onLogout }) {
   return (
@@ -425,12 +426,12 @@ function PatientPreviewPage({ doctorId, previewId }) {
     } catch {
       // Keep navigation deterministic even if the background trigger fails.
     }
-    navigate(`/doctor/review/${submitted.record_id}?source=patient_preview&review_task_id=${submitted.review_id || ""}`);
+    navigate(`${dp("review")}/${submitted.record_id}?source=patient_preview&review_task_id=${submitted.review_id || ""}`);
   }
 
   function handleViewTasks() {
     if (!submitted?.review_id) return;
-    navigate(`/doctor/tasks?tab=followups&highlight_task_ids=${submitted.review_id}&origin=patient_submit`);
+    navigate(`${dp("tasks")}?tab=followups&highlight_task_ids=${submitted.review_id}&origin=patient_submit`);
   }
 
   function handleResumeInput() {
@@ -672,17 +673,17 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
               autoSendText={chatAutoSendText !== chatAutoSendConsumedRef.current ? chatAutoSendText : ""}
               onAutoSendConsumed={() => { chatAutoSendConsumedRef.current = chatAutoSendText; setChatAutoSendText(""); }}
               onContextCleared={onContextCleared}
-              onStartPatientInterview={(sessionId, prePopulated) => { setChatInterviewSessionId(sessionId || null); setChatInterviewPrePopulated(prePopulated || null); setTriggerInterview(true); navigate("/doctor/patients"); }}
-              onBack={isMobile ? () => navigate("/doctor") : undefined} />
+              onStartPatientInterview={(sessionId, prePopulated) => { setChatInterviewSessionId(sessionId || null); setChatInterviewPrePopulated(prePopulated || null); setTriggerInterview(true); navigate(dp("patients")); }}
+              onBack={isMobile ? () => navigate(dp()) : undefined} />
           </ErrorBoundary>
         </Box>
       </Fade>
       <Fade in={activeSection === "patients"} timeout={150} unmountOnExit>
         <Box sx={{ position: "absolute", inset: 0 }}>
           <ErrorBoundary label="患者">
-            <PatientsPage doctorId={doctorId} onNavigateToChat={() => navigate("/doctor/chat")}
-              onInsertChatText={(text) => { setChatInsertText(text); navigate("/doctor/chat"); }}
-              onAutoSendToChat={(text) => { chatAutoSendConsumedRef.current = ""; setChatAutoSendText(text); navigate("/doctor/chat"); }}
+            <PatientsPage doctorId={doctorId} onNavigateToChat={() => navigate(dp("chat"))}
+              onInsertChatText={(text) => { setChatInsertText(text); navigate(dp("chat")); }}
+              onAutoSendToChat={(text) => { chatAutoSendConsumedRef.current = ""; setChatAutoSendText(text); navigate(dp("chat")); }}
               refreshKey={patientRefreshKey}
               triggerInterview={triggerInterview}
               onTriggerInterviewConsumed={() => setTriggerInterview(false)}
@@ -773,7 +774,7 @@ export default function DoctorPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("wizard") === "1" || params.get("onboarding") === "1") return;
     if (!isWizardDone(doctorId)) {
-      navigate("/doctor/onboarding");
+      navigate(dp("onboarding"));
     }
   }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -787,7 +788,7 @@ export default function DoctorPage() {
   const MAIN_TABS = new Set(["my-ai", "patients", "review", "tasks"]);
   const isSubpage = isReviewPage || !MAIN_TABS.has(activeSection) || !!patientId;
 
-  function handleNav(key) { navigate(key === "my-ai" ? "/doctor" : `/doctor/${key}`); }
+  function handleNav(key) { navigate(key === "my-ai" ? dp() : dp(key)); }
   function handleLogout() {
     clearAuth();
     if (window.__wxjs_environment === "miniprogram") wx.miniProgram?.postMessage?.({ data: { action: "logout" } }); // eslint-disable-line no-undef

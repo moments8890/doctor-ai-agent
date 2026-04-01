@@ -26,6 +26,7 @@ import SubpageHeader from "../../components/SubpageHeader";
 import FilterBar from "../../components/FilterBar";
 import CitationPopover from "../../components/CitationPopover";
 import { TYPE, COLOR, RADIUS, HIGHLIGHT_ROW_SX } from "../../theme";
+import { dp } from "../../utils/doctorBasePath";
 /* ── Case memory helpers ──────────────────────────────────────────────────── */
 
 function extractCaseText(detail) {
@@ -240,7 +241,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   useEffect(() => { load(); }, [load]);
 
   function handleNavigate(item) {
-    navigate(`/doctor/review/${item.record_id}`);
+    navigate(`${dp("review")}/${item.record_id}`);
   }
 
   /* ── Render ─────────────────────────────────────────────────────────────── */
@@ -370,7 +371,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
                 const citedRule = msg.rule_cited || (msg.cited_rules?.[0]?.title) || "";
                 return (
                   <Box key={msg.id}
-                    onClick={() => navigate(`/doctor/patients/${msg.patient_id}?view=chat`, { replace: false })}
+                    onClick={() => navigate(`${dp("patients")}/${msg.patient_id}?view=chat`, { replace: false })}
                     sx={{
                       display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5, cursor: "pointer",
                       borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" },
@@ -424,12 +425,12 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
               {completed.map((item) => (
                 <CompletedRow key={item.id} item={item} onClick={() => {
                   if (item.type === "reply" && item.patient_id) {
-                    navigate(`/doctor/patients/${item.patient_id}?view=chat`);
+                    navigate(`${dp("patients")}/${item.patient_id}?view=chat`);
                   } else if (item.patient_id) {
                     const params = item.record_id ? `?view=record&record=${item.record_id}` : "";
-                    navigate(`/doctor/patients/${item.patient_id}${params}`);
+                    navigate(`${dp("patients")}/${item.patient_id}${params}`);
                   } else if (item.record_id) {
-                    navigate(`/doctor/review/${item.record_id}`);
+                    navigate(`${dp("review")}/${item.record_id}`);
                   }
                 }} />
               ))}

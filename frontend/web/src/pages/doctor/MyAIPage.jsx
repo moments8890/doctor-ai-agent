@@ -26,6 +26,7 @@ import { ICON_BADGES } from "./constants";
 import { isWizardDone, clearWizardDone } from "./onboardingWizardState";
 import StatColumn from "../../components/StatColumn";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
+import { dp } from "../../utils/doctorBasePath";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -199,7 +200,7 @@ export default function MyAIPage({ doctorId }) {
               </Typography>
             </Box>
             <Box
-              onClick={() => navigate("/doctor/settings")}
+              onClick={() => navigate(dp("settings"))}
               sx={{
                 display: "flex", alignItems: "center", gap: 0.5,
                 cursor: "pointer", px: 1, py: 0.5, borderRadius: RADIUS.md,
@@ -215,9 +216,9 @@ export default function MyAIPage({ doctorId }) {
           <Box sx={{ display: "flex", py: 1.5, px: 2, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
             <StatColumn value={weekCitations} label="7天引用" />
             <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-            <StatColumn value={pendingReview} label="待确认" onClick={() => navigate("/doctor/review?tab=pending")} />
+            <StatColumn value={pendingReview} label="待确认" onClick={() => navigate(`${dp("review")}?tab=pending`)} />
             <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-            <StatColumn value={completedToday} label="今日处理" onClick={() => navigate("/doctor/review?tab=completed")} />
+            <StatColumn value={completedToday} label="今日处理" onClick={() => navigate(`${dp("review")}?tab=completed`)} />
           </Box>
 
           {/* Onboarding hint when no knowledge yet */}
@@ -233,13 +234,13 @@ export default function MyAIPage({ doctorId }) {
           <Box sx={{ display: "flex", gap: 1, px: 2, py: 1.5 }}>
             <AppButton
               variant="primary" size="md" fullWidth
-              onClick={() => navigate("/doctor/settings/knowledge")}
+              onClick={() => navigate(dp("settings/knowledge"))}
             >
               我的知识库
             </AppButton>
             <AppButton
               variant="secondary" size="md" fullWidth
-              onClick={() => navigate("/doctor/settings/knowledge/add")}
+              onClick={() => navigate(dp("settings/knowledge/add"))}
               sx={{ border: `0.5px solid ${COLOR.border}` }}
             >
               继续教AI
@@ -255,7 +256,7 @@ export default function MyAIPage({ doctorId }) {
             title="新建病历"
             subtitle="语音或文字录入患者信息"
             chevron
-            onClick={() => navigate("/doctor/patients?action=new")}
+            onClick={() => navigate(`${dp("patients")}?action=new`)}
           />
           <ListCard
             avatar={<IconBadge config={ICON_BADGES.review} />}
@@ -263,7 +264,7 @@ export default function MyAIPage({ doctorId }) {
             subtitle="AI建议等你确认"
             right={<InlineBadge count={reviewBadge} />}
             chevron
-            onClick={() => navigate("/doctor/review")}
+            onClick={() => navigate(dp("review"))}
           />
           <ListCard
             avatar={<IconBadge config={ICON_BADGES.followup} />}
@@ -271,14 +272,14 @@ export default function MyAIPage({ doctorId }) {
             subtitle="患者消息可快速处理"
             right={<InlineBadge count={followupBadge} color={COLOR.danger} />}
             chevron
-            onClick={() => navigate("/doctor/review?tab=replies")}
+            onClick={() => navigate(`${dp("review")}?tab=replies`)}
           />
           <ListCard
             avatar={<IconBadge config={ICON_BADGES.qr_code} />}
             title="患者预问诊码"
             subtitle="患者扫码自助填写病史"
             chevron
-            onClick={() => navigate("/doctor/settings/qr")}
+            onClick={() => navigate(dp("settings/qr"))}
             sx={isWizardDone(doctorId) ? {} : { borderBottom: "none" }}
           />
           {isWizardDone(doctorId) && (
@@ -287,7 +288,7 @@ export default function MyAIPage({ doctorId }) {
               title="重新体验引导"
               subtitle="再次走一遍产品引导流程"
               chevron
-              onClick={() => { clearWizardDone(doctorId); navigate("/doctor/onboarding?step=1"); }}
+              onClick={() => { clearWizardDone(doctorId); navigate(`${dp("onboarding")}?step=1`); }}
               sx={{ borderBottom: "none" }}
             />
           )}
@@ -300,7 +301,7 @@ export default function MyAIPage({ doctorId }) {
           </SectionLabel>
           {knowledgeCount > 0 && (
             <Typography
-              onClick={() => navigate("/doctor/settings/knowledge")}
+              onClick={() => navigate(dp("settings/knowledge"))}
               sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
             >
               全部 {knowledgeCount} 条 ›
@@ -314,21 +315,21 @@ export default function MyAIPage({ doctorId }) {
                 avatar={<IconBadge config={ICON_BADGES.upload} />}
                 title="上传指南"
                 subtitle="PDF / Word 文档"
-                onClick={() => navigate("/doctor/settings/knowledge/add")}
+                onClick={() => navigate(dp("settings/knowledge/add"))}
                 chevron
               />
               <ListCard
                 avatar={<IconBadge config={ICON_BADGES.new_record} />}
                 title="粘贴常用回复"
                 subtitle="你常用的回复模板"
-                onClick={() => navigate("/doctor/settings/knowledge/add")}
+                onClick={() => navigate(dp("settings/knowledge/add"))}
                 chevron
               />
               <ListCard
                 avatar={<IconBadge config={ICON_BADGES.kb_doctor} />}
                 title="导入已确认病例"
                 subtitle="从病历中提取规则"
-                onClick={() => navigate("/doctor/chat")}
+                onClick={() => navigate(dp("chat"))}
                 chevron
                 sx={{ borderBottom: "none" }}
               />
@@ -343,7 +344,7 @@ export default function MyAIPage({ doctorId }) {
               referenceCount={rule.reference_count || 0}
               source={rule.source}
               date={rule.created_at ? formatRelativeDate(rule.created_at) : ""}
-              onClick={() => navigate(`/doctor/settings/knowledge/${rule.id}`)}
+              onClick={() => navigate(`${dp("settings/knowledge")}/${rule.id}`)}
               sx={idx === topRules.length - 1 ? { borderBottom: "none" } : {}}
             />
           ))}
@@ -353,7 +354,7 @@ export default function MyAIPage({ doctorId }) {
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
           <SectionLabel>最近由AI处理</SectionLabel>
           <Typography
-            onClick={() => navigate("/doctor/review")}
+            onClick={() => navigate(dp("review"))}
             sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
           >
             全部 {activityList.length} 条 ›
@@ -390,10 +391,10 @@ export default function MyAIPage({ doctorId }) {
                   </Typography>
                 }
                 onClick={() => {
-                  if (item.type === "diagnosis" && item.record_id) navigate(`/doctor/review/${item.record_id}`);
-                  else if (item.type === "draft" && item.patient_id) navigate(`/doctor/patients/${item.patient_id}?view=chat`);
-                  else if (item.patient_id) navigate(`/doctor/patients/${item.patient_id}`);
-                  else navigate("/doctor/review");
+                  if (item.type === "diagnosis" && item.record_id) navigate(`${dp("review")}/${item.record_id}`);
+                  else if (item.type === "draft" && item.patient_id) navigate(`${dp("patients")}/${item.patient_id}?view=chat`);
+                  else if (item.patient_id) navigate(`${dp("patients")}/${item.patient_id}`);
+                  else navigate(dp("review"));
                 }}
                 sx={idx === recentActivity.length - 1 ? { borderBottom: "none" } : {}}
               />

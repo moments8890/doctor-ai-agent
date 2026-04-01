@@ -15,6 +15,7 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import MsgAvatar from "../../components/MsgAvatar";
 import NameAvatar from "../../components/NameAvatar";
 import { TYPE, COLOR, RADIUS } from "../../theme";
+import { dp } from "../../utils/doctorBasePath";
 import { ICON_BADGES } from "./constants";
 import {
   getWizardProgress,
@@ -308,7 +309,7 @@ function Step1Content({ doctorId, progress, updateProgress, setCanAdvance, api }
               chevron
               onClick={() => {
                 setHintDismissed(true);
-                navigate(`/doctor/settings/knowledge/add?onboarding=1&source=${s.key}&wizard=1`);
+                navigate(`${dp("settings/knowledge/add")}?onboarding=1&source=${s.key}&wizard=1`);
               }}
               sx={{
                 ...(i === sources.length - 1 ? { borderBottom: "none" } : {}),
@@ -852,7 +853,7 @@ function CompletionScreen() {
       </Typography>
       <AppButton
         variant="primary" size="md"
-        onClick={() => navigate("/doctor")}
+        onClick={() => navigate(dp())}
         sx={{ mt: 3, minWidth: 200 }}
       >
         进入工作台
@@ -919,7 +920,7 @@ export default function OnboardingWizard() {
 
   function handleSkip() {
     markWizardDone(doctorId, "skipped");
-    navigate("/doctor");
+    navigate(dp());
   }
 
   function handleRestart() {
@@ -933,7 +934,7 @@ export default function OnboardingWizard() {
   }
 
   if (isDone) {
-    navigate("/doctor");
+    navigate(dp());
     return null;
   }
 

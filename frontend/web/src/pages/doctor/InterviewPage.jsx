@@ -21,6 +21,7 @@ import ImportChoiceDialog from "../../components/ImportChoiceDialog";
 import FieldReviewCard from "../../components/doctor/FieldReviewCard";
 import InterviewCompleteDialog from "../../components/doctor/InterviewCompleteDialog";
 import { TYPE, COLOR, RADIUS } from "../../theme";
+import { dp } from "../../utils/doctorBasePath";
 import MsgAvatar from "../../components/MsgAvatar";
 import { nowTs } from "../../utils/time";
 
@@ -312,7 +313,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
     } catch (err) {
       // Diagnosis trigger is best-effort; navigate to review regardless
     }
-    navigate(`/doctor/review/${recordId}`);
+    navigate(`${dp("review")}/${recordId}`);
   }
 
   async function handleCancel() {

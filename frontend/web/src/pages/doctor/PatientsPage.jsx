@@ -36,6 +36,7 @@ import InterviewPage from "./InterviewPage";
 import SheetDialog from "../../components/SheetDialog";
 import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
+import { dp } from "../../utils/doctorBasePath";
 
 function groupPatients(list) {
   const groups = {};
@@ -122,7 +123,7 @@ function AIAttentionSection({ attention, navigate }) {
             avatar={<NameAvatar name={p.patient_name || "?"} size={36} />}
             title={p.patient_name || "患者"}
             subtitle={p.reason}
-            onClick={() => p.patient_id ? navigate(`/doctor/patients/${p.patient_id}`) : undefined}
+            onClick={() => p.patient_id ? navigate(`${dp("patients")}/${p.patient_id}`) : undefined}
             right={
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                 <StatusBadge
@@ -287,14 +288,14 @@ function PatientList({ filtered, search, selectedId, isMobile, navigate, onStart
   return filtered.map((p) => (
     <PatientRow key={p.id} patient={p} isSelected={p.id === selectedId}
       aiTag={aiTagMap?.[p.id]}
-      isMobile={isMobile} onClick={() => navigate(`/doctor/patients/${p.id}`)} />
+      isMobile={isMobile} onClick={() => navigate(`${dp("patients")}/${p.id}`)} />
   ));
 }
 
 function PatientListPane({ patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange, onSearchSubmit, onStartInterview, onLoad, onFileInputChange, attention, aiTagMap }) {
   return (
     <>
-      <SearchBar patients={patients} search={search} nlResults={nlResults} nlLoading={nlLoading} onChange={onSearchChange} onSubmit={onSearchSubmit} onSelect={(patient) => navigate(`/doctor/patients/${patient.id}`)} onStartInterview={onStartInterview} />
+      <SearchBar patients={patients} search={search} nlResults={nlResults} nlLoading={nlLoading} onChange={onSearchChange} onSubmit={onSearchSubmit} onSelect={(patient) => navigate(`${dp("patients")}/${patient.id}`)} onStartInterview={onStartInterview} />
       {error && <Alert severity="error" action={<Button size="small" onClick={onLoad}>重试</Button>}>{error}</Alert>}
       <Box sx={{ flex: 1, overflowY: "auto", bgcolor: COLOR.surfaceAlt }}>
         {loading && <SectionLoading py={2} />}
@@ -535,7 +536,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
       // Patient already known — skip picker
       setInterviewPatient(patient);
       setInterviewActive(true);
-      navigate("/doctor/patients/new");
+      navigate(dp("patients/new"));
     } else {
       // No patient context — show picker
       setShowPatientPicker(true);
@@ -546,7 +547,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
     setShowPatientPicker(false);
     setInterviewPatient(patient || null);
     setInterviewActive(true);
-    navigate("/doctor/patients/new");
+    navigate(dp("patients/new"));
   }
 
   const listPaneProps = { patients, loading, error, search, nlResults, nlLoading, filtered, selectedId, isMobile, importing, importError, importFileRef, navigate, onSearchChange: handleSearchChange, onSearchSubmit: handleSearchSubmit, onStartInterview: handleStartInterview, onLoad: load, onFileInputChange: handleImportFile, attention, aiTagMap };
@@ -569,8 +570,8 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
       recordId={Number(new URLSearchParams(window.location.search).get("record"))}
       doctorId={doctorId}
       patientName={selectedPatient?.name || ""}
-      onBack={() => navigate(`/doctor/patients/${selectedId}`, { replace: true })}
-      onDeleted={() => { load(); navigate(`/doctor/patients/${selectedId}`, { replace: true }); }}
+      onBack={() => navigate(`${dp("patients")}/${selectedId}`, { replace: true })}
+      onDeleted={() => { load(); navigate(`${dp("patients")}/${selectedId}`, { replace: true }); }}
     />
   ) : selectedId && viewParam === "chat" ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt, overflow: "hidden" }}>
@@ -581,7 +582,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
     </Box>
   ) : isMobile && selectedId ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surface }}>
-      <SubpageHeader title={selectedPatient?.name || ""} onBack={() => navigate("/doctor/patients")} />
+      <SubpageHeader title={selectedPatient?.name || ""} onBack={() => navigate(dp("patients"))} />
       <Box sx={{ flex: 1, overflow: "hidden" }}>
         <PatientDetail patient={selectedPatient} doctorId={doctorId} onStartInterview={handleStartInterview}
           triggerExport={triggerExport} onTriggerExportConsumed={() => setTriggerExport(false)} />
@@ -597,7 +598,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
       onCancel={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); navigate(-1); }} />
   ) : (
     <PatientDetail patient={selectedPatient} doctorId={doctorId}
-      onDeleted={(id) => { setPatients((prev) => prev.filter((p) => p.id !== id)); navigate("/doctor/patients"); }}
+      onDeleted={(id) => { setPatients((prev) => prev.filter((p) => p.id !== id)); navigate(dp("patients")); }}
       onStartInterview={handleStartInterview}
       triggerExport={triggerExport} onTriggerExportConsumed={() => setTriggerExport(false)} />
   );

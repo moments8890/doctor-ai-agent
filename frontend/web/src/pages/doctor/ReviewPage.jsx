@@ -21,6 +21,7 @@ import {
 } from "./constants";
 import ReviewSubpage from "./subpages/ReviewSubpage";
 import { TYPE, COLOR } from "../../theme";
+import { dp } from "../../utils/doctorBasePath";
 import AppButton from "../../components/AppButton";
 import Toast, { useToast } from "../../components/Toast";
 
@@ -338,7 +339,7 @@ export default function ReviewPage({ recordId }) {
       setTimeout(() => {
         if (isPreviewOnboardingFlow && followUpTaskIds.length > 0) {
           const highlight = followUpTaskIds.join(",");
-          navigate(`/doctor/tasks?tab=followups&highlight_task_ids=${highlight}&origin=review_finalize`);
+          navigate(`${dp("tasks")}?tab=followups&highlight_task_ids=${highlight}&origin=review_finalize`);
           return;
         }
         navigate(-1);

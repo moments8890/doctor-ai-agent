@@ -29,6 +29,7 @@ import { useDoctorStore } from "../../store/doctorStore";
 import SettingsListSubpage from "./subpages/SettingsListSubpage";
 import { SPECIALTY_OPTIONS, setOnboardingState } from "./constants";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
+import { dp } from "../../utils/doctorBasePath";
 
 function NameDialog({ open, nameInput, nameSaving, nameError, onChange, onSave, onClose }) {
   return (
@@ -164,9 +165,9 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
       stats={stats}
       loading={loading}
       onBack={isMobile ? onBack : undefined}
-      onAdd={() => navigate("/doctor/settings/knowledge/new")}
+      onAdd={() => navigate(dp("settings/knowledge/new"))}
       onDelete={handleDelete}
-      onItemClick={(id) => navigate(`/doctor/settings/knowledge/${id}`)}
+      onItemClick={(id) => navigate(`${dp("settings/knowledge")}/${id}`)}
     />
   );
 }
@@ -384,7 +385,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
 
   // URL-driven subpage (survives refresh)
   const subpage = urlSubpage || null;
-  const goSub = (sub) => navigate(`/doctor/settings/${sub}`);
+  const goSub = (sub) => navigate(`${dp("settings")}/${sub}`);
   const goBack = () => navigate(-1);
 
   // QR subpage — full-page view, auto-generate on mount

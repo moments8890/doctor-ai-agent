@@ -22,6 +22,7 @@ import Toast, { useToast } from "../../../components/Toast";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import { useApi } from "../../../api/ApiContext";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
+import { dp } from "../../../utils/doctorBasePath";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { markOnboardingStep, ONBOARDING_STEP } from "../constants";
 import {
@@ -111,7 +112,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
 
     if (wizardMode) {
       const idParam = knowledgeItemId ? `&savedId=${knowledgeItemId}` : "";
-      navigate(`/doctor/onboarding?step=2&saved=${sourceType}&savedTitle=${encodeURIComponent(title)}${idParam}`);
+      navigate(`${dp("onboarding")}?step=2&saved=${sourceType}&savedTitle=${encodeURIComponent(title)}${idParam}`);
       return;
     }
 
@@ -605,7 +606,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
             <AppButton variant="secondary" size="md" fullWidth onClick={handleOpenReplyProof} disabled={routingProof}>
               看回复示例
             </AppButton>
-            <AppButton variant="secondary" size="md" fullWidth onClick={() => navigate("/doctor")}>
+            <AppButton variant="secondary" size="md" fullWidth onClick={() => navigate(dp())}>
               返回我的AI
             </AppButton>
           </Box>

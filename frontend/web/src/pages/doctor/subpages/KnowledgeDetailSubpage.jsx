@@ -12,6 +12,7 @@ import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
+import { dp } from "../../../utils/doctorBasePath";
 import PageSkeleton from "../../../components/PageSkeleton";
 import SectionLabel from "../../../components/SectionLabel";
 import ListCard from "../../../components/ListCard";
@@ -284,7 +285,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
                           {formatDate(u.date || u.created_at)}
                         </Typography>
                       }
-                      onClick={u.patient_id ? () => navigate(`/doctor/patients/${u.patient_id}`) : undefined}
+                      onClick={u.patient_id ? () => navigate(`${dp("patients")}/${u.patient_id}`) : undefined}
                       sx={idx === usage.length - 1 ? { borderBottom: "none" } : {}}
                     />
                   );

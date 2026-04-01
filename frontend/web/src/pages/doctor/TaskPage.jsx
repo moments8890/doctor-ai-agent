@@ -27,6 +27,7 @@ import TaskDetailSubpage from "./subpages/TaskDetailSubpage";
 import FilterBar from "../../components/FilterBar";
 import NewItemCard from "../../components/NewItemCard";
 import { TYPE, COLOR, RADIUS, HIGHLIGHT_ROW_SX } from "../../theme";
+import { dp } from "../../utils/doctorBasePath";
 import { markOnboardingStep, ONBOARDING_STEP } from "./constants";
 
 // Task type badge mapping removed — ActionRow uses checkbox instead of IconBadge
@@ -92,7 +93,7 @@ function SendConfirmSheet({ open, onClose, item, onConfirm, sending }) {
                 component="span"
                 onClick={() => {
                   onClose();
-                  navigate(`/doctor/settings/knowledge/${rule.id}`);
+                  navigate(`${dp("settings/knowledge")}/${rule.id}`);
                 }}
                 sx={{
                   fontSize: 11,
@@ -529,7 +530,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                       }}
                     />
                     <Box
-                      onClick={() => navigate(`/doctor/tasks/${item.id}`)}
+                      onClick={() => navigate(`${dp("tasks")}/${item.id}`)}
                       sx={{ flex: 1, minWidth: 0, cursor: "pointer", "&:active": { opacity: 0.8 } }}>
                       <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {title}
@@ -540,7 +541,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                         </Typography>
                       )}
                     </Box>
-                    <Box onClick={() => navigate(`/doctor/tasks/${item.id}`)} sx={{ flexShrink: 0, textAlign: "right", cursor: "pointer" }}>
+                    <Box onClick={() => navigate(`${dp("tasks")}/${item.id}`)} sx={{ flexShrink: 0, textAlign: "right", cursor: "pointer" }}>
                       <Typography sx={{ fontSize: TYPE.micro.fontSize, color: isUrgent ? COLOR.danger : COLOR.text4, fontWeight: isUrgent ? 500 : 400 }}>
                         {dateStr}
                       </Typography>
@@ -593,13 +594,13 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                         }}
                       />
                       <Box
-                        onClick={() => navigate(`/doctor/tasks/${s.id}`)}
+                        onClick={() => navigate(`${dp("tasks")}/${s.id}`)}
                         sx={{ flex: 1, minWidth: 0, cursor: "pointer", "&:active": { opacity: 0.8 } }}>
                         <Typography sx={{ fontSize: TYPE.action.fontSize, color: COLOR.text4, textDecoration: "line-through", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {s.patient_name} · {s.task || s.title}
                         </Typography>
                       </Box>
-                      <Typography onClick={() => navigate(`/doctor/tasks/${s.id}`)} sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, cursor: "pointer" }}>{s.time}</Typography>
+                      <Typography onClick={() => navigate(`${dp("tasks")}/${s.id}`)} sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, cursor: "pointer" }}>{s.time}</Typography>
                     </Box>
                   ))}
                 </Box>

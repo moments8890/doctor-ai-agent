@@ -16,6 +16,7 @@ import SectionLoading from "../../../components/SectionLoading";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import Toast, { useToast } from "../../../components/Toast";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
+import { dp } from "../../../utils/doctorBasePath";
 
 const SOURCE_LABELS = {
   manual: "医生手动创建",
@@ -180,7 +181,7 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
             <DetailField label="患者">
               <Typography
                 component="span"
-                onClick={() => task.patient_id && navigate(`/doctor/patients/${task.patient_id}`)}
+                onClick={() => task.patient_id && navigate(`${dp("patients")}/${task.patient_id}`)}
                 sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: task.patient_id ? "pointer" : "default", "&:active": { opacity: 0.6 } }}
               >
                 {task.patient_name} ›
@@ -212,7 +213,7 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
             <DetailField label="关联">
               <Typography
                 component="span"
-                onClick={() => navigate(`/doctor/review/${task.record_id}`)}
+                onClick={() => navigate(`${dp("review")}/${task.record_id}`)}
                 sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: "pointer", "&:active": { opacity: 0.6 } }}
               >
                 查看关联记录 ›
@@ -224,7 +225,7 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
           {!isCompleted && (
             <Box sx={{ display: "flex", gap: 1, px: 2, py: 1.5, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
               {task.patient_id && (
-                <AppButton variant="secondary" size="md" fullWidth onClick={() => navigate(`/doctor/patients/${task.patient_id}`)}>
+                <AppButton variant="secondary" size="md" fullWidth onClick={() => navigate(`${dp("patients")}/${task.patient_id}`)}>
                   查看患者
                 </AppButton>
               )}

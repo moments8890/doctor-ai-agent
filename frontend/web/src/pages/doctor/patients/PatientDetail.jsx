@@ -27,6 +27,7 @@ import MsgAvatar from "../../../components/MsgAvatar";
 import NameAvatar from "../../../components/NameAvatar";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import { TYPE, ICON, COLOR, RADIUS } from "../../../theme";
+import { dp } from "../../../utils/doctorBasePath";
 
 /* ── helpers ── */
 
@@ -252,7 +253,7 @@ function StickyTopBar({ patient, isMobile, onStartInterview, onExportOpen }) {
       px: 1.5, bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}`,
     }}>
       {isMobile && (
-        <Box onClick={() => navigate("/doctor/patients")}
+        <Box onClick={() => navigate(dp("patients"))}
           sx={{ display: "flex", alignItems: "center", cursor: "pointer", color: COLOR.primary, pr: 1, py: 1 }}>
           <Typography sx={{ fontSize: TYPE.action.fontSize, color: COLOR.primary }}>←</Typography>
         </Box>
@@ -336,8 +337,8 @@ function RecordListSection({ loading, error, records, filteredRecords, activeTab
       ) : (
         filteredRecords.map((r) => (
           <RecordRow key={r.id} record={r} onClick={() => {
-            if (r.status === "pending_review") navigate(`/doctor/review/${r.id}`);
-            else navigate(`/doctor/patients/${r.patient_id || ""}?view=record&record=${r.id}`, { replace: true });
+            if (r.status === "pending_review") navigate(`${dp("review")}/${r.id}`);
+            else navigate(`${dp("patients")}/${r.patient_id || ""}?view=record&record=${r.id}`, { replace: true });
           }} />
         ))
       )}
@@ -364,7 +365,7 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
     getRecords({ doctorId, patientId: patient.id, limit: 100 }).then((d) => setRecords(d.items || [])).catch((e) => setError(e.message || "加载失败")).finally(() => setLoading(false));
   }, [patient?.id, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]);
-  async function handleDelete() { setDeleting(true); try { await deletePatient(patient.id, doctorId); setDeleteConfirmOpen(false); if (onDeleted) { onDeleted(patient.id); return; } navigate("/doctor/patients"); } catch (e) { setError(e.message || "删除失败"); setDeleteConfirmOpen(false); } finally { setDeleting(false); } }
+  async function handleDelete() { setDeleting(true); try { await deletePatient(patient.id, doctorId); setDeleteConfirmOpen(false); if (onDeleted) { onDeleted(patient.id); return; } navigate(dp("patients")); } catch (e) { setError(e.message || "删除失败"); setDeleteConfirmOpen(false); } finally { setDeleting(false); } }
   async function handleExportPdf(opts) { setExportingPdf(true); setExportError(""); try { await exportPatientPdf(patient.id, doctorId, opts); } catch (e) { setExportError(e.message || "导出失败"); } finally { setExportingPdf(false); } }
   async function handleExportReport() { setExportingReport(true); setExportError(""); try { await exportOutpatientReport(patient.id, doctorId); } catch (e) { setExportError(e.message || "生成失败，请确认已有病历记录"); } finally { setExportingReport(false); } }
 
@@ -550,7 +551,7 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
                     <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                       {activeDraft.cited_rules.map((rule) => (
                         <Box key={rule.id} component="span"
-                          onClick={() => rule.id && navigate(`/doctor/settings/knowledge/${rule.id}`)}
+                          onClick={() => rule.id && navigate(`${dp("settings/knowledge")}/${rule.id}`)}
                           sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.danger, bgcolor: COLOR.dangerLight, px: 1, py: 0.5, borderRadius: RADIUS.sm, cursor: "pointer" }}>
                           引用: {rule.title}
                         </Box>
@@ -658,7 +659,7 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
               } : undefined}
               onCitationClick={(rule) => {
                 if (!rule?.id) return;
-                navigate(`/doctor/settings/knowledge/${rule.id}`);
+                navigate(`${dp("settings/knowledge")}/${rule.id}`);
               }}
               onSaveDraftEdit={handleDraftEdit}
               onSendDraft={handleDraftSend}
@@ -724,13 +725,13 @@ export default function PatientDetail({ patient, doctorId, onDeleted, onStartInt
 
   // Navigate to dedicated chat subpage (push so back returns to patient detail)
   const goToChat = () => {
-    navigate(`/doctor/patients/${patient.id}?view=chat`);
+    navigate(`${dp("patients")}/${patient.id}?view=chat`);
   };
 
   // Navigate to first pending review record
   const goToPendingReview = () => {
     const pending = records.find((r) => r.status === "pending_review");
-    if (pending) navigate(`/doctor/review/${pending.id}`);
+    if (pending) navigate(`${dp("review")}/${pending.id}`);
   };
 
   return (
