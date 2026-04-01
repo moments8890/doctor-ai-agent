@@ -1,47 +1,34 @@
-# Next Session TODO — Admin & Debug Consolidation
+# Next Session TODO — Debug Dashboard Redesign
 
-## Status: All Issues Fixed — Ready to Commit & Deploy
+## Decision: Grafana-style sidebar layout + GitHub Dark theme
 
-## What's Done
-1. Debug consolidation: `/debug` route, 3 tabs (LLM/Benchmark/Logs), DebugPage.jsx deleted
-2. Admin overview API: 6 endpoints with LLM call counting, AI adoption, task completion stats
-3. Admin frontend: 3-tab layout, overview with all 6 stats populated, doctor drill-down with full stats
-4. Data contract fixes: alert format, field names, profile flattening, timeline items key
-5. Test doctor filter: expanded prefixes (debug_, intsim_, clean_, demo_) — 170→155 doctors in dev DB
-6. LLM调用 1H stat: reads from logs/llm_calls.jsonl
-7. Doctor detail: patients count, AI采纳率, 任务完成率 all showing real data
+## Theme
+- GitHub Dark: bg #0d1117, card #161b22, border #30363d, text #c9d1d9
+- Blue accent #58a6ff, orange active #f78166, green #3fb950, red #f85149
+- Mockup: `/tmp/debug-layouts.html` (Layout B)
 
-## To Commit
-```bash
-# 1. Debug consolidation
-git add src/channels/web/doctor_dashboard/debug_handlers.py \
-  src/channels/web/doctor_dashboard/debug.html \
-  frontend/web/src/App.jsx
-git rm frontend/web/src/pages/admin/DebugPage.jsx
-git commit -m "refactor: consolidate debug to /debug, delete React DebugPage"
+## Layout
+- Left sidebar (200px): sections for LLM, Benchmark, System
+- Sidebar items: Recent Calls (with count badge), By Provider, Errors Only (red badge)
+- Benchmark section: Latency Test, Correctness Eval, Provider Compare
+- System section: Logs (with error badge), Config
+- Bottom: link back to Admin Dashboard
+- Main content area: header + content per selected nav item
+- Split pane can be added inside any section (e.g. LLM Calls list+detail)
 
-# 2. Admin API + filter fix
-git add src/channels/web/doctor_dashboard/admin_overview.py \
-  src/channels/web/doctor_dashboard/__init__.py \
-  src/channels/web/doctor_dashboard/filters.py
-git commit -m "feat: admin overview API with stats, alerts, doctor detail, timeline"
+## Implementation Plan
+1. Rewrite debug.html CSS vars to GitHub Dark theme
+2. Replace tab bar with sidebar navigation
+3. Convert each tab's content into a "page" toggled by sidebar selection
+4. Add health metrics in main header (calls/h, errors, avg TTFT, provider)
+5. Add error count badges in sidebar nav items
+6. Future: split pane for LLM Calls (list left, detail right)
 
-# 3. Admin frontend
-git add frontend/web/src/pages/admin/AdminPage.jsx \
-  frontend/web/src/pages/admin/AdminOverview.jsx \
-  frontend/web/src/pages/admin/AdminRawData.jsx \
-  frontend/web/src/pages/admin/AdminDoctorDetail.jsx
-git commit -m "feat: admin dashboard with overview, doctor drill-down, grouped raw data"
+## What Shipped This Session
+- Admin dashboard: 3-tab layout, overview stats, doctor drill-down, raw data
+- Debug dashboard: /debug route, 3 tabs, light mode, eval with production-sized prompts
+- All pushed to origin + gitee (commit 986a653)
 
-# 4. Specs & plans
-git add docs/specs/2026-03-30-admin-debug-consolidation-design.md \
-  docs/specs/2026-03-30-admin-debug-mockup.html \
-  docs/plans/2026-03-30-admin-debug-consolidation.md
-git commit -m "docs: admin/debug consolidation design spec and plan"
-```
-
-## Deploy
-```bash
-git push origin main && git push gitee main
-ssh tencent "cd /home/ubuntu/doctor-ai-agent && git fetch origin && git reset --hard origin/main && sudo systemctl restart doctor-ai-backend && cd frontend/web && npm run build && cp -r dist ../dist"
-```
+## Files to Change
+- `src/channels/web/doctor_dashboard/debug.html` — full rewrite of layout + theme
+- No backend changes needed — all APIs stay the same
