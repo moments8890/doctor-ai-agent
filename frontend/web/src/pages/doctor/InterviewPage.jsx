@@ -439,11 +439,16 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
       {session.status !== "draft_created" && (
         <>
           {voiceMode && (
-            <Box sx={{ px: 2, py: 1, borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface }}>
-              <VoiceInput
-                onResult={(text) => { setInput((prev) => prev ? prev + text : text); setVoiceMode(false); }}
-                onCancel={() => setVoiceMode(false)}
-              />
+            <Box sx={{ px: 1, py: 1, borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, display: "flex", alignItems: "center", gap: 0.5 }}>
+              <IconButton onClick={() => setVoiceMode(false)} sx={{ color: COLOR.text4, p: 1, flexShrink: 0 }}>
+                <KeyboardIcon sx={{ fontSize: 22 }} />
+              </IconButton>
+              <Box sx={{ flex: 1 }}>
+                <VoiceInput
+                  onResult={(text) => { setInput((prev) => prev ? prev + text : text); setVoiceMode(false); }}
+                  onCancel={() => setVoiceMode(false)}
+                />
+              </Box>
             </Box>
           )}
           {!voiceMode && (

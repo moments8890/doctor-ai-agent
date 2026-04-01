@@ -96,6 +96,8 @@ async def review_queue(
         select(
             AISuggestion,
             MedicalRecordDB.patient_id,
+            MedicalRecordDB.chief_complaint.label("chief_complaint"),
+            MedicalRecordDB.record_type.label("record_type"),
             Patient.name.label("patient_name"),
         )
         .join(MedicalRecordDB, MedicalRecordDB.id == AISuggestion.record_id)
@@ -145,6 +147,8 @@ async def review_queue(
         sug: AISuggestion = row[0]
         patient_name = row.patient_name or "未知患者"
         patient_id = row.patient_id
+        chief_complaint = row.chief_complaint or ""
+        record_type = row.record_type or "visit"
 
         cited_ids = pending_citations.get(sug.id, [])
         # Pick first cited rule name as rule_cited string (matches frontend expectation)
@@ -159,6 +163,8 @@ async def review_queue(
             "suggestion_id": sug.id,
             "patient_id": patient_id,
             "patient_name": patient_name,
+            "chief_complaint": chief_complaint,
+            "record_type": record_type,
             "time": _relative_time(sug.created_at),
             "urgency": _map_urgency_label(sug.urgency),
             "section": sug.section,

@@ -310,7 +310,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
             <SectionLabel>待审核</SectionLabel>
             <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
               {pending.map((item) => {
-                const chiefComplaint = item.chief_complaint || item.content || "";
+                const chiefComplaint = item.chief_complaint || "";
                 const sourceLabel = item.record_type === "interview_summary" ? "预问诊" : item.record_type === "import" ? "导入" : "门诊记录";
                 const fieldCount = item.field_count;
                 const aiSummary = item.detail ? `AI：${item.content || (SECTION_LABEL[item.section] || "")}` : "";

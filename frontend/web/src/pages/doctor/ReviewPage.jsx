@@ -353,7 +353,11 @@ export default function ReviewPage({ recordId }) {
           navigate(`${dp("tasks")}?tab=followups&highlight_task_ids=${highlight}&origin=review_finalize`);
           return;
         }
-        navigate(-1);
+        if (record?.patient_id) {
+          navigate(dp(`patients/${record.patient_id}`));
+        } else {
+          navigate(dp("patients"));
+        }
       }, 600);
     } catch {
       showToast("提交失败");
