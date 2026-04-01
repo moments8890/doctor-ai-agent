@@ -331,6 +331,7 @@ async def batch_knowledge(
             pass
         entry = {
             "id": item.id,
+            "title": item.title or (text[:40] if text else ""),
             "text": text,
             "source": source,
         }
