@@ -548,13 +548,17 @@ async def save_edit_as_rule(
     if rule is None:
         raise HTTPException(status_code=404, detail="未找到编辑记录")
 
+    # Capture before commit — session expiry after commit makes attribute access fail
+    rule_id = rule.id
+    rule_preview = (rule.content or "")[:100]
+
     await db.commit()
 
-    log(f"[draft] saved edit {edit.id} as rule {rule.id} for doctor={resolved}")
+    log(f"[draft] saved edit {edit.id} as rule {rule_id} for doctor={resolved}")
 
     return {
         "status": "ok",
-        "id": rule.id,
-        "text_preview": (rule.text or "")[:100],
+        "id": rule_id,
+        "text_preview": rule_preview,
         "source": "teaching",
     }

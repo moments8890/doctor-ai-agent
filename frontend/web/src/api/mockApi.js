@@ -191,7 +191,7 @@ export async function getTemplateStatus() {
   return { templates: MOCK_SETTINGS_TEMPLATES, hasCustom: false };
 }
 
-export async function getPatientChat(patientId) {
+export async function getPatientChat(patientId, _doctorId) {
   const filtered = patientId
     ? patientMessages.filter((message) => String(message.patient_id) === String(patientId))
     : patientMessages;

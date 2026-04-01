@@ -7,6 +7,7 @@ All operations run in a single transaction. No intermediate commits.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -275,7 +276,7 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
                     doctor_id=doctor_id,
                     patient_id=str(patient.id),
                     source_message_id=inbound.id,
-                    draft_text=reply_text,
+                    draft_text=re.sub(r"\[KB-\d+\]", "", reply_text).strip(),
                     cited_knowledge_ids=json.dumps(
                         list(kb_map.values()), ensure_ascii=False
                     ),

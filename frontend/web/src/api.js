@@ -840,8 +840,9 @@ export async function sendPatientChat(token, text) {
 }
 
 // Doctor-side patient chat/reply
-export async function getPatientChat(patientId) {
-  return request(`/api/manage/patients/${patientId}/chat`);
+export async function getPatientChat(patientId, doctorId) {
+  const qs = doctorId ? `?doctor_id=${encodeURIComponent(doctorId)}` : "";
+  return request(`/api/manage/patients/${patientId}/chat${qs}`);
 }
 
 export async function replyToPatient(patientId, text) {

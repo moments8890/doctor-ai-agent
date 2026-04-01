@@ -22,6 +22,8 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExportSelectorDialog from "../../../components/ExportSelectorDialog";
 import ConfirmDialog from "../../../components/ConfirmDialog";
+import SheetDialog from "../../../components/SheetDialog";
+import DialogFooter from "../../../components/DialogFooter";
 import EmptyState from "../../../components/EmptyState";
 import MsgAvatar from "../../../components/MsgAvatar";
 import NameAvatar from "../../../components/NameAvatar";
@@ -375,21 +377,26 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
 /* ── PatientChatPage ── */
 
 export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCount, hidden = false, bubbleView = false, patientName }) {
-  const { getPatientChat, replyToPatient, fetchDrafts, editDraft, sendDraft } = useApi();
+  const { getPatientChat, replyToPatient, fetchDrafts, editDraft, sendDraft, getDraftConfirmation, createRuleFromEdit } = useApi();
   const navigate = useAppNavigate();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState([]);
   const [draftsLoading, setDraftsLoading] = useState(false);
   const [open, setOpen] = useState(true);
+  const [confirmDraft, setConfirmDraft] = useState(null);
+  const [confirmData, setConfirmData] = useState(null);
+  const [confirming, setConfirming] = useState(false);
+  const [teachState, setTeachState] = useState(null);
+  const [savingRule, setSavingRule] = useState(false);
 
   const refreshMessages = useCallback(async () => {
     if (!patientId) return;
-    const data = await getPatientChat(patientId);
+    const data = await getPatientChat(patientId, doctorId);
     const nextMessages = Array.isArray(data?.messages) ? data.messages : [];
     nextMessages.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
     setMessages(nextMessages);
-  }, [patientId, getPatientChat]);
+  }, [patientId, doctorId, getPatientChat]);
 
   const refreshDrafts = useCallback(async () => {
     if (!patientId || !doctorId) return;
@@ -419,17 +426,32 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
 
   async function handleDraftEdit(nextText, draft) {
     if (!draft?.id) return;
-    await editDraft(draft.id, doctorId, nextText);
+    const result = await editDraft(draft.id, doctorId, nextText);
     setDrafts((prev) => prev.map((item) => (
       item.id === draft.id ? { ...item, draft_text: nextText } : item
     )));
+    if (result?.teach_prompt && result?.edit_id) {
+      setTeachState({ editId: result.edit_id });
+    }
   }
 
   async function handleDraftSend(draft) {
     if (!draft?.id) return;
-    await sendDraft(draft.id, doctorId);
-    setDrafts((prev) => prev.filter((item) => item.id !== draft.id));
-    await refreshMessages();
+    if (!bubbleView) {
+      await sendDraft(draft.id, doctorId);
+      setDrafts((prev) => prev.filter((item) => item.id !== draft.id));
+      await refreshMessages();
+      return;
+    }
+    try {
+      const data = await getDraftConfirmation(draft.id, doctorId);
+      setConfirmDraft(draft);
+      setConfirmData(data);
+    } catch {
+      await sendDraft(draft.id, doctorId);
+      setDrafts((prev) => prev.filter((item) => item.id !== draft.id));
+      await refreshMessages();
+    }
   }
 
   async function handleManualReply(nextText) {
@@ -438,6 +460,29 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
     await replyToPatient(patientId, text);
     // Draft stays visible — only removed when doctor explicitly sends or dismisses it
     await Promise.allSettled([refreshMessages(), refreshDrafts()]);
+  }
+
+  async function handleConfirmedSend() {
+    if (!confirmDraft?.id) return;
+    setConfirming(true);
+    try {
+      await sendDraft(confirmDraft.id, doctorId);
+      setDrafts((prev) => prev.filter((item) => item.id !== confirmDraft.id));
+      setConfirmDraft(null);
+      setConfirmData(null);
+      await refreshMessages();
+    } finally { setConfirming(false); }
+  }
+
+  async function handleSaveAsRule() {
+    if (!teachState?.editId) return;
+    setSavingRule(true);
+    try {
+      await createRuleFromEdit(teachState.editId, doctorId);
+    } finally {
+      setSavingRule(false);
+      setTeachState(null);
+    }
   }
 
   const activeDraft = drafts[0] || null;
@@ -491,6 +536,7 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
     }
 
     return (
+      <>
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
         {/* Messages area */}
         <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: 1.5, bgcolor: COLOR.surfaceAlt }}>
@@ -609,6 +655,67 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
           </Box>
         </Box>
       </Box>
+      <SheetDialog
+        open={!!confirmDraft}
+        onClose={() => { setConfirmDraft(null); setConfirmData(null); }}
+        title="确认发送回复"
+        desktopMaxWidth={400}
+        footer={
+          <DialogFooter
+            onCancel={() => { setConfirmDraft(null); setConfirmData(null); }}
+            cancelLabel="取消"
+            onConfirm={handleConfirmedSend}
+            confirmLabel="发送"
+            confirmLoading={confirming}
+            confirmLoadingLabel="发送中…"
+          />
+        }
+      >
+        {confirmData && (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box sx={{ bgcolor: COLOR.surface, borderRadius: RADIUS.md, p: 1.5 }}>
+              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mb: 0.5 }}>患者消息</Typography>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text1, lineHeight: 1.6 }}>
+                {confirmData.patient_message || "—"}
+              </Typography>
+            </Box>
+            <Box sx={{ bgcolor: COLOR.primaryLight, border: `1px solid ${COLOR.primary}30`, borderRadius: RADIUS.md, p: 1.5 }}>
+              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 600, mb: 0.5 }}>回复内容</Typography>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text1, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                {confirmData.draft_text || ""}
+              </Typography>
+              {confirmData.cited_rules?.length > 0 && (
+                <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                  {confirmData.cited_rules.map((rule) => (
+                    <Box key={rule.id} component="span"
+                      sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.danger, bgcolor: COLOR.dangerLight, px: 1, py: 0.5, borderRadius: RADIUS.sm }}>
+                      引用: {rule.title}
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+            {confirmData.ai_disclosure && (
+              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, textAlign: "center" }}>
+                {confirmData.ai_disclosure}
+              </Typography>
+            )}
+          </Box>
+        )}
+      </SheetDialog>
+      <ConfirmDialog
+        open={!!teachState}
+        onClose={() => setTeachState(null)}
+        onCancel={() => setTeachState(null)}
+        onConfirm={handleSaveAsRule}
+        title="保存为知识规则"
+        message="你的修改有价值！是否保存为知识规则，帮助 AI 更好地理解你的风格？"
+        cancelLabel="跳过"
+        confirmLabel="保存"
+        confirmLoading={savingRule}
+        confirmLoadingLabel="保存中…"
+      />
+      </>
     );
   }
 

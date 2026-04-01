@@ -388,7 +388,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
                         "{msg.patient_message || msg.content || ""}"
                       </Typography>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
-                        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500 }}>AI已起草</Typography>
+                        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: msg.type === "undrafted" ? COLOR.text3 : COLOR.primary, fontWeight: 500 }}>{msg.type === "undrafted" ? "需手动回复" : "AI已起草"}</Typography>
                         <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>·</Typography>
                         <Typography sx={{ fontSize: TYPE.micro.fontSize, color: msg.badge === "urgent" ? COLOR.danger : COLOR.text4 }}>{triageLabel}</Typography>
                         {citedRule && <><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>·</Typography><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>引用: {citedRule}</Typography></>}
