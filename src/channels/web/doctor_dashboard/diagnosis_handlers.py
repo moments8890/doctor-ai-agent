@@ -318,6 +318,14 @@ async def finalize_review(
     # Collect confirmed/edited/custom suggestions to write back
     rows = await get_suggestions_for_record(db, record_id)
 
+    # Gate: all suggestions must have a decision before finalizing
+    undecided = [r for r in rows if r.decision is None]
+    if undecided:
+        raise HTTPException(
+            status_code=422,
+            detail=f"还有 {len(undecided)} 条建议未处理，请先完成审核",
+        )
+
     accepted = [
         r for r in rows
         if r.decision in (

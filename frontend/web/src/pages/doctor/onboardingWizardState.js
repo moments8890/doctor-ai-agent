@@ -36,7 +36,10 @@ export function isWizardDone(doctorId) {
 
 export function markWizardDone(doctorId, status = "completed") {
   if (!doctorId) return;
-  localStorage.setItem(doneKey(doctorId), status);
+  localStorage.setItem(doneKey(doctorId), JSON.stringify({
+    status,
+    completedAt: new Date().toISOString(),
+  }));
   clearWizardProgress(doctorId);
   // Clean up old key
   localStorage.removeItem(`doctor_onboarding_state:v1:${doctorId}`);

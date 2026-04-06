@@ -178,3 +178,4 @@ class InterviewResponse:
     patient_name: Optional[str] = None
     patient_gender: Optional[str] = None
     patient_age: Optional[str] = None
+    retryable: bool = False

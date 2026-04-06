@@ -121,7 +121,7 @@ export default function InterviewPage({ token, onBack, onLogout }) {
       }
     } catch (err) {
       if (err.status === 401) { console.warn("auth expired"); return; }
-      setMessages(prev => [...prev, { role: "assistant", content: "系统繁忙，请稍后重试。" }]);
+      setMessages(prev => [...prev, { role: "assistant", content: "系统暂时繁忙，请重新发送您的回答。" }]);
     } finally { setSending(false); }
   }
 

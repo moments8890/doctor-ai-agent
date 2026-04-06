@@ -263,15 +263,18 @@ async def _interview_turn_inner(session_id: str, patient_text: str) -> Interview
     if llm_response is None:
         if isinstance(last_error, (json.JSONDecodeError, KeyError, TypeError, ValueError)):
             reply = "抱歉，我没有理解，请再说一次。"
+            is_retryable = False
         else:
             log(f"[interview] LLM call failed after 3 attempts: {last_error}", level="error")
-            reply = "系统暂时繁忙，请稍后再试。"
+            reply = "系统暂时繁忙，请重新发送您的回答。"
+            is_retryable = True
         session.conversation.append({"role": "assistant", "content": reply})
         await save_session(session)
         return InterviewResponse(
             reply=reply, collected=session.collected,
             progress=_build_progress(session.collected, mode), status=session.status,
             ready_to_review=session.status == InterviewStatus.reviewing,
+            retryable=is_retryable,
         )
 
     # Merge extracted fields (clinical only — patient metadata excluded by _call_interview_llm)

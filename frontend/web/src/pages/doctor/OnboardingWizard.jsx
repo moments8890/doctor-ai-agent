@@ -249,6 +249,7 @@ function Step1Content({ doctorId, progress, updateProgress, setCanAdvance, api }
         savedTitles: { ...(prev.savedTitles || {}), [savedSource]: savedTitle || "已添加" },
         savedIds: { ...(prev.savedIds || {}), ...(savedId ? { [savedSource]: savedId } : {}) },
         savedRuleTitle: savedTitle || prev.savedRuleTitle,
+        ...(savedId ? { savedRuleIds: [...new Set([...(prev.savedRuleIds || []), savedId])] } : {}),
       }));
       // Clean the URL params
       const params = new URLSearchParams(window.location.search);
@@ -269,7 +270,7 @@ function Step1Content({ doctorId, progress, updateProgress, setCanAdvance, api }
     if (!allDone) { setCanAdvance(false); return; }
     if (progress.proofData) { setCanAdvance(true); return; }
     // Call backend to create proof data
-    const lastRuleId = progress.savedRuleIds?.[progress.savedRuleIds.length - 1];
+    const lastRuleId = Object.values(progress.savedIds || {}).filter(Boolean).pop();
     (api.ensureOnboardingExamples || (() => Promise.resolve(null)))(doctorId, {
       knowledgeItemId: lastRuleId,
     }).then((data) => {

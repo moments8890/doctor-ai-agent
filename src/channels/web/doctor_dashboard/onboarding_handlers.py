@@ -217,7 +217,17 @@ async def _ensure_diagnosis_example(
         f"[KB-{knowledge_item_id}]"
     )
 
-    # Always reset to exactly 3 clean onboarding suggestions
+    # Reuse existing suggestions if they match the expected onboarding set
+    expected_contents = {"术后迟发性血肿", "尽快完成头颅CT平扫", "必要时急诊评估并处理"}
+    existing_contents = {s.content for s in suggestions}
+    if suggestions and existing_contents == expected_contents:
+        # Already has the right suggestions, just reset decisions for re-review
+        for s in suggestions:
+            s.decision = None
+            s.edited_text = None
+        await db.commit()
+        return record.id
+    # Otherwise, clean slate
     if suggestions:
         for s in suggestions:
             await db.delete(s)

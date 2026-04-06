@@ -197,6 +197,11 @@ export default function ReviewSubpage({
   knowledgeMap = {},
 }) {
   const hasSuggestions = suggestions.length > 0;
+  const isDecided = (s) =>
+    s.decision === "confirmed" || s.decision === "rejected" ||
+    s.decision === "edited" || s.decision === "custom";
+  const allDecided = hasSuggestions && suggestions.every(isDecided);
+  const undecidedCount = suggestions.filter((s) => !isDecided(s)).length;
 
   // Group suggestions by section
   const grouped = {};
@@ -235,8 +240,8 @@ export default function ReviewSubpage({
 
       {hasSuggestions && (
         <Box sx={{ position: "absolute", bottom: 0, left: 0, right: 0, px: 2, pt: 1.5, pb: "calc(12px + env(safe-area-inset-bottom))", bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}` }}>
-          <AppButton variant="primary" size="lg" fullWidth onClick={onFinalize} loading={finalizing} loadingLabel="提交中...">
-            完成审核
+          <AppButton variant="primary" size="lg" fullWidth onClick={onFinalize} loading={finalizing} loadingLabel="提交中..." disabled={!allDecided}>
+            {allDecided ? "完成审核" : `还有 ${undecidedCount} 项未处理`}
           </AppButton>
         </Box>
       )}
