@@ -127,29 +127,53 @@ async def _call_interview_llm(
         context_lines.append(f"上次：{prev}")
     patient_context = "\n".join(context_lines)
 
-    # Build conversation history as message dicts
+    # Build conversation history as message dicts.
+    # When conversation exceeds the window, summarize earlier turns into context
+    # so the model doesn't lose early symptoms/answers.
+    _HISTORY_WINDOW = 6
+    if len(conversation) > _HISTORY_WINDOW:
+        early_turns = conversation[:-_HISTORY_WINDOW]
+        early_summary_parts = []
+        for t in early_turns:
+            role_label = "患者" if t.get("role") == "user" else "助手"
+            content = t.get("content", "").strip()
+            if content and role_label == "患者":
+                early_summary_parts.append(content[:80])
+        if early_summary_parts:
+            context_lines.append(f"早期对话摘要：{'；'.join(early_summary_parts)}")
+            patient_context = "\n".join(context_lines)
+
     history = [
         {"role": turn.get("role", "user"), "content": turn.get("content", "")}
-        for turn in conversation[-6:]
+        for turn in conversation[-_HISTORY_WINDOW:]
     ]
 
     # Composer handles everything: layers 1-5 → system, history, layer 6 → user
     # conversation_mode=True puts KB + context in system (not XML user message)
+    # Separate the latest user message from history so the composer places it
+    # as the final user message (highest attention position). This prevents
+    # weaker models from ignoring the new input when it's buried in history.
+    latest_msg = ""
+    prior_history = history
+    if history and history[-1].get("role") == "user":
+        latest_msg = history[-1]["content"]
+        prior_history = history[:-1]
+
     if mode == "patient":
         from agent.prompt_composer import compose_for_patient_interview
         messages = await compose_for_patient_interview(
             doctor_id=doctor_id,
             patient_context=patient_context,
-            doctor_message="",  # no new user message — history has all turns
-            history=history,
+            doctor_message=latest_msg,
+            history=prior_history,
         )
     else:
         messages = await compose_for_intent(
             IntentType.create_record,
             doctor_id=doctor_id,
             patient_context=patient_context,
-            doctor_message="",  # no new user message — history has all turns
-            history=history,
+            doctor_message=latest_msg,
+            history=prior_history,
         )
 
     env_var = "CONVERSATION_LLM" if os.environ.get("CONVERSATION_LLM") else "ROUTING_LLM"

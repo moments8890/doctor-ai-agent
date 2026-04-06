@@ -75,11 +75,17 @@ def _log_llm_call(
     try:
         now = _dt.now(_tz.utc)
 
+        # Prompt version hash — correlate output quality with prompt changes
+        import hashlib as _hashlib
+        system_content = next((m["content"] for m in messages if isinstance(m, dict) and m.get("role") == "system"), "")
+        prompt_hash = _hashlib.md5(system_content.encode()).hexdigest()[:8]
+
         # Build entry
         entry: Dict[str, Any] = {
             "timestamp": now.isoformat(),
             "op": op_name,
             "model": model,
+            "prompt_hash": prompt_hash,
             "status": "error" if error else "ok",
             "input": {"messages": messages},
         }

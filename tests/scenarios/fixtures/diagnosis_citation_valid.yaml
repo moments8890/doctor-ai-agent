@@ -1,0 +1,52 @@
+id: diagnosis-citation-001
+title: "Diagnosis: KB citations must reference real items"
+tags: [diagnosis, citation, kb_constraint]
+
+setup:
+  patients:
+    - ref: p1
+      name: 李华
+      gender: 女
+      age: 38
+  knowledge_items:
+    - category: diagnosis_rule
+      text: "突发剧烈头痛必须排查蛛网膜下腔出血（SAH），安排急诊头颅CT。"
+    - category: diagnosis_rule
+      text: "头痛患者有高血压病史时，需同时排查高血压脑病和颅内出血。"
+
+steps:
+  - id: create
+    call: handle_turn
+    input:
+      text: "创建患者李华，女38岁，突发剧烈头痛2小时，雷击样起病，伴恶心呕吐。既往高血压5年。查体颈强直可疑。"
+      identity: ${doctor_id}
+    expect:
+      hard:
+        data._routing.intent: create_record
+
+  - id: confirm
+    call: doctor_interview.confirm
+    input:
+      doctor_id: ${doctor_id}
+      session_id: ${steps.create.data.session_id}
+    expect:
+      hard:
+        record_id.exists: true
+
+  - id: diagnose
+    call: diagnosis.run
+    input:
+      record_id: ${steps.confirm.record_id}
+    expect:
+      hard:
+        status: completed
+        _differentials_count.min_value: 1
+        # With danger signs, must have red_flags
+        _red_flags_count.min_value: 1
+        # Top differential should be SAH-related given thunderclap headache
+        _top_condition.contains_any: ["蛛网膜下腔出血", "SAH", "颅内出血", "脑出血"]
+        # Citation validity: if [KB-N] appears, it must not reference non-existent IDs
+        # We seeded 2 KB items — any [KB-99] or [KB-999] would be invalid
+        _all_details.not_contains: "[KB-99]"
+        _all_details.not_contains: "[KB-999]"
+        _all_details.not_contains: "[KB-0]"

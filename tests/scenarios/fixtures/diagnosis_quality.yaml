@@ -1,0 +1,49 @@
+id: diagnosis-quality-001
+title: "Diagnosis quality: differentials, red_flags, no hallucination"
+tags: [diagnosis, quality, safety]
+
+setup:
+  patients:
+    - ref: p1
+      name: 张伟
+      gender: 男
+      age: 50
+
+steps:
+  - id: create
+    call: handle_turn
+    input:
+      text: "创建患者张伟，男50岁，头痛两周加重三天，伴恶心呕吐。既往高血压10年。查体视乳头水肿。MRI示右额叶占位，均匀强化，宽基底附着硬脑膜。"
+      identity: ${doctor_id}
+    expect:
+      hard:
+        data._routing.intent: create_record
+        data._routing.patient_name: 张伟
+
+  - id: confirm
+    call: doctor_interview.confirm
+    input:
+      doctor_id: ${doctor_id}
+      session_id: ${steps.create.data.session_id}
+    expect:
+      hard:
+        record_id.exists: true
+
+  - id: diagnose
+    call: diagnosis.run
+    input:
+      record_id: ${steps.confirm.record_id}
+    expect:
+      hard:
+        status: completed
+        # Must produce at least 1 differential
+        _differentials_count.min_value: 1
+        # Top differential should mention meningioma or intracranial tumor
+        _top_condition.contains_any: ["脑膜瘤", "颅内占位", "颅内肿瘤", "meningioma"]
+        # Danger signs present → red_flags must not be empty
+        _red_flags_count.min_value: 1
+        # Must NOT hallucinate findings not in the input
+        # Input says "均匀强化，宽基底附着硬脑膜" — model must not add "脑膜尾征阳性"
+        _all_details.not_contains: "脑膜尾征阳性"
+        # Must suggest at least 1 workup
+        _workup_count.min_value: 1
