@@ -304,7 +304,7 @@ export default function MyAIPage({ doctorId }) {
                 avatar={<IconBadge config={ICON_BADGES.kb_doctor} />}
                 title="导入已确认病例"
                 subtitle="从病历中提取规则"
-                onClick={() => navigate(dp("chat"))}
+                onClick={() => navigate(dp("settings/knowledge/add"))}
                 chevron
                 sx={{ borderBottom: "none" }}
               />

@@ -185,14 +185,7 @@ export async function revokeAdminInviteCode(code) {
 }
 
 
-export async function sendChat(payload) {
-  return request("/api/records/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    _timeout: 120000,
-  });
-}
+// sendChat removed — routing layer deleted, use interview/diagnosis APIs directly
 
 // ---------------------------------------------------------------------------
 // Doctor-side interview API (ADR 0016 — doctor mode)

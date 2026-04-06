@@ -1,7 +1,8 @@
 """Scenario test runner — in-process, fixture-driven, traces every step.
 
 Executes YAML scenario fixtures by calling agent functions directly
-(handle_turn, route, interview_turn, diagnosis) without an HTTP server.
+(interview_start, interview_turn, interview_confirm, diagnosis) without
+an HTTP server.
 """
 from __future__ import annotations
 
@@ -113,10 +114,8 @@ class ScenarioWorld:
         input_data = self._resolve_vars(step.get("input", {}))
         step_id = step["id"]
 
-        if call == "route":
-            result = await self._call_route(input_data)
-        elif call == "handle_turn":
-            result = await self._call_handle_turn(input_data)
+        if call == "doctor_interview.start":
+            result = await self._call_interview_start(input_data)
         elif call == "doctor_interview.turn":
             result = await self._call_interview_turn(input_data)
         elif call == "doctor_interview.confirm":
@@ -124,7 +123,7 @@ class ScenarioWorld:
         elif call == "diagnosis.run":
             result = await self._call_diagnosis(input_data)
         else:
-            raise ValueError(f"Unknown step call: {call}")
+            raise ValueError(f"Unknown step call: {call} (use doctor_interview.start, doctor_interview.turn, doctor_interview.confirm, or diagnosis.run)")
 
         self.step_results[step_id] = result
         self.trace.append({"step_id": step_id, "call": call, "result": result})
@@ -155,31 +154,15 @@ class ScenarioWorld:
             return [self._resolve_vars(v) for v in data]
         return data
 
-    async def _call_route(self, input_data: Dict) -> Dict:
-        from agent.router import route
-        result = await route(
-            input_data["text"],
-            input_data.get("doctor_id", self.doctor_id),
-            input_data.get("history", []),
+    async def _call_interview_start(self, input_data: Dict) -> Dict:
+        from domain.patients.interview_session import create_session
+        session = await create_session(
+            doctor_id=self.doctor_id,
+            patient_id=input_data.get("patient_id"),
+            mode=input_data.get("mode", "doctor"),
+            initial_fields=input_data.get("initial_fields"),
         )
-        return {
-            "intent": result.intent.value,
-            "patient_name": result.patient_name,
-            "deferred": result.deferred,
-            "params": result.params,
-        }
-
-    async def _call_handle_turn(self, input_data: Dict) -> Dict:
-        from agent.handle_turn import handle_turn
-        result = await handle_turn(
-            input_data["text"],
-            input_data.get("role", "doctor"),
-            input_data.get("identity", self.doctor_id),
-        )
-        return {
-            "reply": result.reply,
-            "data": result.data or {},
-        }
+        return {"session_id": session.id, "status": session.status}
 
     async def _call_interview_turn(self, input_data: Dict) -> Dict:
         from domain.patients.interview_turn import interview_turn

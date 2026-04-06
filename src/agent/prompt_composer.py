@@ -1,26 +1,28 @@
-"""Prompt composer — assembles the 7-layer prompt stack into messages.
+"""Prompt composer — assembles the prompt stack into messages.
 
 Layers:
   L1 Identity      (common/base.md)         — role, safety, precedence
   L2 Specialty     (domain/{specialty}.md)   — domain knowledge
   L3 Task          (intent/{intent}.md)      — action-specific rules + format
   L4 Doctor Rules  (DB, auto-loaded)         — user-authored KB, scored
-  L5 Case Memory   (DB, diagnosis only)      — similar confirmed decisions
   L6 Patient       (DB, records/history)     — caller provides
   L7 Input         (actual message)          — doctor's/patient's input
 
-L1-L3 → single system message
-L4 → auto-loaded by composer from DB when config.load_knowledge is True
-L4-L7 → final user message with XML tags (Pattern 1)
-       or L4-L6 in system, L7 as plain user (Pattern 2: conversation)
+Pattern 1 (single-turn): L1-L3 system, L4+L6+L7 user with XML tags
+Pattern 2 (conversation): L1-L3+Patient system, history, KB+input as user
 """
 from __future__ import annotations
 
 from datetime import date
 from typing import Dict, List, Optional
 
-from agent.prompt_config import LayerConfig, INTENT_LAYERS, ROUTING_LAYERS, REVIEW_LAYERS, PATIENT_INTERVIEW_LAYERS
-from agent.types import IntentType
+from agent.prompt_config import (
+    LayerConfig,
+    DOCTOR_INTERVIEW_LAYERS,
+    REVIEW_LAYERS,
+    FOLLOWUP_REPLY_LAYERS,
+    PATIENT_INTERVIEW_LAYERS,
+)
 from utils.log import log, _ctx_layers
 from utils.prompt_loader import get_prompt_sync
 
@@ -60,15 +62,6 @@ async def compose_messages(
 
     L4 Doctor Rules is auto-loaded from DB when config.load_knowledge
     is True. Callers don't need to load KB.
-
-    Args:
-        config: LayerConfig defining which layers to include.
-        doctor_id: Used for KB loading and logging.
-        patient_context: Pre-formatted patient data (L6 Patient).
-        doctor_message: The actual user input (L7 Input).
-        history: Conversation history (between system and user).
-        specialty: Doctor's specialty for L2 Specialty lookup.
-        extra_system: Additional system content appended to system message.
     """
     # ── L1-L3: System message ────────────────────────────────────────
     parts = []
@@ -171,8 +164,7 @@ async def compose_messages(
     return messages
 
 
-async def compose_for_intent(
-    intent: IntentType,
+async def compose_for_doctor_interview(
     *,
     doctor_id: str = "",
     patient_context: str = "",
@@ -181,29 +173,15 @@ async def compose_for_intent(
     specialty: str = "neurology",
     extra_system: str = "",
 ) -> List[Dict[str, str]]:
-    """Compose messages for a routing intent."""
-    config = INTENT_LAYERS[intent]
+    """Compose messages for the doctor interview flow."""
     return await compose_messages(
-        config,
+        DOCTOR_INTERVIEW_LAYERS,
         doctor_id=doctor_id,
         patient_context=patient_context,
         doctor_message=doctor_message,
         history=history,
         specialty=specialty,
         extra_system=extra_system,
-    )
-
-
-async def compose_for_routing(
-    *,
-    doctor_message: str = "",
-    history: Optional[List[Dict[str, str]]] = None,
-) -> List[Dict[str, str]]:
-    """Compose messages for the routing LLM. Minimal layers — no knowledge or context."""
-    return await compose_messages(
-        ROUTING_LAYERS,
-        doctor_message=doctor_message,
-        history=history,
     )
 
 

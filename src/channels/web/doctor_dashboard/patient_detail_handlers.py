@@ -245,11 +245,7 @@ async def clear_context_endpoint(
     # Clear conversation context (not history — DB rows are permanent logs).
     # Resets the in-memory cache and generates a new session_id so the LLM
     # starts fresh without loading old messages back from DB.
-    try:
-        from agent.session import clear_session
-        clear_session(resolved_id)
-    except Exception:
-        pass
+    # Chat session cleared (routing layer removed — no-op)
 
     return {"ok": True}
 

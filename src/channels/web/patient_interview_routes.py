@@ -30,38 +30,7 @@ from domain.patients.interview_turn import interview_turn
 router = APIRouter(prefix="/api/patient/interview", tags=["patient-interview"])
 
 
-# ── Agent-powered chat (new) ──────────────────────────────────────────
-
-
-class PatientChatRequest(BaseModel):
-    text: str
-
-
-@router.post("/chat")
-async def patient_chat(
-    body: PatientChatRequest,
-    authorization: Optional[str] = Header(default=None),
-):
-    """Patient chat — routes through ReAct agent with interview + chat tools.
-
-    This is the primary endpoint for the mini-program. The agent decides
-    whether to advance the interview, answer off-topic questions, or
-    confirm the interview based on conversation context.
-    """
-    from agent import handle_turn
-
-    patient = await _authenticate_patient(authorization)
-    text = (body.text or "").strip()
-    if not text:
-        raise HTTPException(400, "消息不能为空")
-    if len(text) > 2000:
-        raise HTTPException(400, "消息过长")
-
-    reply = await handle_turn(text, "patient", str(patient.id))
-    return {"reply": reply}
-
-
-# ── Legacy endpoints (backward compat) ────────────────────────────────
+# ── Endpoints ─────────────────────────────────────────────────────────
 
 
 async def _get_doctor_name(doctor_id: str) -> str:

@@ -81,14 +81,8 @@ def register_health_and_utility_routes(
 
         cleared = []
 
-        # Agent session cache
-        try:
-            from agent.session import _cache, _session_ids
-            _cache.clear()
-            _session_ids.clear()
-            cleared.append("agent_sessions")
-        except ImportError:
-            pass
+        # Agent session cache (removed with routing layer)
+        cleared.append("agent_sessions(skipped)")
 
         # Prompt loader cache
         from utils.prompt_loader import invalidate as invalidate_prompts

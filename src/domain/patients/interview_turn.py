@@ -78,8 +78,7 @@ async def _call_interview_llm(
 ) -> Dict[str, Any]:
     """Call LLM with interview prompt. Returns parsed {reply, extracted}."""
     from agent.llm import structured_call
-    from agent.prompt_composer import compose_for_intent
-    from agent.types import IntentType
+    from agent.prompt_composer import compose_for_doctor_interview, compose_for_patient_interview
 
     missing = check_completeness(collected, mode=mode)
     missing_labels = [FIELD_LABELS.get(f, f) for f in missing]
@@ -168,8 +167,7 @@ async def _call_interview_llm(
             history=prior_history,
         )
     else:
-        messages = await compose_for_intent(
-            IntentType.create_record,
+        messages = await compose_for_doctor_interview(
             doctor_id=doctor_id,
             patient_context=patient_context,
             doctor_message=latest_msg,

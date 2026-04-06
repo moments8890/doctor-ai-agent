@@ -103,9 +103,7 @@ async def _handle_intent(
             return _plain_reply("⚠️ 知识内容为空，未保存。")
         return _plain_reply("✅ 已加入医生知识库（#{0}）：{1}".format(item.id, knowledge_payload))
 
-    from agent import handle_turn
-    result = await handle_turn(text, "doctor", doctor_id)
-    return _plain_reply(result.reply)
+    return _plain_reply("请使用小程序进行病历录入和患者管理。")
 
 
 @router.get("")
@@ -223,9 +221,7 @@ async def _handle_patient_bg(text: str, open_id: str, open_kfid: str = "") -> No
         if has_emergency_keyword(text):
             await _send_customer_service_msg(open_id, _EMERGENCY_REPLY, open_kfid=open_kfid)
             return
-        from agent.handle_turn import handle_turn
-        result = await handle_turn(text, "patient", open_id)
-        await _send_customer_service_msg(open_id, result.reply, open_kfid=open_kfid)
+        await _send_customer_service_msg(open_id, "请使用小程序与医生沟通。", open_kfid=open_kfid)
     except Exception as e:
         log(f"[WeChat patient] FAILED open_id={open_id}: {e}")
 

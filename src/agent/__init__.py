@@ -1,5 +1,9 @@
-from __future__ import annotations
+"""Agent package — prompt composer, LLM calls, and types.
 
-from agent.handle_turn import handle_turn
-
-__all__ = ["handle_turn"]
+The Plan-and-Act routing layer (handle_turn, router, dispatcher, handlers)
+has been removed. Core flows use domain functions directly:
+  - Doctor interview: domain.patients.interview_turn
+  - Patient interview: domain.patients.interview_turn
+  - Diagnosis: domain.diagnosis_pipeline
+  - Follow-up reply: domain.patient_lifecycle.draft_reply
+"""

@@ -10,7 +10,7 @@
 
 A personal AI assistant for doctors managing private patients outside hospitals. Doctors use it to dictate medical records, get AI-powered differential diagnoses, manage follow-up tasks, and communicate with patients. NOT an EMR — it's a lightweight clinical productivity tool.
 
-Three channels: **Web dashboard** (React SPA, primary), **WeChat/WeCom** (mobile), **Patient portal** (pre-consultation). FastAPI backend with Plan-and-Act agent pipeline.
+Three channels: **Web dashboard** (React SPA, primary), **WeChat/WeCom** (mobile), **Patient portal** (pre-consultation). FastAPI backend with explicit-action architecture (no routing LLM).
 
 ---
 
@@ -18,8 +18,8 @@ Three channels: **Web dashboard** (React SPA, primary), **WeChat/WeCom** (mobile
 
 | I want to... | Look at |
 |--------------|---------|
-| Understand the agent pipeline | `src/agent/handle_turn.py` -> `router.py` -> `dispatcher.py` -> `handlers/` |
-| Add a new intent | `src/agent/types.py` (add enum) -> `handlers/` (new file) -> `prompt_config.py` (LayerConfig) -> `prompts/intent/` (new .md) |
+| Understand the LLM pipelines | Doctor interview: `src/domain/patients/interview_turn.py`, Diagnosis: `src/domain/diagnosis_pipeline.py` |
+| Add a new LLM flow | `src/agent/prompt_config.py` (LayerConfig) -> `prompts/intent/` (new .md) -> domain function |
 | Edit an LLM prompt | `src/agent/prompts/intent/*.md` — see `docs/dev/llm-prompting-guide.md` |
 | Add a new API endpoint | `src/channels/web/` (new route file) -> register in `main.py` |
 | Modify the database | `src/db/models/` (SQLAlchemy model) -> `src/db/crud/` (operations) |
@@ -40,10 +40,11 @@ graph LR
         INT[Doctor Interview]
     end
 
-    subgraph Agent["Agent Pipeline"]
-        RT[1. Route<br/>routing LLM]
-        DS[2. Dispatch<br/>intent -> handler]
-        HN[3. Handle<br/>context + LLM]
+    subgraph Pipelines["LLM Pipelines"]
+        DI[Doctor Interview<br/>interview_turn]
+        PI[Patient Interview<br/>interview_turn]
+        DX[Diagnosis<br/>run_diagnosis]
+        FR[Follow-up Reply<br/>draft_reply]
     end
 
     subgraph LLM["LLM Layer"]
@@ -51,10 +52,10 @@ graph LR
         LC[llm_call<br/>raw text]
     end
 
-    WEB --> RT
-    WX --> RT
-    PT --> RT
-    INT --> RT
+    WEB --> DI
+    WEB --> DX
+    PT --> PI
+    INT --> DI
     RT --> DS --> HN
     HN --> SC
     HN --> LC
@@ -88,7 +89,7 @@ graph LR
 
 ### Key Design Decisions
 
-1. **Plan-and-Act over ReAct** -- routing LLM classifies intent (1 call), handler executes with focused prompt (1 call). 2 LLM calls vs 3-5 with ReAct. Predictable, debuggable, works with free-tier Chinese LLMs.
+1. **Explicit-action architecture** -- all flows are triggered by UI actions (buttons), not free-text classification. No routing LLM. Doctor interview, patient interview, and diagnosis each have a dedicated pipeline with focused prompts.
 
 2. **Instructor JSON mode** -- Groq/Qwen3 does not support tool-calling. Instructor uses `response_format` + Pydantic validation + automatic retries.
 
@@ -96,9 +97,7 @@ graph LR
 
 4. **Clinical columns** -- 14 outpatient fields as real DB columns (not JSON blob). Queryable, indexable, absorbs former case_history table.
 
-5. **Interview-first record creation** -- chat-initiated records go through multi-turn interview for guided field collection.
-
-6. **Single intent per turn** -- routing returns one intent + `deferred` field for multi-intent messages. `create_record` is exclusive (cannot chain with other intents).
+5. **Interview-first record creation** -- records go through multi-turn interview for guided field collection.
 
 ### Technology Stack
 
@@ -109,7 +108,7 @@ graph LR
 | Database | SQLite (dev) / MySQL (prod), SQLAlchemy async |
 | LLM Provider | Env-driven: Groq, DeepSeek, Tencent LKEAP, Ollama, OpenAI-compatible |
 | Structured Output | Instructor (JSON mode) + Pydantic v2 |
-| Agent Pattern | Plan-and-Act (routing -> dispatch -> handler) |
+| Agent Pattern | Explicit-action (UI-driven, no routing LLM) |
 | Prompt Assembly | 6-layer composer with XML context tags |
 | Observability | JSONL traces + spans, `trace_block` context manager |
 | Task Scheduling | APScheduler with distributed lease |
@@ -123,12 +122,10 @@ graph LR
 
 | Area | Directory | Key Files |
 |------|-----------|-----------|
-| Agent pipeline | `src/agent/` | `handle_turn.py`, `router.py`, `dispatcher.py`, `types.py` |
 | LLM calls | `src/agent/llm.py` | `structured_call()`, `llm_call()` |
-| Intent handlers | `src/agent/handlers/` | One file per intent (7 handlers) |
 | Prompt files | `src/agent/prompts/` | `common/base.md`, `domain/*.md`, `intent/*.md` |
 | Prompt assembly | `src/agent/` | `prompt_composer.py`, `prompt_config.py` |
-| Web API | `src/channels/web/` | `chat.py`, `doctor_interview/`, `tasks.py`, `export/` |
+| Web API | `src/channels/web/` | `doctor_interview/`, `tasks.py`, `export/` |
 | WeChat | `src/channels/wechat/` | `router.py`, `wechat_notify.py` |
 | Patient portal | `src/channels/web/` | `patient_portal/`, `patient_interview_routes.py` |
 | Business logic | `src/domain/` | `patients/`, `records/`, `tasks/`, `knowledge/`, `diagnosis.py` |
@@ -141,72 +138,37 @@ graph LR
 
 ---
 
-## Domain Operations Pipeline
+## LLM Pipelines
 
-All doctor chat messages follow the same pipeline:
+All flows are explicit-action-driven (UI buttons, not free-text classification). Three core pipelines:
 
-```
-message -> router LLM -> {intent, entities} -> dispatcher -> handler
-        -> handler loads context + knowledge -> intent LLM -> response
-```
+1. **Doctor Interview** (`interview_turn.py`) -- doctor dictates, AI extracts structured fields turn-by-turn
+2. **Patient Interview** (`interview_turn.py`, patient mode) -- AI interviews patient pre-visit, extracts structured fields
+3. **Diagnosis** (`diagnosis_pipeline.py`) -- structured record → differentials + workup + treatment + red_flags
 
-### Pipeline Flow
+Plus: **Follow-up Reply** (`draft_reply.py`) -- auto-drafts patient replies from triage context.
+
+### Pipeline Flow (Doctor Interview)
 
 ```mermaid
 sequenceDiagram
     participant D as Doctor
-    participant C as Channel
-    participant R as Router LLM
-    participant H as Handler
+    participant UI as Web UI
+    participant IT as interview_turn
     participant P as Prompt Composer
     participant L as LLM
     participant DB as Database
 
-    D->>C: "查张三的病历"
-    C->>R: structured_call(RoutingResult)
-    R-->>C: {intent: query_record, patient: 张三}
-    C->>H: dispatch(intent, context)
-    H->>DB: fetch patient + records
-    H->>P: compose_for_intent(layers 1-6)
-    P-->>H: assembled messages
-    H->>L: llm_call(messages)
-    L-->>H: natural language summary
-    H-->>D: "张三共有3次就诊记录..."
+    D->>UI: dictates clinical info
+    UI->>IT: interview_turn(session_id, text)
+    IT->>DB: load patient info + history
+    IT->>P: compose_for_doctor_interview(layers 1-6)
+    P-->>IT: assembled messages
+    IT->>L: structured_call(InterviewLLMResponse)
+    L-->>IT: {reply, extracted, suggestions}
+    IT->>DB: merge extracted fields
+    IT-->>D: reply + progress
 ```
-
-### Routing
-
-The routing LLM classifies the doctor's message into one of 7 intents and extracts relevant entities. One LLM call with structured output via Instructor.
-
-```json
-{
-  "intent": "query_record",
-  "patient_name": "张三",
-  "params": {},
-  "deferred": "建个随访任务"
-}
-```
-
-If the message contains multiple intents, routing extracts the first and captures the rest in `deferred`. The compose LLM acknowledges deferred intents in its response.
-
-### Dispatch
-
-`dispatcher.py` maps the `IntentType` enum value to the corresponding handler function. Simple dict-based dispatch, no dynamic registration.
-
-### Handler Execution
-
-Each handler:
-1. Loads per-intent context from the database (records, patients, tasks)
-2. Builds the prompt via the 6-layer composer
-3. Calls the intent-specific LLM (structured or free-text)
-4. Returns `HandlerResult(reply, data)`
-
-### Two-Stage Context Loading
-
-- **Routing stage:** minimal context (chat history only) -- fast, cheap
-- **Execution stage:** full context per intent (DB queries) -- loaded only after routing decides what is needed
-
-This avoids loading heavy context (records, knowledge) for every message.
 
 ### Key Data Flows
 
@@ -275,31 +237,28 @@ sequenceDiagram
 
 ---
 
-## Intent Types & Handler Registry
+## Core Flows
 
-7 routing intents defined in `agent/types.py` as `IntentType(str, Enum)`:
+All flows are UI-triggered (explicit actions, no intent classification):
 
-| Intent | Handler | patient_name | params | Description |
-|--------|---------|-------------|--------|-------------|
-| `query_record` | `query_record.py` | optional | `limit` (int, default 5) | Fetch + summarize medical records |
-| `create_record` | `create_record.py` | required | `gender`, `age`, `clinical_text` (all optional) | Enter interview flow for record creation |
-| `query_task` | `query_task.py` | -- | `status` (optional: pending\|completed) | Fetch + summarize doctor tasks |
-| `create_task` | `create_task.py` | optional | `title` (required), `content`, `due_at` | Create a new task |
-| `query_patient` | `query_patient.py` | -- | `query` (required, NL search string) | Natural language patient search |
-| `daily_summary` | `daily_summary.py` | -- | -- | Aggregated daily overview of tasks, patients, records |
-| `general` | `general.py` | -- | -- | Fallback greeting / chitchat |
+| Flow | Entry Point | LLM Pipeline | Description |
+|------|-------------|-------------|-------------|
+| Doctor Interview | UI: click patient → dictate | `interview_turn.py` | Multi-turn field extraction from doctor dictation |
+| Patient Interview | Patient portal: scan QR | `interview_turn.py` (patient mode) | AI-guided pre-visit history collection |
+| Diagnosis | UI: click "诊断" on record | `diagnosis_pipeline.py` | Differential diagnosis + workup + treatment |
+| Review | UI: click pending_review record | `diagnosis_pipeline.py` | Doctor reviews AI suggestions |
+| Follow-up Reply | Auto-triggered by triage | `draft_reply.py` | AI drafts patient reply for doctor approval |
 
-**`review_record` is NOT a routing intent** -- it is a UI-only flow. Doctor clicks a pending_review record in the UI, frontend calls the review API directly, no routing LLM involved.
+### Flow Configs
 
-### Non-Routing Flows (UI-Triggered)
-
-These flows bypass routing entirely and have their own `LayerConfig`:
+Each flow has its own `LayerConfig` in `prompt_config.py`:
 
 | Flow | Config | Prompt | Description |
 |------|--------|--------|-------------|
-| Routing | `ROUTING_LAYERS` | `intent/routing.md` | Intent classification (used by the router itself) |
-| Review/Diagnosis | `REVIEW_LAYERS` | `intent/diagnosis.md` | Differential diagnosis pipeline |
+| Doctor Interview | `DOCTOR_INTERVIEW_LAYERS` | `intent/interview.md` | Turn-by-turn field extraction |
+| Diagnosis | `REVIEW_LAYERS` | `intent/diagnosis.md` | Differential diagnosis pipeline |
 | Patient Interview | `PATIENT_INTERVIEW_LAYERS` | `intent/patient-interview.md` | Patient pre-consultation interview |
+| Follow-up Reply | `FOLLOWUP_REPLY_LAYERS` | `intent/followup_reply.md` | Patient reply drafting |
 
 ---
 
@@ -327,7 +286,7 @@ The stack reads: "You are [Identity] specializing in [Specialty], doing [Task], 
 
 ```mermaid
 graph TD
-    subgraph P1["Pattern 1: Single-turn<br/>(routing, query, diagnosis)"]
+    subgraph P1["Pattern 1: Single-turn<br/>(diagnosis, follow-up reply)"]
         S1[system: L1-L3<br/>instructions only]
         U1[user: L4-L7 with XML tags<br/>doctor_knowledge + patient_context + doctor_request]
     end
@@ -339,11 +298,11 @@ graph TD
     end
 ```
 
-Pattern 2 puts KB + context in system because conversation history occupies the user/assistant turns. KB rules in system = treated as behavioral constraints across all turns.
+Pattern 2 puts patient context in system (factual DB data) and KB in the final user message (trust boundary: user-authored content is not system-level instructions).
 
 ### LayerConfig
 
-`agent/prompt_config.py` defines `INTENT_LAYERS` -- a dict mapping each `IntentType` to a `LayerConfig` dataclass:
+`agent/prompt_config.py` defines one `LayerConfig` per flow:
 
 ```python
 @dataclass(frozen=True)
@@ -356,23 +315,14 @@ class LayerConfig:
     conversation_mode: bool = False  # Pattern 1 (False) or Pattern 2 (True)
 ```
 
-An assert at import time ensures every `IntentType` has a config entry -- adding a new intent without a `LayerConfig` crashes at server startup.
-
 ### Layer Usage Matrix
 
-| Intent | Pattern | Domain | Intent Prompt | Dr Knowledge | Case Memory | Patient Ctx |
-|--------|---------|--------|---------------|-------------|-------------|-------------|
-| routing | single | | routing | all | | |
-| create_record | convo | Y | interview | | | Y |
-| query_record | single | | query | all | | Y |
-| query_task | single | | query | all | | |
-| create_task | single | | general | all | | |
-| query_patient | single | | query | all | | Y |
-| daily_summary | single | | general | all | | |
-| general | single | | general | all | | |
-| patient_interview | convo | Y | patient-interview | all | | Y |
-| review/diagnosis | single | Y | diagnosis | all | **L5** | Y |
-| **followup_reply** | single | Y | followup_reply | all | | Y |
+| Flow | Pattern | Domain | Intent Prompt | Dr Knowledge | Patient Ctx |
+|------|---------|--------|---------------|-------------|-------------|
+| doctor_interview | convo | | interview | | Y |
+| patient_interview | convo | Y | patient-interview | top-5 | Y |
+| diagnosis | single | Y | diagnosis | top-5 | Y |
+| followup_reply | single | Y | followup_reply | top-5 | Y |
 
 ### Knowledge Categories
 
@@ -418,7 +368,7 @@ When a patient message is escalated to the doctor, `draft_reply.py` generates a 
 
 All LLM calls returning structured data use `instructor` (JSON mode) + Pydantic response models via `agent/llm.py:structured_call()`. Prompts do NOT contain JSON format specifications -- Pydantic models are the single source of truth for output structure.
 
-Key response models: `RoutingResult`, `InterviewLLMResponse`, `DiagnosisLLMResponse`, `StructuringLLMResponse`.
+Key response models: `InterviewLLMResponse`, `DiagnosisLLMResponse`, `StructuringLLMResponse`.
 
 ---
 
@@ -430,7 +380,7 @@ Key response models: `RoutingResult`, `InterviewLLMResponse`, `DiagnosisLLMRespo
 erDiagram
     doctors ||--o{ patients : manages
     doctors ||--o{ doctor_knowledge_items : owns
-    doctors ||--o{ doctor_chat_log : has
+    doctors ||--o{ doctor_chat_log : "has (legacy)"
     patients ||--o{ medical_records : has
     patients ||--o{ patient_messages : exchanges
     patients ||--o| patient_auth : authenticates
@@ -458,7 +408,7 @@ erDiagram
 
 **`doctor_knowledge_items`** -- Per-doctor reusable knowledge snippets. Categories: `custom`, `diagnosis`, `communication`, `followup`, `medication`, `preference`. Fields: `id`, `doctor_id` (FK), `content` (Text), `category`, `title`, `summary`, `reference_count`.
 
-**`doctor_chat_log`** -- Doctor <-> AI conversation history. Roles: `user`, `assistant`.
+**`doctor_chat_log`** -- Legacy doctor <-> AI conversation history (no longer written to after routing removal).
 
 **`patient_messages`** -- Patient <-> Doctor/AI message history. Directions: `inbound`, `outbound`. Sources: `patient`, `ai`, `doctor`.
 
@@ -625,7 +575,7 @@ graph TD
 |-------|---------|-------------|
 | `POST /wechat` | `channels/wechat/router.py` | WeChat webhook (message receive + verify) |
 
-WeChat messages are routed through the same `handle_turn` pipeline as web chat. Notifications are sent via customer service (KF) messages.
+WeChat text messages return a redirect to the mini-program. Deterministic commands (`完成 N`, `add_to_knowledge_base`) are still handled inline. Notifications are sent via customer service (KF) messages.
 
 ---
 
@@ -655,7 +605,6 @@ stateDiagram-v2
 
 Tasks can be created via:
 - **UI:** doctor fills form directly (no LLM)
-- **Chat:** routing LLM -> `intent=create_task` -> handler creates task
 - **Patient intake confirm:** patient pre-consultation confirm creates a linked `review` task for the doctor
 - **Review finalize:** `domain/tasks/from_record.py` extracts approved follow-up tasks from confirmed `orders_followup` + `treatment_plan`
 

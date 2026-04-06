@@ -13,20 +13,29 @@ setup:
       text: "头痛患者必须排除蛛网膜下腔出血（SAH）：突发雷击样头痛、颈强直、意识障碍时，必须安排头颅CT + 腰穿。"
 
 steps:
-  - id: create
-    call: handle_turn
+  - id: start
+    call: doctor_interview.start
     input:
-      text: "创建患者陈明，男45岁，急诊。突发剧烈头痛1小时，雷击样，伴恶心呕吐。查体颈强直阳性。"
-      identity: ${doctor_id}
+      patient_id: ${patients.p1}
+      mode: doctor
     expect:
       hard:
-        data._routing.intent: create_record
+        session_id.exists: true
+        status: interviewing
+
+  - id: turn_1
+    call: doctor_interview.turn
+    input:
+      session_id: ${steps.start.session_id}
+      text: "陈明，男45岁，急诊。突发剧烈头痛1小时，雷击样，伴恶心呕吐。查体颈强直阳性。"
+    expect:
+      hard:
+        status: interviewing
 
   - id: confirm
     call: doctor_interview.confirm
     input:
-      doctor_id: ${doctor_id}
-      session_id: ${steps.create.data.session_id}
+      session_id: ${steps.start.session_id}
     expect:
       hard:
         record_id.exists: true

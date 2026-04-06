@@ -1,19 +1,15 @@
-"""Records router — chat endpoint uses Plan-and-Act agent; utility endpoints unchanged."""
+"""Records router — utility endpoints for text extraction and import."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile, File, Header
-from pydantic import BaseModel, Field, field_validator
-from typing import Any, Dict, List, Literal, Optional
+from pydantic import BaseModel, Field
+from typing import Optional
 
-from db.models.medical_record import MedicalRecord
-from domain.records.structuring import text_to_interview
 from infra.llm.vision import extract_text_from_image
 from domain.knowledge.pdf_extract import extract_text_from_pdf_smart
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
-from agent import handle_turn
-from agent.actions import Action
-from utils.log import log, bind_log_context
+from utils.log import log
 
 from constants import SUPPORTED_IMAGE_TYPES
 
@@ -24,44 +20,9 @@ _MAX_UPLOAD_BYTES = 20 * 1024 * 1024  # 20 MB
 
 # ── Pydantic models ───────────────────────────────────────────────────────────
 
-class HistoryMessage(BaseModel):
-    """Single turn in client-supplied history (accepted but not used by runtime)."""
-    role: Literal["user", "assistant"] = Field(..., description="Must be 'user' or 'assistant'")
-    content: str = Field(..., max_length=16000)
-
-
-class ChatInput(BaseModel):
-    """Input for the /chat endpoint."""
-    text: str = Field(..., max_length=8000)
-    history: List[HistoryMessage] = Field(default_factory=list)
-    doctor_id: str = ""
-    action_hint: Optional[Action] = None
-
-    @field_validator("text")
-    @classmethod
-    def _validate_text(cls, value: str) -> str:
-        return value or ""
-
-    @field_validator("history")
-    @classmethod
-    def _validate_history(cls, value: List[HistoryMessage]) -> List[HistoryMessage]:
-        if len(value) > 100:
-            raise ValueError("history exceeds max length (100)")
-        return value
-
-
 class TextInput(BaseModel):
     """Input for /from-text endpoint."""
     text: str = Field(..., max_length=16000)
-
-
-class ChatResponse(BaseModel):
-    """Output for the /chat endpoint."""
-    reply: str
-    record: Optional[MedicalRecord] = None
-    record_id: Optional[int] = None
-    view_payload: Optional[Dict[str, Any]] = None  # structured data for web rendering (ADR 0012 §14)
-    switch_notification: Optional[str] = None  # patient-switch system message
 
 
 class ExtractedTextResponse(BaseModel):
@@ -83,34 +44,7 @@ class FileExtractResponse(BaseModel):
 
 
 
-
-
-# ── Chat endpoint ──────────────────────────────────────────────────────────
-
-@router.post("/chat", response_model=ChatResponse)
-async def chat(
-    body: ChatInput,
-    authorization: Optional[str] = Header(default=None),
-):
-    """Doctor chat — Plan-and-Act agent."""
-    doctor_id = resolve_doctor_id_from_auth_or_fallback(
-        body.doctor_id, authorization,
-        fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
-        default_doctor_id="dev_local",
-    )
-    text = (body.text or "").strip()
-    if not text:
-        raise HTTPException(status_code=422, detail="Text input cannot be empty.")
-
-    enforce_doctor_rate_limit(doctor_id, scope="records.chat")
-
-    bind_log_context(doctor_id=doctor_id)
-
-    result = await handle_turn(text, "doctor", doctor_id, action_hint=body.action_hint)
-    return ChatResponse(reply=result.reply, view_payload=result.data)
-
-
-# ── Utility endpoints (unchanged) ───────────────────────────────────────────
+# ── Utility endpoints ────────────────────────────────────────────────────────
 
 @router.post("/from-text")
 async def create_record_from_text(

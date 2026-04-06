@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt Engineering Changes — 2026-04-05</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-dim: #8b949e;
+    --green: #3fb950;
+    --red: #f85149;
+    --blue: #58a6ff;
+    --orange: #d29922;
+    --purple: #bc8cff;
+    --cyan: #39d353;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+    color: #fff;
+  }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+  }
+  .section {
+    margin-bottom: 2.5rem;
+  }
+  .section-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-fix { background: rgba(248, 81, 73, 0.15); color: var(--red); }
+  .badge-new { background: rgba(63, 185, 80, 0.15); color: var(--green); }
+  .badge-improve { background: rgba(88, 166, 255, 0.15); color: var(--blue); }
+  .badge-safety { background: rgba(210, 153, 34, 0.15); color: var(--orange); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem;
+    margin-bottom: 0.75rem;
+  }
+  .card-title {
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 0.4rem;
+    font-size: 0.95rem;
+  }
+  .card-file {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: var(--blue);
+    margin-bottom: 0.5rem;
+  }
+  .card-desc {
+    font-size: 0.88rem;
+    color: var(--text-dim);
+  }
+  .card-desc strong { color: var(--text); }
+
+  .diff-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.8rem 1rem;
+    margin-top: 0.6rem;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+  .diff-del { color: var(--red); }
+  .diff-add { color: var(--green); }
+  .diff-ctx { color: var(--text-dim); }
+  .diff-hdr { color: var(--purple); font-weight: 600; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+  }
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.2rem;
+  }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.blue { color: var(--blue); }
+  .stat-value.orange { color: var(--orange); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    margin-top: 0.5rem;
+  }
+  th {
+    text-align: left;
+    padding: 0.6rem 0.8rem;
+    border-bottom: 2px solid var(--border);
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  td {
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+  }
+  tr:last-child td { border-bottom: none; }
+  .mono {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: var(--blue);
+  }
+
+  .flow-diagram {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin: 1rem 0;
+  }
+  .flow-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+  }
+  .flow-box.changed {
+    border-color: var(--green);
+    box-shadow: 0 0 0 1px rgba(63, 185, 80, 0.3);
+  }
+  .flow-arrow { color: var(--text-dim); font-size: 1.2rem; }
+
+  .source-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    margin-left: 0.3rem;
+    font-weight: 600;
+  }
+  .src-chatgpt { background: rgba(16, 163, 127, 0.15); color: #10a37f; }
+  .src-claude { background: rgba(188, 140, 255, 0.15); color: var(--purple); }
+  .src-codex { background: rgba(88, 166, 255, 0.15); color: var(--blue); }
+</style>
+</head>
+<body>
+
+<h1>Prompt &amp; Context Engineering Overhaul</h1>
+<p class="subtitle">Three-model review (ChatGPT, Claude, Codex) identified 12 issues. 10 fixed. Prompt guard tests added.</p>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-value green">10</div>
+    <div class="stat-label">Fixes Applied</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value blue">10</div>
+    <div class="stat-label">Files Changed</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value orange">17</div>
+    <div class="stat-label">Scenario Tests (was 14)</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value red">1</div>
+    <div class="stat-label">Safety Hallucination Fixed</div>
+  </div>
+</div>
+
+<!-- Section 1: Architecture Fixes -->
+<div class="section">
+  <div class="section-title">
+    Prompt Architecture Fixes
+    <span class="badge badge-fix">Critical</span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">1. Routing loaded KB unnecessarily <span class="source-tag src-chatgpt">ChatGPT</span><span class="source-tag src-claude">Claude</span><span class="source-tag src-codex">Codex</span></div>
+    <div class="card-file">src/agent/prompt_config.py:94</div>
+    <div class="card-desc">
+      Routing LLM only classifies intent. Loading doctor KB adds noise, cost, and can bias intent classification. Comment said "no knowledge" but config said <strong>True</strong>.
+    </div>
+    <div class="diff-block">
+      <div class="diff-del">- ROUTING_LAYERS = LayerConfig(intent="routing", load_knowledge=True)</div>
+      <div class="diff-add">+ ROUTING_LAYERS = LayerConfig(intent="routing", load_knowledge=False)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">2. Pattern 2 trust inversion <span class="source-tag src-codex">Codex</span></div>
+    <div class="card-file">src/agent/prompt_composer.py:106-127</div>
+    <div class="card-desc">
+      Conversation mode put doctor-authored KB into <strong>system message</strong>, giving user-generated content system-level authority. base.md says KB is subordinate to intent rules, but message placement contradicted this.
+    </div>
+    <div class="diff-block">
+      <div class="diff-hdr">Before (Pattern 2):</div>
+      <div class="diff-del">- system_msg += doctor_knowledge    # KB in system = high trust</div>
+      <div class="diff-del">- system_msg += patient_context</div>
+      <div class="diff-ctx">&nbsp;</div>
+      <div class="diff-hdr">After (Pattern 2):</div>
+      <div class="diff-add">+ system_msg += patient_context       # factual DB data OK in system</div>
+      <div class="diff-add">+ user_msg = &lt;doctor_knowledge&gt;...    # KB in user msg = correct trust</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">3. General intent loaded KB for greetings <span class="source-tag src-codex">Codex</span></div>
+    <div class="card-file">src/agent/prompt_config.py:81</div>
+    <div class="card-desc">
+      "你好" triggered a DB query for doctor knowledge items. Pure token waste.
+    </div>
+    <div class="diff-block">
+      <div class="diff-del">- IntentType.general: LayerConfig(intent="general", load_knowledge=True)</div>
+      <div class="diff-add">+ IntentType.general: LayerConfig(intent="general", load_knowledge=False)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">4. Knowledge retrieval "fill until cap" <span class="source-tag src-chatgpt">ChatGPT</span><span class="source-tag src-claude">Claude</span></div>
+    <div class="card-file">src/domain/knowledge/knowledge_context.py:86</div>
+    <div class="card-desc">
+      KB items had no hard item cap, just a 6000 char soft limit. With 30 items, irrelevant knowledge floods the context. Added <strong>MAX_ITEMS=5</strong> hard cap.
+    </div>
+    <div class="diff-block">
+      <div class="diff-del">- # Include ALL items up to max_chars soft cap (no max_items hard cap)</div>
+      <div class="diff-add">+ # Hard cap: top-5 items by score, then soft cap on total chars</div>
+      <div class="diff-add">+ MAX_ITEMS = 5</div>
+      <div class="diff-add">+ if len(lines) >= MAX_ITEMS: break</div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 2: Prompt Quality -->
+<div class="section">
+  <div class="section-title">
+    Prompt Quality Fixes
+    <span class="badge badge-safety">Safety</span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">5. Hallucinating few-shot example in diagnosis.md <span class="source-tag src-codex">Codex</span></div>
+    <div class="card-file">src/agent/prompts/intent/diagnosis.md:66</div>
+    <div class="card-desc">
+      Example 1 input says "均匀强化，宽基底附着硬脑膜". Output added <strong>"脑膜尾征阳性"</strong> which was never in the input. This teaches the model to infer findings not stated by the doctor. <strong>Clinical safety issue.</strong>
+    </div>
+    <div class="diff-block">
+      <div class="diff-del">- "MRI增强均匀强化，宽基底附着硬脑膜，<strong>脑膜尾征阳性，</strong>符合脑膜瘤典型表现。"</div>
+      <div class="diff-add">+ "MRI增强均匀强化，宽基底附着硬脑膜，符合脑膜瘤典型表现。"</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">6. Duplicated identity sections across prompts <span class="source-tag src-codex">Codex</span></div>
+    <div class="card-file">routing.md, diagnosis.md, general.md</div>
+    <div class="card-desc">
+      base.md (L1) already provides role + safety + precedence. Three intent prompts restated "# Role: 医生AI临床助手" and profile info, wasting tokens and creating drift risk.
+    </div>
+    <div class="diff-block">
+      <div class="diff-hdr">routing.md:</div>
+      <div class="diff-del">- # Role: 医生AI临床助手</div>
+      <div class="diff-del">- ## Profile</div>
+      <div class="diff-del">- - 定位：主治医生的智能临床工具...</div>
+      <div class="diff-add">+ (removed — already in base.md L1)</div>
+      <div class="diff-ctx">&nbsp;</div>
+      <div class="diff-hdr">diagnosis.md:</div>
+      <div class="diff-del">- # Role: 医生AI临床助手</div>
+      <div class="diff-del">- ## Profile</div>
+      <div class="diff-add">+ ## Background</div>
+      <div class="diff-ctx">&nbsp;</div>
+      <div class="diff-hdr">general.md:</div>
+      <div class="diff-del">- # Role: 医生AI临床助手 — 通用对话</div>
+      <div class="diff-add">+ ## 通用对话</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">7. daily_summary missing from routing prompt <span class="source-tag src-codex">Codex</span></div>
+    <div class="card-file">src/agent/prompts/intent/routing.md</div>
+    <div class="card-desc">
+      Intent existed in enum + config but routing prompt had no description or examples for it. Router had no instructions for when to emit <code>daily_summary</code>.
+    </div>
+    <div class="diff-block">
+      <div class="diff-add">+ 6. **daily_summary** — 查看今日/每日工作总结</div>
+      <div class="diff-add">+    例如："今日总结"、"我今天看了多少病人"、"每日小结"</div>
+      <div class="diff-ctx">&nbsp;</div>
+      <div class="diff-add">+ 输入："今日总结"</div>
+      <div class="diff-add">+ 输出：{"intent": "daily_summary", ...}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 3: Observability -->
+<div class="section">
+  <div class="section-title">
+    Observability
+    <span class="badge badge-improve">Instrument</span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">8. Pre-call token estimation in LLM logs <span class="source-tag src-claude">Claude</span></div>
+    <div class="card-file">src/agent/llm.py:109</div>
+    <div class="card-desc">
+      Every LLM call now logs <code>estimated_input_tokens</code> (Chinese ~1 token per 1.5 chars) alongside the post-call actual token count. Enables per-intent budget analysis without running traffic.
+    </div>
+    <div class="diff-block">
+      <div class="diff-add">+ total_chars = sum(len(m.get("content", "")) for m in messages)</div>
+      <div class="diff-add">+ entry["estimated_input_tokens"] = int(total_chars / 1.5)</div>
+    </div>
+  </div>
+</div>
+
+<!-- Section 4: Prompt Guard Tests -->
+<div class="section">
+  <div class="section-title">
+    Prompt Guard Tests
+    <span class="badge badge-new">New</span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Test framework extensions</div>
+    <div class="card-file">tests/scenarios/runner.py + test_scenarios.py</div>
+    <div class="card-desc">
+      <strong>runner.py:</strong> Fixed broken <code>_encode_knowledge_payload</code> import (was blocking all KB tests). Added list indexing to <code>get_nested</code> (<code>differentials.0.condition</code>). Added diagnosis convenience fields: <code>_differentials_count</code>, <code>_red_flags_count</code>, <code>_top_condition</code>, <code>_all_details</code>.<br>
+      <strong>test_scenarios.py:</strong> Added <code>contains</code>, <code>not_contains</code>, <code>min_value</code> assertion operators.
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Fixture</th>
+        <th>What it guards</th>
+        <th>Key assertions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">routing_daily_summary.yaml</td>
+        <td>daily_summary routing (6 cases)</td>
+        <td>4 positive + 2 negative intent classifications</td>
+      </tr>
+      <tr>
+        <td class="mono">diagnosis_quality.yaml</td>
+        <td>Diagnosis hallucination + completeness</td>
+        <td>differentials >= 1, reasonable top condition, red_flags present, <strong>no "脑膜尾征阳性"</strong>, workup >= 1</td>
+      </tr>
+      <tr>
+        <td class="mono">diagnosis_citation_valid.yaml</td>
+        <td>KB citation references real items</td>
+        <td>SAH for thunderclap headache, no fake [KB-99] citations</td>
+      </tr>
+      <tr>
+        <td class="mono">kb_red_flags.yaml <span class="badge badge-improve" style="font-size:0.6rem">enhanced</span></td>
+        <td>KB constraint: danger flags</td>
+        <td>Was: only <code>status: completed</code>. Now: SAH in top, red_flags >= 1, workup >= 1</td>
+      </tr>
+      <tr>
+        <td class="mono">kb_no_opioids.yaml <span class="badge badge-improve" style="font-size:0.6rem">enhanced</span></td>
+        <td>KB constraint: no opioids</td>
+        <td>Was: only <code>status: completed</code>. Now: no opioid terms in details, disc condition in top</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Section 5: Context Flow -->
+<div class="section">
+  <div class="section-title">
+    Context Flow (After Changes)
+  </div>
+
+  <div style="margin-bottom: 1.5rem;">
+    <div style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 0.5rem;">Routing Call (lean)</div>
+    <div class="flow-diagram">
+      <div class="flow-box">L1 base.md</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box">L3 routing.md</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box changed" style="border-color: var(--red); text-decoration: line-through; opacity: 0.4;">L4 KB</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box">L7 Input</div>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 1.5rem;">
+    <div style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 0.5rem;">Diagnosis Call (full stack)</div>
+    <div class="flow-diagram">
+      <div class="flow-box">L1 base.md</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box">L2 neurology.md</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box">L3 diagnosis.md</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box changed">L4 KB (top 5)</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box">L6 Patient</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box">L7 Input</div>
+    </div>
+  </div>
+
+  <div>
+    <div style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 0.5rem;">Conversation Mode — Pattern 2 (fixed trust boundary)</div>
+    <div class="flow-diagram">
+      <div class="flow-box" style="border-color: var(--purple);">SYSTEM: L1 + L2 + L3 + Patient ctx</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box" style="opacity: 0.5;">history turns...</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-box changed" style="border-color: var(--green);">USER: &lt;doctor_knowledge&gt; + input</div>
+    </div>
+    <div style="font-size: 0.78rem; color: var(--text-dim); margin-top: 0.3rem;">
+      Before: KB was in SYSTEM (high trust). Now: KB is in USER message (correct trust level).
+    </div>
+  </div>
+</div>
+
+<!-- Section 6: Cross-model findings -->
+<div class="section">
+  <div class="section-title">Cross-Model Analysis</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Finding</th>
+        <th><span class="source-tag src-chatgpt">ChatGPT</span></th>
+        <th><span class="source-tag src-claude">Claude</span></th>
+        <th><span class="source-tag src-codex">Codex</span></th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Routing loads KB</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Fixed</td></tr>
+      <tr><td>KB retrieval too coarse</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Fixed (top-5)</td></tr>
+      <tr><td>No token budgeting</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Instrumented</td></tr>
+      <tr><td>Pattern 2 trust inversion</td><td style="color:var(--text-dim)">Missed</td><td style="color:var(--text-dim)">Noted</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Fixed</td></tr>
+      <tr><td>Hallucinating few-shot</td><td style="color:var(--text-dim)">Missed</td><td style="color:var(--text-dim)">Missed</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Fixed</td></tr>
+      <tr><td>General loads KB</td><td style="color:var(--text-dim)">Missed</td><td style="color:var(--text-dim)">Missed</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Fixed</td></tr>
+      <tr><td>daily_summary missing</td><td style="color:var(--text-dim)">Missed</td><td style="color:var(--text-dim)">Missed</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Fixed</td></tr>
+      <tr><td>Duplicated identity sections</td><td style="color:var(--text-dim)">Missed</td><td style="color:var(--text-dim)">Missed</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Fixed</td></tr>
+      <tr><td>Doctor preference learning</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Found</td><td style="color:var(--text-dim)">Not raised</td><td style="color:var(--orange)">Future</td></tr>
+      <tr><td>Follow-up safety detector</td><td style="color:var(--text-dim)">Missed</td><td style="color:var(--green)">Found</td><td style="color:var(--green)">Found</td><td style="color:var(--orange)">Future</td></tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top: 1rem; padding: 1rem; background: rgba(63, 185, 80, 0.05); border: 1px solid rgba(63, 185, 80, 0.2); border-radius: 8px; font-size: 0.88rem;">
+    <strong style="color: var(--green)">Key takeaway:</strong> No single model found everything. ChatGPT found the high-level architecture issues. Codex found the concrete code bugs (hallucinating example, trust inversion, missing intent). Claude bridged analysis and implementation. The three-model review caught 12 issues vs. ~4 from any single model.
+  </div>
+</div>
+
+</body>
+</html>

@@ -32,7 +32,6 @@ import {
 } from "./constants";
 import { isWizardDone } from "./onboardingWizardState";
 import MyAIPage from "./MyAIPage";
-import ChatPage from "./ChatPage";
 import PatientsPage from "./PatientsPage";
 import SettingsPage from "./SettingsPage";
 import ReviewPage from "./ReviewPage";
@@ -84,8 +83,7 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
 }
 
 function MobileBottomNav({ activeSection, navBadge, onNav }) {
-  // Chat is a subpage of my-ai on mobile — highlight 我的AI when in chat
-  const navValue = activeSection === "chat" ? "my-ai" : activeSection;
+  const navValue = activeSection;
   return (
     <Box sx={{ flexShrink: 0, borderTop: `0.5px solid ${COLOR.border}`, bgcolor: COLOR.surface }}>
       <BottomNavigationMui value={navValue} onChange={(_, val) => onNav(val)}
@@ -655,7 +653,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
   );
 }
 
-function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, chatInsertText, setChatInsertText, chatAutoSendText, setChatAutoSendText, chatAutoSendConsumedRef, patientRefreshKey, setPatientRefreshKey, handleLogout, onContextCleared, triggerInterview, setTriggerInterview, chatInterviewSessionId, setChatInterviewSessionId, chatInterviewPrePopulated, setChatInterviewPrePopulated }) {
+function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, patientRefreshKey, setPatientRefreshKey, handleLogout, triggerInterview, setTriggerInterview, chatInterviewSessionId, setChatInterviewSessionId, chatInterviewPrePopulated, setChatInterviewPrePopulated }) {
   return (
     <Box sx={{ flex: 1, overflow: "hidden", position: "relative" }}>
       <Fade in={activeSection === "my-ai"} timeout={150} unmountOnExit>
@@ -665,26 +663,10 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
           </ErrorBoundary>
         </Box>
       </Fade>
-      <Fade in={activeSection === "chat"} timeout={150} unmountOnExit>
-        <Box sx={{ position: "absolute", inset: 0 }}>
-          <ErrorBoundary label="聊天">
-            <ChatPage doctorId={doctorId} onMessageCountChange={() => {}}
-              externalInput={chatInsertText} onExternalInputConsumed={() => setChatInsertText("")}
-              onPatientCreated={() => setPatientRefreshKey((k) => k + 1)}
-              autoSendText={chatAutoSendText !== chatAutoSendConsumedRef.current ? chatAutoSendText : ""}
-              onAutoSendConsumed={() => { chatAutoSendConsumedRef.current = chatAutoSendText; setChatAutoSendText(""); }}
-              onContextCleared={onContextCleared}
-              onStartPatientInterview={(sessionId, prePopulated) => { setChatInterviewSessionId(sessionId || null); setChatInterviewPrePopulated(prePopulated || null); setTriggerInterview(true); navigate(dp("patients")); }}
-              onBack={isMobile ? () => navigate(dp()) : undefined} />
-          </ErrorBoundary>
-        </Box>
-      </Fade>
       <Fade in={activeSection === "patients"} timeout={150} unmountOnExit>
         <Box sx={{ position: "absolute", inset: 0 }}>
           <ErrorBoundary label="患者">
-            <PatientsPage doctorId={doctorId} onNavigateToChat={() => navigate(dp("chat"))}
-              onInsertChatText={(text) => { setChatInsertText(text); navigate(dp("chat")); }}
-              onAutoSendToChat={(text) => { chatAutoSendConsumedRef.current = ""; setChatAutoSendText(text); navigate(dp("chat")); }}
+            <PatientsPage doctorId={doctorId}
               refreshKey={patientRefreshKey}
               triggerInterview={triggerInterview}
               onTriggerInterviewConsumed={() => setTriggerInterview(false)}
@@ -747,9 +729,6 @@ export default function DoctorPage() {
   const { doctorId, doctorName, accessToken, clearAuth, setAuth } = useDoctorStore();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const [chatInsertText, setChatInsertText] = useState("");
-  const [chatAutoSendText, setChatAutoSendText] = useState("");
-  const chatAutoSendConsumedRef = useRef("");
   const [patientRefreshKey, setPatientRefreshKey] = useState(0);
   const [triggerInterview, setTriggerInterview] = useState(false);
   const [chatInterviewSessionId, setChatInterviewSessionId] = useState(null);
@@ -789,7 +768,7 @@ export default function DoctorPage() {
     <Box sx={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: "100%", position: "relative", bgcolor: COLOR.surface }}>
       {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={navBadge} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-        <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} chatInsertText={chatInsertText} setChatInsertText={setChatInsertText} chatAutoSendText={chatAutoSendText} setChatAutoSendText={setChatAutoSendText} chatAutoSendConsumedRef={chatAutoSendConsumedRef} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} onContextCleared={undefined} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} />
+        <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} />
         <Slide direction="left" in={isReviewPage} timeout={300} mountOnEnter unmountOnExit>
           <Box sx={{ position: "absolute", inset: 0, zIndex: 5, bgcolor: COLOR.surfaceAlt }}>
             <ErrorBoundary label="诊断审核">

@@ -16,6 +16,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
+import { textToInterview } from "../../api";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { useApi } from "../../api/ApiContext";
@@ -319,7 +320,7 @@ function PatientListPane({ patients, loading, error, search, nlResults, nlLoadin
   );
 }
 
-async function extractAndSend({ file, extractFileForChat, onAutoSendToChat, setImportError }) {
+async function extractAndSend({ file, extractFileForChat, doctorId, setImportError }) {
   const { text } = await extractFileForChat(file);
   if (!text?.trim()) { setImportError("未能从文件中提取到文字，请尝试其他文件"); return; }
   const nameMatch =
@@ -327,10 +328,10 @@ async function extractAndSend({ file, extractFileForChat, onAutoSendToChat, setI
     text.match(/(?:送检者|申请人|患者)[：:﹕]\s*([^\s\u3000，,（(]{2,6})/) ||
     text.match(/(?:报告对象|受检者|体检者)[：:﹕]\s*([^\s\u3000，,（(]{2,6})/);
   const prefix = nameMatch ? `录入患者【${nameMatch[1]}】的病历：\n` : "";
-  onAutoSendToChat?.(prefix + text.trim());
+  await textToInterview(prefix + text.trim(), doctorId);
 }
 
-function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selectedId, refreshKey }) {
+function usePatientsState({ doctorId, onPatientSelected, selectedId, refreshKey }) {
   const { searchPatients, extractFileForChat } = useApi();
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -376,7 +377,7 @@ function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selec
   async function handleImportFile(e) {
     const file = e.target.files?.[0]; e.target.value = ""; if (!file) return;
     setImporting(true); setImportError("");
-    try { await extractAndSend({ file, extractFileForChat, onAutoSendToChat, setImportError }); }
+    try { await extractAndSend({ file, extractFileForChat, doctorId, setImportError }); }
     catch (err) { setImportError(err?.message === "Request timed out" ? "文件较大，解析超时，请尝试上传页数更少的 PDF" : "文件解析失败，请重试"); }
     finally { setImporting(false); }
   }
@@ -488,13 +489,13 @@ function RecordDetailSubpage({ recordId, doctorId, patientName, onBack, onDelete
   );
 }
 
-export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatText, onAutoSendToChat, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed, chatInterviewSessionId, onChatInterviewSessionConsumed, chatInterviewPrePopulated }) {
+export default function PatientsPage({ doctorId, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed, chatInterviewSessionId, onChatInterviewSessionConsumed, chatInterviewPrePopulated }) {
   const { patientId } = useParams();
   const navigate = useAppNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const selectedId = patientId ? Number(patientId) : null;
-  const { patients, refetchPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile, attention, aiTagMap } = usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selectedId, refreshKey });
+  const { patients, refetchPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile, attention, aiTagMap } = usePatientsState({ doctorId, onPatientSelected, selectedId, refreshKey });
 
   const [interviewActive, setInterviewActive] = useState(patientId === "new");
 
