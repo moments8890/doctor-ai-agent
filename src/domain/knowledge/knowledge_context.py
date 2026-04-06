@@ -83,11 +83,14 @@ def render_knowledge_context(
 
     scored.sort(reverse=True)
 
-    # Include ALL items up to max_chars soft cap (no max_items hard cap)
+    # Hard cap: top-5 items by score, then soft cap on total chars
+    MAX_ITEMS = 5
     header = "【医生知识库】\n"
     lines: List[str] = []
     total = len(header)
     for weighted, relevance, _ord, item, text in scored:
+        if len(lines) >= MAX_ITEMS:
+            break
         snippet = _sanitize_for_prompt((text or "").strip())
         if not snippet:
             continue

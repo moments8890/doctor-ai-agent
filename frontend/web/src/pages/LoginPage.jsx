@@ -73,6 +73,20 @@ export default function LoginPage() {
     if (data.role === "doctor") {
       setWebToken(data.token);
       setAuth(data.doctor_id, data.name, data.token);
+      // If running inside WeChat mini app WebView, hand off token to native layer
+      // then navigate to the native doctor page (destroys this WebView → delivers postMessage).
+      if (window.__wxjs_environment === "miniprogram") {
+        // eslint-disable-next-line no-undef
+        wx.miniProgram?.postMessage?.({ data: {
+          action: "login",
+          token: data.token,
+          doctor_id: data.doctor_id,
+          name: data.name || "",
+        }});
+        // eslint-disable-next-line no-undef
+        wx.miniProgram?.redirectTo?.({ url: "/pages/doctor/doctor" });
+        return;
+      }
       navigate("/doctor", { replace: true });
     } else {
       localStorage.setItem("patient_portal_token", data.token);

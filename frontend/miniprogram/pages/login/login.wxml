@@ -1,43 +1,12 @@
-<view wx:if="{{loading && !error}}" class="loading-overlay">
+<!-- Auto-login check loading state -->
+<view wx:if="{{loading}}" class="loading-overlay">
   <view class="loading-spinner" />
   <text class="loading-hint">正在登录...</text>
 </view>
 
-<view class="page" wx:if="{{!loading || error}}">
-  <view class="card">
-    <view class="brand">
-      <view class="brand-icon">🩺</view>
-      <view class="brand-name">Doctor AI</view>
-      <view class="brand-sub">医生工作台</view>
-    </view>
-
-    <!-- Mode toggle -->
-    <view class="tabs">
-      <view class="tab {{mode === 'invite' ? 'tab-active' : ''}}" bindtap="onModeSwitch" data-mode="invite">邀请码登录</view>
-      <view class="tab {{mode === 'wechat' ? 'tab-active' : ''}}" bindtap="onModeSwitch" data-mode="wechat">微信登录</view>
-    </view>
-
-    <!-- Invite code form -->
-    <block wx:if="{{mode === 'invite'}}">
-      <input
-        class="input"
-        placeholder="请输入邀请码"
-        value="{{inviteCode}}"
-        bindinput="onInviteInput"
-        maxlength="32"
-        confirm-type="done"
-        bindconfirm="onInviteLogin"
-      />
-      <button class="btn btn-primary" bindtap="onInviteLogin" loading="{{loading}}">登录</button>
-    </block>
-
-    <!-- WeChat login form -->
-    <block wx:else>
-      <view class="wechat-hint">点击下方按钮，授权微信身份登录</view>
-      <button class="btn btn-wechat" bindtap="onWechatLogin" loading="{{loading}}">微信一键登录</button>
-    </block>
-
-    <!-- Error message -->
-    <view wx:if="{{error}}" class="error">{{error}}</view>
-  </view>
-</view>
+<!-- Web login page -->
+<web-view
+  wx:if="{{url}}"
+  src="{{url}}"
+  bindmessage="onMessage"
+/>

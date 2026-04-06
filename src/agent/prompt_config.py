@@ -93,7 +93,7 @@ assert not _missing, f"INTENT_LAYERS missing entries for: {_missing}. Add a Laye
 
 ROUTING_LAYERS = LayerConfig(
     intent="routing",
-    load_knowledge=True,
+    load_knowledge=False,  # Routing only classifies intent — KB adds noise and cost
 )
 
 REVIEW_LAYERS = LayerConfig(
