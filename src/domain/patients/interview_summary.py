@@ -294,6 +294,18 @@ async def _confirm_interview_inner(
 
     log(f"[interview] confirmed session={session_id} record={db_record.id} task={task.id}")
 
+    # Auto-trigger diagnosis pipeline (fire-and-forget)
+    try:
+        from domain.diagnosis import run_diagnosis
+        from utils.log import safe_create_task
+        safe_create_task(
+            run_diagnosis(doctor_id=doctor_id, record_id=db_record.id),
+            name=f"diagnosis-{db_record.id}",
+        )
+        log(f"[interview] diagnosis triggered for record={db_record.id}")
+    except Exception as e:
+        log(f"[interview] diagnosis trigger failed: {e}", level="warning")
+
     # Notify doctor (best-effort, don't block on failure)
     try:
         from domain.tasks.notifications import send_doctor_notification
