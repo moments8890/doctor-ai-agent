@@ -243,8 +243,8 @@ function Step1Content({ doctorId, progress, updateProgress, setCanAdvance, api }
 
 // ── Step 2: 看AI怎么用它 (combined diagnosis + reply proof) ───────────────────
 
-const STEP2_DRAFT_TEXT = "张阿姨家属您好，LVB术后出现头痛加重伴认知改善后再次下降，需要警惕吻合口狭窄或血栓。请尽快带张阿姨来医院复查荧光成像，评估吻合口通畅性。在此之前请让她卧床休息，避免剧烈活动。";
-const HIGHLIGHTED_SENTENCE = "LVB术后出现头痛加重伴认知改善后再次下降，需要警惕吻合口狭窄或血栓";
+const STEP2_DRAFT_TEXT = "您好，高血压患者出现头痛加重伴呕吐、视物模糊，需要警惕高血压脑病或颅内出血。建议立即测量血压，如果血压明显升高，请尽快到急诊就诊做头颅CT检查。在就医前请卧床休息，避免情绪激动。";
+const HIGHLIGHTED_SENTENCE = "高血压患者出现头痛加重伴呕吐、视物模糊，需要警惕高血压脑病或颅内出血";
 
 function StepProofContent({ progress, setCanAdvance }) {
   const [diagConfirmed, setDiagConfirmed] = useState(false);
@@ -255,8 +255,8 @@ function StepProofContent({ progress, setCanAdvance }) {
     setCanAdvance(diagConfirmed && replySent);
   }, [diagConfirmed, replySent]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ruleTitle = progress.savedRuleTitle || "LVB术后吻合口评估";
-  const ruleBody = "术侧头痛加重、认知改善后再次下降 → 警惕吻合口血栓";
+  const ruleTitle = progress.savedRuleTitle || "高血压患者头痛鉴别要点";
+  const ruleBody = "高血压患者新发头痛 → 排除高血压脑病、颅内出血、后循环缺血";
   const citedRuleTitle = ruleTitle;
 
   // Split draft text around the highlighted sentence for inline highlight rendering
@@ -273,10 +273,10 @@ function StepProofContent({ progress, setCanAdvance }) {
 
       {/* Patient strip */}
       <Box sx={{ mx: 2, px: 2, py: 1, bgcolor: COLOR.white, borderRadius: RADIUS.md, border: `0.5px solid ${COLOR.border}`, display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
-        <NameAvatar name="张阿姨" size={36} />
+        <NameAvatar name="张秀兰" size={36} />
         <Box>
-          <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>张阿姨 · 65岁</Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>右侧头痛加重 · 认知改善后下降</Typography>
+          <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>张秀兰 · 72岁</Typography>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>头痛头晕3天 · 高血压10年</Typography>
         </Box>
       </Box>
 
@@ -298,14 +298,14 @@ function StepProofContent({ progress, setCanAdvance }) {
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>
-                吻合口血栓或狭窄
+                高血压脑病/高血压急症
               </Typography>
               <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.5, lineHeight: 1.6 }}>
-                LVB术后1周出现术侧头痛加重，需{" "}
+                患者有10年高血压病史，本次出现头痛加重伴呕吐，需{" "}
                 <Box component="span" sx={{ bgcolor: "#fff8c5", borderBottom: "2px solid #f0e040", borderRadius: "2px", px: "1px" }}>
-                  警惕吻合口血栓或狭窄
+                  警惕高血压脑病或颅内出血
                 </Box>
-                。建议复查荧光成像评估吻合口通畅性。
+                。需紧急评估血压及靶器官损害。
               </Typography>
               <Box sx={{ mt: 0.5 }}>
                 <Box component="span" sx={{ fontSize: TYPE.micro.fontSize, color: "#e53935", bgcolor: "#fdecea", px: 1, py: 0.25, borderRadius: RADIUS.sm }}>
@@ -320,15 +320,15 @@ function StepProofContent({ progress, setCanAdvance }) {
           <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
             <Box sx={{ width: 18, height: 18, borderRadius: "50%", border: `1.5px solid ${COLOR.border}`, flexShrink: 0, mt: 0.5 }} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>术后正常反应</Typography>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.5 }}>LVB术后轻度头痛头晕多为一过性，1-2周可缓解。</Typography>
+              <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>后循环缺血</Typography>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.5 }}>头晕伴视物模糊，需MRA评估椎基底动脉供血。</Typography>
             </Box>
           </Box>
           <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5 }}>
             <Box sx={{ width: 18, height: 18, borderRadius: "50%", border: `1.5px solid ${COLOR.border}`, flexShrink: 0, mt: 0.5 }} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>切口血肿</Typography>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.5 }}>右侧稍肿胀但无渗出，超声示少量积液，暂观察。</Typography>
+              <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>偏头痛</Typography>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.5 }}>胀痛伴恶心呕吐，但高血压背景下需先排除继发性原因。</Typography>
             </Box>
           </Box>
         </Box>
@@ -344,13 +344,13 @@ function StepProofContent({ progress, setCanAdvance }) {
 
       {/* Last patient message */}
       <Box sx={{ mx: 2, mb: 1, display: "flex", alignItems: "flex-end", gap: 1 }}>
-        <NameAvatar name="张阿姨" size={36} />
+        <NameAvatar name="张秀兰" size={36} />
         <Box sx={{
           maxWidth: "72%", px: 1.5, py: 1,
           borderRadius: `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`,
           bgcolor: COLOR.white, fontSize: TYPE.body.fontSize, lineHeight: 1.7, color: COLOR.text1,
         }}>
-          她今天头更疼了，是不是手术出问题了？
+          医生，我妈这两天头疼得厉害，还吐了一次，看东西也模糊，需要来医院吗？
         </Box>
       </Box>
 
@@ -483,7 +483,7 @@ function StepDoneContent({ doctorId, progress, updateProgress, setCanAdvance, ap
                 token={interviewToken}
                 onBack={() => setShowInterview(false)}
                 onLogout={() => setShowInterview(false)}
-                initialSuggestions={["最近记性变差了", "头痛头晕好几天了", "脖子伤口有点肿"]}
+                initialSuggestions={["头痛三天了越来越重", "还吐了一次看东西模糊", "血压好像有点高"]}
               />
             </PatientApiProvider>
           )}
