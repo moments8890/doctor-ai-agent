@@ -267,6 +267,8 @@ export default function ReviewPage({ recordId }) {
   async function handleDecide(suggestionId, decision, opts) {
     try {
       await decideSuggestion(suggestionId, decision, opts);
+      queryClient.invalidateQueries({ queryKey: QK.suggestions(recordId, doctorId) });
+      queryClient.invalidateQueries({ queryKey: QK.reviewQueue(doctorId) });
       setSuggestions((prev) =>
         (prev || []).map((s) =>
           s.id === suggestionId
@@ -282,6 +284,7 @@ export default function ReviewPage({ recordId }) {
   async function handleAdd(section, content, detail) {
     try {
       const created = await addSuggestion(recordId, doctorId, section, content, detail || undefined);
+      queryClient.invalidateQueries({ queryKey: QK.suggestions(recordId, doctorId) });
       setSuggestions((prev) => [...(prev || []), created]);
     } catch {
       showToast("添加失败");

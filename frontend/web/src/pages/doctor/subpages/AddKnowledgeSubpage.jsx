@@ -20,6 +20,8 @@ import SheetDialog from "../../../components/SheetDialog";
 import VoiceInput, { isVoiceSupported } from "../../../components/VoiceInput";
 import Toast, { useToast } from "../../../components/Toast";
 import ConfirmDialog from "../../../components/ConfirmDialog";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
 import { dp } from "../../../utils/doctorBasePath";
@@ -38,6 +40,7 @@ const PREFILL_FILE_TEXT = "LVB术后护理与观察要点\n\n术后24h内观察�
 
 export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
   const api = useApi();
+  const queryClient = useQueryClient();
   const { addKnowledgeItem, uploadKnowledgeExtract, uploadKnowledgeSave, processKnowledgeText, fetchKnowledgeUrl } = api;
   const navigate = useAppNavigate();
   const _params = new URLSearchParams(window.location.search);
@@ -157,6 +160,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     setError("");
     try {
       const result = await addKnowledgeItem(doctorId, trimmed);
+      queryClient.invalidateQueries({ queryKey: QK.knowledge(doctorId) });
       handleKnowledgeSaved(trimmed, result?.id || null);
     } catch (e) {
       setError(e.message || "添加失败");
@@ -219,6 +223,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     try {
       const isUrl = sourceFilename.startsWith("http://") || sourceFilename.startsWith("https://");
       const result = await uploadKnowledgeSave(doctorId, trimmed, isUrl ? "url" : sourceFilename, isUrl ? { sourceUrl: sourceFilename } : {});
+      queryClient.invalidateQueries({ queryKey: QK.knowledge(doctorId) });
       setPreviewOpen(false);
       showToast("已保存到知识库");
       setTimeout(() => handleKnowledgeSaved(trimmed, result?.id || null), 600);
@@ -244,6 +249,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     setError("");
     try {
       const result = await addKnowledgeItem(doctorId, trimmed);
+      queryClient.invalidateQueries({ queryKey: QK.knowledge(doctorId) });
       setTextPreviewOpen(false);
       showToast("已保存到知识库");
       setTimeout(() => handleKnowledgeSaved(trimmed, result?.id || null), 600);

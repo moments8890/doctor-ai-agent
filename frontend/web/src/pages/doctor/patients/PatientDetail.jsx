@@ -11,6 +11,8 @@ import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
 import { generateQRToken } from "../../../api";
 import QRDialog from "../../../components/QRDialog";
@@ -352,6 +354,7 @@ function RecordListSection({ loading, error, records, filteredRecords, activeTab
 
 function usePatientDetailState({ patient, doctorId, onDeleted }) {
   const navigate = useAppNavigate();
+  const queryClient = useQueryClient();
   const { getRecords, exportPatientPdf, exportOutpatientReport, deletePatient } = useApi();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -367,7 +370,7 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
     getRecords({ doctorId, patientId: patient.id, limit: 100 }).then((d) => setRecords(d.items || [])).catch((e) => setError(e.message || "加载失败")).finally(() => setLoading(false));
   }, [patient?.id, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [load]);
-  async function handleDelete() { setDeleting(true); try { await deletePatient(patient.id, doctorId); setDeleteConfirmOpen(false); if (onDeleted) { onDeleted(patient.id); return; } navigate(dp("patients")); } catch (e) { setError(e.message || "删除失败"); setDeleteConfirmOpen(false); } finally { setDeleting(false); } }
+  async function handleDelete() { setDeleting(true); try { await deletePatient(patient.id, doctorId); queryClient.invalidateQueries({ queryKey: QK.patients(doctorId) }); setDeleteConfirmOpen(false); if (onDeleted) { onDeleted(patient.id); return; } navigate(dp("patients")); } catch (e) { setError(e.message || "删除失败"); setDeleteConfirmOpen(false); } finally { setDeleting(false); } }
   async function handleExportPdf(opts) { setExportingPdf(true); setExportError(""); try { await exportPatientPdf(patient.id, doctorId, opts); } catch (e) { setExportError(e.message || "导出失败"); } finally { setExportingPdf(false); } }
   async function handleExportReport() { setExportingReport(true); setExportError(""); try { await exportOutpatientReport(patient.id, doctorId); } catch (e) { setExportError(e.message || "生成失败，请确认已有病历记录"); } finally { setExportingReport(false); } }
 

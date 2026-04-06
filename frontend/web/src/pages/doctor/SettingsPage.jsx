@@ -183,6 +183,7 @@ function StubSubpage({ title, onBack, isMobile }) {
 
 function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
   const { getDoctorProfile, updateDoctorProfile } = useApi();
+  const queryClient = useQueryClient();
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [nameSaving, setNameSaving] = useState(false);
@@ -201,12 +202,12 @@ function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
     const trimmed = nameInput.trim();
     if (!trimmed) { setNameError("姓名不能为空"); return; }
     setNameSaving(true); setNameError("");
-    try { await updateDoctorProfile(doctorId, { name: trimmed }); setAuth(doctorId, trimmed, accessToken); setNameDialogOpen(false); }
+    try { await updateDoctorProfile(doctorId, { name: trimmed }); queryClient.invalidateQueries({ queryKey: QK.doctorProfile(doctorId) }); setAuth(doctorId, trimmed, accessToken); setNameDialogOpen(false); }
     catch (e) { setNameError(e.message || "保存失败"); } finally { setNameSaving(false); }
   }
   async function handleSaveSpecialty() {
     const trimmed = specialtyInput.trim(); setSpecialtySaving(true); setSpecialtyError("");
-    try { await updateDoctorProfile(doctorId, { specialty: trimmed || null }); setSpecialty(trimmed); setSpecialtyDialogOpen(false); }
+    try { await updateDoctorProfile(doctorId, { specialty: trimmed || null }); queryClient.invalidateQueries({ queryKey: QK.doctorProfile(doctorId) }); setSpecialty(trimmed); setSpecialtyDialogOpen(false); }
     catch (e) { setSpecialtyError(e.message || "保存失败"); } finally { setSpecialtySaving(false); }
   }
 
@@ -216,7 +217,7 @@ function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
   const [clinicSaving, setClinicSaving] = useState(false);
   async function handleSaveClinic() {
     const trimmed = clinicInput.trim(); setClinicSaving(true);
-    try { await updateDoctorProfile(doctorId, { clinic_name: trimmed || null }); setClinicName(trimmed); setClinicDialogOpen(false); }
+    try { await updateDoctorProfile(doctorId, { clinic_name: trimmed || null }); queryClient.invalidateQueries({ queryKey: QK.doctorProfile(doctorId) }); setClinicName(trimmed); setClinicDialogOpen(false); }
     catch {} finally { setClinicSaving(false); }
   }
 
@@ -226,7 +227,7 @@ function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
   const [bioSaving, setBioSaving] = useState(false);
   async function handleSaveBio() {
     const trimmed = bioInput.trim(); setBioSaving(true);
-    try { await updateDoctorProfile(doctorId, { bio: trimmed || null }); setBio(trimmed); setBioDialogOpen(false); }
+    try { await updateDoctorProfile(doctorId, { bio: trimmed || null }); queryClient.invalidateQueries({ queryKey: QK.doctorProfile(doctorId) }); setBio(trimmed); setBioDialogOpen(false); }
     catch {} finally { setBioSaving(false); }
   }
 

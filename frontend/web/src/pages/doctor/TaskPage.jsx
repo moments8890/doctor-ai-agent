@@ -134,6 +134,7 @@ function SendConfirmSheet({ open, onClose, item, onConfirm, sending }) {
 // ── Create task sheet ──
 function CreateTaskSheet({ open, onClose, doctorId, onCreated }) {
   const api = useApi();
+  const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [dueAt, setDueAt] = useState("");
   const [creating, setCreating] = useState(false);
@@ -147,6 +148,7 @@ function CreateTaskSheet({ open, onClose, doctorId, onCreated }) {
         title: title.trim(),
         due_at: dueAt || undefined,
       });
+      queryClient.invalidateQueries({ queryKey: QK.tasks(doctorId, "pending") });
       onCreated?.(task);
       setTitle("");
       setDueAt("");
@@ -354,6 +356,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
     setTeachSaving(true);
     try {
       await (api.createRuleFromEdit || (() => Promise.resolve()))(teachEditId, doctorId);
+      queryClient.invalidateQueries({ queryKey: QK.knowledge(_doctorId) });
       setTeachEditId(null);
       setTeachSaved(true);
     } catch {
@@ -419,6 +422,8 @@ export default function TaskPage({ doctorId, urlSubpage }) {
     try {
       const patchTask = api.patchTask || (() => Promise.resolve());
       await patchTask(item.id, doctorId, "pending");
+      queryClient.invalidateQueries({ queryKey: QK.tasks(_doctorId, "pending") });
+      queryClient.invalidateQueries({ queryKey: QK.tasks(_doctorId, "completed") });
     } catch { /* silent */ }
   };
 

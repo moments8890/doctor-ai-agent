@@ -20,6 +20,8 @@ import ConfirmDialog from "../../../components/ConfirmDialog";
 import SheetDialog from "../../../components/SheetDialog";
 import DialogFooter from "../../../components/DialogFooter";
 import IconBadge from "../../../components/IconBadge";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { ICON_BADGES } from "../constants";
@@ -64,6 +66,7 @@ function getUsageTypeConfig(type) {
 export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDelete, isMobile }) {
   const navigate = useAppNavigate();
   const api = useApi();
+  const queryClient = useQueryClient();
 
   const [item, setItem] = useState(null);
   const [usage, setUsage] = useState([]);
@@ -126,6 +129,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
     setSaving(true);
     try {
       await api.updateKnowledgeItem(doctorId, itemId, trimmed);
+      queryClient.invalidateQueries({ queryKey: QK.knowledge(doctorId) });
       setEditOpen(false);
       load(); // reload item
     } catch (e) {
