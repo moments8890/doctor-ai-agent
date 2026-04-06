@@ -10,6 +10,7 @@ import SubpageHeader from "../../components/SubpageHeader";
 import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
 import PatientInterviewPage from "../patient/InterviewPage";
+import { PatientApiProvider } from "../../api/PatientApiContext";
 import ListCard from "../../components/ListCard";
 import IconBadge from "../../components/IconBadge";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -463,12 +464,16 @@ function StepDoneContent({ doctorId, progress, updateProgress, setCanAdvance, ap
         title="患者预问诊体验"
       >
         <Box sx={{ height: "70vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          {interviewToken && (
-            <PatientInterviewPage
-              token={interviewToken}
-              onBack={() => setShowInterview(false)}
-              onLogout={() => setShowInterview(false)}
-            />
+          {/* Only mount InterviewPage when sheet is open — avoids usePatientApi() crash
+              when drawer children render eagerly with no PatientApiContext provider. */}
+          {showInterview && interviewToken && (
+            <PatientApiProvider>
+              <PatientInterviewPage
+                token={interviewToken}
+                onBack={() => setShowInterview(false)}
+                onLogout={() => setShowInterview(false)}
+              />
+            </PatientApiProvider>
           )}
         </Box>
       </SheetDialog>
