@@ -105,7 +105,7 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                 ...(isRejected ? { opacity: 0.4 } : {}),
               }}>
                 {/* Checkbox */}
-                <Box onClick={(e) => { e.stopPropagation(); onDecide(s.id, isConfirmed ? null : "confirmed", {}); }}
+                <Box onClick={(e) => { e.stopPropagation(); onDecide(s.id, isConfirmed ? "rejected" : "confirmed", {}); }}
                   sx={{ width: 18, height: 18, borderRadius: "50%", flexShrink: 0, mt: 0.5, cursor: "pointer",
                     ...(isConfirmed
                       ? { bgcolor: COLOR.primary, display: "flex", alignItems: "center", justifyContent: "center" }
