@@ -8,6 +8,8 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Box, Typography } from "@mui/material";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import SubpageHeader from "../../../components/SubpageHeader";
@@ -64,6 +66,7 @@ function DetailField({ label, children, color }) {
 
 export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }) {
   const api = useApi();
+  const queryClient = useQueryClient();
   const navigate = useAppNavigate();
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -110,6 +113,9 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
     setCompleting(true);
     try {
       await (api.patchTask || (() => Promise.resolve()))(taskId, doctorId, "completed");
+      queryClient.invalidateQueries({ queryKey: QK.tasks(doctorId, "pending") });
+      queryClient.invalidateQueries({ queryKey: QK.tasks(doctorId, "completed") });
+      queryClient.invalidateQueries({ queryKey: QK.draftSummary(doctorId) });
       showToast("已标记完成");
       setTimeout(() => onBack?.(), 400);
     } catch {
@@ -123,6 +129,9 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
     setDeleting(true);
     try {
       await (api.patchTask || (() => Promise.resolve()))(taskId, doctorId, "cancelled");
+      queryClient.invalidateQueries({ queryKey: QK.tasks(doctorId, "pending") });
+      queryClient.invalidateQueries({ queryKey: QK.tasks(doctorId, "completed") });
+      queryClient.invalidateQueries({ queryKey: QK.draftSummary(doctorId) });
       showToast("已删除");
       setTimeout(() => onBack?.(), 400);
     } catch {
