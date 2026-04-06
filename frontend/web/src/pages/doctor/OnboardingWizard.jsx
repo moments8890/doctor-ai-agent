@@ -456,7 +456,7 @@ function StepDoneContent({ doctorId, progress, updateProgress, setCanAdvance, ap
             可选：体验患者端预问诊
           </Typography>
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, lineHeight: 1.6, mb: 2 }}>
-            点击下方，在当前页面体验患者填写预问诊的完整流程
+            以体验患者的身份填写预问诊，AI 会引用已有病历记录来辅助问诊
           </Typography>
           <AppButton
             variant="secondary" size="sm"

@@ -443,7 +443,7 @@ async def run_diagnosis(
         if not os.environ.get("DIAGNOSIS_LLM"):
             os.environ["DIAGNOSIS_LLM"] = provider_name
 
-        _DIAGNOSIS_TIMEOUT = int(os.environ.get("DIAGNOSIS_TIMEOUT", "10"))
+        _DIAGNOSIS_TIMEOUT = int(os.environ.get("DIAGNOSIS_TIMEOUT", "30"))
 
         try:
             llm_result = await asyncio.wait_for(
