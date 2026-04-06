@@ -258,12 +258,13 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
             p_result.message_count += 1
 
             reply_text = _resolve_kb_refs(m_spec.ai_reply, kb_map)
+            clean_reply = re.sub(r"\[KB-\d+\]", "", reply_text).strip()
 
             if m_spec.auto_send:
                 outbound = PatientMessage(
                     patient_id=patient.id,
                     doctor_id=doctor_id,
-                    content=reply_text,
+                    content=clean_reply,
                     direction="outbound",
                     source="ai",
                     reference_id=inbound.id,
