@@ -226,12 +226,17 @@ async def register_doctor(phone: str, name: str, year_of_birth: int, invite_code
         if code_row.max_uses > 0 and code_row.used_count >= code_row.max_uses:
             raise HTTPException(400, "邀请码已被使用")
 
-        # Check if phone already registered as doctor
+        # Check if this nickname is already taken (phone stores nickname in this auth system).
+        # Also check by name to catch doctors created via other flows (e.g. mini-app) where
+        # phone is NULL but the same display name was already registered.
+        from sqlalchemy import or_
         existing = (await db.execute(
-            select(Doctor).where(Doctor.phone == phone)
+            select(Doctor).where(
+                or_(Doctor.phone == phone, Doctor.name == name)
+            ).where(~Doctor.doctor_id.like("inttest_%"))
         )).scalar_one_or_none()
         if existing:
-            raise HTTPException(400, "该手机号已注册为医生")
+            raise HTTPException(400, "该昵称已被注册，请换一个或直接登录")
 
         # Create doctor
         doctor_id = f"inv_{secrets.token_urlsafe(9)}"
