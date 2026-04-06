@@ -4,14 +4,12 @@
  * MyAIPage -- "我的AI" tab. AI identity dashboard showing the doctor's AI
  * status, knowledge rules, quick actions, and recent AI activity.
  */
-import { useEffect, useState } from "react";
 import { Badge, Box, CircularProgress, Skeleton, Typography } from "@mui/material";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import ContentPasteOutlinedIcon from "@mui/icons-material/ContentPasteOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import { useDoctorStore } from "../../store/doctorStore";
-import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import SectionLabel from "../../components/SectionLabel";
@@ -27,6 +25,7 @@ import { isWizardDone, clearWizardDone } from "./onboardingWizardState";
 import StatColumn from "../../components/StatColumn";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
+import { useKnowledgeItems, useReviewQueue, useAIActivity } from "../../lib/doctorQueries";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -124,40 +123,16 @@ function formatActivityTime(ts) {
 export default function MyAIPage({ doctorId }) {
   const navigate = useAppNavigate();
   const { doctorName } = useDoctorStore();
-  const api = useApi();
 
-  // State
-  const [knowledge, setKnowledge] = useState(null);
-  const [reviewQueue, setReviewQueue] = useState(null);
-  const [activity, setActivity] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // React Query-backed data fetching (shared cache — no redundant requests on tab switch)
+  const { data: knowledgeData, isLoading: kLoading } = useKnowledgeItems();
+  const { data: reviewQueueData, isLoading: qLoading } = useReviewQueue();
+  const { data: activityData, isLoading: aLoading } = useAIActivity(3);
 
-  // Fetch all dashboard data
-  useEffect(() => {
-    if (!doctorId) return;
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      const fetchKnowledge = api.getKnowledgeItems || (() => Promise.resolve(null));
-      const fetchReview = api.getReviewQueue || (() => Promise.resolve(null));
-      const fetchActivity = api.fetchAIActivity || (() => Promise.resolve(null));
-
-      const results = await Promise.allSettled([
-        fetchKnowledge(doctorId).catch(() => null),
-        fetchReview(doctorId).catch(() => null),
-        fetchActivity(doctorId, 3).catch(() => null),
-      ]);
-      if (cancelled) return;
-      setKnowledge(results[0].status === "fulfilled" ? results[0].value : null);
-      setReviewQueue(results[1].status === "fulfilled" ? results[1].value : null);
-      setActivity(results[2].status === "fulfilled" ? results[2].value : null);
-      setLoading(false);
-    }
-
-    load();
-    return () => { cancelled = true; };
-  }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const loading = kLoading || qLoading || aLoading;
+  const knowledge = knowledgeData ?? null;
+  const reviewQueue = reviewQueueData || { pending: [], completed: [] };
+  const activity = activityData ?? null;
 
   // Derived values — all stats computed from actual data
   const aiName = `${doctorName || "医生"} 的 AI`;

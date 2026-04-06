@@ -1,7 +1,10 @@
 import Box from "@mui/material/Box";
 import { useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { onAuthExpired, setWebToken } from "./api";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { onAuthExpired, setWebToken, fetchDraftSummary, getTasks } from "./api";
+import { queryClient } from "./lib/queryClient";
+import { QK } from "./lib/queryKeys";
 import { ApiProvider } from "./api/ApiContext";
 import { MockApiProvider } from "./api/MockApiProvider";
 import { PatientApiProvider } from "./api/PatientApiContext";
@@ -211,6 +214,21 @@ export default function App() {
 		if (accessToken) setWebToken(accessToken);
 	}, [accessToken]);
 
+	// Boot-time prefetch of badge-critical data after auth is established
+	useEffect(() => {
+		if (!accessToken || !doctorId) return;
+		queryClient.prefetchQuery({
+			queryKey: QK.draftSummary(doctorId),
+			queryFn:  () => fetchDraftSummary(doctorId),
+			staleTime: 30_000,
+		});
+		queryClient.prefetchQuery({
+			queryKey: QK.tasks(doctorId, "pending"),
+			queryFn:  () => getTasks(doctorId, "pending"),
+			staleTime: 60_000,
+		});
+	}, [accessToken, doctorId]);
+
 	// Handle 401 token expiry — Mini App shows message, web redirects to login
 	useEffect(() => {
 		onAuthExpired(() => {
@@ -227,6 +245,7 @@ export default function App() {
 	}, []);
 
 	return (
+		<QueryClientProvider client={queryClient}>
 		<Routes>
 			{/* Mobile-framed routes (doctor, patient, login) */}
 			<Route
@@ -286,5 +305,6 @@ export default function App() {
 			<Route path="/debug" element={<DebugRedirect />} />
 			<Route path="*" element={<Navigate to="/" replace />} />
 		</Routes>
+		</QueryClientProvider>
 	);
 }

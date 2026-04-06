@@ -4,6 +4,9 @@
  * 设置面板：医生账户信息编辑、科室专业设置、报告模板管理和退出登录。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useKnowledgeItems } from "../../lib/doctorQueries";
+import { QK } from "../../lib/queryKeys";
 import {
   Box, CircularProgress, TextField, Typography,
 } from "@mui/material";
@@ -109,30 +112,25 @@ function SpecialtyDialog({ open, specialtyInput, specialtySaving, specialtyError
 function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
   const navigate = useAppNavigate();
   const api = useApi();
-  const { getKnowledgeItems, deleteKnowledgeItem } = api;
-  const [items, setItems] = useState([]);
+  const queryClient = useQueryClient();
+  const { deleteKnowledgeItem } = api;
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+
+  // React Query-backed knowledge list (shared cache)
+  const { data: kData, isLoading: loading, refetch: refetchItems } = useKnowledgeItems();
+  const items = kData ? (Array.isArray(kData) ? kData : (kData.items || [])) : [];
 
   const load = useCallback(() => {
-    setLoading(true);
+    refetchItems();
+  }, [refetchItems]);
 
-    const fetchItems = getKnowledgeItems(doctorId)
-      .then((data) => Array.isArray(data) ? data : (data.items || []))
-      .catch(() => []);
-
-    const fetchStats = (api.fetchKnowledgeStats || (() => Promise.resolve(null)))(doctorId)
-      .then((data) => data?.stats || null)
+  // Fetch stats (not cached — less critical)
+  useEffect(() => {
+    if (!doctorId) return;
+    (api.fetchKnowledgeStats || (() => Promise.resolve(null)))(doctorId)
+      .then((data) => setStats(data?.stats || null))
       .catch(() => null);
-
-    Promise.all([fetchItems, fetchStats])
-      .then(([itemsData, statsData]) => {
-        setItems(itemsData);
-        setStats(statsData);
-      })
-      .finally(() => setLoading(false));
   }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [load]);
 
   // URL-driven: detail view for specific knowledge item
   if (urlSubId && urlSubId !== "new" && urlSubId !== "add") {
@@ -155,7 +153,7 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
   async function handleDelete(itemId) {
     try {
       await deleteKnowledgeItem(doctorId, itemId);
-      setItems((prev) => prev.filter((i) => i.id !== itemId));
+      queryClient.invalidateQueries({ queryKey: QK.knowledge(doctorId) });
     } catch {}
   }
 

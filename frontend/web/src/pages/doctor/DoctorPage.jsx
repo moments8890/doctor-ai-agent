@@ -49,6 +49,7 @@ import SuggestionChips from "../../components/SuggestionChips";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
+import { usePendingTasks, useDraftSummary } from "../../lib/doctorQueries";
 
 function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, onLogout }) {
   return (
@@ -702,13 +703,27 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
 }
 
 function useDoctorPageState({ doctorId, accessToken, setAuth }) {
-  const { getTasks, getDoctorProfile, updateDoctorProfile, fetchDraftSummary: fetchDraftSummaryApi } = useApi();
-  const [pendingTaskCount, setPendingTaskCount] = useState(0);
-  const [reviewCount, setReviewCount] = useState(0);
-  const [followupCount, setFollowupCount] = useState(0);
+  const { getDoctorProfile, updateDoctorProfile } = useApi();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardName, setOnboardName] = useState("");
   const [onboardSaving, setOnboardSaving] = useState(false);
+
+  // Badge counts via React Query (cache-backed, no redundant fetches on tab switch)
+  const { data: tasksData } = usePendingTasks();
+  const { data: summaryData } = useDraftSummary();
+
+  const pendingTaskCount = (() => {
+    if (!tasksData) return 0;
+    const items = Array.isArray(tasksData) ? tasksData : (tasksData.items || []);
+    return items.length;
+  })();
+
+  const reviewCount = (() => {
+    if (!summaryData) return pendingTaskCount;
+    return (summaryData.review_pending_count ?? 0) + (summaryData.pending ?? 0);
+  })();
+
+  const followupCount = 0;
 
   useEffect(() => {
     if (!doctorId) return;
@@ -716,31 +731,6 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     if (localStorage.getItem(setupDoneKey)) return;
     getDoctorProfile(doctorId).then((p) => { if (!p.onboarded) { setOnboardName(p.name || ""); setShowOnboarding(true); } }).catch(() => {});
   }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!doctorId) return;
-    getTasks(doctorId, "pending").then((d) => setPendingTaskCount((Array.isArray(d) ? d : (d.items || [])).length)).catch(() => {});
-  }, [doctorId]);
-
-  // Fetch review + followup badge counts
-  useEffect(() => {
-    if (!doctorId) return;
-    // Try fetching draft summary for badge counts; fall back to task count
-    if (typeof fetchDraftSummaryApi === "function") {
-      fetchDraftSummaryApi(doctorId)
-        .then((d) => {
-          // review badge = pending AI suggestions + pending draft replies (both in 门诊 tab now)
-          setReviewCount((d?.review_pending_count ?? 0) + (d?.pending ?? 0));
-          // followup badge = pending tasks only (draft replies moved to review)
-          setFollowupCount(0);
-        })
-        .catch(() => {
-          // Fall back: use pending task count for review badge
-          setReviewCount(pendingTaskCount);
-        });
-    } else {
-      setReviewCount(pendingTaskCount);
-    }
-  }, [doctorId, pendingTaskCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleOnboardSubmit() {
     if (!onboardName.trim() || onboardSaving) return;

@@ -10,6 +10,9 @@
  *  - Review mode: suggestions exist, grouped by section
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTaskRecord, useSuggestions } from "../../lib/doctorQueries";
+import { QK } from "../../lib/queryKeys";
 import { Box, Collapse, Skeleton, Typography } from "@mui/material";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
@@ -190,17 +193,44 @@ export default function ReviewPage({ recordId }) {
   } = useApi();
   const { doctorId } = useDoctorStore();
 
+  // Local state for optimistic mutations
   const [record, setRecord] = useState(null);
   const [suggestions, setSuggestions] = useState(null); // null = not loaded, [] = empty
   const [expandedIds, setExpandedIds] = useState(new Set());
-  const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(false);
   const [toast, showToast] = useToast();
   const [knowledgeMap, setKnowledgeMap] = useState({});
-  const pollRef = useRef(null);
+  const queryClient = useQueryClient();
   const params = new URLSearchParams(window.location.search);
   const source = params.get("source") || "";
   const reviewTaskId = params.get("review_task_id") || "";
+
+  // React Query — record fetch (cached, stale 1min)
+  const { data: recordData, isLoading: recordLoading } = useTaskRecord(recordId);
+
+  // React Query — suggestions with built-in polling when empty
+  const { data: suggestionsData, isLoading: sugLoading } = useSuggestions(recordId);
+
+  const loading = recordLoading || sugLoading;
+
+  // Sync React Query data into local state for optimistic mutations
+  useEffect(() => {
+    if (recordData && !record) setRecord(recordData);
+  }, [recordData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!suggestionsData) return;
+    const items = Array.isArray(suggestionsData) ? suggestionsData : (suggestionsData?.suggestions || suggestionsData?.items || []);
+    // Update record status from suggestions response
+    if (suggestionsData.status) {
+      setRecord((prev) => prev ? { ...prev, status: suggestionsData.status } : prev);
+    }
+    // Only set from remote if we don't have local suggestions yet (preserve optimistic updates)
+    setSuggestions((prev) => {
+      if (prev !== null && prev.length > 0) return prev; // keep local optimistic state
+      return items;
+    });
+  }, [suggestionsData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Fetch cited knowledge items when suggestions change ─────────────────── */
 
@@ -222,64 +252,6 @@ export default function ReviewPage({ recordId }) {
       })
       .catch(() => {}); // silent fail — citations will show as unresolved
   }, [citedIds, doctorId, getKnowledgeBatch]);
-
-  /* ── Fetch record + suggestions on mount ─────────────────────────────────── */
-
-  const fetchSuggestions = useCallback(async () => {
-    try {
-      const data = await getSuggestions(recordId, doctorId);
-      const items = Array.isArray(data) ? data : (data.suggestions || data.items || []);
-      // Update record status from API response
-      if (data.status) {
-        setRecord((prev) => prev ? { ...prev, status: data.status } : prev);
-      }
-      // Stop polling on failure
-      if (data.status === "diagnosis_failed") {
-        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-        setSuggestions([]);
-        return false;
-      }
-      if (items.length > 0) {
-        setSuggestions(items);
-        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-        return true;
-      }
-      setSuggestions([]);
-      return false;
-    } catch {
-      setSuggestions([]);
-      return false;
-    }
-  }, [recordId, doctorId]);
-
-  useEffect(() => {
-    if (!recordId || !doctorId) return;
-
-    async function init() {
-      setLoading(true);
-      try {
-        const rec = await getTaskRecord(recordId, doctorId);
-        setRecord(rec);
-      } catch {
-        // record fetch failed
-      }
-      const hasSuggestions = await fetchSuggestions();
-      setLoading(false);
-
-      if (!hasSuggestions) {
-        pollRef.current = setInterval(async () => {
-          const found = await fetchSuggestions();
-          if (found && pollRef.current) {
-            clearInterval(pollRef.current);
-            pollRef.current = null;
-          }
-        }, 3000);
-      }
-    }
-    init();
-
-    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
-  }, [recordId, doctorId, fetchSuggestions]);
 
   /* ── Handlers ────────────────────────────────────────────────────────────── */
 
@@ -320,15 +292,10 @@ export default function ReviewPage({ recordId }) {
     try {
       await triggerDiagnosis(recordId, doctorId);
       setRecord((prev) => prev ? { ...prev, status: "pending_review" } : prev);
+      // Reset local suggestions so React Query polling resumes (refetchInterval kicks in when empty)
+      setSuggestions([]);
+      queryClient.invalidateQueries({ queryKey: QK.suggestions(recordId, doctorId) });
       showToast("已提交分析请求");
-      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-      pollRef.current = setInterval(async () => {
-        const found = await fetchSuggestions();
-        if (found && pollRef.current) {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
-        }
-      }, 3000);
     } catch {
       showToast("请求失败");
     }
@@ -346,6 +313,9 @@ export default function ReviewPage({ recordId }) {
           lastFollowUpTaskIds: followUpTaskIds,
         });
       }
+      // Invalidate badge-relevant caches after finalize
+      queryClient.invalidateQueries({ queryKey: QK.draftSummary(doctorId) });
+      queryClient.invalidateQueries({ queryKey: QK.reviewQueue(doctorId) });
       showToast("审核完成");
       setTimeout(() => {
         if (isPreviewOnboardingFlow && followUpTaskIds.length > 0) {

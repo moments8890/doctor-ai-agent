@@ -1,0 +1,154 @@
+import { useQuery } from "@tanstack/react-query";
+import { QK } from "./queryKeys";
+import { useApi } from "../api/ApiContext";
+import { useDoctorStore } from "../store/doctorStore";
+
+// staleTime constants
+const STALE = {
+  profile:    60 * 60_000,  // 1 hr
+  knowledge:  30 * 60_000,  // 30 min
+  patients:    3 * 60_000,  // 3 min
+  aiAttention: 5 * 60_000,  // 5 min
+  aiActivity:  2 * 60_000,  // 2 min
+  counts:        30_000,    // 30 sec — badge-critical
+  queue:         30_000,    // 30 sec
+  tasks:         60_000,    // 1 min
+  record:        60_000,    // 1 min
+};
+
+export function useDoctorProfile() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.doctorProfile(doctorId),
+    queryFn:  () => api.getDoctorProfile(doctorId),
+    staleTime: STALE.profile,
+    enabled:  !!doctorId,
+  });
+}
+
+export function usePendingTasks() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.tasks(doctorId, "pending"),
+    queryFn:  () => api.getTasks(doctorId, "pending"),
+    staleTime: STALE.tasks,
+    enabled:  !!doctorId,
+  });
+}
+
+export function useCompletedTasks() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.tasks(doctorId, "completed"),
+    queryFn:  () => api.getTasks(doctorId, "completed"),
+    staleTime: STALE.tasks,
+    enabled:  !!doctorId,
+  });
+}
+
+export function useDraftSummary() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.draftSummary(doctorId),
+    queryFn:  () => api.fetchDraftSummary(doctorId),
+    staleTime: STALE.counts,
+    enabled:  !!doctorId,
+  });
+}
+
+export function useReviewQueue() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.reviewQueue(doctorId),
+    queryFn:  () => api.getReviewQueue(doctorId),
+    staleTime: STALE.queue,
+    enabled:  !!doctorId,
+  });
+}
+
+export function useDrafts(opts = {}) {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.drafts(doctorId),
+    queryFn:  () => api.fetchDrafts(doctorId, opts),
+    staleTime: STALE.queue,
+    enabled:  !!doctorId,
+  });
+}
+
+export function useKnowledgeItems() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.knowledge(doctorId),
+    queryFn:  () => api.getKnowledgeItems(doctorId),
+    staleTime: STALE.knowledge,
+    enabled:  !!doctorId,
+  });
+}
+
+export function usePatients() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.patients(doctorId),
+    queryFn:  () => api.getPatients(doctorId, {}, 200),
+    staleTime: STALE.patients,
+    enabled:  !!doctorId,
+  });
+}
+
+export function useAIActivity(limit = 3) {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.aiActivity(doctorId, limit),
+    queryFn:  () => api.fetchAIActivity(doctorId, limit),
+    staleTime: STALE.aiActivity,
+    enabled:  !!doctorId,
+  });
+}
+
+export function useAIAttention() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.aiAttention(doctorId),
+    queryFn:  () => api.fetchAIAttention(doctorId),
+    staleTime: STALE.aiAttention,
+    enabled:  !!doctorId,
+  });
+}
+
+export function useTaskRecord(recordId) {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.taskRecord(recordId, doctorId),
+    queryFn:  () => api.getTaskRecord(recordId, doctorId),
+    staleTime: STALE.record,
+    enabled:  !!recordId && !!doctorId,
+  });
+}
+
+export function useSuggestions(recordId) {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.suggestions(recordId, doctorId),
+    queryFn:  () => api.getSuggestions(recordId, doctorId),
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const items = Array.isArray(data) ? data : (data?.suggestions || data?.items || []);
+      return items.length === 0 ? 3000 : false;
+    },
+    enabled:  !!recordId && !!doctorId,
+  });
+}

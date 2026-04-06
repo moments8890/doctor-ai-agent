@@ -15,6 +15,10 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { relativeFuture } from "../../utils/time";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
+import { useQueryClient } from "@tanstack/react-query";
+import { usePendingTasks, useCompletedTasks, useDrafts, useDraftSummary } from "../../lib/doctorQueries";
+import { QK } from "../../lib/queryKeys";
+import { useDoctorStore } from "../../store/doctorStore";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
 import SectionLabel from "../../components/SectionLabel";
@@ -223,9 +227,8 @@ export default function TaskPage({ doctorId, urlSubpage }) {
       .map((value) => value.trim())
       .filter(Boolean)
   );
-  const [data, setData] = useState(null);
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { doctorId: _doctorId } = useDoctorStore();
+  const queryClient = useQueryClient();
   const [error, setError] = useState(null);
 
   // Send confirmation sheet state
@@ -237,45 +240,44 @@ export default function TaskPage({ doctorId, urlSubpage }) {
   const [teachSaving, setTeachSaving] = useState(false);
   const [teachSaved, setTeachSaved] = useState(false);
 
-  const loadData = useCallback(async () => {
-    if (!doctorId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const [draftsRes, summaryRes, tasksRes, completedTasksRes] = await Promise.all([
-        (api.fetchDrafts || (() => Promise.resolve({})))(doctorId),
-        (api.fetchDraftSummary || (() => Promise.resolve({})))(doctorId),
-        (api.getTasks || (() => Promise.resolve([])))(doctorId, "pending")
-          .then((d) => Array.isArray(d) ? d : (d.items || []))
-          .catch(() => []),
-        (api.getTasks || (() => Promise.resolve([])))(doctorId, "completed")
-          .then((d) => Array.isArray(d) ? d : (d.items || []))
-          .catch(() => []),
-      ]);
-      // Handle both old flat array format and new structured format
-      if (Array.isArray(draftsRes)) {
-        setData({ pending_messages: draftsRes, upcoming_followups: [], recently_sent: completedTasksRes, tasks: tasksRes });
-      } else {
-        setData({ ...(draftsRes || {}), tasks: tasksRes, recently_sent: [...((draftsRes || {}).recently_sent || []), ...completedTasksRes] });
-      }
-      setSummary(summaryRes || {});
-    } catch (err) {
-      // 404 means no data yet — treat as empty, not as an error
-      const is404 = err?.status === 404 || err?.response?.status === 404 || (err.message && /not found/i.test(err.message));
-      if (is404) {
-        setData({ pending_messages: [], upcoming_followups: [], recently_sent: [], tasks: [] });
-        setSummary({});
-      } else {
-        setError(err.message || "加载失败");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [doctorId, api]);
+  const { data: pendingTasksData, isLoading: ptLoading, refetch: refetchPending } = usePendingTasks();
+  const { data: completedTasksData, isLoading: ctLoading, refetch: refetchCompleted } = useCompletedTasks();
+  const { data: draftsDataRaw, isLoading: drLoading, refetch: refetchDrafts } = useDrafts();
+  const { data: summaryData, isLoading: sumLoading, refetch: refetchSummary } = useDraftSummary();
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const loading = ptLoading || ctLoading || drLoading || sumLoading;
+
+  // Derive canonical data shape from React Query results
+  const _pendingTasks  = Array.isArray(pendingTasksData) ? pendingTasksData : (pendingTasksData?.items || []);
+  const _completedTasksList = Array.isArray(completedTasksData) ? completedTasksData : (completedTasksData?.items || []);
+  const _pendingMessages = Array.isArray(draftsDataRaw) ? draftsDataRaw : (draftsDataRaw?.pending_messages || []);
+  const _upcomingFollowups = summaryData?.upcoming_followups || [];
+  const _recentlySent = (() => {
+    const fromSummary = summaryData?.recently_sent || summaryData?.sent || [];
+    return [...fromSummary, ..._completedTasksList];
+  })();
+
+  const data = { pending_messages: _pendingMessages, upcoming_followups: _upcomingFollowups, tasks: _pendingTasks, recently_sent: _recentlySent };
+  const summary = summaryData || {};
+
+  const loadData = useCallback(() => {
+    refetchPending(); refetchCompleted(); refetchDrafts(); refetchSummary();
+  }, [refetchPending, refetchCompleted, refetchDrafts, refetchSummary]);
+
+  // Local state for optimistic mutations (setData/setSummary used by handlers below)
+  const [dataOverride, setData] = useState(null);
+  const [summaryOverride, setSummary] = useState(null);
+
+  // Reset overrides when React Query data refreshes
+  useEffect(() => { setData(null); setSummary(null); }, [pendingTasksData, completedTasksData, draftsDataRaw, summaryData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Merge optimistic overrides on top of derived data
+  const effectiveData = dataOverride ? { ...data, ...dataOverride } : data;
+  const effectiveSummary = summaryOverride ? { ...summary, ...summaryOverride } : summary;
+
+  // Ref so mutation handlers always see current effective data without stale closure
+  const effectiveDataRef = { current: effectiveData };
+  const effectiveSummaryRef = { current: effectiveSummary };
 
   useEffect(() => {
     if (!doctorId) return;
@@ -284,10 +286,10 @@ export default function TaskPage({ doctorId, urlSubpage }) {
     }
   }, [doctorId, origin]);
 
-  const pendingMessages = data?.pending_messages || [];
-  const upcomingFollowups = data?.upcoming_followups || [];
-  const pendingTasks = data?.tasks || [];
-  const recentlySent = data?.recently_sent || [];
+  const pendingMessages = effectiveData?.pending_messages || [];
+  const upcomingFollowups = effectiveData?.upcoming_followups || [];
+  const pendingTasks = effectiveData?.tasks || [];
+  const recentlySent = effectiveData?.recently_sent || [];
 
   // Merge followups + tasks into one sorted list
   const allPendingItems = [
@@ -309,10 +311,14 @@ export default function TaskPage({ doctorId, urlSubpage }) {
     setSending(true);
     try {
       await (api.sendDraft || (() => Promise.resolve()))(confirmItem.id, doctorId);
-      // Remove from pending list
-      setData((prev) => ({
-        ...prev,
-        pending_messages: (prev?.pending_messages || []).filter((m) => m.id !== confirmItem.id),
+      // Invalidate badge caches after sending
+      queryClient.invalidateQueries({ queryKey: QK.draftSummary(_doctorId) });
+      queryClient.invalidateQueries({ queryKey: QK.drafts(_doctorId) });
+      // Optimistic update — remove from pending, add to sent
+      const cur = effectiveDataRef.current;
+      setData({
+        ...cur,
+        pending_messages: (cur?.pending_messages || []).filter((m) => m.id !== confirmItem.id),
         recently_sent: [
           {
             id: confirmItem.id,
@@ -321,14 +327,14 @@ export default function TaskPage({ doctorId, urlSubpage }) {
             read_status: "未读",
             time: "刚刚",
           },
-          ...(prev?.recently_sent || []),
+          ...(cur?.recently_sent || []),
         ],
-      }));
-      // Update summary counts
-      setSummary((prev) => ({
-        ...prev,
-        pending_reply: Math.max(0, (prev?.pending_reply || 0) - 1),
-      }));
+      });
+      const curS = effectiveSummaryRef.current;
+      setSummary({
+        ...curS,
+        pending_reply: Math.max(0, (curS?.pending_reply || 0) - 1),
+      });
       setConfirmItem(null);
     } catch {
       // keep sheet open on error
@@ -377,16 +383,19 @@ export default function TaskPage({ doctorId, urlSubpage }) {
       time: "刚刚",
       patient_id: item.patient_id,
     };
-    setData((prev) => ({
-      ...prev,
-      upcoming_followups: (prev?.upcoming_followups || []).filter((f) => f.id !== item.id),
-      tasks: (prev?.tasks || []).filter((t) => t.id !== item.id),
-      recently_sent: [completedItem, ...(prev?.recently_sent || [])],
-    }));
+    const cur = effectiveDataRef.current;
+    setData({
+      ...cur,
+      upcoming_followups: (cur?.upcoming_followups || []).filter((f) => f.id !== item.id),
+      tasks: (cur?.tasks || []).filter((t) => t.id !== item.id),
+      recently_sent: [completedItem, ...(cur?.recently_sent || [])],
+    });
     // Call API if available
     try {
       const patchTask = api.patchTask || (() => Promise.resolve());
       await patchTask(item.id, doctorId, "completed");
+      queryClient.invalidateQueries({ queryKey: QK.tasks(_doctorId, "pending") });
+      queryClient.invalidateQueries({ queryKey: QK.tasks(_doctorId, "completed") });
     } catch { /* silent */ }
   };
 
@@ -401,11 +410,12 @@ export default function TaskPage({ doctorId, urlSubpage }) {
       task_type: "general",
       due_at: null,
     };
-    setData((prev) => ({
-      ...prev,
-      tasks: [pendingItem, ...(prev?.tasks || [])],
-      recently_sent: (prev?.recently_sent || []).filter((s) => s.id !== item.id),
-    }));
+    const cur = effectiveDataRef.current;
+    setData({
+      ...cur,
+      tasks: [pendingItem, ...(cur?.tasks || [])],
+      recently_sent: (cur?.recently_sent || []).filter((s) => s.id !== item.id),
+    });
     try {
       const patchTask = api.patchTask || (() => Promise.resolve());
       await patchTask(item.id, doctorId, "pending");

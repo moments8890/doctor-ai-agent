@@ -12,6 +12,9 @@
  * navigate to the full ReviewPage for that record.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useReviewQueue, useDrafts } from "../../lib/doctorQueries";
+import { QK } from "../../lib/queryKeys";
 import { Box, Typography } from "@mui/material";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
@@ -208,37 +211,21 @@ const REVIEW_TABS = new Set(["pending", "replies", "completed"]);
 export default function ReviewQueuePage({ doctorId, urlSubpage }) {
   const navigate = useAppNavigate();
   const api = useApi();
-  const { getReviewQueue } = api;
-  const [queue, setQueue] = useState(null);
-  const [drafts, setDrafts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const params = new URLSearchParams(window.location.search);
   const highlightDraftId = params.get("highlight_draft") || "";
 
-  const load = useCallback(async () => {
-    if (!doctorId) return;
-    setLoading(true);
-    try {
-      const [reviewData, draftsData] = await Promise.all([
-        typeof getReviewQueue === "function"
-          ? getReviewQueue(doctorId)
-          : Promise.resolve({ pending: [], completed: [] }),
-        typeof api.fetchDrafts === "function"
-          ? api.fetchDrafts(doctorId, { includeSent: true }).catch(() => ({}))
-          : Promise.resolve({}),
-      ]);
-      setQueue(reviewData || { pending: [], completed: [] });
-      const msgs = Array.isArray(draftsData) ? draftsData : (draftsData?.pending_messages || []);
-      setDrafts(msgs);
-    } catch {
-      setQueue({ pending: [], completed: [] });
-      setDrafts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [doctorId, getReviewQueue, api]);
+  const { data: queueData, isLoading: qLoading, refetch: refetchQueue } = useReviewQueue();
+  const { data: draftsData, isLoading: dLoading, refetch: refetchDrafts } = useDrafts({ includeSent: true });
 
-  useEffect(() => { load(); }, [load]);
+  const loading = qLoading || dLoading;
+  const queue = queueData || { pending: [], completed: [] };
+  const drafts = Array.isArray(draftsData) ? draftsData : (draftsData?.pending_messages || []);
+
+  const load = useCallback(() => {
+    refetchQueue();
+    refetchDrafts();
+  }, [refetchQueue, refetchDrafts]);
 
   function handleNavigate(item) {
     navigate(`${dp("review")}/${item.record_id}`);

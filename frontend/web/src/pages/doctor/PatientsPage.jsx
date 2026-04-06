@@ -4,6 +4,9 @@
  * 患者列表面板：支持按姓名搜索、自然语言智能搜索、PDF 导入，以及选中后展示详情。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { usePatients, useAIAttention } from "../../lib/doctorQueries";
+import { QK } from "../../lib/queryKeys";
 import { useParams } from "react-router-dom";
 import {
   Alert, Autocomplete, Box, Button, Chip, CircularProgress, InputAdornment,
@@ -328,9 +331,7 @@ async function extractAndSend({ file, extractFileForChat, onAutoSendToChat, setI
 }
 
 function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selectedId, refreshKey }) {
-  const { getPatients, searchPatients, extractFileForChat, fetchAIAttention } = useApi();
-  const [patients, setPatients] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { searchPatients, extractFileForChat } = useApi();
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [nlResults, setNlResults] = useState(null);
@@ -338,24 +339,22 @@ function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selec
   const importFileRef = useRef(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
-  const [attention, setAttention] = useState(null);
+
+  // React Query-backed patient list and AI attention
+  const { data: patientsData, isLoading: pLoading, refetch: refetchPatients } = usePatients();
+  const { data: attentionData } = useAIAttention();
+
+  const loading = pLoading;
+  const patients = patientsData ? (Array.isArray(patientsData) ? patientsData : (patientsData.items || [])) : [];
+  const attention = attentionData || null;
+
+  // Refresh on refreshKey change
+  useEffect(() => { if (refreshKey) refetchPatients(); }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const load = useCallback(() => { refetchPatients(); setError(""); }, [refetchPatients]);
 
   const selectedPatient = patients.find((p) => p.id === selectedId) || null;
   useEffect(() => { onPatientSelected?.(selectedPatient?.name || ""); }, [selectedPatient?.name]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const load = useCallback(() => {
-    setLoading(true); setError("");
-    getPatients(doctorId, {}, 200).then((d) => setPatients(d.items || [])).catch((e) => setError(e.message || "加载失败")).finally(() => setLoading(false));
-  }, [doctorId]);
-  useEffect(() => { load(); }, [load, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Fetch AI attention data
-  useEffect(() => {
-    if (!doctorId || typeof fetchAIAttention !== "function") return;
-    fetchAIAttention(doctorId)
-      .then((d) => setAttention(d))
-      .catch(() => {}); // silent fail — attention is non-critical
-  }, [doctorId, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Build a map of patient_id → short AI reason for inline tags in the patient list
   const aiTagMap = {};
@@ -395,7 +394,7 @@ function usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selec
       return bDate.localeCompare(aDate); // most recent first
     });
   })();
-  return { patients, setPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile, attention, aiTagMap };
+  return { patients, refetchPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile, attention, aiTagMap };
 }
 
 function MobilePatientDetailView({ selectedPatient, doctorId, navigate, onStartInterview }) {
@@ -495,7 +494,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const selectedId = patientId ? Number(patientId) : null;
-  const { patients, setPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile, attention, aiTagMap } = usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selectedId, refreshKey });
+  const { patients, refetchPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile, attention, aiTagMap } = usePatientsState({ doctorId, onPatientSelected, onAutoSendToChat, selectedId, refreshKey });
 
   const [interviewActive, setInterviewActive] = useState(patientId === "new");
 
@@ -598,7 +597,7 @@ export default function PatientsPage({ doctorId, onNavigateToChat, onInsertChatT
       onCancel={() => { setInterviewActive(false); onChatInterviewSessionConsumed?.(); navigate(-1); }} />
   ) : (
     <PatientDetail patient={selectedPatient} doctorId={doctorId}
-      onDeleted={(id) => { setPatients((prev) => prev.filter((p) => p.id !== id)); navigate(dp("patients")); }}
+      onDeleted={(id) => { refetchPatients(); navigate(dp("patients")); }}
       onStartInterview={handleStartInterview}
       triggerExport={triggerExport} onTriggerExportConsumed={() => setTriggerExport(false)} />
   );

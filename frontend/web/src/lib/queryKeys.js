@@ -1,0 +1,14 @@
+export const QK = {
+  doctorProfile:  (did) => ["doctor", did, "profile"],
+  tasks:          (did, status) => ["doctor", did, "tasks", status],
+  draftSummary:   (did) => ["doctor", did, "draftSummary"],
+  reviewQueue:    (did) => ["doctor", did, "reviewQueue"],
+  drafts:         (did) => ["doctor", did, "drafts"],
+  knowledge:      (did) => ["doctor", did, "knowledge"],
+  knowledgeBatch: (did, ids) => ["doctor", did, "knowledge", "batch", ...ids],
+  patients:       (did) => ["doctor", did, "patients"],
+  aiActivity:     (did, limit) => ["doctor", did, "aiActivity", limit],
+  aiAttention:    (did) => ["doctor", did, "aiAttention"],
+  taskRecord:     (rid, did) => ["doctor", did, "record", rid],
+  suggestions:    (rid, did) => ["doctor", did, "suggestions", rid],
+};
