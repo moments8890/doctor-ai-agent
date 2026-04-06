@@ -483,6 +483,7 @@ function StepDoneContent({ doctorId, progress, updateProgress, setCanAdvance, ap
                 token={interviewToken}
                 onBack={() => setShowInterview(false)}
                 onLogout={() => setShowInterview(false)}
+                initialSuggestions={["最近记性变差了", "头痛头晕好几天了", "脖子伤口有点肿"]}
               />
             </PatientApiProvider>
           )}

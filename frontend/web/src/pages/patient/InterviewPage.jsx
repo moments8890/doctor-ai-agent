@@ -35,7 +35,7 @@ import BarButton from "../../components/BarButton";
 import { TYPE, COLOR, RADIUS } from "../../theme";
 import { FIELD_LABELS, PAGE_LAYOUT } from "./constants";
 
-export default function InterviewPage({ token, onBack, onLogout }) {
+export default function InterviewPage({ token, onBack, onLogout, initialSuggestions }) {
   const { interviewStart, interviewTurn, interviewConfirm, interviewCancel } = usePatientApi();
 
   const [sessionId, setSessionId] = useState("");
@@ -49,6 +49,7 @@ export default function InterviewPage({ token, onBack, onLogout }) {
   const [confirming, setConfirming] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [suggestions, setSuggestions] = useState(() => {
+    if (initialSuggestions?.length) return initialSuggestions;
     const params = new URLSearchParams(window.location.search);
     const starter = params.get("starter_suggestions");
     return starter ? starter.split(",").map(s => s.trim()).filter(Boolean) : [];
