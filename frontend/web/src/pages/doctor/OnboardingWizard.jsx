@@ -8,6 +8,8 @@ import { useApi } from "../../api/ApiContext";
 import { useDoctorStore } from "../../store/doctorStore";
 import SubpageHeader from "../../components/SubpageHeader";
 import AppButton from "../../components/AppButton";
+import SheetDialog from "../../components/SheetDialog";
+import PatientInterviewPage from "../patient/InterviewPage";
 import ListCard from "../../components/ListCard";
 import IconBadge from "../../components/IconBadge";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -396,13 +398,13 @@ function StepProofContent({ progress, setCanAdvance }) {
 // ── Step 3: 确认并开始 ────────────────────────────────────────────────────────
 
 function StepDoneContent({ doctorId, progress, updateProgress, setCanAdvance, api }) {
-  const navigate = useAppNavigate();
   const [ready, setReady] = useState(false);
+  const [showInterview, setShowInterview] = useState(false);
 
   useEffect(() => {
     setCanAdvance(true);
 
-    // Prepare patient preview token in background (optional — don't block)
+    // Fetch a patient preview token in background so the sheet opens instantly
     const savedToken = progress?.interviewToken;
     if (savedToken) { setReady(true); return; }
 
@@ -411,10 +413,7 @@ function StepDoneContent({ doctorId, progress, updateProgress, setCanAdvance, ap
         const demoName = `体验患者${Date.now().toString(36).slice(-4)}`;
         const data = await api.createOnboardingPatientEntry(doctorId, { patientName: demoName, gender: "女", age: 65 });
         const patientToken = data?.portal_token || data?.token;
-        if (patientToken) {
-          updateProgress({ interviewToken: patientToken });
-          localStorage.setItem("patient_portal_token", patientToken);
-        }
+        if (patientToken) updateProgress({ interviewToken: patientToken });
         setReady(true);
       } catch {
         setReady(true);
@@ -422,43 +421,58 @@ function StepDoneContent({ doctorId, progress, updateProgress, setCanAdvance, ap
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handlePatientPreview() {
-    const token = progress.interviewToken || localStorage.getItem("patient_portal_token");
-    const basePath = token ? "/patient/records/interview" : "/mock/patient/records/interview";
-    navigate(`${basePath}?starter_suggestions=${encodeURIComponent("最近记性变差了,头痛头晕好几天了,脖子伤口有点肿")}`);
-  }
+  const interviewToken = progress?.interviewToken;
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", pt: 4, pb: 2, px: 2 }}>
-      <CheckCircleOutlineIcon sx={{ fontSize: 64, color: COLOR.primary, mb: 2 }} />
-      <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 700, color: COLOR.text1, mb: 1 }}>
-        设置完成
-      </Typography>
-      <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, textAlign: "center", lineHeight: 1.7 }}>
-        AI 已学会你的规则，现在试试看患者发来消息时 AI 如何帮你处理。
-      </Typography>
+    <>
+      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", pt: 4, pb: 2, px: 2 }}>
+        <CheckCircleOutlineIcon sx={{ fontSize: 64, color: COLOR.primary, mb: 2 }} />
+        <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 700, color: COLOR.text1, mb: 1 }}>
+          设置完成
+        </Typography>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, textAlign: "center", lineHeight: 1.7 }}>
+          AI 已学会你的规则，现在试试看患者发来消息时 AI 如何帮你处理。
+        </Typography>
 
-      {/* Optional patient preview card */}
-      <Box sx={{
-        mt: 3, width: "100%", p: 2.5,
-        bgcolor: COLOR.surfaceAlt, borderRadius: RADIUS.lg,
-        border: `1px solid ${COLOR.border}`,
-      }}>
-        <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1, mb: 0.5 }}>
-          可选：体验患者端预问诊
-        </Typography>
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, lineHeight: 1.6, mb: 2 }}>
-          扫描或点击下方进入患者端，看看患者看到的界面
-        </Typography>
-        <AppButton
-          variant="secondary" size="sm"
-          onClick={handlePatientPreview}
-          disabled={!ready}
-        >
-          体验患者端 →
-        </AppButton>
+        {/* Optional: inline patient interview sheet */}
+        <Box sx={{
+          mt: 3, width: "100%", p: 2.5,
+          bgcolor: COLOR.surfaceAlt, borderRadius: RADIUS.lg,
+          border: `1px solid ${COLOR.border}`,
+        }}>
+          <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1, mb: 0.5 }}>
+            可选：体验患者端预问诊
+          </Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, lineHeight: 1.6, mb: 2 }}>
+            点击下方，在当前页面体验患者填写预问诊的完整流程
+          </Typography>
+          <AppButton
+            variant="secondary" size="sm"
+            onClick={() => setShowInterview(true)}
+            disabled={!ready || !interviewToken}
+          >
+            体验患者端 →
+          </AppButton>
+        </Box>
       </Box>
-    </Box>
+
+      {/* Patient interview embedded in a bottom sheet — no navigation away */}
+      <SheetDialog
+        open={showInterview}
+        onClose={() => setShowInterview(false)}
+        title="患者预问诊体验"
+      >
+        <Box sx={{ height: "70vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {interviewToken && (
+            <PatientInterviewPage
+              token={interviewToken}
+              onBack={() => setShowInterview(false)}
+              onLogout={() => setShowInterview(false)}
+            />
+          )}
+        </Box>
+      </SheetDialog>
+    </>
   );
 }
 
