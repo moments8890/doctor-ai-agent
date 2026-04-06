@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deterministic Onboarding E2E QA</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --green: #0f9d58;
+      --green-bg: #eaf7ef;
+      --blue: #2563eb;
+      --blue-bg: #eaf2ff;
+      --orange: #d97706;
+      --orange-bg: #fff4e5;
+      --purple: #7c3aed;
+      --purple-bg: #f3e8ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #ffffff, #eef6ff);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .meta,
+    .filters,
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .pill,
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+
+    .stats {
+      margin: 20px 0;
+    }
+
+    .stat strong {
+      font-size: 18px;
+      margin-right: 6px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    details.card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 18px 20px;
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .summary-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .summary-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-pass {
+      color: var(--green);
+      background: var(--green-bg);
+    }
+
+    .cat-knowledge {
+      color: var(--blue);
+      background: var(--blue-bg);
+    }
+
+    .cat-review {
+      color: var(--orange);
+      background: var(--orange-bg);
+    }
+
+    .cat-patient,
+    .cat-task {
+      color: var(--purple);
+      background: var(--purple-bg);
+    }
+
+    .card-body {
+      border-top: 1px solid var(--border);
+      padding: 0 20px 20px;
+    }
+
+    .card-body p {
+      margin: 14px 0;
+      color: var(--muted);
+    }
+
+    img {
+      width: 100%;
+      max-width: 360px;
+      display: block;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+
+    .note {
+      margin-top: 20px;
+      padding: 16px 18px;
+      background: #fffdf5;
+      border: 1px solid #f5df9b;
+      border-radius: 16px;
+      color: #7c5a00;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Deterministic Onboarding E2E</h1>
+      <p>Doctor self-guided walkthrough captured against <code>/debug/doctor</code> with seeded mock state and deterministic example IDs.</p>
+      <div class="meta">
+        <div class="pill">Date: 2026-03-29</div>
+        <div class="pill">Mode: mock SPA walkthrough</div>
+        <div class="pill">Viewport: 390 × 844</div>
+        <div class="pill">Tool: gstack browse</div>
+      </div>
+    </section>
+
+    <section class="stats">
+      <div class="stat"><strong>8</strong>pass</div>
+      <div class="stat"><strong>0</strong>fail</div>
+      <div class="stat"><strong>8</strong>screens used in final walkthrough</div>
+    </section>
+
+    <section class="filters">
+      <div class="pill">knowledge</div>
+      <div class="pill">review</div>
+      <div class="pill">patient preview</div>
+      <div class="pill">tasks</div>
+    </section>
+
+    <section class="grid">
+      <details class="card" open>
+        <summary>
+          <div class="summary-row">
+            <div class="summary-left">
+              <span class="badge status-pass">PASS</span>
+              <span class="badge cat-knowledge">knowledge</span>
+              <strong>1. 我的AI checklist</strong>
+            </div>
+            <span>入口已显示严格顺序</span>
+          </div>
+        </summary>
+        <div class="card-body">
+          <p>Checklist starts at <code>教 AI 一条规则</code> and locks the downstream proofs until onboarding progresses.</p>
+          <img src="snapshots/01-my-ai.png" alt="我的AI checklist" />
+        </div>
+      </details>
+
+      <details class="card">
+        <summary>
+          <div class="summary-row">
+            <div class="summary-left">
+              <span class="badge status-pass">PASS</span>
+              <span class="badge cat-knowledge">knowledge</span>
+              <strong>2. Knowledge add page</strong>
+            </div>
+            <span>URL / file / text prefill visible</span>
+          </div>
+        </summary>
+        <div class="card-body">
+          <p>The onboarding route opens the add-knowledge surface with deterministic prefills for URL and text, plus the file example shortcut.</p>
+          <img src="snapshots/02-add-knowledge-direct.png" alt="Knowledge add page" />
+        </div>
+      </details>
+
+      <details class="card">
+        <summary>
+          <div class="summary-row">
+            <div class="summary-left">
+              <span class="badge status-pass">PASS</span>
+              <span class="badge cat-knowledge">knowledge</span>
+              <strong>3. Post-save proof routing</strong>
+            </div>
+            <span>保存后直接给 proof CTA</span>
+          </div>
+        </summary>
+        <div class="card-body">
+          <p>After saving the rule, the sheet exposes the deterministic next actions: diagnosis proof, reply proof, or back to MyAI.</p>
+          <img src="snapshots/03-post-save-sheet-final.png" alt="Post-save next-step sheet" />
+        </div>
+      </details>
+
+      <details class="card">
+        <summary>
+          <div class="summary-row">
+            <div class="summary-left">
+              <span class="badge status-pass">PASS</span>
+              <span class="badge cat-review">review</span>
+              <strong>4. Diagnosis review proof</strong>
+            </div>
+            <span>病例来源 + 规则命中同时可见</span>
+          </div>
+        </summary>
+        <div class="card-body">
+          <p>The review screen shows provenance first, then suggestions, with the cited rule visible on the same screen.</p>
+          <img src="snapshots/04-diagnosis-proof.png" alt="Diagnosis review proof" />
+        </div>
+      </details>
+
+      <details class="card">
+        <summary>
+          <div class="summary-row">
+            <div class="summary-left">
+              <span class="badge status-pass">PASS</span>
+              <span class="badge cat-review">review</span>
+              <strong>5. Reply proof</strong>
+            </div>
+            <span>患者原始消息在草稿上方</span>
+          </div>
+        </summary>
+        <div class="card-body">
+          <p>The reply-review tab preserves the lineage: original patient message first, AI draft second, cited rule inline.</p>
+          <img src="snapshots/05-reply-proof.png" alt="Reply proof" />
+        </div>
+      </details>
+
+      <details class="card">
+        <summary>
+          <div class="summary-row">
+            <div class="summary-left">
+              <span class="badge status-pass">PASS</span>
+              <span class="badge cat-patient">patient</span>
+              <strong>6. Patient entry + preview</strong>
+            </div>
+            <span>医生侧发入口，再预览患者端</span>
+          </div>
+        </summary>
+        <div class="card-body">
+          <p>We used the QR onboarding surface to create a deterministic patient entry, then opened the doctor-side patient preview mini page.</p>
+          <img src="snapshots/06-patient-entry-qr.png" alt="Patient entry QR page" />
+          <p>Preview page:</p>
+          <img src="snapshots/07-patient-preview.png" alt="Patient preview page" />
+        </div>
+      </details>
+
+      <details class="card">
+        <summary>
+          <div class="summary-row">
+            <div class="summary-left">
+              <span class="badge status-pass">PASS</span>
+              <span class="badge cat-review">review</span>
+              <span class="badge cat-task">task</span>
+              <strong>7. Patient submit creates review work</strong>
+            </div>
+            <span>新预问诊记录 + 审核任务可见</span>
+          </div>
+        </summary>
+        <div class="card-body">
+          <p>A seeded preview submission created record <code>#108</code> and review task <code>#206</code>. The doctor review page shows the patient-summary provenance; the task tab highlights the generated review task.</p>
+          <img src="snapshots/08-patient-review-record.png" alt="Review record created from patient preview" />
+          <p>Generated review task:</p>
+          <img src="snapshots/09-review-task-created.png" alt="Review task created" />
+        </div>
+      </details>
+
+      <details class="card">
+        <summary>
+          <div class="summary-row">
+            <div class="summary-left">
+              <span class="badge status-pass">PASS</span>
+              <span class="badge cat-task">task</span>
+              <strong>8. Finalize review creates follow-up tasks</strong>
+            </div>
+            <span>医生审核完成后生成 2 条任务</span>
+          </div>
+        </summary>
+        <div class="card-body">
+          <p>Finalizing record <code>#108</code> created follow-up task IDs <code>207</code> and <code>208</code>, both visible and highlighted in the task list.</p>
+          <img src="snapshots/10-followup-tasks-created-remount.png" alt="Follow-up tasks created after finalize" />
+        </div>
+      </details>
+    </section>
+
+    <section class="note">
+      Note: this walkthrough stayed inside one SPA browser session on purpose. The mock provider resets on full reload, so the patient-submit and task-generation steps were seeded in-browser to preserve deterministic state across the demo.
+    </section>
+  </div>
+</body>
+</html>

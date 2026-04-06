@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QA Report — P2.3 Patient Voice Input (2026-03-27)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; padding: 20px; }
+  h1 { font-size: 1.4rem; margin-bottom: 8px; }
+  .meta { color: #666; font-size: 0.85rem; margin-bottom: 16px; }
+  .stats { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat { background: #fff; border-radius: 8px; padding: 12px 16px; min-width: 100px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .stat .num { font-size: 1.5rem; font-weight: 700; }
+  .stat .label { font-size: 0.75rem; color: #999; }
+  .stat.pass .num { color: #07C160; }
+  .stat.fail .num { color: #e53935; }
+  .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filters button { border: 1px solid #ddd; background: #fff; border-radius: 16px; padding: 4px 14px; font-size: 0.8rem; cursor: pointer; }
+  .filters button.active { background: #07C160; color: #fff; border-color: #07C160; }
+  .card { background: #fff; border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .card-header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; cursor: pointer; }
+  .card-header:hover { background: #fafafa; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+  .badge.pass { background: #e8f5e9; color: #07C160; }
+  .badge.fail { background: #ffebee; color: #e53935; }
+  .badge.cat { background: #e3f2fd; color: #1565c0; }
+  .card-title { flex: 1; font-weight: 500; font-size: 0.9rem; }
+  .chevron { color: #ccc; transition: transform 0.2s; }
+  .card.open .chevron { transform: rotate(90deg); }
+  .card-body { display: none; padding: 0 16px 16px; }
+  .card.open .card-body { display: block; }
+  .card-body p { margin: 8px 0; font-size: 0.85rem; line-height: 1.5; color: #555; }
+  .card-body img { max-width: 100%; border-radius: 6px; border: 1px solid #eee; margin: 8px 0; }
+</style>
+</head>
+<body>
+<h1>P2.3 Patient Voice Input — QA Report</h1>
+<div class="meta">2026-03-27 | Branch: main | localhost:5173</div>
+
+<div class="stats">
+  <div class="stat pass"><div class="num">6</div><div class="label">Total</div></div>
+  <div class="stat pass"><div class="num">6</div><div class="label">Pass</div></div>
+  <div class="stat fail"><div class="num">0</div><div class="label">Fail</div></div>
+</div>
+
+<div class="filters">
+  <button class="active" onclick="filterAll(this)">All</button>
+  <button onclick="filterCat(this,'chat')">ChatTab</button>
+  <button onclick="filterCat(this,'interview')">InterviewPage</button>
+  <button onclick="filterCat(this,'console')">Console</button>
+</div>
+
+<div id="cards">
+
+<div class="card" data-cat="chat">
+  <div class="card-header" onclick="toggle(this)">
+    <span class="badge pass">PASS</span>
+    <span class="badge cat">ChatTab</span>
+    <span class="card-title">T1: Mic button visible in text mode</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="card-body">
+    <p>Mic button renders left of TextField. Layout: [mic] [input] [send]. Matches WeChat pattern.</p>
+    <img src="snapshots/02-patient-chat-tab.png" alt="ChatTab text mode">
+  </div>
+</div>
+
+<div class="card" data-cat="chat">
+  <div class="card-header" onclick="toggle(this)">
+    <span class="badge pass">PASS</span>
+    <span class="badge cat">ChatTab</span>
+    <span class="card-title">T2: Toggle to voice mode</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="card-body">
+    <p>Icon changes to keyboard. Text input replaced by "按住说话" hold-to-talk button. Send button disabled.</p>
+    <img src="snapshots/03-patient-chat-voice-mode.png" alt="ChatTab voice mode">
+  </div>
+</div>
+
+<div class="card" data-cat="chat">
+  <div class="card-header" onclick="toggle(this)">
+    <span class="badge pass">PASS</span>
+    <span class="badge cat">ChatTab</span>
+    <span class="card-title">T3: Toggle back to text mode</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="card-body">
+    <p>Mic icon reappears. TextField restored with placeholder. No layout shift.</p>
+    <img src="snapshots/04-patient-chat-text-mode-back.png" alt="ChatTab text mode restored">
+  </div>
+</div>
+
+<div class="card" data-cat="interview">
+  <div class="card-header" onclick="toggle(this)">
+    <span class="badge pass">PASS</span>
+    <span class="badge cat">InterviewPage</span>
+    <span class="card-title">T4: Mic button visible in text mode</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="card-body">
+    <p>Mic button renders left of chips+input area. Progress bar, header, AI greeting all correct.</p>
+    <img src="snapshots/05-patient-interview-text-mode.png" alt="InterviewPage text mode">
+  </div>
+</div>
+
+<div class="card" data-cat="interview">
+  <div class="card-header" onclick="toggle(this)">
+    <span class="badge pass">PASS</span>
+    <span class="badge cat">InterviewPage</span>
+    <span class="card-title">T5: Toggle to voice mode</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="card-body">
+    <p>Keyboard icon shown. "按住说话" hold-to-talk button with mic icon. Send button disabled. No layout glitch.</p>
+    <img src="snapshots/06-patient-interview-voice-mode.png" alt="InterviewPage voice mode">
+  </div>
+</div>
+
+<div class="card" data-cat="console">
+  <div class="card-header" onclick="toggle(this)">
+    <span class="badge pass">PASS</span>
+    <span class="badge cat">Console</span>
+    <span class="card-title">T6: No new JS errors</span>
+    <span class="chevron">&#9654;</span>
+  </div>
+  <div class="card-body">
+    <p>No new JS errors from voice input changes. Pre-existing: @emotion/react duplicate warning (unrelated), 401 from mock mode (expected).</p>
+  </div>
+</div>
+
+</div>
+
+<script>
+function toggle(header) { header.parentElement.classList.toggle('open'); }
+function filterAll(btn) {
+  document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.card').forEach(c => c.style.display = '');
+}
+function filterCat(btn, cat) {
+  document.querySelectorAll('.filters button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.card').forEach(c => {
+    c.style.display = c.dataset.cat === cat ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>
