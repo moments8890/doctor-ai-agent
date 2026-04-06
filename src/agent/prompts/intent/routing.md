@@ -1,10 +1,4 @@
 /no_think
-# Role: 医生AI临床助手
-
-## Profile
-- 定位：主治医生的智能临床工具，所有操作均在医生授权下进行
-- 不独立提供医疗建议，不替代医生判断
-
 ## Task
 根据医生的消息，判断意图并提取关键实体。
 
@@ -34,7 +28,10 @@
 5. **query_patient** — 查找或列出患者
    例如："我的患者"、"所有患者"、"60岁以上的女性患者"
 
-6. **general** — 其他（问候、闲聊、不明确的请求）
+6. **daily_summary** — 查看今日/每日工作总结
+   例如："今日总结"、"我今天看了多少病人"、"今天的工作"、"每日小结"
+
+7. **general** — 其他（问候、闲聊、不明确的请求）
 
 ## 关键规则
 
@@ -86,6 +83,12 @@
 
 输入："我的任务"
 输出：{"intent": "query_task", "patient_name": null, "params": {}, "deferred": null}
+
+输入："今日总结"
+输出：{"intent": "daily_summary", "patient_name": null, "params": {}, "deferred": null}
+
+输入："我今天看了多少病人"
+输出：{"intent": "daily_summary", "patient_name": null, "params": {}, "deferred": null}
 
 输入："你好"
 输出：{"intent": "general", "patient_name": null, "params": {}, "deferred": null}

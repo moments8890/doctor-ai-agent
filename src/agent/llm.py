@@ -106,6 +106,10 @@ def _log_llm_call(
         if layers:
             entry["layers"] = layers
 
+        # Pre-call token estimate (Chinese ≈ 1 token per 1.5 chars)
+        total_chars = sum(len(m.get("content", "")) for m in messages if isinstance(m, dict))
+        entry["estimated_input_tokens"] = int(total_chars / 1.5)
+
         # Token usage from LLM response
         if usage is not None:
             entry["tokens"] = {

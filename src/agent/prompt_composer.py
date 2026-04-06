@@ -105,20 +105,29 @@ async def compose_messages(
 
     if config.conversation_mode:
         # ── Pattern 2: Conversation ───────────────────────────────
-        # L1-L6 (Identity through Patient) → system message
+        # L1-L3 + Patient context → system message (factual DB data)
         # History → user/assistant turns
-        # L7 Input → final user message (plain text, no XML)
-        if doctor_knowledge:
-            system_msg += f"\n\n{doctor_knowledge}"
+        # L4 KB + L7 Input → final user message (KB is user-authored, not system-trust)
         if config.patient_context and patient_context:
             system_msg += f"\n\n## 当前状态\n{patient_context}"
 
         messages: List[Dict[str, str]] = [{"role": "system", "content": system_msg}]
         if history:
             messages.extend(history)
-        # Only add L7 Input if there's a message (interview may pass empty)
+        # KB goes in user message (trust boundary: user-authored content ≠ system instructions)
+        user_parts: List[str] = []
+        if doctor_knowledge:
+            user_parts.append(
+                f"<doctor_knowledge>\n"
+                f"以下是可引用的医生知识规则。若使用其中内容，"
+                f"在相关内容后追加 [KB-{{id}}] 引用标签。\n"
+                f"{doctor_knowledge}\n"
+                f"</doctor_knowledge>"
+            )
         if doctor_message:
-            messages.append({"role": "user", "content": doctor_message})
+            user_parts.append(doctor_message)
+        if user_parts:
+            messages.append({"role": "user", "content": "\n\n".join(user_parts)})
 
         log(f"[composer] intent={config.intent} pattern=convo system={len(system_msg)}chars{kb_note} history={len(history or [])}turns")
     else:

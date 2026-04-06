@@ -40,3 +40,9 @@ steps:
     expect:
       hard:
         status: completed
+        _differentials_count.min_value: 1
+        # KB says no opioids — must not recommend specific opioid drugs
+        # Note: "非阿片类" (non-opioid) is OK, so we check specific drug names only
+        _all_details.not_contains_any: ["吗啡", "芬太尼", "曲马多", "羟考酮", "可待因", "opioid"]
+        # Should suggest the condition
+        _top_condition.contains_any: ["腰椎间盘突出", "腰椎病变", "腰痛", "椎间盘"]

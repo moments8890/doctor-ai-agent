@@ -76,7 +76,7 @@ class ScenarioWorld:
         # Seed knowledge items
         for kb in setup.get("knowledge_items", []):
             async with AsyncSessionLocal() as db:
-                from domain.knowledge.doctor_knowledge import _encode_knowledge_payload
+                from domain.knowledge.knowledge_crud import _encode_knowledge_payload
                 payload = _encode_knowledge_payload(kb["text"], source="test", confidence=1.0)
                 from db.models.doctor import DoctorKnowledgeItem
                 item = DoctorKnowledgeItem(
@@ -249,18 +249,46 @@ class ScenarioWorld:
         }
 
     async def _call_diagnosis(self, input_data: Dict) -> Dict:
+        import json as _json
         from domain.diagnosis import run_diagnosis
         result = await run_diagnosis(
             doctor_id=self.doctor_id,
             record_id=input_data["record_id"],
         )
+        # Convenience fields for assertions
+        result["_json"] = _json.dumps(result, ensure_ascii=False)
+        result["_differentials_count"] = len(result.get("differentials", []))
+        result["_red_flags_count"] = len(result.get("red_flags", []))
+        result["_workup_count"] = len(result.get("workup", []))
+        # Top differential for quick assertions
+        diffs = result.get("differentials", [])
+        if diffs:
+            result["_top_condition"] = diffs[0].get("condition", "")
+            result["_top_detail"] = diffs[0].get("detail", "")
+        # All details concatenated for hallucination/citation checks
+        all_details = []
+        for d in diffs:
+            all_details.append(d.get("detail", ""))
+        for w in result.get("workup", []):
+            all_details.append(w.get("detail", ""))
+        for t in result.get("treatment", []):
+            all_details.append(t.get("detail", ""))
+        result["_all_details"] = " ".join(all_details)
         return result
 
     def get_nested(self, result: Dict, path: str) -> Any:
-        """Get a nested value from a result dict using dot notation."""
+        """Get a nested value from a result dict using dot notation.
+
+        Supports list indexing with numeric keys: 'differentials.0.condition'
+        """
         val = result
         for key in path.split("."):
-            if isinstance(val, dict):
+            if isinstance(val, list):
+                try:
+                    val = val[int(key)]
+                except (ValueError, IndexError):
+                    return None
+            elif isinstance(val, dict):
                 val = val.get(key)
             elif hasattr(val, key):
                 val = getattr(val, key)

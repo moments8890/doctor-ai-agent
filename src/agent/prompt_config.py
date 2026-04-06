@@ -80,7 +80,7 @@ INTENT_LAYERS: dict[IntentType, LayerConfig] = {
     ),
     IntentType.general: LayerConfig(
         intent="general",
-        load_knowledge=True,
+        load_knowledge=False,  # Greeting/chitchat doesn't need doctor KB
     ),
 }
 

@@ -22,7 +22,7 @@ os.environ.setdefault("ROUTING_LLM", "groq")
 
 from tests.scenarios.runner import ScenarioWorld, load_fixture
 from tests.scenarios.matchers import (
-    assert_equals, assert_exists, assert_contains_any, assert_not_contains_any, assert_min_count,
+    assert_equals, assert_exists, assert_contains, assert_contains_any, assert_not_contains_any, assert_min_count,
 )
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -46,7 +46,7 @@ async def _check_hard_expectations(step_result: Dict, expects: Dict[str, Any], w
         # Parse assertion: "field.subfield.op" or "field.subfield"
         parts = key.rsplit(".", 1)
 
-        if len(parts) == 2 and parts[1] in ("exists", "contains_any", "not_contains_any", "min_count"):
+        if len(parts) == 2 and parts[1] in ("exists", "contains", "contains_any", "not_contains_any", "not_contains", "min_count", "min_value"):
             field_path, op = parts
         else:
             field_path = key
@@ -71,11 +71,17 @@ async def _check_hard_expectations(step_result: Dict, expects: Dict[str, Any], w
             assert_exists(actual, f"{step_id}.{field_path}")
         elif op == "equals":
             assert_equals(actual, expected, f"{step_id}.{field_path}")
+        elif op == "contains":
+            assert_contains(str(actual), expected, f"{step_id}.{field_path}")
         elif op == "contains_any":
             assert_contains_any(str(actual), expected, f"{step_id}.{field_path}")
+        elif op == "not_contains":
+            # Single string "not contains" — dual of "contains"
+            text = str(actual or "")
+            assert expected not in text, f"{step_id}.{field_path}: must NOT contain {expected!r}, got {text[:200]!r}"
         elif op == "not_contains_any":
             assert_not_contains_any(str(actual), expected, f"{step_id}.{field_path}")
-        elif op == "min_count":
+        elif op == "min_count" or op == "min_value":
             assert_min_count(int(actual or 0), int(expected), f"{step_id}.{field_path}")
 
 
