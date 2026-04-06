@@ -247,7 +247,13 @@ const STEP2_DRAFT_TEXT = "张阿姨家属您好，LVB术后出现头痛加重伴
 const HIGHLIGHTED_SENTENCE = "LVB术后出现头痛加重伴认知改善后再次下降，需要警惕吻合口狭窄或血栓";
 
 function StepProofContent({ progress, setCanAdvance }) {
-  useEffect(() => { setCanAdvance(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [diagConfirmed, setDiagConfirmed] = useState(false);
+  const [replySent, setReplySent] = useState(false);
+
+  // Unlock 下一步 only after both actions are done
+  useEffect(() => {
+    setCanAdvance(diagConfirmed && replySent);
+  }, [diagConfirmed, replySent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ruleTitle = progress.savedRuleTitle || "LVB术后吻合口评估";
   const ruleBody = "术侧头痛加重、认知改善后再次下降 → 警惕吻合口血栓";
@@ -276,14 +282,19 @@ function StepProofContent({ progress, setCanAdvance }) {
 
       {/* AI differential rows */}
       <Box sx={{ mx: 2, bgcolor: COLOR.white, borderRadius: RADIUS.md, border: `0.5px solid ${COLOR.border}`, overflow: "hidden" }}>
-        {/* Row 1 — spotlighted */}
-        <SpotlightHint active>
-          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
+        {/* Row 1 — spotlighted, tap to confirm */}
+        <SpotlightHint active={!diagConfirmed}>
+          <Box
+            onClick={() => setDiagConfirmed(true)}
+            sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}`, cursor: diagConfirmed ? "default" : "pointer" }}
+          >
             <Box sx={{
               width: 18, height: 18, borderRadius: "50%", flexShrink: 0, mt: 0.5,
-              bgcolor: COLOR.primary, display: "flex", alignItems: "center", justifyContent: "center",
+              ...(diagConfirmed
+                ? { bgcolor: COLOR.primary, display: "flex", alignItems: "center", justifyContent: "center" }
+                : { border: `1.5px solid ${COLOR.border}` }),
             }}>
-              <Typography sx={{ color: COLOR.white, fontSize: 11, lineHeight: 1 }}>✓</Typography>
+              {diagConfirmed && <Typography sx={{ color: COLOR.white, fontSize: 11, lineHeight: 1 }}>✓</Typography>}
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>
@@ -343,27 +354,51 @@ function StepProofContent({ progress, setCanAdvance }) {
         </Box>
       </Box>
 
-      {/* AI draft card — read-only preview, no confirm action needed */}
-      <Box sx={{ mx: 2, mb: 1, display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1 }}>
-        <MsgAvatar isUser={false} size={36} />
-        <Box sx={{ maxWidth: "78%", bgcolor: COLOR.primaryLight, border: `1px solid ${COLOR.primary}30`, borderRadius: RADIUS.md, px: 2, py: 1.5 }}>
-          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 600, mb: 0.5 }}>
-            AI 已起草回复
-          </Typography>
-          <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, lineHeight: 1.7 }}>
-            {draftParts[0]}
-            <Box component="span" sx={{ bgcolor: "#fff8c5", borderBottom: "2px solid #f0e040", borderRadius: "2px", px: "1px" }}>
-              {HIGHLIGHTED_SENTENCE}
+      {/* AI draft card — tap 确认发送 to unlock 下一步 */}
+      {!replySent && (
+        <Box sx={{ mx: 2, mb: 1, display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1 }}>
+          <MsgAvatar isUser={false} size={36} />
+          <Box sx={{ maxWidth: "78%", bgcolor: COLOR.primaryLight, border: `1px solid ${COLOR.primary}30`, borderRadius: RADIUS.md, px: 2, py: 1.5 }}>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 600, mb: 0.5 }}>
+              AI起草回复 · 待你确认
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, lineHeight: 1.7 }}>
+              {draftParts[0]}
+              <Box component="span" sx={{ bgcolor: "#fff8c5", borderBottom: "2px solid #f0e040", borderRadius: "2px", px: "1px" }}>
+                {HIGHLIGHTED_SENTENCE}
+              </Box>
+              {draftParts[1]}
+            </Typography>
+            <Box sx={{ mt: 1 }}>
+              <Box component="span" sx={{ fontSize: TYPE.micro.fontSize, color: "#e53935", bgcolor: "#fdecea", px: 1, py: 0.25, borderRadius: RADIUS.sm }}>
+                引用: {citedRuleTitle}
+              </Box>
             </Box>
-            {draftParts[1]}
-          </Typography>
-          <Box sx={{ mt: 1 }}>
-            <Box component="span" sx={{ fontSize: TYPE.micro.fontSize, color: "#e53935", bgcolor: "#fdecea", px: 1, py: 0.25, borderRadius: RADIUS.sm }}>
-              引用: {citedRuleTitle}
+            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 1.5, pt: 1, borderTop: `0.5px solid ${COLOR.primary}20` }}>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>修改</Typography>
+              <Typography
+                onClick={() => setReplySent(true)}
+                sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, fontWeight: 600, cursor: "pointer", "&:active": { opacity: 0.5 } }}
+              >
+                确认发送 ›
+              </Typography>
             </Box>
           </Box>
         </Box>
-      </Box>
+      )}
+
+      {replySent && (
+        <Box sx={{ mx: 2, mb: 1, display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1 }}>
+          <MsgAvatar isUser={true} size={36} />
+          <Box sx={{
+            maxWidth: "72%", px: 1.5, py: 1,
+            borderRadius: `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}`,
+            bgcolor: COLOR.wechatGreen, fontSize: TYPE.body.fontSize, lineHeight: 1.7, color: COLOR.text1,
+          }}>
+            {STEP2_DRAFT_TEXT}
+          </Box>
+        </Box>
+      )}
 
       <Box sx={{ pb: 2 }} />
     </>
