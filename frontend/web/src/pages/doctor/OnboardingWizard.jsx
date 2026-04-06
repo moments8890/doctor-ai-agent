@@ -376,12 +376,14 @@ function StepProofContent({ progress, setCanAdvance }) {
             </Box>
             <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 1.5, pt: 1, borderTop: `0.5px solid ${COLOR.primary}20` }}>
               <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>修改</Typography>
-              <Typography
-                onClick={() => setReplySent(true)}
-                sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, fontWeight: 600, cursor: "pointer", "&:active": { opacity: 0.5 } }}
-              >
-                确认发送 ›
-              </Typography>
+              <SpotlightHint active>
+                <Typography
+                  onClick={() => setReplySent(true)}
+                  sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, fontWeight: 600, cursor: "pointer", px: 1, py: 0.25, "&:active": { opacity: 0.5 } }}
+                >
+                  确认发送 ›
+                </Typography>
+              </SpotlightHint>
             </Box>
           </Box>
         </Box>
