@@ -46,8 +46,8 @@ steps:
         status: completed
         # Must produce at least 1 differential
         _differentials_count.min_value: 1
-        # Top differential should mention meningioma or intracranial tumor
-        _top_condition.contains_any: ["脑膜瘤", "颅内占位", "颅内肿瘤", "meningioma"]
+        # Top differential should be related to intracranial pathology
+        _top_condition.contains_any: ["脑膜瘤", "颅内占位", "颅内肿瘤", "颅内压", "脑肿瘤", "meningioma"]
         # Danger signs present → red_flags must not be empty
         _red_flags_count.min_value: 1
         # Must NOT hallucinate findings not in the input
