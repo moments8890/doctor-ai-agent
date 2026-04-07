@@ -1,7 +1,7 @@
 // frontend/web/src/pages/doctor/OnboardingWizard.jsx
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Box, Typography, LinearProgress, CircularProgress } from "@mui/material";
+import { Box, Typography, LinearProgress } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { useApi } from "../../api/ApiContext";
@@ -527,30 +527,19 @@ export default function OnboardingWizard() {
     setSearchParams({ step: String(n) }, { replace: true });
   }
 
-  const [seeding, setSeeding] = useState(false);
-
-  async function handleAdvance() {
+  function handleAdvance() {
     const next = step + 1;
     const completedSteps = [...new Set([...(progress.completedSteps || []), step])];
     updateProgress({ completedSteps, currentStep: next });
     if (next > TOTAL_STEPS) {
       markWizardDone(doctorId, "completed");
-      // Show loading screen, seed data, then navigate with fresh cache
-      setSeeding(true);
-      try {
-        // 5s timeout — seed is fast (~50ms), don't let it block forever
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-        await fetch("/api/manage/onboarding/seed-demo", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ doctor_id: doctorId }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-      } catch (e) { console.warn("[onboarding] seed:", e?.message || e); }
-      queryClient.invalidateQueries();
       navigate(dp());
+      // Seed in background, refresh data when done
+      fetch("/api/manage/onboarding/seed-demo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doctor_id: doctorId }),
+      }).then(() => queryClient.invalidateQueries()).catch(() => {});
     } else {
       goToStep(next);
     }
@@ -587,15 +576,6 @@ export default function OnboardingWizard() {
       case 3: return <StepDoneContent doctorId={doctorId} progress={progress} updateProgress={updateProgress} setCanAdvance={setCanAdvance} api={api} />;
       default: return null;
     }
-  }
-
-  if (seeding) {
-    return (
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", bgcolor: COLOR.surfaceAlt, gap: 2 }}>
-        <CircularProgress size={36} sx={{ color: COLOR.primary }} />
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2 }}>正在准备您的工作台...</Typography>
-      </Box>
-    );
   }
 
   return (
