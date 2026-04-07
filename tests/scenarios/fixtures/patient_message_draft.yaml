@@ -1,0 +1,53 @@
+id: patient-message-draft-001
+title: "Patient message → draft reply generated for doctor"
+tags: [patient_message, draft_reply, e2e]
+
+setup:
+  patients:
+    - ref: p1
+      name: 李明华
+      gender: 男
+      age: 68
+  knowledge_items:
+    - category: custom
+      text: "开颅术后随访：术后头痛VAS≤6分属正常。体温<38.5°C可观察。危险信号需急诊：剧烈头痛加重、新发肢体无力、言语障碍。"
+
+steps:
+  # Simulate patient sending a message and draft being generated
+  - id: normal_msg
+    call: draft_reply
+    input:
+      patient_id: ${patients.p1}
+      message_id: 1
+      text: "医生您好，昨天做完开颅手术，今天头痛VAS 6分，伤口有点胀但没渗液，体温37.1度。正常吗？"
+    expect:
+      hard:
+        status: generated
+        char_count.min_value: 5
+        text.not_contains: "根据"
+        text.not_contains: "知识库"
+        text.not_contains: "已同时通知"
+        text.not_contains: "已通知"
+
+  - id: emergency_msg
+    call: draft_reply
+    input:
+      patient_id: ${patients.p1}
+      message_id: 2
+      text: "医生，下午左手突然没力气拿不住筷子，持续几分钟好了。需要紧急处理吗？"
+    expect:
+      hard:
+        status: generated
+        is_red_flag: true
+        text.contains_any: ["急诊", "医院", "就医", "120"]
+
+  - id: no_kb_match
+    call: draft_reply
+    input:
+      patient_id: ${patients.p1}
+      message_id: 3
+      text: "医生，什么时候可以出院？"
+    expect:
+      hard:
+        # No matching KB → draft skipped (not red flag)
+        status: skipped
