@@ -1,0 +1,66 @@
+id: followup-reply-quality-001
+title: "Follow-up reply: style, length, KB citation, no source names"
+tags: [followup_reply, quality, kb_citation]
+
+setup:
+  patients:
+    - ref: p1
+      name: 李明华
+      gender: 男
+      age: 68
+  knowledge_items:
+    - category: custom
+      text: "开颅术后随访：术后头痛VAS≤6分属正常。体温<38.5°C可观察。伤口轻度胀感正常。地塞米松减量：4mg q8h×3天→2mg q8h×3天→停药。危险信号需急诊：剧烈头痛加重、新发肢体无力、言语障碍、意识改变。"
+    - category: custom
+      text: "开浦兰用药管理：常见副作用嗜睡、头晕，1-2周适应。不可自行停药。出现皮疹、严重头晕、持续呕吐需停药就诊。"
+
+steps:
+  # Post-op question — should be short, no source names, draft generated
+  - id: postop_pain
+    call: draft_reply
+    input:
+      patient_id: ${patients.p1}
+      message_id: 1
+      text: "医生您好，我是李明华，68岁。昨天做完开颅手术，今天头痛比较明显VAS 6分，伤口周围有点胀但没渗液，体温37.1度。请问这些正常吗？"
+    expect:
+      hard:
+        status: generated
+        char_count.min_value: 10
+        # Must NOT mention KB source names
+        text.not_contains: "根据"
+        text.not_contains: "随访规则"
+        text.not_contains: "知识库"
+        # Must NOT end with boilerplate
+        text.not_contains: "已同时通知"
+
+  # Drug side effect — should cite KB
+  - id: drug_side_effect
+    call: draft_reply
+    input:
+      patient_id: ${patients.p1}
+      message_id: 2
+      text: "医生，开浦兰吃了第一次，感觉特别困，下午一直在睡。这是正常的吗？需要继续吃吗？"
+    expect:
+      hard:
+        status: generated
+        text.not_contains: "根据"
+        text.not_contains: "用药管理"
+        text.not_contains: "知识库"
+        text.not_contains: "已同时通知"
+        cited_knowledge_ids.min_value: 1
+
+  # Emergency — should generate draft even without KB citation
+  - id: emergency
+    call: draft_reply
+    input:
+      patient_id: ${patients.p1}
+      message_id: 3
+      text: "医生，下午的时候左手突然没力气拿不住筷子，大概持续了几分钟就好了。需要紧急处理吗？"
+    expect:
+      hard:
+        status: generated
+        is_red_flag: true
+        # Emergency reply should tell patient to go to hospital
+        text.contains_any: ["急诊", "医院", "就医", "120"]
+        text.not_contains: "根据"
+        text.not_contains: "知识库"

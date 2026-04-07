@@ -122,8 +122,10 @@ class ScenarioWorld:
             result = await self._call_interview_confirm(input_data)
         elif call == "diagnosis.run":
             result = await self._call_diagnosis(input_data)
+        elif call == "draft_reply":
+            result = await self._call_draft_reply(input_data)
         else:
-            raise ValueError(f"Unknown step call: {call} (use doctor_interview.start, doctor_interview.turn, doctor_interview.confirm, or diagnosis.run)")
+            raise ValueError(f"Unknown step call: {call}")
 
         self.step_results[step_id] = result
         self.trace.append({"step_id": step_id, "call": call, "result": result})
@@ -258,6 +260,25 @@ class ScenarioWorld:
             all_details.append(t.get("detail", ""))
         result["_all_details"] = " ".join(all_details)
         return result
+
+    async def _call_draft_reply(self, input_data: Dict) -> Dict:
+        from domain.patient_lifecycle.draft_reply import generate_draft_reply
+        result = await generate_draft_reply(
+            doctor_id=self.doctor_id,
+            patient_id=str(input_data.get("patient_id", "")),
+            message_id=input_data.get("message_id", 0),
+            patient_message_text=input_data["text"],
+            patient_context=input_data.get("patient_context", ""),
+        )
+        if result is None:
+            return {"status": "skipped", "text": "", "cited_knowledge_ids": [], "char_count": 0}
+        return {
+            "status": "generated",
+            "text": result.text,
+            "cited_knowledge_ids": result.cited_knowledge_ids,
+            "is_red_flag": result.is_red_flag,
+            "char_count": len(result.text),
+        }
 
     def get_nested(self, result: Dict, path: str) -> Any:
         """Get a nested value from a result dict using dot notation.

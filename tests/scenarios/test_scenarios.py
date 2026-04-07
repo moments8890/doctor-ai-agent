@@ -82,7 +82,8 @@ async def _check_hard_expectations(step_result: Dict, expects: Dict[str, Any], w
         elif op == "not_contains_any":
             assert_not_contains_any(str(actual), expected, f"{step_id}.{field_path}")
         elif op == "min_count" or op == "min_value":
-            assert_min_count(int(actual or 0), int(expected), f"{step_id}.{field_path}")
+            val = len(actual) if isinstance(actual, (list, tuple)) else int(actual or 0)
+            assert_min_count(val, int(expected), f"{step_id}.{field_path}")
 
 
 @pytest.mark.asyncio
