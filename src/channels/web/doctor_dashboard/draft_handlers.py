@@ -268,11 +268,10 @@ async def drafts_summary(
         )
     ).scalar_one()
 
-    # Pending AI suggestions (review queue badge count)
+    # Pending AI suggestions — count distinct records, not individual suggestions
     review_pending_count: int = (
         await db.execute(
-            select(func.count())
-            .select_from(AISuggestion)
+            select(func.count(func.distinct(AISuggestion.record_id)))
             .where(
                 AISuggestion.doctor_id == resolved,
                 AISuggestion.decision == None,  # noqa: E711
