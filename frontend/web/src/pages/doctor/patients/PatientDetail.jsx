@@ -582,7 +582,7 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
           })}
 
           {/* AI draft — actionable card on the right */}
-          {activeDraft && (
+          {activeDraft && (activeDraft.draft_text || activeDraft.content) && (
             <Box sx={{ display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1, px: 1.5 }}>
               <MsgAvatar isUser={false} size={36} />
               <Box sx={{ maxWidth: "78%" }}>
