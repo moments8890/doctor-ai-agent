@@ -160,7 +160,8 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
         )
         db.add(item)
         await db.flush()
-        kb_map[f"[KB-{i}]"] = item.id
+        kb_map[f"[KB-{kb_spec.key}]"] = item.id
+        kb_map[f"[KB-{i}]"] = item.id  # also support numeric refs
         kb_results.append({"id": item.id, "title": kb_spec.title})
 
     # Phase 2: Patients + records + suggestions + messages + drafts + tasks
