@@ -75,20 +75,24 @@ async def review_queue(
     """Return pending + completed AI suggestion items for the review queue page."""
     resolved = _resolve_ui_doctor_id(doctor_id, authorization)
 
-    # ── 1. Summary counts ──────────────────────────────────────────────
-    count_stmt = (
+    # ── 1. Summary counts (pending = distinct records, not individual suggestions) ──
+    pending_count_stmt = (
+        select(func.count(func.distinct(AISuggestion.record_id)))
+        .where(AISuggestion.doctor_id == resolved, AISuggestion.decision == None)  # noqa: E711
+    )
+    decided_count_stmt = (
         select(
-            func.sum(case((AISuggestion.decision == None, 1), else_=0)).label("pending"),  # noqa: E711
             func.sum(case((AISuggestion.decision == "confirmed", 1), else_=0)).label("confirmed"),
             func.sum(case((AISuggestion.decision == "edited", 1), else_=0)).label("modified"),
         )
         .where(AISuggestion.doctor_id == resolved)
     )
-    counts = (await session.execute(count_stmt)).one()
+    pending_count = (await session.execute(pending_count_stmt)).scalar() or 0
+    decided = (await session.execute(decided_count_stmt)).one()
     summary = {
-        "pending": counts.pending,
-        "confirmed": counts.confirmed,
-        "modified": counts.modified,
+        "pending": pending_count,
+        "confirmed": decided.confirmed,
+        "modified": decided.modified,
     }
 
     # ── 2. Pending suggestions ─────────────────────────────────────────
@@ -141,25 +145,33 @@ async def review_queue(
         for kb_row in (await session.execute(kb_stmt)).all():
             kb_titles[kb_row.id] = kb_row.title or f"KB-{kb_row.id}"
 
-    # Build pending items
-    pending_items: list[dict] = []
+    # Build pending items — grouped by record_id (1 card per record)
+    from collections import OrderedDict
+    record_groups: OrderedDict[int, dict] = OrderedDict()
     for row in pending_rows:
         sug: AISuggestion = row[0]
+        rid = sug.record_id
+        if rid in record_groups:
+            record_groups[rid]["suggestion_count"] += 1
+            # Promote urgency if any suggestion is urgent
+            if sug.urgency in ("urgent", "紧急"):
+                record_groups[rid]["urgency"] = "urgent"
+            continue
+
         patient_name = row.patient_name or "未知患者"
         patient_id = row.patient_id
         chief_complaint = row.chief_complaint or ""
         record_type = row.record_type or "visit"
 
         cited_ids = pending_citations.get(sug.id, [])
-        # Pick first cited rule name as rule_cited string (matches frontend expectation)
         rule_cited: str | None = None
         if cited_ids:
             titles = [kb_titles[kid] for kid in cited_ids if kid in kb_titles]
             rule_cited = titles[0] if titles else None
 
-        pending_items.append({
+        record_groups[rid] = {
             "id": sug.id,
-            "record_id": sug.record_id,
+            "record_id": rid,
             "suggestion_id": sug.id,
             "patient_id": patient_id,
             "patient_name": patient_name,
@@ -171,7 +183,10 @@ async def review_queue(
             "content": sug.content,
             "detail": sug.detail,
             "rule_cited": rule_cited,
-        })
+            "suggestion_count": 1,
+        }
+
+    pending_items: list[dict] = list(record_groups.values())
 
     # ── 3. Completed suggestions ───────────────────────────────────────
     completed_stmt = (
