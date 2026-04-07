@@ -100,17 +100,10 @@ async def post_chat(
     authorization: Optional[str] = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Agent-style chat: classify patient message via AI triage and route.
+    """Save patient message and generate a draft reply for doctor review.
 
-    Flow:
-    1. Authenticate patient via JWT (Bearer or X-Patient-Token).
-    2. Load patient context (treatment plan, tasks, recent messages).
-    3. Classify message into a triage category.
-    4. Route to the appropriate handler:
-       - informational → AI answers directly
-       - symptom_report / side_effect / general_question → escalate to doctor
-       - urgent → return safety guidance + notify doctor
-    5. Return ``{reply, triage_category, ai_handled}``.
+    No auto-reply to patient. No triage classification.
+    All replies go through doctor review via draft_reply pipeline.
     """
     patient = await _authenticate_patient(x_patient_token, authorization)
     text = (body.text or "").strip()
@@ -124,57 +117,47 @@ async def post_chat(
     doctor_id = patient.doctor_id
 
     try:
-        # Step 1: Load patient context for LLM prompts.
+        # Save inbound message
+        from db.crud.patient_message import save_patient_message
+        saved_msg = await save_patient_message(
+            db, patient_id=patient.id, doctor_id=doctor_id,
+            content=text, direction="inbound", source="patient",
+            ai_handled=False,
+        )
+
+        # Load patient context for draft generation
         patient_context = await load_patient_context(patient.id, doctor_id, db)
+        context_str = json.dumps(patient_context, ensure_ascii=False) if patient_context else ""
 
-        # Step 2: Classify the message (KB-aware: may downgrade to informational).
-        triage_result = await classify(text, patient_context, doctor_id=doctor_id)
-        category = triage_result.category
+        # Generate draft reply for doctor (fire-and-forget)
+        from domain.patient_lifecycle.triage_handlers import _generate_draft_for_escalated
+        from infra.tasks import safe_create_task as _safe_task
+        _safe_task(
+            _generate_draft_for_escalated(
+                doctor_id, patient.id, saved_msg.id, text, context_str,
+            ),
+            name=f"draft-reply-{saved_msg.id}",
+        )
 
-        # Step 3: Route to the appropriate handler.
-        if category == TriageCategory.informational:
-            reply = await handle_informational(
-                text, patient_context, db, patient.id, doctor_id,
-            )
-        elif category == TriageCategory.urgent:
-            reply = await handle_urgent(
-                text, patient_context, db, patient.id, doctor_id,
-            )
-        else:
-            # symptom_report, side_effect, general_question → escalation
-            reply = await handle_escalation(
-                text, patient_context, category.value, db, patient.id, doctor_id,
-            )
-
-        ai_handled = category in _AI_HANDLED_CATEGORIES
-
-        # Update last_activity_at for the patient
+        # Update last_activity_at
         try:
             from db.crud.patient import touch_patient_activity
             async with AsyncSessionLocal() as _act_db:
                 await touch_patient_activity(_act_db, patient.id)
         except Exception:
-            logger.warning("[PatientChat] failed to update last_activity_at | patient_id=%s", patient.id)
+            pass
 
-        logger.info(
-            "[PatientChat] triage complete | patient_id=%s category=%s ai_handled=%s confidence=%.2f",
-            patient.id, category.value, ai_handled, triage_result.confidence,
-        )
+        logger.info("[PatientChat] message saved, draft scheduled | patient_id=%s", patient.id)
 
     except Exception:
-        # Graceful degradation: if triage LLM fails, fall back to simple
-        # message persistence (same as old /api/patient/message behavior).
-        logger.exception("[PatientChat] triage failed, falling back to simple message | patient_id=%s", patient.id)
+        logger.exception("[PatientChat] failed | patient_id=%s", patient.id)
         from db.crud.patient_message import save_patient_message
-        async with AsyncSessionLocal() as db:
+        async with AsyncSessionLocal() as fallback_db:
             await save_patient_message(
-                db, patient_id=patient.id, doctor_id=doctor_id,
+                fallback_db, patient_id=patient.id, doctor_id=doctor_id,
                 content=text, direction="inbound", source="patient",
             )
-            await db.commit()
-        reply = "收到您的消息，医生将尽快回复您。"
-        category = TriageCategory.general_question
-        ai_handled = False
+            await fallback_db.commit()
 
     safe_create_task(audit(
         doctor_id, "WRITE",
@@ -182,9 +165,9 @@ async def post_chat(
     ))
 
     return ChatResponse(
-        reply=reply,
-        triage_category=category.value,
-        ai_handled=ai_handled,
+        reply="",
+        triage_category="pending",
+        ai_handled=False,
     )
 
 

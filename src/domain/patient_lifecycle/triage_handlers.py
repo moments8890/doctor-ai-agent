@@ -273,74 +273,35 @@ async def handle_informational(
     patient_id: int,
     doctor_id: str,
 ) -> str:
-    """Handle an informational message: AI generates a direct answer.
+    """Handle an informational message: save inbound, generate draft for doctor.
 
-    Loads doctor KB for grounding (same as draft reply), then generates
-    a response using patient context + KB. Saves both the inbound patient
-    message and the outbound AI response with ``ai_handled=True``.
+    No auto-reply to patient. All replies go through doctor review via draft_reply.
     """
-    from agent.llm import structured_call
-
-    context_text = json.dumps(context, ensure_ascii=False, indent=2)
-    system = _INFORMATIONAL_SYSTEM_PROMPT.replace("{patient_context}", context_text)
-
-    # Load doctor KB for grounding (informational replies should also use KB)
-    kb_text = ""
-    try:
-        from domain.knowledge.knowledge_context import load_knowledge
-        kb_text = await load_knowledge(doctor_id, query=message, patient_context=context_text)
-    except Exception as exc:
-        log(f"[triage] KB load for informational failed (non-fatal): {exc}", level="warning")
-
-    if kb_text:
-        system += f"\n\n## 医生知识库\n{kb_text}"
-
-    messages = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": message},
-    ]
-
-    try:
-        result = await structured_call(
-            response_model=InformationalLLMResponse,
-            messages=messages,
-            op_name="triage.informational",
-            env_var=_triage_env_var(),
-            temperature=0.3,
-            max_tokens=500,
-        )
-        reply = result.reply
-    except Exception as exc:
-        log(f"[triage] handle_informational failed: {exc}", level="error")
-        reply = ""
-
-    if not reply:
-        reply = "抱歉，我暂时无法回答您的问题，已通知您的主治医生。"
-
     # Persist inbound patient message
-    await save_patient_message(
+    saved_msg = await save_patient_message(
         db_session,
         patient_id=patient_id,
         doctor_id=doctor_id,
         content=message,
         direction="inbound",
         source="patient",
-        ai_handled=True,
-        triage_category="informational",
-    )
-    # Persist outbound AI response
-    await save_patient_message(
-        db_session,
-        patient_id=patient_id,
-        doctor_id=doctor_id,
-        content=reply,
-        direction="outbound",
-        source="ai",
-        ai_handled=True,
+        ai_handled=False,
         triage_category="informational",
     )
 
-    return reply
+    # Generate draft reply for doctor review
+    try:
+        context_str = json.dumps(context, ensure_ascii=False) if context else ""
+        safe_create_task(
+            _generate_draft_for_escalated(
+                doctor_id, patient_id, saved_msg.id, message, context_str,
+            ),
+            name=f"draft-reply-{saved_msg.id}",
+        )
+    except Exception as exc:
+        log(f"[triage] failed to schedule draft generation: {exc}", level="warning")
+
+    return ""
 
 
 async def handle_escalation(
@@ -414,46 +375,9 @@ async def handle_escalation(
     except Exception as exc:
         log(f"[triage] failed to schedule draft generation: {exc}", level="warning")
 
-    # KB-informed reply: if doctor's KB has a relevant answer, provide it
-    # immediately to the patient while still escalating to the doctor.
-    # Patient gets useful info now; doctor still reviews.
-    kb_reply = ""
-    try:
-        from domain.knowledge.knowledge_context import load_knowledge
-        kb_text = await load_knowledge(doctor_id, query=message, patient_context=context_text)
-        if kb_text:
-            from agent.llm import structured_call as _sc
-            kb_system = (
-                _INFORMATIONAL_SYSTEM_PROMPT.replace("{patient_context}", context_text)
-                + f"\n\n## 医生知识库\n{kb_text}"
-                + "\n\n## 重要提示\n回复末尾必须加上：已同时通知您的主治医生。"
-            )
-            kb_result = await _sc(
-                response_model=InformationalLLMResponse,
-                messages=[{"role": "system", "content": kb_system}, {"role": "user", "content": message}],
-                op_name="triage.escalation_kb_reply",
-                env_var=_triage_env_var(),
-                temperature=0.3,
-                max_tokens=500,
-            )
-            if kb_result.reply:
-                kb_reply = kb_result.reply
-                if "通知" not in kb_reply:
-                    kb_reply += " 已同时通知您的主治医生。"
-                log(f"[triage] KB-informed escalation reply generated for patient {patient_id}")
-    except Exception as exc:
-        log(f"[triage] KB-informed reply failed (non-fatal, using template): {exc}", level="warning")
-
-    # Rate limiting: max 3 escalation notifications per 6h per patient.
-    # If rate-limited, still save the message but don't notify the doctor.
-    if _is_rate_limited(patient_id, doctor_id):
-        log(f"[triage] rate-limited escalation for patient {patient_id}, skipping notification")
-        reply = kb_reply or "医生将在查看时一并处理您的问题"
-    else:
+    # Notify doctor (rate-limited, batched)
+    if not _is_rate_limited(patient_id, doctor_id):
         _record_escalation(patient_id, doctor_id)
-        reply = kb_reply or "这个问题需要您的主治医生回复，我已通知医生。"
-
-        # Batch notifications: only notify if 10-min quiet window has elapsed.
         if _should_notify(patient_id, doctor_id):
             _mark_notified(patient_id, doctor_id)
             patient_name = await _get_patient_name(db_session, patient_id, doctor_id)
@@ -464,20 +388,11 @@ async def handle_escalation(
             safe_create_task(_notify_doctor_safe(doctor_id, notification))
         else:
             log(f"[triage] batching notification for patient {patient_id} (within 10-min window)")
+    else:
+        log(f"[triage] rate-limited escalation for patient {patient_id}, skipping notification")
 
-    # Persist outbound acknowledgment
-    await save_patient_message(
-        db_session,
-        patient_id=patient_id,
-        doctor_id=doctor_id,
-        content=reply,
-        direction="outbound",
-        source="ai",
-        ai_handled=False,
-        triage_category=category,
-    )
-
-    return reply
+    # No auto-reply to patient — all replies go through doctor review
+    return ""
 
 
 async def handle_urgent(
@@ -494,7 +409,6 @@ async def handle_urgent(
 
     ``urgent`` always notifies immediately — bypasses rate limiting and batching.
     """
-    reply = "如出现严重症状请立即就医或拨打120。已通知您的主治医生。"
     context_summary = _build_context_summary(context)
     reason_for_escalation = "紧急情况"
     if context_summary:
@@ -531,18 +445,6 @@ async def handle_urgent(
     except Exception as exc:
         log(f"[triage] failed to schedule draft generation: {exc}", level="warning")
 
-    # Persist outbound safety guidance
-    await save_patient_message(
-        db_session,
-        patient_id=patient_id,
-        doctor_id=doctor_id,
-        content=reply,
-        direction="outbound",
-        source="ai",
-        ai_handled=False,
-        triage_category="urgent",
-    )
-
     # Urgent always notifies immediately — bypasses rate limiting and batching.
     patient_name = await _get_patient_name(db_session, patient_id, doctor_id)
     preview = message[:40] + ("…" if len(message) > 40 else "")
@@ -552,4 +454,5 @@ async def handle_urgent(
     _mark_notified(patient_id, doctor_id)
     safe_create_task(_notify_doctor_safe(doctor_id, notification))
 
-    return reply
+    # No auto-reply to patient — all replies go through doctor review
+    return ""
