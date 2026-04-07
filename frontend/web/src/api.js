@@ -904,8 +904,9 @@ export async function getReviewQueue(doctorId) {
   return request(`/api/manage/review/queue?doctor_id=${encodeURIComponent(doctorId)}`);
 }
 
-export async function fetchDrafts(doctorId, { includeSent = false } = {}) {
-  const params = `doctor_id=${encodeURIComponent(doctorId)}${includeSent ? "&include_sent=true" : ""}`;
+export async function fetchDrafts(doctorId, { includeSent = false, patientId = null } = {}) {
+  let params = `doctor_id=${encodeURIComponent(doctorId)}${includeSent ? "&include_sent=true" : ""}`;
+  if (patientId) params += `&patient_id=${patientId}`;
   return request(`/api/manage/drafts?${params}`);
 }
 

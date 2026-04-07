@@ -703,7 +703,7 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
 
   // Review badge = pending review records + pending reply drafts (from cached queries, no extra DB call)
   const pendingReviewRecords = reviewQueueData?.pending?.length ?? 0;
-  const pendingDrafts = (draftsData || []).filter(d => d.status === "generated").length;
+  const pendingDrafts = (draftsData || []).filter(d => d.status !== "sent").length;
   const reviewCount = pendingReviewRecords + pendingDrafts;
 
   const followupCount = 0;

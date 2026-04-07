@@ -235,9 +235,11 @@ async def ai_flagged_patients(
         })
 
     # Deduplicate by patient_id (or record_id), keep highest urgency
-    seen: dict[str | int | None, dict] = {}
+    # Normalize to str — patient_id can be int or str across tables.
+    seen: dict[str, dict] = {}
     for f in flagged:
-        pid = f.get("patient_id") or f.get("record_id")
+        raw_pid = f.get("patient_id") or f.get("record_id")
+        pid = str(raw_pid) if raw_pid is not None else "_none"
         if pid not in seen or _urgency_rank(f["urgency"]) > _urgency_rank(seen[pid]["urgency"]):
             seen[pid] = f
 

@@ -32,7 +32,7 @@ def detect_red_flags(message: str) -> bool:
 
 async def generate_draft_reply(
     doctor_id: str,
-    patient_id: str,
+    patient_id: int,
     message_id: int,
     patient_message_text: str,
     patient_context: str = "",
@@ -132,7 +132,7 @@ async def generate_draft_reply(
             async with AsyncSessionLocal() as draft_session:
                 draft = MessageDraft(
                     doctor_id=doctor_id,
-                    patient_id=patient_id,
+                    patient_id=str(patient_id),  # MessageDraft.patient_id is String(64)
                     source_message_id=message_id,
                     draft_text=result.text,
                     cited_knowledge_ids=json.dumps(result.cited_knowledge_ids),

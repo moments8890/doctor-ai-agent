@@ -64,6 +64,7 @@ def _parse_cited_ids(raw: Optional[str]) -> list[int]:
 async def list_pending_drafts(
     doctor_id: str = Query(default="web_doctor"),
     include_sent: bool = Query(default=False),
+    patient_id: Optional[str] = Query(default=None),
     authorization: Optional[str] = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -71,6 +72,9 @@ async def list_pending_drafts(
 
     By default returns pending (generated/edited). With include_sent=true,
     also returns sent drafts for the completed view.
+
+    When patient_id is provided, returns ALL drafts for that patient
+    (no grouping) with source_message_id for timeline display.
     """
     resolved = _resolve_ui_doctor_id(doctor_id, authorization)
     enforce_doctor_rate_limit(resolved, scope="ui.drafts")
@@ -98,9 +102,10 @@ async def list_pending_drafts(
                 [DraftStatus.generated.value, DraftStatus.edited.value]
             ),
         )
-        .order_by(MessageDraft.created_at.desc())
-        .limit(50)
     )
+    if patient_id is not None:
+        stmt = stmt.where(MessageDraft.patient_id == str(patient_id))
+    stmt = stmt.order_by(MessageDraft.created_at.desc()).limit(50)
     rows = (await db.execute(stmt)).all()
 
     # Collect all cited KB IDs across drafts and bulk-load titles
@@ -133,6 +138,7 @@ async def list_pending_drafts(
             "patient_message": patient_message or "",
             "draft_text": draft.edited_text or draft.draft_text,
             "original_draft_text": draft.draft_text,
+            "source_message_id": draft.source_message_id,
             "cited_knowledge_ids": cited_ids,
             "cited_rules": [
                 {"id": kid, "title": kb_map.get(kid, f"规则 #{kid}")}
@@ -159,9 +165,10 @@ async def list_pending_drafts(
             PatientMessage.ai_handled == False,  # noqa: E712
             PatientMessage.direction == "inbound",
         )
-        .order_by(PatientMessage.created_at.desc())
-        .limit(50)
     )
+    if patient_id is not None:
+        undrafted_stmt = undrafted_stmt.where(PatientMessage.patient_id == int(patient_id))
+    undrafted_stmt = undrafted_stmt.order_by(PatientMessage.created_at.desc()).limit(50)
     undrafted_rows = (await db.execute(undrafted_stmt)).all()
 
     for msg, patient_name in undrafted_rows:
@@ -187,7 +194,36 @@ async def list_pending_drafts(
 
     # Sort all items by created_at descending
     result.sort(key=lambda x: x.get("created_at") or "", reverse=True)
-    return result
+
+    # Per-patient view: return all drafts ungrouped (for timeline display)
+    if patient_id is not None:
+        return result
+
+    # List view: group by patient — one card per patient, latest message shown
+    from collections import OrderedDict
+    patient_groups: OrderedDict[str, dict] = OrderedDict()
+    for item in result:
+        # Normalize key to str — MessageDraft.patient_id is String,
+        # PatientMessage.patient_id is int; both must map to same key.
+        pid = str(item["patient_id"])
+        if pid not in patient_groups:
+            patient_groups[pid] = {**item, "pending_count": 1}
+        else:
+            patient_groups[pid]["pending_count"] += 1
+            # Promote to "draft" if any message in the group has one
+            if item.get("type") == "draft":
+                patient_groups[pid]["type"] = "draft"
+                if item.get("status") in ("generated", "edited"):
+                    patient_groups[pid]["status"] = item["status"]
+                if not patient_groups[pid].get("draft_text"):
+                    patient_groups[pid]["draft_text"] = item.get("draft_text")
+                    patient_groups[pid]["cited_rules"] = item.get("cited_rules", [])
+            # Promote to "urgent" if any message is urgent
+            if item.get("badge") == "urgent" or item.get("triage_category") == "urgent":
+                patient_groups[pid]["badge"] = "urgent"
+                patient_groups[pid]["triage_category"] = "urgent"
+
+    return list(patient_groups.values())
 
 
 # ── 2. Summary counts ───────────────────────────────────────────────────

@@ -369,6 +369,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500 }}>{msg.patient_name}</Typography>
+                        {(msg.pending_count || 1) > 1 && <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.accent, color: COLOR.white, borderRadius: RADIUS.round, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{msg.pending_count}</Box>}
                         {msg.badge === "urgent" && <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.danger, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.5, py: 0.5, lineHeight: 1.5 }}>紧急</Box>}
                       </Box>
                       <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, mt: 0.5, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>

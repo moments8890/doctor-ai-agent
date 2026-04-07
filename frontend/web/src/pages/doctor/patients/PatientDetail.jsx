@@ -403,12 +403,12 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
 
   const refreshDrafts = useCallback(async () => {
     if (!patientId || !doctorId) return;
-    const data = await fetchDrafts(doctorId);
+    const data = await fetchDrafts(doctorId, { patientId });
     const allDrafts = Array.isArray(data) ? data : (data?.pending_messages || []);
-    const patientDrafts = allDrafts
-      .filter((draft) => String(draft.patient_id) === String(patientId))
-      .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
-    setDrafts(patientDrafts);
+    // Only keep actual AI drafts (not "undrafted" placeholders)
+    const actualDrafts = allDrafts.filter(d => d.type === "draft");
+    actualDrafts.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
+    setDrafts(actualDrafts);
   }, [patientId, doctorId, fetchDrafts]);
 
   useEffect(() => {
@@ -488,8 +488,20 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
     }
   }
 
-  const activeDraft = drafts[0] || null;
-  const timelineCount = messages.length + (activeDraft ? 1 : 0);
+  // Build draft lookup by source_message_id for inline timeline display
+  const messageIdSet = new Set(messages.map(m => m.id));
+  const pendingDrafts = drafts.filter(d => d.status !== "sent" && (d.draft_text || d.content));
+  const draftByMsgId = {};
+  let matchedCount = 0;
+  for (const d of pendingDrafts) {
+    if (d.source_message_id && messageIdSet.has(d.source_message_id)) {
+      draftByMsgId[d.source_message_id] = d;
+      matchedCount++;
+    }
+  }
+  // Don't show orphan drafts — they're stale from old conversations
+  const activeDraft = matchedCount > 0 ? pendingDrafts[0] : null; // for backward-compat (counts, hints)
+  const timelineCount = messages.length + matchedCount;
   const hasContent = timelineCount > 0;
 
   // Report counts to parent
@@ -558,31 +570,72 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
             const isDoctor = msg.role === "doctor" || msg.sender_type === "doctor" || msg.source === "doctor";
             const isAI = !isPatient && !isDoctor;
             const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "";
+            const inlineDraft = draftByMsgId[msg.id];
             return (
-              <Box key={idx} sx={{ display: "flex", flexDirection: isPatient ? "row" : "row-reverse", alignItems: "flex-end", gap: 1, px: 1.5 }}>
-                {isPatient ? (
-                  <NameAvatar name={patientName || "患者"} size={36} />
-                ) : (
-                  <MsgAvatar isUser={isDoctor} size={36} />
-                )}
-                <Box sx={{ maxWidth: "72%", display: "flex", flexDirection: "column", alignItems: isPatient ? "flex-start" : "flex-end" }}>
-                  <Box sx={{
-                    px: 1.5, py: 1,
-                    borderRadius: isPatient ? `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0` : `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}`,
-                    bgcolor: isPatient ? COLOR.white : (isDoctor ? COLOR.wechatGreen : COLOR.white),
-                    fontSize: TYPE.body.fontSize, whiteSpace: "pre-wrap", lineHeight: 1.7, color: COLOR.text1,
-                  }}>
-                    {isAI && <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>AI</Typography>}
-                    {msg.content || msg.text || ""}
+              <Box key={idx}>
+                {/* Message bubble */}
+                <Box sx={{ display: "flex", flexDirection: isPatient ? "row" : "row-reverse", alignItems: "flex-end", gap: 1, px: 1.5 }}>
+                  {isPatient ? (
+                    <NameAvatar name={patientName || "患者"} size={36} />
+                  ) : (
+                    <MsgAvatar isUser={isDoctor} size={36} />
+                  )}
+                  <Box sx={{ maxWidth: "72%", display: "flex", flexDirection: "column", alignItems: isPatient ? "flex-start" : "flex-end" }}>
+                    <Box sx={{
+                      px: 1.5, py: 1,
+                      borderRadius: isPatient ? `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0` : `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}`,
+                      bgcolor: isPatient ? COLOR.white : (isDoctor ? COLOR.wechatGreen : COLOR.white),
+                      fontSize: TYPE.body.fontSize, whiteSpace: "pre-wrap", lineHeight: 1.7, color: COLOR.text1,
+                    }}>
+                      {isAI && <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>AI</Typography>}
+                      {msg.content || msg.text || ""}
+                    </Box>
+                    <Typography sx={{ mt: 0.5, px: 0.5, fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{time}</Typography>
                   </Box>
-                  <Typography sx={{ mt: 0.5, px: 0.5, fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{time}</Typography>
                 </Box>
+                {/* Inline AI draft for this message */}
+                {inlineDraft && (inlineDraft.draft_text || inlineDraft.content) && (
+                  <Box sx={{ display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1, px: 1.5, mt: 1.5 }}>
+                    <MsgAvatar isUser={false} size={36} />
+                    <Box sx={{ maxWidth: "78%" }}>
+                      <Box sx={{ bgcolor: COLOR.primaryLight, border: `1px solid ${COLOR.primary}30`, borderRadius: RADIUS.md, px: 2, py: 1.5 }}>
+                        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 600, mb: 0.5 }}>
+                          AI起草回复 · 待你确认
+                        </Typography>
+                        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                          {inlineDraft.draft_text || inlineDraft.content || ""}
+                        </Typography>
+                        {inlineDraft.cited_rules?.length > 0 && (
+                          <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                            {inlineDraft.cited_rules.map((rule) => (
+                              <Box key={rule.id} component="span"
+                                onClick={() => rule.id && navigate(`${dp("settings/knowledge")}/${rule.id}`)}
+                                sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.danger, bgcolor: COLOR.dangerLight, px: 1, py: 0.5, borderRadius: RADIUS.sm, cursor: "pointer" }}>
+                                引用: {rule.title}
+                              </Box>
+                            ))}
+                          </Box>
+                        )}
+                        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 1.5, pt: 1, borderTop: `0.5px solid ${COLOR.primary}20` }}>
+                          <Typography onClick={() => handleEditDraft(inlineDraft)}
+                            sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
+                            修改
+                          </Typography>
+                          <Typography onClick={() => handleDraftSend(inlineDraft)}
+                            sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, fontWeight: 600, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
+                            确认发送 ›
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
               </Box>
             );
           })}
 
-          {/* No draft hint — when last message is from patient but AI couldn't draft */}
-          {!activeDraft && messages.length > 0 && messages[messages.length - 1]?.direction === "inbound" && (
+          {/* No draft hint — when last inbound message has no AI draft */}
+          {matchedCount === 0 && messages.length > 0 && messages[messages.length - 1]?.direction === "inbound" && (
             <Box sx={{ display: "flex", justifyContent: "center", px: 1.5, py: 1 }}>
               <Box sx={{
                 bgcolor: COLOR.surfaceAlt, border: `1px dashed ${COLOR.border}`,
@@ -591,47 +644,6 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
                 <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
                   AI未能起草回复（知识库中无匹配规则），请直接回复患者
                 </Typography>
-              </Box>
-            </Box>
-          )}
-
-          {/* AI draft — actionable card on the right */}
-          {activeDraft && (activeDraft.draft_text || activeDraft.content) && (
-            <Box sx={{ display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1, px: 1.5 }}>
-              <MsgAvatar isUser={false} size={36} />
-              <Box sx={{ maxWidth: "78%" }}>
-                <Box sx={{
-                  bgcolor: COLOR.primaryLight, border: `1px solid ${COLOR.primary}30`,
-                  borderRadius: RADIUS.md, px: 2, py: 1.5,
-                }}>
-                  <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 600, mb: 0.5 }}>
-                    AI起草回复 · 待你确认
-                  </Typography>
-                  <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
-                    {activeDraft.draft_text || activeDraft.content || ""}
-                  </Typography>
-                  {activeDraft.cited_rules?.length > 0 && (
-                    <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {activeDraft.cited_rules.map((rule) => (
-                        <Box key={rule.id} component="span"
-                          onClick={() => rule.id && navigate(`${dp("settings/knowledge")}/${rule.id}`)}
-                          sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.danger, bgcolor: COLOR.dangerLight, px: 1, py: 0.5, borderRadius: RADIUS.sm, cursor: "pointer" }}>
-                          引用: {rule.title}
-                        </Box>
-                      ))}
-                    </Box>
-                  )}
-                  <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, mt: 1.5, pt: 1, borderTop: `0.5px solid ${COLOR.primary}20` }}>
-                    <Typography onClick={() => handleEditDraft(activeDraft)}
-                      sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
-                      修改
-                    </Typography>
-                    <Typography onClick={() => handleDraftSend(activeDraft)}
-                      sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, fontWeight: 600, cursor: "pointer", "&:active": { opacity: 0.5 } }}>
-                      确认发送 ›
-                    </Typography>
-                  </Box>
-                </Box>
               </Box>
             </Box>
           )}

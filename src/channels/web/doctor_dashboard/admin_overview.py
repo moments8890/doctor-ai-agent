@@ -735,6 +735,7 @@ async def admin_doctors_list(db: AsyncSession = Depends(get_db)) -> dict:
                 "pending_tasks": pending_tasks,
                 "kb_count": kb_count,
                 "last_active": _fmt_ts(doc.updated_at),
+                "created_at": _fmt_ts(doc.created_at),
             }
         )
 

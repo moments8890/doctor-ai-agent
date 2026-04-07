@@ -169,7 +169,8 @@ async def _generate_draft_for_escalated(
     """Generate a draft reply after a delay (batches rapid-fire messages).
 
     If a newer message arrives for the same patient within the delay window,
-    the previous pending draft is cancelled and replaced.
+    the previous pending draft is cancelled and replaced. When the timer fires,
+    collects ALL unresponded inbound messages for a comprehensive reply.
     """
     # Cancel any pending draft for this patient (newer message supersedes)
     if patient_id in _pending_drafts:
