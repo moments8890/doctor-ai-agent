@@ -538,9 +538,8 @@ export default function OnboardingWizard() {
       // Show loading screen, seed data, then navigate with fresh cache
       setSeeding(true);
       try {
-        const { seedDemo } = await import("../../api");
-        await seedDemo(doctorId);
-      } catch { /* non-fatal */ }
+        await api.seedDemo(doctorId);
+      } catch (e) { console.warn("[onboarding] seed failed:", e); }
       queryClient.invalidateQueries();
       navigate(dp());
     } else {
