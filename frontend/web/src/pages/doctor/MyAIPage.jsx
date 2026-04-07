@@ -366,7 +366,8 @@ export default function MyAIPage({ doctorId }) {
                   </Typography>
                 }
                 onClick={() => {
-                  if (item.type === "diagnosis" && item.record_id) navigate(`${dp("review")}/${item.record_id}`);
+                  if (item.type === "task" && item.task_id) navigate(`${dp("tasks")}/${item.task_id}`);
+                  else if (item.type === "diagnosis" && item.record_id) navigate(`${dp("review")}/${item.record_id}`);
                   else if (item.type === "draft" && item.patient_id) navigate(`${dp("patients")}/${item.patient_id}?view=chat`);
                   else if (item.patient_id) navigate(`${dp("patients")}/${item.patient_id}`);
                   else navigate(dp("review"));
