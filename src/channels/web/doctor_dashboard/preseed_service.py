@@ -273,14 +273,16 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
                 )
                 db.add(outbound)
             else:
+                # Only cite KB items actually referenced in the reply
+                from domain.knowledge.citation_parser import extract_citations
+                cited = extract_citations(reply_text)
+                valid_cited = [kid for kid in cited.cited_ids if kid in set(kb_map.values())]
                 draft = MessageDraft(
                     doctor_id=doctor_id,
                     patient_id=str(patient.id),
                     source_message_id=inbound.id,
                     draft_text=re.sub(r"\[KB-\d+\]", "", reply_text).strip(),
-                    cited_knowledge_ids=json.dumps(
-                        list(kb_map.values()), ensure_ascii=False
-                    ),
+                    cited_knowledge_ids=json.dumps(valid_cited, ensure_ascii=False),
                     status=DraftStatus.generated.value,
                     seed_source=_SEED_SOURCE,
                 )
