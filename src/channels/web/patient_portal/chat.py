@@ -132,8 +132,7 @@ async def post_chat(
 
         # Generate draft reply for doctor (fire-and-forget)
         from domain.patient_lifecycle.triage_handlers import _generate_draft_for_escalated
-        from infra.tasks import safe_create_task as _safe_task
-        _safe_task(
+        safe_create_task(
             _generate_draft_for_escalated(
                 doctor_id, patient.id, saved_msg.id, text, context_str,
             ),
