@@ -48,7 +48,7 @@ import SuggestionChips from "../../components/SuggestionChips";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
-import { usePendingTasks, useDraftSummary } from "../../lib/doctorQueries";
+import { usePendingTasks, useDraftSummary, useReviewQueue, useDrafts } from "../../lib/doctorQueries";
 
 function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, onLogout }) {
   return (
@@ -692,7 +692,8 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
 
   // Badge counts via React Query (cache-backed, no redundant fetches on tab switch)
   const { data: tasksData } = usePendingTasks();
-  const { data: summaryData } = useDraftSummary();
+  const { data: reviewQueueData } = useReviewQueue();
+  const { data: draftsData } = useDrafts();
 
   const pendingTaskCount = (() => {
     if (!tasksData) return 0;
@@ -700,10 +701,10 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
     return items.length;
   })();
 
-  const reviewCount = (() => {
-    if (!summaryData) return pendingTaskCount;
-    return (summaryData.review_pending_count ?? 0) + (summaryData.pending ?? 0);
-  })();
+  // Review badge = pending review records + pending reply drafts (from cached queries, no extra DB call)
+  const pendingReviewRecords = reviewQueueData?.pending?.length ?? 0;
+  const pendingDrafts = (draftsData || []).filter(d => d.status === "generated").length;
+  const reviewCount = pendingReviewRecords + pendingDrafts;
 
   const followupCount = 0;
 
