@@ -8,6 +8,8 @@ import { useApi } from "../../api/ApiContext";
 import { useDoctorStore } from "../../store/doctorStore";
 import SubpageHeader from "../../components/SubpageHeader";
 import AppButton from "../../components/AppButton";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "../../lib/queryKeys";
 import SheetDialog from "../../components/SheetDialog";
 import PatientInterviewPage from "../patient/InterviewPage";
 import { PatientApiProvider } from "../../api/PatientApiContext";
@@ -410,6 +412,7 @@ function StepProofContent({ progress, setCanAdvance }) {
 // ── Step 3: 确认并开始 ────────────────────────────────────────────────────────
 
 function StepDoneContent({ doctorId, progress, updateProgress, setCanAdvance, api }) {
+  const queryClient = useQueryClient();
   const [ready, setReady] = useState(false);
   const [showInterview, setShowInterview] = useState(false);
 
@@ -426,6 +429,7 @@ function StepDoneContent({ doctorId, progress, updateProgress, setCanAdvance, ap
         const data = await api.createOnboardingPatientEntry(doctorId, { patientName: demoName, gender: "女", age: 65 });
         const patientToken = data?.portal_token || data?.token;
         if (patientToken) updateProgress({ interviewToken: patientToken });
+        queryClient.invalidateQueries({ queryKey: QK.patients(doctorId) });
         setReady(true);
       } catch {
         setReady(true);

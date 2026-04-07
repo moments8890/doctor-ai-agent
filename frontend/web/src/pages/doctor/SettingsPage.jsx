@@ -258,6 +258,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
     try {
       const createEntry = api.createOnboardingPatientEntry || (() => Promise.reject(new Error("缺少预问诊入口接口")));
       const data = await createEntry(doctorId, { patientName });
+      queryClient.invalidateQueries({ queryKey: QK.patients(doctorId) });
       setQrUrl(data.portal_url || "");
       const previewParams = new URLSearchParams({
         patient_token: data.portal_token || "",

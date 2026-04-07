@@ -99,6 +99,8 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
     setSaving(true);
     try {
       await (api.patchTaskNotes || (() => Promise.resolve()))(taskId, doctorId, notes);
+      queryClient.invalidateQueries({ queryKey: QK.tasks(doctorId, "pending") });
+      queryClient.invalidateQueries({ queryKey: QK.tasks(doctorId, "completed") });
       setNotesDirty(false);
       showToast("备注已保存");
     } catch {
