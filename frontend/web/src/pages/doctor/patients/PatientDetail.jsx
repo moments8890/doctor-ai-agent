@@ -581,6 +581,20 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
             );
           })}
 
+          {/* No draft hint — when last message is from patient but AI couldn't draft */}
+          {!activeDraft && messages.length > 0 && messages[messages.length - 1]?.direction === "inbound" && (
+            <Box sx={{ display: "flex", justifyContent: "center", px: 1.5, py: 1 }}>
+              <Box sx={{
+                bgcolor: COLOR.surfaceAlt, border: `1px dashed ${COLOR.border}`,
+                borderRadius: RADIUS.md, px: 2, py: 1.2, maxWidth: "85%", textAlign: "center",
+              }}>
+                <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
+                  AI未能起草回复（知识库中无匹配规则），请直接回复患者
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
           {/* AI draft — actionable card on the right */}
           {activeDraft && (activeDraft.draft_text || activeDraft.content) && (
             <Box sx={{ display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1, px: 1.5 }}>
