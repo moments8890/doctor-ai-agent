@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.crud.patient import create_patient, find_patient_by_name
@@ -476,14 +477,20 @@ async def create_onboarding_patient_entry(
     patient = await find_patient_by_name(db, resolved_doctor_id, patient_name)
     created = False
     if patient is None:
-        patient, _plaintext_code = await create_patient(
-            db,
-            resolved_doctor_id,
-            patient_name,
-            body.gender or "女",
-            body.age or 65,
-        )
-        created = True
+        try:
+            patient, _plaintext_code = await create_patient(
+                db,
+                resolved_doctor_id,
+                patient_name,
+                body.gender or "女",
+                body.age or 65,
+            )
+            created = True
+        except IntegrityError:
+            await db.rollback()
+            patient = await find_patient_by_name(db, resolved_doctor_id, patient_name)
+            if patient is None:
+                raise HTTPException(status_code=409, detail="患者创建冲突，请重试")
 
     # Seed a completed prior-visit record so the interview can reference history
     if created:
