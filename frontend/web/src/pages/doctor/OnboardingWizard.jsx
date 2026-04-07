@@ -1,7 +1,7 @@
 // frontend/web/src/pages/doctor/OnboardingWizard.jsx
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Box, Typography, LinearProgress, CircularProgress } from "@mui/material";
+import { Box, Typography, LinearProgress } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { useApi } from "../../api/ApiContext";
@@ -527,24 +527,19 @@ export default function OnboardingWizard() {
     setSearchParams({ step: String(n) }, { replace: true });
   }
 
-  const [seeding, setSeeding] = useState(false);
-
-  async function handleAdvance() {
+  function handleAdvance() {
     const next = step + 1;
     const completedSteps = [...new Set([...(progress.completedSteps || []), step])];
     updateProgress({ completedSteps, currentStep: next });
     if (next > TOTAL_STEPS) {
       markWizardDone(doctorId, "completed");
-      // Seed demo data BEFORE navigating so dashboard has data on first render
-      setSeeding(true);
-      try {
-        const { seedDemo } = await import("../../api");
-        await seedDemo(doctorId);
-      } catch { /* non-fatal */ }
-      // Invalidate all cached queries so dashboard fetches fresh seeded data
-      queryClient.invalidateQueries();
-      setSeeding(false);
+      // Navigate immediately, seed in background, refetch when done
       navigate(dp());
+      import("../../api").then(({ seedDemo }) =>
+        seedDemo(doctorId)
+          .catch(() => {})
+          .finally(() => queryClient.invalidateQueries())
+      );
     } else {
       goToStep(next);
     }
@@ -593,18 +588,8 @@ export default function OnboardingWizard() {
       <Box sx={{ flex: 1, overflow: "auto" }}>
         {renderStep()}
       </Box>
-      {seeding && (
-        <Box sx={{
-          position: "absolute", inset: 0, zIndex: 10,
-          bgcolor: "rgba(255,255,255,0.9)",
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
-        }}>
-          <CircularProgress size={32} sx={{ color: COLOR.primary }} />
-          <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2 }}>正在准备您的工作台...</Typography>
-        </Box>
-      )}
       <WizardFooter
-        canAdvance={canAdvance && !seeding}
+        canAdvance={canAdvance}
         onAdvance={handleAdvance}
         onSkip={() => setConfirmSkip(true)}
         onRestart={() => setConfirmRestart(true)}
