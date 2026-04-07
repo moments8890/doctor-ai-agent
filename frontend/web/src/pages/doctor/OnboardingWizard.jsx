@@ -538,8 +538,17 @@ export default function OnboardingWizard() {
       // Show loading screen, seed data, then navigate with fresh cache
       setSeeding(true);
       try {
-        await api.seedDemo(doctorId);
-      } catch (e) { console.warn("[onboarding] seed failed:", e); }
+        // 5s timeout — seed is fast (~50ms), don't let it block forever
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        await fetch("/api/manage/onboarding/seed-demo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ doctor_id: doctorId }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+      } catch (e) { console.warn("[onboarding] seed:", e?.message || e); }
       queryClient.invalidateQueries();
       navigate(dp());
     } else {
