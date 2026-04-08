@@ -7,9 +7,9 @@ const BrowserSpeechRecognition = typeof window !== "undefined"
   ? (window.SpeechRecognition || window.webkitSpeechRecognition)
   : null;
 
+const IS_MINIPROGRAM = typeof window !== "undefined" && window.__wxjs_environment === "miniprogram";
+
 // ── ASR mode detection ──────────────────────────────────────────────
-// Connects briefly to /ws/transcribe to check if server-side ASR is available.
-// Returns "browser" (use browser SpeechRecognition) or "server" (stream audio via WS).
 let _asrModeCache = null;
 
 function getWsUrl() {
@@ -19,6 +19,11 @@ function getWsUrl() {
 
 async function detectAsrMode() {
   if (_asrModeCache) return _asrModeCache;
+  // In miniprogram, use JSSDK mode (wx.startRecord)
+  if (IS_MINIPROGRAM) {
+    _asrModeCache = "jssdk";
+    return "jssdk";
+  }
   try {
     const ws = new WebSocket(getWsUrl());
     const result = await new Promise((resolve) => {
@@ -27,11 +32,7 @@ async function detectAsrMode() {
         clearTimeout(timeout);
         try {
           const msg = JSON.parse(evt.data);
-          if (msg.type === "config" && msg.provider === "browser") {
-            resolve("browser");
-          } else {
-            resolve("server");
-          }
+          resolve(msg.type === "config" && msg.provider === "browser" ? "browser" : "server");
         } catch {
           resolve("server");
         }
@@ -49,19 +50,56 @@ async function detectAsrMode() {
 }
 
 export function isVoiceSupported() {
-  // In miniprogram web-view, browser SpeechRecognition exists but doesn't work.
-  // Only trust server ASR there; in regular browsers, either mode is fine.
-  const isMiniprogram = typeof window !== "undefined" && window.__wxjs_environment === "miniprogram";
-  if (isMiniprogram) return _asrModeCache === "server";
+  if (IS_MINIPROGRAM) return true; // JSSDK recording always available
   return !!BrowserSpeechRecognition || _asrModeCache === "server";
 }
+
+// ── JSSDK wx.config (one-time) ──────────────────────────────────────
+let _jssdkConfigured = false;
+let _jssdkConfiguring = false;
+
+async function ensureJssdkConfig() {
+  if (_jssdkConfigured || _jssdkConfiguring) return _jssdkConfigured;
+  if (typeof wx === "undefined") return false;
+  _jssdkConfiguring = true;
+  try {
+    const resp = await fetch("/api/wechat/jssdk-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: window.location.href.split("#")[0] }),
+    });
+    if (!resp.ok) throw new Error(`JSSDK config failed: ${resp.status}`);
+    const cfg = await resp.json();
+    await new Promise((resolve, reject) => {
+      wx.config({ // eslint-disable-line no-undef
+        debug: false,
+        appId: cfg.appId,
+        timestamp: cfg.timestamp,
+        nonceStr: cfg.nonceStr,
+        signature: cfg.signature,
+        jsApiList: ["startRecord", "stopRecord", "uploadVoice", "onVoiceRecordEnd"],
+      });
+      wx.ready(() => { _jssdkConfigured = true; resolve(); }); // eslint-disable-line no-undef
+      wx.error((err) => { console.error("[JSSDK] config error", err); reject(err); }); // eslint-disable-line no-undef
+    });
+    return true;
+  } catch (e) {
+    console.error("[JSSDK] config failed", e);
+    return false;
+  } finally {
+    _jssdkConfiguring = false;
+  }
+}
+
 
 export default function VoiceInput({ onResult, onCancel }) {
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [seconds, setSeconds] = useState(0);
-  const [asrMode, setAsrMode] = useState(BrowserSpeechRecognition ? "browser" : null);
+  const [asrMode, setAsrMode] = useState(
+    IS_MINIPROGRAM ? "jssdk" : (BrowserSpeechRecognition ? "browser" : null)
+  );
   const [interimText, setInterimText] = useState("");
 
   // Refs for browser mode
@@ -78,20 +116,97 @@ export default function VoiceInput({ onResult, onCancel }) {
   // ── Detect ASR mode on mount ──
   useEffect(() => {
     detectAsrMode().then((mode) => setAsrMode(mode));
+    if (IS_MINIPROGRAM) ensureJssdkConfig();
   }, []);
 
-  // Keep cancelledRef in sync
-  useEffect(() => {
-    cancelledRef.current = cancelled;
-  }, [cancelled]);
+  useEffect(() => { cancelledRef.current = cancelled; }, [cancelled]);
 
   // ── Timer helpers ──
   function startTimer() {
     timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
   }
-
   function stopTimer() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  }
+
+  // ── JSSDK mode (WeChat miniprogram web-view) ──
+  function startJssdkRecording(clientY) {
+    if (typeof wx === "undefined") return;
+    startYRef.current = clientY;
+    setCancelled(false);
+    cancelledRef.current = false;
+    setSeconds(0);
+    setRecording(true);
+    setInterimText("");
+
+    wx.startRecord(); // eslint-disable-line no-undef
+    // Auto-stop at 60s limit
+    wx.onVoiceRecordEnd({ // eslint-disable-line no-undef
+      complete: (res) => {
+        if (!cancelledRef.current) {
+          _handleJssdkUpload(res.localId);
+        } else {
+          setRecording(false);
+          setCancelled(false);
+        }
+      },
+    });
+    startTimer();
+  }
+
+  function stopJssdkRecording() {
+    if (typeof wx === "undefined") return;
+    stopTimer();
+
+    if (cancelledRef.current) {
+      wx.stopRecord(); // eslint-disable-line no-undef
+      setRecording(false);
+      setCancelled(false);
+      setInterimText("");
+      onCancel();
+      return;
+    }
+
+    if (seconds < 1) {
+      wx.stopRecord(); // eslint-disable-line no-undef
+      setRecording(false);
+      setInterimText("");
+      return;
+    }
+
+    setRecording(false);
+    setProcessing(true);
+
+    wx.stopRecord({ // eslint-disable-line no-undef
+      success: (res) => _handleJssdkUpload(res.localId),
+      fail: () => { setProcessing(false); },
+    });
+  }
+
+  function _handleJssdkUpload(localId) {
+    wx.uploadVoice({ // eslint-disable-line no-undef
+      localId,
+      isShowProgressTips: 0,
+      success: async (res) => {
+        try {
+          const resp = await fetch("/api/voice/wx-transcribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ serverId: res.serverId }),
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.text) onResult(data.text);
+          }
+        } catch (e) {
+          console.error("[JSSDK] transcribe error", e);
+        } finally {
+          setProcessing(false);
+          setInterimText("");
+        }
+      },
+      fail: () => { setProcessing(false); setInterimText(""); },
+    });
   }
 
   // ── Browser SpeechRecognition mode ──
@@ -111,30 +226,22 @@ export default function VoiceInput({ onResult, onCancel }) {
     recognition.continuous = true;
 
     recognition.onresult = (event) => {
-      // Collect all final + interim results into one string
       let final = "";
       let interim = "";
       for (let i = 0; i < event.results.length; i++) {
         const text = event.results[i][0]?.transcript || "";
-        if (event.results[i].isFinal) {
-          final += text;
-        } else {
-          interim += text;
-        }
+        if (event.results[i].isFinal) final += text;
+        else interim += text;
       }
       if (final && !cancelledRef.current) onResult(final);
       if (interim) setInterimText(interim);
     };
     recognition.onerror = (e) => {
-      // "no-speech" is normal if user is silent — don't exit voice mode
       if (e.error === "no-speech") return;
       stopTimer(); setRecording(false);
     };
     recognition.onend = () => {
-      // With continuous=true, onend fires if the browser stops on its own.
-      // Only clean up if we're still recording (user hasn't released yet).
       if (recognitionRef.current && !cancelledRef.current) {
-        // Restart to keep listening
         try { recognitionRef.current.start(); } catch { /* already stopped */ }
       }
     };
@@ -147,7 +254,7 @@ export default function VoiceInput({ onResult, onCancel }) {
   function stopBrowserRecording() {
     stopTimer();
     const ref = recognitionRef.current;
-    recognitionRef.current = null; // prevent onend from restarting
+    recognitionRef.current = null;
     if (cancelledRef.current) {
       ref?.abort();
       setRecording(false);
@@ -171,58 +278,40 @@ export default function VoiceInput({ onResult, onCancel }) {
     setInterimText("");
 
     try {
-      // Get mic access
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Open WebSocket
       const ws = new WebSocket(getWsUrl());
       wsRef.current = ws;
 
       ws.onmessage = (evt) => {
         try {
           const msg = JSON.parse(evt.data);
-          if (msg.type === "config") return; // skip config message
-          if (msg.type === "interim" && msg.text) {
-            setInterimText(msg.text);
-          }
+          if (msg.type === "config") return;
+          if (msg.type === "interim" && msg.text) setInterimText(msg.text);
           if (msg.type === "final") {
-            if (msg.text && !cancelledRef.current) {
-              onResult(msg.text);
-            }
+            if (msg.text && !cancelledRef.current) onResult(msg.text);
             cleanup();
           }
-        } catch {
-          // ignore parse errors
-        }
+        } catch { /* ignore */ }
       };
 
-      ws.onerror = () => {
-        // Don't exit voice mode on network error — just reset so user can retry
-        cleanup();
-      };
+      ws.onerror = () => cleanup();
 
       ws.onopen = () => {
-        // Start MediaRecorder once WS is ready
         const recorder = new MediaRecorder(stream, {
           mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-            ? "audio/webm;codecs=opus"
-            : "audio/webm",
+            ? "audio/webm;codecs=opus" : "audio/webm",
         });
         mediaRecorderRef.current = recorder;
-
         recorder.ondataavailable = (e) => {
-          if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-            ws.send(e.data);
-          }
+          if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) ws.send(e.data);
         };
-
-        recorder.start(250); // send chunks every 250ms
+        recorder.start(250);
       };
 
       startTimer();
     } catch {
-      // Mic access denied or other error — fall back
       setRecording(false);
       onCancel();
     }
@@ -233,81 +322,34 @@ export default function VoiceInput({ onResult, onCancel }) {
     setRecording(false);
     setProcessing(false);
     setInterimText("");
-
-    // Stop MediaRecorder
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") mediaRecorderRef.current.stop();
     mediaRecorderRef.current = null;
-
-    // Stop mic stream
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-
-    // Close WebSocket
-    if (wsRef.current) {
-      if (wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.close();
-      }
-      wsRef.current = null;
-    }
+    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+    if (wsRef.current) { if (wsRef.current.readyState === WebSocket.OPEN) wsRef.current.close(); wsRef.current = null; }
   }
 
   function stopServerRecording() {
-    if (cancelledRef.current) {
-      cleanup();
-      setCancelled(false);
-      onCancel();
-      return;
-    }
-
-    // Skip if recording was too short (< 0.5s) — not enough audio to transcribe
-    if (seconds < 1) {
-      cleanup();
-      return;
-    }
-
-    // Show processing state while server transcribes
+    if (cancelledRef.current) { cleanup(); setCancelled(false); onCancel(); return; }
+    if (seconds < 1) { cleanup(); return; }
     setRecording(false);
     setProcessing(true);
     stopTimer();
-
-    // Stop the recorder so remaining data flushes
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
-    }
-
-    // Tell server we're done
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send("stop");
-    }
-
-    // Server will respond with {type: "final"} which triggers cleanup via onmessage.
-    // Safety timeout in case server doesn't respond:
-    setTimeout(() => {
-      if (wsRef.current) {
-        cleanup();
-      }
-    }, 30000);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") mediaRecorderRef.current.stop();
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) wsRef.current.send("stop");
+    setTimeout(() => { if (wsRef.current) cleanup(); }, 30000);
   }
 
   // ── Unified start/stop ──
   function startRecording(clientY) {
-    if (asrMode === "server") {
-      startServerRecording(clientY);
-    } else if (BrowserSpeechRecognition) {
-      startBrowserRecording(clientY);
-    }
+    if (asrMode === "jssdk") startJssdkRecording(clientY);
+    else if (asrMode === "server") startServerRecording(clientY);
+    else if (BrowserSpeechRecognition) startBrowserRecording(clientY);
   }
 
   function stopRecording() {
-    if (asrMode === "server") {
-      stopServerRecording();
-    } else {
-      stopBrowserRecording();
-    }
+    if (asrMode === "jssdk") stopJssdkRecording();
+    else if (asrMode === "server") stopServerRecording();
+    else stopBrowserRecording();
   }
 
   function handleMove(clientY) {
@@ -322,7 +364,7 @@ export default function VoiceInput({ onResult, onCancel }) {
   // Not ready yet (detecting mode)
   if (!asrMode && !BrowserSpeechRecognition) return null;
 
-  // Processing state — Whisper is transcribing
+  // Processing state
   if (processing) {
     return (
       <Box sx={{
