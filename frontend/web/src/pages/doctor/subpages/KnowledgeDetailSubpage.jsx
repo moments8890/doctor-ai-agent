@@ -85,7 +85,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
       const allData = await api.getKnowledgeItems(doctorId);
       const listData = Array.isArray(allData) ? allData : (allData?.items || []);
       if (allData?.persona && allData.persona.id === itemId) {
-        return { ...allData.persona, text: allData.persona.content, source: "system" };
+        return { ...allData.persona, text: allData.persona.content, source: "system", category: "persona" };
       }
       // Try batch endpoint for regular items
       if (api.getKnowledgeBatch) {
