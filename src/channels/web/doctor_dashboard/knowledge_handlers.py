@@ -93,9 +93,10 @@ async def list_knowledge(
             entry["file_path"] = file_path
         result.append(entry)
 
-    # Load persona separately
+    # Load persona separately — commit so new personas are persisted
     from domain.knowledge.teaching import get_or_create_persona
     persona_item = await get_or_create_persona(session, resolved)
+    await session.commit()
     persona_data = None
     if persona_item:
         from db.models.doctor_edit import DoctorEdit
