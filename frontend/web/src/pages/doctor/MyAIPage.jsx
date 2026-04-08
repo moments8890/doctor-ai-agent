@@ -140,8 +140,15 @@ export default function MyAIPage({ doctorId }) {
   // Derived values — all stats computed from actual data
   const aiName = `${doctorName || "医生"} 的 AI`;
   const knowledgeList = Array.isArray(knowledge) ? knowledge : (knowledge?.items || []);
-  const knowledgeCount = knowledgeList.length;
-  const topRules = knowledgeList.slice(0, 3);
+  const knowledgePersona = !Array.isArray(knowledge) && knowledge?.persona ? knowledge.persona : null;
+  const knowledgeCount = knowledgeList.length + (knowledgePersona ? 1 : 0);
+  const topRules = (() => {
+    const items = knowledgeList.slice(0, knowledgePersona ? 2 : 3);
+    if (knowledgePersona) {
+      return [{ ...knowledgePersona, text: knowledgePersona.content, source: "system", category: "persona", title: "我的AI人设" }, ...items];
+    }
+    return items;
+  })();
   const activityList = Array.isArray(activity) ? activity : (activity?.activity || activity?.items || []);
   const recentActivity = activityList.slice(0, 3);
 
@@ -310,18 +317,24 @@ export default function MyAIPage({ doctorId }) {
             </>
           )}
           {loading && topRules.length === 0 && <SectionLoading />}
-          {topRules.map((rule, idx) => (
+          {topRules.map((rule, idx) => {
+            const isPersonaItem = rule.category === "persona";
+            const summary = isPersonaItem
+              ? `待学习 · 已收集 ${rule.edit_count || 0} 条回复`
+              : (rule.summary || rule.content?.slice(0, 40) || "");
+            return (
             <KnowledgeCard
               key={rule.id || idx}
               title={rule.title || rule.content?.slice(0, 20) || "规则"}
-              summary={rule.summary || rule.content?.slice(0, 40) || ""}
-              referenceCount={rule.reference_count || 0}
+              summary={summary}
+              referenceCount={isPersonaItem ? 0 : (rule.reference_count || 0)}
               source={rule.source}
-              date={rule.created_at ? formatRelativeDate(rule.created_at) : ""}
+              date={isPersonaItem ? "" : (rule.created_at ? formatRelativeDate(rule.created_at) : "")}
               onClick={() => navigate(`${dp("settings/knowledge")}/${rule.id}`)}
               sx={idx === topRules.length - 1 ? { borderBottom: "none" } : {}}
             />
-          ))}
+            );
+          })}
         </Box>
 
         {/* ── D. 最近由AI处理 ────────────────────────────────── */}
