@@ -91,7 +91,13 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
       // Fallback: fetch all and filter
       const data = await api.getKnowledgeItems(doctorId);
       const items = Array.isArray(data) ? data : (data?.items || []);
-      return items.find((i) => i.id === itemId) || null;
+      const found = items.find((i) => i.id === itemId);
+      if (found) return found;
+      // Check persona (filtered out of items list but accessible separately)
+      if (data?.persona && data.persona.id === itemId) {
+        return { ...data.persona, text: data.persona.content, source: "system" };
+      }
+      return null;
     };
 
     const fetchUsage = async () => {
