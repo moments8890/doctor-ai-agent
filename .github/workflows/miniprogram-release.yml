@@ -36,6 +36,21 @@ jobs:
         id: version
         run: echo "version=$(echo ${{ github.ref_name }} | sed 's/^v//' | sed 's/-.*//')" >> "$GITHUB_OUTPUT"
 
+      # Build description from tag name + annotation
+      - name: Build description
+        id: desc
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          TAG_MSG=$(git tag -l --format='%(contents:subject)' "$TAG_NAME" 2>/dev/null || echo "")
+          if [ -z "$TAG_MSG" ]; then
+            DESC="$TAG_NAME"
+          else
+            DESC="$TAG_NAME — $TAG_MSG"
+          fi
+          # miniprogram-ci desc max 200 chars
+          DESC="${DESC:0:200}"
+          echo "desc=$DESC" >> "$GITHUB_OUTPUT"
+
       # Upload to WeChat MP platform
       - name: Upload miniprogram
         working-directory: frontend/miniprogram
@@ -45,7 +60,7 @@ jobs:
             --pkp /tmp/mp-upload-key.key \
             --appid wx9667f8091b342fb7 \
             --uv "${{ steps.version.outputs.version }}" \
-            --desc "Release ${{ github.ref_name }}" \
+            --desc "${{ steps.desc.outputs.desc }}" \
             -r 1 \
             --enable-es6 true \
             --enable-es7 true \
