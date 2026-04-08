@@ -240,6 +240,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { doctorName, setAuth, accessToken } = useDoctorStore();
   const api = useApi();
+  const queryClient = useQueryClient();
   const { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty, clinicName, setClinicName, bio, setBio, clinicDialogOpen, setClinicDialogOpen, clinicInput, setClinicInput, clinicSaving, handleSaveClinic, bioDialogOpen, setBioDialogOpen, bioInput, setBioInput, bioSaving, handleSaveBio } = useSettingsState({ doctorId, doctorName, accessToken, setAuth });
 
   const [qrUrl, setQrUrl] = useState("");
