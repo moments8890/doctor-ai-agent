@@ -4,6 +4,7 @@
  * MyAIPage -- "我的AI" tab. AI identity dashboard showing the doctor's AI
  * status, knowledge rules, quick actions, and recent AI activity.
  */
+import { useState } from "react";
 import { Badge, Box, CircularProgress, Skeleton, Typography } from "@mui/material";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
@@ -27,6 +28,7 @@ import StatColumn from "../../components/StatColumn";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
 import { useKnowledgeItems, useReviewQueue, useAIActivity } from "../../lib/doctorQueries";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -153,6 +155,8 @@ export default function MyAIPage({ doctorId }) {
   // Badge counts for quick actions
   const reviewBadge = pendingReview || 0;
   const followupBadge = 0; // TODO: derive from tasks data when fetched
+  const [showAddHome, setShowAddHome] = useState(false);
+  const isMiniprogram = typeof window !== "undefined" && window.__wxjs_environment === "miniprogram";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
@@ -265,6 +269,16 @@ export default function MyAIPage({ doctorId }) {
               subtitle="再次走一遍产品引导流程"
               chevron
               onClick={() => { clearWizardDone(doctorId); navigate(`${dp("onboarding")}?step=1`); }}
+              sx={isMiniprogram ? {} : { borderBottom: "none" }}
+            />
+          )}
+          {isMiniprogram && (
+            <ListCard
+              avatar={<IconBadge config={ICON_BADGES.add_home} />}
+              title="添加到手机桌面"
+              subtitle="像App一样一键打开"
+              chevron
+              onClick={() => setShowAddHome(true)}
               sx={{ borderBottom: "none" }}
             />
           )}
@@ -380,6 +394,25 @@ export default function MyAIPage({ doctorId }) {
         </Box>
 
       </PullToRefresh>
+
+      <ConfirmDialog
+        open={showAddHome}
+        title="添加到手机桌面"
+        confirmLabel="复制链接"
+        cancelLabel="知道了"
+        onConfirm={() => { navigator.clipboard?.writeText("https://wxaurl.cn/c5C1mGUyd9i").catch(() => {}); setShowAddHome(false); }}
+        onCancel={() => setShowAddHome(false)}
+        onClose={() => setShowAddHome(false)}
+      >
+        <Box sx={{ textAlign: "left", fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.8 }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, mb: 1 }}>
+            点击右上角 <b>···</b> 菜单，选择「添加到桌面」即可像App一样使用。
+          </Typography>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+            或复制链接发送给微信好友，对方打开即可添加。
+          </Typography>
+        </Box>
+      </ConfirmDialog>
     </Box>
   );
 }

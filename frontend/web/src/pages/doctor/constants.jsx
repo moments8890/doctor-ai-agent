@@ -28,6 +28,7 @@ import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
+import AddToHomeScreenOutlinedIcon from "@mui/icons-material/AddToHomeScreenOutlined";
 import { COLOR } from "../../theme";
 
 export const TASK_TYPE_LABEL = {
@@ -318,6 +319,9 @@ export const ICON_BADGES = {
   upload:       { icon: UploadFileOutlinedIcon, bg: COLOR.primary },
   camera:       { icon: CameraAltOutlinedIcon, bg: COLOR.primary },
   url:          { icon: LinkOutlinedIcon, bg: COLOR.accent },
+
+  // Add to homescreen
+  add_home:     { icon: AddToHomeScreenOutlinedIcon, bg: COLOR.accent },
 
   // Chat avatars
   ai:           { icon: SmartToyOutlinedIcon, bg: COLOR.primary },
