@@ -21,6 +21,7 @@ import { QK } from "../../lib/queryKeys";
 import { useDoctorStore } from "../../store/doctorStore";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
+import PullToRefresh from "../../components/PullToRefresh";
 import SectionLabel from "../../components/SectionLabel";
 import AppButton from "../../components/AppButton";
 import SheetDialog from "../../components/SheetDialog";
@@ -456,7 +457,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
       isMobile={isMobile}
       mobileView={mobileSubpage}
       listPane={
-      <Box sx={{ flex: 1, overflow: "auto", pb: "80px" }}>
+      <PullToRefresh sx={{ flex: 1 }} pb="80px">
         {origin === "patient_submit" && (
           <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.5 }}>
             <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>
@@ -632,7 +633,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
             )}
           </>
         )}
-      </Box>
+      </PullToRefresh>
       }
     />
 

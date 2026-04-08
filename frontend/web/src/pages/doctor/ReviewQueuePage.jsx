@@ -22,6 +22,7 @@ import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
+import PullToRefresh from "../../components/PullToRefresh";
 import NameAvatar from "../../components/NameAvatar";
 import SectionLabel from "../../components/SectionLabel";
 import ActionRow from "../../components/ActionRow";
@@ -272,7 +273,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
       <SubpageHeader title="审核" />
 
-      <Box sx={{ flex: 1, overflow: "auto" }}>
+      <PullToRefresh sx={{ flex: 1 }}>
         {/* Filter stat bar */}
         <FilterBar
           items={[
@@ -439,7 +440,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
             AI建议仅供参考，请结合临床判断
           </Typography>
         </Box>
-      </Box>
+      </PullToRefresh>
 
     </Box>
   );

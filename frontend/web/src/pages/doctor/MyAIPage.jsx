@@ -20,6 +20,7 @@ import NameAvatar from "../../components/NameAvatar";
 import IconBadge from "../../components/IconBadge";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
+import PullToRefresh from "../../components/PullToRefresh";
 import { ICON_BADGES } from "./constants";
 import { isWizardDone, clearWizardDone } from "./onboardingWizardState";
 import StatColumn from "../../components/StatColumn";
@@ -159,7 +160,7 @@ export default function MyAIPage({ doctorId }) {
       <SubpageHeader title="我的AI" />
 
       {/* Scrollable content */}
-      <Box sx={{ flex: 1, overflow: "auto", pb: "80px" }}>
+      <PullToRefresh sx={{ flex: 1 }} pb="80px">
 
         {/* ── A. Hero Identity Card ──────────────────────────────── */}
         <Box sx={{ bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}` }}>
@@ -378,7 +379,7 @@ export default function MyAIPage({ doctorId }) {
           })}
         </Box>
 
-      </Box>
+      </PullToRefresh>
     </Box>
   );
 }

@@ -31,6 +31,7 @@ import StatusBadge from "../../components/StatusBadge";
 import NameAvatar from "../../components/NameAvatar";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
+import PullToRefresh from "../../components/PullToRefresh";
 import PatientDetail, { PatientChatPage } from "./patients/PatientDetail";
 import SubpageHeader from "../../components/SubpageHeader";
 import RecordEditDialog from "../../components/RecordEditDialog";
@@ -301,7 +302,7 @@ function PatientListPane({ patients, loading, error, search, nlResults, nlLoadin
     <>
       <SearchBar patients={patients} search={search} nlResults={nlResults} nlLoading={nlLoading} onChange={onSearchChange} onSubmit={onSearchSubmit} onSelect={(patient) => navigate(`${dp("patients")}/${patient.id}`)} onStartInterview={onStartInterview} />
       {error && <Alert severity="error" action={<Button size="small" onClick={onLoad}>重试</Button>}>{error}</Alert>}
-      <Box sx={{ flex: 1, overflowY: "auto", bgcolor: COLOR.surfaceAlt }}>
+      <PullToRefresh sx={{ flex: 1, bgcolor: COLOR.surfaceAlt }}>
         {loading && <SectionLoading py={2} />}
         {!loading && !search.trim() && <NewItemCard title="新建患者" subtitle="添加新的患者档案" onClick={onStartInterview} />}
         <input ref={importFileRef} type="file" hidden accept=".pdf,image/jpeg,image/png,image/webp" onChange={onFileInputChange} />
@@ -315,7 +316,7 @@ function PatientListPane({ patients, loading, error, search, nlResults, nlLoadin
             isMobile={isMobile} navigate={navigate}
             onStartInterview={onStartInterview} aiTagMap={aiTagMap} />
         )}
-      </Box>
+      </PullToRefresh>
     </>
   );
 }

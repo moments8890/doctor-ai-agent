@@ -16,6 +16,9 @@ const STALE = {
   record:        60_000,    // 1 min
 };
 
+// Auto-refresh interval (ms) for active data — keeps lists fresh while doctor is viewing
+const POLL = 10_000; // 10 sec
+
 export function useDoctorProfile() {
   const { doctorId } = useDoctorStore();
   const api = useApi();
@@ -34,6 +37,7 @@ export function usePendingTasks() {
     queryKey: QK.tasks(doctorId, "pending"),
     queryFn:  () => api.getTasks(doctorId, "pending"),
     staleTime: STALE.tasks,
+    refetchInterval: POLL,
     enabled:  !!doctorId,
   });
 }
@@ -45,6 +49,7 @@ export function useCompletedTasks() {
     queryKey: QK.tasks(doctorId, "completed"),
     queryFn:  () => api.getTasks(doctorId, "completed"),
     staleTime: STALE.tasks,
+    refetchInterval: POLL,
     enabled:  !!doctorId,
   });
 }
@@ -56,6 +61,7 @@ export function useDraftSummary() {
     queryKey: QK.draftSummary(doctorId),
     queryFn:  () => api.fetchDraftSummary(doctorId),
     staleTime: STALE.counts,
+    refetchInterval: POLL,
     enabled:  !!doctorId,
   });
 }
@@ -67,6 +73,7 @@ export function useReviewQueue() {
     queryKey: QK.reviewQueue(doctorId),
     queryFn:  () => api.getReviewQueue(doctorId),
     staleTime: STALE.queue,
+    refetchInterval: POLL,
     enabled:  !!doctorId,
   });
 }
@@ -78,6 +85,7 @@ export function useDrafts(opts = {}) {
     queryKey: QK.drafts(doctorId),
     queryFn:  () => api.fetchDrafts(doctorId, opts),
     staleTime: STALE.queue,
+    refetchInterval: POLL,
     enabled:  !!doctorId,
   });
 }
@@ -100,6 +108,7 @@ export function usePatients() {
     queryKey: QK.patients(doctorId),
     queryFn:  () => api.getPatients(doctorId, {}, 200),
     staleTime: STALE.patients,
+    refetchInterval: POLL,
     enabled:  !!doctorId,
   });
 }
@@ -111,6 +120,7 @@ export function useAIActivity(limit = 3) {
     queryKey: QK.aiActivity(doctorId, limit),
     queryFn:  () => api.fetchAIActivity(doctorId, limit),
     staleTime: STALE.aiActivity,
+    refetchInterval: POLL,
     enabled:  !!doctorId,
   });
 }
@@ -122,6 +132,7 @@ export function useAIAttention() {
     queryKey: QK.aiAttention(doctorId),
     queryFn:  () => api.fetchAIAttention(doctorId),
     staleTime: STALE.aiAttention,
+    refetchInterval: POLL,
     enabled:  !!doctorId,
   });
 }
