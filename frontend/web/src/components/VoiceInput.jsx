@@ -49,7 +49,10 @@ async function detectAsrMode() {
 }
 
 export function isVoiceSupported() {
-  // Supported if browser API exists OR if server ASR was detected
+  // In miniprogram web-view, browser SpeechRecognition exists but doesn't work.
+  // Only trust server ASR there; in regular browsers, either mode is fine.
+  const isMiniprogram = typeof window !== "undefined" && window.__wxjs_environment === "miniprogram";
+  if (isMiniprogram) return _asrModeCache === "server";
   return !!BrowserSpeechRecognition || _asrModeCache === "server";
 }
 
