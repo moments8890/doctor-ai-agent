@@ -116,8 +116,8 @@ function PersonaCard({ persona, onClick }) {
         bgcolor: COLOR.white,
         borderRadius: RADIUS.md,
         border: `1px solid ${isDraftReady ? COLOR.accent : COLOR.borderLight}`,
-        cursor: onClick ? "pointer" : "default",
-        "&:active": onClick ? { opacity: 0.8 } : {},
+        cursor: "pointer",
+        "&:active": { opacity: 0.8 },
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
