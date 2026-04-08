@@ -81,23 +81,20 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
     setLoading(true);
 
     const fetchItem = async () => {
-      // Try batch endpoint to get single item
-      const fetchBatch = api.getKnowledgeBatch || api.getKnowledgeItems;
+      // Check if this is the persona item (filtered out of regular lists)
+      const allData = await api.getKnowledgeItems(doctorId);
+      const listData = Array.isArray(allData) ? allData : (allData?.items || []);
+      if (allData?.persona && allData.persona.id === itemId) {
+        return { ...allData.persona, text: allData.persona.content, source: "system" };
+      }
+      // Try batch endpoint for regular items
       if (api.getKnowledgeBatch) {
-        const data = await fetchBatch(doctorId, [itemId]);
+        const data = await api.getKnowledgeBatch(doctorId, [itemId]);
         const items = data?.items || [];
         return items[0] || null;
       }
-      // Fallback: fetch all and filter
-      const data = await api.getKnowledgeItems(doctorId);
-      const items = Array.isArray(data) ? data : (data?.items || []);
-      const found = items.find((i) => i.id === itemId);
-      if (found) return found;
-      // Check persona (filtered out of items list but accessible separately)
-      if (data?.persona && data.persona.id === itemId) {
-        return { ...data.persona, text: data.persona.content, source: "system" };
-      }
-      return null;
+      // Fallback: filter from full list
+      return listData.find((i) => i.id === itemId) || null;
     };
 
     const fetchUsage = async () => {
