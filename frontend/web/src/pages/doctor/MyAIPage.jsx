@@ -5,7 +5,7 @@
  * status, knowledge rules, quick actions, and recent AI activity.
  */
 import { useState } from "react";
-import { Badge, Box, CircularProgress, Skeleton, Typography } from "@mui/material";
+import { Badge, Box, CircularProgress, IconButton, Skeleton, Typography } from "@mui/material";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import ContentPasteOutlinedIcon from "@mui/icons-material/ContentPasteOutlined";
@@ -28,7 +28,7 @@ import StatColumn from "../../components/StatColumn";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
 import { useKnowledgeItems, useReviewQueue, useAIActivity } from "../../lib/doctorQueries";
-import Toast, { useToast } from "../../components/Toast";
+import CloseIcon from "@mui/icons-material/Close";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -155,7 +155,7 @@ export default function MyAIPage({ doctorId }) {
   // Badge counts for quick actions
   const reviewBadge = pendingReview || 0;
   const followupBadge = 0; // TODO: derive from tasks data when fetched
-  const [toast, showToast] = useToast();
+  const [showAddGuide, setShowAddGuide] = useState(false);
   const isMiniprogram = typeof window !== "undefined" && window.__wxjs_environment === "miniprogram";
 
   return (
@@ -278,7 +278,7 @@ export default function MyAIPage({ doctorId }) {
               title="添加到手机桌面"
               subtitle="像App一样一键打开"
               chevron
-              onClick={() => { navigator.clipboard?.writeText("https://wxaurl.cn/c5C1mGUyd9i").then(() => showToast("链接已复制，可发送给微信好友")).catch(() => {}); }}
+              onClick={() => setShowAddGuide(true)}
               sx={{ borderBottom: "none" }}
             />
           )}
@@ -395,7 +395,47 @@ export default function MyAIPage({ doctorId }) {
 
       </PullToRefresh>
 
-      <Toast message={toast} />
+      {showAddGuide && (
+        <Box
+          onClick={() => setShowAddGuide(false)}
+          sx={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            bgcolor: "rgba(0,0,0,0.65)",
+            display: "flex", flexDirection: "column", alignItems: "flex-end",
+            pt: "12px", pr: "24px",
+          }}
+        >
+          {/* Arrow pointing to ··· capsule */}
+          <Box sx={{
+            width: 0, height: 0,
+            borderLeft: "12px solid transparent",
+            borderRight: "12px solid transparent",
+            borderBottom: "16px solid #fff",
+            mr: "42px", mb: "-2px",
+          }} />
+          {/* Instruction card */}
+          <Box sx={{
+            bgcolor: "#fff", borderRadius: RADIUS.lg, px: 2.5, py: 2,
+            maxWidth: 260, position: "relative",
+          }}>
+            <IconButton size="small" onClick={() => setShowAddGuide(false)} sx={{ position: "absolute", top: 4, right: 4, color: COLOR.text4 }}>
+              <CloseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+            <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.text1, mb: 1 }}>
+              添加到手机桌面
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.7 }}>
+              1. 点击右上角 <b>···</b> 按钮
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.7 }}>
+              2. 选择「添加到桌面」
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 1 }}>
+              添加后可像App一样一键打开
+            </Typography>
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 }
