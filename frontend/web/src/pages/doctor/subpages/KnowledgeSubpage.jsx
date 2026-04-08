@@ -86,61 +86,17 @@ function mergeAndSort(items, stats) {
     });
 }
 
-/* ── PersonaCard ── */
+/* ── Persona summary for KnowledgeCard ── */
 
-function PersonaCard({ persona, onClick }) {
-  if (!persona) return null;
-
+function personaSummary(persona) {
+  if (!persona) return "";
   const isActive = persona.persona_status === "active";
   const isDraftReady = persona.persona_status === "draft"
     && persona.content
-    && !persona.content.includes("（AI会根据你的回复逐渐学习");
-
-  let subtitle = `待学习 · 已收集 ${persona.edit_count || 0} 条回复`;
-  let accentColor = COLOR.text4;
-
-  if (isDraftReady) {
-    subtitle = "AI已分析你的风格 · 点击查看";
-    accentColor = COLOR.accent;
-  } else if (isActive) {
-    const date = persona.updated_at ? formatRelativeDate(persona.updated_at) : "";
-    subtitle = `已启用 · 基于 ${persona.edit_count || 0} 条回复${date ? ` · ${date}` : ""}`;
-    accentColor = COLOR.primary;
-  }
-
-  return (
-    <Box
-      onClick={onClick}
-      sx={{
-        mx: 1.5, mt: 1.5, mb: 0.5, px: 2, py: 1.5,
-        bgcolor: COLOR.white,
-        borderRadius: RADIUS.md,
-        border: `1px solid ${isDraftReady ? COLOR.accent : COLOR.borderLight}`,
-        cursor: "pointer",
-        "&:active": { opacity: 0.8 },
-      }}
-    >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 600 }}>
-          我的AI人设
-        </Typography>
-        <Box
-          component="span"
-          sx={{
-            fontSize: 10, fontWeight: 600,
-            borderRadius: RADIUS.sm, px: 0.5, py: 0.25,
-            bgcolor: isActive ? COLOR.primaryLight : (isDraftReady ? COLOR.amberLight : COLOR.surface),
-            color: accentColor,
-          }}
-        >
-          {isActive ? "已启用" : isDraftReady ? "待确认" : "学习中"}
-        </Box>
-      </Box>
-      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: accentColor, mt: 0.5 }}>
-        {subtitle}
-      </Typography>
-    </Box>
-  );
+    && !persona.content.includes("（待学习）");
+  if (isDraftReady) return "AI已分析你的风格 · 点击查看";
+  if (isActive) return `已启用 · 基于 ${persona.edit_count || 0} 条回复`;
+  return `待学习 · 已收集 ${persona.edit_count || 0} 条回复`;
 }
 
 /* ── KnowledgeRow ── */
@@ -208,7 +164,18 @@ export default function KnowledgeSubpage({
 
       {!loading && regularItems.length === 0 && (
         <>
-          <PersonaCard persona={persona} onClick={onPersonaClick} />
+          {persona && (
+            <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+              <KnowledgeCard
+                title="我的AI人设"
+                summary={personaSummary(persona)}
+                referenceCount={0}
+                source="system"
+                date={persona.updated_at ? formatRelativeDate(persona.updated_at) : ""}
+                onClick={onPersonaClick}
+              />
+            </Box>
+          )}
           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1.5, px: 2 }}>
             <EmptyState
               icon={<MenuBookOutlinedIcon />}
@@ -225,7 +192,6 @@ export default function KnowledgeSubpage({
 
       {!loading && regularItems.length > 0 && (
         <>
-          <PersonaCard persona={persona} onClick={onPersonaClick} />
           {/* Search bar */}
           <Box sx={{ px: 1.5, py: 1, bgcolor: COLOR.surfaceAlt }}>
             <TextField size="small" fullWidth
@@ -247,8 +213,18 @@ export default function KnowledgeSubpage({
 
           {onAdd && <NewItemCard title="添加知识" subtitle="上传文件、网址导入或手动输入" onClick={onAdd} />}
 
-          {/* Knowledge rows */}
+          {/* Knowledge rows — persona pinned at top */}
           <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
+            {persona && (
+              <KnowledgeCard
+                title="我的AI人设"
+                summary={personaSummary(persona)}
+                referenceCount={0}
+                source="system"
+                date={persona.updated_at ? formatRelativeDate(persona.updated_at) : ""}
+                onClick={onPersonaClick}
+              />
+            )}
             {filtered.map((item) => (
               <KnowledgeRow
                 key={item.id}
