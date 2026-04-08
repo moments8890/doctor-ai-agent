@@ -239,22 +239,6 @@ export default function MyAIPage({ doctorId }) {
             onClick={() => navigate(`${dp("patients")}?action=new`)}
           />
           <ListCard
-            avatar={<IconBadge config={ICON_BADGES.review} />}
-            title="待审核"
-            subtitle="AI建议等你确认"
-            right={<InlineBadge count={reviewBadge} />}
-            chevron
-            onClick={() => navigate(dp("review"))}
-          />
-          <ListCard
-            avatar={<IconBadge config={ICON_BADGES.followup} />}
-            title="处理随访"
-            subtitle="患者消息可快速处理"
-            right={<InlineBadge count={followupBadge} color={COLOR.danger} />}
-            chevron
-            onClick={() => navigate(`${dp("review")}?tab=replies`)}
-          />
-          <ListCard
             avatar={<IconBadge config={ICON_BADGES.qr_code} />}
             title="患者预问诊码"
             subtitle="患者扫码自助填写病史"
