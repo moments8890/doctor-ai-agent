@@ -168,7 +168,7 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
       onDelete={handleDelete}
       onItemClick={(id) => navigate(`${dp("settings/knowledge")}/${id}`)}
       persona={persona}
-      onPersonaClick={() => persona?.id && navigate(`${dp("settings/knowledge")}/${persona.id}`)}
+      onPersonaClick={persona?.id && persona?.persona_status !== "draft" ? () => navigate(`${dp("settings/knowledge")}/${persona.id}`) : undefined}
     />
   );
 }
