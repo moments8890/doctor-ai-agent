@@ -28,7 +28,7 @@ import StatColumn from "../../components/StatColumn";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
 import { useKnowledgeItems, useReviewQueue, useAIActivity } from "../../lib/doctorQueries";
-import ConfirmDialog from "../../components/ConfirmDialog";
+import Toast, { useToast } from "../../components/Toast";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -155,7 +155,7 @@ export default function MyAIPage({ doctorId }) {
   // Badge counts for quick actions
   const reviewBadge = pendingReview || 0;
   const followupBadge = 0; // TODO: derive from tasks data when fetched
-  const [showAddHome, setShowAddHome] = useState(false);
+  const [toast, showToast] = useToast();
   const isMiniprogram = typeof window !== "undefined" && window.__wxjs_environment === "miniprogram";
 
   return (
@@ -278,7 +278,7 @@ export default function MyAIPage({ doctorId }) {
               title="添加到手机桌面"
               subtitle="像App一样一键打开"
               chevron
-              onClick={() => setShowAddHome(true)}
+              onClick={() => { navigator.clipboard?.writeText("https://wxaurl.cn/c5C1mGUyd9i").then(() => showToast("链接已复制，可发送给微信好友")).catch(() => {}); }}
               sx={{ borderBottom: "none" }}
             />
           )}
@@ -395,24 +395,7 @@ export default function MyAIPage({ doctorId }) {
 
       </PullToRefresh>
 
-      <ConfirmDialog
-        open={showAddHome}
-        title="添加到手机桌面"
-        confirmLabel="复制链接"
-        cancelLabel="知道了"
-        onConfirm={() => { navigator.clipboard?.writeText("https://wxaurl.cn/c5C1mGUyd9i").catch(() => {}); setShowAddHome(false); }}
-        onCancel={() => setShowAddHome(false)}
-        onClose={() => setShowAddHome(false)}
-      >
-        <Box sx={{ textAlign: "left", fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.8 }}>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, mb: 1 }}>
-            点击右上角 <b>···</b> 菜单，选择「添加到桌面」即可像App一样使用。
-          </Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-            或复制链接发送给微信好友，对方打开即可添加。
-          </Typography>
-        </Box>
-      </ConfirmDialog>
+      <Toast message={toast} />
     </Box>
   );
 }
