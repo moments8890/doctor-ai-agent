@@ -63,7 +63,7 @@ function getUsageTypeConfig(type) {
 
 /* ── Main ── */
 
-export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDelete, isMobile }) {
+export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDelete, isMobile, isPersona: isPersonaProp }) {
   const navigate = useAppNavigate();
   const api = useApi();
   const queryClient = useQueryClient();
@@ -106,23 +106,27 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
-    if (!doctorId || !itemId) return;
+    if (!doctorId || (!itemId && !isPersonaProp)) return;
     setLoading(true);
 
     const fetchItem = async () => {
-      // Check if this is the persona item (filtered out of regular lists)
-      const allData = await api.getKnowledgeItems(doctorId);
-      const listData = Array.isArray(allData) ? allData : (allData?.items || []);
-      if (allData?.persona && allData.persona.id === itemId) {
-        return { ...allData.persona, text: allData.persona.content, source: "system", category: "persona" };
+      // Persona items: always load from the persona field (not by ID match)
+      if (isPersonaProp) {
+        const allData = await api.getKnowledgeItems(doctorId);
+        if (allData?.persona) {
+          return { ...allData.persona, text: allData.persona.content, source: "system", category: "persona" };
+        }
+        return null;
       }
-      // Try batch endpoint for regular items
+      // Regular items: try batch endpoint
       if (api.getKnowledgeBatch) {
         const data = await api.getKnowledgeBatch(doctorId, [itemId]);
         const items = data?.items || [];
         return items[0] || null;
       }
       // Fallback: filter from full list
+      const allData = await api.getKnowledgeItems(doctorId);
+      const listData = Array.isArray(allData) ? allData : (allData?.items || []);
       return listData.find((i) => i.id === itemId) || null;
     };
 
@@ -139,7 +143,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
         setUsage(usageResult.status === "fulfilled" ? usageResult.value : []);
       })
       .finally(() => setLoading(false));
-  }, [doctorId, itemId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [doctorId, itemId, isPersonaProp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
 

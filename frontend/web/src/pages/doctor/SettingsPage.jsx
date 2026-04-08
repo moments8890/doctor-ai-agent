@@ -146,6 +146,7 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
       <KnowledgeDetailSubpage
         doctorId={doctorId}
         itemId={resolvedItemId}
+        isPersona={urlSubId === "persona"}
         onBack={onBack}
         onDelete={async (id) => { await deleteKnowledgeItem(doctorId, id); navigate(-1); load(); }}
         isMobile={isMobile}
