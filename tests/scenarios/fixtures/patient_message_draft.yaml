@@ -49,5 +49,6 @@ steps:
       text: "医生，什么时候可以出院？"
     expect:
       hard:
-        # No matching KB → draft skipped (not red flag)
-        status: skipped
+        # No matching KB → draft still generated (citation gate removed)
+        status: generated
+        char_count.min_value: 5

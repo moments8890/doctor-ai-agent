@@ -112,11 +112,9 @@ async def generate_draft_reply(
         # Collapse any double-spaces left after stripping
         clean_response = re.sub(r"  +", " ", clean_response)
 
-        # Red-flag messages always get a draft (emergency guidance is critical).
-        # Non-red-flag messages require KB citation — skip if AI couldn't ground the reply.
-        if not validation.valid_ids and not is_red_flag:
-            log("[draft_reply] no KB citation found — skipping draft (AI无法引用知识库)", level="info")
-            return None
+        # Log when draft has no KB grounding (but still generate it)
+        if not validation.valid_ids:
+            log("[draft_reply] no KB citation — draft generated without grounding", level="info")
 
         result = DraftReplyResult(
             text=clean_response,

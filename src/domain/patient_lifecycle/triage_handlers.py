@@ -156,7 +156,7 @@ async def _notify_doctor_safe(doctor_id: str, message: str) -> None:
 # Key: patient_id → dict with task handle and metadata
 _pending_drafts: Dict[int, Dict[str, Any]] = {}
 
-_DRAFT_BATCH_DELAY = 30  # seconds — wait for rapid-fire messages before generating
+_DRAFT_BATCH_DELAY = 5  # seconds — short delay for low-volume pilot
 
 
 async def _generate_draft_for_escalated(

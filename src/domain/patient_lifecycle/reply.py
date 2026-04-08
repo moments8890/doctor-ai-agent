@@ -60,11 +60,36 @@ async def send_doctor_reply(
         )
 
         # 2. Mark specific draft as sent (if provided)
+        draft = None
         if draft_id:
             from db.models.message_draft import MessageDraft, DraftStatus
             draft = await db.get(MessageDraft, draft_id)
             if draft and draft.doctor_id == doctor_id:
                 draft.status = DraftStatus.sent.value
+
+        # 2b. Log edit pair for persona learning (non-fatal)
+        try:
+            from domain.knowledge.teaching import log_doctor_edit
+            if draft_id and draft and draft.doctor_id == doctor_id:
+                await log_doctor_edit(
+                    db,
+                    doctor_id=doctor_id,
+                    entity_type="draft_reply",
+                    entity_id=draft_id,
+                    original_text=draft.draft_text or "",
+                    edited_text=text,
+                )
+            elif not draft_id:
+                await log_doctor_edit(
+                    db,
+                    doctor_id=doctor_id,
+                    entity_type="manual_reply",
+                    entity_id=msg.id,
+                    original_text="",
+                    edited_text=text,
+                )
+        except Exception as edit_exc:
+            logger.warning("[reply] edit logging failed (non-fatal): %s", edit_exc)
 
         # 3. Mark ALL pending drafts for this patient as stale
         from db.models.message_draft import MessageDraft, DraftStatus
@@ -106,6 +131,18 @@ async def send_doctor_reply(
             await touch_patient_activity(act_db, patient_id)
     except Exception:
         logger.warning("[reply] failed to update last_activity_at | patient_id=%s", patient_id)
+
+    # 6. Check if persona extraction should trigger (fire-and-forget, non-fatal)
+    if draft_id:
+        try:
+            from domain.knowledge.teaching import _check_persona_extraction
+            from utils.log import safe_create_task
+            safe_create_task(
+                _check_persona_extraction(doctor_id),
+                name=f"persona-check-{doctor_id}",
+            )
+        except Exception:
+            pass
 
     logger.info("[reply] doctor=%s patient=%s msg=%s draft=%s", doctor_id, patient_id, msg.id, draft_id)
     return msg.id

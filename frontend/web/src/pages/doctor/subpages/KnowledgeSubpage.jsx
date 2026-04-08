@@ -86,6 +86,63 @@ function mergeAndSort(items, stats) {
     });
 }
 
+/* ── PersonaCard ── */
+
+function PersonaCard({ persona, onClick }) {
+  if (!persona) return null;
+
+  const isActive = persona.persona_status === "active";
+  const isDraftReady = persona.persona_status === "draft"
+    && persona.content
+    && !persona.content.includes("（AI会根据你的回复逐渐学习");
+
+  let subtitle = `待学习 · 已收集 ${persona.edit_count || 0} 条回复`;
+  let accentColor = COLOR.text4;
+
+  if (isDraftReady) {
+    subtitle = "AI已分析你的风格 · 点击查看";
+    accentColor = COLOR.accent;
+  } else if (isActive) {
+    const date = persona.updated_at ? formatRelativeDate(persona.updated_at) : "";
+    subtitle = `已启用 · 基于 ${persona.edit_count || 0} 条回复${date ? ` · ${date}` : ""}`;
+    accentColor = COLOR.primary;
+  }
+
+  return (
+    <Box
+      onClick={onClick}
+      sx={{
+        mx: 1.5, mt: 1.5, mb: 0.5, px: 2, py: 1.5,
+        bgcolor: COLOR.white,
+        borderRadius: RADIUS.md,
+        border: `1px solid ${isDraftReady ? COLOR.accent : COLOR.borderLight}`,
+        cursor: "pointer",
+        "&:active": { opacity: 0.8 },
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 600 }}>
+          我的AI人设
+        </Typography>
+        <Box
+          component="span"
+          sx={{
+            fontSize: 10, fontWeight: 600,
+            borderRadius: RADIUS.sm, px: 0.5, py: 0.25,
+            bgcolor: isActive ? COLOR.primaryLight : (isDraftReady ? COLOR.amberLight : COLOR.surface),
+            color: accentColor,
+          }}
+        >
+          {isActive ? "已启用" : isDraftReady ? "待确认" : "学习中"}
+        </Box>
+      </Box>
+      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: accentColor, mt: 0.5 }}>
+        {subtitle}
+      </Typography>
+    </Box>
+  );
+}
+
 /* ── KnowledgeRow ── */
 
 function KnowledgeRow({ item, onClick }) {
@@ -118,8 +175,11 @@ export default function KnowledgeSubpage({
   title = "我的方法",
   stats,
   onItemClick,
+  persona,
+  onPersonaClick,
 }) {
-  const sorted = mergeAndSort(items, stats);
+  const regularItems = items.filter(item => item.category !== "persona");
+  const sorted = mergeAndSort(regularItems, stats);
   const [search, setSearch] = useState("");
 
   // Compute weekly citation total
@@ -146,26 +206,30 @@ export default function KnowledgeSubpage({
         </Box>
       )}
 
-      {!loading && items.length === 0 && (
-        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1.5, px: 2 }}>
-          <EmptyState
-            icon={<MenuBookOutlinedIcon />}
-            title="暂无知识条目"
-          />
-          {onAdd && (
-            <AppButton variant="primary" size="md" onClick={onAdd}>
-              添加第一条规则
-            </AppButton>
-          )}
-        </Box>
+      {!loading && regularItems.length === 0 && (
+        <>
+          <PersonaCard persona={persona} onClick={onPersonaClick} />
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 8, gap: 1.5, px: 2 }}>
+            <EmptyState
+              icon={<MenuBookOutlinedIcon />}
+              title="暂无知识条目"
+            />
+            {onAdd && (
+              <AppButton variant="primary" size="md" onClick={onAdd}>
+                添加第一条规则
+              </AppButton>
+            )}
+          </Box>
+        </>
       )}
 
-      {!loading && items.length > 0 && (
+      {!loading && regularItems.length > 0 && (
         <>
+          <PersonaCard persona={persona} onClick={onPersonaClick} />
           {/* Search bar */}
           <Box sx={{ px: 1.5, py: 1, bgcolor: COLOR.surfaceAlt }}>
             <TextField size="small" fullWidth
-              placeholder={`搜索知识规则${items.length > 0 ? ` (共${items.length}条)` : ""}`}
+              placeholder={`搜索知识规则${regularItems.length > 0 ? ` (共${regularItems.length}条)` : ""}`}
               value={search} onChange={(e) => setSearch(e.target.value)}
               InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.sm, bgcolor: COLOR.white } }}
@@ -174,7 +238,7 @@ export default function KnowledgeSubpage({
 
           {/* Stats bar */}
           <Box sx={{ display: "flex", py: 1.5, px: 2, bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
-            <StatColumn value={items.length} label="条规则" />
+            <StatColumn value={regularItems.length} label="条规则" />
             <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight }} />
             <StatColumn value={weekCitations} label="本周引用" color={COLOR.primary} />
             <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight }} />

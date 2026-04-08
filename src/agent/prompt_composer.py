@@ -34,18 +34,27 @@ def _inject_date(text: str) -> str:
     return text
 
 
-async def _load_doctor_knowledge(doctor_id: str, config: LayerConfig, query: str = "", patient_context: str = "") -> str:
-    """Load doctor KB items. Returns formatted text."""
-    if not doctor_id or not config.load_knowledge:
-        return ""
+async def _load_doctor_knowledge(doctor_id: str, config: LayerConfig, query: str = "", patient_context: str = "") -> tuple:
+    """Load doctor KB items and active persona. Returns (knowledge_text, persona_text)."""
+    knowledge = ""
+    persona = ""
+    if not doctor_id:
+        return knowledge, persona
+    if config.load_knowledge:
+        try:
+            from domain.knowledge.doctor_knowledge import load_knowledge
+            knowledge = await load_knowledge(doctor_id, query=query, patient_context=patient_context)
+            log(f"[composer] KB loaded: {len(knowledge)} chars")
+        except Exception as exc:
+            log(f"[composer] KB load failed (non-fatal): {exc}", level="warning")
     try:
-        from domain.knowledge.doctor_knowledge import load_knowledge
-        result = await load_knowledge(doctor_id, query=query, patient_context=patient_context)
-        log(f"[composer] KB loaded: {len(result)} chars")
-        return result
+        from domain.knowledge.knowledge_context import load_active_persona
+        persona = await load_active_persona(doctor_id)
+        if persona:
+            log(f"[composer] persona loaded: {len(persona)} chars")
     except Exception as exc:
-        log(f"[composer] KB load failed (non-fatal): {exc}", level="warning")
-        return ""
+        log(f"[composer] persona load failed (non-fatal): {exc}", level="warning")
+    return knowledge, persona
 
 
 async def compose_messages(
@@ -90,11 +99,13 @@ async def compose_messages(
     system_msg = _inject_date("\n\n".join(filter(None, parts)))
 
     # ── L4 Doctor Rules (auto-loaded from DB) ───────────────────────
-    doctor_knowledge = await _load_doctor_knowledge(
+    doctor_knowledge, doctor_persona = await _load_doctor_knowledge(
         doctor_id, config, query=doctor_message, patient_context=patient_context,
     )
 
     kb_note = f" kb={len(doctor_knowledge)}chars" if doctor_knowledge else ""
+    if doctor_persona:
+        kb_note += f" persona={len(doctor_persona)}chars"
 
     if config.conversation_mode:
         # ── Pattern 2: Conversation ───────────────────────────────
@@ -109,6 +120,13 @@ async def compose_messages(
             messages.extend(history)
         # KB goes in user message (trust boundary: user-authored content ≠ system instructions)
         user_parts: List[str] = []
+        if doctor_persona:
+            user_parts.append(
+                f"<doctor_persona>\n"
+                f"以下是医生的个人回复风格，请按此风格起草回复。\n"
+                f"{doctor_persona}\n"
+                f"</doctor_persona>"
+            )
         if doctor_knowledge:
             user_parts.append(
                 f"<doctor_knowledge>\n"
@@ -128,6 +146,13 @@ async def compose_messages(
         # L1-L3 (Identity+Specialty+Task) → system message
         # L4-L7 (Doctor Rules+Patient+Input) → user message with XML tags
         user_parts = []
+        if doctor_persona:
+            user_parts.append(
+                f"<doctor_persona>\n"
+                f"以下是医生的个人回复风格，请按此风格起草回复。\n"
+                f"{doctor_persona}\n"
+                f"</doctor_persona>"
+            )
         if doctor_knowledge:
             user_parts.append(
                 f"<doctor_knowledge>\n"
@@ -155,6 +180,8 @@ async def compose_messages(
     active.append("L3")
     if config.load_knowledge and doctor_knowledge:
         active.append("L4")
+    if doctor_persona:
+        active.append("L4p")
     if config.patient_context and patient_context:
         active.append("L6")
     if doctor_message:
