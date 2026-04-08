@@ -72,7 +72,7 @@ async function ensureJssdkConfig() {
     const cfg = await resp.json();
     await new Promise((resolve, reject) => {
       wx.config({ // eslint-disable-line no-undef
-        debug: false,
+        debug: true,
         appId: cfg.appId,
         timestamp: cfg.timestamp,
         nonceStr: cfg.nonceStr,
@@ -130,6 +130,8 @@ export default function VoiceInput({ onResult, onCancel }) {
   }
 
   // ── JSSDK mode (WeChat miniprogram web-view) ──
+  const recordStartTimeRef = useRef(0);
+
   function startJssdkRecording(clientY) {
     if (typeof wx === "undefined") return;
     startYRef.current = clientY;
@@ -138,12 +140,19 @@ export default function VoiceInput({ onResult, onCancel }) {
     setSeconds(0);
     setRecording(true);
     setInterimText("");
+    recordStartTimeRef.current = Date.now();
 
-    wx.startRecord(); // eslint-disable-line no-undef
+    wx.startRecord({ // eslint-disable-line no-undef
+      success: () => console.log("[JSSDK] recording started"),
+      fail: (err) => { console.error("[JSSDK] startRecord failed", err); setRecording(false); },
+    });
     // Auto-stop at 60s limit
     wx.onVoiceRecordEnd({ // eslint-disable-line no-undef
       complete: (res) => {
-        if (!cancelledRef.current) {
+        stopTimer();
+        if (!cancelledRef.current && res.localId) {
+          setRecording(false);
+          setProcessing(true);
           _handleJssdkUpload(res.localId);
         } else {
           setRecording(false);
@@ -157,6 +166,7 @@ export default function VoiceInput({ onResult, onCancel }) {
   function stopJssdkRecording() {
     if (typeof wx === "undefined") return;
     stopTimer();
+    const elapsed = Date.now() - recordStartTimeRef.current;
 
     if (cancelledRef.current) {
       wx.stopRecord(); // eslint-disable-line no-undef
@@ -167,10 +177,11 @@ export default function VoiceInput({ onResult, onCancel }) {
       return;
     }
 
-    if (seconds < 1) {
+    if (elapsed < 1000) {
       wx.stopRecord(); // eslint-disable-line no-undef
       setRecording(false);
-      setInterimText("");
+      setInterimText("说话时间太短");
+      setTimeout(() => setInterimText(""), 1500);
       return;
     }
 
@@ -178,34 +189,39 @@ export default function VoiceInput({ onResult, onCancel }) {
     setProcessing(true);
 
     wx.stopRecord({ // eslint-disable-line no-undef
-      success: (res) => _handleJssdkUpload(res.localId),
-      fail: () => { setProcessing(false); },
+      success: (res) => {
+        console.log("[JSSDK] stopRecord success, localId:", res.localId);
+        _handleJssdkUpload(res.localId);
+      },
+      fail: (err) => { console.error("[JSSDK] stopRecord failed", err); setProcessing(false); },
     });
   }
 
   function _handleJssdkUpload(localId) {
+    console.log("[JSSDK] uploading voice, localId:", localId);
     wx.uploadVoice({ // eslint-disable-line no-undef
       localId,
-      isShowProgressTips: 0,
+      isShowProgressTips: 1,
       success: async (res) => {
+        console.log("[JSSDK] uploadVoice success, serverId:", res.serverId);
         try {
           const resp = await fetch("/api/voice/wx-transcribe", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ serverId: res.serverId }),
           });
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data.text) onResult(data.text);
-          }
+          const data = await resp.json();
+          console.log("[JSSDK] transcribe response:", data);
+          if (resp.ok && data.text) onResult(data.text);
+          else if (data.detail) console.error("[JSSDK] transcribe error:", data.detail);
         } catch (e) {
-          console.error("[JSSDK] transcribe error", e);
+          console.error("[JSSDK] transcribe fetch error", e);
         } finally {
           setProcessing(false);
           setInterimText("");
         }
       },
-      fail: () => { setProcessing(false); setInterimText(""); },
+      fail: (err) => { console.error("[JSSDK] uploadVoice failed", err); setProcessing(false); setInterimText(""); },
     });
   }
 
