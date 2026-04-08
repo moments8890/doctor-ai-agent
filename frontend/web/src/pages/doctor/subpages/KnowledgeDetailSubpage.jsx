@@ -74,6 +74,35 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editText, setEditText] = useState("");
+  const isPersona = item?.category === "persona";
+
+  // Persona structured fields
+  const PERSONA_FIELDS = [
+    { key: "reply_style", label: "回复风格", hint: "例：简短口语化，像微信聊天" },
+    { key: "closing", label: "常用结尾语", hint: "例：有不适随时联系" },
+    { key: "structure", label: "回复结构", hint: "例：先回答问题，再给建议" },
+    { key: "avoid", label: "回避内容", hint: "例：不提药价，不给新诊断" },
+    { key: "edits", label: "常见修改", hint: "例：AI太正式时改口语化" },
+  ];
+  const [personaFields, setPersonaFields] = useState({});
+
+  function parsePersonaText(text) {
+    const fields = {};
+    for (const f of PERSONA_FIELDS) {
+      const re = new RegExp(`${f.label}[：:]\\s*(.*)`, "m");
+      const match = (text || "").match(re);
+      const val = match ? match[1].trim() : "";
+      fields[f.key] = val === "（待学习）" ? "" : val;
+    }
+    return fields;
+  }
+
+  function buildPersonaText(fields) {
+    return PERSONA_FIELDS.map(f => {
+      const val = (fields[f.key] || "").trim();
+      return `${f.label}：${val || "（待学习）"}`;
+    }).join("\n");
+  }
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
@@ -122,12 +151,15 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
   }
 
   function handleEditOpen() {
+    if (isPersona) {
+      setPersonaFields(parsePersonaText(text));
+    }
     setEditText(text);
     setEditOpen(true);
   }
 
   async function handleSaveEdit() {
-    const trimmed = editText.trim();
+    const trimmed = isPersona ? buildPersonaText(personaFields) : editText.trim();
     if (!trimmed || !api.updateKnowledgeItem) return;
     setSaving(true);
     try {
@@ -358,7 +390,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
       <SheetDialog
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        title="编辑知识"
+        title={isPersona ? "编辑AI人设" : "编辑知识"}
         desktopMaxWidth={480}
         mobileMaxHeight="90vh"
         footer={
@@ -366,25 +398,50 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
             onCancel={() => setEditOpen(false)}
             onConfirm={handleSaveEdit}
             confirmLabel="保存"
-            confirmDisabled={!editText.trim() || saving}
+            confirmDisabled={isPersona ? false : (!editText.trim() || saving)}
             confirmLoading={saving}
             confirmLoadingLabel="保存中…"
           />
         }
       >
-        <TextField
-          fullWidth
-          multiline
-          minRows={8}
-          maxRows={16}
-          size="small"
-          value={editText}
-          onChange={(e) => setEditText(e.target.value)}
-          sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.md } }}
-        />
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: editText.length > 3000 ? COLOR.danger : COLOR.text4, mt: 0.5, textAlign: "right" }}>
-          {editText.length}/3000
-        </Typography>
+        {isPersona ? (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {PERSONA_FIELDS.map((f) => (
+              <Box key={f.key}>
+                <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 600, color: COLOR.text1, mb: 0.5 }}>
+                  {f.label}
+                </Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={2}
+                  maxRows={4}
+                  size="small"
+                  placeholder={f.hint}
+                  value={personaFields[f.key] || ""}
+                  onChange={(e) => setPersonaFields(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.md } }}
+                />
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <>
+            <TextField
+              fullWidth
+              multiline
+              minRows={8}
+              maxRows={16}
+              size="small"
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.md } }}
+            />
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: editText.length > 3000 ? COLOR.danger : COLOR.text4, mt: 0.5, textAlign: "right" }}>
+              {editText.length}/3000
+            </Typography>
+          </>
+        )}
       </SheetDialog>
       <ConfirmDialog
         open={deleteOpen}
