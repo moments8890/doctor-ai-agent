@@ -317,7 +317,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
             display: "flex", justifyContent: "space-between", alignItems: "center",
             px: 2, py: 2, mt: 2,
           }}>
-            {item?.category !== "persona" && (
+            {item?.category !== "persona" ? (
             <Typography
               onClick={() => setDeleteOpen(true)}
               sx={{
@@ -328,7 +328,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
             >
               删除
             </Typography>
-            )}
+            ) : <Box />}
             <Typography
               onClick={handleEditOpen}
               sx={{
