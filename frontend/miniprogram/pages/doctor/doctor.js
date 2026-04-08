@@ -86,6 +86,22 @@ Page({
     }
   },
 
+  onShow() {
+    // Check if voice recording page returned a result
+    const app = getApp();
+    const result = app.globalData.voiceResult;
+    const ts = app.globalData.voiceResultTs;
+    if (result && ts && Date.now() - ts < 10000) {
+      app.globalData.voiceResult = null;
+      app.globalData.voiceResultTs = null;
+      // The web-view will pick this up via postMessage polling — not available.
+      // Instead, append the voice text as a URL hash so the web-view can detect it.
+      // But web-view src changes cause a full reload. So we store it for the
+      // web-view to read via wx.miniProgram.postMessage on next user interaction.
+      this._pendingVoiceText = result;
+    }
+  },
+
   _clearAuth() {
     const app = getApp();
     app.globalData.accessToken = "";

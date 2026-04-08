@@ -1,7 +1,8 @@
 {
   "pages": [
     "pages/login/login",
-    "pages/doctor/doctor"
+    "pages/doctor/doctor",
+    "pages/voice/voice"
   ],
   "window": {
     "navigationStyle": "custom",

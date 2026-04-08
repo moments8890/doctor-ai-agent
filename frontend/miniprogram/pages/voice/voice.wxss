@@ -1,0 +1,122 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: #f5f5f5;
+}
+
+.status-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 6rpx solid #e2e8f0;
+  border-top-color: #07C160;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.status-text {
+  font-size: 32rpx;
+  color: #666;
+}
+
+.error-text {
+  font-size: 28rpx;
+  color: #e53935;
+  text-align: center;
+  padding: 0 48rpx;
+}
+
+.record-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32rpx;
+}
+
+.hint-text {
+  font-size: 34rpx;
+  color: #333;
+  font-weight: 600;
+}
+
+.timer {
+  font-size: 48rpx;
+  color: #07C160;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.wave-container {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  height: 40rpx;
+}
+
+.wave-bar {
+  width: 6rpx;
+  height: 28rpx;
+  border-radius: 3rpx;
+  background: #07C160;
+  animation: waveBar 0.8s ease-in-out infinite;
+}
+
+@keyframes waveBar {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+
+.mic-btn {
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 50%;
+  background: #07C160;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.mic-active {
+  background: #06a050;
+  transform: scale(1.15);
+}
+
+.mic-cancel {
+  background: #e53935;
+  transform: scale(1.15);
+}
+
+.mic-icon {
+  font-size: 64rpx;
+}
+
+.cancel-hint {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.btn {
+  padding: 16rpx 48rpx;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  margin-top: 24rpx;
+}
+
+.btn-secondary {
+  background: #e0e0e0;
+  color: #333;
+}

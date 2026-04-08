@@ -21,8 +21,8 @@ async function detectAsrMode() {
   if (_asrModeCache) return _asrModeCache;
   // In miniprogram, use JSSDK mode (wx.startRecord)
   if (IS_MINIPROGRAM) {
-    _asrModeCache = "jssdk";
-    return "jssdk";
+    _asrModeCache = "miniprogram";
+    return "miniprogram";
   }
   try {
     const ws = new WebSocket(getWsUrl());
@@ -54,51 +54,13 @@ export function isVoiceSupported() {
   return !!BrowserSpeechRecognition || _asrModeCache === "server";
 }
 
-// ── JSSDK wx.config (one-time) ──────────────────────────────────────
-let _jssdkConfigured = false;
-let _jssdkConfiguring = false;
-
-async function ensureJssdkConfig() {
-  if (_jssdkConfigured || _jssdkConfiguring) return _jssdkConfigured;
-  if (typeof wx === "undefined") return false;
-  _jssdkConfiguring = true;
-  try {
-    const resp = await fetch("/api/wechat/jssdk-config", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: window.location.href.split("#")[0] }),
-    });
-    if (!resp.ok) throw new Error(`JSSDK config failed: ${resp.status}`);
-    const cfg = await resp.json();
-    await new Promise((resolve, reject) => {
-      wx.config({ // eslint-disable-line no-undef
-        debug: true,
-        appId: cfg.appId,
-        timestamp: cfg.timestamp,
-        nonceStr: cfg.nonceStr,
-        signature: cfg.signature,
-        jsApiList: ["startRecord", "stopRecord", "uploadVoice", "onVoiceRecordEnd"],
-      });
-      wx.ready(() => { _jssdkConfigured = true; resolve(); }); // eslint-disable-line no-undef
-      wx.error((err) => { console.error("[JSSDK] config error", err); reject(err); }); // eslint-disable-line no-undef
-    });
-    return true;
-  } catch (e) {
-    console.error("[JSSDK] config failed", e);
-    return false;
-  } finally {
-    _jssdkConfiguring = false;
-  }
-}
-
-
 export default function VoiceInput({ onResult, onCancel }) {
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [asrMode, setAsrMode] = useState(
-    IS_MINIPROGRAM ? "jssdk" : (BrowserSpeechRecognition ? "browser" : null)
+    IS_MINIPROGRAM ? "miniprogram" : (BrowserSpeechRecognition ? "browser" : null)
   );
   const [interimText, setInterimText] = useState("");
 
@@ -116,7 +78,6 @@ export default function VoiceInput({ onResult, onCancel }) {
   // ── Detect ASR mode on mount ──
   useEffect(() => {
     detectAsrMode().then((mode) => setAsrMode(mode));
-    if (IS_MINIPROGRAM) ensureJssdkConfig();
   }, []);
 
   useEffect(() => { cancelledRef.current = cancelled; }, [cancelled]);
@@ -129,101 +90,49 @@ export default function VoiceInput({ onResult, onCancel }) {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }
 
-  // ── JSSDK mode (WeChat miniprogram web-view) ──
-  const recordStartTimeRef = useRef(0);
+  // ── Miniprogram native voice page mode ──
+  // Navigate to native miniprogram page for recording, poll for result on return.
+  const pollRef = useRef(null);
 
-  function startJssdkRecording(clientY) {
-    if (typeof wx === "undefined") return;
-    startYRef.current = clientY;
-    setCancelled(false);
-    cancelledRef.current = false;
-    setSeconds(0);
-    setRecording(true);
-    setInterimText("");
-    recordStartTimeRef.current = Date.now();
-
-    wx.startRecord({ // eslint-disable-line no-undef
-      success: () => console.log("[JSSDK] recording started"),
-      fail: (err) => { console.error("[JSSDK] startRecord failed", err); setRecording(false); },
-    });
-    // Auto-stop at 60s limit
-    wx.onVoiceRecordEnd({ // eslint-disable-line no-undef
-      complete: (res) => {
-        stopTimer();
-        if (!cancelledRef.current && res.localId) {
-          setRecording(false);
-          setProcessing(true);
-          _handleJssdkUpload(res.localId);
-        } else {
-          setRecording(false);
-          setCancelled(false);
-        }
-      },
-    });
-    startTimer();
-  }
-
-  function stopJssdkRecording() {
-    if (typeof wx === "undefined") return;
-    stopTimer();
-    const elapsed = Date.now() - recordStartTimeRef.current;
-
-    if (cancelledRef.current) {
-      wx.stopRecord(); // eslint-disable-line no-undef
-      setRecording(false);
-      setCancelled(false);
-      setInterimText("");
-      onCancel();
-      return;
-    }
-
-    if (elapsed < 1000) {
-      wx.stopRecord(); // eslint-disable-line no-undef
-      setRecording(false);
-      setInterimText("说话时间太短");
-      setTimeout(() => setInterimText(""), 1500);
-      return;
-    }
-
-    setRecording(false);
+  function startMiniRecording() {
+    if (typeof wx === "undefined" || !wx.miniProgram) return;
+    // Navigate to the native voice recording page
+    wx.miniProgram.navigateTo({ url: "/pages/voice/voice" }); // eslint-disable-line no-undef
     setProcessing(true);
-
-    wx.stopRecord({ // eslint-disable-line no-undef
-      success: (res) => {
-        console.log("[JSSDK] stopRecord success, localId:", res.localId);
-        _handleJssdkUpload(res.localId);
-      },
-      fail: (err) => { console.error("[JSSDK] stopRecord failed", err); setProcessing(false); },
-    });
+    // Poll for voice result when user comes back
+    _startResultPolling();
   }
 
-  function _handleJssdkUpload(localId) {
-    console.log("[JSSDK] uploading voice, localId:", localId);
-    wx.uploadVoice({ // eslint-disable-line no-undef
-      localId,
-      isShowProgressTips: 1,
-      success: async (res) => {
-        console.log("[JSSDK] uploadVoice success, serverId:", res.serverId);
-        try {
-          const resp = await fetch("/api/voice/wx-transcribe", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ serverId: res.serverId }),
-          });
+  function _startResultPolling() {
+    // Get doctor_id from URL params or store
+    const params = new URLSearchParams(window.location.search);
+    const doctorId = params.get("doctor_id") || "";
+    let attempts = 0;
+    pollRef.current = setInterval(async () => {
+      attempts++;
+      if (attempts > 30) { // 30s timeout
+        clearInterval(pollRef.current);
+        setProcessing(false);
+        return;
+      }
+      try {
+        const resp = await fetch(`/api/voice/result?doctor_id=${encodeURIComponent(doctorId)}`);
+        if (resp.ok) {
           const data = await resp.json();
-          console.log("[JSSDK] transcribe response:", data);
-          if (resp.ok && data.text) onResult(data.text);
-          else if (data.detail) console.error("[JSSDK] transcribe error:", data.detail);
-        } catch (e) {
-          console.error("[JSSDK] transcribe fetch error", e);
-        } finally {
-          setProcessing(false);
-          setInterimText("");
+          if (data.text) {
+            clearInterval(pollRef.current);
+            setProcessing(false);
+            onResult(data.text);
+          }
         }
-      },
-      fail: (err) => { console.error("[JSSDK] uploadVoice failed", err); setProcessing(false); setInterimText(""); },
-    });
+      } catch { /* retry */ }
+    }, 1000);
   }
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
 
   // ── Browser SpeechRecognition mode ──
   function startBrowserRecording(clientY) {
@@ -357,13 +266,13 @@ export default function VoiceInput({ onResult, onCancel }) {
 
   // ── Unified start/stop ──
   function startRecording(clientY) {
-    if (asrMode === "jssdk") startJssdkRecording(clientY);
+    if (asrMode === "miniprogram") startMiniRecording();
     else if (asrMode === "server") startServerRecording(clientY);
     else if (BrowserSpeechRecognition) startBrowserRecording(clientY);
   }
 
   function stopRecording() {
-    if (asrMode === "jssdk") stopJssdkRecording();
+    if (asrMode === "miniprogram") return; // handled by native page
     else if (asrMode === "server") stopServerRecording();
     else stopBrowserRecording();
   }
@@ -433,7 +342,7 @@ export default function VoiceInput({ onResult, onCancel }) {
             : interimText
               ? interimText
               : `松开发送 ${fmt(seconds)}`)
-          : "按住说话"}
+          : asrMode === "miniprogram" ? "点击录音" : "按住说话"}
       </Typography>
     </Box>
   );

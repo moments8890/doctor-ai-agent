@@ -1,9 +1,11 @@
 """
-WeChat JSSDK voice recording support for miniprogram web-view.
+WeChat voice recording support for miniprogram web-view.
 
-Two endpoints:
-  GET  /api/wechat/jssdk-config   — returns wx.config parameters (signature)
+Endpoints:
+  POST /api/wechat/jssdk-config   — returns wx.config parameters (signature)
   POST /api/voice/wx-transcribe   — downloads AMR from WeChat by serverId, runs ASR
+  POST /api/voice/result          — store voice transcription result (native page → web-view)
+  GET  /api/voice/result          — retrieve and clear pending voice result
 """
 
 from __future__ import annotations
@@ -149,3 +151,32 @@ async def wx_transcribe(
         raise HTTPException(500, f"语音识别失败: {e}")
 
     return {"text": text}
+
+
+# ── Voice result relay (native miniprogram page → web-view) ──────────────────
+
+# In-memory store: doctor_id → {text, ts}. Entries expire after 30s.
+_voice_results: dict = {}
+
+
+class VoiceResultStore(BaseModel):
+    doctor_id: str
+    text: str
+
+
+@router.post("/api/voice/result")
+async def store_voice_result(body: VoiceResultStore):
+    """Store transcription result from native miniprogram voice page."""
+    import time as _time
+    _voice_results[body.doctor_id] = {"text": body.text, "ts": _time.time()}
+    return {"ok": True}
+
+
+@router.get("/api/voice/result")
+async def get_voice_result(doctor_id: str):
+    """Retrieve and clear pending voice result for the web-view."""
+    import time as _time
+    entry = _voice_results.pop(doctor_id, None)
+    if not entry or _time.time() - entry["ts"] > 30:
+        return {"text": None}
+    return {"text": entry["text"]}

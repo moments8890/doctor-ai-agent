@@ -1,0 +1,39 @@
+<view class="container">
+  <!-- Processing overlay -->
+  <view wx:if="{{processing}}" class="status-area">
+    <view class="spinner" />
+    <text class="status-text">识别中...</text>
+  </view>
+
+  <!-- Error -->
+  <view wx:elif="{{error}}" class="status-area">
+    <text class="error-text">{{error}}</text>
+    <view class="btn btn-secondary" bindtap="onCancel">返回</view>
+  </view>
+
+  <!-- Recording UI -->
+  <view wx:else class="record-area">
+    <view class="hint-text">{{recording ? (cancelled ? '松开取消' : '松开发送') : '按住说话'}}</view>
+
+    <view class="timer" wx:if="{{recording}}">{{timerText}}</view>
+
+    <!-- Wave animation -->
+    <view class="wave-container" wx:if="{{recording && !cancelled}}">
+      <view class="wave-bar" style="animation-delay: 0s;" />
+      <view class="wave-bar" style="animation-delay: 0.15s;" />
+      <view class="wave-bar" style="animation-delay: 0.3s;" />
+    </view>
+
+    <!-- Big mic button -->
+    <view
+      class="mic-btn {{recording ? (cancelled ? 'mic-cancel' : 'mic-active') : ''}}"
+      catchtouchstart="onTouchStart"
+      catchtouchend="onTouchEnd"
+      catchtouchmove="onTouchMove"
+    >
+      <text class="mic-icon">🎤</text>
+    </view>
+
+    <view class="cancel-hint" wx:if="{{recording}}">↑ 上滑取消</view>
+  </view>
+</view>
