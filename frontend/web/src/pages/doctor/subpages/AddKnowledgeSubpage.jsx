@@ -438,7 +438,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     <>
       <PageSkeleton
         title="添加知识"
-        onBack={isMobile ? handleBack : undefined}
+        onBack={handleBack}
         isMobile={isMobile}
         listPane={
           <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
