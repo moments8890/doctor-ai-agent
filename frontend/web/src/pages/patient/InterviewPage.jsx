@@ -248,7 +248,7 @@ export default function InterviewPage({ token, onBack, onLogout, initialSuggesti
                 </Box>
               )}
               <VoiceInput
-                onResult={(text) => { setInput(prev => prev ? prev + text : text); setVoiceMode(false); }}
+                onResult={(text) => { setInput(prev => prev ? prev + text : text); }}
                 onCancel={() => setVoiceMode(false)}
               />
             </Box>

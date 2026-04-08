@@ -34,10 +34,25 @@ async def transcribe_audio_bytes(audio_bytes: bytes, format: str = "wav", langua
         return ""  # browser mode -- no server-side transcription
 
 
+_whisper_model = None
+
+
+def _get_whisper_model():
+    """Lazy-load and cache the Whisper model singleton."""
+    global _whisper_model
+    if _whisper_model is None:
+        from faster_whisper import WhisperModel
+
+        model_size = os.getenv("WHISPER_MODEL", "large-v3")
+        device = os.getenv("WHISPER_DEVICE", "cpu")
+        compute_type = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
+        _whisper_model = WhisperModel(model_size, device=device, compute_type=compute_type)
+    return _whisper_model
+
+
 async def _whisper_batch(audio_bytes: bytes, format: str, language: str) -> str:
-    """Transcribe using local Whisper model."""
-    import json
-    import subprocess
+    """Transcribe using local Whisper model (cached singleton, runs in thread)."""
+    import asyncio
     import tempfile
 
     suffix = f".{format}" if format else ".wav"
@@ -45,24 +60,12 @@ async def _whisper_batch(audio_bytes: bytes, format: str, language: str) -> str:
         f.write(audio_bytes)
         tmp_path = f.name
     try:
-        # Try faster-whisper first (Python API), fall back to CLI
-        try:
-            from faster_whisper import WhisperModel
-            model_size = os.getenv("WHISPER_MODEL", "large-v3")
-            device = os.getenv("WHISPER_DEVICE", "cpu")
-            model = WhisperModel(model_size, device=device)
+        def _transcribe():
+            model = _get_whisper_model()
             segments, _ = model.transcribe(tmp_path, language=language)
             return " ".join(seg.text for seg in segments).strip()
-        except ImportError:
-            # Fall back to whisper CLI
-            result = subprocess.run(
-                ["whisper", tmp_path, "--language", language, "--output_format", "json", "--output_dir", "/tmp"],
-                capture_output=True, timeout=120,
-            )
-            json_path = tmp_path.rsplit(".", 1)[0] + ".json"
-            with open(json_path) as jf:
-                data = json.load(jf)
-            return data.get("text", "").strip()
+
+        return await asyncio.get_event_loop().run_in_executor(None, _transcribe)
     finally:
         import os as _os
         _os.unlink(tmp_path)

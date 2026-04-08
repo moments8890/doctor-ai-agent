@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, CircularProgress } from "@mui/material";
 import MicIcon from "@mui/icons-material/Mic";
 import { TYPE, ICON, COLOR, RADIUS } from "../theme";
 
@@ -55,6 +55,7 @@ export function isVoiceSupported() {
 
 export default function VoiceInput({ onResult, onCancel }) {
   const [recording, setRecording] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [asrMode, setAsrMode] = useState(BrowserSpeechRecognition ? "browser" : null);
@@ -102,16 +103,38 @@ export default function VoiceInput({ onResult, onCancel }) {
 
     const recognition = new BrowserSpeechRecognition();
     recognition.lang = "zh-CN";
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
-    recognition.continuous = false;
+    recognition.continuous = true;
 
     recognition.onresult = (event) => {
-      const text = event.results[0]?.[0]?.transcript;
-      if (text && !cancelledRef.current) onResult(text);
+      // Collect all final + interim results into one string
+      let final = "";
+      let interim = "";
+      for (let i = 0; i < event.results.length; i++) {
+        const text = event.results[i][0]?.transcript || "";
+        if (event.results[i].isFinal) {
+          final += text;
+        } else {
+          interim += text;
+        }
+      }
+      if (final && !cancelledRef.current) onResult(final);
+      if (interim) setInterimText(interim);
     };
-    recognition.onerror = () => { stopTimer(); setRecording(false); onCancel(); };
-    recognition.onend = () => { stopTimer(); setRecording(false); };
+    recognition.onerror = (e) => {
+      // "no-speech" is normal if user is silent — don't exit voice mode
+      if (e.error === "no-speech") return;
+      stopTimer(); setRecording(false);
+    };
+    recognition.onend = () => {
+      // With continuous=true, onend fires if the browser stops on its own.
+      // Only clean up if we're still recording (user hasn't released yet).
+      if (recognitionRef.current && !cancelledRef.current) {
+        // Restart to keep listening
+        try { recognitionRef.current.start(); } catch { /* already stopped */ }
+      }
+    };
 
     recognition.start();
     recognitionRef.current = recognition;
@@ -120,13 +143,18 @@ export default function VoiceInput({ onResult, onCancel }) {
 
   function stopBrowserRecording() {
     stopTimer();
+    const ref = recognitionRef.current;
+    recognitionRef.current = null; // prevent onend from restarting
     if (cancelledRef.current) {
-      recognitionRef.current?.abort();
+      ref?.abort();
       setRecording(false);
       setCancelled(false);
+      setInterimText("");
       onCancel();
     } else {
-      recognitionRef.current?.stop();
+      ref?.stop();
+      setRecording(false);
+      setInterimText("");
     }
   }
 
@@ -155,8 +183,8 @@ export default function VoiceInput({ onResult, onCancel }) {
           if (msg.type === "interim" && msg.text) {
             setInterimText(msg.text);
           }
-          if (msg.type === "final" && msg.text) {
-            if (!cancelledRef.current) {
+          if (msg.type === "final") {
+            if (msg.text && !cancelledRef.current) {
               onResult(msg.text);
             }
             cleanup();
@@ -167,8 +195,8 @@ export default function VoiceInput({ onResult, onCancel }) {
       };
 
       ws.onerror = () => {
+        // Don't exit voice mode on network error — just reset so user can retry
         cleanup();
-        onCancel();
       };
 
       ws.onopen = () => {
@@ -200,6 +228,7 @@ export default function VoiceInput({ onResult, onCancel }) {
   function cleanup() {
     stopTimer();
     setRecording(false);
+    setProcessing(false);
     setInterimText("");
 
     // Stop MediaRecorder
@@ -231,6 +260,17 @@ export default function VoiceInput({ onResult, onCancel }) {
       return;
     }
 
+    // Skip if recording was too short (< 0.5s) — not enough audio to transcribe
+    if (seconds < 1) {
+      cleanup();
+      return;
+    }
+
+    // Show processing state while server transcribes
+    setRecording(false);
+    setProcessing(true);
+    stopTimer();
+
     // Stop the recorder so remaining data flushes
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
@@ -243,12 +283,11 @@ export default function VoiceInput({ onResult, onCancel }) {
 
     // Server will respond with {type: "final"} which triggers cleanup via onmessage.
     // Safety timeout in case server doesn't respond:
-    stopTimer();
     setTimeout(() => {
       if (wsRef.current) {
         cleanup();
       }
-    }, 5000);
+    }, 30000);
   }
 
   // ── Unified start/stop ──
@@ -270,7 +309,7 @@ export default function VoiceInput({ onResult, onCancel }) {
 
   function handleMove(clientY) {
     if (!recording) return;
-    const shouldCancel = startYRef.current - clientY > 80;
+    const shouldCancel = startYRef.current - clientY > 150;
     setCancelled(shouldCancel);
     cancelledRef.current = shouldCancel;
   }
@@ -280,14 +319,31 @@ export default function VoiceInput({ onResult, onCancel }) {
   // Not ready yet (detecting mode)
   if (!asrMode && !BrowserSpeechRecognition) return null;
 
+  // Processing state — Whisper is transcribing
+  if (processing) {
+    return (
+      <Box sx={{
+        flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+        height: 40, borderRadius: RADIUS.sm,
+        bgcolor: COLOR.surface, border: `1px solid ${COLOR.border}`,
+      }}>
+        <CircularProgress size={16} sx={{ color: COLOR.primary, mr: 1 }} />
+        <Typography variant="body2" sx={{ fontSize: TYPE.heading.fontSize, color: COLOR.text3 }}>
+          识别中...
+        </Typography>
+      </Box>
+    );
+  }
+
   return (
     <Box
-      onTouchStart={(e) => startRecording(e.touches[0].clientY)}
+      onTouchStart={(e) => { e.preventDefault(); startRecording(e.touches[0].clientY); }}
       onTouchEnd={() => stopRecording()}
       onTouchMove={(e) => handleMove(e.touches[0].clientY)}
       onMouseDown={(e) => startRecording(e.clientY)}
       onMouseUp={() => stopRecording()}
       onMouseMove={(e) => { if (recording) handleMove(e.clientY); }}
+      onContextMenu={(e) => e.preventDefault()}
       sx={{
         flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
         height: 40, borderRadius: RADIUS.sm, cursor: "pointer", userSelect: "none",

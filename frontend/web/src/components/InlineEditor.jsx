@@ -64,7 +64,6 @@ export default function InlineEditor({ value, onSave, onCancel, onDelete }) {
           <VoiceInput
             onResult={(transcript) => {
               setText((prev) => prev ? prev + transcript : transcript);
-              setShowVoice(false);
             }}
             onCancel={() => setShowVoice(false)}
           />

@@ -547,7 +547,6 @@ function PatientPreviewPage({ doctorId, previewId }) {
               <VoiceInput
                 onResult={(text) => {
                   setInput((prev) => (prev ? `${prev} ${text}` : text));
-                  setVoiceMode(false);
                 }}
                 onCancel={() => setVoiceMode(false)}
               />

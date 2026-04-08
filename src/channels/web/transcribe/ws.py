@@ -30,6 +30,13 @@ async def ws_transcribe(websocket: WebSocket):
         await websocket.close()
         return
 
+    # Tell frontend to use server-side ASR (whisper or tencent)
+    await websocket.send_json({
+        "type": "config",
+        "provider": "server",
+        "message": f"Server-side ASR via {provider.value}",
+    })
+
     log(f"[transcribe_ws] session started, provider={provider.value}")
 
     try:
@@ -53,15 +60,17 @@ async def ws_transcribe(websocket: WebSocket):
                     break
 
         # Batch transcribe accumulated audio
+        text = ""
         if audio_chunks:
             from services.asr.provider import transcribe_audio_bytes
             full_audio = b"".join(audio_chunks)
             text = await transcribe_audio_bytes(full_audio, format="webm")
 
-            await websocket.send_json({
-                "type": "final",
-                "text": text,
-            })
+        # Always send final response so client never hangs
+        await websocket.send_json({
+            "type": "final",
+            "text": text,
+        })
 
         log(f"[transcribe_ws] session ended, chunks={len(audio_chunks)}")
 

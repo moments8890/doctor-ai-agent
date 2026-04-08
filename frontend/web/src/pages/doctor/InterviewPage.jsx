@@ -445,7 +445,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
               </IconButton>
               <Box sx={{ flex: 1 }}>
                 <VoiceInput
-                  onResult={(text) => { setInput((prev) => prev ? prev + text : text); setVoiceMode(false); }}
+                  onResult={(text) => { setInput((prev) => prev ? prev + text : text); }}
                   onCancel={() => setVoiceMode(false)}
                 />
               </Box>

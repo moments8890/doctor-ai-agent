@@ -86,8 +86,8 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
   const [messages, setMessages] = useState([welcomeMsg]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [voiceMode, setVoiceMode] = useState(false);
   const voiceSupported = isVoiceSupported();
+  const [voiceMode, setVoiceMode] = useState(false);
   const [lastMsgId, setLastMsgId] = useState(null);
   const chatEndRef = useRef(null);
   const pollingRef = useRef(null);
@@ -299,7 +299,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
         )}
         {voiceMode ? (
           <VoiceInput
-            onResult={(text) => { setInput(prev => prev ? prev + text : text); setVoiceMode(false); }}
+            onResult={(text) => { setInput(prev => prev ? prev + text : text); }}
             onCancel={() => setVoiceMode(false)}
           />
         ) : (

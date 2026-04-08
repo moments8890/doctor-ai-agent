@@ -424,19 +424,9 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
             </Typography>
           </Box>
           {isVoiceSupported() && (
-            showVoice ? (
-              <Box sx={{ mt: 1 }}>
-                <VoiceInput onResult={(text) => { setContent((prev) => prev ? prev + text : text); setShowVoice(false); }} onCancel={() => setShowVoice(false)} />
-              </Box>
-            ) : (
-              <Box onClick={() => setShowVoice(true)}
-                sx={{ mt: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 1,
-                  py: 1.5, bgcolor: COLOR.surface, borderRadius: RADIUS.md, cursor: "pointer",
-                  border: `0.5px solid ${COLOR.borderLight}`, "&:active": { bgcolor: COLOR.borderLight } }}>
-                <MicIcon sx={{ fontSize: 18, color: COLOR.text4 }} />
-                <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text3 }}>按住说话</Typography>
-              </Box>
-            )
+            <Box sx={{ mt: 1 }}>
+              <VoiceInput onResult={(text) => { setContent((prev) => prev ? prev + text : text); }} onCancel={() => {}} />
+            </Box>
           )}
         </Box>
         </SpotlightHint>
