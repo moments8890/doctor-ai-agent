@@ -135,10 +135,17 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
 
   // URL-driven: detail view for specific knowledge item
   if (urlSubId && urlSubId !== "new" && urlSubId !== "add") {
+    // "persona" route uses the current doctor's persona ID (not a hardcoded number)
+    const resolvedItemId = urlSubId === "persona" ? persona?.id : parseInt(urlSubId);
+    if (urlSubId === "persona" && !resolvedItemId && !loading) {
+      // Persona not yet created — go back
+      navigate(-1);
+      return null;
+    }
     return (
       <KnowledgeDetailSubpage
         doctorId={doctorId}
-        itemId={parseInt(urlSubId)}
+        itemId={resolvedItemId}
         onBack={onBack}
         onDelete={async (id) => { await deleteKnowledgeItem(doctorId, id); navigate(-1); load(); }}
         isMobile={isMobile}
@@ -168,7 +175,7 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
       onDelete={handleDelete}
       onItemClick={(id) => navigate(`${dp("settings/knowledge")}/${id}`)}
       persona={persona}
-      onPersonaClick={() => persona?.id && navigate(`${dp("settings/knowledge")}/${persona.id}`)}
+      onPersonaClick={() => navigate(`${dp("settings/knowledge")}/persona`)}
     />
   );
 }

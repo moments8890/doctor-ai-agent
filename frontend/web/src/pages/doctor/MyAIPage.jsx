@@ -330,7 +330,7 @@ export default function MyAIPage({ doctorId }) {
               referenceCount={isPersonaItem ? 0 : (rule.reference_count || 0)}
               source={rule.source}
               date={isPersonaItem ? "" : (rule.created_at ? formatRelativeDate(rule.created_at) : "")}
-              onClick={() => navigate(`${dp("settings/knowledge")}/${rule.id}`)}
+              onClick={() => navigate(`${dp("settings/knowledge")}/${rule.category === "persona" ? "persona" : rule.id}`)}
               sx={idx === topRules.length - 1 ? { borderBottom: "none" } : {}}
             />
             );
