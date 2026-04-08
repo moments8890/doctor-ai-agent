@@ -50,7 +50,7 @@ async function detectAsrMode() {
 }
 
 export function isVoiceSupported() {
-  if (IS_MINIPROGRAM) return true; // JSSDK recording always available
+  if (IS_MINIPROGRAM) return false; // Voice not supported in miniprogram web-view
   return !!BrowserSpeechRecognition || _asrModeCache === "server";
 }
 
