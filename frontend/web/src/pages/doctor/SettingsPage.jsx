@@ -119,6 +119,7 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
   // React Query-backed knowledge list (shared cache)
   const { data: kData, isLoading: loading, refetch: refetchItems } = useKnowledgeItems();
   const items = kData ? (Array.isArray(kData) ? kData : (kData.items || [])) : [];
+  const persona = kData && !Array.isArray(kData) ? kData.persona : null;
 
   const load = useCallback(() => {
     refetchItems();
@@ -166,6 +167,8 @@ function KnowledgeSubpageWrapper({ doctorId, onBack, isMobile, urlSubId }) {
       onAdd={() => navigate(dp("settings/knowledge/new"))}
       onDelete={handleDelete}
       onItemClick={(id) => navigate(`${dp("settings/knowledge")}/${id}`)}
+      persona={persona}
+      onPersonaClick={() => persona?.id && navigate(`${dp("settings/knowledge")}/${persona.id}`)}
     />
   );
 }
