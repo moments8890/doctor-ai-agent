@@ -103,7 +103,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
   const inputRef = useRef(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  // Don't auto-focus on mobile — opening the keyboard pushes the viewport in web-view
 
   // Resume existing session from chat — load collected data and show progress
   useEffect(() => {
@@ -439,7 +439,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
       {session.status !== "draft_created" && (
         <>
           {voiceMode && (
-            <Box sx={{ px: 1, py: 1, borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Box sx={{ px: 1, py: 1, borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
               <IconButton onClick={() => setVoiceMode(false)} sx={{ color: COLOR.text4, p: 1, flexShrink: 0 }}>
                 <KeyboardIcon sx={{ fontSize: 22 }} />
               </IconButton>
@@ -453,7 +453,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
           )}
           {!voiceMode && (
             <Box sx={{ borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, px: 1, py: 1,
-              display: "flex", alignItems: "flex-end", gap: 0.5 }}>
+              display: "flex", alignItems: "flex-end", gap: 0.5, flexShrink: 0 }}>
               {/* Voice toggle */}
               {voiceSupported && (
                 <IconButton onClick={() => setVoiceMode(true)} sx={{ color: COLOR.text4, p: 1 }}>
