@@ -250,6 +250,11 @@ async def wechat_mini_login(body: MiniProgramLoginInput) -> MiniProgramLoginResp
     from infra.auth.unified import issue_token
     access_token = issue_token(role="doctor", doctor_id=doctor_id)
 
+    # Seed demo data in background (idempotent — is_seeded check prevents duplicates)
+    from channels.web.auth.invite import _seed_new_doctor
+    from utils.log import safe_create_task
+    safe_create_task(_seed_new_doctor(doctor_id))
+
     return MiniProgramLoginResponse(
         access_token=access_token,
         token_type="Bearer",

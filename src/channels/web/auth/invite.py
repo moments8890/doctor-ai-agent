@@ -145,6 +145,21 @@ async def _link_mini_openid_from_jscode(js_code: str, doctor_id: str) -> Optiona
         return None
 
 
+async def _seed_new_doctor(doctor_id: str) -> None:
+    """Background task: seed demo data for a newly created doctor."""
+    import os
+    if os.environ.get("ALLOW_DEMO_SEED", "true").lower() != "true":
+        return
+    try:
+        from channels.web.doctor_dashboard.preseed_service import seed_demo_data
+        async with AsyncSessionLocal() as session:
+            result = await seed_demo_data(session, doctor_id)
+            if not result.already_seeded:
+                await session.commit()
+    except Exception as exc:
+        logging.getLogger("auth").warning("[Preseed] failed for %s: %s", doctor_id, exc)
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -166,6 +181,10 @@ async def invite_login(body: InviteLoginInput):
 
     if new_doctor_id:
         doctor_id = await _bind_new_doctor_to_invite(code, new_doctor_id)
+
+    # Seed demo data in background (idempotent — is_seeded check prevents duplicates)
+    from utils.log import safe_create_task
+    safe_create_task(_seed_new_doctor(doctor_id))
 
     mini_openid: Optional[str] = None
     if body.js_code:

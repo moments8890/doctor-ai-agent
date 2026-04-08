@@ -214,7 +214,7 @@ export default function ReviewSubpage({
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
       <SubpageHeader title="诊断审核" onBack={onBack} right={headerRight} />
 
-      <Box sx={{ flex: 1, overflow: "auto", pb: hasSuggestions ? "80px" : 2 }}>
+      <Box sx={{ flex: 1, overflow: "auto", pb: hasSuggestions ? "120px" : 2 }}>
         {children}
 
         {hasSuggestions && (
