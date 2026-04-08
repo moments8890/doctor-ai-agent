@@ -73,6 +73,10 @@ def register_health_and_utility_routes(
     def root():
         return {"status": "ok", "docs": "/docs"}
 
+    @app.get("/MP_verify_66F2e2YmHWbtvmdh.txt")
+    def mp_verify():
+        return Response(content="66F2e2YmHWbtvmdh", media_type="text/plain")
+
     @app.post("/api/test/reset-caches")
     def reset_caches():
         """Clear all in-memory caches. Test/dev only."""
