@@ -28,7 +28,8 @@
       "Skill(design-html)",
       "Skill(document-release)",
       "Skill(checkpoint)",
-      "Skill(ship)"
+      "Skill(ship)",
+      "Skill(update-config)"
     ]
   }
 }

@@ -3,6 +3,10 @@
 Comprehensive test scenarios organized by pipeline. Each section lists the
 happy-path flows, edge cases, and what to verify.
 
+**Last reference run:** 2026-04-08 (hero-path run — see `hero-path-qa-plan.md`)
+**Known open bugs:** BUG-01 (date display), BUG-02 (greeting suffix), BUG-03 (interview send, real-device only), BUG-05 (edit button order), BUG-06 (NL search), BUG-07 (logout back nav)
+**Pre-flight requirement:** Backend must start with `NO_PROXY=* no_proxy=*` prefix or all LLM calls fail silently (BUG-04 — not yet permanently fixed in code)
+
 ---
 
 ## 1. Knowledge Creation Pipeline
@@ -220,6 +224,8 @@ Status enum: `pending` → `notified` → `completed` | `cancelled`
 
 ## 9. Chat / AI Conversation Pipeline
 
+> **Note (2026-04-08):** The doctor workbench no longer has an embedded chat input on the main 我的AI tab. The workbench uses a dashboard model with quick action cards (新建病历, 患者预问诊码) and an AI activity feed. Chat interaction happens via the doctor-side interview flow (§3), not a standalone chat composer. Tests 9.1–9.4 apply to those entry points; 9.8–9.9 apply to the 我的AI activity feed.
+
 Tests the core AI chat interaction.
 
 | # | Scenario | Steps | Verify |
@@ -276,11 +282,11 @@ API returns three sections: `summary`, `pending`, `completed`.
 
 | # | Scenario | Steps | Verify |
 |---|----------|-------|--------|
-| 11.1 | View queue | 审核 tab | Summary counts + pending list + completed list |
-| 11.2 | Navigate to record | Click suggestion → opens review page | Correct record with all suggestions |
+| 11.1 | View queue | 审核 tab | Three sub-tabs: **待审核 / 待回复 / 已完成**; summary badge counts correct |
+| 11.2 | Navigate to record | Tap patient card in 待审核 | Navigates to `/doctor/review/<id>`; "诊断审核" header; three suggestion sections: 鉴别诊断 / 检查建议 / 治疗方向 |
 | 11.3 | Summary counts | Review queue header | Pending/confirmed/modified counts all accurate |
-| 11.4 | Completed suggestions | Scroll to completed section | Shows decision type, edited text, timestamps |
-| 11.5 | Filter by urgency | Filter 紧急 items | Only urgent suggestions shown |
+| 11.4 | Completed tab | Tap 已完成 | Shows decided records with decision type and timestamps |
+| 11.5 | Urgency badge | Urgent record | Red "紧急" badge visible on card; sorted to top of 待审核 list |
 | 11.6 | Badge updates | Decide suggestion → return to queue | Badge count decrements |
 
 **Edge cases:**
@@ -348,8 +354,8 @@ Tests login, registration, session management, and data isolation.
 
 | # | Scenario | Steps | Verify |
 |---|----------|-------|--------|
-| 15.1 | Doctor login | Phone + year of birth | JWT issued, redirected to 我的AI |
-| 15.2 | Invite code registration | New phone + invite code | Doctor created, onboarding starts |
+| 15.1 | Doctor login | UI: 昵称 (phone number) + 口令 (year of birth as integer) → 登录 | JWT issued; redirected to `/doctor`; 我的AI tab active. Note: UI labels say 昵称/口令 but API fields are `phone`/`year_of_birth` |
+| 15.2 | Invite code registration | Tap "医生注册" on login page → enter 昵称 + 口令 + invite code (e.g. WELCOME) | Doctor account created; onboarding wizard starts |
 | 15.3 | Dual-role phone login | Phone matches both doctor and patient | `needs_role_selection: true` returned, role picker shown |
 | 15.4 | Data isolation (UI) | Login as doctor A → navigate to patients/records | Only own data visible |
 | 15.5 | Data isolation (API) | Call API with doctor A token for doctor B's resource | 404 returned (not 403) |
@@ -453,7 +459,7 @@ Tests transitions, badges, responsive layout, and component conventions.
 
 | # | Scenario | Steps | Verify |
 |---|----------|-------|--------|
-| 20.1 | Tab switching | Click each bottom tab | Fade transition (150ms), correct content |
+| 20.1 | Tab switching | Click each of the 4 bottom tabs (我的AI / 患者 / 审核 / 任务) | Fade transition (150ms), correct content |
 | 20.2 | Subpage navigation | Enter subpage → back | Slide transition (300ms), back works |
 | 20.3 | Badge counts | Create data → check tab badges | Counts update in real-time |
 | 20.4 | Responsive layout | Resize viewport (mobile/tablet/desktop) | Layout adapts, no overflow |
