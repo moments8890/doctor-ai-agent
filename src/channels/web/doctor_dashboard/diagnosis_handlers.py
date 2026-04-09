@@ -123,6 +123,23 @@ async def trigger_diagnosis(
     resolved = _resolve_ui_doctor_id(body.doctor_id, authorization)
     await _get_record_or_404(db, record_id, resolved)
 
+    # Guard: skip re-run if suggestions already exist for this record.
+    # Auto-trigger fires on interview confirm; this endpoint allows manual
+    # re-trigger. Without the guard each call stacks a new set of suggestions.
+    from sqlalchemy import func as _func
+    existing_count = (
+        await db.execute(
+            select(_func.count())
+            .select_from(AISuggestion)
+            .where(
+                AISuggestion.record_id == record_id,
+                AISuggestion.doctor_id == resolved,
+            )
+        )
+    ).scalar() or 0
+    if existing_count > 0:
+        return {"status": "already_ran", "record_id": record_id, "suggestion_count": existing_count}
+
     # Update record status to pending_review
     rec = (
         await db.execute(
@@ -162,6 +179,26 @@ async def get_suggestions(
 
     rows = await get_suggestions_for_record(db, record_id)
     suggestions = [_suggestion_to_dict(r) for r in rows]
+
+    # Filter out hallucinated citation IDs — LLM sometimes generates [KB-N]
+    # references for IDs that don't correspond to real knowledge items.
+    # Batch-fetch valid KB IDs for this doctor and remove any phantom IDs.
+    if suggestions:
+        from db.models.doctor import DoctorKnowledgeItem
+        valid_kb_ids: set[int] = {
+            row[0]
+            for row in (
+                await db.execute(
+                    select(DoctorKnowledgeItem.id).where(
+                        DoctorKnowledgeItem.doctor_id == resolved
+                    )
+                )
+            ).all()
+        }
+        for s in suggestions:
+            s["cited_knowledge_ids"] = [
+                kid for kid in s["cited_knowledge_ids"] if kid in valid_kb_ids
+            ]
 
     return {"status": rec.status, "suggestions": suggestions}
 
