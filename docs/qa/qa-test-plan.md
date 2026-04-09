@@ -44,7 +44,7 @@ Tests AI diagnosis generation, suggestion review, and record finalization.
 |---|----------|-------|--------|
 | 2.1 | Trigger diagnosis | Chat creates record → click 诊断 button | 202 accepted, async polling starts, suggestions appear |
 | 2.2 | Confirm suggestion | Review page → click confirm on a suggestion | Decision = confirmed, timestamp recorded |
-| 2.3 | Reject suggestion | Review page → click reject on a suggestion | Decision = rejected, removed from active list |
+| 2.3 | Remove/unconfirm suggestion | Review page → expand suggestion (▾) → tap 移除 | Item returns to dimmed/unconfirmed state; **not deleted** from list; 确认 option reappears |
 | 2.4 | Edit suggestion | Review page → edit text → save | edited_text stored, original preserved, decision = edited |
 | 2.5 | Add custom suggestion | Review page → add manual suggestion | New suggestion with is_custom=true appears in list |
 | 2.6 | Finalize review (partial decisions) | Decide some suggestions → finalize | Record status → completed even without all decisions (no gate) |
@@ -151,7 +151,7 @@ safety-critical: misclassification could suppress urgent clinical content.
 | 6b.3 | View own records | Patient → records tab | Read-only view of shared records |
 | 6b.4 | View follow-up tasks | Patient → tasks tab | Assigned tasks with due dates shown |
 | 6b.5 | Complete a task | Mark task as done | Status updated, reflected on doctor side |
-| 6b.6 | Chat with doctor | Send message in chat | Message appears in doctor's draft queue |
+| 6b.6 | Chat with doctor | Send message via `POST /api/patient/chat` with `{"text":"..."}` (NOT `/api/patient/message` — that endpoint saves but does NOT generate AI draft) | Message appears in doctor's 审核 → 待回复 queue with "AI已起草" label within ~15s |
 | 6b.7 | Mark message as read | Open received message | Read status updated |
 | 6b.8 | File upload | Upload image/PDF in chat | File processed, attached to message |
 
@@ -171,12 +171,12 @@ Tests AI draft generation, editing, sending, and the teaching loop.
 
 | # | Scenario | Steps | Verify |
 |---|----------|-------|--------|
-| 7.1 | Auto-generated draft | Finalize diagnosis → check 我的AI tab | Draft card appears with patient name, triage color |
+| 7.1 | Auto-generated draft | Patient sends message via `POST /api/patient/chat` → wait ~15s → check **审核 → 待回复** tab | Draft card appears with patient name, "AI已起草" label, triage category |
 | 7.2 | View draft content | Click draft card → expand | Shows patient message, AI reply, knowledge citations |
 | 7.3 | Edit draft | Click edit → modify text → save | Status changes to "edited", edited text persisted |
-| 7.4 | Send with confirmation | Click send → confirmation preview | AI disclosure text, cited rules, full preview shown before send |
-| 7.5 | Send draft | Confirm send in preview | Message delivered to patient thread, draft status = sent |
-| 7.6 | Dismiss draft | Click dismiss on draft | Draft removed from pending list, status = dismissed |
+| 7.4 | Send with confirmation | Tap 确认发送 › → confirmation sheet slides up | Sheet titled "确认发送回复"; shows patient's original message + reply text; "AI辅助生成，经医生审核" attribution; 取消 LEFT / 发送 RIGHT |
+| 7.5 | Send draft | Tap 发送 in confirmation sheet | Message delivered to patient; chat view shows green sent bubble with attribution; item moves to 已完成 |
+| 7.6 | Confirm draft chat URL | After sending, note current URL | Doctor chat view is at `/doctor/patients/<id>?view=chat` |
 | 7.7 | Save as rule (teaching) | Edit draft significantly → "save as rule" prompt | DoctorEdit logged, new knowledge item created from edit |
 | 7.8 | Decline teaching prompt | Edit draft → decline "save as rule" | No knowledge item created, edit still saved |
 | 7.9 | Draft from patient message | Patient sends message → AI auto-drafts reply | Draft appears in pending list with source message context |
@@ -358,7 +358,7 @@ Tests login, registration, session management, and data isolation.
 | 15.2 | Invite code registration | Tap "医生注册" on login page → enter 昵称 + 口令 + invite code (e.g. WELCOME) | Doctor account created; onboarding wizard starts |
 | 15.3 | Dual-role phone login | Phone matches both doctor and patient | `needs_role_selection: true` returned, role picker shown |
 | 15.4 | Data isolation (UI) | Login as doctor A → navigate to patients/records | Only own data visible |
-| 15.5 | Data isolation (API) | Call API with doctor A token for doctor B's resource | 404 returned (not 403) |
+| 15.5 | Data isolation (API) | `GET /api/manage/drafts?doctor_id=<doctor_B_id>` with doctor A's JWT | 403 or 404 returned — not doctor B's data |
 | 15.6 | Session expiry | Wait for token expiry / manually expire | Redirect to login with appropriate message |
 | 15.7 | QR login | Generate QR → scan → login | Token absorbed from URL, session established |
 | 15.8 | WeChat token handoff | Open app with ?token=...&doctor_id=...&name=... in URL | Token absorbed, session established from URL params |

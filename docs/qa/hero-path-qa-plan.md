@@ -66,7 +66,7 @@ curl -s -X POST "http://127.0.0.1:8000/api/auth/unified/register/patient" \
 | 2.1 | Tab loads | Tap 我的AI | Page loads; doctor name shown ("X 的 AI"); 3 stats visible (7天引用 / 待确认 / 今日处理); no NaN |
 | 2.2 | AI Persona card | Scroll to 我的AI人设 card in knowledge preview | Card shows "待学习 · 已收集 N 条回复"; tapping opens `/doctor/settings/knowledge/persona` |
 | 2.3 | Knowledge preview | Scroll to 我的知识库 preview | Up to N recent items listed; AI Persona pinned first; "全部 N 条 ›" link visible |
-| 2.4 | Knowledge card dates | Check dates on knowledge preview cards | Shows 今天 / 昨天 / N天前 — **not** -1天前 or future date (BUG-01 fix) |
+| 2.4 | Knowledge card dates | Check dates on knowledge preview cards | **BUG-01 open**: currently shows -1天前; expected 今天 / 昨天 / N天前 after fix |
 | 2.5 | Navigate to full knowledge list | Tap 我的知识库 button | KnowledgeSubpage opens; all items listed |
 | 2.6 | Knowledge item detail | Tap any item | Detail subpage slides in; full text shown; no `[KB-N]` visible |
 | 2.7 | Back navigation | Tap back from knowledge detail | Slides back to knowledge list; then back to 我的AI |
@@ -208,7 +208,7 @@ Run these after each bug is fixed to confirm it stays fixed.
 | # | Bug | Status | Check | Pass Criteria |
 |---|-----|--------|-------|--------------|
 | R.1 | BUG-01 (date display) | **OPEN** | Knowledge cards created today | Shows 今天 — not -1天前 or future |
-| R.2 | BUG-02 (greeting suffix) | **OPEN** | Start patient interview as doctor named "测试医生" | Greeting shows "测试医生的AI助手" — not "测试医生医生的AI助手" |
+| R.2 | BUG-02 (greeting suffix) | **OPEN** | Log in as doctor named "测试医生" → open 我的AI tab | AI persona header shows "测试医生 的 AI" — not "测试医生医生 的 AI". (Bug is on doctor workbench, not patient portal.) |
 | R.3 | BUG-04 (proxy isolation) | **ENV-FIXED** (not permanent) | Any LLM-driven action (diagnosis, draft, interview) | Completes without "Connection error"; permanent fix = `trust_env=False` in httpx LLM client |
 | R.4 | BUG-05 (button order) | **OPEN** | 审核 → open suggestion → edit form | 取消 LEFT (grey), 保存 RIGHT (green) |
 | R.5 | BUG-06 (NL search gender) | **OPEN** | Search "最近来诊的男性" | Non-empty results; all male patients |
@@ -240,7 +240,7 @@ Test in this sequence — earlier sections gate later ones:
 2. **Section 1** (App Load) — gates everything
 3. **Section 3** (Patient List) — validates seeded data
 4. **Section 4** (Patient Detail) — validates records exist
-5. **Section 5** (Review Queue 门诊) — core doctor workflow
+5. **Section 5** (Review Queue 待审核) — core doctor workflow
 6. **Section 6** (待回复) — draft reply workflow
 7. **Section 2** (我的AI) — knowledge + activity
 8. **Section 7** (Patient Portal) — patient-facing
@@ -258,7 +258,7 @@ Save results to `.gstack/qa-reports/qa-report-hero-path-YYYY-MM-DD.md`:
 **Date:** YYYY-MM-DD
 **Checklist:** docs/qa/hero-path-qa-plan.md
 **Backend:** http://127.0.0.1:8000 | **Frontend:** http://127.0.0.1:5173
-**Doctor:** test_doctor
+**Doctor:** &lt;doctor registered in pre-flight&gt;
 **Duration:** ~XX min
 
 ## Summary
@@ -269,7 +269,7 @@ Save results to `.gstack/qa-reports/qa-report-hero-path-YYYY-MM-DD.md`:
 | 2 | 我的AI | | |
 | 3 | Patient List | | |
 | 4 | Patient Detail | | |
-| 5 | Review Queue (门诊) | | |
+| 5 | Review Queue (待审核) | | |
 | 6 | 待回复 | | |
 | 7 | Patient Portal | | |
 | 8 | Navigation & UI | | |

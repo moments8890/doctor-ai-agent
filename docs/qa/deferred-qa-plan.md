@@ -72,7 +72,7 @@ from doctor's 我的AI → 患者预问诊码.
 | 3.4 | Voice input | Tap mic → hold → speak → release | WeChat ASR transcribes; sent to AI; AI responds |
 | 3.5 | Photo upload | Tap + → 拍照 → take photo | Photo uploaded; LLM extracts content; knowledge item or record updated |
 | 3.6 | Session resume in WeChat | Close miniprogram mid-interview → reopen | Previous session resumed; no duplicate session created |
-| 3.7 | Doctor reply received in miniprogram | Doctor sends reply from workbench | Patient sees reply in miniprogram chat tab without app restart |
+| 3.7 | Doctor reply received in miniprogram | Doctor goes to 审核 → 待回复 → opens draft → edits → taps 发送 | Patient sees reply in miniprogram chat tab without app restart |
 | 3.8 | Navigation in miniprogram | Check bottom nav behavior | Bottom nav hidden on subpages; back navigation works correctly |
 
 **Edge cases:**
@@ -85,7 +85,7 @@ from doctor's 我的AI → 患者预问诊码.
 
 | # | Scenario | Steps | Pass Criteria |
 |---|----------|-------|---------------|
-| 4.1 | Two doctor tabs, same record | Open review/14 in two browser tabs simultaneously | Both show same state; action in tab 1 reflected in tab 2 on refresh |
+| 4.1 | Two doctor tabs, same record | Open a pending record's review page (`/doctor/review/<id>`) in two browser tabs simultaneously | Both show same state; action in tab 1 reflected in tab 2 on refresh (not real-time — refresh required) |
 | 4.2 | Two doctors, same patient | Doctor A and Doctor B both open the same patient (if shared) simultaneously | No state corruption; no data overwrite |
 | 4.3 | Double-send interview turn | During patient interview, tap send button twice rapidly | AI responds exactly once; no duplicate message in chat; progress bar advances by 1 |
 | 4.4 | Token expiry during long session | Start interview → wait for token expiry (check token TTL) → continue | Graceful redirect to login with session preservation or clear error message |
@@ -151,6 +151,12 @@ For a neurosurgery practice, mis-triage is patient-safety-relevant.
 **Setup**: Use patient portal to send specific messages; verify doctor's triage view.
 
 Send messages via `POST /api/patient/chat` with `Authorization: Bearer <patient_token>` and body `{"text": "..."}`. Check doctor's 审核 → 待回复 tab after ~15s for AI draft.
+
+**Critical endpoint distinction:** `POST /api/patient/chat` triggers AI draft generation. `POST /api/patient/message` saves the message to the DB but does NOT generate an AI draft. Always use `/chat` for triage tests.
+
+| # | Negative test | Steps | Pass Criteria |
+|---|---------|----------------|--------|
+| 8.0 | `/message` does not generate draft | Send to `POST /api/patient/message` with same text | Message saved (check `GET /api/patient/chat/messages`); NO new draft appears in doctor's 待回复 after 20s |
 
 | # | Message text | Expected triage_category | Verify |
 |---|---------|----------------|--------|
