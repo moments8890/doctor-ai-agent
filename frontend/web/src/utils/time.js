@@ -10,7 +10,10 @@ export function nowTs() {
  */
 export function relativeDate(dateStr) {
   if (!dateStr) return "";
-  const d = new Date(dateStr);
+  // Append 'Z' if no timezone info — backend stores UTC without suffix,
+  // and new Date("...T...") without 'Z' is parsed as local time by JS.
+  const normalized = dateStr.includes("Z") || dateStr.includes("+") ? dateStr : dateStr + "Z";
+  const d = new Date(normalized);
   if (isNaN(d.getTime())) return "";
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -32,7 +35,8 @@ export function relativeDate(dateStr) {
  */
 export function relativeFuture(dateStr) {
   if (!dateStr) return "";
-  const d = new Date(dateStr);
+  const normalized = dateStr.includes("Z") || dateStr.includes("+") ? dateStr : dateStr + "Z";
+  const d = new Date(normalized);
   if (isNaN(d.getTime())) return "";
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());

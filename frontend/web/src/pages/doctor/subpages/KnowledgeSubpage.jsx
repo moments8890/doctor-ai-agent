@@ -11,6 +11,7 @@ import { Box, InputAdornment, TextField, Typography } from "@mui/material";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
+import { relativeDate } from "../../../utils/time";
 import PageSkeleton from "../../../components/PageSkeleton";
 import KnowledgeCard from "../../../components/KnowledgeCard";
 import StatColumn from "../../../components/StatColumn";
@@ -19,21 +20,6 @@ import NewItemCard from "../../../components/NewItemCard";
 import AppButton from "../../../components/AppButton";
 
 /* ── Helpers ── */
-
-function formatRelativeDate(dateStr) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  if (isNaN(d)) return dateStr;
-
-  const now = new Date();
-  const diffMs = now - d;
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return "今天";
-  if (diffDays === 1) return "昨天";
-  if (diffDays < 7) return `${diffDays}天前`;
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
-}
 
 /**
  * Extract a short title from knowledge text (mirrors backend logic).
@@ -106,7 +92,7 @@ function KnowledgeRow({ item, onClick }) {
   const title = item.title && item.title.length <= 25 ? item.title : extractShortTitle(rawText);
   const summary = item.summary || (rawText.startsWith(title) ? rawText.slice(title.length).replace(/^[：:\s]+/, "").slice(0, 50) : rawText.slice(0, 50));
   const usageCount = item._usageCount || item.reference_count || 0;
-  const date = item.created_at ? formatRelativeDate(item.created_at) : "";
+  const date = item.created_at ? relativeDate(item.created_at) : "";
 
   return (
     <KnowledgeCard
@@ -171,7 +157,7 @@ export default function KnowledgeSubpage({
                 summary={personaSummary(persona)}
                 referenceCount={0}
                 source="system"
-                date={persona.updated_at ? formatRelativeDate(persona.updated_at) : ""}
+                date={persona.updated_at ? relativeDate(persona.updated_at) : ""}
                 onClick={onPersonaClick}
               />
             </Box>
@@ -221,7 +207,7 @@ export default function KnowledgeSubpage({
                 summary={personaSummary(persona)}
                 referenceCount={0}
                 source="system"
-                date={persona.updated_at ? formatRelativeDate(persona.updated_at) : ""}
+                date={persona.updated_at ? relativeDate(persona.updated_at) : ""}
                 onClick={onPersonaClick}
               />
             )}
