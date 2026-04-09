@@ -7,6 +7,7 @@ from __future__ import annotations
 import base64
 import os
 
+import httpx
 from openai import AsyncOpenAI
 
 from infra.llm.resilience import call_with_retry_and_fallback
@@ -60,7 +61,7 @@ def _build_vision_client(provider_name: str) -> tuple[AsyncOpenAI, str]:
     cache_key = f"{provider_name}:{model}"
     is_test = os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in os.environ.get("_", "")
     if cache_key not in _CLIENT_CACHE or is_test:
-        _CLIENT_CACHE[cache_key] = AsyncOpenAI(**client_kwargs)
+        _CLIENT_CACHE[cache_key] = AsyncOpenAI(**client_kwargs, http_client=httpx.AsyncClient(trust_env=False))
     return _CLIENT_CACHE[cache_key], model
 
 

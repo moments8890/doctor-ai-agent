@@ -317,6 +317,7 @@ async def llm_benchmark(
     All providers run in parallel; each call has a 5s hard timeout.
     """
     import asyncio
+    import httpx
     import os
     import time
     from openai import AsyncOpenAI
@@ -377,6 +378,7 @@ async def llm_benchmark(
             base_url=pcfg["base_url"],
             api_key=os.environ.get(pcfg.get("api_key_env", ""), ""),
             timeout=60,  # generous HTTP timeout; _BENCH_TIMEOUT_S enforced via asyncio
+            http_client=httpx.AsyncClient(trust_env=False),
         )
         model = model_overrides.get(name, pcfg["model"])
         run_results = [await _single_run(client, model, i) for i in range(runs)]
@@ -535,6 +537,7 @@ async def llm_eval(
     All combos run in parallel. Returns pass/fail + latency per scenario.
     """
     import asyncio
+    import httpx
     import os
     import time
     from openai import AsyncOpenAI
@@ -616,6 +619,7 @@ async def llm_eval(
             base_url=pcfg["base_url"],
             api_key=os.environ.get(pcfg.get("api_key_env", ""), ""),
             timeout=60,
+            http_client=httpx.AsyncClient(trust_env=False),
         )
         scenario_results = []
         for s in scenarios:

@@ -14,6 +14,7 @@ import os
 import re
 from typing import Any, Dict, List, Optional, Type, TypeVar
 
+import httpx
 import instructor
 from openai import AsyncOpenAI
 from pydantic import BaseModel
@@ -159,6 +160,7 @@ def _get_client(env_var: str = "ROUTING_LLM", default: str = "groq") -> AsyncOpe
             api_key=os.environ.get(provider.get("api_key_env", ""), "nokeyneeded"),
             timeout=float(os.environ.get("LLM_TIMEOUT", "30")),
             max_retries=0,
+            http_client=httpx.AsyncClient(trust_env=False),
         )
     return _client_cache[provider_name]
 

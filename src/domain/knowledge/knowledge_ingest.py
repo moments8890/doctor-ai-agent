@@ -135,7 +135,7 @@ async def extract_text_from_url(url: str) -> dict:
     from html.parser import HTMLParser
     import httpx
 
-    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True, trust_env=False) as client:
         resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 DoctorAI/1.0"})
         resp.raise_for_status()
         html = resp.text

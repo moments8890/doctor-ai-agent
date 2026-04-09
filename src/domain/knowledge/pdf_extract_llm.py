@@ -27,6 +27,7 @@ import base64
 import os
 import subprocess
 
+import httpx
 from openai import AsyncOpenAI
 
 from utils.pdf_utils import pdf_to_images
@@ -79,7 +80,7 @@ def _build_llm_client(provider_name: str) -> tuple["AsyncOpenAI", str]:
     client_kwargs: dict = {"api_key": api_key, "timeout": timeout, "max_retries": 0}
     if base_url:
         client_kwargs["base_url"] = base_url
-    return AsyncOpenAI(**client_kwargs), model
+    return AsyncOpenAI(**client_kwargs, http_client=httpx.AsyncClient(trust_env=False)), model
 
 
 def _build_page_content(page_images: list[bytes]) -> list[dict]:

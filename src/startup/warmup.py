@@ -50,8 +50,10 @@ async def _ping_ollama_candidate(
     candidate_url: str, model: str, api_key: str, timeout: float, max_attempts: int, log: logging.Logger
 ) -> bool:
     """Try to ping a single candidate URL; return True on success, False on connection failure."""
+    import httpx
     from openai import AsyncOpenAI
-    client = AsyncOpenAI(base_url=candidate_url, api_key=api_key, timeout=timeout, max_retries=0)
+    client = AsyncOpenAI(base_url=candidate_url, api_key=api_key, timeout=timeout, max_retries=0,
+                         http_client=httpx.AsyncClient(trust_env=False))
     for attempt in range(1, max_attempts + 1):
         try:
             await client.chat.completions.create(
@@ -120,6 +122,7 @@ async def _warmup_lkeap(log: logging.Logger) -> None:
     if not lkeap_key:
         return
     try:
+        import httpx
         from openai import AsyncOpenAI
         from infra.llm.client import _PROVIDERS
         lkeap_provider = _PROVIDERS.get("tencent_lkeap", {})
@@ -128,6 +131,7 @@ async def _warmup_lkeap(log: logging.Logger) -> None:
                 base_url=lkeap_provider["base_url"],
                 api_key=lkeap_key,
                 timeout=10, max_retries=0,
+                http_client=httpx.AsyncClient(trust_env=False),
             )
             model = os.environ.get("TENCENT_LKEAP_MODEL", lkeap_provider.get("model", "deepseek-v3-1"))
             await client.chat.completions.create(
