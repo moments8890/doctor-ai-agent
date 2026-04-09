@@ -127,10 +127,10 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                         value={editDetail} onChange={(e) => setEditDetail(e.target.value)}
                         sx={{ "& .MuiOutlinedInput-root": { fontSize: TYPE.secondary.fontSize } }} />
                       <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
-                        <Typography onClick={() => { onDecide(s.id, "edited", { edited_text: editText, detail: editDetail }); setEditingId(null); }}
-                          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, fontWeight: 500, cursor: "pointer" }}>保存</Typography>
                         <Typography onClick={() => setEditingId(null)}
                           sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, cursor: "pointer" }}>取消</Typography>
+                        <Typography onClick={() => { onDecide(s.id, "edited", { edited_text: editText, detail: editDetail }); setEditingId(null); }}
+                          sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, fontWeight: 500, cursor: "pointer" }}>保存</Typography>
                       </Box>
                     </Box>
                   ) : (

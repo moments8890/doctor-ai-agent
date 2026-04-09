@@ -80,7 +80,7 @@ async def start_interview(
     session = await create_session(patient.doctor_id, patient.id)
     return {
         "session_id": session.id,
-        "reply": f"您好！我是{doctor_name}医生的AI助手。请描述您的症状，我来帮您整理病历信息。",
+        "reply": f"您好！我是{doctor_name if doctor_name.endswith('医生') else doctor_name + '医生'}的AI助手。请描述您的症状，我来帮您整理病历信息。",
         "collected": {},
         "progress": {"filled": 0, "total": 7},
         "status": InterviewStatus.interviewing,

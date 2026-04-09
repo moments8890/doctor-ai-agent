@@ -191,7 +191,8 @@ async def search_patients_nl(
         q = q.where(Patient.name.like(f"{criteria.surname}%"))
 
     if criteria.gender:
-        q = q.where(Patient.gender == criteria.gender)
+        _gender_variants = {"男": ["男", "male"], "女": ["女", "female"]}
+        q = q.where(Patient.gender.in_(_gender_variants.get(criteria.gender, [criteria.gender])))
 
     current_year = datetime.now(timezone.utc).year
     if criteria.age_min is not None:

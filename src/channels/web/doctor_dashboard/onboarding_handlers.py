@@ -145,7 +145,7 @@ async def _ensure_onboarding_patient(db, *, doctor_id: str):
         db,
         doctor_id,
         _ONBOARDING_PATIENT_NAME,
-        "male",
+        "男",
         42,
     )
     return patient

@@ -761,7 +761,7 @@ export default function DoctorPage() {
   function handleLogout() {
     clearAuth();
     if (window.__wxjs_environment === "miniprogram") wx.miniProgram?.postMessage?.({ data: { action: "logout" } }); // eslint-disable-line no-undef
-    navigate("/login");
+    navigate("/login", { replace: true });
   }
 
   return (
