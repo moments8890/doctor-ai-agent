@@ -24,7 +24,11 @@
       "mcp__plugin_playwright_playwright__browser_take_screenshot",
       "Skill(plan-eng-review)",
       "Skill(claude-md-management:revise-claude-md)",
-      "Skill(gstack-upgrade)"
+      "Skill(gstack-upgrade)",
+      "Skill(design-html)",
+      "Skill(document-release)",
+      "Skill(checkpoint)",
+      "Skill(ship)"
     ]
   }
 }

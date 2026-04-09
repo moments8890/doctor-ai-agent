@@ -1,39 +1,34 @@
 <view class="container">
-  <!-- Processing overlay -->
-  <view wx:if="{{processing}}" class="status-area">
+  <!-- Processing -->
+  <view wx:if="{{processing}}" class="center-col">
     <view class="spinner" />
-    <text class="status-text">识别中...</text>
+    <text class="hint">识别中...</text>
   </view>
 
   <!-- Error -->
-  <view wx:elif="{{error}}" class="status-area">
-    <text class="error-text">{{error}}</text>
-    <view class="btn btn-secondary" bindtap="onCancel">返回</view>
+  <view wx:elif="{{error}}" class="center-col">
+    <text class="error">{{error}}</text>
+    <view class="link" bindtap="onRetry">重试</view>
+    <view class="link muted" bindtap="onBack">返回</view>
   </view>
 
-  <!-- Recording UI -->
-  <view wx:else class="record-area">
-    <view class="hint-text">{{recording ? (cancelled ? '松开取消' : '松开发送') : '按住说话'}}</view>
-
-    <view class="timer" wx:if="{{recording}}">{{timerText}}</view>
-
-    <!-- Wave animation -->
-    <view class="wave-container" wx:if="{{recording && !cancelled}}">
-      <view class="wave-bar" style="animation-delay: 0s;" />
-      <view class="wave-bar" style="animation-delay: 0.15s;" />
-      <view class="wave-bar" style="animation-delay: 0.3s;" />
+  <!-- Recording -->
+  <view wx:else class="center-col">
+    <view class="wave-row" wx:if="{{recording}}">
+      <view class="bar" style="animation-delay:0s" />
+      <view class="bar" style="animation-delay:0.15s" />
+      <view class="bar" style="animation-delay:0.3s" />
+      <view class="bar" style="animation-delay:0.15s" />
+      <view class="bar" style="animation-delay:0s" />
     </view>
 
-    <!-- Big mic button -->
-    <view
-      class="mic-btn {{recording ? (cancelled ? 'mic-cancel' : 'mic-active') : ''}}"
-      catchtouchstart="onTouchStart"
-      catchtouchend="onTouchEnd"
-      catchtouchmove="onTouchMove"
-    >
-      <text class="mic-icon">🎤</text>
-    </view>
+    <text class="timer" wx:if="{{recording}}">{{timerText}}</text>
+    <text class="hint" wx:if="{{recording}}">正在录音...</text>
+    <text class="hint" wx:if="{{!recording}}">准备录音</text>
 
-    <view class="cancel-hint" wx:if="{{recording}}">↑ 上滑取消</view>
+    <view class="btn-row">
+      <view class="btn cancel" bindtap="onCancel">取消</view>
+      <view class="btn primary" wx:if="{{recording}}" bindtap="onStop">完成</view>
+    </view>
   </view>
 </view>
