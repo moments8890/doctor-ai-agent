@@ -19,10 +19,12 @@ from db.crud.suggestions import (
     create_suggestion,
     get_suggestion_by_id,
     get_suggestions_for_record,
+    has_suggestions,
     update_decision,
 )
 from db.crud.patient_message import save_patient_message
 from db.models import DoctorTask, Patient
+from db.models.doctor import DoctorKnowledgeItem
 from db.engine import AsyncSessionLocal, get_db
 from db.models.ai_suggestion import AISuggestion, SuggestionDecision, SuggestionSection
 from db.models.records import MedicalRecordDB, RecordStatus
@@ -126,19 +128,8 @@ async def trigger_diagnosis(
     # Guard: skip re-run if suggestions already exist for this record.
     # Auto-trigger fires on interview confirm; this endpoint allows manual
     # re-trigger. Without the guard each call stacks a new set of suggestions.
-    from sqlalchemy import func as _func
-    existing_count = (
-        await db.execute(
-            select(_func.count())
-            .select_from(AISuggestion)
-            .where(
-                AISuggestion.record_id == record_id,
-                AISuggestion.doctor_id == resolved,
-            )
-        )
-    ).scalar() or 0
-    if existing_count > 0:
-        return {"status": "already_ran", "record_id": record_id, "suggestion_count": existing_count}
+    if await has_suggestions(db, record_id):
+        return {"status": "already_ran", "record_id": record_id}
 
     # Update record status to pending_review
     rec = (
@@ -183,8 +174,7 @@ async def get_suggestions(
     # Filter out hallucinated citation IDs — LLM sometimes generates [KB-N]
     # references for IDs that don't correspond to real knowledge items.
     # Batch-fetch valid KB IDs for this doctor and remove any phantom IDs.
-    if suggestions:
-        from db.models.doctor import DoctorKnowledgeItem
+    if any(s["cited_knowledge_ids"] for s in suggestions):
         valid_kb_ids: set[int] = {
             row[0]
             for row in (
