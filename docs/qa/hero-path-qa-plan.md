@@ -207,12 +207,12 @@ Run these after each bug is fixed to confirm it stays fixed.
 
 | # | Bug | Status | Check | Pass Criteria |
 |---|-----|--------|-------|--------------|
-| R.1 | BUG-01 (date display) | **OPEN** | Knowledge cards created today | Shows 今天 — not -1天前 or future |
-| R.2 | BUG-02 (greeting suffix) | **OPEN** | Log in as doctor named "测试医生" → open 我的AI tab | AI persona header shows "测试医生 的 AI" — not "测试医生医生 的 AI". (Bug is on doctor workbench, not patient portal.) |
-| R.3 | BUG-04 (proxy isolation) | **ENV-FIXED** (not permanent) | Any LLM-driven action (diagnosis, draft, interview) | Completes without "Connection error"; permanent fix = `trust_env=False` in httpx LLM client |
-| R.4 | BUG-05 (button order) | **OPEN** | 审核 → open suggestion → edit form | 取消 LEFT (grey), 保存 RIGHT (green) |
-| R.5 | BUG-06 (NL search gender) | **OPEN** | Search "最近来诊的男性" | Non-empty results; all male patients |
-| R.6 | BUG-07 (logout back) | **OPEN** | Logout → press browser back | Lands on `/login` — settings page not accessible |
+| R.1 | BUG-01 (date display) | ✅ **FIXED** `f2f4fb7e` | Knowledge cards created today | Shows 今天 — not -1天前 or future |
+| R.2 | BUG-02 (greeting suffix) | ✅ **FIXED** `795729ff` | Log in as doctor named "测试医生" → open 我的AI tab | AI persona header shows "测试医生 的 AI" — not "测试医生医生 的 AI". |
+| R.3 | BUG-04 (proxy isolation) | ✅ **FIXED** (permanent) | Any LLM-driven action (diagnosis, draft, interview) | All LLM-facing httpx clients have `trust_env=False` — no env var needed |
+| R.4 | BUG-05 (button order) | ✅ **FIXED** `795729ff` | 审核 → open suggestion → edit form | 取消 LEFT (grey), 保存 RIGHT (green) |
+| R.5 | BUG-06 (NL search gender) | ✅ **FIXED** `795729ff` | Search "最近来诊的男性" | Non-empty results; all male patients |
+| R.6 | BUG-07 (logout back) | ✅ **FIXED** `795729ff` | Logout → press browser back | Lands on `/login` — settings page not accessible |
 
 ---
 
@@ -220,15 +220,15 @@ Run these after each bug is fixed to confirm it stays fixed.
 
 | ID | Description | Status | Impact |
 |----|-------------|--------|--------|
-| BUG-01 | Knowledge card dates show -1天前 — UTC vs local time mismatch in `formatRelativeDate` | **Open** | Cosmetic; confusing but not blocking |
-| BUG-02 | Doctor greeting renders "测试医生医生" — redundant 医生 suffix | **Open** | Cosmetic |
+| BUG-01 | Knowledge card dates show -1天前 — UTC vs local time mismatch in `formatRelativeDate` | ✅ **Fixed** `f2f4fb7e` | MyAIPage + RecordCard now use shared `relativeDate` from `time.js` |
+| BUG-02 | Doctor greeting renders "测试医生医生" — redundant 医生 suffix | ✅ **Fixed** `795729ff` | Greeting skips appending 医生 if name already ends with it |
 | BUG-03 | Patient interview send button crashes headless Playwright — native form submit race before React `preventDefault` | **Deferred** — needs real WeChat WebView verification | Unknown until verified on device |
-| BUG-04 | Python backend routes LLM calls through dead system proxy 127.0.0.1:1081 — all LLM calls fail silently | **Env-fixed** (NO_PROXY=* at startup) — permanent fix is `trust_env=False` in httpx LLM client | P0 if not set — entire AI pipeline broken |
-| BUG-05 | Review suggestion edit modal: 保存 LEFT / 取消 RIGHT — reversed from app-wide convention | **Open** | Polish; violates design convention |
-| BUG-06 | NL patient search returns no results for queries like "最近来诊的男性" despite matching patients existing | **Open** | P2; undermines NL search feature |
-| BUG-07 | Browser back after logout shows settings page — React Router history not cleared | **Open** | P2; no PHI visible (shows "未设置"), but route accessible |
-| BUG-DRAFT-003 | Teaching loop "save as rule" prompt not shown after significant edit | **Likely Fixed** | Not in hero path scope; see knowledge-management-runbook.md |
-| FINDING-001 | LLM citation tagging unreliable in diagnosis path | **Open** | Verify in §5.7 (no [KB-N] visible in suggestion text) |
+| BUG-04 | Python backend routes LLM calls through dead system proxy 127.0.0.1:1081 — all LLM calls fail silently | ✅ **Fixed** (permanent) | All LLM-facing httpx clients have `trust_env=False` |
+| BUG-05 | Review suggestion edit modal: 保存 LEFT / 取消 RIGHT — reversed from app-wide convention | ✅ **Fixed** `795729ff` | Cancel LEFT, save RIGHT |
+| BUG-06 | NL patient search returns no results for queries like "最近来诊的男性" despite matching patients existing | ✅ **Fixed** `795729ff` | Gender filter now matches 男/女 and male/female |
+| BUG-07 | Browser back after logout shows settings page — React Router history not cleared | ✅ **Fixed** `795729ff` | `navigate('/login', {replace:true})` clears history |
+| BUG-DRAFT-003 | Teaching loop "save as rule" prompt not shown after significant edit | ✅ **Fixed** (verified 2026-04-09 QA run) | Snackbar appears on significant edit |
+| FINDING-001 | LLM citation tagging unreliable in diagnosis path | ✅ **Fixed** `4c5e829b` | Phantom KB IDs filtered in `get_suggestions`; dedup guard prevents suggestion accumulation |
 
 ---
 
@@ -289,3 +289,4 @@ Save results to `.gstack/qa-reports/qa-report-hero-path-YYYY-MM-DD.md`:
 | Date | Result | Notes |
 |------|--------|-------|
 | 2026-04-08 | 7 bugs found | BUG-01–07 triaged; all fixed except BUG-03 (deferred) |
+| 2026-04-09 | All bugs fixed | BUG-01 fixed `f2f4fb7e`; BUG-02/05/06/07 fixed `795729ff`; BUG-04 confirmed permanently fixed; FINDING-001/BUG-DRAFT-003 fixed `4c5e829b`; awaiting re-run to confirm |
