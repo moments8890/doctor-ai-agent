@@ -6,10 +6,11 @@ from db.models.doctor import KnowledgeCategory
 
 def test_persona_template_has_sections():
     from domain.knowledge.teaching import PERSONA_TEMPLATE
-    assert "## 回复风格" in PERSONA_TEMPLATE
-    assert "## 常用结尾语" in PERSONA_TEMPLATE
-    assert "## 回避内容" in PERSONA_TEMPLATE
-    assert "## 常见修改" in PERSONA_TEMPLATE
+    # Template uses plain-text "field：value" format, not markdown headers
+    assert "回复风格" in PERSONA_TEMPLATE
+    assert "常用结尾语" in PERSONA_TEMPLATE
+    assert "回避内容" in PERSONA_TEMPLATE
+    assert "常见修改" in PERSONA_TEMPLATE
 
 
 @pytest.mark.asyncio
