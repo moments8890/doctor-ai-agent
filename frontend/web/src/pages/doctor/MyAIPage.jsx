@@ -28,21 +28,8 @@ import StatColumn from "../../components/StatColumn";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
 import { useKnowledgeItems, useReviewQueue, useAIActivity } from "../../lib/doctorQueries";
+import { relativeDate as formatRelativeDate } from "../../utils/time";
 import CloseIcon from "@mui/icons-material/Close";
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatRelativeDate(dateStr) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  if (isNaN(d)) return dateStr;
-  const now = new Date();
-  const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return "今天";
-  if (diffDays === 1) return "昨天";
-  if (diffDays < 7) return `${diffDays}天前`;
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
-}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 

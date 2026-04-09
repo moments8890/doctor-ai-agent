@@ -46,19 +46,7 @@ function StructuredFields({ structured }) {
   );
 }
 
-export function formatRelativeDate(dateStr) {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const diffDays = Math.round((today - target) / 86400000);
-  if (diffDays === 0) return "今天";
-  if (diffDays === 1) return "昨天";
-  if (diffDays === 2) return "前天";
-  if (d.getFullYear() === now.getFullYear()) return `${d.getMonth() + 1}月${d.getDate()}日`;
-  return dateStr.slice(0, 10);
-}
+export { relativeDate as formatRelativeDate } from "../utils/time";
 
 function RecordCardHeader({ current, expanded, dotColor }) {
   const date = formatRelativeDate(current.created_at);

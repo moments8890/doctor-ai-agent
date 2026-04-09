@@ -139,8 +139,8 @@ async def add_knowledge(
         category=body.category,
     )
     invalidate_knowledge_cache(resolved)
-    if not item:
-        raise HTTPException(409, "重复内容，已存在相同知识条目")
+    # save_knowledge_item returns the existing row on duplicate (idempotent add).
+    # Both the web and WeChat channels rely on this — duplicate add is success, not error.
     return {"status": "ok", "id": item.id}
 
 
