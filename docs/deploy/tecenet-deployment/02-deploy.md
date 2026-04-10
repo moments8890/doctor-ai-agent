@@ -66,6 +66,38 @@ sudo systemctl start doctor-ai-backend
 sudo systemctl status doctor-ai-backend
 ```
 
+### 2.5 数据库初始化（首次部署必做）
+
+每次**清空数据库**或**首次部署**后，必须执行以下两个步骤，否则新用户无法注册，微信审核将失败。
+
+```bash
+cd /home/ubuntu/doctor-ai-agent
+
+# 1. 创建 WELCOME 邀请码（无限次数，永不过期）
+PYTHONPATH=src .venv/bin/python3 scripts/ensure_welcome_code.py
+
+# 2. 创建微信审核测试账号 test / 123456
+PYTHONPATH=src .venv/bin/python3 - <<'EOF'
+import asyncio, os, sys
+sys.path.insert(0, 'src')
+from utils.app_config import load_config_from_json
+_, vals = load_config_from_json()
+for k, v in vals.items():
+    if k not in os.environ:
+        os.environ[k] = v
+async def main():
+    from infra.auth.unified import register_doctor
+    try:
+        r = await register_doctor('test', '测试医生', 123456, 'WELCOME')
+        print(f"Test account created: {r['doctor_id']}")
+    except Exception as e:
+        print(f"Already exists or error: {e}")
+asyncio.run(main())
+EOF
+```
+
+> **微信审核要求（3.3.4）**：提审时填写测试账号 `test`，测试密码 `123456`。
+
 ### 3. 自动部署（Webhook）
 
 ```bash
