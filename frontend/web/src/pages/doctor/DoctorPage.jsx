@@ -23,6 +23,7 @@ import { useTheme } from "@mui/material/styles";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { useDoctorStore } from "../../store/doctorStore";
+import { queryClient } from "../../lib/queryClient";
 import {
   NAV,
   DESKTOP_NAV,
@@ -760,8 +761,19 @@ export default function DoctorPage() {
   function handleNav(key) { navigate(key === "my-ai" ? dp() : dp(key)); }
   function handleLogout() {
     clearAuth();
-    if (window.__wxjs_environment === "miniprogram") wx.miniProgram?.postMessage?.({ data: { action: "logout" } }); // eslint-disable-line no-undef
-    navigate("/login", { replace: true });
+    queryClient.clear();
+    if (window.__wxjs_environment === "miniprogram") {
+      // Post the logout action first so doctor.js.onMessage receives it (clears wx storage),
+      // then redirect the native mini app to the login page. This destroys the WebView,
+      // delivering the queued postMessage, and puts the user on the native login page with
+      // a fresh WebView where login.js.onMessage can handle subsequent "login" postMessages.
+      // eslint-disable-next-line no-undef
+      wx.miniProgram?.postMessage?.({ data: { action: "logout" } });
+      // eslint-disable-next-line no-undef
+      wx.miniProgram?.redirectTo?.({ url: "/pages/login/login" });
+    } else {
+      navigate("/login", { replace: true });
+    }
   }
 
   return (

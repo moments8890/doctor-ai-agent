@@ -201,7 +201,21 @@ export default function App() {
 		const did = params.get("doctor_id");
 		const name = params.get("name");
 		if (token && did) {
-			setAuth(did, name || did, token);
+			// Decode the JWT payload to get canonical doctor_id and name.
+			// Both URL params may be stale (sourced from app.globalData before
+			// WeChat's login.onMessage fires) due to postMessage delivery timing.
+			// The JWT itself is the authoritative source — it was just issued by the
+			// backend at registration/login time.
+			let canonicalDid = did;
+			let canonicalName = name;
+			try {
+				const b64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+				const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+				const payload = JSON.parse(atob(padded));
+				if (typeof payload.doctor_id === "string" && payload.doctor_id) canonicalDid = payload.doctor_id;
+				if (typeof payload.name === "string" && payload.name) canonicalName = payload.name;
+			} catch { /* ignore malformed token */ }
+			setAuth(canonicalDid, canonicalName || canonicalDid, token);
 			setWebToken(token);
 			const url = new URL(window.location.href);
 			["token", "doctor_id", "name"].forEach((k) => url.searchParams.delete(k));
