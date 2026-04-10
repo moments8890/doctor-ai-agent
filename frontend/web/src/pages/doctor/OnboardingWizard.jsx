@@ -27,6 +27,7 @@ import {
   markWizardDone,
   clearWizardProgress,
 } from "./onboardingWizardState";
+import { seedDemo } from "../../api";
 
 const TOTAL_STEPS = 3;
 
@@ -535,11 +536,7 @@ export default function OnboardingWizard() {
       markWizardDone(doctorId, "completed");
       navigate(dp());
       // Seed in background, refresh data when done
-      fetch("/api/manage/onboarding/seed-demo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ doctor_id: doctorId }),
-      }).then(() => queryClient.invalidateQueries()).catch(() => {});
+      seedDemo(doctorId).then(() => queryClient.invalidateQueries()).catch(() => {});
     } else {
       goToStep(next);
     }
