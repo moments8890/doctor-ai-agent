@@ -89,10 +89,21 @@ async def unified_login_with_role(body: LoginWithRoleRequest):
 @router.post("/unified/register/doctor")
 async def unified_register_doctor(body: DoctorRegisterRequest):
     """Register as doctor with invitation code."""
-    return await register_doctor(
+    result = await register_doctor(
         body.phone, body.name, body.year_of_birth,
         body.invite_code, body.specialty,
     )
+    # Auto-preseed demo data so the doctor sees populated content on first visit.
+    try:
+        from db.engine import AsyncSessionLocal
+        from channels.web.doctor_dashboard.preseed_service import seed_demo_data
+        async with AsyncSessionLocal() as db:
+            seed_result = await seed_demo_data(db, result["doctor_id"])
+            if not seed_result.already_seeded:
+                await db.commit()
+    except Exception:
+        pass  # non-blocking — registration succeeds even if preseed fails
+    return result
 
 
 @router.post("/unified/register/patient")
