@@ -157,6 +157,13 @@ export default function MyAIPage({ doctorId }) {
       {/* Top bar — no action buttons on main page nav bar */}
       <SubpageHeader title="我的AI" />
 
+      {/* AI-generated content disclaimer (WeChat regulation) */}
+      <Box sx={{ bgcolor: COLOR.surfaceAlt, px: 2, py: 0.75, textAlign: "center" }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+          本服务为AI生成内容，结果仅供参考
+        </Typography>
+      </Box>
+
       {/* Scrollable content */}
       <PullToRefresh sx={{ flex: 1 }} pb="80px">
 
