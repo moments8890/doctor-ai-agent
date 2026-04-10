@@ -45,6 +45,13 @@ Page({
     // Navigation is handled by wx.miniProgram.redirectTo called from the web page.
   },
 
+  onShareAppMessage() {
+    return {
+      title: "鲸鱼随行 · AI 医疗助手",
+      path: "/pages/login/login",
+    };
+  },
+
   _clearAuth(app) {
     app.globalData.accessToken = "";
     app.globalData.doctorId    = "";

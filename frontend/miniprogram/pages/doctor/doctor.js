@@ -102,6 +102,13 @@ Page({
     }
   },
 
+  onShareAppMessage() {
+    return {
+      title: "鲸鱼随行 · AI 医疗助手",
+      path: "/pages/login/login",
+    };
+  },
+
   _clearAuth() {
     const app = getApp();
     app.globalData.accessToken = "";
