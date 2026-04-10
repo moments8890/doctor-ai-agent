@@ -99,6 +99,7 @@ export default function LoginPage() {
   async function handleLogin(e) {
     e.preventDefault();
     if (!nickname.trim() || !passcode.trim()) { setError("请输入昵称和口令"); return; }
+    if (!/^\d+$/.test(passcode.trim())) { setError("口令必须为纯数字"); return; }
     setLoading(true); setError(""); setRoleChoices(null);
     try {
       const data = await unifiedLogin(nickname.trim(), parseInt(passcode));
@@ -130,6 +131,7 @@ export default function LoginPage() {
     if (!regNickname.trim() || !regPasscode.trim() || !inviteCode.trim()) {
       setError("请填写完整信息"); return;
     }
+    if (!/^\d+$/.test(regPasscode.trim())) { setError("口令必须为纯数字"); return; }
     setLoading(true); setError("");
     try {
       const data = await unifiedRegisterDoctor(
@@ -147,6 +149,7 @@ export default function LoginPage() {
     if (!regNickname.trim() || !regPasscode.trim() || !doctorId) {
       setError("请填写完整信息"); return;
     }
+    if (!/^\d+$/.test(regPasscode.trim())) { setError("口令必须为纯数字"); return; }
     setLoading(true); setError("");
     try {
       const data = await unifiedRegisterPatient(
@@ -186,7 +189,8 @@ export default function LoginPage() {
                   <TextField label="昵称" value={nickname} onChange={e => setNickname(e.target.value)}
                     fullWidth size="small" autoFocus />
                   <TextField label="口令" value={passcode} onChange={e => setPasscode(e.target.value)}
-                    placeholder="数字口令" fullWidth size="small" type="password" />
+                    placeholder="请输入数字口令" fullWidth size="small" type="number"
+                    inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }} />
                   {error && <Typography variant="body2" color="error">{error}</Typography>}
                   <Button type="submit" variant="contained" fullWidth disabled={loading}
                     sx={{ bgcolor: COLOR.primary, "&:hover": { bgcolor: COLOR.primaryHover }, textTransform: "none", py: 1 }}>

@@ -14,7 +14,11 @@ async function readError(response) {
     const detail = typeof json.detail === "string" ? json.detail
       : Array.isArray(json.detail) ? json.detail.map((d) => d.msg || JSON.stringify(d)).join("; ")
       : json.detail ? JSON.stringify(json.detail) : null;
-    return detail || (typeof json.message === "string" ? json.message : null) || text;
+    const msg = detail || (typeof json.message === "string" ? json.message : null) || text;
+    // Replace raw Pydantic English validation errors with friendly Chinese messages
+    if (/valid integer/i.test(msg)) return "口令必须为纯数字";
+    if (/field required/i.test(msg)) return "请填写完整信息";
+    return msg;
   } catch {
     return text;
   }
