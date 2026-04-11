@@ -11,6 +11,9 @@ test.describe("Workflow 23 — Patient tasks", () => {
     await createPatientTask(request, doctor, patient.patientId, { title: "明天复查血压" });
 
     await authenticatePatientPage(page, patient, doctor.name);
+    await page.evaluate((pid) => {
+      localStorage.setItem("patient_onboarding_done_" + pid, "1");
+    }, patient.patientId);
     await page.goto("/patient/tasks");
     await page.waitForLoadState("networkidle");
 

@@ -30,9 +30,16 @@ test.describe("Workflow 01 — Auth", () => {
       await expect(page.getByRole("tab", { name: label }).or(page.getByText(label))).toBeVisible();
     }
 
-    // 1.5 — localStorage populated
-    const token = await page.evaluate(() => localStorage.getItem("doctor_token"));
-    expect(token, "doctor_token must be set after login").toBeTruthy();
+    // 1.5 — localStorage populated. Real key is "doctor-session" (zustand
+    // persist blob), not the old "doctor_token" / "doctor_id" / "doctor_name"
+    // trio. See src/store/doctorStore.js:13.
+    const session = await page.evaluate(() =>
+      localStorage.getItem("doctor-session"),
+    );
+    expect(session, "doctor-session blob must be set after login").toBeTruthy();
+    const parsed = JSON.parse(session!);
+    expect(parsed.state.accessToken).toBeTruthy();
+    expect(parsed.state.doctorId).toBeTruthy();
 
     // 1.6 — reload preserves session
     await page.reload();
@@ -48,10 +55,16 @@ test.describe("Workflow 01 — Auth", () => {
     await page.getByLabel(/口令|密码/).fill("9999");
     await page.getByRole("button", { name: "登录" }).click();
 
-    // 2.2 — still on /login, no tokens written.
+    // 2.2 — still on /login, no authed session written. The doctor-session
+    // blob may exist from an earlier test; the key assertion is that
+    // accessToken is missing / null.
     await expect(page).toHaveURL(/\/login/);
-    const token = await page.evaluate(() => localStorage.getItem("doctor_token"));
-    expect(token).toBeFalsy();
+    const accessToken = await page.evaluate(() => {
+      const raw = localStorage.getItem("doctor-session");
+      if (!raw) return null;
+      try { return JSON.parse(raw)?.state?.accessToken ?? null; } catch { return null; }
+    });
+    expect(accessToken).toBeFalsy();
   });
 
   test("3. Logout clears session", async ({ doctorPage }) => {
@@ -70,10 +83,16 @@ test.describe("Workflow 01 — Auth", () => {
       await confirmBtn.click();
     }
 
-    // 3.4 — redirected + cleared
+    // 3.4 — redirected + session cleared. clearAuth() sets the inner fields
+    // to null but the persist blob itself stays — check state.accessToken,
+    // not the key's existence.
     await expect(doctorPage).toHaveURL(/\/login/);
-    const token = await doctorPage.evaluate(() => localStorage.getItem("doctor_token"));
-    expect(token).toBeFalsy();
+    const accessToken = await doctorPage.evaluate(() => {
+      const raw = localStorage.getItem("doctor-session");
+      if (!raw) return null;
+      try { return JSON.parse(raw)?.state?.accessToken ?? null; } catch { return null; }
+    });
+    expect(accessToken).toBeFalsy();
   });
 
   test("4. Browser-back after logout does not show authed pages (BUG-07)", async ({ doctorPage }) => {

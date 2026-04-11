@@ -52,7 +52,9 @@ export async function registerDoctor(
   request: import("@playwright/test").APIRequestContext,
   opts: { name?: string; yearOfBirth?: number } = {},
 ): Promise<TestDoctor> {
-  const name = opts.name || "E2E测试医生";
+  // Append random suffix to name to avoid DB uniqueness collisions across runs
+  const suffix = String(Math.floor(Math.random() * 1e6)).padStart(6, "0");
+  const name = (opts.name || "E2E测试医生") + suffix;
   const yearOfBirth = opts.yearOfBirth || 1980;
   const phone = uniquePhone("doctor");
 

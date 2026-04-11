@@ -5,7 +5,11 @@
  * doctor workflow — if it breaks, the product is unusable.
  */
 import { test, expect } from "./fixtures/doctor-auth";
-import { completePatientInterview, addKnowledgeText } from "./fixtures/seed";
+import {
+  completePatientInterview,
+  addKnowledgeText,
+  waitForSuggestions,
+} from "./fixtures/seed";
 
 test.describe("Workflow 08 — Review diagnosis", () => {
   test("1. Queue tab renders with pending record", async ({
@@ -40,8 +44,13 @@ test.describe("Workflow 08 — Review diagnosis", () => {
     patient,
     request,
   }) => {
-    await addKnowledgeText(request, doctor, "规则内容", "测试规则");
+    await addKnowledgeText(request, doctor, "规则内容");
     const { recordId } = await completePatientInterview(request, patient);
+
+    // Wait for async suggestion generation before asserting on the review
+    // detail page — otherwise we race the LLM pipeline and land in the
+    // loading / empty state.
+    await waitForSuggestions(request, doctor, recordId);
 
     await doctorPage.goto(`/doctor/review/${recordId}`);
     await expect(doctorPage.getByText("诊断审核")).toBeVisible();
@@ -58,10 +67,12 @@ test.describe("Workflow 08 — Review diagnosis", () => {
 
   test("5. Add custom suggestion in a section", async ({
     doctorPage,
+    doctor,
     patient,
     request,
   }) => {
     const { recordId } = await completePatientInterview(request, patient);
+    await waitForSuggestions(request, doctor, recordId);
     await doctorPage.goto(`/doctor/review/${recordId}`);
 
     // Tap + 添加 in first section (鉴别诊断)
@@ -81,10 +92,12 @@ test.describe("Workflow 08 — Review diagnosis", () => {
 
   test("4. Edit form has 取消 LEFT / 保存 RIGHT (BUG-05 regression)", async ({
     doctorPage,
+    doctor,
     patient,
     request,
   }) => {
     const { recordId } = await completePatientInterview(request, patient);
+    await waitForSuggestions(request, doctor, recordId);
     await doctorPage.goto(`/doctor/review/${recordId}`);
 
     // Expand first suggestion (if any exist) and tap 修改.

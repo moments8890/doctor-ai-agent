@@ -5,7 +5,7 @@ import { test, expect, authenticatePatientPage, registerDoctor, registerPatient 
 
 test.describe("Workflow 24 — Patient onboarding", () => {
   test("first-time patient sees onboarding, dismiss persists", async ({ page, request }) => {
-    const doctor = await registerDoctor(request, { name: "张医生" });
+    const doctor = await registerDoctor(request);
     const patient = await registerPatient(request, doctor.doctorId);
     await authenticatePatientPage(page, patient, doctor.name);
 

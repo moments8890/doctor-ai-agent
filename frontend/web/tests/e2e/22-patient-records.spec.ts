@@ -12,10 +12,13 @@ test.describe("Workflow 22 — Patient records", () => {
     await completePatientInterview(request, patient);
 
     await authenticatePatientPage(page, patient, doctor.name);
+    await page.evaluate((pid) => {
+      localStorage.setItem("patient_onboarding_done_" + pid, "1");
+    }, patient.patientId);
     await page.goto("/patient/records");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByText("预问诊")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("预问诊", { exact: true })).toBeVisible({ timeout: 10000 });
   });
 
   test("filter tabs switch between record types", async ({ page, request }) => {
@@ -25,10 +28,13 @@ test.describe("Workflow 22 — Patient records", () => {
     await completePatientInterview(request, patient);
 
     await authenticatePatientPage(page, patient, doctor.name);
+    await page.evaluate((pid) => {
+      localStorage.setItem("patient_onboarding_done_" + pid, "1");
+    }, patient.patientId);
     await page.goto("/patient/records");
     await page.waitForLoadState("networkidle");
 
     await page.getByText("问诊", { exact: true }).click();
-    await expect(page.getByText("预问诊")).toBeVisible();
+    await expect(page.getByText("预问诊", { exact: true })).toBeVisible();
   });
 });

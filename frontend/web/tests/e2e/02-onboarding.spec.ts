@@ -8,9 +8,11 @@ import { test, expect } from "./fixtures/doctor-auth";
 
 test.describe("Workflow 02 — Onboarding wizard", () => {
   test.beforeEach(async ({ doctorPage, doctor }) => {
-    // Clear any stored wizard progress from previous runs.
+    // Clear any stored wizard state from previous runs. Real keys come from
+    // frontend/web/src/pages/doctor/onboardingWizardState.js.
     await doctorPage.evaluate((id) => {
-      localStorage.removeItem(`onboardingWizard:${id}`);
+      localStorage.removeItem(`onboarding_wizard_progress:${id}`);
+      localStorage.removeItem(`onboarding_wizard_done:${id}`);
     }, doctor.doctorId);
   });
 

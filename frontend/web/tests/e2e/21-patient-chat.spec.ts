@@ -10,6 +10,11 @@ test.describe("Workflow 21 — Patient chat", () => {
     const patient = await registerPatient(request, doctor.doctorId);
     await authenticatePatientPage(page, patient, doctor.name);
 
+    // Mark onboarding done so overlay doesn't block input
+    await page.evaluate((pid) => {
+      localStorage.setItem("patient_onboarding_done_" + pid, "1");
+    }, patient.patientId);
+
     await page.goto("/patient/chat");
     await page.waitForLoadState("networkidle");
 
@@ -24,12 +29,15 @@ test.describe("Workflow 21 — Patient chat", () => {
   });
 
   test("doctor reply shows with doctor name", async ({ page, request }) => {
-    const doctor = await registerDoctor(request, { name: "张医生" });
+    const doctor = await registerDoctor(request);
     const patient = await registerPatient(request, doctor.doctorId);
 
     await sendDoctorReply(request, doctor, patient.patientId, "注意休息，明天来复查");
 
     await authenticatePatientPage(page, patient, doctor.name);
+    await page.evaluate((pid) => {
+      localStorage.setItem("patient_onboarding_done_" + pid, "1");
+    }, patient.patientId);
     await page.goto("/patient/chat");
     await page.waitForLoadState("networkidle");
 

@@ -1,33 +1,18 @@
 /**
  * Workflow 09 — Draft reply send
  *
- * Mirrors docs/qa/workflows/09-draft-reply.md. Requires backend draft
- * generation to complete before the spec can assert. The fixture polls
- * the 待回复 queue to wait for AI draft readiness.
+ * Mirrors docs/qa/workflows/09-draft-reply.md. Draft generation is async —
+ * `waitForDraft` polls `/api/manage/drafts?doctor_id=…&patient_id=…` (the
+ * real endpoint, not the imaginary `/api/doctor/review/queue?tab=pending_reply`)
+ * until a draft exists.
  */
-import { test, expect, API_BASE_URL } from "./fixtures/doctor-auth";
+import { test, expect } from "./fixtures/doctor-auth";
 import {
   completePatientInterview,
   sendPatientMessage,
   addKnowledgeText,
+  waitForDraft,
 } from "./fixtures/seed";
-
-async function waitForDraft(request: any, doctor: any, patientId: string) {
-  // Poll up to ~20s for the draft to appear in the 待回复 queue.
-  for (let i = 0; i < 20; i++) {
-    const res = await request.get(
-      `${API_BASE_URL}/api/doctor/review/queue?tab=pending_reply`,
-      { headers: { Authorization: `Bearer ${doctor.token}` } },
-    );
-    if (res.ok()) {
-      const body = await res.json();
-      const items = body?.items || body?.pending_reply || [];
-      if (items.some((i: any) => String(i.patient_id) === String(patientId))) return;
-    }
-    await new Promise((r) => setTimeout(r, 1000));
-  }
-  throw new Error("draft never appeared in 待回复 queue");
-}
 
 test.describe("Workflow 09 — Draft reply send", () => {
   test("2-3. Open draft, edit, send confirmation sheet", async ({

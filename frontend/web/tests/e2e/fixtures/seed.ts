@@ -231,7 +231,7 @@ export async function createPatientTask(
   patientId: string,
   opts: { title?: string; taskType?: string; content?: string } = {},
 ): Promise<{ taskId: string }> {
-  const url = `${API_BASE_URL}/api/manage/tasks?doctor_id=${encodeURIComponent(doctor.doctorId)}`;
+  const url = `${API_BASE_URL}/api/tasks?doctor_id=${encodeURIComponent(doctor.doctorId)}`;
   const res = await request.post(url, {
     headers: doctorHeaders(doctor),
     data: {
