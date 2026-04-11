@@ -27,7 +27,7 @@ import { isWizardDone, clearWizardDone } from "./onboardingWizardState";
 import StatColumn from "../../components/StatColumn";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
-import { useKnowledgeItems, useReviewQueue, useAIActivity } from "../../lib/doctorQueries";
+import { useKnowledgeItems, useReviewQueue, useAIActivity, usePersona } from "../../lib/doctorQueries";
 import { relativeDate as formatRelativeDate } from "../../utils/time";
 import CloseIcon from "@mui/icons-material/Close";
 
@@ -118,8 +118,9 @@ export default function MyAIPage({ doctorId }) {
   const { data: knowledgeData, isLoading: kLoading } = useKnowledgeItems();
   const { data: reviewQueueData, isLoading: qLoading } = useReviewQueue();
   const { data: activityData, isLoading: aLoading } = useAIActivity(3);
+  const { data: personaData, isLoading: pLoading } = usePersona();
 
-  const loading = kLoading || qLoading || aLoading;
+  const loading = kLoading || qLoading || aLoading || pLoading;
   const knowledge = knowledgeData ?? null;
   const reviewQueue = reviewQueueData || { pending: [], completed: [] };
   const activity = activityData ?? null;
@@ -127,15 +128,7 @@ export default function MyAIPage({ doctorId }) {
   // Derived values — all stats computed from actual data
   const aiName = `${doctorName || "医生"} 的 AI`;
   const knowledgeList = Array.isArray(knowledge) ? knowledge : (knowledge?.items || []);
-  const knowledgePersona = !Array.isArray(knowledge) && knowledge?.persona ? knowledge.persona : null;
-  const knowledgeCount = knowledgeList.length + (knowledgePersona ? 1 : 0);
-  const topRules = (() => {
-    const items = knowledgeList.slice(0, knowledgePersona ? 2 : 3);
-    if (knowledgePersona) {
-      return [{ ...knowledgePersona, text: knowledgePersona.content, source: "system", category: "persona", title: "我的AI人设" }, ...items];
-    }
-    return items;
-  })();
+  const knowledgeCount = knowledgeList.length;
   const activityList = Array.isArray(activity) ? activity : (activity?.activity || activity?.items || []);
   const recentActivity = activityList.slice(0, 3);
 
@@ -215,16 +208,16 @@ export default function MyAIPage({ doctorId }) {
           <Box sx={{ display: "flex", gap: 1, px: 2, py: 1.5 }}>
             <AppButton
               variant="primary" size="md" fullWidth
-              onClick={() => navigate(dp("settings/knowledge"))}
+              onClick={() => navigate(dp("settings/persona"))}
             >
-              我的知识库
+              编辑人设
             </AppButton>
             <AppButton
               variant="secondary" size="md" fullWidth
               onClick={() => navigate(dp("settings/knowledge/add"))}
               sx={{ border: `0.5px solid ${COLOR.border}` }}
             >
-              继续教AI
+              添加知识
             </AppButton>
           </Box>
         </Box>
@@ -269,22 +262,64 @@ export default function MyAIPage({ doctorId }) {
           )}
         </Box>
 
-        {/* ── C. 我的方法 (Knowledge Preview) ─────────────────── */}
+        {/* ── C1. 我的AI人设 (Persona) ─────────────────────── */}
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
           <SectionLabel>
-            {knowledgeCount === 0 ? "我的知识库 · 快速入门" : "我的知识库 · 继续教AI"}
+            <Box component="span">我的AI人设</Box>
+            <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 1 }}>
+              决定AI怎么说话
+            </Typography>
           </SectionLabel>
-          {knowledgeCount > 0 && (
+          <Typography
+            onClick={() => navigate(dp("settings/persona"))}
+            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
+          >
+            编辑 ›
+          </Typography>
+        </Box>
+        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+          {pLoading && <SectionLoading />}
+          {!pLoading && (() => {
+            const allRules = personaData ? Object.values(personaData.fields || {}).flat() : [];
+            const hasRules = allRules.length > 0;
+            const previewText = hasRules
+              ? allRules.slice(0, 3).map(r => r.text).join("；") + (allRules.length > 3 ? "…" : "")
+              : "尚未设置，点击编辑开始配置";
+            return (
+              <Box
+                onClick={() => navigate(dp("settings/persona"))}
+                sx={{ px: 2, py: 1.5, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}
+              >
+                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: hasRules ? COLOR.text2 : COLOR.text4, lineHeight: 1.7 }}>
+                  {previewText}
+                </Typography>
+                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 1 }}>
+                  已学习 {personaData?.edit_count || 0} 次编辑
+                </Typography>
+              </Box>
+            );
+          })()}
+        </Box>
+
+        {/* ── C2. 我的知识库 (Knowledge) ───────────────────── */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
+          <SectionLabel>
+            <Box component="span">我的知识库</Box>
+            <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 1 }}>
+              决定AI知道什么
+            </Typography>
+          </SectionLabel>
+          {knowledgeList.length > 0 && (
             <Typography
               onClick={() => navigate(dp("settings/knowledge"))}
               sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
             >
-              全部 {knowledgeCount} 条 ›
+              全部 {knowledgeList.length} 条 ›
             </Typography>
           )}
         </Box>
         <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-          {topRules.length === 0 && !loading && (
+          {knowledgeList.length === 0 && !loading && (
             <>
               <ListCard
                 avatar={<IconBadge config={ICON_BADGES.upload} />}
@@ -299,36 +334,23 @@ export default function MyAIPage({ doctorId }) {
                 subtitle="你常用的回复模板"
                 onClick={() => navigate(dp("settings/knowledge/add"))}
                 chevron
-              />
-              <ListCard
-                avatar={<IconBadge config={ICON_BADGES.kb_doctor} />}
-                title="导入已确认病例"
-                subtitle="从病历中提取规则"
-                onClick={() => navigate(dp("settings/knowledge/add"))}
-                chevron
                 sx={{ borderBottom: "none" }}
               />
             </>
           )}
-          {loading && topRules.length === 0 && <SectionLoading />}
-          {topRules.map((rule, idx) => {
-            const isPersonaItem = rule.category === "persona";
-            const summary = isPersonaItem
-              ? `待学习 · 已收集 ${rule.edit_count || 0} 条回复`
-              : (rule.summary || rule.content?.slice(0, 40) || "");
-            return (
+          {loading && knowledgeList.length === 0 && <SectionLoading />}
+          {knowledgeList.slice(0, 3).map((rule, idx) => (
             <KnowledgeCard
               key={rule.id || idx}
-              title={rule.title || rule.content?.slice(0, 20) || "规则"}
-              summary={summary}
-              referenceCount={isPersonaItem ? 0 : (rule.reference_count || 0)}
+              title={rule.title || rule.text?.slice(0, 20) || "规则"}
+              summary={rule.summary || rule.text?.slice(0, 40) || ""}
+              referenceCount={rule.reference_count || 0}
               source={rule.source}
-              date={isPersonaItem ? "" : (rule.created_at ? formatRelativeDate(rule.created_at) : "")}
-              onClick={() => navigate(`${dp("settings/knowledge")}/${rule.category === "persona" ? "persona" : rule.id}`)}
-              sx={idx === topRules.length - 1 ? { borderBottom: "none" } : {}}
+              date={rule.created_at ? formatRelativeDate(rule.created_at) : ""}
+              onClick={() => navigate(`${dp("settings/knowledge")}/${rule.id}`)}
+              sx={idx === Math.min(knowledgeList.length, 3) - 1 ? { borderBottom: "none" } : {}}
             />
-            );
-          })}
+          ))}
         </Box>
 
         {/* ── D. 最近由AI处理 ────────────────────────────────── */}
