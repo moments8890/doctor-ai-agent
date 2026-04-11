@@ -109,6 +109,9 @@ async def generate_draft_reply(
         # Strip [KB-*] citation markers from user-facing text
         import re
         clean_response = re.sub(r"\[KB-\d+\]", "", response).strip()
+        # Strip [P-xxx] persona citation markers
+        from domain.knowledge.persona_citations import strip_persona_citations
+        clean_response = strip_persona_citations(clean_response)
         # Collapse any double-spaces left after stripping
         clean_response = re.sub(r"  +", " ", clean_response)
 
