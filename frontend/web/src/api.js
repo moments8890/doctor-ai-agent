@@ -662,7 +662,7 @@ export async function activatePersona(doctorId, action) {
   return request(`/api/manage/persona/activate?${qs.toString()}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ active: Boolean(action) }),
   });
 }
 
