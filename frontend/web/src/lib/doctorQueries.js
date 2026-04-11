@@ -167,6 +167,7 @@ export function usePersonaPending() {
     queryFn:  () => api.getPersonaPending(doctorId),
     enabled:  !!doctorId,
     staleTime: 30_000,
+    refetchInterval: POLL,
   });
 }
 

@@ -18,6 +18,8 @@ from db.crud.persona import (
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
 
+VALID_FIELDS = {"reply_style", "closing", "structure", "avoid", "edits"}
+
 
 # ── Routes ───────────────────────────────────────────────────────────────────
 
@@ -81,6 +83,9 @@ async def accept_pending_item(
         "source": "edit",
         "usage_count": 0,
     }
+
+    if item.field not in VALID_FIELDS:
+        raise HTTPException(400, f"Pending item has invalid field: {item.field!r}")
 
     persona = await get_or_create_persona(session, resolved)
     add_rule_to_persona(persona, item.field, rule)
