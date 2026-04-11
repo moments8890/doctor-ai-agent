@@ -17,6 +17,7 @@ from channels.web.doctor_dashboard.record_edit_handlers import router as _record
 from channels.web.doctor_dashboard.profile_handlers import router as _profile_router
 from channels.web.doctor_dashboard.onboarding_handlers import router as _onboarding_router
 from channels.web.doctor_dashboard.knowledge_handlers import router as _knowledge_router
+from channels.web.doctor_dashboard.persona_handlers import router as _persona_router
 from channels.web.doctor_dashboard.briefing_handlers import router as _briefing_router
 from channels.web.doctor_dashboard.diagnosis_handlers import router as _diagnosis_router
 from channels.web.doctor_dashboard.knowledge_stats_handlers import router as _knowledge_stats_router
@@ -40,6 +41,7 @@ router.include_router(_record_edit_router)
 router.include_router(_profile_router)
 router.include_router(_onboarding_router)
 router.include_router(_knowledge_router)
+router.include_router(_persona_router)
 router.include_router(_briefing_router)
 router.include_router(_diagnosis_router)
 router.include_router(_knowledge_stats_router)

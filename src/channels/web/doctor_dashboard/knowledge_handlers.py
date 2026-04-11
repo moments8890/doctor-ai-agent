@@ -9,7 +9,6 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.engine import get_db
@@ -41,9 +40,6 @@ class AddKnowledgeRequest(BaseModel):
 class ProcessTextRequest(BaseModel):
     text: str
 
-
-class PersonaActionRequest(BaseModel):
-    action: str  # "activate" or "deactivate"
 
 
 @router.get("/api/manage/knowledge")
@@ -93,30 +89,7 @@ async def list_knowledge(
             entry["file_path"] = file_path
         result.append(entry)
 
-    # Load persona separately — commit so new personas are persisted
-    from domain.knowledge.teaching import get_or_create_persona
-    persona_item = await get_or_create_persona(session, resolved)
-    await session.commit()
-    persona_data = None
-    if persona_item:
-        from db.models.doctor_edit import DoctorEdit
-        edit_count_result = await session.execute(
-            select(func.count()).select_from(DoctorEdit).where(
-                DoctorEdit.doctor_id == resolved,
-                DoctorEdit.entity_type == "draft_reply",
-            )
-        )
-        edit_count = edit_count_result.scalar() or 0
-        persona_data = {
-            "id": persona_item.id,
-            "title": "我的AI人设",
-            "content": persona_item.content or "",
-            "persona_status": persona_item.persona_status or "draft",
-            "edit_count": edit_count,
-            "updated_at": persona_item.updated_at.isoformat() if persona_item.updated_at else None,
-        }
-
-    return {"items": result, "persona": persona_data}
+    return {"items": result}
 
 
 @router.post("/api/manage/knowledge")
@@ -159,30 +132,6 @@ async def process_text(
         raise HTTPException(400, str(e))
 
     return result
-
-
-@router.post("/api/manage/knowledge/persona/confirm")
-async def confirm_persona(
-    body: PersonaActionRequest,
-    doctor_id: str = Query(...),
-    authorization: Optional[str] = Header(default=None),
-    session: AsyncSession = Depends(get_db),
-):
-    """Activate or deactivate the doctor's persona item."""
-    from domain.knowledge.teaching import get_or_create_persona
-
-    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
-    persona = await get_or_create_persona(session, resolved)
-
-    if body.action == "activate":
-        persona.persona_status = "active"
-    elif body.action == "deactivate":
-        persona.persona_status = "draft"
-    else:
-        raise HTTPException(status_code=400, detail="action must be 'activate' or 'deactivate'")
-
-    await session.commit()
-    return {"status": "ok", "persona_status": persona.persona_status}
 
 
 class UpdateKnowledgeRequest(BaseModel):
