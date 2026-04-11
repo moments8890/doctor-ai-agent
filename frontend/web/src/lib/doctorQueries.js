@@ -148,6 +148,17 @@ export function useTaskRecord(recordId) {
   });
 }
 
+export function usePersona() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.persona(doctorId),
+    queryFn:  () => api.getPersona(doctorId),
+    staleTime: 5 * 60_000,
+    enabled:  !!doctorId,
+  });
+}
+
 export function useSuggestions(recordId) {
   const { doctorId } = useDoctorStore();
   const api = useApi();

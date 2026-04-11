@@ -611,6 +611,47 @@ export async function updateDoctorProfile(doctorId, { name, specialty }) {
   });
 }
 
+export async function getPersona(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona?${qs.toString()}`);
+}
+
+export async function addPersonaRule(doctorId, field, text) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/rules?${qs.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ field, text }),
+  });
+}
+
+export async function updatePersonaRule(doctorId, field, ruleId, text) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/rules?${qs.toString()}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ field, rule_id: ruleId, text }),
+  });
+}
+
+export async function deletePersonaRule(doctorId, field, ruleId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/rules?${qs.toString()}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ field, rule_id: ruleId }),
+  });
+}
+
+export async function activatePersona(doctorId, action) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/activate?${qs.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action }),
+  });
+}
+
 export async function generateQRToken(role, doctorId, patientId) {
   return request("/api/auth/qr-token", {
     method: "POST",

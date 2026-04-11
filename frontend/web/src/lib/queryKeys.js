@@ -11,4 +11,5 @@ export const QK = {
   aiAttention:    (did) => ["doctor", did, "aiAttention"],
   taskRecord:     (rid, did) => ["doctor", did, "record", rid],
   suggestions:    (rid, did) => ["doctor", did, "suggestions", rid],
+  persona:        (did) => ["doctor", did, "persona"],
 };
