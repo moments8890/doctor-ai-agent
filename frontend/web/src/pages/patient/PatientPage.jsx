@@ -24,7 +24,9 @@ import {
   STORAGE_DOCTOR_KEY,
   STORAGE_DOCTOR_NAME_KEY,
   LAST_SEEN_CHAT_KEY,
+  ONBOARDING_DONE_KEY_PREFIX,
 } from "./constants";
+import PatientOnboarding from "./PatientOnboarding";
 import ChatTab from "./ChatTab";
 import RecordsTab from "./RecordsTab";
 import TasksTab from "./TasksTab";
@@ -67,6 +69,7 @@ export default function PatientPage() {
   const [doctorSpecialty, setDoctorSpecialty] = useState("");
   const [doctorId, setDoctorId] = useState(() => localStorage.getItem(STORAGE_DOCTOR_KEY) || "");
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // ---------------------------------------------------------------------------
   // Mock mode: auto-set identity when no token
@@ -91,8 +94,20 @@ export default function PatientPage() {
       setDoctorName(data.doctor_name || "");
       setDoctorSpecialty(data.doctor_specialty || "");
       if (data.doctor_id) setDoctorId(data.doctor_id);
+      if (data.patient_id) localStorage.setItem("patient_portal_patient_id", String(data.patient_id));
     }).catch(() => {});
   }, [token, api]);
+
+  // ---------------------------------------------------------------------------
+  // Onboarding check — show once per patient_id
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!token || api.isMock) return;
+    const patientId = localStorage.getItem("patient_portal_patient_id");
+    if (patientId && !localStorage.getItem(ONBOARDING_DONE_KEY_PREFIX + patientId)) {
+      setShowOnboarding(true);
+    }
+  }, [token, api.isMock]);
 
   // ---------------------------------------------------------------------------
   // URL-driven tab & subpage
@@ -114,12 +129,19 @@ export default function PatientPage() {
   // ---------------------------------------------------------------------------
   // Auth: redirect to /login if no token (non-mock)
   // ---------------------------------------------------------------------------
+  const dismissOnboarding = useCallback(() => {
+    const patientId = localStorage.getItem("patient_portal_patient_id");
+    if (patientId) localStorage.setItem(ONBOARDING_DONE_KEY_PREFIX + patientId, "1");
+    setShowOnboarding(false);
+  }, []);
+
   const handleLogout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(STORAGE_NAME_KEY);
     localStorage.removeItem(STORAGE_DOCTOR_KEY);
     localStorage.removeItem(STORAGE_DOCTOR_NAME_KEY);
     localStorage.removeItem(PATIENT_CHAT_STORAGE_KEY);
+    localStorage.removeItem("patient_portal_patient_id");
     setToken("");
     setPatientName("");
     setDoctorName("");
@@ -144,6 +166,14 @@ export default function PatientPage() {
   // ---------------------------------------------------------------------------
   return (
     <Box sx={PAGE_LAYOUT}>
+      {showOnboarding && (
+        <PatientOnboarding
+          doctorName={doctorName}
+          doctorSpecialty={doctorSpecialty}
+          onDismiss={dismissOnboarding}
+        />
+      )}
+
       {/* Page header — only for tabs without their own PageSkeleton header */}
       {!urlSubpage && tab !== "records" && tab !== "profile" && (
         <SubpageHeader title={NAV_TABS.find(t => t.key === tab)?.title || "AI 健康助手"} />

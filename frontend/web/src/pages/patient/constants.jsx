@@ -18,6 +18,7 @@ export const STORAGE_NAME_KEY = "patient_portal_name";
 export const STORAGE_DOCTOR_KEY = "patient_portal_doctor_id";
 export const STORAGE_DOCTOR_NAME_KEY = "patient_portal_doctor_name";
 export const LAST_SEEN_CHAT_KEY = "patient_last_seen_chat";
+export const ONBOARDING_DONE_KEY_PREFIX = "patient_onboarding_done_";
 
 // ---------------------------------------------------------------------------
 // Record display helpers
