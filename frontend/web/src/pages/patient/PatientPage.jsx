@@ -176,7 +176,9 @@ export default function PatientPage() {
 
       {/* Page header — only for tabs without their own PageSkeleton header */}
       {!urlSubpage && tab !== "records" && tab !== "profile" && (
-        <SubpageHeader title={NAV_TABS.find(t => t.key === tab)?.title || "AI 健康助手"} />
+        <SubpageHeader
+          title={tab === "chat" && doctorName ? doctorName : (NAV_TABS.find(t => t.key === tab)?.title || "AI 健康助手")}
+        />
       )}
 
       {/* Content area — Fade transition matches DoctorPage */}
