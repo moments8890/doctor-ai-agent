@@ -23,7 +23,9 @@ import StatColumn from "../../../components/StatColumn";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
-import { usePersona } from "../../../lib/doctorQueries";
+import { usePersona, usePersonaPending } from "../../../lib/doctorQueries";
+import { useAppNavigate } from "../../../hooks/useAppNavigate";
+import { dp } from "../../../utils/doctorBasePath";
 
 /* ── Field config ── */
 
@@ -49,7 +51,10 @@ const SOURCE_LABELS = {
 export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
   const api = useApi();
   const queryClient = useQueryClient();
+  const navigate = useAppNavigate();
   const { data: persona, isLoading: loading } = usePersona();
+  const { data: pendingData } = usePersonaPending();
+  const pendingCount = pendingData?.count || 0;
 
   const fields = persona?.fields || {};
 
@@ -148,6 +153,28 @@ export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
 
   const listContent = (
     <Box sx={{ flex: 1, overflowY: "auto" }}>
+      {pendingCount > 0 && (
+        <Box
+          onClick={() => navigate(dp("settings/persona/pending"))}
+          sx={{
+            mx: 2, mt: 1.5,
+            bgcolor: "#fffbe6",
+            px: 1.5, py: 1.25,
+            borderRadius: RADIUS.md,
+            border: `0.5px solid #ffe58f`,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            cursor: "pointer",
+          }}
+        >
+          <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 500, color: "#b28704" }}>
+            AI发现 {pendingCount} 条待确认
+          </Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#b28704" }}>
+            查看 ›
+          </Typography>
+        </Box>
+      )}
+
       {loading && <SectionLoading rows={5} />}
 
       {!loading && (
