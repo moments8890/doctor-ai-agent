@@ -158,18 +158,18 @@ export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
           onClick={() => navigate(dp("settings/persona/pending"))}
           sx={{
             mx: 2, mt: 1.5,
-            bgcolor: "#fffbe6",
+            bgcolor: COLOR.warningLight,
             px: 1.5, py: 1.25,
             borderRadius: RADIUS.md,
-            border: `0.5px solid #ffe58f`,
+            border: `0.5px solid ${COLOR.amberBorder}`,
             display: "flex", justifyContent: "space-between", alignItems: "center",
             cursor: "pointer",
           }}
         >
-          <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 500, color: "#b28704" }}>
+          <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 500, color: COLOR.amberText }}>
             AI发现 {pendingCount} 条待确认
           </Typography>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: "#b28704" }}>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.amberText }}>
             查看 ›
           </Typography>
         </Box>
@@ -352,7 +352,7 @@ export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
       <PageSkeleton
         title="AI 人设"
         onBack={onBack}
-        isMobile={isMobile}
+        mobileView={isMobile}
         listPane={listContent}
       />
 

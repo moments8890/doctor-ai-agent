@@ -87,6 +87,7 @@ export default function PendingReviewSubpage({ onBack, isMobile }) {
                     size="sm"
                     fullWidth
                     disabled={isActing}
+                    loading={rejectMutation.isPending}
                     onClick={() => rejectMutation.mutate(item.id)}
                   >
                     忽略
