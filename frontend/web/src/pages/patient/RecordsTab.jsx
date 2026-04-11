@@ -19,25 +19,18 @@ import { usePatientApi } from "../../api/PatientApiContext";
 import ListCard from "../../components/ListCard";
 import NewItemCard from "../../components/NewItemCard";
 import IconBadge from "../../components/IconBadge";
-import DateAvatar from "../../components/DateAvatar";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
 import StatusBadge from "../../components/StatusBadge";
 import FilterBar from "../../components/FilterBar";
 import PageSkeleton from "../../components/PageSkeleton";
 import { TYPE, COLOR, RADIUS } from "../../theme";
-import { RECORD_TYPE_LABEL, formatDate, PATIENT_RECORD_TABS } from "./constants";
+import { RECORD_TYPE_LABEL, formatDate, PATIENT_RECORD_TABS, DIAGNOSIS_STATUS_LABELS } from "./constants";
 import { RECORD_TYPE_BADGE } from "../../shared/badgeConfigs";
 import RecordDetail from "./subpages/RecordDetail";
 
-const _DL = { pending: "诊断中", completed: "待审核", confirmed: "已确认", failed: "诊断失败" };
-const _DC = { "诊断中": COLOR.warning, "待审核": COLOR.accent, "已确认": COLOR.success, "诊断失败": COLOR.danger };
-
-const RECORD_TYPE_ICON_COLOR = {
-  visit: COLOR.primary,
-  interview_summary: COLOR.accent,
-  import: COLOR.text4,
-  dictation: COLOR.warning,
+const DIAGNOSIS_STATUS_COLORS = {
+  "诊断中": COLOR.warning, "待审核": COLOR.accent, "已确认": COLOR.success, "诊断失败": COLOR.danger,
 };
 
 function groupByMonth(records) {
@@ -81,9 +74,9 @@ function TimelineView({ records, navigate }) {
               const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
               const chief = rec.structured?.chief_complaint;
               const preview = chief || (rec.content || "").replace(/\n/g, " ").slice(0, 30) || "";
-              const ds = rec.diagnosis_status;
-              const dsLabel = ds ? _DL[ds] : null;
-              const dotColor = RECORD_TYPE_ICON_COLOR[rec.record_type] || COLOR.text4;
+              const ds = rec.status;
+              const dsLabel = ds ? DIAGNOSIS_STATUS_LABELS[ds] : null;
+              const dotColor = RECORD_TYPE_BADGE[rec.record_type]?.bg || COLOR.text4;
               const d = new Date(rec.created_at);
               const dayStr = `${d.getMonth() + 1}/${d.getDate()}`;
               const diagnosis = rec.structured?.diagnosis;
@@ -141,7 +134,7 @@ function TimelineView({ records, navigate }) {
                           {diagnosis}
                         </Typography>
                       ) : <Box />}
-                      {dsLabel && <StatusBadge label={dsLabel} colorMap={_DC} fallbackColor={COLOR.text4} />}
+                      {dsLabel && <StatusBadge label={dsLabel} colorMap={DIAGNOSIS_STATUS_COLORS} fallbackColor={COLOR.text4} />}
                     </Box>
                   </Box>
                 </Box>
@@ -229,8 +222,8 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
                 const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
                 const chief = rec.structured?.chief_complaint;
                 const preview = chief || (rec.content || "").replace(/\n/g, " ").slice(0, 40) || "（内容为空）";
-                const ds = rec.diagnosis_status;
-                const dsLabel = ds ? _DL[ds] : null;
+                const ds = rec.status;
+                const dsLabel = ds ? DIAGNOSIS_STATUS_LABELS[ds] : null;
                 return (
                   <ListCard
                     key={rec.id}
@@ -240,7 +233,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
                     right={
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         {dsLabel && (
-                          <StatusBadge label={dsLabel} colorMap={_DC} fallbackColor={COLOR.text4} />
+                          <StatusBadge label={dsLabel} colorMap={DIAGNOSIS_STATUS_COLORS} fallbackColor={COLOR.text4} />
                         )}
                         <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{formatDate(rec.created_at)}</Typography>
                       </Box>
