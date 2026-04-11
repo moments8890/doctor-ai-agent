@@ -34,6 +34,22 @@ from utils.log import log
 router = APIRouter(tags=["ui"], include_in_schema=False)
 
 
+# ── Background helpers ─────────────────────────────────────────────────
+
+
+async def _process_edit_for_persona_bg(doctor_id: str, original: str, edited: str, edit_id: int):
+    """Fire-and-forget persona learning from edit."""
+    try:
+        from db.engine import AsyncSessionLocal
+        from domain.knowledge.persona_learning import process_edit_for_persona
+        async with AsyncSessionLocal() as session:
+            await process_edit_for_persona(session, doctor_id, original, edited, edit_id)
+            await session.commit()
+    except Exception as exc:
+        from utils.log import log
+        log(f"[persona_learning] background processing failed (non-fatal): {exc}", level="warning")
+
+
 # ── Request / Response Models ────────────────────────────────────────────
 
 
@@ -417,6 +433,11 @@ async def edit_draft(
         )
 
     await db.commit()
+
+    # Fire-and-forget persona learning
+    if edit_id is not None:
+        import asyncio
+        asyncio.ensure_future(_process_edit_for_persona_bg(resolved, original_text, edited_text, edit_id))
 
     log(f"[draft] edited draft {draft_id} for doctor={resolved} teach={teach_prompt}")
 
