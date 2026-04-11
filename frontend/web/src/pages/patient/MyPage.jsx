@@ -9,11 +9,17 @@ import { Box, Typography } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
+import ReplayOutlinedIcon from "@mui/icons-material/ReplayOutlined";
+import TextFieldsOutlinedIcon from "@mui/icons-material/TextFieldsOutlined";
 import AccountCard from "../../components/AccountCard";
 import SectionLabel from "../../components/SectionLabel";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import PageSkeleton from "../../components/PageSkeleton";
-import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
+import SheetDialog from "../../components/SheetDialog";
+import AppButton from "../../components/AppButton";
+import { TYPE, ICON, COLOR, RADIUS, applyFontScale } from "../../theme";
+import { useFontScaleStore, triggerFontScaleRerender } from "../../store/fontScaleStore";
+import { ONBOARDING_DONE_KEY_PREFIX } from "./constants";
 import AboutSubpage from "../doctor/subpages/AboutSubpage";
 import PrivacySubpage from "../PrivacyPage";
 
@@ -45,6 +51,26 @@ function SettingsRow({ icon, label, sublabel, onClick }) {
 export default function MyPage({ patientName, doctorName, doctorSpecialty, doctorId, onLogout }) {
   const [subpage, setSubpage] = useState(null);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const fontScale = useFontScaleStore(s => s.fontScale);
+  const [showFontScale, setShowFontScale] = useState(false);
+  const FONT_SCALE_OPTIONS = [
+    { key: "standard", label: "标准" },
+    { key: "large", label: "大" },
+    { key: "extraLarge", label: "特大" },
+  ];
+
+  function handleFontScaleChange(level) {
+    useFontScaleStore.getState().setFontScale(level);
+    applyFontScale(level);
+    triggerFontScaleRerender();
+    setShowFontScale(false);
+  }
+
+  function handleReplayOnboarding() {
+    const patientId = localStorage.getItem("patient_portal_patient_id");
+    if (patientId) localStorage.removeItem(ONBOARDING_DONE_KEY_PREFIX + patientId);
+    window.location.reload();
+  }
 
   const subpageContent = subpage === "about"
     ? <AboutSubpage onBack={() => setSubpage(null)} isMobile />
@@ -86,6 +112,17 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
           sublabel="数据使用与保护"
           onClick={() => setSubpage("privacy")}
         />
+        <SettingsRow
+          icon={<TextFieldsOutlinedIcon sx={{ color: COLOR.text4, fontSize: ICON.lg }} />}
+          label="字体大小"
+          sublabel={FONT_SCALE_OPTIONS.find(o => o.key === fontScale)?.label || "标准"}
+          onClick={() => setShowFontScale(true)}
+        />
+        <SettingsRow
+          icon={<ReplayOutlinedIcon sx={{ color: COLOR.text4, fontSize: ICON.lg }} />}
+          label="重新查看引导"
+          onClick={handleReplayOnboarding}
+        />
       </Box>
 
       <SectionLabel>账户操作</SectionLabel>
@@ -110,6 +147,22 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
         confirmLabel="退出"
         confirmTone="danger"
       />
+
+      <SheetDialog open={showFontScale} onClose={() => setShowFontScale(false)} title="字体大小">
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, p: 1 }}>
+          {FONT_SCALE_OPTIONS.map(o => (
+            <AppButton
+              key={o.key}
+              variant={fontScale === o.key ? "primary" : "secondary"}
+              size="md"
+              fullWidth
+              onClick={() => handleFontScaleChange(o.key)}
+            >
+              {o.label}
+            </AppButton>
+          ))}
+        </Box>
+      </SheetDialog>
     </Box>
   );
 
