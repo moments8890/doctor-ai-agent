@@ -57,6 +57,7 @@ class ChatMessageOut(BaseModel):
     source: str  # patient / ai / doctor
     sender_id: Optional[str] = None
     triage_category: Optional[str] = None
+    ai_handled: Optional[bool] = None
     created_at: datetime
 
 
@@ -79,6 +80,7 @@ def _msg_to_out(msg: PatientMessage) -> ChatMessageOut:
         source=_infer_source(msg),
         sender_id=msg.sender_id,
         triage_category=msg.triage_category,
+        ai_handled=msg.ai_handled,
         created_at=msg.created_at,
     )
 
@@ -194,6 +196,14 @@ async def get_chat_messages(
     )
     if since is not None:
         stmt = stmt.where(PatientMessage.id > since)
+    # Exclude AI drafts awaiting doctor review (source=ai + ai_handled=False)
+    from sqlalchemy import or_, and_
+    stmt = stmt.where(
+        or_(
+            PatientMessage.source != "ai",
+            and_(PatientMessage.source == "ai", PatientMessage.ai_handled == True),
+        )
+    )
     stmt = stmt.order_by(PatientMessage.created_at.asc()).limit(200)
 
     result = await db.execute(stmt)
