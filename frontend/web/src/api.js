@@ -687,6 +687,20 @@ export async function rejectPendingItem(doctorId, itemId) {
   });
 }
 
+export async function getOnboardingScenarios(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/onboarding/scenarios?${qs.toString()}`);
+}
+
+export async function completeOnboarding(doctorId, picks) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/onboarding/complete?${qs.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ picks }),
+  });
+}
+
 export async function generateQRToken(role, doctorId, patientId) {
   return request("/api/auth/qr-token", {
     method: "POST",

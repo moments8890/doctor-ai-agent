@@ -14,6 +14,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
 import { TYPE, COLOR, RADIUS, ICON } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
+import AppButton from "../../../components/AppButton";
 import SectionLabel from "../../../components/SectionLabel";
 import SectionLoading from "../../../components/SectionLoading";
 import SheetDialog from "../../../components/SheetDialog";
@@ -172,6 +173,31 @@ export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
           <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.amberText }}>
             查看 ›
           </Typography>
+        </Box>
+      )}
+
+      {!loading && !persona?.onboarded && totalRules === 0 && (
+        <Box sx={{ mx: 2, mt: 1.5, mb: 0.5 }}>
+          <Box sx={{
+            bgcolor: COLOR.primaryLight,
+            borderRadius: RADIUS.md,
+            border: `0.5px solid ${COLOR.primaryBorder}`,
+            p: 1.5,
+          }}>
+            <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.primaryText, mb: 0.5 }}>
+              还没有人设
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mb: 1.25 }}>
+              用3个场景快速配置你的AI回复风格
+            </Typography>
+            <AppButton
+              variant="primary"
+              size="sm"
+              onClick={() => navigate(dp("settings/persona/onboarding"))}
+            >
+              开始初始化
+            </AppButton>
+          </Box>
         </Box>
       )}
 

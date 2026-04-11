@@ -28,6 +28,7 @@ import AboutSubpage from "./subpages/AboutSubpage";
 import PrivacySubpage from "../../pages/PrivacyPage";
 import TemplateSubpage from "./subpages/TemplateSubpage";
 import PersonaSubpage from "./subpages/PersonaSubpage";
+import PersonaOnboardingSubpage from "./subpages/PersonaOnboardingSubpage";
 import PendingReviewSubpage from "./subpages/PendingReviewSubpage";
 import AddKnowledgeSubpage from "./subpages/AddKnowledgeSubpage";
 import { useDoctorStore } from "../../store/doctorStore";
@@ -480,7 +481,9 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   }
 
   // Mobile subpage override
-  const mobileSubpage = isMobile && subpage === "persona/pending" ? (
+  const mobileSubpage = isMobile && subpage === "persona/onboarding" ? (
+    <PersonaOnboardingSubpage onBack={goBack} isMobile />
+  ) : isMobile && subpage === "persona/pending" ? (
     <PendingReviewSubpage onBack={goBack} isMobile />
   ) : isMobile && subpage === "persona" ? (
     <PersonaSubpage doctorId={doctorId} onBack={goBack} isMobile />
@@ -545,7 +548,9 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
     </SettingsListSubpage>
   );
 
-  const detailContent = subpage === "persona/pending" ? (
+  const detailContent = subpage === "persona/onboarding" ? (
+    <PersonaOnboardingSubpage onBack={goBack} />
+  ) : subpage === "persona/pending" ? (
     <PendingReviewSubpage onBack={goBack} />
   ) : subpage === "persona" ? (
     <PersonaSubpage doctorId={doctorId} onBack={goBack} />

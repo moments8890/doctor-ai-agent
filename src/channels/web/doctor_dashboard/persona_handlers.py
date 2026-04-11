@@ -154,3 +154,49 @@ async def activate_persona(
 
     await session.commit()
     return {"status": "ok", "persona_status": persona.status}
+
+
+# ── Onboarding ────────────────────────────────────────────────────────────────
+
+class OnboardingPicksRequest(BaseModel):
+    picks: list[dict]
+
+
+@router.get("/api/manage/persona/onboarding/scenarios")
+async def get_onboarding_scenarios(
+    doctor_id: str = Query(...),
+    authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
+):
+    """Return onboarding scenarios for pick-your-style flow."""
+    _resolve_ui_doctor_id(doctor_id, authorization)  # auth check only
+    from domain.knowledge.onboarding_scenarios import GENERIC_SCENARIOS
+    return {"scenarios": GENERIC_SCENARIOS}
+
+
+@router.post("/api/manage/persona/onboarding/complete")
+async def complete_onboarding(
+    body: OnboardingPicksRequest,
+    doctor_id: str = Query(...),
+    authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
+):
+    """Process onboarding picks and populate persona."""
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+
+    from domain.knowledge.onboarding_scenarios import extract_rules_from_picks
+    rules_by_field = extract_rules_from_picks(body.picks)
+
+    persona = await get_or_create_persona(session, resolved)
+
+    # Write extracted rules to persona
+    for field_key, rules in rules_by_field.items():
+        for rule in rules:
+            add_rule_to_persona(persona, field_key, rule)
+
+    persona.onboarded = True
+    if persona.status == "draft" and any(rules_by_field.values()):
+        persona.status = "active"
+
+    await session.commit()
+    return {"status": "ok", "fields": persona.fields, "persona_status": persona.status}
