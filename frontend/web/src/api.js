@@ -701,6 +701,15 @@ export async function completeOnboarding(doctorId, picks) {
   });
 }
 
+export async function teachByExample(doctorId, exampleText) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/teach?${qs.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ example_text: exampleText }),
+  });
+}
+
 export async function generateQRToken(role, doctorId, patientId) {
   return request("/api/auth/qr-token", {
     method: "POST",

@@ -367,6 +367,17 @@ export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
             <StatColumn value={editsLearned} label="学习获得" />
           </Box>
 
+          {/* Teach by example */}
+          <Box sx={{ px: 2, mt: 2 }}>
+            <AppButton
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate(dp("settings/persona/teach"))}
+            >
+              教AI新偏好
+            </AppButton>
+          </Box>
+
           <Box sx={{ height: 40 }} />
         </>
       )}

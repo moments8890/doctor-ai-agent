@@ -200,3 +200,126 @@ async def complete_onboarding(
 
     await session.commit()
     return {"status": "ok", "fields": persona.fields, "persona_status": persona.status}
+
+
+# ── Teach by Example ──────────────────────────────────────────────────────────
+
+class TeachRequest(BaseModel):
+    example_text: str
+
+
+@router.post("/api/manage/persona/teach")
+async def teach_by_example(
+    body: TeachRequest,
+    doctor_id: str = Query(...),
+    authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
+):
+    """Extract style rules from a pasted example response and create pending items."""
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+
+    text = body.example_text.strip()
+    if not text:
+        raise HTTPException(400, "example_text must not be empty")
+    if len(text) > 2000:
+        raise HTTPException(400, "example_text must be under 2000 characters")
+
+    TEACH_PROMPT = """分析以下医生的回复示例，提取其中体现的沟通风格偏好。
+
+回复示例：
+{text}
+
+请用JSON格式回答（不要输出其他内容），提取最多3条最明显的风格特征：
+{{
+  "rules": [
+    {{
+      "field": "reply_style" 或 "closing" 或 "structure" 或 "avoid" 或 "edits",
+      "text": "一句话描述这个风格特征",
+      "confidence": "low" 或 "medium" 或 "high"
+    }}
+  ]
+}}
+
+判断规则：
+- reply_style: 语气、称呼方式、正式程度
+- closing: 结尾用语、随访叮嘱
+- structure: 内容组织方式、是否先给结论
+- avoid: 明显回避的内容类型
+- edits: 语言修辞习惯
+只提取有明确证据的特征，不要猜测。最多输出3条。"""
+
+    try:
+        from agent.llm import llm_call
+        import json
+
+        response = await llm_call(
+            messages=[
+                {"role": "system", "content": "你是一个分析医生写作风格的助手。只输出JSON，不要输出其他内容。"},
+                {"role": "user", "content": TEACH_PROMPT.format(text=text[:1500])},
+            ],
+            op_name="persona_teach",
+        )
+
+        if not response:
+            raise HTTPException(500, "Analysis failed, please try again")
+
+        raw = response.strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+        parsed = json.loads(raw)
+        rules = parsed.get("rules", [])
+
+    except (json.JSONDecodeError, Exception) as exc:
+        from utils.log import log
+        log(f"[persona_teach] extraction failed: {exc}", level="warning")
+        raise HTTPException(500, "Analysis failed, please try again")
+
+    VALID_FIELDS = {"reply_style", "closing", "structure", "avoid", "edits"}
+    VALID_CONFIDENCES = {"low", "medium", "high"}
+
+    # Create pending items for medium+ confidence rules
+    from db.models.persona_pending import PersonaPendingItem
+    from domain.knowledge.persona_classifier import compute_pattern_hash
+
+    created = []
+    for rule in rules[:3]:
+        field = rule.get("field")
+        rule_text = (rule.get("text") or "").strip()
+        confidence = rule.get("confidence", "medium")
+
+        if field not in VALID_FIELDS or not rule_text:
+            continue
+        if confidence not in VALID_CONFIDENCES or confidence == "low":
+            continue
+
+        pattern = compute_pattern_hash(field, rule_text)
+
+        # Skip if exact pattern already pending or accepted
+        from sqlalchemy import select
+        existing = (await session.execute(
+            select(PersonaPendingItem).where(
+                PersonaPendingItem.doctor_id == resolved,
+                PersonaPendingItem.pattern_hash == pattern,
+                PersonaPendingItem.status.in_(["pending", "accepted"]),
+            )
+        )).scalar_one_or_none()
+
+        if existing:
+            continue
+
+        item = PersonaPendingItem(
+            doctor_id=resolved,
+            field=field,
+            proposed_rule=rule_text,
+            summary=rule_text,
+            evidence_summary="从示例回复中提取",
+            confidence=confidence,
+            pattern_hash=pattern,
+            status="pending",
+        )
+        session.add(item)
+        created.append({"field": field, "text": rule_text, "confidence": confidence})
+
+    await session.commit()
+    return {"status": "ok", "extracted": created, "count": len(created)}
