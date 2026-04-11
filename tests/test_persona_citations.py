@@ -31,3 +31,11 @@ def test_strip_no_markers():
 def test_does_not_strip_kb_citations():
     text = "按时服药[KB-5]，注意休息。"
     assert strip_persona_citations(text) == "按时服药[KB-5]，注意休息。"
+
+def test_strip_removes_any_p_marker():
+    # strip should remove any [P-...] pattern, even if not a valid rule ID
+    text = "信息[P-custom_rule]请注意。"
+    result = strip_persona_citations(text)
+    assert "[P-" not in result
+    assert "信息" in result
+    assert "请注意" in result

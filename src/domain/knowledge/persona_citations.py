@@ -5,6 +5,7 @@ import re
 from typing import List
 
 _PERSONA_CITATION_RE = re.compile(r"\[P-(ps_[a-z0-9]+)\]")
+_PERSONA_STRIP_RE = re.compile(r"\[P-[^\]]+\]")
 
 
 def extract_persona_citations(text: str) -> List[str]:
@@ -14,4 +15,4 @@ def extract_persona_citations(text: str) -> List[str]:
 
 def strip_persona_citations(text: str) -> str:
     """Remove [P-xxx] markers from text for user-facing display."""
-    return _PERSONA_CITATION_RE.sub("", text).strip()
+    return _PERSONA_STRIP_RE.sub("", text).strip()
