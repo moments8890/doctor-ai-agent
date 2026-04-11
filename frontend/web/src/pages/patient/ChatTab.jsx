@@ -158,11 +158,11 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
     const text = input.trim();
     if (!text || sending) return;
     setInput("");
-    setMessages(prev => [...prev, { source: "patient", content: text, _local: true }]);
+    setMessages(prev => [...prev, { source: "patient", content: text, _local: true, _ts: Date.now() }]);
     setSending(true);
     try {
-      const data = await sendPatientChat(token, text);
-      setMessages(prev => [...prev, { source: "ai", content: data.reply || "收到您的消息。", triage_category: data.triage_category }]);
+      await sendPatientChat(token, text);
+      // No reply appended — real replies arrive via polling
     } catch (err) {
       if (err.status === 401) { console.warn("auth expired"); return; }
       setMessages(prev => [...prev, { source: "ai", content: "系统繁忙，请稍后重试。" }]);
