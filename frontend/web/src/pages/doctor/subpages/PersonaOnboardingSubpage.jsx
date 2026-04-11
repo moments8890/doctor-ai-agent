@@ -3,7 +3,7 @@
  * Shows 3 scenarios one at a time, doctor picks a response style.
  * After all 3, shows summary of extracted rules.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
@@ -36,11 +36,11 @@ export default function PersonaOnboardingSubpage({ onBack, isMobile, onComplete 
   const [saveError, setSaveError] = useState(null);
 
   // Load scenarios on first render
-  useState(() => {
+  useEffect(() => {
     api.getOnboardingScenarios(doctorId)
       .then((data) => setScenarios(data.scenarios))
       .catch(() => setLoadError("加载失败，请重试"));
-  });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loadError) {
     return (

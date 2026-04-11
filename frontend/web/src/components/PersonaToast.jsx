@@ -62,11 +62,8 @@ export default function PersonaToast() {
         maxWidth: 360,
         width: "100%",
       }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, mb: 1 }}>
-          AI发现新偏好
-        </Typography>
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mb: 1.25, lineHeight: 1.5 }}>
-          {toastItem.summary}
+        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, mb: 1.25, lineHeight: 1.5 }}>
+          AI注意到：{toastItem.summary}
         </Typography>
         <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
           <Button
