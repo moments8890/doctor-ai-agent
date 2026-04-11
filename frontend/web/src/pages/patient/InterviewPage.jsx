@@ -48,6 +48,7 @@ export default function InterviewPage({ token, onBack, onLogout, initialSuggesti
   const [showSummary, setShowSummary] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [suggestions, setSuggestions] = useState(() => {
     if (initialSuggestions?.length) return initialSuggestions;
     const params = new URLSearchParams(window.location.search);
@@ -135,7 +136,7 @@ export default function InterviewPage({ token, onBack, onLogout, initialSuggesti
       setMessages(prev => [...prev, { role: "assistant", content: data.message }]);
     } catch (err) {
       if (err.status === 401) { console.warn("auth expired"); return; }
-      alert("提交失败，请稍后重试。");
+      setShowErrorDialog(true);
     } finally { setConfirming(false); }
   }
 
@@ -176,8 +177,8 @@ export default function InterviewPage({ token, onBack, onLogout, initialSuggesti
       <Box sx={{ px: 2, py: 0.5, bgcolor: COLOR.white, borderBottom: `1px solid ${COLOR.borderLight}` }}>
         <LinearProgress variant="determinate"
           value={progress.total ? (progress.filled / progress.total) * 100 : 0}
-          sx={{ height: 6, borderRadius: 3, bgcolor: COLOR.border,
-            "& .MuiLinearProgress-bar": { bgcolor: COLOR.primary, borderRadius: 3 } }} />
+          sx={{ height: 6, borderRadius: RADIUS.sm, bgcolor: COLOR.border,
+            "& .MuiLinearProgress-bar": { bgcolor: COLOR.primary, borderRadius: RADIUS.sm } }} />
         <Typography variant="caption" sx={{ color: COLOR.text4, mt: 0.5, display: "block" }}>
           {progress.total ? Math.round((progress.filled / progress.total) * 100) : 0}%
         </Typography>
@@ -189,7 +190,7 @@ export default function InterviewPage({ token, onBack, onLogout, initialSuggesti
           <Box key={i} sx={{ display: "flex", alignItems: "flex-start", gap: 1, mb: 1.5, flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
             <MsgAvatar isUser={msg.role === "user"} size={32} />
             <Box sx={{
-              maxWidth: "75%", px: 2, py: 1.5, borderRadius: 2,
+              maxWidth: "75%", px: 2, py: 1.5, borderRadius: RADIUS.sm,
               bgcolor: msg.role === "user" ? COLOR.wechatGreen : COLOR.white,
               color: COLOR.text2, fontSize: TYPE.body.fontSize, lineHeight: 1.6,
               whiteSpace: "pre-wrap", wordBreak: "break-word",
@@ -347,6 +348,15 @@ export default function InterviewPage({ token, onBack, onLogout, initialSuggesti
         cancelLabel="保存退出"
         confirmLabel="放弃重来"
         confirmTone="danger"
+      />
+
+      <ConfirmDialog
+        open={showErrorDialog}
+        onClose={() => setShowErrorDialog(false)}
+        onConfirm={() => setShowErrorDialog(false)}
+        title="提交失败"
+        message="请稍后重试。"
+        confirmLabel="确定"
       />
     </Box>
   );
