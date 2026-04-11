@@ -67,6 +67,11 @@ const RADIUS = {
   pill: "16px",  // pills, chips, MobileFrame
 };
 
+const BUBBLE_RADIUS = {
+  left: `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`,
+  right: `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}`,
+};
+
 const BUTTON = {
   compactHeight: 36,
   get compactFontSize() { return TYPE.body.fontSize; },
@@ -125,7 +130,7 @@ const HIGHLIGHT_ROW_SX = {
   borderLeft: `3px solid ${COLOR.primary}`,
 };
 
-export { TYPE, BASE_TYPE, ICON, BUTTON, COLOR, RADIUS, HIGHLIGHT_ROW_SX, FONT_SCALE_LEVELS, applyFontScale, getFontScaleMultiplier };
+export { TYPE, BASE_TYPE, ICON, BUTTON, COLOR, RADIUS, BUBBLE_RADIUS, HIGHLIGHT_ROW_SX, FONT_SCALE_LEVELS, applyFontScale, getFontScaleMultiplier };
 
 // Shared theme options (palette, typography, components) — used by both app and admin themes.
 // Returns fresh options reading current TYPE values (which reflect font scale).

@@ -1,15 +1,15 @@
 import { Box, Typography } from "@mui/material";
 import { COLOR, RADIUS } from "../theme";
 
-export default function NameAvatar({ name, size = 42, statusColor }) {
+export default function NameAvatar({ name, size = 42, color, statusColor }) {
   return (
     <Box sx={{
       position: "relative",
       width: size, height: size, borderRadius: RADIUS.sm, flexShrink: 0,
-      bgcolor: COLOR.borderLight,
+      bgcolor: color || COLOR.borderLight,
       display: "flex", alignItems: "center", justifyContent: "center",
     }}>
-      <Typography sx={{ color: COLOR.text4, fontSize: size * 0.42, fontWeight: 600, lineHeight: 1 }}>
+      <Typography sx={{ color: color ? COLOR.white : COLOR.text4, fontSize: size * 0.42, fontWeight: 600, lineHeight: 1 }}>
         {(name || "?")[0]}
       </Typography>
       {statusColor && (

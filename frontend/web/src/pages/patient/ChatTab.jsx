@@ -25,7 +25,9 @@ import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
 import AddIcon from "@mui/icons-material/Add";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import MsgAvatar from "../../components/MsgAvatar";
+import NameAvatar from "../../components/NameAvatar";
 import { SHARED_ICON_BADGES } from "../../shared/badgeConfigs";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
@@ -33,7 +35,7 @@ import { usePatientApi } from "../../api/PatientApiContext";
 import DoctorBubble from "../../components/DoctorBubble";
 import ListCard from "../../components/ListCard";
 import IconBadge from "../../components/IconBadge";
-import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
+import { TYPE, ICON, COLOR, RADIUS, BUBBLE_RADIUS } from "../../theme";
 import { LAST_SEEN_CHAT_KEY } from "./constants";
 import { RECORD_TYPE_BADGE } from "../../shared/badgeConfigs";
 
@@ -180,12 +182,19 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
     // Doctor reply bubble
     if (src === "doctor") {
       return (
-        <Box key={msg.id || i} sx={{ mb: 1.5 }}>
-          <DoctorBubble
-            doctorName={doctorName || "医生"}
-            content={msg.content}
-            timestamp={msg.created_at ? new Date(msg.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : null}
-          />
+        <Box key={msg.id || i} sx={{ display: "flex", alignItems: "flex-end", gap: 1, mb: 1.5 }}>
+          <NameAvatar name={doctorName || "医"} size={32} color={COLOR.accent} />
+          <Box sx={{ maxWidth: "75%" }}>
+            <Box sx={{
+              px: 1.5, py: 1, borderRadius: BUBBLE_RADIUS.left, bgcolor: COLOR.white,
+              color: COLOR.text2, fontSize: TYPE.body.fontSize, lineHeight: 1.7,
+              whiteSpace: "pre-wrap", wordBreak: "break-word",
+            }}>{msg.content}</Box>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mt: 0.5 }}>
+              {doctorName || "医生"}
+              {msg.created_at ? ` · ${new Date(msg.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}` : ""}
+            </Typography>
+          </Box>
         </Box>
       );
     }
@@ -196,7 +205,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
         <Box key={msg.id || i} sx={{ display: "flex", flexDirection: "row-reverse", alignItems: "flex-end", gap: 1, mb: 1.5 }}>
             <IconBadge config={SHARED_ICON_BADGES.patient} size={32} solid />
           <Box sx={{
-            maxWidth: "75%", px: 1.5, py: 1, borderRadius: `${RADIUS.sm} ${RADIUS.sm} 0 ${RADIUS.sm}`,
+            maxWidth: "75%", px: 1.5, py: 1, borderRadius: BUBBLE_RADIUS.right,
             bgcolor: COLOR.wechatGreen, color: COLOR.text2, fontSize: TYPE.body.fontSize, lineHeight: 1.7,
             whiteSpace: "pre-wrap", wordBreak: "break-word",
           }}>{msg.content}</Box>
@@ -247,13 +256,28 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
       );
     }
 
-    // AI message (left aligned) — with triage enrichment
+    // AI message (left aligned) — with triage enrichment + persona attribution
+    const isPersonaAI = msg.ai_handled && doctorName;
+    const aiAvatar = isPersonaAI ? (
+      <Box sx={{ position: "relative", flexShrink: 0 }}>
+        <NameAvatar name={doctorName} size={32} color={COLOR.accent} />
+        <SmartToyOutlinedIcon sx={{
+          position: "absolute", bottom: -2, right: -2,
+          fontSize: 14, color: COLOR.text4,
+          bgcolor: COLOR.white, borderRadius: "50%",
+        }} />
+      </Box>
+    ) : (
+      <MsgAvatar isUser={false} size={32} />
+    );
+    const aiLabel = isPersonaAI ? `${doctorName}的AI助手` : "AI健康助手";
+
     return (
       <Box key={msg.id || i} sx={{ display: "flex", alignItems: "flex-end", gap: 1, mb: 1.5 }}>
-        <MsgAvatar isUser={false} size={32} />
+        {aiAvatar}
         <Box sx={{ maxWidth: "75%" }}>
           {msg.triage_category === "diagnosis_confirmation" && (
-            <Box sx={{ mb: 0.5, px: 1.5, py: 1, borderRadius: `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`, bgcolor: COLOR.successLight, border: `0.5px solid ${COLOR.successLight}` }}>
+            <Box sx={{ mb: 0.5, px: 1.5, py: 1, borderRadius: BUBBLE_RADIUS.left, bgcolor: COLOR.successLight, border: `0.5px solid ${COLOR.successLight}` }}>
               <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.success, fontWeight: 500 }}>
                 {msg.content}
               </Typography>
@@ -261,7 +285,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
           )}
           {msg.triage_category !== "diagnosis_confirmation" && (
             <Box sx={{
-              px: 1.5, py: 1, borderRadius: `${RADIUS.sm} ${RADIUS.sm} ${RADIUS.sm} 0`, bgcolor: COLOR.white,
+              px: 1.5, py: 1, borderRadius: BUBBLE_RADIUS.left, bgcolor: COLOR.white,
               color: COLOR.text2, fontSize: TYPE.body.fontSize, lineHeight: 1.7,
               whiteSpace: "pre-wrap", wordBreak: "break-word",
             }}>{msg.content}</Box>
@@ -273,6 +297,9 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
               </Typography>
             </Box>
           )}
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, mt: 0.5 }}>
+            {aiLabel}
+          </Typography>
         </Box>
       </Box>
     );
@@ -288,7 +315,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
         {messages.map(renderMessage)}
         {sending && (
           <Box sx={{ display: "flex", justifyContent: "flex-start", mb: 1.5 }}>
-            <Box sx={{ px: 2, py: 1.5, borderRadius: 2, bgcolor: COLOR.white }}><CircularProgress size={16} /></Box>
+            <Box sx={{ px: 2, py: 1.5, borderRadius: RADIUS.sm, bgcolor: COLOR.white }}><CircularProgress size={16} /></Box>
           </Box>
         )}
         <div ref={chatEndRef} />
