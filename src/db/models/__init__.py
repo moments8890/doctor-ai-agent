@@ -18,6 +18,7 @@ from db.models.doctor_chat_log import DoctorChatLog, ChatRole
 from db.models.ai_suggestion import AISuggestion, SuggestionSection, SuggestionDecision
 from db.models.knowledge_usage import KnowledgeUsageLog
 from db.models.doctor_edit import DoctorEdit
+from db.models.doctor_persona import DoctorPersona, EMPTY_PERSONA_FIELDS
 from db.models.message_draft import MessageDraft, DraftStatus
 
 __all__ = [
@@ -38,5 +39,6 @@ __all__ = [
     "AISuggestion", "SuggestionSection", "SuggestionDecision",
     "KnowledgeUsageLog",
     "DoctorEdit",
+    "DoctorPersona", "EMPTY_PERSONA_FIELDS",
     "MessageDraft", "DraftStatus",
 ]
