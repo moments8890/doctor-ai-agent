@@ -16,11 +16,8 @@ from db.models.base import _utcnow
 class KnowledgeCategory(str, Enum):
     custom = "custom"
     diagnosis = "diagnosis"
-    communication = "communication"
     followup = "followup"
     medication = "medication"
-    preference = "preference"
-    persona = "persona"
 
 
 class DoctorKnowledgeItem(Base):
@@ -37,7 +34,7 @@ class DoctorKnowledgeItem(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
     seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
-    persona_status: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+
 
 
 class InviteCode(Base):

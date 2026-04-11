@@ -132,17 +132,5 @@ async def send_doctor_reply(
     except Exception:
         logger.warning("[reply] failed to update last_activity_at | patient_id=%s", patient_id)
 
-    # 6. Check if persona extraction should trigger (fire-and-forget, non-fatal)
-    if draft_id:
-        try:
-            from domain.knowledge.teaching import _check_persona_extraction
-            from utils.log import safe_create_task
-            safe_create_task(
-                _check_persona_extraction(doctor_id),
-                name=f"persona-check-{doctor_id}",
-            )
-        except Exception:
-            pass
-
     logger.info("[reply] doctor=%s patient=%s msg=%s draft=%s", doctor_id, patient_id, msg.id, draft_id)
     return msg.id

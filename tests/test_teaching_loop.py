@@ -149,7 +149,7 @@ async def test_create_rule_from_edit_saves_knowledge(async_session):
     await async_session.commit()
 
     assert rule is not None
-    assert rule.category == "preference"
+    assert rule.category == "custom"
 
     # Verify the edit record was updated
     from sqlalchemy import select

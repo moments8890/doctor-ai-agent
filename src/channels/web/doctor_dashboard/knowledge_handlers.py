@@ -53,8 +53,6 @@ async def list_knowledge(
 
     result = []
     for item in items:
-        if item.category == KnowledgeCategory.persona.value:
-            continue  # persona shown separately
         # Decode the JSON payload to extract clean text
         text = item.content
         source = "doctor"
