@@ -103,10 +103,15 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
         if (cancelled) return;
         if (Array.isArray(data) && data.length > 0) {
           setMessages(prev => {
-            // Merge: append only new messages by id
             const existingIds = new Set(prev.filter(m => m.id).map(m => m.id));
             const newMsgs = data.filter(m => !existingIds.has(m.id));
-            return newMsgs.length > 0 ? [...prev, ...newMsgs] : prev;
+            if (newMsgs.length === 0) return prev;
+            // Remove optimistic patient messages that now have real counterparts
+            const cleaned = prev.filter(m => {
+              if (!m._local) return true;
+              return !newMsgs.some(nm => nm.source === "patient" && nm.content === m.content);
+            });
+            return [...cleaned, ...newMsgs];
           });
           const maxId = Math.max(...data.map(m => m.id));
           setLastMsgId(maxId);
