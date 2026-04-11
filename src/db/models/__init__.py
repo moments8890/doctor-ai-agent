@@ -19,7 +19,9 @@ from db.models.ai_suggestion import AISuggestion, SuggestionSection, SuggestionD
 from db.models.knowledge_usage import KnowledgeUsageLog
 from db.models.doctor_edit import DoctorEdit
 from db.models.doctor_persona import DoctorPersona, EMPTY_PERSONA_FIELDS
+from db.models.persona_pending import PersonaPendingItem
 from db.models.message_draft import MessageDraft, DraftStatus
+from db.models.user_preferences import UserPreferences, DEFAULT_PREFERENCES
 
 __all__ = [
     "_utcnow",
@@ -40,5 +42,7 @@ __all__ = [
     "KnowledgeUsageLog",
     "DoctorEdit",
     "DoctorPersona", "EMPTY_PERSONA_FIELDS",
+    "PersonaPendingItem",
     "MessageDraft", "DraftStatus",
+    "UserPreferences", "DEFAULT_PREFERENCES",
 ]
