@@ -47,13 +47,16 @@ async def _load_doctor_knowledge(doctor_id: str, config: LayerConfig, query: str
             log(f"[composer] KB loaded: {len(knowledge)} chars")
         except Exception as exc:
             log(f"[composer] KB load failed (non-fatal): {exc}", level="warning")
-    try:
-        from domain.knowledge.knowledge_context import load_active_persona
-        persona = await load_active_persona(doctor_id)
-        if persona:
-            log(f"[composer] persona loaded: {len(persona)} chars")
-    except Exception as exc:
-        log(f"[composer] persona load failed (non-fatal): {exc}", level="warning")
+    if config.load_persona:
+        try:
+            from db.crud.persona import load_active_persona_text
+            from db.engine import AsyncSessionLocal
+            async with AsyncSessionLocal() as session:
+                persona = await load_active_persona_text(session, doctor_id)
+            if persona:
+                log(f"[composer] persona loaded: {len(persona)} chars")
+        except Exception as exc:
+            log(f"[composer] persona load failed (non-fatal): {exc}", level="warning")
     return knowledge, persona
 
 

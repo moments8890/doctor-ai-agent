@@ -131,28 +131,6 @@ async def load_knowledge(
     return render_knowledge_context(query=query, items=items, patient_context=patient_context)
 
 
-async def load_active_persona(doctor_id: str) -> str:
-    """Load the active persona text for a doctor, if any.
-
-    Returns empty string if no persona exists or persona is not active.
-    Loaded SEPARATELY from scored KB items — persona never competes
-    with regular knowledge for the top-5 slots.
-    """
-    if not doctor_id:
-        return ""
-    try:
-        from db.engine import AsyncSessionLocal
-        from domain.knowledge.teaching import get_or_create_persona
-        async with AsyncSessionLocal() as session:
-            persona = await get_or_create_persona(session, doctor_id)
-            if persona and persona.persona_status == "active" and persona.content:
-                return persona.content.strip()
-    except Exception as exc:
-        import logging
-        logging.getLogger("knowledge").warning("[persona] load failed (non-fatal): %s", exc)
-    return ""
-
-
 async def load_knowledge_context_for_prompt(session, doctor_id: str, query: str) -> str:
     """Load knowledge items (cached by doctor_id) and render per-query.
 
