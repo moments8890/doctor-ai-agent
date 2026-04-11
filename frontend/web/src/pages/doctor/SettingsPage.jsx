@@ -27,6 +27,7 @@ import KnowledgeDetailSubpage from "./subpages/KnowledgeDetailSubpage";
 import AboutSubpage from "./subpages/AboutSubpage";
 import PrivacySubpage from "../../pages/PrivacyPage";
 import TemplateSubpage from "./subpages/TemplateSubpage";
+import PersonaSubpage from "./subpages/PersonaSubpage";
 import AddKnowledgeSubpage from "./subpages/AddKnowledgeSubpage";
 import { useDoctorStore } from "../../store/doctorStore";
 import SettingsListSubpage from "./subpages/SettingsListSubpage";
@@ -478,7 +479,9 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   }
 
   // Mobile subpage override
-  const mobileSubpage = isMobile && subpage === "template" ? (
+  const mobileSubpage = isMobile && subpage === "persona" ? (
+    <PersonaSubpage doctorId={doctorId} onBack={goBack} isMobile />
+  ) : isMobile && subpage === "template" ? (
     <TemplateSubpage doctorId={doctorId} onBack={goBack} isMobile />
   ) : isMobile && subpage === "knowledge" ? (
     <KnowledgeSubpageWrapper doctorId={doctorId} onBack={goBack} isMobile urlSubId={urlSubId} />
@@ -539,7 +542,9 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
     </SettingsListSubpage>
   );
 
-  const detailContent = subpage === "template" ? (
+  const detailContent = subpage === "persona" ? (
+    <PersonaSubpage doctorId={doctorId} onBack={goBack} />
+  ) : subpage === "template" ? (
     <TemplateSubpage doctorId={doctorId} onBack={goBack} />
   ) : subpage === "knowledge" ? (
     <KnowledgeSubpageWrapper doctorId={doctorId} onBack={goBack} isMobile />
