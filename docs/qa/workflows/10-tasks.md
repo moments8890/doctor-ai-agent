@@ -1,12 +1,21 @@
 # Workflow 10 — Tasks browse + complete
 
-Ship gate for the **任务** tab — doctor follow-up tasks and scheduled
-outreach. Covers the task list (pending / scheduled / sent / completed
-rows) and the task detail subpage where a doctor can complete,
-reschedule, or cancel a task.
+Ship gate for the **任务** tab — doctor follow-up tasks, scheduled outreach,
+and the "待完成 / 已完成" queue. Covers the TaskPage merged inbox (pending
+messages + upcoming followups + doctor-created tasks) and the
+`TaskDetailSubpage` for per-task actions.
 
-**Area:** `src/pages/doctor/TaskPage.jsx`, `TaskDetailSubpage.jsx`,
-`/api/doctor/tasks`, task mutations
+**Area:** `src/pages/doctor/TaskPage.jsx` (2-tab filter bar),
+`src/pages/doctor/subpages/TaskDetailSubpage.jsx`,
+`useCompletedTasks` / `usePendingTasks` / `useDrafts` / `useDraftSummary`
+hooks in `src/lib/doctorQueries.js`. Task API surface (`api.js:516-570`):
+- List: `GET /api/tasks?doctor_id=<id>&status=<pending|completed>`
+- Create: `POST /api/tasks?doctor_id=<id>` body
+  `{task_type, title, patient_id?, content?, due_at?}`
+- Complete/reopen: `PATCH /api/tasks/<taskId>?doctor_id=<id>` body `{status}`
+- Detail: `GET /api/tasks/<taskId>?doctor_id=<id>`
+- Notes: `PATCH /api/tasks/<taskId>/notes?doctor_id=<id>` body `{notes}`
+
 **Spec:** `frontend/web/tests/e2e/10-tasks.spec.ts`
 **Estimated runtime:** ~5 min manual / ~40 s automated
 
@@ -16,126 +25,140 @@ reschedule, or cancel a task.
 
 **In scope**
 
-- Task list shell + FilterBar tabs (待处理 / 已安排 / 已发送 / 已完成).
-- Per-row actions via `ActionRow` checkbox pattern (done/pending).
-- Badge count per status.
-- Task detail subpage: read-only info + action buttons.
-- Mark-complete flow with optimistic update.
-- Reschedule to a new time.
-- Cancel task (remove from queue).
-- Empty states per tab.
-- Back nav to previous tab.
+- `FilterBar` with exactly **2 tabs**: `待完成` (followups, default) and
+  `已完成` (completed). Counts per tab match seeded data.
+- Default tab = `followups`. URL param `?tab=followups | ?tab=completed`
+  round-trips on refresh.
+- Merged "待完成" list contains:
+  - Upcoming scheduled follow-ups (`summaryData.upcoming_followups`)
+  - Doctor-created tasks (`usePendingTasks`)
+  - Urgent items (`item.soon === true`) rendered at the top in `dangerLight`
+- Task row structure: tappable checkbox circle (left), title + subtitle +
+  due label (body, taps through to detail), `NewItemCard` "新建任务" above
+  the list.
+- Tap circle → `handleCompleteTask` → task moves from pending to completed
+  optimistically, then API `PATCH /api/tasks/<id>` body `{status:"completed"}`.
+- Tap row body → navigate to `/doctor/tasks/<id>` → `TaskDetailSubpage`.
+- `TaskDetailSubpage` shows title, content, patient link, source, status,
+  notes editor, and action buttons.
+- Uncomplete from 已完成 → row moves back to 待完成.
+- Empty states per tab — EmptyState component, not raw "暂无…" text.
+- Origin-banner behaviors: `?origin=patient_submit` and
+  `?origin=review_finalize` show the corresponding card at the top.
 
 **Out of scope**
 
-- Task creation from AI suggestions — that's part of [08](08-review-diagnosis.md)
-  (confirming a diagnosis suggestion may create an auto-task).
-- Batch operations on multiple tasks.
-- Recurring tasks / complex scheduling rules.
+- Draft-reply flow from the pending messages section — covered by
+  [09-draft-reply](09-draft-reply.md). The draft summary hook shares this
+  page but clicking a message row navigates into the chat view tested there.
+- Task creation via NewItemCard dialog UX — out of scope for this ship gate;
+  covered by a dedicated follow-up spec once the sheet form is stable.
+- Reminders / due-date picker — dial in when the scheduling flow lands.
 
 ---
 
 ## Pre-flight
 
-Seed tasks via the doctor API. If there is no direct `POST
-/api/doctor/tasks` endpoint exposed, create tasks indirectly by
-confirming review suggestions that auto-create tasks, or use a
-test-only seeder route.
+Uses `doctorAuth` + `patient` fixtures and the `seed.createPatientTask`
+helper (seed.ts). Test flow:
 
-For a minimum viable test, register a doctor, confirm one diagnosis
-suggestion, and verify a task appears.
+1. Register a doctor and one patient (fixtures).
+2. Call `createPatientTask(request, doctor, patient.patientId, {title, content})`
+   at least once per test case that needs a task to exist — this hits the
+   real `POST /api/tasks?doctor_id=` route with body
+   `{task_type:"follow_up", title, content, patient_id:Number, target:"patient"}`.
+3. Navigate to `/doctor/tasks`.
+
+For tests that assert completion round-trips, seed 2 tasks so the count
+change is visible.
 
 ---
 
 ## Steps
 
-### 1. Task list shell
+### 1. List shell + default tab
 
 | # | Action | Verify |
 |---|--------|--------|
-| 1.1 | Tap 任务 bottom-nav tab | Header "任务"; filter bar with tabs 待处理 / 已安排 / 已发送 / 已完成; 待处理 active by default |
-| 1.2 | Pending count badge | Matches number of pending tasks (visible on the nav tab icon) |
-| 1.3 | Task row | ActionRow with checkbox (unchecked circle for pending), title, subtitle (patient name + action), due date, chevron |
+| 1.1 | Navigate to `/doctor/tasks` | `PageSkeleton` header "任务"; `FilterBar` with exactly 2 tabs — `待完成` and `已完成`; `待完成` active by default |
+| 1.2 | Filter-bar counts | `followups` count = N seeded pending tasks + scheduled followups + urgent items; `completed` count = recently sent + completed tasks |
+| 1.3 | Check URL after tap on `已完成` | URL updates to `?tab=completed` via `window.history.replaceState` |
+| 1.4 | Refresh with `?tab=completed` | App honors the URL param, `已完成` tab active |
+| 1.5 | `NewItemCard` row | Title "新建任务", subtitle "添加待办提醒或随访任务", tappable (opens create sheet — not exercised in this spec) |
 
-### 2. Tab switching
-
-| # | Action | Verify |
-|---|--------|--------|
-| 2.1 | Tap 已安排 | List filters to scheduled tasks; badge count for 待处理 unchanged |
-| 2.2 | Tap 已发送 | Shows sent tasks |
-| 2.3 | Tap 已完成 | Shows completed tasks with ✓ checked state |
-| 2.4 | Empty tab | EmptyState per tab (not blank) |
-
-### 3. Task detail
+### 2. Task row rendering
 
 | # | Action | Verify |
 |---|--------|--------|
-| 3.1 | Tap any pending task row | Navigates to `/doctor/tasks/<id>`; TaskDetailSubpage slides in |
-| 3.2 | Detail content | Task title, description, patient link, due date, source (AI-generated vs manual), status |
-| 3.3 | Action buttons | 完成 / 重新安排 / 取消任务 (or similar) |
+| 2.1 | Seed 1 pending task via `createPatientTask` | Row visible under 待完成: circle checkbox (left), title text, optional subtitle, due label |
+| 2.2 | Seed 1 urgent task (force `soon: true` via a short due_at) | Row rendered with `COLOR.dangerLight` background, sorted above non-urgent |
+| 2.3 | Tap row body (not the circle) | Navigates to `/doctor/tasks/<taskId>` → `TaskDetailSubpage` slides in |
 
-### 4. Complete task
-
-| # | Action | Verify |
-|---|--------|--------|
-| 4.1 | Tap `完成` | Optimistic: row updates to ✓ (checked); task moves from 待处理 to 已完成 tab |
-| 4.2 | Navigate back | 待处理 badge decremented by 1 |
-| 4.3 | Reload | Persisted state matches post-complete |
-
-### 5. Reschedule task
+### 3. Complete task from the list
 
 | # | Action | Verify |
 |---|--------|--------|
-| 5.1 | Open a task → tap `重新安排` | Date picker or input opens |
-| 5.2 | Pick a future date → confirm | Due date updates; task stays in its tab (待处理 or 已安排) |
+| 3.1 | Seed 1 pending task | Row visible, `followups` count = 1 |
+| 3.2 | Tap the circle checkbox on that row | Optimistic update: row disappears from 待完成, `followups` count decrements to 0 |
+| 3.3 | Switch to `已完成` tab | The completed row is visible with "已完成" label or similar sent-style rendering |
+| 3.4 | Reload the page | State persists: the task stays in `已完成` (API mutation was committed) |
 
-### 6. Cancel task
-
-| # | Action | Verify |
-|---|--------|--------|
-| 6.1 | Open a task → tap `取消任务` | Confirm dialog "确认取消任务？" |
-| 6.2 | Confirm | Task removed from queue entirely (not moved to 已完成) |
-
-### 7. Row checkbox shortcut
+### 4. Complete task from the detail page
 
 | # | Action | Verify |
 |---|--------|--------|
-| 7.1 | Tap the unchecked circle on a pending row (without opening detail) | Task marked complete inline; row moves/updates |
+| 4.1 | Seed 1 pending task → navigate directly to `/doctor/tasks/<taskId>` | Detail page shows task title, content, patient name |
+| 4.2 | Tap the primary action (`完成` / `标记完成`) | Optimistic update; back navigation lands on 任务 tab with the item in `已完成` |
+
+### 5. Empty states
+
+| # | Action | Verify |
+|---|--------|--------|
+| 5.1 | Fresh doctor (no tasks) → `/doctor/tasks` | `待完成` tab shows `EmptyState` component (not plain text); `NewItemCard` still rendered |
+| 5.2 | Fresh doctor, switch to `已完成` | `EmptyState` component shown |
+
+### 6. Origin banners
+
+| # | Action | Verify |
+|---|--------|--------|
+| 6.1 | Navigate `/doctor/tasks?origin=patient_submit` | Top banner "已创建审核任务" visible with subtitle |
+| 6.2 | Navigate `/doctor/tasks?origin=review_finalize` | Top banner "已生成随访任务" visible |
 
 ---
 
 ## Edge cases
 
-- **Task with overdue due date** — rendered with warning color, possibly
-  top of 待处理.
-- **Task for deleted patient** — row shows task but patient link
-  broken; tap should either show error or route to a placeholder.
-- **Completing a task with no action target** — no follow-up navigation
-  required; just status flip.
-- **Simultaneous complete via checkbox + detail page** — no race;
-  second mutation is a no-op.
+- **Task for deleted patient** — row shows task but patient link may 404;
+  tap should degrade to a readable error, not crash.
+- **Task with no due_at** — `relativeFuture(null)` returns empty string;
+  due label area stays blank, no "NaN" or "Invalid Date".
+- **Simultaneous complete via checkbox + detail-page button** — both mutate
+  the same task; the second patch is a no-op (idempotent `status: completed`).
+- **Long task content (200+ chars)** — truncated with ellipsis in the list
+  row, full text only in detail.
+- **URL `?tab=sent` (legacy deep link)** — `VALID_TABS` accepts it but the
+  FilterBar only shows 2; the spec should not assert a third tab exists.
 
 ---
 
 ## Known issues
 
-See `docs/qa/hero-path-qa-plan.md` §Known Issues. Task-specific: none
-open as of 2026-04-11.
-
-Tasks are currently scoped out of the primary hero path since
-[nav redesign] merged tasks into 审核 and 我的AI surfaces. If the 任务
-tab is deprecated in a future release, retire this workflow plan.
+None specific to this workflow as of 2026-04-11. Bulk regression bugs from
+`hero-path-qa-plan.md` §Known Issues do not land on TaskPage.
 
 ---
 
 ## Failure modes & debug tips
 
-- **Task badge count mismatch** — badge uses `useTaskBadge(doctorId)`
-  while the list uses `useTasks(...)`; both hit `/api/doctor/tasks` but
-  count filter may differ. Verify the pending filter matches.
-- **Complete doesn't persist** — check task mutation returns updated
-  task object + invalidates `QK.tasks(doctorId)`.
-- **Checkbox tap opens detail page instead of completing** — event
-  bubbling issue; the checkbox click handler needs `e.stopPropagation()`.
-- **Reschedule picker locale wrong** — MUI date picker locale not set;
-  add `dateAdapter` with Chinese locale if needed.
+- **`待完成` count doesn't match seeded tasks** — the count combines
+  `upcoming_followups.length + pending_tasks.length + urgent.length`. If the
+  count is wrong, inspect `effectiveData` in `TaskPage.jsx:293`.
+- **Tapping the checkbox opens the detail page** — event propagation bug.
+  The circle must `stopPropagation()`; check `TaskPage.jsx:539`.
+- **Complete mutation silently fails** — `handleCompleteTask` wraps the API
+  call in `try { … } catch { /* silent */ }`. To debug, log the error or
+  open the Network panel. The optimistic update succeeds visually but the
+  server state drifts — a reload would reveal the divergence.
+- **FilterBar shows 0 tabs** — `filter` state may have an unrecognized URL
+  tab value. `VALID_TABS` filters down to `{followups, completed, sent}`;
+  anything else resets to `followups` on mount.

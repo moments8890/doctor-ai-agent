@@ -98,6 +98,20 @@ EOF
 
 > **微信审核要求（3.3.4）**：提审时填写测试账号 `test`，测试密码 `123456`。
 
+### 2.6 升级现有数据库：人设数据迁移
+
+**仅在从旧版本升级时需要执行**（旧版将人设存储在 `doctor_knowledge_items.category='persona'`，新版使用独立 `doctor_personas` 表）。
+
+首次全新部署无需执行此步骤。
+
+```bash
+cd /home/ubuntu/doctor-ai-agent
+# 先空跑确认影响范围
+PYTHONPATH=src .venv/bin/python3 -m scripts.migrate_persona --dry-run
+# 确认输出符合预期后正式执行
+PYTHONPATH=src .venv/bin/python3 -m scripts.migrate_persona
+```
+
 ### 3. 自动部署（Webhook）
 
 ```bash

@@ -88,7 +88,7 @@ test case runs with an empty doctor to verify the empty states.
 | # | Action | Verify |
 |---|--------|--------|
 | 4.1 | Section label "快捷入口" visible | |
-| 4.2 | `新建病历` row | IconBadge + title + subtitle "语音或文字录入患者信息" + chevron; tap → `/doctor/patients?action=new` |
+| 4.2 | `新建病历` row | IconBadge + title + subtitle "语音或文字录入患者信息" + chevron; tap → `/doctor/patients/new` (URL-driven, not query-param) |
 | 4.3 | `患者预问诊码` row | Tap → `/doctor/settings/qr` |
 | 4.4 | `重新体验引导` row | **Only visible** when `isWizardDone(doctorId) === true`; tap clears wizard-done flag and routes to `/doctor/onboarding?step=1` |
 

@@ -7,7 +7,9 @@ the AI can't learn — this is the most common "I taught my AI but it
 didn't listen" failure mode.
 
 **Area:** `src/pages/doctor/subpages/KnowledgeSubpage.jsx`,
-`AddKnowledgeSubpage.jsx`, `KnowledgeDetailSubpage.jsx`, `components/KnowledgeCard.jsx`
+`AddKnowledgeSubpage.jsx`, `KnowledgeDetailSubpage.jsx`, `components/KnowledgeCard.jsx`.
+Knowledge API lives under `/api/manage/knowledge*` (`api.js:823-895`):
+list GET, item CRUD, upload/extract, upload/save, process-text, fetch-url.
 **Spec:** `frontend/web/tests/e2e/05-knowledge.spec.ts`
 **Estimated runtime:** ~10 min manual / ~90 s automated
 
@@ -155,8 +157,9 @@ See `docs/qa/hero-path-qa-plan.md` §Known Issues:
 - **Item doesn't appear in list after save** — React Query didn't
   invalidate. Check `queryClient.invalidateQueries({queryKey: QK.knowledge(doctorId)})`
   fires in `AddKnowledgeSubpage` save handler.
-- **URL fetch hangs** — `fetchKnowledgeUrl` API call; check backend
-  `/api/doctor/knowledge/fetch-url` route, and CORS if the URL is external.
+- **URL fetch hangs** — `fetchKnowledgeUrl` API call; check the backend
+  `/api/manage/knowledge/fetch-url?doctor_id=<id>` route (`api.js:885`),
+  and CORS if the URL is external.
 - **File extract returns empty** — PDF library may not handle that format.
   Fall back path: user can paste text manually into the preview sheet.
 - **Search doesn't filter persona card** — by design: persona is always

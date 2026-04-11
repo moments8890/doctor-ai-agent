@@ -40,8 +40,11 @@ first 5 minutes with the product fail silently.
 ## Pre-flight
 
 Requires a **fresh doctor** with no wizard progress and no knowledge items.
-The spec uses the `doctorAuth` fixture and immediately clears
-`localStorage.wizardProgress_<doctorId>` before starting.
+The spec uses the `doctorAuth` fixture and clears both wizard keys from
+`onboardingWizardState.js` before starting:
+
+- `onboarding_wizard_progress:<doctorId>` — current step + saved-source state
+- `onboarding_wizard_done:<doctorId>` — completion flag (`"completed" | "skipped"`)
 
 For manual runs:
 
@@ -148,7 +151,8 @@ merge time.
 - **Step 1.1 doesn't show the wizard** — `getWizardProgress(doctorId)`
   may already report `done`. Clear with:
   ```js
-  localStorage.removeItem(`onboardingWizard:${doctorId}`)
+  localStorage.removeItem(`onboarding_wizard_done:${doctorId}`);
+  localStorage.removeItem(`onboarding_wizard_progress:${doctorId}`);
   ```
 - **Step 2.5 `下一步` never enables** — check `savedSources.length >= 1`
   condition in `Step1Content`. Likely the `?saved=text` param never got

@@ -210,7 +210,7 @@ export default function MyAIPage({ doctorId }) {
               variant="primary" size="md" fullWidth
               onClick={() => navigate(dp("settings/persona"))}
             >
-              编辑人设
+              编辑风格
             </AppButton>
             <AppButton
               variant="secondary" size="md" fullWidth
@@ -265,7 +265,7 @@ export default function MyAIPage({ doctorId }) {
         {/* ── C1. 我的AI人设 (Persona) ─────────────────────── */}
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
           <SectionLabel>
-            <Box component="span">我的AI人设</Box>
+            <Box component="span">我的AI风格</Box>
             <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 1 }}>
               决定AI怎么说话
             </Typography>

@@ -10,6 +10,7 @@ import { test, expect } from "./fixtures/doctor-auth";
 import {
   completePatientInterview,
   sendPatientMessage,
+  sendDoctorReply,
   addKnowledgeText,
   waitForDraft,
 } from "./fixtures/seed";
@@ -77,12 +78,61 @@ test.describe("Workflow 09 — Draft reply send", () => {
     await expect(doctorPage.getByText(/AI辅助生成，经医生审核/)).toBeVisible();
   });
 
-  test("1.3 — empty 待回复 tab", async ({ doctorPage }) => {
+  test("1.3 — empty 待回复 tab for a fresh doctor", async ({ doctorPage }) => {
+    // Fresh doctor = no seeded drafts, so empty state MUST render. Drop the
+    // soft if-visible guard — if the copy drifts, the test should fail and we
+    // update the regex, not silently skip.
     await doctorPage.goto("/doctor/review?tab=pending_reply");
-    // If no drafts seeded, empty state should show.
-    const empty = doctorPage.getByText(/暂无待回复|没有待回复/);
-    if (await empty.isVisible().catch(() => false)) {
-      await expect(empty).toBeVisible();
+    await expect(
+      doctorPage.getByText(/暂无待回复|没有待回复|暂无消息|没有待处理/).first(),
+    ).toBeVisible();
+  });
+
+  test("5.4 — patient portal receives the doctor reply", async ({
+    browser,
+    doctor,
+    patient,
+    request,
+  }) => {
+    // This test verifies the "doctor sends → patient sees" half of §5.
+    // We skip the UI-driven send (covered in the first test) and use the
+    // seed.sendDoctorReply helper to push a message via the real backend
+    // reply endpoint. Then we authenticate a fresh patient Page via the
+    // patientPage fixture and assert the bubble arrives in ChatTab.
+    const replyText =
+      "（E2E测试）请继续监测血压并记录读数，有任何变化随时告诉我。";
+
+    // Seed a completed interview so the patient has a non-empty portal state.
+    await completePatientInterview(request, patient);
+
+    // Fire the reply as the doctor — hits POST /api/manage/patients/{id}/reply.
+    await sendDoctorReply(request, doctor, patient.patientId, replyText);
+
+    // Spin up an isolated browser context for the patient portal so the
+    // doctor's localStorage doesn't leak in. (doctorPage + patientPage share
+    // a single Page by default in the shared fixture; opening a new context
+    // here keeps the two sessions strictly separated for this test.)
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    try {
+      const page = await ctx.newPage();
+      // Hydrate patient session (mirrors authenticatePatientPage helper).
+      await page.goto("/login");
+      await page.evaluate(
+        ({ p, dn }) => {
+          localStorage.setItem("patient_portal_token", p.token);
+          localStorage.setItem("patient_portal_name", p.name);
+          localStorage.setItem("patient_portal_doctor_id", p.doctorId);
+          localStorage.setItem("patient_portal_doctor_name", dn);
+          localStorage.setItem("patient_portal_patient_id", p.patientId);
+        },
+        { p: patient, dn: doctor.name },
+      );
+
+      // Chat is the default tab on /patient.
+      await page.goto("/patient");
+      await expect(page.getByText(replyText)).toBeVisible({ timeout: 15_000 });
+    } finally {
+      await ctx.close();
     }
   });
 });

@@ -6,8 +6,13 @@ This is the core doctor workflow of the app — if suggestions don't
 render or can't be acted on, the product is unusable.
 
 **Area:** `src/pages/doctor/ReviewQueuePage.jsx` (待审核 tab),
-`src/pages/doctor/ReviewPage.jsx`, suggestion API
-`/api/doctor/records/<id>/suggestions`
+`src/pages/doctor/ReviewPage.jsx`. API surface (`api.js:953-980, 1007, 1044`):
+- Queue: `GET /api/manage/review/queue?doctor_id=<id>`
+- Trigger diagnosis: `POST /api/doctor/records/<id>/diagnose` body `{doctor_id}`
+- Suggestions: `GET /api/doctor/records/<id>/suggestions?doctor_id=<id>`
+- Decide: `POST /api/doctor/suggestions/<id>/decide` body `{decision, …}`
+- Add custom: `POST /api/doctor/records/<id>/suggestions` body `{doctor_id, section, content, detail}`
+- Finalize: `POST /api/doctor/records/<id>/review/finalize` body `{doctor_id}`
 **Spec:** `frontend/web/tests/e2e/08-review-diagnosis.spec.ts`
 **Estimated runtime:** ~8 min manual / ~60 s automated
 
@@ -46,12 +51,16 @@ render or can't be acted on, the product is unusable.
 
 Seed a pending review by running a patient through an interview via
 `seed.completePatientInterview`. This creates a record with status
-`pending_review`, which the backend picks up and generates suggestions
-for (async — may need a short poll).
+`pending_review`. Suggestion generation is **async** — the spec must
+wait for the backend LLM pipeline to finish before asserting on the
+review detail page. Use the `seed.waitForSuggestions(doctor, recordId)`
+helper (polls `GET /api/doctor/records/<id>/suggestions`) or trigger
+diagnosis explicitly with `POST /api/doctor/records/<id>/diagnose`
+body `{doctor_id}`.
 
-For deterministic tests, call `/api/doctor/records/<id>/generate-suggestions`
-directly if such a dev endpoint exists, OR seed 2-3 knowledge items
-relevant to the interview symptoms so the LLM has something to cite.
+Seed 2–3 knowledge items relevant to the interview symptoms so the LLM
+has something to cite — otherwise the "no `[KB-N]` literal" assertion is
+vacuous.
 
 ---
 
@@ -151,7 +160,8 @@ See `docs/qa/hero-path-qa-plan.md` §Known Issues:
 ## Failure modes & debug tips
 
 - **Queue card doesn't render** — `useReviewQueue(doctorId)` must
-  return `pending` array. Check network panel for `/api/doctor/review/queue`.
+  return `pending` array. Check network panel for
+  `/api/manage/review/queue?doctor_id=<id>` (`api.js:1007`).
 - **Suggestions don't appear on detail page** — either the backend
   hasn't generated them yet (async — poll), or the record has no
   `ai_suggestions` row. Check `SELECT * FROM ai_suggestions WHERE

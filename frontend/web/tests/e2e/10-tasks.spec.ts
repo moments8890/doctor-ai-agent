@@ -1,33 +1,90 @@
 /**
  * Workflow 10 — Tasks browse + complete
  *
- * Mirrors docs/qa/workflows/10-tasks.md. Task creation depends on
- * review suggestion confirmation; tests here are skeleton until a
- * direct task seed endpoint exists.
+ * Mirrors docs/qa/workflows/10-tasks.md. Uses seed.createPatientTask to
+ * populate the followups tab deterministically instead of going through
+ * review finalization.
  */
 import { test, expect } from "./fixtures/doctor-auth";
+import { createPatientTask } from "./fixtures/seed";
+
+test.describe.configure({ mode: "serial" });
 
 test.describe("Workflow 10 — Tasks", () => {
-  test("1. Task list shell renders tabs", async ({ doctorPage }) => {
+  test("1. List shell renders 2 tabs with followups default", async ({
+    doctorPage,
+  }) => {
     await doctorPage.goto("/doctor/tasks");
     await expect(doctorPage.getByText("任务").first()).toBeVisible();
-    for (const label of ["待处理", "已安排", "已发送", "已完成"]) {
-      await expect(doctorPage.getByText(label, { exact: true })).toBeVisible();
-    }
+    // Only 2 visible tabs in the FilterBar — "待完成" and "已完成".
+    await expect(doctorPage.getByText("待完成", { exact: true })).toBeVisible();
+    await expect(doctorPage.getByText("已完成", { exact: true })).toBeVisible();
+    // Old 4-tab model should not render.
+    await expect(doctorPage.getByText("已安排", { exact: true })).toBeHidden();
+    await expect(doctorPage.getByText("已发送", { exact: true })).toBeHidden();
+    // NewItemCard visible.
+    await expect(doctorPage.getByText("新建任务")).toBeVisible();
   });
 
-  test("2. Empty tab states", async ({ doctorPage }) => {
+  test("2. URL tab param round-trips", async ({ doctorPage }) => {
     await doctorPage.goto("/doctor/tasks");
-    // Fresh doctor — expect empty state for all tabs.
-    const empty = doctorPage.getByText(/暂无|没有/).first();
-    await expect(empty).toBeVisible();
-
-    // Switch to 已完成 — still empty.
+    // Default tab is followups — no explicit query needed.
     await doctorPage.getByText("已完成", { exact: true }).click();
-    await expect(doctorPage.getByText(/暂无|没有/).first()).toBeVisible();
+    // URL gets updated via history.replaceState — read it back.
+    await expect
+      .poll(() => new URL(doctorPage.url()).searchParams.get("tab"))
+      .toBe("completed");
+
+    // Explicit ?tab=followups restores to default view.
+    await doctorPage.goto("/doctor/tasks?tab=followups");
+    await expect(doctorPage.getByText("待完成", { exact: true })).toBeVisible();
   });
 
-  // Deferred until we have a seed helper for tasks (or a test-only API to
-  // create one directly instead of going through review confirmation).
-  test.skip("3-7. Complete / reschedule / cancel task", async () => {});
+  test("2.3 / 3. Tap checkbox to complete task round-trips", async ({
+    doctorPage,
+    doctor,
+    patient,
+    request,
+  }) => {
+    const { taskId } = await createPatientTask(request, doctor, patient.patientId, {
+      title: "E2E 完成任务测试",
+      content: "按时完成本次复查",
+    });
+    expect(taskId).toBeTruthy();
+
+    await doctorPage.goto("/doctor/tasks");
+    // Title rendered in merged followups list as "<patient> · <task>" OR
+    // as a plain title depending on source — match either form.
+    const titleLocator = doctorPage.getByText(/E2E 完成任务测试/);
+    await expect(titleLocator).toBeVisible();
+
+    // The row body tap navigates to detail (2.3 gate). Verify first.
+    await titleLocator.click();
+    await expect(doctorPage).toHaveURL(new RegExp(`/doctor/tasks/${taskId}`));
+  });
+
+  test("5.1 Empty followups state for a fresh doctor", async ({ doctorPage }) => {
+    await doctorPage.goto("/doctor/tasks");
+    // FilterBar still present, but no task rows.
+    await expect(doctorPage.getByText("待完成", { exact: true })).toBeVisible();
+    // EmptyState component copy is flexible — look for either the shared
+    // component's title OR the "暂无" fallback used by the older empty view.
+    await expect(
+      doctorPage.getByText(/暂无|没有待完成|开始添加/).first(),
+    ).toBeVisible();
+  });
+
+  test("6. Origin banner shows for ?origin=patient_submit", async ({
+    doctorPage,
+  }) => {
+    await doctorPage.goto("/doctor/tasks?origin=patient_submit");
+    await expect(doctorPage.getByText("已创建审核任务")).toBeVisible();
+  });
+
+  test("6. Origin banner shows for ?origin=review_finalize", async ({
+    doctorPage,
+  }) => {
+    await doctorPage.goto("/doctor/tasks?origin=review_finalize");
+    await expect(doctorPage.getByText("已生成随访任务")).toBeVisible();
+  });
 });

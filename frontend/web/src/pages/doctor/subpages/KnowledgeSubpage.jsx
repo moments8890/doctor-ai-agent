@@ -153,7 +153,7 @@ export default function KnowledgeSubpage({
           {persona && (
             <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
               <KnowledgeCard
-                title="我的AI人设"
+                title="我的AI风格"
                 summary={personaSummary(persona)}
                 referenceCount={0}
                 source="system"
@@ -203,7 +203,7 @@ export default function KnowledgeSubpage({
           <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
             {persona && (
               <KnowledgeCard
-                title="我的AI人设"
+                title="我的AI风格"
                 summary={personaSummary(persona)}
                 referenceCount={0}
                 source="system"

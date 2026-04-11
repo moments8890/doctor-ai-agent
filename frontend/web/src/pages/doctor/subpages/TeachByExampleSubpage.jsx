@@ -49,7 +49,7 @@ export default function TeachByExampleSubpage({ onBack, isMobile }) {
   }
 
   return (
-    <PageSkeleton title="教AI新偏好" onBack={onBack} mobileView={isMobile}>
+    <PageSkeleton title="教AI新偏好" onBack={onBack} isMobile={isMobile} listPane={
       <Box sx={{ px: 2, py: 2, flex: 1, overflowY: "auto" }}>
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 1.5, lineHeight: 1.6 }}>
           粘贴一段你满意的回复，AI会自动分析其中的风格偏好，添加到待确认队列。
@@ -116,6 +116,6 @@ export default function TeachByExampleSubpage({ onBack, isMobile }) {
           </Box>
         )}
       </Box>
-    </PageSkeleton>
+    } />
   );
 }

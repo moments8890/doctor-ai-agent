@@ -34,89 +34,90 @@ export default function PendingReviewSubpage({ onBack, isMobile }) {
 
   const items = data?.items || [];
 
+  const listContent = isLoading ? (
+    <SectionLoading />
+  ) : items.length === 0 ? (
+    <EmptyState message="暂无待确认的发现" />
+  ) : (
+    <Box sx={{ px: 2, py: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
+      {items.map((item) => {
+        const conf = CONFIDENCE_LABELS[item.confidence] || CONFIDENCE_LABELS.medium;
+        const fieldLabel = FIELD_LABELS[item.field] || item.field;
+        const isThisActing = actingId === item.id;
+        const anyActing = actingId !== null;
+        return (
+          <Box
+            key={item.id}
+            sx={{
+              bgcolor: COLOR.white,
+              borderRadius: RADIUS.md,
+              border: `0.5px solid ${COLOR.border}`,
+              p: 1.5,
+            }}
+          >
+            {/* Field + confidence */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
+              <Chip
+                label={fieldLabel}
+                size="small"
+                sx={{ fontSize: TYPE.caption.fontSize, bgcolor: COLOR.surfaceAlt, color: COLOR.text2 }}
+              />
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: conf.color }}>
+                {conf.label}
+              </Typography>
+            </Box>
+
+            {/* Proposed rule */}
+            <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, fontWeight: 500, mb: 0.5 }}>
+              {item.proposed_rule}
+            </Typography>
+
+            {/* Evidence summary */}
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 1.25 }}>
+              {item.evidence_summary}
+            </Typography>
+
+            {/* Action buttons */}
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+              <AppButton
+                variant="secondary"
+                size="sm"
+                fullWidth
+                disabled={anyActing}
+                loading={isThisActing && rejectMutation.isPending}
+                onClick={() => {
+                  setActingId(item.id);
+                  rejectMutation.mutate(item.id, { onSettled: () => setActingId(null) });
+                }}
+              >
+                忽略
+              </AppButton>
+              <AppButton
+                variant="primary"
+                size="sm"
+                fullWidth
+                disabled={anyActing}
+                loading={isThisActing && acceptMutation.isPending}
+                onClick={() => {
+                  setActingId(item.id);
+                  acceptMutation.mutate(item.id, { onSettled: () => setActingId(null) });
+                }}
+              >
+                确认
+              </AppButton>
+            </Box>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+
   return (
     <PageSkeleton
       title="AI发现"
       onBack={onBack}
-      mobileView={isMobile}
-    >
-      {isLoading ? (
-        <SectionLoading />
-      ) : items.length === 0 ? (
-        <EmptyState message="暂无待确认的发现" />
-      ) : (
-        <Box sx={{ px: 2, py: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
-          {items.map((item) => {
-            const conf = CONFIDENCE_LABELS[item.confidence] || CONFIDENCE_LABELS.medium;
-            const fieldLabel = FIELD_LABELS[item.field] || item.field;
-            const isThisActing = actingId === item.id;
-            const anyActing = actingId !== null;
-            return (
-              <Box
-                key={item.id}
-                sx={{
-                  bgcolor: COLOR.white,
-                  borderRadius: RADIUS.md,
-                  border: `0.5px solid ${COLOR.border}`,
-                  p: 1.5,
-                }}
-              >
-                {/* Field + confidence */}
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-                  <Chip
-                    label={fieldLabel}
-                    size="small"
-                    sx={{ fontSize: TYPE.caption.fontSize, bgcolor: COLOR.surfaceAlt, color: COLOR.text2 }}
-                  />
-                  <Typography sx={{ fontSize: TYPE.caption.fontSize, color: conf.color }}>
-                    {conf.label}
-                  </Typography>
-                </Box>
-
-                {/* Proposed rule */}
-                <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, fontWeight: 500, mb: 0.5 }}>
-                  {item.proposed_rule}
-                </Typography>
-
-                {/* Evidence summary */}
-                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 1.25 }}>
-                  {item.evidence_summary}
-                </Typography>
-
-                {/* Action buttons */}
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
-                  <AppButton
-                    variant="secondary"
-                    size="sm"
-                    fullWidth
-                    disabled={anyActing}
-                    loading={isThisActing && rejectMutation.isPending}
-                    onClick={() => {
-                      setActingId(item.id);
-                      rejectMutation.mutate(item.id, { onSettled: () => setActingId(null) });
-                    }}
-                  >
-                    忽略
-                  </AppButton>
-                  <AppButton
-                    variant="primary"
-                    size="sm"
-                    fullWidth
-                    disabled={anyActing}
-                    loading={isThisActing && acceptMutation.isPending}
-                    onClick={() => {
-                      setActingId(item.id);
-                      acceptMutation.mutate(item.id, { onSettled: () => setActingId(null) });
-                    }}
-                  >
-                    确认
-                  </AppButton>
-                </Box>
-              </Box>
-            );
-          })}
-        </Box>
-      )}
-    </PageSkeleton>
+      isMobile={isMobile}
+      listPane={listContent}
+    />
   );
 }

@@ -58,17 +58,17 @@ async def process_edit_for_persona(
         log(f"[persona_learning] edit {edit_id}: pattern suppressed, skipping")
         return None
 
-    # 3. Check for duplicate pending
+    # 3. Check for duplicate pending or already-accepted pattern
     existing = (await session.execute(
         select(func.count()).select_from(PersonaPendingItem).where(
             PersonaPendingItem.doctor_id == doctor_id,
             PersonaPendingItem.pattern_hash == pattern,
-            PersonaPendingItem.status == "pending",
+            PersonaPendingItem.status.in_(["pending", "accepted"]),
         )
     )).scalar() or 0
 
     if existing > 0:
-        log(f"[persona_learning] edit {edit_id}: duplicate pending, skipping")
+        log(f"[persona_learning] edit {edit_id}: duplicate or already accepted, skipping")
         return None
 
     # 4. Create pending item

@@ -7,8 +7,15 @@ main end-to-end test of the "AI thinks like me" value proposition.
 
 **Area:** `src/pages/doctor/ReviewQueuePage.jsx` (待回复 tab),
 `src/pages/doctor/patients/PatientDetail.jsx` (chat view + draft
-editing), `SheetDialog` confirm send, `/api/doctor/messages/draft` +
-`/api/doctor/messages/send`
+editing), `SheetDialog` confirm send. Draft API surface
+(`api.js:1010-1034, 944-949`):
+- List drafts: `GET /api/manage/drafts?doctor_id=<id>&patient_id=<pid>`
+- Draft summary: `GET /api/manage/drafts/summary?doctor_id=<id>`
+- Edit draft: `PUT /api/manage/drafts/<draftId>/edit?doctor_id=<id>` body `{edited_text}`
+- Send draft: `POST /api/manage/drafts/<draftId>/send?doctor_id=<id>`
+- Send confirmation: `POST /api/manage/drafts/<draftId>/send-confirmation?doctor_id=<id>`
+- Dismiss: `POST /api/manage/drafts/<draftId>/dismiss?doctor_id=<id>`
+- Manual fallback reply: `POST /api/manage/patients/<patientId>/reply` body `{text}`
 **Spec:** `frontend/web/tests/e2e/09-draft-reply.spec.ts`
 **Estimated runtime:** ~8 min manual / ~60 s automated
 
@@ -46,11 +53,14 @@ editing), `SheetDialog` confirm send, `/api/doctor/messages/draft` +
 Seed:
 
 1. Patient + completed interview (for chat context).
-2. Patient message via `seed.sendPatientMessage` to create a draft.
-3. Short delay — the backend needs to generate the AI draft reply
-   asynchronously. Poll `/api/doctor/review/queue?tab=pending_reply`
-   until the patient appears, or use a test-only "force draft" endpoint
-   if available.
+2. At least one knowledge item relevant to the test message so the draft
+   generator has something to cite.
+3. Patient message via `seed.sendPatientMessage` (hits
+   `POST /api/patient/message`, not `/messages`).
+4. **Async wait.** Draft generation runs out-of-band after the message
+   lands. Use `seed.waitForDraft(doctor, patientId)` which polls
+   `GET /api/manage/drafts?doctor_id=…&patient_id=…` until at least one
+   draft exists. Default 30 s timeout.
 
 ---
 
@@ -135,8 +145,10 @@ See `docs/qa/hero-path-qa-plan.md` §Known Issues:
   PatientDetail.jsx send handler; it may be reading `initialDraft`
   instead of the current editor state.
 - **Draft bubble is blank** — backend returned empty `content`. Check
-  `/api/doctor/messages/draft` response; verify knowledge rules
-  relevant to the patient message exist.
+  `GET /api/manage/drafts?doctor_id=<id>&patient_id=<pid>` response
+  (`api.js:1010`); verify knowledge rules relevant to the patient message
+  exist — without them the LLM has nothing to cite and the draft pipeline
+  may emit an empty body.
 - **Send fails silently** — check for `sendPatientMessage` mutation
   error handler that swallows the exception.
 - **Item stays in 待回复 after send** — cache not invalidated; check

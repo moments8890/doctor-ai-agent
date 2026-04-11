@@ -400,7 +400,12 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   }
 
   // URL-driven subpage (survives refresh)
-  const subpage = urlSubpage || null;
+  // Persona sub-routes: /settings/persona/onboarding, /settings/persona/pending, /settings/persona/teach
+  // are encoded as urlSubpage="persona", urlSubId="onboarding"|"pending"|"teach" by the router.
+  const PERSONA_SUB_IDS = ["onboarding", "pending", "teach"];
+  const subpage = (urlSubpage === "persona" && PERSONA_SUB_IDS.includes(urlSubId))
+    ? `persona/${urlSubId}`
+    : (urlSubpage || null);
   const goSub = (sub) => navigate(`${dp("settings")}/${sub}`);
   const goBack = () => navigate(-1);
 

@@ -4,6 +4,17 @@ Per-workflow QA plans for the doctor-ai-agent doctor app. **Each file is a
 ship gate.** Before pushing to production, the affected workflow plans should
 pass — both the manual checklist and the matching Playwright spec.
 
+> **Known issues — 2026-04-11.** A dual Claude + Codex review of these plans
+> surfaced significant contract drift (wrong localStorage keys, wrong API
+> paths, missing workflows). The critical P0 fixes — auth fixture, seed.ts
+> API paths, onboarding storage keys, persona/review/draft plan endpoints,
+> MyAI new-record route, seed-smoke spec — are now landed. Several P1/P2 gaps
+> remain open: missing workflows for doctor-side new-record creation, patient
+> preview/QR, `TeachByExampleSubpage`, `PendingReviewSubpage`, template
+> editor, teaching-loop round-trip, and desktop sidebar. See the full report
+> at
+> [`../reports/2026-04-11-workflows-review/report.html`](../reports/2026-04-11-workflows-review/report.html).
+
 ```
 docs/qa/workflows/          ← authoritative checklist (this directory)
 frontend/web/tests/e2e/     ← matching Playwright spec per workflow
@@ -15,6 +26,7 @@ The MD file is the source of truth. The spec is the automation.
 
 | # | Workflow | File | Spec | Touches |
 |---|----------|------|------|---------|
+| 00 | Seed smoke (contract-drift gate) | — | `00-seed-smoke.spec.ts` | `fixtures/seed.ts`, `fixtures/doctor-auth.ts` |
 | 01 | Auth (login / logout / history safety) | [01-auth.md](01-auth.md) | `01-auth.spec.ts` | `/login`, `SettingsPage` |
 | 02 | Doctor onboarding wizard | [02-onboarding.md](02-onboarding.md) | `02-onboarding.spec.ts` | `OnboardingWizard.jsx` |
 | 03 | My AI tab overview | [03-my-ai-overview.md](03-my-ai-overview.md) | `03-my-ai-overview.spec.ts` | `MyAIPage.jsx` |
@@ -26,6 +38,7 @@ The MD file is the source of truth. The spec is the automation.
 | 09 | Draft reply send (审核 待回复) | [09-draft-reply.md](09-draft-reply.md) | `09-draft-reply.spec.ts` | `ReviewQueuePage.jsx`, `patients/PatientDetail.jsx` |
 | 10 | Tasks browse + complete | [10-tasks.md](10-tasks.md) | `10-tasks.spec.ts` | `TaskPage.jsx`, `TaskDetailSubpage.jsx` |
 | 11 | Settings (font / about / logout) | [11-settings.md](11-settings.md) | `11-settings.spec.ts` | `SettingsListSubpage.jsx`, `fontScaleStore.js` |
+| 12 | New record creation (doctor interview) | [12-new-record.md](12-new-record.md) | `12-new-record.spec.ts` | `InterviewPage.jsx`, `PatientsPage.jsx` |
 
 ## Shared pre-flight
 
@@ -87,6 +100,7 @@ Re-running on a dirty DB will hit "phone already registered" (400) — use
 
 | Trigger | Run these plans |
 |---------|-----------------|
+| **Any Playwright run** | **00 first** — it fails fast if the fixture / API contracts drifted |
 | Any change to login / auth / doctor store | 01, 03 |
 | Any change to MyAIPage / doctor home | 03, 04 |
 | Any change to persona | 04 |
@@ -97,7 +111,8 @@ Re-running on a dirty DB will hit "phone already registered" (400) — use
 | Any change to draft reply / send flow | 09 |
 | Any change to task queue | 10 |
 | Any change to settings / theme / fontScale | 11 |
-| **Before any production ship** | **All 11** — sequentially |
+| Any change to doctor interview / record creation | 12 |
+| **Before any production ship** | **All 12** — sequentially |
 
 ## Adding a new workflow
 

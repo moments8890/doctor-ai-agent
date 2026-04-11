@@ -50,7 +50,7 @@ risk on re-runs.
 | 1.2 | Enter `昵称` = registered phone (e.g. 13800138001) | Field accepts full 11-digit value |
 | 1.3 | Enter `口令` = birth year as integer (e.g. 1980) | Field accepts 4-digit numeric value |
 | 1.4 | Tap `登录` | Within 2 s: redirected to `/doctor` OR `/doctor/my-ai`; 4-tab bottom nav visible: 我的AI / 患者 / 审核 / 任务 |
-| 1.5 | Inspect `localStorage` after login | Contains `doctor_token`, `doctor_id`, `doctor_name` keys; values non-empty |
+| 1.5 | Inspect `localStorage` after login | Contains `doctor-session` key with JSON blob `{state:{doctorId, doctorName, accessToken}, version:0}` (zustand persist shape from `doctorStore.js:13`). In DEV_MODE the app also reads `unified_auth_doctor_id / _token / _name` as a fallback — belt-and-braces |
 | 1.6 | Full-page reload (Cmd-R) | App restores to the same tab; no redirect back to `/login`; no flicker of login page |
 
 ### 2. Invalid credentials
@@ -69,7 +69,7 @@ risk on re-runs.
 | 3.1 | From authed state, navigate to Settings (tab: 我的AI → bottom sheet or settings route) | Settings list visible; 退出登录 row in red at the bottom |
 | 3.2 | Tap `退出登录` | Either fires immediately OR shows a confirm dialog (cancel LEFT grey / confirm RIGHT red) |
 | 3.3 | (If confirm dialog) Tap `退出` | Session cleared; redirected to `/login` |
-| 3.4 | Inspect `localStorage` after logout | `doctor_token`, `doctor_id`, `doctor_name` removed OR set to empty/null |
+| 3.4 | Inspect `localStorage` after logout | Either `doctor-session` blob is removed, or the inner `state.accessToken` / `state.doctorId` are null. `clearAuth()` in `doctorStore.js:11` sets them to null — zustand persist writes the blob back with null fields |
 
 ### 4. Browser-back safety (BUG-07 regression)
 
@@ -86,8 +86,9 @@ call should clear history so the authed route is no longer in the stack.
 
 ## Edge cases
 
-- **Expired token** — if `localStorage.doctor_token` is stale, the first
-  authed API call returns 401 and the app should redirect to `/login`.
+- **Expired token** — if the `accessToken` inside the
+  `localStorage["doctor-session"]` blob is stale, the first authed API call
+  returns 401 and the app should redirect to `/login`.
   Not automated (requires manipulating server-side token TTL); manual spot
   check when the token expiry logic changes.
 - **Trailing whitespace in phone** — the form should strip it, not reject.

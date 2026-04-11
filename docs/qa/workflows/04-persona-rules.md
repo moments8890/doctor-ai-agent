@@ -9,8 +9,10 @@ This workflow targets the new `PersonaSubpage` introduced on
 `feat/persona-phase1` (commits `607b4053`, `a09376a5`, `eaa8dfa0`).
 
 **Area:** `src/pages/doctor/subpages/PersonaSubpage.jsx`, persona API
-(`api.addPersonaRule` / `updatePersonaRule` / `deletePersonaRule`),
-`usePersona()` hook, `QK.persona(doctorId)` cache key
+(`/api/manage/persona/rules?doctor_id=` POST/PUT/DELETE with
+`{field, text}` body; `/api/manage/persona?doctor_id=` GET for reads —
+see `frontend/web/src/api.js:628-658`), `usePersona()` hook,
+`QK.persona(doctorId)` cache key
 **Spec:** `frontend/web/tests/e2e/04-persona-rules.spec.ts`
 **Estimated runtime:** ~5 min manual / ~30 s automated
 
@@ -103,7 +105,7 @@ via `seed.addPersonaRule` to verify render of existing rules.
 
 | # | Action | Verify |
 |---|--------|--------|
-| 6.1 | Open network tab, add a rule | Two requests fire: POST `/api/doctor/persona/<field>/rules`, then GET `/api/doctor/persona` (cache invalidation) |
+| 6.1 | Open network tab, add a rule | Two requests fire: `POST /api/manage/persona/rules?doctor_id=<id>` with body `{field, text}`, then `GET /api/manage/persona?doctor_id=<id>` (cache invalidation via `QK.persona(doctorId)`) |
 | 6.2 | Navigate back to 我的AI | Persona preview card reflects the new rule within 1 s (no hard reload) |
 
 ---

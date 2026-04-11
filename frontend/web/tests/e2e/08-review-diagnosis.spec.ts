@@ -100,31 +100,43 @@ test.describe("Workflow 08 — Review diagnosis", () => {
     await waitForSuggestions(request, doctor, recordId);
     await doctorPage.goto(`/doctor/review/${recordId}`);
 
-    // Expand first suggestion (if any exist) and tap 修改.
-    const firstRow = doctorPage.locator("text=鉴别诊断").locator("..").locator("..");
-    const editBtn = firstRow.getByText("修改").first();
-    if (await editBtn.isVisible().catch(() => false)) {
-      await editBtn.click();
+    // waitForSuggestions already confirmed suggestions exist, so the 修改
+    // button MUST be visible once a suggestion row is expanded. Remove the
+    // old soft guard — if this fails, suggestions didn't generate or the
+    // expand UI changed.
+    //
+    // Expand the first suggestion row (tap to toggle). Then assert 修改.
+    const firstSuggestion = doctorPage
+      .getByText("鉴别诊断")
+      .locator("..")
+      .locator("..")
+      .locator("[role=button], [style*=cursor]")
+      .first();
+    await firstSuggestion.click();
 
-      // Inspect button order in the edit footer.
-      const footer = doctorPage.locator('[role="dialog"], form').last();
-      const buttons = await footer.getByRole("button").allInnerTexts();
-      const cancelIdx = buttons.findIndex((t) => /取消/.test(t));
-      const saveIdx = buttons.findIndex((t) => /保存/.test(t));
-      expect(cancelIdx).toBeGreaterThanOrEqual(0);
-      expect(saveIdx).toBeGreaterThanOrEqual(0);
-      expect(cancelIdx).toBeLessThan(saveIdx); // cancel LEFT, save RIGHT
-    }
+    const editBtn = doctorPage.getByText("修改").first();
+    await expect(editBtn).toBeVisible();
+    await editBtn.click();
+
+    // Inspect button order in the edit footer: cancel LEFT, save RIGHT.
+    const footer = doctorPage.locator('[role="dialog"], form').last();
+    const buttons = await footer.getByRole("button").allInnerTexts();
+    const cancelIdx = buttons.findIndex((t) => /取消/.test(t));
+    const saveIdx = buttons.findIndex((t) => /保存/.test(t));
+    expect(cancelIdx).toBeGreaterThanOrEqual(0);
+    expect(saveIdx).toBeGreaterThanOrEqual(0);
+    expect(cancelIdx).toBeLessThan(saveIdx); // cancel LEFT, save RIGHT
   });
 
-  test("8. Empty state — no pending reviews", async ({ doctorPage }) => {
+  test("8. Empty state — no pending reviews for fresh doctor", async ({
+    doctorPage,
+  }) => {
+    // The doctorPage fixture registers a fresh doctor with zero seeded
+    // records, so the pending review queue is guaranteed empty. This is
+    // an unconditional assertion — not a soft "if visible" guard.
     await doctorPage.goto("/doctor/review");
-    // If this doctor has nothing pending, empty state shows.
-    const empty = doctorPage.getByText(/暂无待审核/);
-    // Only assert visibility if fixture was truly empty — otherwise, this test
-    // is a weak guard and should be considered passing either way.
-    if (await empty.isVisible().catch(() => false)) {
-      await expect(empty).toBeVisible();
-    }
+    await expect(
+      doctorPage.getByText(/暂无待审核|没有待审核|暂无记录/).first(),
+    ).toBeVisible();
   });
 });

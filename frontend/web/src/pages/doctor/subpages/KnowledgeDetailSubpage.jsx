@@ -394,7 +394,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
       <SheetDialog
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        title={isPersona ? "编辑AI人设" : "编辑知识"}
+        title={isPersona ? "编辑AI风格" : "编辑知识"}
         desktopMaxWidth={480}
         mobileMaxHeight="90vh"
         footer={

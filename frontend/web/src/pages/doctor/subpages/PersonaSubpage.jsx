@@ -7,11 +7,12 @@
  * @see /doctor/settings/persona
  */
 import { useState } from "react";
-import { Box, IconButton, TextField, Typography } from "@mui/material";
+import { Box, Collapse, IconButton, TextField, Typography } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import TuneOutlinedIcon from "@mui/icons-material/TuneOutlined";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import { TYPE, COLOR, RADIUS, ICON } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
 import AppButton from "../../../components/AppButton";
@@ -185,7 +186,7 @@ export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
             p: 1.5,
           }}>
             <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.primaryText, mb: 0.5 }}>
-              还没有人设
+              还没有风格规则
             </Typography>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mb: 1.25 }}>
               用3个场景快速配置你的AI回复风格
@@ -387,9 +388,9 @@ export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
   return (
     <>
       <PageSkeleton
-        title="AI 人设"
+        title="AI 风格"
         onBack={onBack}
-        mobileView={isMobile}
+        isMobile={isMobile}
         listPane={listContent}
       />
 

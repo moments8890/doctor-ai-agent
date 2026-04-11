@@ -4,7 +4,10 @@
  * Mirrors docs/qa/workflows/07-patient-detail.md.
  */
 import { test, expect } from "./fixtures/doctor-auth";
-import { completePatientInterview } from "./fixtures/seed";
+import {
+  completePatientInterview,
+  sendPatientMessage,
+} from "./fixtures/seed";
 
 test.describe("Workflow 07 — Patient detail", () => {
   test("1-2. Bio header + records timeline with seeded record", async ({
@@ -53,28 +56,54 @@ test.describe("Workflow 07 — Patient detail", () => {
   test("4. Messages shortcut navigates to chat view", async ({
     doctorPage,
     patient,
+    request,
   }) => {
+    // Seed a message so the "患者消息" section is non-empty and the link
+    // is guaranteed to render. Removes the old soft-assert guard.
+    await sendPatientMessage(request, patient, "医生，复查结果出来了。");
     await doctorPage.goto(`/doctor/patients/${patient.patientId}`);
-    const chatLink = doctorPage.getByText(/查看聊天记录/);
-    if (await chatLink.isVisible().catch(() => false)) {
-      await chatLink.click();
-      await expect(doctorPage).toHaveURL(/view=chat/);
-    }
+
+    const chatLink = doctorPage.getByText(/查看聊天记录|患者消息/);
+    await expect(chatLink).toBeVisible();
+    await chatLink.click();
+    await expect(doctorPage).toHaveURL(/view=chat/);
   });
 
-  test("5. Delete patient confirm dialog", async ({ doctorPage, patient }) => {
+  test("5. Delete patient confirm dialog", async ({
+    doctorPage,
+    patient,
+    request,
+  }) => {
+    // Seed a record so the patient page is fully populated — the overflow
+    // menu is always visible once the page loads.
+    await completePatientInterview(request, patient);
     await doctorPage.goto(`/doctor/patients/${patient.patientId}`);
 
-    // Open overflow / more menu — selector depends on actual UI; adjust as needed.
-    const more = doctorPage.getByRole("button", { name: /更多|⋯|删除/ }).first();
-    if (await more.isVisible().catch(() => false)) {
-      await more.click();
-      await doctorPage.getByText("删除患者").click();
-      await expect(doctorPage.getByText("删除患者")).toBeVisible();
-      await expect(doctorPage.getByText(/所有病历和任务将一并删除/)).toBeVisible();
-
-      // Cancel via the first (grey) button — don't actually delete.
-      await doctorPage.getByRole("button", { name: /取消|保留/ }).click();
+    // The overflow icon is a clickable Box, not a standard button. Look
+    // for common identifiers: aria-label, the MoreVert icon text, or the
+    // menu items themselves. PatientDetail.jsx uses a SheetDialog with menu
+    // items, typically triggered by an icon in the header.
+    // First, try the more-icon approach; fall back to header actions.
+    const moreIcon = doctorPage.locator('[aria-label="更多"], [aria-label="操作"]').first();
+    if (await moreIcon.count() > 0) {
+      await moreIcon.click();
+    } else {
+      // If there's a visible "更多" text button, use that instead.
+      await doctorPage.getByText("更多").first().click();
     }
+
+    // Assert the sheet opened with the danger action visible.
+    const deleteRow = doctorPage.getByText("删除患者");
+    await expect(deleteRow).toBeVisible();
+    await deleteRow.click();
+
+    // ConfirmDialog opens.
+    await expect(doctorPage.getByText(/所有病历和任务将一并删除/)).toBeVisible();
+
+    // Cancel via the grey button — don't actually delete the test patient.
+    await doctorPage.getByRole("button", { name: /取消|保留/ }).click();
+
+    // Patient still visible after cancel.
+    await expect(doctorPage.getByText(patient.name)).toBeVisible();
   });
 });

@@ -76,12 +76,10 @@ test.describe("Workflow 01 — Auth", () => {
     const logoutRow = doctorPage.getByText("退出登录");
     await expect(logoutRow).toBeVisible();
 
-    // 3.2 / 3.3 — logout (may show confirm dialog)
+    // 3.2 — logout fires immediately (no confirm dialog in current code:
+    // SettingsListSubpage onClick → DoctorPage handleLogout → clearAuth()
+    // → navigate("/login", {replace: true})).
     await logoutRow.click();
-    const confirmBtn = doctorPage.getByRole("button", { name: /退出|确认/ });
-    if (await confirmBtn.isVisible().catch(() => false)) {
-      await confirmBtn.click();
-    }
 
     // 3.4 — redirected + session cleared. clearAuth() sets the inner fields
     // to null but the persist blob itself stays — check state.accessToken,
@@ -98,10 +96,6 @@ test.describe("Workflow 01 — Auth", () => {
   test("4. Browser-back after logout does not show authed pages (BUG-07)", async ({ doctorPage }) => {
     await doctorPage.goto("/doctor/settings");
     await doctorPage.getByText("退出登录").click();
-    const confirmBtn = doctorPage.getByRole("button", { name: /退出|确认/ });
-    if (await confirmBtn.isVisible().catch(() => false)) {
-      await confirmBtn.click();
-    }
     await expect(doctorPage).toHaveURL(/\/login/);
 
     // 4.2 — press back

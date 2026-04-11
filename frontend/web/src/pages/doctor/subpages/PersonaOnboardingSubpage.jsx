@@ -45,21 +45,21 @@ export default function PersonaOnboardingSubpage({ onBack, isMobile, onComplete 
 
   if (loadError) {
     return (
-      <PageSkeleton title="初始化人设" onBack={onBack} mobileView={isMobile}>
+      <PageSkeleton title="初始化风格" onBack={onBack} isMobile={isMobile} listPane={
         <Box sx={{ px: 2, pt: 4, textAlign: "center" }}>
           <Typography sx={{ color: COLOR.danger, fontSize: TYPE.body.fontSize }}>{loadError}</Typography>
         </Box>
-      </PageSkeleton>
+      } />
     );
   }
 
   if (!scenarios) {
     return (
-      <PageSkeleton title="初始化人设" onBack={onBack} mobileView={isMobile}>
+      <PageSkeleton title="初始化风格" onBack={onBack} isMobile={isMobile} listPane={
         <Box sx={{ display: "flex", justifyContent: "center", pt: 6 }}>
           <CircularProgress size={32} />
         </Box>
-      </PageSkeleton>
+      } />
     );
   }
 
@@ -130,39 +130,46 @@ export default function PersonaOnboardingSubpage({ onBack, isMobile, onComplete 
   if (isSummaryStep) {
     const ruleSummary = getRuleSummary();
     return (
-      <PageSkeleton title="确认人设" onBack={() => setStep(scenarios.length - 1)} mobileView={isMobile}>
-        <Box sx={{ px: 2, py: 2, flex: 1, overflowY: "auto" }}>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 2 }}>
-            根据你的选择，AI将按以下偏好回复患者：
-          </Typography>
-          {ruleSummary.length === 0 ? (
-            <Typography sx={{ color: COLOR.text4, fontSize: TYPE.body.fontSize }}>未检测到偏好，请返回重新选择</Typography>
-          ) : (
-            ruleSummary.map((r, i) => (
-              <Box key={i} sx={{ display: "flex", gap: 1.25, mb: 1, alignItems: "flex-start" }}>
-                <CheckCircleOutlinedIcon sx={{ fontSize: 18, color: COLOR.success, mt: 0.25, flexShrink: 0 }} />
-                <Box>
-                  <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-                    {FIELD_LABELS[r.field] || r.field}
-                  </Typography>
-                  <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>{r.text}</Typography>
-                </Box>
-              </Box>
-            ))
-          )}
-          {saveError && (
-            <Typography sx={{ color: COLOR.danger, fontSize: TYPE.secondary.fontSize, mt: 1 }}>{saveError}</Typography>
-          )}
-        </Box>
-        <Box sx={{ px: 2, pb: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
-          <AppButton variant="secondary" size="md" fullWidth onClick={() => setStep(scenarios.length - 1)} disabled={saving}>
-            返回修改
-          </AppButton>
-          <AppButton variant="primary" size="md" fullWidth onClick={handleConfirm} loading={saving} loadingLabel="保存中…">
-            确认开始
-          </AppButton>
-        </Box>
-      </PageSkeleton>
+      <PageSkeleton
+        title="确认风格"
+        onBack={() => setStep(scenarios.length - 1)}
+        isMobile={isMobile}
+        listPane={
+          <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+            <Box sx={{ px: 2, py: 2, flex: 1, overflowY: "auto" }}>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 2 }}>
+                根据你的选择，AI将按以下偏好回复患者：
+              </Typography>
+              {ruleSummary.length === 0 ? (
+                <Typography sx={{ color: COLOR.text4, fontSize: TYPE.body.fontSize }}>未检测到偏好，请返回重新选择</Typography>
+              ) : (
+                ruleSummary.map((r, i) => (
+                  <Box key={i} sx={{ display: "flex", gap: 1.25, mb: 1, alignItems: "flex-start" }}>
+                    <CheckCircleOutlinedIcon sx={{ fontSize: 18, color: COLOR.success, mt: 0.25, flexShrink: 0 }} />
+                    <Box>
+                      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+                        {FIELD_LABELS[r.field] || r.field}
+                      </Typography>
+                      <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1 }}>{r.text}</Typography>
+                    </Box>
+                  </Box>
+                ))
+              )}
+              {saveError && (
+                <Typography sx={{ color: COLOR.danger, fontSize: TYPE.secondary.fontSize, mt: 1 }}>{saveError}</Typography>
+              )}
+            </Box>
+            <Box sx={{ px: 2, pb: 3, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+              <AppButton variant="secondary" size="md" fullWidth onClick={() => setStep(scenarios.length - 1)} disabled={saving}>
+                返回修改
+              </AppButton>
+              <AppButton variant="primary" size="md" fullWidth onClick={handleConfirm} loading={saving} loadingLabel="保存中…">
+                确认开始
+              </AppButton>
+            </Box>
+          </Box>
+        }
+      />
     );
   }
 
@@ -171,62 +178,67 @@ export default function PersonaOnboardingSubpage({ onBack, isMobile, onComplete 
   const progress = ((step) / scenarios.length) * 100;
 
   return (
-    <PageSkeleton title={`${step + 1} / ${scenarios.length}`} onBack={step === 0 ? onBack : () => setStep(step - 1)} mobileView={isMobile}>
-      <Box sx={{ px: 2, py: 1.5, flex: 1, overflowY: "auto" }}>
-        {/* Progress bar */}
-        <Box sx={{ height: 3, bgcolor: COLOR.surfaceAlt, borderRadius: 2, mb: 2, overflow: "hidden" }}>
-          <Box sx={{ height: "100%", bgcolor: COLOR.primary, width: `${progress}%`, transition: "width 0.3s ease" }} />
-        </Box>
+    <PageSkeleton
+      title={`${step + 1} / ${scenarios.length}`}
+      onBack={step === 0 ? onBack : () => setStep(step - 1)}
+      isMobile={isMobile}
+      listPane={
+        <Box sx={{ px: 2, py: 1.5, flex: 1, overflowY: "auto" }}>
+          {/* Progress bar */}
+          <Box sx={{ height: 3, bgcolor: COLOR.surfaceAlt, borderRadius: 2, mb: 2, overflow: "hidden" }}>
+            <Box sx={{ height: "100%", bgcolor: COLOR.primary, width: `${progress}%`, transition: "width 0.3s ease" }} />
+          </Box>
 
-        {/* Scenario header */}
-        <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1, mb: 0.5 }}>
-          {currentScenario.title}
-        </Typography>
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 1.5 }}>
-          {currentScenario.patient_info}
-        </Typography>
-
-        {/* Patient message */}
-        <Box sx={{
-          bgcolor: COLOR.surfaceAlt,
-          borderRadius: RADIUS.md,
-          p: 1.5,
-          mb: 2,
-          border: `0.5px solid ${COLOR.border}`,
-        }}>
-          <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2, lineHeight: 1.65 }}>
-            {currentScenario.patient_message}
+          {/* Scenario header */}
+          <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1, mb: 0.5 }}>
+            {currentScenario.title}
           </Typography>
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 1.5 }}>
+            {currentScenario.patient_info}
+          </Typography>
+
+          {/* Patient message */}
+          <Box sx={{
+            bgcolor: COLOR.surfaceAlt,
+            borderRadius: RADIUS.md,
+            p: 1.5,
+            mb: 2,
+            border: `0.5px solid ${COLOR.border}`,
+          }}>
+            <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text2, lineHeight: 1.65 }}>
+              {currentScenario.patient_message}
+            </Typography>
+          </Box>
+
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 1 }}>
+            选择你更习惯的回复方式：
+          </Typography>
+
+          {/* Options */}
+          {currentScenario.options.map((opt) => {
+            const isSelected = selectedOption === opt.id;
+            return (
+              <Box
+                key={opt.id}
+                onClick={() => handlePick(currentScenario.id, opt.id)}
+                sx={{
+                  mb: 1.25,
+                  p: 1.5,
+                  borderRadius: RADIUS.md,
+                  border: `1.5px solid ${isSelected ? COLOR.primary : COLOR.border}`,
+                  bgcolor: isSelected ? COLOR.primaryLight : COLOR.white,
+                  cursor: "pointer",
+                  transition: "border-color 0.15s, background-color 0.15s",
+                }}
+              >
+                <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, lineHeight: 1.65 }}>
+                  {opt.text}
+                </Typography>
+              </Box>
+            );
+          })}
         </Box>
-
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 1 }}>
-          选择你更习惯的回复方式：
-        </Typography>
-
-        {/* Options */}
-        {currentScenario.options.map((opt) => {
-          const isSelected = selectedOption === opt.id;
-          return (
-            <Box
-              key={opt.id}
-              onClick={() => handlePick(currentScenario.id, opt.id)}
-              sx={{
-                mb: 1.25,
-                p: 1.5,
-                borderRadius: RADIUS.md,
-                border: `1.5px solid ${isSelected ? COLOR.primary : COLOR.border}`,
-                bgcolor: isSelected ? COLOR.primaryLight : COLOR.white,
-                cursor: "pointer",
-                transition: "border-color 0.15s, background-color 0.15s",
-              }}
-            >
-              <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text1, lineHeight: 1.65 }}>
-                {opt.text}
-              </Typography>
-            </Box>
-          );
-        })}
-      </Box>
-    </PageSkeleton>
+      }
+    />
   );
 }
