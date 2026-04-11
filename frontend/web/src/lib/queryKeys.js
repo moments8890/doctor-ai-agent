@@ -12,4 +12,5 @@ export const QK = {
   taskRecord:     (rid, did) => ["doctor", did, "record", rid],
   suggestions:    (rid, did) => ["doctor", did, "suggestions", rid],
   persona:        (did) => ["doctor", did, "persona"],
+  personaPending: (did) => ["doctor", did, "persona-pending"],
 };

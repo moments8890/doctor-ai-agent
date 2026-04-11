@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QK } from "./queryKeys";
 import { useApi } from "../api/ApiContext";
 import { useDoctorStore } from "../store/doctorStore";
@@ -156,6 +156,42 @@ export function usePersona() {
     queryFn:  () => api.getPersona(doctorId),
     staleTime: 5 * 60_000,
     enabled:  !!doctorId,
+  });
+}
+
+export function usePersonaPending() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.personaPending(doctorId),
+    queryFn:  () => api.getPersonaPending(doctorId),
+    enabled:  !!doctorId,
+    staleTime: 30_000,
+  });
+}
+
+export function useAcceptPendingItem() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId) => api.acceptPendingItem(doctorId, itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QK.personaPending(doctorId) });
+      queryClient.invalidateQueries({ queryKey: QK.persona(doctorId) });
+    },
+  });
+}
+
+export function useRejectPendingItem() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId) => api.rejectPendingItem(doctorId, itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QK.personaPending(doctorId) });
+    },
   });
 }
 

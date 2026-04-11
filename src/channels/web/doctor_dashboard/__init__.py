@@ -18,6 +18,7 @@ from channels.web.doctor_dashboard.profile_handlers import router as _profile_ro
 from channels.web.doctor_dashboard.onboarding_handlers import router as _onboarding_router
 from channels.web.doctor_dashboard.knowledge_handlers import router as _knowledge_router
 from channels.web.doctor_dashboard.persona_handlers import router as _persona_router
+from channels.web.doctor_dashboard.persona_pending_handlers import router as _persona_pending_router
 from channels.web.doctor_dashboard.briefing_handlers import router as _briefing_router
 from channels.web.doctor_dashboard.diagnosis_handlers import router as _diagnosis_router
 from channels.web.doctor_dashboard.knowledge_stats_handlers import router as _knowledge_stats_router
@@ -27,6 +28,7 @@ from channels.web.doctor_dashboard.ai_activity_handlers import router as _ai_act
 from channels.web.doctor_dashboard.review_queue_handlers import router as _review_queue_router
 from channels.web.doctor_dashboard.admin_overview import router as _admin_overview_router
 from channels.web.doctor_dashboard.admin_cleanup import router as _admin_cleanup_router
+from channels.web.doctor_dashboard.preferences_handlers import router as _preferences_router
 
 router = APIRouter(tags=["ui"])
 
@@ -42,6 +44,7 @@ router.include_router(_profile_router)
 router.include_router(_onboarding_router)
 router.include_router(_knowledge_router)
 router.include_router(_persona_router)
+router.include_router(_persona_pending_router)
 router.include_router(_briefing_router)
 router.include_router(_diagnosis_router)
 router.include_router(_knowledge_stats_router)
@@ -51,3 +54,4 @@ router.include_router(_ai_activity_router)
 router.include_router(_review_queue_router)
 router.include_router(_admin_overview_router)
 router.include_router(_admin_cleanup_router)
+router.include_router(_preferences_router)

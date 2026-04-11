@@ -611,6 +611,20 @@ export async function updateDoctorProfile(doctorId, { name, specialty }) {
   });
 }
 
+export async function getPreferences(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/preferences?${qs.toString()}`);
+}
+
+export async function updatePreferences(doctorId, prefs) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/preferences?${qs.toString()}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(prefs),
+  });
+}
+
 export async function getPersona(doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   return request(`/api/manage/persona?${qs.toString()}`);
@@ -649,6 +663,27 @@ export async function activatePersona(doctorId, action) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action }),
+  });
+}
+
+export async function getPersonaPending(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/pending?${qs.toString()}`);
+}
+
+export async function acceptPendingItem(doctorId, itemId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/pending/${itemId}/accept?${qs.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export async function rejectPendingItem(doctorId, itemId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/pending/${itemId}/reject?${qs.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
   });
 }
 
