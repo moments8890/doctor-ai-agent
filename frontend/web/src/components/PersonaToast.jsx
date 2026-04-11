@@ -20,7 +20,7 @@ export default function PersonaToast() {
   const storageKey = `persona_toast_seen_count_${doctorId}`;
 
   useEffect(() => {
-    if (!data?.items) return;
+    if (!doctorId || !data?.items) return;
     const items = data.items;
     const seenCount = parseInt(localStorage.getItem(storageKey) || "0", 10);
     if (items.length > seenCount) {
@@ -29,7 +29,7 @@ export default function PersonaToast() {
       setToastItem(newItem);
       setOpen(true);
     }
-  }, [data, storageKey]);
+  }, [data, storageKey, doctorId]);
 
   function handleDismiss() {
     if (data?.items) {

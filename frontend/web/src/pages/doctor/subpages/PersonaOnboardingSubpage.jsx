@@ -3,7 +3,7 @@
  * Shows 3 scenarios one at a time, doctor picks a response style.
  * After all 3, shows summary of extracted rules.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
@@ -34,6 +34,7 @@ export default function PersonaOnboardingSubpage({ onBack, isMobile, onComplete 
   const [extractedRules, setExtractedRules] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const confirmingRef = useRef(false);
 
   // Load scenarios on first render
   useEffect(() => {
@@ -107,6 +108,8 @@ export default function PersonaOnboardingSubpage({ onBack, isMobile, onComplete 
   }
 
   async function handleConfirm() {
+    if (confirmingRef.current) return;
+    confirmingRef.current = true;
     setSaving(true);
     setSaveError(null);
     try {
@@ -118,6 +121,7 @@ export default function PersonaOnboardingSubpage({ onBack, isMobile, onComplete 
     } catch {
       setSaveError("保存失败，请重试");
     } finally {
+      confirmingRef.current = false;
       setSaving(false);
     }
   }
