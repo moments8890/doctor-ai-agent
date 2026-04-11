@@ -3,6 +3,7 @@
  * Each item shows the proposed rule, field label, evidence summary, and confidence.
  * Doctor can 确认 (accept) or 忽略 (reject).
  */
+import { useState } from "react";
 import { Box, Chip, Typography } from "@mui/material";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
@@ -29,6 +30,7 @@ export default function PendingReviewSubpage({ onBack, isMobile }) {
   const { data, isLoading } = usePersonaPending();
   const acceptMutation = useAcceptPendingItem();
   const rejectMutation = useRejectPendingItem();
+  const [actingId, setActingId] = useState(null);
 
   const items = data?.items || [];
 
@@ -47,7 +49,8 @@ export default function PendingReviewSubpage({ onBack, isMobile }) {
           {items.map((item) => {
             const conf = CONFIDENCE_LABELS[item.confidence] || CONFIDENCE_LABELS.medium;
             const fieldLabel = FIELD_LABELS[item.field] || item.field;
-            const isActing = acceptMutation.isPending || rejectMutation.isPending;
+            const isThisActing = actingId === item.id;
+            const anyActing = actingId !== null;
             return (
               <Box
                 key={item.id}
@@ -86,9 +89,12 @@ export default function PendingReviewSubpage({ onBack, isMobile }) {
                     variant="secondary"
                     size="sm"
                     fullWidth
-                    disabled={isActing}
-                    loading={rejectMutation.isPending}
-                    onClick={() => rejectMutation.mutate(item.id)}
+                    disabled={anyActing}
+                    loading={isThisActing && rejectMutation.isPending}
+                    onClick={() => {
+                      setActingId(item.id);
+                      rejectMutation.mutate(item.id, { onSettled: () => setActingId(null) });
+                    }}
                   >
                     忽略
                   </AppButton>
@@ -96,9 +102,12 @@ export default function PendingReviewSubpage({ onBack, isMobile }) {
                     variant="primary"
                     size="sm"
                     fullWidth
-                    disabled={isActing}
-                    loading={acceptMutation.isPending}
-                    onClick={() => acceptMutation.mutate(item.id)}
+                    disabled={anyActing}
+                    loading={isThisActing && acceptMutation.isPending}
+                    onClick={() => {
+                      setActingId(item.id);
+                      acceptMutation.mutate(item.id, { onSettled: () => setActingId(null) });
+                    }}
                   >
                     确认
                   </AppButton>
