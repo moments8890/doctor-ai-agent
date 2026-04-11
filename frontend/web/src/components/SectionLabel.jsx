@@ -7,7 +7,7 @@ import { TYPE, COLOR } from "../theme";
 
 export default function SectionLabel({ children, sx }) {
   return (
-    <Box sx={{ px: 1.5, pt: 1, pb: 1, ...sx }}>
+    <Box sx={{ px: 1.5, pt: 2, pb: 0.5, ...sx }}>
       <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, fontWeight: 600, letterSpacing: 0.5 }}>
         {children}
       </Typography>

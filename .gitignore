@@ -44,6 +44,11 @@ frontend/ios/
 frontend/.env.android
 frontend/web/android/app/build/
 
+# Playwright artifacts
+frontend/web/playwright-report/
+frontend/web/test-results/
+frontend/web/.playwright/
+
 # local screts, runtime config
 config/local.secrets
 config/runtime.json

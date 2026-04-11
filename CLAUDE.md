@@ -112,6 +112,14 @@ These rules are enforced by `scripts/lint-ui.sh`. Run it before pushing.
 - **Danger dialogs:** same layout, primary button red. No button-swap.
 - **Mobile subpages:** must use `PageSkeleton mobileView` (auto-gets Slide transition)
 
+## Git Safety
+
+- **NEVER push to any remote** (GitHub, Gitee, or any other) unless the user
+  explicitly says "push". This includes `git push`, `git push --force`,
+  `git push --force-with-lease`, `gh pr push`, or any variant.
+- `git commit` is fine when asked to commit.
+- Even if the user says "commit everything" — that means commit locally, NOT push.
+
 ## Skill routing
 
 When the user's request matches an available skill, ALWAYS invoke it using the Skill

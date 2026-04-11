@@ -18,6 +18,7 @@ import LoginPage from "./pages/LoginPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import PatientPage from "./pages/patient/PatientPage";
 import { useDoctorStore } from "./store/doctorStore";
+import { syncFontScaleFromServer, saveFontScaleToServer, useFontScaleStore } from "./store/fontScaleStore";
 import { RADIUS } from "./theme";
 import { MOBILE_FRAME_CONTAINER_ID } from "./utils/dialogContainer";
 import { isMiniApp } from "./utils/env";
@@ -241,7 +242,15 @@ export default function App() {
 			queryFn:  () => getTasks(doctorId, "pending"),
 			staleTime: 60_000,
 		});
+		// Sync font scale from server (overwrites localStorage with server value)
+		syncFontScaleFromServer(doctorId);
 	}, [accessToken, doctorId]);
+
+	// Save font scale to server whenever it changes
+	useEffect(() => {
+		if (!doctorId) return;
+		return useFontScaleStore.subscribe(() => saveFontScaleToServer(doctorId));
+	}, [doctorId]);
 
 	// Handle 401 token expiry — Mini App shows message, web redirects to login
 	useEffect(() => {

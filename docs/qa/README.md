@@ -8,11 +8,17 @@ This folder contains all QA plans, checklists, and session reports for doctor-ai
 
 | Trigger | Run | Time |
 |---------|-----|------|
-| Before any production deploy | [`release-checklist.md`](release-checklist.md) | ~90 min |
+| Before any production deploy | [`release-checklist.md`](release-checklist.md) + all [`workflows/`](workflows/README.md) | ~90 min |
+| After any change to a specific feature | The matching file in [`workflows/`](workflows/README.md) | ~5 min per workflow |
 | After any change to hero path (interview, review, reply) | [`hero-path-qa-plan.md`](hero-path-qa-plan.md) | ~45 min |
 | After any change to knowledge, citations, or teaching loop | [`ai-thinks-like-me-qa-plan.md`](ai-thinks-like-me-qa-plan.md) | ~45 min |
 | Before first paying doctor (one-time) | [`deferred-qa-plan.md`](deferred-qa-plan.md) | ~2–4 hrs |
 | Quarterly deep audit | [`qa-test-plan.md`](qa-test-plan.md) | ~4 hrs |
+
+> **Per-workflow ship gates** live in [`workflows/`](workflows/README.md).
+> Each file is a single doctor workflow (login, persona, review, etc.) with
+> a matching Playwright spec in `frontend/web/tests/e2e/`. Use these as the
+> default pre-ship check — they're scoped, fast, and automatable.
 
 ---
 
@@ -35,8 +41,9 @@ Full details: [`release-checklist.md`](release-checklist.md)
 
 | File | What it covers | Cadence |
 |------|---------------|---------|
-| [`hero-path-qa-plan.md`](hero-path-qa-plan.md) | Full doctor + patient hero path. Login → interview → diagnosis review → draft reply → send. Includes known bugs from April 8 run. | Every release |
-| [`ai-thinks-like-me-qa-plan.md`](ai-thinks-like-me-qa-plan.md) | "AI thinks like me" loop. Knowledge ingestion (4 sources) → citation in diagnosis → teaching loop (edit → save rule) → round-trip validation (new rule cited in next diagnosis) → persona learning. | Every release |
+| [`workflows/`](workflows/README.md) | **Per-workflow ship gates.** 11 files, one doctor workflow each: auth, onboarding, my-ai overview, persona, knowledge, patient list, patient detail, review diagnosis, draft reply, tasks, settings. Each has a matching Playwright spec. | Per-feature + every release |
+| [`hero-path-qa-plan.md`](hero-path-qa-plan.md) | Broad reference: full doctor + patient hero path. Login → interview → diagnosis review → draft reply → send. Source of the BUG-01..07 registry. | Major releases |
+| [`ai-thinks-like-me-qa-plan.md`](ai-thinks-like-me-qa-plan.md) | "AI thinks like me" loop. Knowledge ingestion (4 sources) → citation in diagnosis → teaching loop (edit → save rule) → round-trip validation → persona learning. | Every release |
 | [`deferred-qa-plan.md`](deferred-qa-plan.md) | Deferred tests: data isolation, teaching loop deep, WeChat miniprogram, concurrency, LLM trust, triage safety. | Pre-first-doctor |
 | [`qa-test-plan.md`](qa-test-plan.md) | Exhaustive 21-section pipeline reference covering all backend pipelines. | Quarterly |
 

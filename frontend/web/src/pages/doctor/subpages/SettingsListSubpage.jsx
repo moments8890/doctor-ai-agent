@@ -7,7 +7,9 @@
  *
  * @see /mock/doctor-pages → 设置
  */
+import { useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
@@ -15,14 +17,17 @@ import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PolicyOutlinedIcon from "@mui/icons-material/PolicyOutlined";
+import TextFieldsOutlinedIcon from "@mui/icons-material/TextFieldsOutlined";
 import AccountCard from "../../../components/AccountCard";
 import PageSkeleton from "../../../components/PageSkeleton";
 import SectionLabel from "../../../components/SectionLabel";
-import { TYPE, ICON, COLOR, RADIUS } from "../../../theme";
+import SheetDialog from "../../../components/SheetDialog";
+import { TYPE, ICON, COLOR, RADIUS, FONT_SCALE_LEVELS } from "../../../theme";
+import { useFontScaleStore } from "../../../store/fontScaleStore";
 
 /* ── SettingsRow — icon-adorned navigation row ── */
 
-function SettingsRow({ icon, label, sublabel, onClick, danger }) {
+function SettingsRow({ icon, label, sublabel, onClick, danger, iconBg }) {
   return (
     <Box onClick={onClick} sx={{
       display: "flex", alignItems: "center", px: 2, py: 1.5,
@@ -32,7 +37,7 @@ function SettingsRow({ icon, label, sublabel, onClick, danger }) {
     }}>
       <Box sx={{
         width: 36, height: 36, borderRadius: RADIUS.sm,
-        bgcolor: danger ? COLOR.dangerLight : COLOR.primaryLight,
+        bgcolor: iconBg || (danger ? COLOR.dangerLight : COLOR.primaryLight),
         display: "flex", alignItems: "center", justifyContent: "center",
         flexShrink: 0, mr: 1.5,
       }}>
@@ -86,6 +91,24 @@ function BulkExportRow({ status, progress, onClick }) {
   );
 }
 
+/* ── FontScaleRow — same SettingsRow pattern, current level as sublabel ── */
+
+function FontScaleRow({ onClick }) {
+  const { fontScale } = useFontScaleStore();
+  const currentLabel = FONT_SCALE_LEVELS[fontScale]?.label || "标准";
+
+  return (
+    <SettingsRow
+      icon={<TextFieldsOutlinedIcon sx={{ color: "#1976d2", fontSize: ICON.lg }} />}
+      iconBg="#e8f4fd"
+      label="字体大小"
+      sublabel={currentLabel}
+      onClick={onClick}
+    />
+  );
+}
+
+
 /* ── Main ── */
 
 export default function SettingsListSubpage({
@@ -108,6 +131,9 @@ export default function SettingsListSubpage({
   isMobile = true,
   children,
 }) {
+  const [fontScaleOpen, setFontScaleOpen] = useState(false);
+  const { fontScale, setFontScale } = useFontScaleStore();
+
   const content = (
     <Box sx={{ flex: 1, overflowY: "auto", bgcolor: COLOR.surfaceAlt }}>
       <SectionLabel>账户</SectionLabel>
@@ -135,6 +161,7 @@ export default function SettingsListSubpage({
 
       <SectionLabel>通用</SectionLabel>
       <Box sx={{ bgcolor: COLOR.white }}>
+        <FontScaleRow onClick={() => setFontScaleOpen(true)} />
         <SettingsRow icon={<InfoOutlinedIcon sx={{ color: COLOR.text4, fontSize: ICON.lg }} />}
           label="关于" sublabel="版本信息" onClick={onAbout} />
         <SettingsRow icon={<PolicyOutlinedIcon sx={{ color: COLOR.text4, fontSize: ICON.lg }} />}
@@ -154,6 +181,37 @@ export default function SettingsListSubpage({
       )}
       <Box sx={{ height: 32 }} />
       {children}
+
+      {/* Font scale picker sheet */}
+      <SheetDialog open={fontScaleOpen} onClose={() => setFontScaleOpen(false)} title="字体大小">
+        <Box sx={{ pb: 1 }}>
+          {Object.entries(FONT_SCALE_LEVELS).map(([key, { label }]) => {
+            const active = fontScale === key;
+            return (
+              <Box
+                key={key}
+                onClick={() => { setFontScale(key); setFontScaleOpen(false); }}
+                sx={{
+                  display: "flex", alignItems: "center", px: 2, py: 1.5,
+                  cursor: "pointer",
+                  borderBottom: `0.5px solid ${COLOR.borderLight}`,
+                  "&:active": { bgcolor: COLOR.surface },
+                }}
+              >
+                <Typography sx={{
+                  flex: 1,
+                  fontSize: key === "standard" ? 14 : key === "large" ? 17 : 19,
+                  fontWeight: active ? 600 : 400,
+                  color: active ? COLOR.primary : COLOR.text1,
+                }}>
+                  {label}
+                </Typography>
+                {active && <CheckCircleIcon sx={{ fontSize: ICON.lg, color: COLOR.primary }} />}
+              </Box>
+            );
+          })}
+        </Box>
+      </SheetDialog>
     </Box>
   );
 

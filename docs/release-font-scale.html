@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Release: Font Scale Accessibility Feature</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans SC', -apple-system, sans-serif; background: #f5f5f5; color: #1a1a1a; line-height: 1.6; padding: 24px; }
+  .container { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .subtitle { color: #666; font-size: 14px; margin-bottom: 32px; }
+  .card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 1px solid #e5e5e5; }
+  .card h2 { font-size: 18px; font-weight: 600; margin-bottom: 12px; color: #333; }
+  .card h3 { font-size: 15px; font-weight: 600; margin: 16px 0 8px; color: #555; }
+  .badge { display: inline-block; background: #e7f7ee; color: #07c160; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; margin-bottom: 16px; }
+  .badge-blue { background: #e8f4fd; color: #1976d2; }
+  ul { padding-left: 20px; margin: 8px 0; }
+  li { margin: 6px 0; font-size: 14px; }
+  li strong { font-weight: 600; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: 'SF Mono', Menlo, monospace; }
+  .demo { display: flex; gap: 12px; margin: 16px 0; }
+  .demo-item { flex: 1; text-align: center; padding: 16px 8px; border-radius: 8px; border: 1.5px solid #e5e5e5; }
+  .demo-item.active { border-color: #07c160; background: #e7f7ee; }
+  .demo-label { font-weight: 600; margin-bottom: 4px; }
+  .demo-sample-standard { font-size: 14px; color: #333; }
+  .demo-sample-large { font-size: 17px; color: #333; }
+  .demo-sample-xl { font-size: 19px; color: #333; }
+  .file-list { margin: 12px 0; }
+  .file-list li { font-size: 13px; color: #555; }
+  .file-list code { color: #1976d2; }
+  .arch-diagram { background: #fafafa; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; margin: 12px 0; font-family: 'SF Mono', Menlo, monospace; font-size: 12px; line-height: 1.8; white-space: pre; overflow-x: auto; }
+  .highlight { background: #fffef5; border-left: 3px solid #07c160; padding: 12px 16px; margin: 12px 0; border-radius: 0 8px 8px 0; }
+  .highlight p { font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+  th { font-weight: 600; color: #666; background: #fafafa; }
+  td code { font-size: 12px; }
+  .before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .before-after > div { padding: 16px; border-radius: 8px; border: 1px solid #e5e5e5; }
+  .before-after .before { background: #fff5f5; }
+  .before-after .after { background: #f0fff4; }
+  .before-after .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .before-after .before .label { color: #d65745; }
+  .before-after .after .label { color: #07c160; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Font Scale / Accessibility Feature</h1>
+<p class="subtitle">2026-04-11 &mdash; feat/persona-phase1 branch</p>
+
+<!-- Overview -->
+<div class="card">
+  <span class="badge">New Feature</span>
+  <h2>What Changed</h2>
+  <p>Added a <strong>3-level font scale system</strong> for elderly doctors with poor eyesight. Text sizes across the entire app scale globally with zero component changes needed.</p>
+
+  <div class="demo">
+    <div class="demo-item">
+      <div class="demo-label">标准</div>
+      <div class="demo-sample-standard">患者张阿姨</div>
+      <div style="font-size:12px; color:#999; margin-top:4px">1.0x (14px body)</div>
+    </div>
+    <div class="demo-item">
+      <div class="demo-label">大字</div>
+      <div class="demo-sample-large">患者张阿姨</div>
+      <div style="font-size:12px; color:#999; margin-top:4px">1.2x (17px body)</div>
+    </div>
+    <div class="demo-item active">
+      <div class="demo-label">超大</div>
+      <div class="demo-sample-xl">患者张阿姨</div>
+      <div style="font-size:12px; color:#999; margin-top:4px">1.35x (19px body)</div>
+    </div>
+  </div>
+</div>
+
+<!-- How it works -->
+<div class="card">
+  <span class="badge badge-blue">Architecture</span>
+  <h2>How It Works</h2>
+
+  <div class="arch-diagram">User taps "大字" in Settings
+        |
+        v
+useFontScaleStore ──persist──> localStorage("doctor-font-scale")
+        |
+        v
+applyFontScale("large") ── sets module-level multiplier
+        |
+        v
+triggerFontScaleRerender() ── useSyncExternalStore version++
+        |
+        v
+Root component re-renders ── recreates MUI theme
+        |
+        v
+TYPE Proxy returns scaled values ── 14px * 1.2 = 17px
+        |
+        v
+All components read TYPE.body.fontSize ── get 17 instead of 14
+  </div>
+
+  <h3>Key Design Decisions</h3>
+  <ul>
+    <li><strong>Proxy on TYPE object</strong> &mdash; zero changes to 40+ components. They read <code>TYPE.body.fontSize</code> and get scaled values automatically.</li>
+    <li><strong>3 discrete levels, not a slider</strong> &mdash; simpler UX for non-tech doctors. Matches iOS/Android accessibility pattern.</li>
+    <li><strong>Font only, not layout</strong> &mdash; padding/margins/icons unchanged. Prevents overflow on mobile viewports.</li>
+    <li><strong>localStorage persistence</strong> &mdash; instant on page load, no backend round-trip needed.</li>
+    <li><strong>useSyncExternalStore for re-render</strong> &mdash; lightweight, no React Context provider needed for existing components.</li>
+  </ul>
+</div>
+
+<!-- Scale table -->
+<div class="card">
+  <h2>Font Scale Values</h2>
+  <table>
+    <thead>
+      <tr><th>Token</th><th>Base (px)</th><th>Large (1.2x)</th><th>Extra Large (1.35x)</th><th>Use</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TYPE.title</code></td><td>16</td><td>19</td><td>22</td><td>Page titles</td></tr>
+      <tr><td><code>TYPE.action</code></td><td>15</td><td>18</td><td>20</td><td>Buttons, nav</td></tr>
+      <tr><td><code>TYPE.heading</code></td><td>14</td><td>17</td><td>19</td><td>Section headers</td></tr>
+      <tr><td><code>TYPE.body</code></td><td>14</td><td>17</td><td>19</td><td>Content text</td></tr>
+      <tr><td><code>TYPE.secondary</code></td><td>13</td><td>16</td><td>18</td><td>Subtitles</td></tr>
+      <tr><td><code>TYPE.caption</code></td><td>12</td><td>14</td><td>16</td><td>Metadata</td></tr>
+      <tr><td><code>TYPE.micro</code></td><td>11</td><td>13</td><td>15</td><td>Badges, tags</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Files changed -->
+<div class="card">
+  <h2>Files Changed</h2>
+  <ul class="file-list">
+    <li><code>frontend/web/src/theme.js</code> &mdash; Added Proxy-based TYPE scaling, FONT_SCALE_LEVELS, applyFontScale(), dynamic theme builder</li>
+    <li><code>frontend/web/src/store/fontScaleStore.js</code> &mdash; <strong>NEW</strong> &mdash; Zustand store + useSyncExternalStore re-render trigger</li>
+    <li><code>frontend/web/src/main.jsx</code> &mdash; Root component subscribes to font scale, recreates theme dynamically</li>
+    <li><code>frontend/web/src/pages/doctor/subpages/SettingsListSubpage.jsx</code> &mdash; FontScaleSelector UI component with live preview</li>
+    <li><code>frontend/web/src/store/fontScaleStore.test.js</code> &mdash; <strong>NEW</strong> &mdash; 6 unit tests for scaling logic</li>
+  </ul>
+</div>
+
+<!-- UX Details -->
+<div class="card">
+  <h2>UX for Settings</h2>
+  <p>Located in: <strong>设置 > 通用 > 字体大小</strong></p>
+
+  <div class="highlight">
+    <p><strong>Design for elderly users:</strong> No dialog popup. The 3 choices are always visible inline with a live preview sentence below. Tap once to switch &mdash; instant feedback, no save button needed.</p>
+  </div>
+
+  <h3>Interaction Flow</h3>
+  <ul>
+    <li>Tap a size option &rarr; immediately scales all text on the current page</li>
+    <li>Navigate away &rarr; all other pages also display at the new scale</li>
+    <li>Close and reopen app &rarr; scale persists from localStorage</li>
+    <li>No network required &rarr; works offline</li>
+  </ul>
+</div>
+
+<!-- Before/After -->
+<div class="card">
+  <h2>Before / After</h2>
+  <div class="before-after">
+    <div class="before">
+      <div class="label">Before</div>
+      <ul style="font-size:13px; padding-left:16px;">
+        <li>Fixed 14px body text for all users</li>
+        <li>No accessibility settings</li>
+        <li>Static TYPE constants</li>
+        <li>Static MUI theme at root</li>
+      </ul>
+    </div>
+    <div class="after">
+      <div class="label">After</div>
+      <ul style="font-size:13px; padding-left:16px;">
+        <li>14-19px body text based on preference</li>
+        <li>3-level font scale in Settings</li>
+        <li>Dynamic TYPE via Proxy (backward compat)</li>
+        <li>Theme recreated on scale change</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Testing -->
+<div class="card">
+  <h2>Testing</h2>
+  <table>
+    <thead><tr><th>Check</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>Vite production build</td><td style="color:#07c160; font-weight:600">Pass</td></tr>
+      <tr><td>Vitest (9 tests, 2 suites)</td><td style="color:#07c160; font-weight:600">Pass</td></tr>
+      <tr><td>lint-ui.sh (no new violations)</td><td style="color:#07c160; font-weight:600">Pass</td></tr>
+      <tr><td>TYPE Proxy scaling accuracy</td><td style="color:#07c160; font-weight:600">6/6 assertions</td></tr>
+      <tr><td>Backward compatibility (zero component changes)</td><td style="color:#07c160; font-weight:600">Verified</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Risk -->
+<div class="card">
+  <h2>Risks & Mitigations</h2>
+  <table>
+    <thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Text overflow at 1.35x in tight containers</td>
+        <td>Only scales font, not layout. Chinese text wraps naturally. Selected 1.35x (not 1.5x) as max to stay within safe bounds.</td>
+      </tr>
+      <tr>
+        <td>Stale TYPE values in memoized components</td>
+        <td>Root re-render via useSyncExternalStore propagates to all children. React.memo'd components with no prop changes are the only risk &mdash; none exist in this codebase.</td>
+      </tr>
+      <tr>
+        <td>Admin theme not scaled</td>
+        <td>Intentional &mdash; admin is desktop-only, used by tech-savvy users. Not in scope.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</div>
+</body>
+</html>
