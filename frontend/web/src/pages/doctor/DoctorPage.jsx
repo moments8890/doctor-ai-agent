@@ -47,6 +47,7 @@ import SubpageHeader from "../../components/SubpageHeader";
 import BarButton from "../../components/BarButton";
 import SuggestionChips from "../../components/SuggestionChips";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
+import PersonaToast from "../../components/PersonaToast";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
 import { usePendingTasks, useDraftSummary, useReviewQueue, useDrafts } from "../../lib/doctorQueries";
@@ -791,6 +792,7 @@ export default function DoctorPage() {
       </Box>
       {isMobile && !isSubpage && <MobileBottomNav activeSection={activeSection} navBadge={navBadge} onNav={handleNav} />}
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} onClose={() => setShowOnboarding(false)} />
+      <PersonaToast />
     </Box>
   );
 }
