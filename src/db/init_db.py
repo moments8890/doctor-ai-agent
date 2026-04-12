@@ -1,48 +1,23 @@
 """
-数据库初始化：创建所有表。Schema 演进由 Alembic (alembic upgrade head) 管理。
+数据库初始化：测试夹具用表创建。生产环境 DDL 由 Alembic 管理。
 """
 
 import logging
 import db.models  # noqa: F401 — ensure models are registered before create_all
 from db.engine import Base, engine, AsyncSessionLocal
 from db.models import Doctor, Patient, MedicalRecordDB, DoctorTask
-from sqlalchemy import select, text
+from sqlalchemy import select
 
 _log = logging.getLogger("db.init")
 
 
 async def create_tables() -> None:
-    """Create all tables from ORM metadata (idempotent for new installs).
+    """Create all tables from ORM metadata.
 
-    Schema evolution (ADD COLUMN, indexes) is handled by Alembic migrations
-    run separately via _run_alembic_migrations() in main.py startup.
+    Used by test fixtures only. Production DDL is managed by Alembic.
     """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    await _backfill_missing_columns()
-
-
-async def _backfill_missing_columns() -> None:
-    """Add columns present in ORM models but missing from SQLite tables.
-
-    SQLite supports ADD COLUMN but not DROP/RENAME, so this only handles
-    the common case of new nullable columns added to models.
-    Skipped for MySQL/PostgreSQL where Alembic handles schema evolution.
-    """
-    from db.engine import DATABASE_URL
-    if not DATABASE_URL.startswith("sqlite"):
-        return
-    async with engine.begin() as conn:
-        for table in Base.metadata.sorted_tables:
-            existing = await conn.execute(text(f"PRAGMA table_info('{table.name}')"))
-            existing_cols = {row[1] for row in existing}
-            for col in table.columns:
-                if col.name not in existing_cols:
-                    col_type = col.type.compile(dialect=conn.dialect)
-                    await conn.execute(
-                        text(f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type}")
-                    )
-                    _log.info("[DB] Added missing column %s.%s (%s)", table.name, col.name, col_type)
 
 
 async def seed_prompts() -> None:

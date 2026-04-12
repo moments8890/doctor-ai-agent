@@ -25,10 +25,9 @@ async def run_alembic_migrations() -> None:
 
 
 async def init_database(startup_log: logging.Logger) -> None:
-    """Create tables, run migrations, backfill doctors, and seed prompts."""
-    from db.init_db import create_tables, seed_prompts, backfill_doctors_registry
+    """Run migrations, backfill doctors, and seed prompts."""
+    from db.init_db import seed_prompts, backfill_doctors_registry
 
-    await create_tables()
     await run_alembic_migrations()
     _added_doctors = await backfill_doctors_registry()
     startup_log.info("[DB] doctors backfill completed | inserted=%s", _added_doctors)
