@@ -19,8 +19,26 @@ function getWsUrl() {
 
 async function detectAsrMode() {
   if (_asrModeCache) return _asrModeCache;
-  // In miniprogram, prefer server mode (MediaRecorder → WebSocket → Tencent ASR).
-  // Falls through to WebSocket detection below.
+
+  // In miniprogram web-view, getUserMedia is usually blocked.
+  // Fall back to native recording page (wx.getRecorderManager → upload).
+  if (IS_MINIPROGRAM) {
+    const hasMediaDevices = !!(navigator.mediaDevices?.getUserMedia);
+    if (!hasMediaDevices) {
+      _asrModeCache = "miniprogram";
+      return "miniprogram";
+    }
+    // Test if getUserMedia actually works (some web-views have the API but block it)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch {
+      _asrModeCache = "miniprogram";
+      return "miniprogram";
+    }
+  }
+
+  // Probe WebSocket for server-side ASR
   try {
     const ws = new WebSocket(getWsUrl());
     const result = await new Promise((resolve) => {
