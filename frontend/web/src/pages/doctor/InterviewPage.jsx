@@ -441,7 +441,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
       {session.status !== "draft_created" && (
         <>
           {voiceMode && (
-            <Box sx={{ px: 1, py: 1, borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+            <Box sx={{ px: 1, py: 1, pb: "calc(8px + env(safe-area-inset-bottom))", borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
               <IconButton onClick={() => setVoiceMode(false)} sx={{ color: COLOR.text4, p: 1, flexShrink: 0 }}>
                 <KeyboardIcon sx={{ fontSize: 22 }} />
               </IconButton>
@@ -455,7 +455,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
           )}
           {!voiceMode && (
             <Box sx={{ borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, px: 1, py: 1,
-              display: "flex", alignItems: "flex-end", gap: 0.5, flexShrink: 0 }}>
+              pb: "calc(8px + env(safe-area-inset-bottom))", display: "flex", alignItems: "flex-end", gap: 0.5, flexShrink: 0 }}>
               {/* Voice toggle */}
               {voiceSupported && (
                 <IconButton onClick={() => setVoiceMode(true)} sx={{ color: COLOR.text4, p: 1 }}>
