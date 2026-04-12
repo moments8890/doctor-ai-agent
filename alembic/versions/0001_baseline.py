@@ -169,6 +169,13 @@ def upgrade() -> None:
     op.create_index("ix_tasks_status_due", "doctor_tasks", ["status", "due_at"])
     op.create_index("ix_tasks_status_task_type_due", "doctor_tasks", ["status", "task_type", "due_at"])
     op.create_index("ix_tasks_target_patient_status", "doctor_tasks", ["target", "patient_id", "status"])
+    op.create_index(
+        "ix_tasks_dedup_record_type_pending",
+        "doctor_tasks",
+        ["doctor_id", "record_id", "task_type", "status"],
+        unique=True,
+        sqlite_where=sa.text("record_id IS NOT NULL AND status = 'pending'"),
+    )
 
     # -----------------------------------------------------------------
     # doctor_wechat
