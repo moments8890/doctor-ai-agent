@@ -23,6 +23,7 @@ from channels.web.doctor_interview import router as doctor_interview_router
 from channels.web.transcribe.ws import router as transcribe_ws_router
 from channels.web.transcribe.routes import router as transcribe_rest_router
 from channels.web.voice_jssdk import router as voice_jssdk_router
+from channels.web.voice_test_page import router as voice_test_router
 from db.engine import AsyncSessionLocal
 
 
@@ -49,6 +50,7 @@ def include_routers(app: FastAPI) -> None:
     app.include_router(transcribe_ws_router)
     app.include_router(transcribe_rest_router)
     app.include_router(voice_jssdk_router)
+    app.include_router(voice_test_router)
 
 
 def register_health_and_utility_routes(
