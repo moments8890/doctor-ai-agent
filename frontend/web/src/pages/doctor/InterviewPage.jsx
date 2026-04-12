@@ -63,6 +63,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
   const cameraInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const voiceSupported = isVoiceSupported();
+  const [voiceHint, setVoiceHint] = useState(false);
   const [session, setSession] = useState({
     sessionId: resumeSessionId || null,
     progress: { filled: 0, total: 7 },
@@ -437,17 +438,26 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
 
       {/* Bottom banner removed — single 完成 button in status line is sufficient */}
 
+      {/* Voice hint banner — shown above input bar when mic tapped in miniapp */}
+      {voiceHint && (
+        <Box sx={{ px: 2, py: 0.75, bgcolor: COLOR.primaryLight, textAlign: "center", flexShrink: 0 }}>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary }}>
+            点击键盘右下角 🎤 语音输入
+          </Typography>
+        </Box>
+      )}
+
       {/* Input bar — WeChat style: voice/keyboard toggle | input or voice btn | + | send */}
       {session.status !== "draft_created" && (
         <Box sx={{ borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, px: 1, py: 1,
-          pb: "calc(8px + env(safe-area-inset-bottom))", display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+          display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
           {/* Voice/keyboard toggle */}
           {voiceSupported && (
             <IconButton onClick={() => setVoiceMode(!voiceMode)} sx={{ color: COLOR.text4, p: 1, flexShrink: 0 }}>
               {voiceMode ? <KeyboardIcon sx={{ fontSize: 22 }} /> : <MicIcon sx={{ fontSize: 22 }} />}
             </IconButton>
           )}
-          <MiniVoiceMicHint inputRef={inputRef} />
+          <MiniVoiceMicHint inputRef={inputRef} onHint={() => { setVoiceHint(true); setTimeout(() => setVoiceHint(false), 5000); }} />
           {/* Middle: voice button OR text input */}
           {voiceMode ? (
             <Box sx={{ flex: 1 }}>

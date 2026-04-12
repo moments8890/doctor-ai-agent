@@ -81,28 +81,16 @@ export function isVoiceSupported() {
   return !!BrowserSpeechRecognition || _asrModeCache === "server";
 }
 
-// For miniprogram: mic button that focuses input + shows keyboard dictation hint
-export function MiniVoiceMicHint({ inputRef }) {
-  const [show, setShow] = useState(false);
+// For miniprogram: mic button that focuses input + shows inline hint below input bar
+export function MiniVoiceMicHint({ inputRef, onHint }) {
   if (!IS_MINIPROGRAM) return null;
   return (
-    <>
-      <Box
-        onClick={() => { inputRef?.current?.focus(); setShow(true); setTimeout(() => setShow(false), 3000); }}
-        sx={{ color: COLOR.text4, p: 1, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }}
-      >
-        <MicIcon sx={{ fontSize: 22 }} />
-      </Box>
-      {show && (
-        <Box sx={{
-          position: "fixed", top: 60, left: "50%", transform: "translateX(-50%)",
-          bgcolor: "rgba(0,0,0,0.7)", color: "#fff", px: 2, py: 1, borderRadius: "8px",
-          fontSize: 14, zIndex: 9999, whiteSpace: "nowrap",
-        }}>
-          点击键盘上的 🎤 语音输入
-        </Box>
-      )}
-    </>
+    <Box
+      onClick={() => { inputRef?.current?.focus(); onHint?.(); }}
+      sx={{ color: COLOR.text4, p: 1, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }}
+    >
+      <MicIcon sx={{ fontSize: 22 }} />
+    </Box>
   );
 }
 
