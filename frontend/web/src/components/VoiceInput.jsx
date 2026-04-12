@@ -124,7 +124,40 @@ export default function VoiceInput({ onResult, onCancel }) {
 
   function startMiniRecording() {
     console.log("[Voice] miniprogram: triggering file capture");
-    if (fileInputRef.current) fileInputRef.current.click();
+    // Try file input first; if it doesn't open within 500ms, fall back to native page
+    let fileOpened = false;
+    const onFocus = () => { fileOpened = true; };
+    window.addEventListener("focus", onFocus);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+
+    setTimeout(() => {
+      window.removeEventListener("focus", onFocus);
+      if (!fileOpened && !processing) {
+        console.log("[Voice] file capture didn't trigger, falling back to native page");
+        if (typeof wx !== "undefined" && wx.miniProgram) {
+          wx.miniProgram.navigateTo({ url: "/pages/voice/voice" });
+          setProcessing(true);
+          // Poll for result when user returns
+          const params = new URLSearchParams(window.location.search);
+          const doctorId = params.get("doctor_id") || "";
+          let attempts = 0;
+          const poll = setInterval(async () => {
+            attempts++;
+            if (attempts > 30) { clearInterval(poll); setProcessing(false); return; }
+            try {
+              const resp = await fetch(`/api/voice/result?doctor_id=${encodeURIComponent(doctorId)}`);
+              if (resp.ok) {
+                const data = await resp.json();
+                if (data.text) { clearInterval(poll); setProcessing(false); onResult(data.text); }
+              }
+            } catch { /* retry */ }
+          }, 1000);
+        }
+      }
+    }, 500);
   }
 
   async function handleAudioFile(e) {
@@ -282,10 +315,15 @@ export default function VoiceInput({ onResult, onCancel }) {
 
   // ── Unified start/stop ──
   function startRecording(clientY) {
-    console.log("[Voice] startRecording, asrMode =", asrMode);
+    console.log("[Voice] startRecording, asrMode =", asrMode, "IS_MINIPROGRAM =", IS_MINIPROGRAM);
     if (asrMode === "miniprogram") startMiniRecording();
     else if (asrMode === "server") startServerRecording(clientY);
-    else if (BrowserSpeechRecognition) startBrowserRecording(clientY);
+    else if (BrowserSpeechRecognition && !IS_MINIPROGRAM) startBrowserRecording(clientY);
+    else if (IS_MINIPROGRAM) {
+      // Fallback: if all detection failed in miniprogram, use file capture
+      console.log("[Voice] fallback to file capture");
+      startMiniRecording();
+    }
     else console.log("[Voice] no recording method available");
   }
 
