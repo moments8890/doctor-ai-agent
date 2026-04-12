@@ -40,6 +40,10 @@ class DeleteRuleRequest(BaseModel):
     rule_id: str
 
 
+class UpdateSummaryRequest(BaseModel):
+    summary_text: str
+
+
 class ActivateRequest(BaseModel):
     active: bool
 
@@ -60,6 +64,7 @@ async def get_persona(
     return {
         "doctor_id": resolved,
         "fields": persona.fields,
+        "summary_text": persona.summary_text or "",
         "status": persona.status,
         "onboarded": persona.onboarded,
         "edit_count": persona.edit_count,
@@ -156,6 +161,103 @@ async def activate_persona(
     return {"status": "ok", "persona_status": persona.status}
 
 
+@router.put("/api/manage/persona/summary")
+async def update_summary(
+    body: UpdateSummaryRequest,
+    doctor_id: str = Query(...),
+    authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
+):
+    """Save the doctor's free-text persona summary."""
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+    text = body.summary_text.strip()
+    if len(text) > 2000:
+        raise HTTPException(400, "summary_text must be under 2000 characters")
+
+    persona = await get_or_create_persona(session, resolved)
+    persona.summary_text = text if text else None
+    if text and persona.status == "draft":
+        persona.status = "active"
+    await session.commit()
+    return {"status": "ok"}
+
+
+@router.post("/api/manage/persona/generate")
+async def generate_profile(
+    doctor_id: str = Query(...),
+    authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
+):
+    """Generate a natural-language AI profile from structured rules + doctor info."""
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+    persona = await get_or_create_persona(session, resolved)
+
+    # Gather rules text
+    fields = persona.fields
+    FIELD_LABELS = {
+        "reply_style": "回复风格", "closing": "常用结尾语",
+        "structure": "回复结构", "avoid": "回避内容", "edits": "常见修改",
+    }
+    rules_parts = []
+    for key, label in FIELD_LABELS.items():
+        rules = fields.get(key, [])
+        if rules:
+            texts = "、".join(r.get("text", "") for r in rules if r.get("text"))
+            if texts:
+                rules_parts.append(f"- {label}：{texts}")
+
+    if not rules_parts and not persona.summary_text:
+        raise HTTPException(400, "没有可用的风格规则来生成描述")
+
+    rules_text = "\n".join(rules_parts) if rules_parts else f"（当前描述：{persona.summary_text[:200]}）"
+
+    # Load doctor info
+    from sqlalchemy import select
+    from db.models.doctor import Doctor
+    doctor = (await session.execute(
+        select(Doctor).where(Doctor.doctor_id == resolved)
+    )).scalar_one_or_none()
+
+    doctor_name = doctor.name if doctor else "医生"
+    specialty = doctor.specialty if doctor and doctor.specialty else "全科"
+
+    from utils.prompt_loader import get_prompt_sync
+    from agent.llm import llm_call
+
+    template = get_prompt_sync("persona-generate")
+    prompt = template.format(
+        doctor_name=doctor_name,
+        specialty=specialty,
+        rules_text=rules_text,
+    )
+
+    try:
+        response = await llm_call(
+            messages=[
+                {"role": "system", "content": "你是一个生成AI助手风格档案的工具。严格按指定格式输出，简洁专业。"},
+                {"role": "user", "content": prompt},
+            ],
+            op_name="persona_generate",
+            max_tokens=400,
+        )
+        if not response or len(response.strip()) < 20:
+            raise HTTPException(500, "生成失败，请重试")
+
+        generated = response.strip()
+        persona.summary_text = generated
+        if persona.status == "draft":
+            persona.status = "active"
+        await session.commit()
+        return {"status": "ok", "summary_text": generated}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        from utils.log import log
+        log(f"[persona_generate] failed: {exc}", level="warning")
+        raise HTTPException(500, "生成失败，请重试")
+
+
 # ── Onboarding ────────────────────────────────────────────────────────────────
 
 class OnboardingPicksRequest(BaseModel):
@@ -224,29 +326,8 @@ async def teach_by_example(
     if len(text) > 2000:
         raise HTTPException(400, "example_text must be under 2000 characters")
 
-    TEACH_PROMPT = """分析以下医生的回复示例，提取其中体现的沟通风格偏好。
-
-回复示例：
-{text}
-
-请用JSON格式回答（不要输出其他内容），提取最多3条最明显的风格特征：
-{{
-  "rules": [
-    {{
-      "field": "reply_style" 或 "closing" 或 "structure" 或 "avoid" 或 "edits",
-      "text": "一句话描述这个风格特征",
-      "confidence": "low" 或 "medium" 或 "high"
-    }}
-  ]
-}}
-
-判断规则：
-- reply_style: 语气、称呼方式、正式程度
-- closing: 结尾用语、随访叮嘱
-- structure: 内容组织方式、是否先给结论
-- avoid: 明显回避的内容类型
-- edits: 语言修辞习惯
-只提取有明确证据的特征，不要猜测。最多输出3条。"""
+    from utils.prompt_loader import get_prompt_sync
+    teach_template = get_prompt_sync("persona-teach")
 
     try:
         from agent.llm import llm_call
@@ -255,7 +336,7 @@ async def teach_by_example(
         response = await llm_call(
             messages=[
                 {"role": "system", "content": "你是一个分析医生写作风格的助手。只输出JSON，不要输出其他内容。"},
-                {"role": "user", "content": TEACH_PROMPT.format(text=text[:1500])},
+                {"role": "user", "content": teach_template.format(text=text[:1500])},
             ],
             op_name="persona_teach",
         )

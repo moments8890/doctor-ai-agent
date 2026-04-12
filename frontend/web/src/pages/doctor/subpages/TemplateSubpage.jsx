@@ -6,12 +6,14 @@ import { Alert, Box, CircularProgress, Typography } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import PageSkeleton from "../../../components/PageSkeleton";
+import HelpTip from "../../../components/HelpTip";
 import SectionLabel from "../../../components/SectionLabel";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import DialogFooter from "../../../components/DialogFooter";
 import SheetDialog from "../../../components/SheetDialog";
 import { useApi } from "../../../api/ApiContext";
 import { TYPE, ICON, COLOR } from "../../../theme";
+import { PAGE_HELP } from "../constants";
 
 const STANDARD_TEMPLATE_FIELDS = [
   { key: "department", label: "科别", desc: "就诊科室名称" },
@@ -180,7 +182,7 @@ export default function TemplateSubpage({ doctorId, onBack, isMobile = true }) {
 
   return (
     <>
-      <PageSkeleton title="报告模板" onBack={onBack} isMobile={isMobile} listPane={content} />
+      <PageSkeleton title="报告模板" headerRight={<HelpTip message={PAGE_HELP.template} />} onBack={onBack} isMobile={isMobile} listPane={content} />
       <ConfirmDialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}

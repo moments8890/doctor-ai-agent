@@ -10,7 +10,8 @@ import { useState } from "react";
 import { Box, InputAdornment, TextField, Typography } from "@mui/material";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import SearchIcon from "@mui/icons-material/Search";
-import { TYPE, COLOR, RADIUS } from "../../../theme";
+import { TYPE, COLOR, ICON, RADIUS } from "../../../theme";
+import HelpTip from "../../../components/HelpTip";
 import { relativeDate } from "../../../utils/time";
 import PageSkeleton from "../../../components/PageSkeleton";
 import KnowledgeCard from "../../../components/KnowledgeCard";
@@ -18,6 +19,9 @@ import StatColumn from "../../../components/StatColumn";
 import EmptyState from "../../../components/EmptyState";
 import NewItemCard from "../../../components/NewItemCard";
 import AppButton from "../../../components/AppButton";
+import ListCard from "../../../components/ListCard";
+import IconBadge from "../../../components/IconBadge";
+import { ICON_BADGES, PAGE_HELP } from "../constants";
 
 /* ── Helpers ── */
 
@@ -152,12 +156,11 @@ export default function KnowledgeSubpage({
         <>
           {persona && (
             <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
-              <KnowledgeCard
+              <ListCard
+                avatar={<IconBadge config={ICON_BADGES.persona} />}
                 title="我的AI风格"
-                summary={personaSummary(persona)}
-                referenceCount={0}
-                source="system"
-                date={persona.updated_at ? relativeDate(persona.updated_at) : ""}
+                subtitle={personaSummary(persona)}
+                chevron
                 onClick={onPersonaClick}
               />
             </Box>
@@ -202,12 +205,11 @@ export default function KnowledgeSubpage({
           {/* Knowledge rows — persona pinned at top */}
           <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}` }}>
             {persona && (
-              <KnowledgeCard
+              <ListCard
+                avatar={<IconBadge config={ICON_BADGES.persona} />}
                 title="我的AI风格"
-                summary={personaSummary(persona)}
-                referenceCount={0}
-                source="system"
-                date={persona.updated_at ? relativeDate(persona.updated_at) : ""}
+                subtitle={personaSummary(persona)}
+                chevron
                 onClick={onPersonaClick}
               />
             )}
@@ -228,6 +230,7 @@ export default function KnowledgeSubpage({
   return (
     <PageSkeleton
       title={title}
+      headerRight={<HelpTip message={PAGE_HELP.knowledge} />}
       onBack={onBack}
       isMobile
       listPane={listContent}

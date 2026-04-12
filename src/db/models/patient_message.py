@@ -56,7 +56,7 @@ class PatientMessage(Base):
             name="ck_patient_messages_direction",
         ),
         CheckConstraint(
-            "source IS NULL OR source IN ('patient','ai','doctor')",
+            "source IS NULL OR source IN ('patient','ai','doctor','system')",
             name="ck_patient_messages_source",
         ),
         Index("ix_patient_messages_patient_created", "patient_id", "created_at"),

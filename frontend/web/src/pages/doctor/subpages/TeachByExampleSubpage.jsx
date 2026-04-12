@@ -6,11 +6,13 @@ import { Box, TextField, Typography } from "@mui/material";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
+import HelpTip from "../../../components/HelpTip";
 import AppButton from "../../../components/AppButton";
 import { useApi } from "../../../api/ApiContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../lib/queryKeys";
 import { useDoctorStore } from "../../../store/doctorStore";
+import { PAGE_HELP } from "../constants";
 
 const FIELD_LABELS = {
   reply_style: "回复风格",
@@ -49,7 +51,7 @@ export default function TeachByExampleSubpage({ onBack, isMobile }) {
   }
 
   return (
-    <PageSkeleton title="教AI新偏好" onBack={onBack} isMobile={isMobile} listPane={
+    <PageSkeleton title="教AI新偏好" headerRight={<HelpTip message={PAGE_HELP.teachByExample} />} onBack={onBack} isMobile={isMobile} listPane={
       <Box sx={{ px: 2, py: 2, flex: 1, overflowY: "auto" }}>
         <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 1.5, lineHeight: 1.6 }}>
           粘贴一段你满意的回复，AI会自动分析其中的风格偏好，添加到待确认队列。

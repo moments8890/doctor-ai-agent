@@ -42,6 +42,7 @@ class DoctorPersona(Base):
     onboarded: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     edit_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    summary_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
@@ -65,53 +66,33 @@ class DoctorPersona(Base):
             rules.extend(field_rules)
         return rules
 
-    def render_for_prompt(self, max_rules: int = 15, max_chars: int = 500) -> str:
-        """Render persona rules into the prompt format with [P-id] markers.
+    def render_for_prompt(self, max_rules_per_field: int = 3, max_chars: int = 600) -> str:
+        """Render persona as structured sections for LLM prompt injection.
 
-        Prioritizes by field order: avoid > structure > reply_style > closing > edits.
-        Within each field, prioritizes by usage_count descending.
+        Always renders from structured fields (deterministic, no LLM).
+        summary_text is display-only and never used here.
+
+        Within each field, selects top rules by usage_count descending.
         """
-        FIELD_ORDER = ["avoid", "structure", "reply_style", "closing", "edits"]
-        FIELD_LABELS = {
-            "reply_style": "回复风格",
-            "closing": "常用结尾语",
-            "structure": "回复结构",
-            "avoid": "回避内容",
-            "edits": "常见修改",
-        }
+        SECTION_MAP = [
+            ("reply_style", "沟通风格"),
+            ("structure", "回复结构"),
+            ("avoid", "回避内容"),
+            ("closing", "结尾方式"),
+            ("edits", "修改习惯"),
+        ]
         fields = self.fields
-        selected: list[tuple[str, dict]] = []
+        sections = []
+        for key, label in SECTION_MAP:
+            rules = fields.get(key, [])
+            ranked = sorted(rules, key=lambda r: r.get("usage_count", 0), reverse=True)
+            bullets = [r.get("text", "").strip() for r in ranked[:max_rules_per_field] if r.get("text", "").strip()]
+            if bullets:
+                lines = "\n".join(f"- {b}" for b in bullets)
+                sections.append(f"## {label}\n{lines}")
 
-        for field_key in FIELD_ORDER:
-            field_rules = fields.get(field_key, [])
-            sorted_rules = sorted(field_rules, key=lambda r: r.get("usage_count", 0), reverse=True)
-            for rule in sorted_rules:
-                if len(selected) >= max_rules:
-                    break
-                selected.append((field_key, rule))
-            if len(selected) >= max_rules:
-                break
-
-        if not selected:
+        if not sections:
             return ""
 
-        grouped: dict[str, list[dict]] = {}
-        for field_key, rule in selected:
-            grouped.setdefault(field_key, []).append(rule)
-
-        lines = []
-        for field_key in FIELD_ORDER:
-            if field_key not in grouped:
-                continue
-            label = FIELD_LABELS[field_key]
-            parts = []
-            for rule in grouped[field_key]:
-                rid = rule.get("id", "?")
-                text = rule.get("text", "")
-                parts.append(f"{text} [P-{rid}]")
-            lines.append(f"{label}：{'；'.join(parts)}")
-
-        result = "\n".join(lines)
-        if len(result) > max_chars:
-            result = result[:max_chars]
-        return result
+        result = "\n\n".join(sections)
+        return result[:max_chars] if len(result) > max_chars else result

@@ -46,18 +46,19 @@ def test_render_for_prompt_with_rules():
     fields["avoid"].append({"id": "ps_2", "text": "不提风险", "source": "manual", "usage_count": 10})
     p.fields = fields
     result = p.render_for_prompt()
-    assert "回避内容" in result
-    assert "[P-ps_2]" in result
-    assert "回复风格" in result
-    assert "[P-ps_1]" in result
-    # avoid should come before reply_style (priority order)
-    assert result.index("回避内容") < result.index("回复风格")
+    # Structured sections with bullet points
+    assert "## 沟通风格" in result
+    assert "- 口语化" in result
+    assert "## 回避内容" in result
+    assert "- 不提风险" in result
+    # reply_style comes before avoid (section order)
+    assert result.index("沟通风格") < result.index("回避内容")
 
-def test_render_for_prompt_respects_max_rules():
+def test_render_for_prompt_respects_max_chars():
     p = DoctorPersona(doctor_id="doc_1")
     fields = EMPTY_PERSONA_FIELDS()
     for i in range(20):
-        fields["reply_style"].append({"id": f"ps_{i}", "text": f"rule {i}", "source": "manual", "usage_count": 0})
+        fields["reply_style"].append({"id": f"ps_{i}", "text": f"这是一条较长的规则描述 {i}", "source": "manual", "usage_count": 0})
     p.fields = fields
-    result = p.render_for_prompt(max_rules=3)
-    assert result.count("[P-") == 3
+    result = p.render_for_prompt(max_chars=100)
+    assert len(result) <= 100

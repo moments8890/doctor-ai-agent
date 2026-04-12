@@ -13,6 +13,7 @@ import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
 import MicIcon from "@mui/icons-material/Mic";
 import PageSkeleton from "../../../components/PageSkeleton";
+import HelpTip from "../../../components/HelpTip";
 import { SpotlightHint } from "../OnboardingWizard";
 import BarButton from "../../../components/BarButton";
 import AppButton from "../../../components/AppButton";
@@ -26,7 +27,7 @@ import { useApi } from "../../../api/ApiContext";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
 import { dp } from "../../../utils/doctorBasePath";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
-import { markOnboardingStep, ONBOARDING_STEP } from "../constants";
+import { markOnboardingStep, ONBOARDING_STEP, PAGE_HELP } from "../constants";
 import {
   getPreferredOnboardingRule,
   resolveDiagnosisProofDestination,
@@ -438,6 +439,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
     <>
       <PageSkeleton
         title="添加知识"
+        headerRight={<HelpTip message={PAGE_HELP.addKnowledge} />}
         onBack={handleBack}
         isMobile={isMobile}
         listPane={

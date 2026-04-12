@@ -27,9 +27,11 @@ import NameAvatar from "../../components/NameAvatar";
 import SectionLabel from "../../components/SectionLabel";
 import ActionRow from "../../components/ActionRow";
 import SubpageHeader from "../../components/SubpageHeader";
+import HelpTip from "../../components/HelpTip";
 import FilterBar from "../../components/FilterBar";
 import CitationPopover from "../../components/CitationPopover";
 import { TYPE, COLOR, RADIUS, HIGHLIGHT_ROW_SX } from "../../theme";
+import { PAGE_HELP } from "./constants";
 import { dp } from "../../utils/doctorBasePath";
 /* ── Case memory helpers ──────────────────────────────────────────────────── */
 
@@ -271,7 +273,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
-      <SubpageHeader title="审核" />
+      <SubpageHeader title="审核" right={<HelpTip message={PAGE_HELP.reviewQueue} />} />
 
       <PullToRefresh sx={{ flex: 1 }}>
         {/* Filter stat bar */}

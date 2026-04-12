@@ -34,7 +34,8 @@ import TeachByExampleSubpage from "./subpages/TeachByExampleSubpage";
 import AddKnowledgeSubpage from "./subpages/AddKnowledgeSubpage";
 import { useDoctorStore } from "../../store/doctorStore";
 import SettingsListSubpage from "./subpages/SettingsListSubpage";
-import { SPECIALTY_OPTIONS, setOnboardingState } from "./constants";
+import { SPECIALTY_OPTIONS, setOnboardingState, PAGE_HELP } from "./constants";
+import HelpTip from "../../components/HelpTip";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
 
@@ -413,7 +414,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   if (subpage === "qr") {
     return (
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <SubpageHeader title="患者预问诊码" onBack={goBack} />
+        <SubpageHeader title="患者预问诊码" onBack={goBack} right={<HelpTip message={PAGE_HELP.qrCode} />} />
         <Box sx={{ flex: 1, overflowY: "auto", bgcolor: COLOR.surfaceAlt, px: 2, py: 2 }}>
           <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, p: 1.5 }}>
             <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: COLOR.text1 }}>

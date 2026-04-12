@@ -13,6 +13,7 @@ import KeyboardIcon from "@mui/icons-material/Keyboard";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
+import HelpTip from "../../components/HelpTip";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SuggestionChips from "../../components/SuggestionChips";
 import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
@@ -21,6 +22,7 @@ import ImportChoiceDialog from "../../components/ImportChoiceDialog";
 import FieldReviewCard from "../../components/doctor/FieldReviewCard";
 import InterviewCompleteDialog from "../../components/doctor/InterviewCompleteDialog";
 import { TYPE, COLOR, RADIUS } from "../../theme";
+import { PAGE_HELP } from "./constants";
 import { dp } from "../../utils/doctorBasePath";
 import MsgAvatar from "../../components/MsgAvatar";
 import { nowTs } from "../../utils/time";
@@ -332,7 +334,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <SubpageHeader title="新建病历" onBack={() => {
+      <SubpageHeader title="新建病历" right={<HelpTip message={PAGE_HELP.interview} />} onBack={() => {
           const hasWork = session.sessionId || messages.length > 1 || input.trim();
           hasWork ? setShowCancelConfirm(true) : handleCancel();
         }}

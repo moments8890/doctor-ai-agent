@@ -36,7 +36,8 @@ import PatientDetail, { PatientChatPage } from "./patients/PatientDetail";
 import SubpageHeader from "../../components/SubpageHeader";
 import RecordEditDialog from "../../components/RecordEditDialog";
 import AppButton from "../../components/AppButton";
-import { STRUCTURED_FIELD_LABELS } from "./constants";
+import { STRUCTURED_FIELD_LABELS, PAGE_HELP } from "./constants";
+import HelpTip from "../../components/HelpTip";
 import InterviewPage from "./InterviewPage";
 import SheetDialog from "../../components/SheetDialog";
 import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
@@ -583,7 +584,7 @@ export default function PatientsPage({ doctorId, onPatientSelected, refreshKey =
     </Box>
   ) : isMobile && selectedId ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surface }}>
-      <SubpageHeader title={selectedPatient?.name || ""} onBack={() => navigate(dp("patients"))} />
+      <SubpageHeader title={selectedPatient?.name || ""} onBack={() => navigate(dp("patients"))} right={<HelpTip message={PAGE_HELP.patientDetail} />} />
       <Box sx={{ flex: 1, overflow: "hidden" }}>
         <PatientDetail patient={selectedPatient} doctorId={doctorId} onStartInterview={handleStartInterview}
           triggerExport={triggerExport} onTriggerExportConsumed={() => setTriggerExport(false)} />

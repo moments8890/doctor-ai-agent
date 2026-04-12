@@ -32,6 +32,8 @@ import NameAvatar from "../../../components/NameAvatar";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import { TYPE, ICON, COLOR, RADIUS } from "../../../theme";
 import { dp } from "../../../utils/doctorBasePath";
+import HelpTip from "../../../components/HelpTip";
+import { PAGE_HELP } from "../constants";
 
 /* ── helpers ── */
 

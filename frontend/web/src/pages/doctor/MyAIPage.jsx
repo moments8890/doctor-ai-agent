@@ -7,6 +7,9 @@
 import { useState } from "react";
 import { Badge, Box, CircularProgress, IconButton, Skeleton, Typography } from "@mui/material";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import ContentPasteOutlinedIcon from "@mui/icons-material/ContentPasteOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
@@ -17,7 +20,6 @@ import SectionLabel from "../../components/SectionLabel";
 import ListCard from "../../components/ListCard";
 import KnowledgeCard from "../../components/KnowledgeCard";
 import AppButton from "../../components/AppButton";
-import NameAvatar from "../../components/NameAvatar";
 import IconBadge from "../../components/IconBadge";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
@@ -27,7 +29,7 @@ import { isWizardDone, clearWizardDone } from "./onboardingWizardState";
 import StatColumn from "../../components/StatColumn";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
-import { useKnowledgeItems, useReviewQueue, useAIActivity, usePersona } from "../../lib/doctorQueries";
+import { useKnowledgeItems, useReviewQueue, usePersona } from "../../lib/doctorQueries";
 import { relativeDate as formatRelativeDate } from "../../utils/time";
 import CloseIcon from "@mui/icons-material/Close";
 
@@ -78,35 +80,7 @@ function InlineBadge({ count, color = COLOR.warning }) {
 
 // ── Activity helpers ─────────────────────────────────────────────────────────
 
-/** Map activity type to a short Chinese label and badge color. */
-function activityBadge(item) {
-  const desc = (item.description || "").toLowerCase();
-  if (desc.includes("紧急") || desc.includes("急查")) return { label: "紧急", color: COLOR.danger };
-  if (item.type === "draft") return { label: "AI已起草回复", color: COLOR.primary };
-  if (item.type === "diagnosis") return { label: "AI诊断建议", color: COLOR.warning };
-  if (item.type === "citation") return { label: "知识库引用", color: COLOR.text4 };
-  if (item.type === "task") return { label: "待办任务", color: COLOR.warning };
-  return { label: "AI处理", color: COLOR.text4 };
-}
 
-/** Format an ISO timestamp to a short relative label. */
-function formatActivityTime(ts) {
-  if (!ts) return "";
-  const d = new Date(ts);
-  const now = new Date();
-  const diffMs = now - d;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "刚刚";
-  if (diffMin < 60) return `${diffMin}分钟前`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}小时前`;
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-  const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  if (dt.getTime() === today.getTime()) return `今天 ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  if (dt.getTime() === yesterday.getTime()) return "昨天";
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
-}
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
@@ -117,20 +91,17 @@ export default function MyAIPage({ doctorId }) {
   // React Query-backed data fetching (shared cache — no redundant requests on tab switch)
   const { data: knowledgeData, isLoading: kLoading } = useKnowledgeItems();
   const { data: reviewQueueData, isLoading: qLoading } = useReviewQueue();
-  const { data: activityData, isLoading: aLoading } = useAIActivity(3);
   const { data: personaData, isLoading: pLoading } = usePersona();
 
-  const loading = kLoading || qLoading || aLoading || pLoading;
+  const loading = kLoading || qLoading || pLoading;
   const knowledge = knowledgeData ?? null;
   const reviewQueue = reviewQueueData || { pending: [], completed: [] };
-  const activity = activityData ?? null;
 
   // Derived values — all stats computed from actual data
   const aiName = `${doctorName || "医生"} 的 AI`;
-  const knowledgeList = Array.isArray(knowledge) ? knowledge : (knowledge?.items || []);
+  const knowledgeListRaw = Array.isArray(knowledge) ? knowledge : (knowledge?.items || []);
+  const knowledgeList = knowledgeListRaw.filter((k) => k.category !== "persona");
   const knowledgeCount = knowledgeList.length;
-  const activityList = Array.isArray(activity) ? activity : (activity?.activity || activity?.items || []);
-  const recentActivity = activityList.slice(0, 3);
 
   const weekCitations = loading ? null : knowledgeList.reduce((sum, k) => sum + (k.reference_count || 0), 0);
   const pendingReview = loading ? null : (reviewQueue?.pending || []).length;
@@ -204,20 +175,23 @@ export default function MyAIPage({ doctorId }) {
             </Box>
           )}
 
-          {/* CTA row */}
+          {/* CTA row — two primary entry points */}
           <Box sx={{ display: "flex", gap: 1, px: 2, py: 1.5 }}>
             <AppButton
-              variant="primary" size="md" fullWidth
+              variant="secondary" size="md" fullWidth
               onClick={() => navigate(dp("settings/persona"))}
+              sx={{ border: `1px solid ${COLOR.primary}`, color: COLOR.primary, bgcolor: COLOR.primaryLight, gap: 0.75 }}
             >
-              编辑风格
+              <SmartToyOutlinedIcon sx={{ fontSize: ICON.md }} />
+              我的AI风格
             </AppButton>
             <AppButton
               variant="secondary" size="md" fullWidth
-              onClick={() => navigate(dp("settings/knowledge/add"))}
-              sx={{ border: `0.5px solid ${COLOR.border}` }}
+              onClick={() => navigate(dp("settings/knowledge"))}
+              sx={{ border: `1px solid ${COLOR.primary}`, color: COLOR.primary, bgcolor: COLOR.primaryLight, gap: 0.75 }}
             >
-              添加知识
+              <MenuBookOutlinedIcon sx={{ fontSize: ICON.md }} />
+              我的知识库
             </AppButton>
           </Box>
         </Box>
@@ -280,22 +254,63 @@ export default function MyAIPage({ doctorId }) {
         <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
           {pLoading && <SectionLoading />}
           {!pLoading && (() => {
-            const allRules = personaData ? Object.values(personaData.fields || {}).flat() : [];
-            const hasRules = allRules.length > 0;
-            const previewText = hasRules
-              ? allRules.slice(0, 3).map(r => r.text).join("；") + (allRules.length > 3 ? "…" : "")
-              : "尚未设置，点击编辑开始配置";
+            const summary = personaData?.summary_text || "";
+            const fallbackRules = personaData ? Object.values(personaData.fields || {}).flat() : [];
+            const hasContent = !!(summary || fallbackRules.length > 0);
+
+            // Parse "### Section\ncontent" into [{title, items}]
+            const sections = (() => {
+              if (!summary) return [];
+              const parts = summary.split(/^###\s+/m).filter(Boolean);
+              return parts.map((part) => {
+                const [firstLine, ...rest] = part.split("\n");
+                const body = rest.join(" ").trim();
+                const items = body.split(/\s*·\s*/).map(s => s.trim()).filter(Boolean);
+                return { title: firstLine.trim(), items };
+              }).filter(s => s.title);
+            })();
+
+            if (!hasContent) {
+              return (
+                <Box
+                  onClick={() => navigate(dp("settings/persona"))}
+                  sx={{ display: "flex", gap: 1.5, px: 2, py: 1.5, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}
+                >
+                  <IconBadge config={ICON_BADGES.persona} size={36} />
+                  <Typography sx={{ flex: 1, fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.7 }}>
+                    尚未设置，点击编辑开始配置
+                  </Typography>
+                  <ChevronRightOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4, flexShrink: 0 }} />
+                </Box>
+              );
+            }
+
             return (
               <Box
                 onClick={() => navigate(dp("settings/persona"))}
-                sx={{ px: 2, py: 1.5, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}
+                sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.5, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}
               >
-                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: hasRules ? COLOR.text2 : COLOR.text4, lineHeight: 1.7 }}>
-                  {previewText}
-                </Typography>
-                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 1 }}>
-                  已学习 {personaData?.edit_count || 0} 次编辑
-                </Typography>
+                <IconBadge config={ICON_BADGES.persona} size={36} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  {sections.length > 0 ? sections.slice(0, 3).map((sec) => (
+                    <Box key={sec.title} sx={{ mb: 0.5, "&:last-child": { mb: 0 } }}>
+                      <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, fontWeight: 600, color: COLOR.text3 }}>
+                        {sec.title}
+                      </Typography>
+                      <Typography component="span" sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, ml: 0.75 }}>
+                        {sec.items.slice(0, 3).join(" · ")}{sec.items.length > 3 ? " …" : ""}
+                      </Typography>
+                    </Box>
+                  )) : (
+                    <Typography sx={{
+                      fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.7,
+                      display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+                    }}>
+                      {summary || fallbackRules.slice(0, 3).map(r => r.text).join("；")}
+                    </Typography>
+                  )}
+                </Box>
+                <ChevronRightOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4, flexShrink: 0 }} />
               </Box>
             );
           })()}
@@ -353,58 +368,6 @@ export default function MyAIPage({ doctorId }) {
           ))}
         </Box>
 
-        {/* ── D. 最近由AI处理 ────────────────────────────────── */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
-          <SectionLabel>最近由AI处理</SectionLabel>
-          <Typography
-            onClick={() => navigate(dp("review"))}
-            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
-          >
-            全部 {activityList.length} 条 ›
-          </Typography>
-        </Box>
-        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-          {recentActivity.length === 0 && !loading && (
-            <EmptyState title="暂无AI处理记录" />
-          )}
-          {loading && recentActivity.length === 0 && <SectionLoading />}
-          {recentActivity.map((item, idx) => {
-            const badge = activityBadge(item);
-            const timeStr = formatActivityTime(item.timestamp);
-            return (
-              <ListCard
-                key={item.id || idx}
-                avatar={<NameAvatar name={item.patient_name || "?"} size={36} />}
-                title={
-                  <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
-                    {item.patient_name || "患者"}
-                    <Box component="span" sx={{
-                      fontSize: TYPE.micro.fontSize, fontWeight: 500, color: COLOR.white,
-                      bgcolor: badge.color, borderRadius: RADIUS.sm, px: 0.5, py: 0.5,
-                      lineHeight: "16px", ml: 0.5, flexShrink: 0,
-                    }}>
-                      {badge.label}
-                    </Box>
-                  </Box>
-                }
-                subtitle={item.description || item.action_description || "AI处理"}
-                right={
-                  <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, whiteSpace: "nowrap" }}>
-                    {timeStr}
-                  </Typography>
-                }
-                onClick={() => {
-                  if (item.type === "task" && item.task_id) navigate(`${dp("tasks")}/${item.task_id}`);
-                  else if (item.type === "diagnosis" && item.record_id) navigate(`${dp("review")}/${item.record_id}`);
-                  else if (item.type === "draft" && item.patient_id) navigate(`${dp("patients")}/${item.patient_id}?view=chat`);
-                  else if (item.patient_id) navigate(`${dp("patients")}/${item.patient_id}`);
-                  else navigate(dp("review"));
-                }}
-                sx={idx === recentActivity.length - 1 ? { borderBottom: "none" } : {}}
-              />
-            );
-          })}
-        </Box>
 
       </PullToRefresh>
 

@@ -630,6 +630,22 @@ export async function getPersona(doctorId) {
   return request(`/api/manage/persona?${qs.toString()}`);
 }
 
+export async function generatePersonaProfile(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/generate?${qs.toString()}`, {
+    method: "POST",
+  });
+}
+
+export async function updatePersonaSummary(doctorId, summaryText) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/summary?${qs.toString()}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ summary_text: summaryText }),
+  });
+}
+
 export async function addPersonaRule(doctorId, field, text) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   return request(`/api/manage/persona/rules?${qs.toString()}`, {

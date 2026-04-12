@@ -8,11 +8,13 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
+import HelpTip from "../../../components/HelpTip";
 import AppButton from "../../../components/AppButton";
 import { useApi } from "../../../api/ApiContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../lib/queryKeys";
 import { useDoctorStore } from "../../../store/doctorStore";
+import { PAGE_HELP } from "../constants";
 
 const FIELD_LABELS = {
   reply_style: "回复风格",
@@ -180,6 +182,7 @@ export default function PersonaOnboardingSubpage({ onBack, isMobile, onComplete 
   return (
     <PageSkeleton
       title={`${step + 1} / ${scenarios.length}`}
+      headerRight={<HelpTip message={PAGE_HELP.personaOnboarding} />}
       onBack={step === 0 ? onBack : () => setStep(step - 1)}
       isMobile={isMobile}
       listPane={

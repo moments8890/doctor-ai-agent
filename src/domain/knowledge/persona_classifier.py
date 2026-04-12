@@ -7,30 +7,7 @@ import json
 from typing import Optional
 
 from utils.log import log
-
-
-CLASSIFICATION_PROMPT = """分析以下医生对AI草稿的修改，判断这是风格偏好还是事实纠正。
-
-AI原文：
-{original}
-
-医生修改后：
-{edited}
-
-请用JSON格式回答（不要输出其他内容）：
-{{
-  "type": "style" 或 "factual" 或 "context_specific",
-  "persona_field": "reply_style" 或 "closing" 或 "structure" 或 "avoid" 或 "edits" 或 null,
-  "summary": "一句话结构性描述（不含患者姓名、日期等个人信息）",
-  "confidence": "low" 或 "medium" 或 "high"
-}}
-
-判断规则：
-- 如果医生改变了语气、称呼、结构、删除了某类内容 → type=style
-- 如果医生纠正了药名、剂量、检查项目、医学事实 → type=factual
-- 如果修改只适用于这个特定患者场景 → type=context_specific
-- confidence=high 当修改模式非常明确（如删除整段、改变称呼方式）
-- confidence=low 当修改很小或意图模糊"""
+from utils.prompt_loader import get_prompt_sync
 
 
 def compute_pattern_hash(field: str, summary: str) -> str:
@@ -50,7 +27,8 @@ async def classify_edit(original: str, edited: str) -> Optional[dict]:
     if original.strip() == edited.strip():
         return None
 
-    prompt = CLASSIFICATION_PROMPT.format(
+    template = get_prompt_sync("persona-classify")
+    prompt = template.format(
         original=original[:500],
         edited=edited[:500],
     )

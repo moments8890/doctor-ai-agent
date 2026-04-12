@@ -7,10 +7,12 @@ import { useState } from "react";
 import { Box, Chip, Typography } from "@mui/material";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
 import PageSkeleton from "../../../components/PageSkeleton";
+import HelpTip from "../../../components/HelpTip";
 import SectionLoading from "../../../components/SectionLoading";
 import EmptyState from "../../../components/EmptyState";
 import AppButton from "../../../components/AppButton";
 import { usePersonaPending, useAcceptPendingItem, useRejectPendingItem } from "../../../lib/doctorQueries";
+import { PAGE_HELP } from "../constants";
 
 const FIELD_LABELS = {
   reply_style: "回复风格",
@@ -115,6 +117,7 @@ export default function PendingReviewSubpage({ onBack, isMobile }) {
   return (
     <PageSkeleton
       title="AI发现"
+      headerRight={<HelpTip message={PAGE_HELP.pendingReview} />}
       onBack={onBack}
       isMobile={isMobile}
       listPane={listContent}

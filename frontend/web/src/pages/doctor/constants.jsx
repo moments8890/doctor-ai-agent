@@ -308,6 +308,9 @@ export const ICON_BADGES = {
   followup:     { icon: ChatOutlinedIcon, bg: COLOR.accent },
   new_record:   { icon: ContentPasteOutlinedIcon, bg: COLOR.primary },
 
+  // Persona
+  persona:      { icon: SmartToyOutlinedIcon, bg: COLOR.primary },
+
   // Knowledge sources
   kb_doctor:    { icon: EditNoteOutlinedIcon, bg: COLOR.primary },
   kb_ai:        { icon: SmartToyOutlinedIcon, bg: COLOR.text4 },
@@ -348,3 +351,19 @@ export const ICON_BADGES = {
 
 // Record type → IconBadge config lookup (shared with patient app)
 export { RECORD_TYPE_BADGE } from "../../shared/badgeConfigs";
+
+// ── Page help messages (used with <HelpTip message={PAGE_HELP.xxx} />) ──────
+// Each tip answers: what is this page → why do I need it → how to use it → AI connection
+export const PAGE_HELP = {
+  persona:            "在这里描述你希望AI用什么语气、称呼、结构回复患者。写得越具体，AI回复越像你本人。直接编辑文本即可。",
+  knowledge:          "你的AI知识库。上传诊疗指南、粘贴常用回复或导入网页，AI会在回复和诊断中自动引用。",
+  addKnowledge:       "通过文件、网页、拍照或手动输入添加知识。AI会学习这些内容，在相关场景中自动引用。",
+  pendingReview:      "AI从你的对话和修改中发现了新的沟通偏好。逐条确认或忽略，确认后会自动融入你的AI风格。",
+  teachByExample:     "粘贴一段你满意的回复示例，AI会从中提取你的沟通风格。提取结果会进入待确认队列，由你决定是否采纳。",
+  template:           "门诊病历的输出格式。上传你的自定义模板，AI生成报告时会按你的格式排版，不上传则使用国家标准格式。",
+  reviewQueue:        "AI生成的诊断建议和回复草稿都在这里。逐条审核后确认、修改或拒绝，未确认的内容不会发给患者。",
+  interview:          "语音或文字输入患者信息，AI实时提取并整理成结构化病历，比手动填表更快。",
+  patientDetail:      "患者的病历、消息和AI回复都在这里。AI会根据你的知识库和风格，为每位患者生成个性化的诊断建议和回复草稿。",
+  personaOnboarding:  "选择你更习惯的回复方式，AI会从中提取你的沟通偏好。完成后自动生成你的AI风格描述。",
+  qrCode:             "患者扫码后自助填写病史信息，AI会整理成结构化病历，免去你手动录入。",
+};
