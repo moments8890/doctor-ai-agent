@@ -77,8 +77,33 @@ async function detectAsrMode() {
 }
 
 export function isVoiceSupported() {
-  if (IS_MINIPROGRAM) return true; // Server-side ASR via MediaRecorder works in WeChat WebView
+  if (IS_MINIPROGRAM) return false; // Use keyboard dictation in miniapp (guided by mic hint)
   return !!BrowserSpeechRecognition || _asrModeCache === "server";
+}
+
+// For miniprogram: mic button that focuses input + shows keyboard dictation hint
+export function MiniVoiceMicHint({ inputRef }) {
+  const [show, setShow] = useState(false);
+  if (!IS_MINIPROGRAM) return null;
+  return (
+    <>
+      <Box
+        onClick={() => { inputRef?.current?.focus(); setShow(true); setTimeout(() => setShow(false), 3000); }}
+        sx={{ color: COLOR.text4, p: 1, cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center" }}
+      >
+        <MicIcon sx={{ fontSize: 22 }} />
+      </Box>
+      {show && (
+        <Box sx={{
+          position: "fixed", top: 60, left: "50%", transform: "translateX(-50%)",
+          bgcolor: "rgba(0,0,0,0.7)", color: "#fff", px: 2, py: 1, borderRadius: "8px",
+          fontSize: 14, zIndex: 9999, whiteSpace: "nowrap",
+        }}>
+          点击键盘上的 🎤 语音输入
+        </Box>
+      )}
+    </>
+  );
 }
 
 export default function VoiceInput({ onResult, onCancel }) {

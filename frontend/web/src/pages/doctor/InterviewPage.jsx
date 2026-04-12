@@ -5,7 +5,7 @@
  * 显示在患者列表右侧（替代患者详情面板）。
  */
 import { useEffect, useRef, useState } from "react";
-import { Alert, Box, Button, CircularProgress, IconButton, Snackbar, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, IconButton, Stack, Typography } from "@mui/material";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import MicIcon from "@mui/icons-material/Mic";
@@ -16,8 +16,7 @@ import SubpageHeader from "../../components/SubpageHeader";
 import HelpTip from "../../components/HelpTip";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SuggestionChips from "../../components/SuggestionChips";
-import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
-const IS_MINIPROGRAM = typeof window !== "undefined" && window.__wxjs_environment === "miniprogram";
+import VoiceInput, { isVoiceSupported, MiniVoiceMicHint } from "../../components/VoiceInput";
 import ActionPanel from "../../components/ActionPanel";
 import ImportChoiceDialog from "../../components/ImportChoiceDialog";
 import FieldReviewCard from "../../components/doctor/FieldReviewCard";
@@ -64,7 +63,6 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
   const cameraInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const voiceSupported = isVoiceSupported();
-  const [voiceHint, setVoiceHint] = useState(false);
   const [session, setSession] = useState({
     sessionId: resumeSessionId || null,
     progress: { filled: 0, total: 7 },
@@ -444,19 +442,14 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
         <Box sx={{ borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, px: 1, py: 1,
           pb: "calc(8px + env(safe-area-inset-bottom))", display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
           {/* Voice/keyboard toggle */}
-          {voiceSupported && !IS_MINIPROGRAM && (
+          {voiceSupported && (
             <IconButton onClick={() => setVoiceMode(!voiceMode)} sx={{ color: COLOR.text4, p: 1, flexShrink: 0 }}>
               {voiceMode ? <KeyboardIcon sx={{ fontSize: 22 }} /> : <MicIcon sx={{ fontSize: 22 }} />}
             </IconButton>
           )}
-          {IS_MINIPROGRAM && (
-            <IconButton onClick={() => { inputRef.current?.focus(); setVoiceHint(true); setTimeout(() => setVoiceHint(false), 3000); }}
-              sx={{ color: COLOR.text4, p: 1, flexShrink: 0 }}>
-              <MicIcon sx={{ fontSize: 22 }} />
-            </IconButton>
-          )}
+          <MiniVoiceMicHint inputRef={inputRef} />
           {/* Middle: voice button OR text input */}
-          {voiceMode && !IS_MINIPROGRAM ? (
+          {voiceMode ? (
             <Box sx={{ flex: 1 }}>
               <VoiceInput
                 onResult={(text) => { setInput((prev) => prev ? prev + text : text); setVoiceMode(false); }}
@@ -550,14 +543,6 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
         onClose={() => setShowCompleteDialog(false)}
       />
 
-      {/* Voice hint for miniprogram — guides user to keyboard mic */}
-      <Snackbar
-        open={voiceHint}
-        autoHideDuration={3000}
-        onClose={() => setVoiceHint(false)}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        message="点击键盘上的 🎤 语音输入"
-      />
     </Box>
   );
 }
