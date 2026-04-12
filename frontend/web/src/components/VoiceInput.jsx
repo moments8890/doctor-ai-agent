@@ -291,7 +291,7 @@ export default function VoiceInput({ onResult, onCancel }) {
     return (
       <Box sx={{
         flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-        height: 40, borderRadius: RADIUS.sm,
+        height: 36, borderRadius: RADIUS.sm,
         bgcolor: COLOR.surface, border: `1px solid ${COLOR.border}`,
       }}>
         <CircularProgress size={16} sx={{ color: COLOR.primary, mr: 1 }} />
@@ -313,7 +313,7 @@ export default function VoiceInput({ onResult, onCancel }) {
       onContextMenu={(e) => e.preventDefault()}
       sx={{
         flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-        height: 40, borderRadius: RADIUS.sm, cursor: "pointer", userSelect: "none",
+        height: 36, borderRadius: RADIUS.sm, cursor: "pointer", userSelect: "none",
         bgcolor: recording ? (cancelled ? COLOR.danger : COLOR.primary) : COLOR.white,
         border: recording ? "none" : `1px solid ${COLOR.border}`,
         transition: "background-color 0.15s",
