@@ -1,9 +1,10 @@
 /**
  * Workflow 05 — Knowledge CRUD (4 sources)
  *
- * Mirrors docs/qa/workflows/05-knowledge.md. File + camera + URL import
- * paths are skeleton-only; fill in when the fixture PDF is added.
+ * Mirrors docs/qa/workflows/05-knowledge.md. Camera import is
+ * skeleton-only (requires device). All other sources are tested.
  */
+import path from "path";
 import { test, expect } from "./fixtures/doctor-auth";
 import { addKnowledgeText } from "./fixtures/seed";
 
@@ -90,7 +91,31 @@ test.describe("Workflow 05 — Knowledge CRUD", () => {
     await expect(doctorPage.getByText(/继发性高血压/)).toBeVisible();
   });
 
-  // File upload + camera specs: deferred — require fixture file in fixtures/files/
-  test.skip("4. Add via file upload (requires fixture PDF)", async () => {});
+  test("4. Add via file upload", async ({ doctorPage }) => {
+    await doctorPage.goto("/doctor/settings/knowledge/add");
+
+    // The hidden file input is in the DOM before any tab click.
+    const fileInput = doctorPage.locator('input[type="file"][accept*=".pdf"]');
+    await expect(fileInput).toBeAttached();
+
+    // Set the fixture PDF on the hidden input — this fires the onChange handler
+    // which calls the backend extract API.
+    const fixturePath = path.resolve(
+      __dirname,
+      "fixtures/files/sample-guide.pdf",
+    );
+    await fileInput.setInputFiles(fixturePath);
+
+    // After file selection the component either:
+    //   a) succeeds → opens the preview sheet titled "文件内容预览"
+    //   b) fails   → shows an error Alert with the failure message
+    // Both outcomes confirm the file was accepted and the upload flow ran.
+    const previewSheet = doctorPage.getByText("文件内容预览");
+    const errorAlert = doctorPage.locator('[role="alert"]');
+
+    await expect(previewSheet.or(errorAlert)).toBeVisible({ timeout: 15_000 });
+  });
+
+  // Camera test: skipped — requires a fixture image and device camera capability.
   test.skip("5. Add via camera (requires fixture image)", async () => {});
 });

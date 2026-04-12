@@ -11,7 +11,8 @@ pass — both the manual checklist and the matching Playwright spec.
 > MyAI new-record route, seed-smoke spec — are now landed. Several P1/P2 gaps
 > remain open: missing workflows for doctor-side new-record creation, patient
 > preview/QR, `TeachByExampleSubpage`, `PendingReviewSubpage`, template
-> editor, teaching-loop round-trip, and desktop sidebar. See the full report
+> editor, and desktop sidebar. Teaching-loop round-trip now covered by
+> [18-teaching-loop.md](18-teaching-loop.md). See the full report
 > at
 > [`../reports/2026-04-11-workflows-review/report.html`](../reports/2026-04-11-workflows-review/report.html).
 
@@ -39,6 +40,12 @@ The MD file is the source of truth. The spec is the automation.
 | 10 | Tasks browse + complete | [10-tasks.md](10-tasks.md) | `10-tasks.spec.ts` | `TaskPage.jsx`, `TaskDetailSubpage.jsx` |
 | 11 | Settings (font / about / logout) | [11-settings.md](11-settings.md) | `11-settings.spec.ts` | `SettingsListSubpage.jsx`, `fontScaleStore.js` |
 | 12 | New record creation (doctor interview) | [12-new-record.md](12-new-record.md) | `12-new-record.spec.ts` | `InterviewPage.jsx`, `PatientsPage.jsx` |
+| 13 | Persona pending review (AI discoveries) | [13-persona-pending.md](13-persona-pending.md) | `13-persona-pending.spec.ts` | `PendingReviewSubpage.jsx` |
+| 14 | Persona onboarding (first-time style) | [14-persona-onboarding.md](14-persona-onboarding.md) | `14-persona-onboarding.spec.ts` | `PersonaOnboardingSubpage.jsx` |
+| 15 | Persona teach-by-example | [15-persona-teach.md](15-persona-teach.md) | `15-persona-teach.spec.ts` | `TeachByExampleSubpage.jsx` |
+| 16 | Template management | [16-template.md](16-template.md) | `16-template.spec.ts` | `TemplateSubpage.jsx` |
+| 17 | QR invite + Patient preview | [17-qr-patient-preview.md](17-qr-patient-preview.md) | `17-qr-patient-preview.spec.ts` | `SettingsPage.jsx` (QR), `DoctorPage.jsx` (`PatientPreviewPage`) |
+| 18 | Teaching loop round-trip (cross-workflow) | [18-teaching-loop.md](18-teaching-loop.md) | `18-teaching-loop.spec.ts` | `PatientDetail.jsx`, `teaching_handlers.py`, `KnowledgeSubpage.jsx`, `diagnosis_handlers.py` |
 
 ## Shared pre-flight
 
@@ -112,7 +119,11 @@ Re-running on a dirty DB will hit "phone already registered" (400) — use
 | Any change to task queue | 10 |
 | Any change to settings / theme / fontScale | 11 |
 | Any change to doctor interview / record creation | 12 |
-| **Before any production ship** | **All 12** — sequentially |
+| Any change to persona onboarding / pending / teach | 13, 14, 15 |
+| Any change to template upload / export format | 16 |
+| Any change to QR generation / patient preview / onboarding entry | 17 |
+| Any change to teaching loop / edit-to-rule pipeline / draft edit detection | 18 |
+| **Before any production ship** | **All 18** — sequentially |
 
 ## Adding a new workflow
 
