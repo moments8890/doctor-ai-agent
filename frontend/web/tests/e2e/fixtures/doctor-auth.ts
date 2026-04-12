@@ -121,58 +121,67 @@ export async function registerPatient(
 }
 
 /**
- * Hydrate the doctor session the same way the app does after a successful login.
+ * Log in as a doctor through the real login form, then bypass the onboarding
+ * wizard + setup dialog so subsequent navigations land on the doctor workbench.
  *
- * The doctor store (frontend/web/src/store/doctorStore.js) uses
- * `persist(…, { name: "doctor-session" })`, which means localStorage carries
- * a single JSON blob:
+ * Why login through the UI instead of injecting localStorage?
+ * - The zustand `doctor-session` blob requires hydration before the auth
+ *   guard in App.jsx recognizes the session. If you inject the blob and
+ *   navigate to `/doctor`, there's a race: the auth guard fires before
+ *   hydration, sees no `accessToken`, and redirects to `/login`. Logging in
+ *   through the form calls `setAuth()` synchronously, so the store is warm
+ *   from the first render.
+ * - The login form also calls `setWebToken()`, writes `unified_auth_*`
+ *   localStorage keys, and triggers the miniprogram postMessage path (no-op
+ *   in headless Chrome). All of these mirror production behavior exactly.
  *
- *   localStorage["doctor-session"] = JSON.stringify({
- *     state: { doctorId, doctorName, accessToken },
- *     version: 0,
- *   })
- *
- * api.js `_getToken()` falls back to reading that blob directly if the
- * module-level cache is empty, so setting it *before* the first navigation is
- * enough to make authed API calls from the first request onward.
- *
- * We additionally seed `unified_auth_doctor_id / _token / _name` because
- * App.jsx `restoreRealSession()` reads them as a fallback when the zustand
- * store looks synthetic in DEV_MODE. Writing both paths is cheap insurance.
+ * After login we pre-set two keys to skip the wizard:
+ * - `onboarding_wizard_done:<id>` — checked by `isWizardDone()` in
+ *   DoctorPage.jsx:747, redirects to `/doctor/onboarding` if missing.
+ * - `onboarding_setup_done:<id>` — checked by `useDoctorPageState` in
+ *   DoctorPage.jsx:714, shows a name-input overlay if missing.
  */
 export async function authenticateDoctorPage(page: Page, doctor: TestDoctor) {
-  // localStorage is origin-scoped — we have to land on the frontend origin
-  // before we can write to it. An empty page avoids triggering any app code.
   await page.goto("/login");
-  await page.evaluate((d) => {
-    const blob = JSON.stringify({
-      state: {
-        doctorId: d.doctorId,
-        doctorName: d.name,
-        accessToken: d.token,
-      },
-      version: 0,
-    });
-    localStorage.setItem("doctor-session", blob);
-    localStorage.setItem("unified_auth_doctor_id", d.doctorId);
-    localStorage.setItem("unified_auth_token", d.token);
-    localStorage.setItem("unified_auth_name", d.name);
-  }, doctor);
+
+  // Pre-set wizard + setup flags BEFORE login redirects to /doctor. The
+  // DoctorPage useEffect that checks these fires on mount — by the time the
+  // login redirect lands, the keys are already present.
+  await page.evaluate((id) => {
+    localStorage.setItem(
+      `onboarding_wizard_done:${id}`,
+      JSON.stringify({ status: "completed", completedAt: new Date().toISOString() }),
+    );
+    localStorage.setItem(`onboarding_setup_done:${id}`, "1");
+  }, doctor.doctorId);
+
+  // Fill the doctor login form. Tab 0 (医生) is the default.
+  await page.getByLabel("昵称").fill(doctor.phone);
+  await page.getByLabel("口令").fill(String(doctor.yearOfBirth));
+  await page.getByRole("button", { name: "登录" }).click();
+
+  // Wait for the login to succeed and land on the doctor workbench.
+  await page.waitForURL(/\/doctor/, { timeout: 15_000 });
 }
 
 /**
- * Hydrate the patient session the same way the app does after login.
- * The patient app reads these localStorage keys directly.
+ * Log in as a patient through the real login form. Patient login uses the
+ * same /login page but on the "患者" tab with phone + birth year.
+ *
+ * After login the app writes patient_portal_* localStorage keys and
+ * redirects to /patient. We wait for that redirect as the success signal.
  */
-export async function authenticatePatientPage(page: Page, patient: TestPatient, doctorName?: string) {
+export async function authenticatePatientPage(page: Page, patient: TestPatient) {
   await page.goto("/login");
-  await page.evaluate((p) => {
-    localStorage.setItem("patient_portal_token", p.token);
-    localStorage.setItem("patient_portal_name", p.name);
-    localStorage.setItem("patient_portal_doctor_id", p.doctorId);
-    localStorage.setItem("patient_portal_doctor_name", p.doctorName || "");
-    localStorage.setItem("patient_portal_patient_id", p.patientId);
-  }, { ...patient, doctorName: doctorName || "" });
+
+  // Switch to 患者 tab (index 1).
+  await page.getByRole("tab", { name: "患者" }).click();
+
+  await page.getByLabel("昵称").fill(patient.phone);
+  await page.getByLabel("口令").fill(String(patient.yearOfBirth));
+  await page.getByRole("button", { name: "登录" }).click();
+
+  await page.waitForURL(/\/patient/, { timeout: 15_000 });
 }
 
 type Fixtures = {
@@ -198,8 +207,8 @@ export const test = base.extend<Fixtures>({
     await use(page);
   },
 
-  patientPage: async ({ page, patient, doctor }, use) => {
-    await authenticatePatientPage(page, patient, doctor.name);
+  patientPage: async ({ page, patient }, use) => {
+    await authenticatePatientPage(page, patient);
     await use(page);
   },
 });

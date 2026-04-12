@@ -109,27 +109,21 @@ test.describe("Workflow 09 — Draft reply send", () => {
     await sendDoctorReply(request, doctor, patient.patientId, replyText);
 
     // Spin up an isolated browser context for the patient portal so the
-    // doctor's localStorage doesn't leak in. (doctorPage + patientPage share
-    // a single Page by default in the shared fixture; opening a new context
-    // here keeps the two sessions strictly separated for this test.)
+    // doctor's localStorage doesn't leak in.
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
     try {
       const page = await ctx.newPage();
-      // Hydrate patient session (mirrors authenticatePatientPage helper).
+      // Login as the patient through the real login form (same approach as
+      // the authenticatePatientPage fixture — avoids the localStorage
+      // injection hydration race that caused tests to stick on /login).
       await page.goto("/login");
-      await page.evaluate(
-        ({ p, dn }) => {
-          localStorage.setItem("patient_portal_token", p.token);
-          localStorage.setItem("patient_portal_name", p.name);
-          localStorage.setItem("patient_portal_doctor_id", p.doctorId);
-          localStorage.setItem("patient_portal_doctor_name", dn);
-          localStorage.setItem("patient_portal_patient_id", p.patientId);
-        },
-        { p: patient, dn: doctor.name },
-      );
+      await page.getByRole("tab", { name: "患者" }).click();
+      await page.getByLabel("昵称").fill(patient.phone);
+      await page.getByLabel("口令").fill(String(patient.yearOfBirth));
+      await page.getByRole("button", { name: "登录" }).click();
+      await page.waitForURL(/\/patient/, { timeout: 15_000 });
 
-      // Chat is the default tab on /patient.
-      await page.goto("/patient");
+      // Chat is the default tab on /patient — assert the doctor's reply.
       await expect(page.getByText(replyText)).toBeVisible({ timeout: 15_000 });
     } finally {
       await ctx.close();
