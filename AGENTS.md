@@ -155,6 +155,7 @@ Direct pushes to `main` are allowed.
 6. **Update progress** — tick completed items in `docs/debug/iteration_*.md`
 7. **DO NOT RUN TESTS** - do not run tests during normal development (dont run the tests to validate)
 8. **Pre-push gate** — before pushing, run `/test-gate` to validate no regressions against the existing test suite
+9. **E2E ship gate** — for frontend changes, run `cd frontend/web && npx playwright test` with both servers running (backend :8000, frontend :5173). All non-skipped tests must pass. Review videos in `test-results/` for visual regressions. Generate `README.txt` per result folder for human review. See `docs/qa/e2e-guide.md` for full details
 
 ### Publishing (Direct to Main)
 

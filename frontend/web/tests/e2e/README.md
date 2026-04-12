@@ -43,8 +43,8 @@ npm run dev:stable   # HMR off — prevents flaky reloads during tests
 Verify both are up:
 
 ```bash
-curl -s http://127.0.0.1:8000/api/health        # expect 200
-curl -sI http://127.0.0.1:5173/login | head -1  # expect 200
+curl -s http://127.0.0.1:8000/healthz            # expect 200
+curl -sI http://127.0.0.1:5173/login | head -1   # expect 200
 ```
 
 ## Running tests

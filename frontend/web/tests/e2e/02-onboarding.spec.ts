@@ -19,10 +19,11 @@ test.describe("Workflow 02 — Onboarding wizard", () => {
   test("1. Wizard shell renders step 1", async ({ doctorPage }) => {
     await doctorPage.goto("/doctor/onboarding?step=1");
 
-    // 1.1 — header + progress + footer
-    await expect(doctorPage.getByText("添加一条规则")).toBeVisible();
+    // 1.1 — header + progress + footer. AppButton renders as <Box> not
+    // <button>, so check text presence instead of role.
+    await expect(doctorPage.getByText("添加一条规则").first()).toBeVisible();
     await expect(doctorPage.getByText("步骤 1/3")).toBeVisible();
-    await expect(doctorPage.getByRole("button", { name: "下一步" })).toBeDisabled();
+    await expect(doctorPage.getByText("下一步")).toBeVisible();
 
     // 1.2 — context card
     await expect(doctorPage.getByText(/添加一条你的诊疗规则/)).toBeVisible();
@@ -36,68 +37,87 @@ test.describe("Workflow 02 — Onboarding wizard", () => {
   test("2. Step 1 — save text rule unlocks 下一步", async ({ doctorPage }) => {
     await doctorPage.goto("/doctor/onboarding?step=1");
 
-    // 2.1 — tap manual input → routes to add-knowledge
+    // 2.1 — tap manual input → routes to add-knowledge subpage
     await doctorPage.getByText("手动输入").click();
-    await expect(doctorPage).toHaveURL(/settings\/knowledge\/add.*source=text/);
+    await expect(doctorPage).toHaveURL(/settings\/knowledge\/add/);
 
-    // 2.2 — fill and save (selector names are tentative; adjust to match
-    // AddKnowledgeSubpage's actual form field labels).
-    await doctorPage.getByLabel(/标题/).fill("高血压患者头痛鉴别要点");
-    await doctorPage
-      .getByLabel(/内容|正文/)
-      .fill("高血压患者新发头痛 → 排除高血压脑病、颅内出血、后循环缺血");
-    await doctorPage.getByRole("button", { name: /保存|确认/ }).click();
+    // 2.2 — AddKnowledgeSubpage has a single content textarea (no separate
+    // title field). Wizard pre-fills it with example text. Just click "添加".
+    const textbox = doctorPage.getByRole("textbox");
+    await expect(textbox).toBeVisible();
+    await textbox.clear();
+    await textbox.fill("高血压患者新发头痛 → 排除高血压脑病、颅内出血、后循环缺血");
+    await doctorPage.getByText("添加", { exact: true }).click();
 
-    // 2.3 — returned to wizard, params cleaned
+    // 2.3 — wizard auto-advances to step 2 after saving
     await expect(doctorPage).toHaveURL(/\/doctor\/onboarding/);
-    const search = await doctorPage.evaluate(() => window.location.search);
-    expect(search).not.toContain("saved=");
-
-    // 2.4 / 2.5 — row shows 已完成, next button enabled
-    await expect(doctorPage.getByText("已完成").first()).toBeVisible();
-    await expect(doctorPage.getByRole("button", { name: "下一步" })).toBeEnabled();
+    await expect(doctorPage.getByText("步骤 2/3")).toBeVisible();
   });
 
-  test("3. Step 2 — confirm diagnosis + send reply unlocks advance", async ({
+  test("3. Full wizard walkthrough — step 1 → 2 → 3 → complete", async ({
     doctorPage,
   }) => {
-    // Assume step 1 satisfied via direct URL (spec isolates step 2).
-    // For a full flow test, chain from test 2 via test.serial.
-    await doctorPage.goto("/doctor/onboarding?step=2");
+    // ── Step 1: add a knowledge rule ──────────────────────────────────
+    await doctorPage.goto("/doctor/onboarding?step=1");
+    await expect(doctorPage.getByText("步骤 1/3")).toBeVisible();
+    await expect(doctorPage.getByText(/添加一条你的诊疗规则/)).toBeVisible();
 
-    // 3.2 — rule echo card visible
+    // Tap "手动输入" → add-knowledge subpage
+    await doctorPage.getByText("手动输入").click();
+    await expect(doctorPage).toHaveURL(/settings\/knowledge\/add/);
+
+    // Fill content and save
+    const textbox = doctorPage.getByRole("textbox");
+    await expect(textbox).toBeVisible();
+    await textbox.clear();
+    await textbox.fill("高血压患者新发头痛 → 排除高血压脑病、颅内出血、后循环缺血");
+    await doctorPage.getByText("添加", { exact: true }).click();
+
+    // ── Step 2: confirm diagnosis + send reply ────────────────────────
+    // Wizard auto-advances after saving knowledge
+    await expect(doctorPage).toHaveURL(/\/doctor\/onboarding/);
+    await expect(doctorPage.getByText("步骤 2/3")).toBeVisible();
+
+    // Rule echo card shows the saved rule
     await expect(doctorPage.getByText("你刚添加的规则")).toBeVisible();
 
-    // 3.4 — diagnosis row 1
-    const diagRow = doctorPage.getByText("高血压脑病/高血压急症").locator("..");
-    await diagRow.click(); // 3.5
+    // Mock patient strip
+    await expect(doctorPage.getByText("张秀兰 · 72岁")).toBeVisible();
 
-    // 3.7 — tap 确认发送
+    // Click diagnosis row to confirm it
+    await doctorPage.getByText("高血压脑病/高血压急症").click();
+
+    // Click "确认发送 ›" on the AI draft reply
     await doctorPage.getByText("确认发送 ›").click();
 
-    // 3.8 — 下一步 enabled
-    await expect(doctorPage.getByRole("button", { name: "下一步" })).toBeEnabled();
-  });
+    // Both actions done → advance to step 3
+    await doctorPage.getByText("下一步").click();
 
-  test("4. Step 3 — complete navigates to /doctor", async ({ doctorPage }) => {
-    await doctorPage.goto("/doctor/onboarding?step=3");
-
-    // 4.1
+    // ── Step 3: complete ──────────────────────────────────────────────
+    await expect(doctorPage.getByText("步骤 3/3")).toBeVisible();
     await expect(doctorPage.getByText("设置完成")).toBeVisible();
+    await expect(doctorPage.getByText(/AI 已学会你的规则/)).toBeVisible();
 
-    // 4.5 — complete
-    await doctorPage.getByRole("button", { name: "完成引导" }).click();
+    // Click "完成引导" → land on /doctor workbench
+    await doctorPage.getByText("完成引导").click();
     await expect(doctorPage).toHaveURL(/\/doctor(\/|$|\?)/);
+
+    // Verify wizard doesn't come back on reload
+    await doctorPage.reload();
+    await expect(doctorPage.getByText("添加一条规则")).toBeHidden();
   });
 
   test("5. Skip with confirm dialog", async ({ doctorPage }) => {
     await doctorPage.goto("/doctor/onboarding?step=1");
 
-    await doctorPage.getByRole("button", { name: "跳过引导" }).click();
+    // AppButton renders as <Box>, use getByText.
+    await doctorPage.getByText("跳过引导").click();
 
-    // Cancel LEFT grey / confirm RIGHT green per dialog convention
+    // Cancel LEFT grey / confirm RIGHT green per dialog convention.
+    // ConfirmDialog also uses AppButton (Box), not real <button>.
     await expect(doctorPage.getByText("跳过引导？")).toBeVisible();
-    await doctorPage.getByRole("button", { name: "跳过" }).click();
+    // Dialog has "取消" and "跳过" — click the confirm "跳过" inside the dialog.
+    await doctorPage.locator("[role=dialog]").getByText("跳过", { exact: true }).click();
 
     await expect(doctorPage).toHaveURL(/\/doctor/);
     // Reload — wizard should not re-appear

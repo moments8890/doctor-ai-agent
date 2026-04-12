@@ -112,6 +112,39 @@ These rules are enforced by `scripts/lint-ui.sh`. Run it before pushing.
 - **Danger dialogs:** same layout, primary button red. No button-swap.
 - **Mobile subpages:** must use `PageSkeleton mobileView` (auto-gets Slide transition)
 
+## E2E QA Tests (Ship Gate)
+
+Full guide: `docs/qa/e2e-guide.md`
+
+### Before shipping, run the E2E gate:
+
+```bash
+cd frontend/web
+rm -rf test-results
+npx playwright test
+```
+
+Both servers must be running: backend on `:8000`, frontend on `:5173`.
+
+### Selector rules — AppButton is NOT a `<button>`
+
+`AppButton` and `ConfirmDialog` render as `<Box>` (div), not `<button>`.
+In tests, use `getByText("label")` — never `getByRole("button")`.
+Use `{ exact: true }` when text is a substring of other elements.
+
+### After test runs, generate human-review artifacts:
+
+1. Videos are in `frontend/web/test-results/*/video.webm`
+2. Create `README.txt` in each result folder with test name + numbered steps
+3. `slowMo: 600` is set in playwright.config.ts so videos are watchable
+
+### Known data quirks:
+
+- Health endpoint: `/healthz` (not `/api/health`)
+- Fresh doctors get 3 auto-seeded knowledge items (never truly empty)
+- `addKnowledgeText` category must be enum: `custom|diagnosis|followup|medication`
+- Login generates a new JWT — don't compare tokens across register/login
+
 ## Git Safety
 
 - **NEVER push to any remote** (GitHub, Gitee, or any other) unless the user

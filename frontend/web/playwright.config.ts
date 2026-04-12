@@ -32,8 +32,10 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL || "http://127.0.0.1:5173",
     trace: "retain-on-failure",
-    screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    screenshot: "on",
+    video: "on",
+    // Slow down actions so videos show the flow clearly.
+    launchOptions: { slowMo: 600 },
     // Mobile-first layout — the doctor app is a mobile PWA. Matches the hero path.
     viewport: { width: 390, height: 844 },
     ignoreHTTPSErrors: true,
