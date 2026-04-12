@@ -20,11 +20,15 @@ function getWsUrl() {
 async function detectAsrMode() {
   if (_asrModeCache) return _asrModeCache;
 
+  console.log("[Voice] detectAsrMode start", { IS_MINIPROGRAM, hasSpeechRecognition: !!BrowserSpeechRecognition });
+
   // In miniprogram web-view, getUserMedia is usually blocked.
   // Fall back to native recording page (wx.getRecorderManager → upload).
   if (IS_MINIPROGRAM) {
     const hasMediaDevices = !!(navigator.mediaDevices?.getUserMedia);
+    console.log("[Voice] miniprogram: hasMediaDevices =", hasMediaDevices);
     if (!hasMediaDevices) {
+      console.log("[Voice] → miniprogram mode (no mediaDevices)");
       _asrModeCache = "miniprogram";
       return "miniprogram";
     }
@@ -32,7 +36,9 @@ async function detectAsrMode() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((t) => t.stop());
-    } catch {
+      console.log("[Voice] getUserMedia succeeded in miniprogram");
+    } catch (e) {
+      console.log("[Voice] getUserMedia failed:", e.message, "→ miniprogram mode");
       _asrModeCache = "miniprogram";
       return "miniprogram";
     }
@@ -40,25 +46,31 @@ async function detectAsrMode() {
 
   // Probe WebSocket for server-side ASR
   try {
-    const ws = new WebSocket(getWsUrl());
+    const wsUrl = getWsUrl();
+    console.log("[Voice] probing WebSocket:", wsUrl);
+    const ws = new WebSocket(wsUrl);
     const result = await new Promise((resolve) => {
-      const timeout = setTimeout(() => { ws.close(); resolve("browser"); }, 2000);
+      const timeout = setTimeout(() => { ws.close(); console.log("[Voice] WS timeout → browser"); resolve("browser"); }, 2000);
       ws.onmessage = (evt) => {
         clearTimeout(timeout);
         try {
           const msg = JSON.parse(evt.data);
-          resolve(msg.type === "config" && msg.provider === "browser" ? "browser" : "server");
+          const mode = msg.type === "config" && msg.provider === "browser" ? "browser" : "server";
+          console.log("[Voice] WS config:", msg, "→", mode);
+          resolve(mode);
         } catch {
           resolve("server");
         }
         ws.close();
       };
-      ws.onerror = () => { clearTimeout(timeout); resolve("browser"); };
+      ws.onerror = (e) => { clearTimeout(timeout); console.log("[Voice] WS error → browser", e); resolve("browser"); };
       ws.onclose = () => { clearTimeout(timeout); };
     });
+    console.log("[Voice] final mode:", result);
     _asrModeCache = result;
     return result;
-  } catch {
+  } catch (e) {
+    console.log("[Voice] WS probe failed:", e, "→ browser");
     _asrModeCache = "browser";
     return "browser";
   }
@@ -105,49 +117,38 @@ export default function VoiceInput({ onResult, onCancel }) {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }
 
-  // ── Miniprogram native voice page mode ──
-  // Navigate to native miniprogram page for recording, poll for result on return.
-  const pollRef = useRef(null);
+  // ── Miniprogram file-capture mode ──
+  // Uses <input type="file" capture> to trigger system audio recorder.
+  // No page navigation — stays inline.
+  const fileInputRef = useRef(null);
 
   function startMiniRecording() {
-    if (typeof wx === "undefined" || !wx.miniProgram) return;
-    // Navigate to the native voice recording page
-    wx.miniProgram.navigateTo({ url: "/pages/voice/voice" }); // eslint-disable-line no-undef
+    console.log("[Voice] miniprogram: triggering file capture");
+    if (fileInputRef.current) fileInputRef.current.click();
+  }
+
+  async function handleAudioFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // reset for next use
+    if (!file) return;
+    console.log("[Voice] captured audio:", file.name, file.size, "bytes");
     setProcessing(true);
-    // Poll for voice result when user comes back
-    _startResultPolling();
-  }
-
-  function _startResultPolling() {
-    // Get doctor_id from URL params or store
-    const params = new URLSearchParams(window.location.search);
-    const doctorId = params.get("doctor_id") || "";
-    let attempts = 0;
-    pollRef.current = setInterval(async () => {
-      attempts++;
-      if (attempts > 30) { // 30s timeout
-        clearInterval(pollRef.current);
-        setProcessing(false);
-        return;
+    const form = new FormData();
+    form.append("file", file, file.name || "recording.m4a");
+    try {
+      const resp = await fetch("/api/transcribe", { method: "POST", body: form });
+      const data = await resp.json();
+      if (resp.ok && data.text) {
+        onResult(data.text);
+      } else {
+        console.log("[Voice] transcribe failed:", data);
       }
-      try {
-        const resp = await fetch(`/api/voice/result?doctor_id=${encodeURIComponent(doctorId)}`);
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.text) {
-            clearInterval(pollRef.current);
-            setProcessing(false);
-            onResult(data.text);
-          }
-        }
-      } catch { /* retry */ }
-    }, 1000);
+    } catch (err) {
+      console.log("[Voice] upload error:", err);
+    } finally {
+      setProcessing(false);
+    }
   }
-
-  // Clean up polling on unmount
-  useEffect(() => {
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, []);
 
   // ── Browser SpeechRecognition mode ──
   function startBrowserRecording(clientY) {
@@ -281,9 +282,11 @@ export default function VoiceInput({ onResult, onCancel }) {
 
   // ── Unified start/stop ──
   function startRecording(clientY) {
+    console.log("[Voice] startRecording, asrMode =", asrMode);
     if (asrMode === "miniprogram") startMiniRecording();
     else if (asrMode === "server") startServerRecording(clientY);
     else if (BrowserSpeechRecognition) startBrowserRecording(clientY);
+    else console.log("[Voice] no recording method available");
   }
 
   function stopRecording() {
@@ -322,9 +325,10 @@ export default function VoiceInput({ onResult, onCancel }) {
 
   return (
     <Box
-      onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); startRecording(e.touches[0].clientY); }}
-      onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); stopRecording(); }}
-      onTouchMove={(e) => { e.preventDefault(); handleMove(e.touches[0].clientY); }}
+      onTouchStart={(e) => { if (asrMode !== "miniprogram") { e.preventDefault(); e.stopPropagation(); startRecording(e.touches[0].clientY); } }}
+      onTouchEnd={(e) => { if (asrMode !== "miniprogram") { e.preventDefault(); e.stopPropagation(); stopRecording(); } }}
+      onTouchMove={(e) => { if (asrMode !== "miniprogram") { e.preventDefault(); handleMove(e.touches[0].clientY); } }}
+      onClick={() => { if (asrMode === "miniprogram") startRecording(); }}
       onMouseDown={(e) => { if (e.button === 0) startRecording(e.clientY); }}
       onMouseUp={(e) => { if (e.button === 0) stopRecording(); }}
       onMouseMove={(e) => { if (recording) handleMove(e.clientY); }}
@@ -359,6 +363,15 @@ export default function VoiceInput({ onResult, onCancel }) {
               : `松开发送 ${fmt(seconds)}`)
           : asrMode === "miniprogram" ? "点击录音" : "按住说话"}
       </Typography>
+      {/* Hidden file input for miniprogram audio capture */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*"
+        capture="microphone"
+        style={{ display: "none" }}
+        onChange={handleAudioFile}
+      />
     </Box>
   );
 }
