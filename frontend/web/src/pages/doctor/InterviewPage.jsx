@@ -437,70 +437,62 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
 
       {/* Bottom banner removed — single 完成 button in status line is sufficient */}
 
-      {/* Input bar — WeChat style: voice toggle | text input | + actions | send */}
+      {/* Input bar — WeChat style: voice/keyboard toggle | input or voice btn | + | send */}
       {session.status !== "draft_created" && (
-        <>
-          {voiceMode && (
-            <Box sx={{ px: 1, py: 1, pb: "calc(8px + env(safe-area-inset-bottom))", borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
-              <IconButton onClick={() => setVoiceMode(false)} sx={{ color: COLOR.text4, p: 1, flexShrink: 0 }}>
-                <KeyboardIcon sx={{ fontSize: 22 }} />
-              </IconButton>
-              <Box sx={{ flex: 1 }}>
-                <VoiceInput
-                  onResult={(text) => { setInput((prev) => prev ? prev + text : text); }}
-                  onCancel={() => setVoiceMode(false)}
-                />
-              </Box>
-            </Box>
+        <Box sx={{ borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, px: 1, py: 1,
+          pb: "calc(8px + env(safe-area-inset-bottom))", display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+          {/* Voice/keyboard toggle */}
+          {voiceSupported && (
+            <IconButton onClick={() => setVoiceMode(!voiceMode)} sx={{ color: COLOR.text4, p: 1, flexShrink: 0 }}>
+              {voiceMode ? <KeyboardIcon sx={{ fontSize: 22 }} /> : <MicIcon sx={{ fontSize: 22 }} />}
+            </IconButton>
           )}
-          {!voiceMode && (
-            <Box sx={{ borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, px: 1, py: 1,
-              pb: "calc(8px + env(safe-area-inset-bottom))", display: "flex", alignItems: "flex-end", gap: 0.5, flexShrink: 0 }}>
-              {/* Voice toggle */}
-              {voiceSupported && (
-                <IconButton onClick={() => setVoiceMode(true)} sx={{ color: COLOR.text4, p: 1 }}>
-                  <MicIcon sx={{ fontSize: 22 }} />
-                </IconButton>
-              )}
-              {/* Text input with suggestion chips */}
-              <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1, py: 0.5,
-                display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>
-                {selectedSuggestions.map((s, i) => (
-                  <Box key={i} sx={{
-                    display: "inline-flex", alignItems: "center", gap: 0.5,
-                    px: 1, py: 0.5, borderRadius: RADIUS.lg, fontSize: TYPE.secondary.fontSize,
-                    bgcolor: COLOR.successLight, color: COLOR.primary, fontWeight: 500, flexShrink: 0,
-                  }}>
-                    {s}
-                    <Box component="span"
-                      onClick={() => setSelectedSuggestions(prev => prev.filter(x => x !== s))}
-                      sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, ml: 0.5, "&:active": { opacity: 0.5 } }}>
-                      ×
-                    </Box>
+          {/* Middle: voice button OR text input */}
+          {voiceMode ? (
+            <Box sx={{ flex: 1 }}>
+              <VoiceInput
+                onResult={(text) => { setInput((prev) => prev ? prev + text : text); setVoiceMode(false); }}
+                onCancel={() => {}}
+              />
+            </Box>
+          ) : (
+            <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1, py: 0.5,
+              display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>
+              {selectedSuggestions.map((s, i) => (
+                <Box key={i} sx={{
+                  display: "inline-flex", alignItems: "center", gap: 0.5,
+                  px: 1, py: 0.5, borderRadius: RADIUS.lg, fontSize: TYPE.secondary.fontSize,
+                  bgcolor: COLOR.successLight, color: COLOR.primary, fontWeight: 500, flexShrink: 0,
+                }}>
+                  {s}
+                  <Box component="span"
+                    onClick={() => setSelectedSuggestions(prev => prev.filter(x => x !== s))}
+                    sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, ml: 0.5, "&:active": { opacity: 0.5 } }}>
+                    ×
                   </Box>
-                ))}
-                <Box component="input" ref={inputRef} value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  disabled={loading}
-                  placeholder={selectedSuggestions.length > 0 ? "" : "输入患者信息..."}
-                  sx={{ flex: 1, minWidth: 60, border: "none", outline: "none", fontSize: TYPE.body.fontSize,
-                    fontFamily: "inherit", bgcolor: "transparent", p: 0.5 }}
-                />
-              </Box>
-              {/* Action panel toggle (camera, gallery, file) */}
-              <IconButton onClick={() => setActionPanelOpen(true)} sx={{ color: COLOR.text4, p: 1 }}>
-                <AddCircleOutlineIcon sx={{ fontSize: 24 }} />
-              </IconButton>
-              {/* Send button */}
-              <IconButton onClick={() => handleSend()} disabled={loading || (!input.trim() && selectedSuggestions.length === 0)}
-                sx={{ bgcolor: COLOR.primary, color: COLOR.white, p: 1, borderRadius: "50%",
-                  "&:hover": { bgcolor: COLOR.primaryHover }, "&.Mui-disabled": { bgcolor: COLOR.text4, color: COLOR.white } }}>
-                <SendOutlinedIcon fontSize="small" />
-              </IconButton>
+                </Box>
+              ))}
+              <Box component="input" ref={inputRef} value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={loading}
+                placeholder={selectedSuggestions.length > 0 ? "" : "输入患者信息..."}
+                sx={{ flex: 1, minWidth: 60, border: "none", outline: "none", fontSize: TYPE.body.fontSize,
+                  fontFamily: "inherit", bgcolor: "transparent", p: 0.5 }}
+              />
             </Box>
           )}
-        </>
+          {/* Action panel toggle */}
+          <IconButton onClick={() => setActionPanelOpen(true)} sx={{ color: COLOR.text4, p: 1, flexShrink: 0 }}>
+            <AddCircleOutlineIcon sx={{ fontSize: 24 }} />
+          </IconButton>
+          {/* Send button */}
+          <IconButton onClick={() => handleSend()} disabled={loading || (!input.trim() && selectedSuggestions.length === 0)}
+            sx={{ bgcolor: COLOR.primary, color: COLOR.white, p: 1, borderRadius: "50%", flexShrink: 0,
+              "&:hover": { bgcolor: COLOR.primaryHover }, "&.Mui-disabled": { bgcolor: COLOR.text4, color: COLOR.white } }}>
+            <SendOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Box>
       )}
 
       {/* Hidden camera/gallery input (images only) */}
