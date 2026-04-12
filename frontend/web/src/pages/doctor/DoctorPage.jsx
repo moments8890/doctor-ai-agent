@@ -87,7 +87,7 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
 function MobileBottomNav({ activeSection, navBadge, onNav }) {
   const navValue = activeSection;
   return (
-    <Box sx={{ flexShrink: 0, borderTop: `0.5px solid ${COLOR.border}`, bgcolor: COLOR.surface, pb: "calc(8px + env(safe-area-inset-bottom))" }}>
+    <Box sx={{ flexShrink: 0, borderTop: `0.5px solid ${COLOR.border}`, bgcolor: COLOR.surface, pb: "env(safe-area-inset-bottom)" }}>
       <BottomNavigationMui value={navValue} onChange={(_, val) => onNav(val)}
         sx={{ height: 64, bgcolor: COLOR.surface, "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "8px", color: COLOR.text4 }, "& .Mui-selected": { color: COLOR.primary }, "& .Mui-selected .MuiBottomNavigationAction-label": { color: COLOR.primary, fontWeight: 600 } }}>
         {NAV.map((item) => {
