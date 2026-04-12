@@ -117,71 +117,35 @@ export default function VoiceInput({ onResult, onCancel }) {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }
 
-  // ── Miniprogram file-capture mode ──
-  // Uses <input type="file" capture> to trigger system audio recorder.
-  // No page navigation — stays inline.
-  const fileInputRef = useRef(null);
+  // ── Miniprogram native voice page mode ──
+  // Navigate to native page for recording (wx.getRecorderManager).
+  // Recording auto-starts on page load, result polled back via API.
+  const pollRef = useRef(null);
 
   function startMiniRecording() {
-    console.log("[Voice] miniprogram: triggering file capture");
-    // Try file input first; if it doesn't open within 500ms, fall back to native page
-    let fileOpened = false;
-    const onFocus = () => { fileOpened = true; };
-    window.addEventListener("focus", onFocus);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-
-    setTimeout(() => {
-      window.removeEventListener("focus", onFocus);
-      if (!fileOpened && !processing) {
-        console.log("[Voice] file capture didn't trigger, falling back to native page");
-        if (typeof wx !== "undefined" && wx.miniProgram) {
-          wx.miniProgram.navigateTo({ url: "/pages/voice/voice" });
-          setProcessing(true);
-          // Poll for result when user returns
-          const params = new URLSearchParams(window.location.search);
-          const doctorId = params.get("doctor_id") || "";
-          let attempts = 0;
-          const poll = setInterval(async () => {
-            attempts++;
-            if (attempts > 30) { clearInterval(poll); setProcessing(false); return; }
-            try {
-              const resp = await fetch(`/api/voice/result?doctor_id=${encodeURIComponent(doctorId)}`);
-              if (resp.ok) {
-                const data = await resp.json();
-                if (data.text) { clearInterval(poll); setProcessing(false); onResult(data.text); }
-              }
-            } catch { /* retry */ }
-          }, 1000);
-        }
-      }
-    }, 500);
-  }
-
-  async function handleAudioFile(e) {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // reset for next use
-    if (!file) return;
-    console.log("[Voice] captured audio:", file.name, file.size, "bytes");
+    console.log("[Voice] miniprogram: opening native voice page");
+    if (typeof wx === "undefined" || !wx.miniProgram) return;
+    wx.miniProgram.navigateTo({ url: "/pages/voice/voice" });
     setProcessing(true);
-    const form = new FormData();
-    form.append("file", file, file.name || "recording.m4a");
-    try {
-      const resp = await fetch("/api/transcribe", { method: "POST", body: form });
-      const data = await resp.json();
-      if (resp.ok && data.text) {
-        onResult(data.text);
-      } else {
-        console.log("[Voice] transcribe failed:", data);
-      }
-    } catch (err) {
-      console.log("[Voice] upload error:", err);
-    } finally {
-      setProcessing(false);
-    }
+    const params = new URLSearchParams(window.location.search);
+    const doctorId = params.get("doctor_id") || "";
+    let attempts = 0;
+    pollRef.current = setInterval(async () => {
+      attempts++;
+      if (attempts > 60) { clearInterval(pollRef.current); setProcessing(false); return; }
+      try {
+        const resp = await fetch(`/api/voice/result?doctor_id=${encodeURIComponent(doctorId)}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.text) { clearInterval(pollRef.current); setProcessing(false); onResult(data.text); }
+        }
+      } catch { /* retry */ }
+    }, 1000);
   }
+
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
 
   // ── Browser SpeechRecognition mode ──
   function startBrowserRecording(clientY) {
@@ -316,14 +280,9 @@ export default function VoiceInput({ onResult, onCancel }) {
   // ── Unified start/stop ──
   function startRecording(clientY) {
     console.log("[Voice] startRecording, asrMode =", asrMode, "IS_MINIPROGRAM =", IS_MINIPROGRAM);
-    if (asrMode === "miniprogram") startMiniRecording();
+    if (asrMode === "miniprogram" || (IS_MINIPROGRAM && asrMode !== "server")) startMiniRecording();
     else if (asrMode === "server") startServerRecording(clientY);
-    else if (BrowserSpeechRecognition && !IS_MINIPROGRAM) startBrowserRecording(clientY);
-    else if (IS_MINIPROGRAM) {
-      // Fallback: if all detection failed in miniprogram, use file capture
-      console.log("[Voice] fallback to file capture");
-      startMiniRecording();
-    }
+    else if (BrowserSpeechRecognition) startBrowserRecording(clientY);
     else console.log("[Voice] no recording method available");
   }
 
@@ -401,15 +360,6 @@ export default function VoiceInput({ onResult, onCancel }) {
               : `松开发送 ${fmt(seconds)}`)
           : asrMode === "miniprogram" ? "点击录音" : "按住说话"}
       </Typography>
-      {/* Hidden file input for miniprogram audio capture */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="audio/*"
-        capture="microphone"
-        style={{ display: "none" }}
-        onChange={handleAudioFile}
-      />
     </Box>
   );
 }
