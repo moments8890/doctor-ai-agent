@@ -123,8 +123,7 @@ edits that require reading surrounding context to decide what to change.
 - **Tests mock all I/O** — unit tests in `tests/` must not make real LLM, DB, or network calls; use `AsyncMock` / `patch`
 - **Testing policy** — integration tests are required for safety-critical modules (diagnosis pipeline, clinical decision support). For other modules, do not add unit tests unless the user explicitly asks. Prefer integration/E2E replay tests over unit tests for prompt-related changes.
 - **Enums over strings** — use `(str, Enum)` for any DB column or Pydantic field with a fixed set of values (status, role, task_type, category, etc.). Never use raw strings with inline comments listing allowed values. This applies to all models in `src/db/models/` and `src/agent/types.py`.
-- **DB schema changes** — add to `src/db/models/`; `create_tables()` handles creation automatically; document any manual cleanup/migration impact in the commit message and PR description
-- **No Alembic migrations** — do not create or run Alembic migrations until first production launch; for dev, use `create_tables()` or manual `ALTER TABLE` statements
+- **DB schema changes** — update ORM models in `src/db/models/`, then write an Alembic migration: `alembic revision -m "description"`. Test with `alembic upgrade head` on a fresh SQLite DB. Production migrations run automatically at startup via `run_alembic_migrations()`.
 - **LLM provider defaults** — local model is `qwen3.5:9b` via Ollama; prefer this in examples and defaults
 
 ## Configuration

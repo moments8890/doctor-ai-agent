@@ -4,13 +4,15 @@ Purpose:
 - Owns database schema, initialization, and CRUD operations.
 
 Key areas:
-- `models/` — SQLAlchemy ORM models: `doctor.py` (Doctor, DoctorKnowledgeItem, InviteCode), `doctor_chat_log.py` (DoctorChatLog), `patient.py` (Patient, PatientLabel), `records.py` (MedicalRecordDB, PendingRecord), `tasks.py` (DoctorTask), and more.
-- `crud/` — Async CRUD functions: `doctor.py` (patient search, turn archiving), `patient.py`, `records.py` (save + versioning), `pending.py` (draft lifecycle), `tasks.py`.
-- `repositories/` — Higher-level query wrappers: `patients.py`, `records.py`, `tasks.py`.
+- `models/` — SQLAlchemy ORM models.
+- `crud/` — Async CRUD functions.
+- `repositories/` — Higher-level query wrappers.
 - `engine.py` — Async engine + session factory (`AsyncSessionLocal`).
-- `init_db.py` — Table creation + startup backfill migrations.
+- `init_db.py` — Test-only table creation + startup backfills.
 
-Notes:
-- Schema changes go in `models/`.
-- No Alembic migrations until first production launch; `create_tables()` handles DDL.
-- Startup migrations/backfills are in `init_db.py`.
+Schema changes:
+- Edit models in `models/`, then write an Alembic migration.
+- Run `alembic revision -m "short description"` to create a new migration file.
+- Migrations live in `alembic/versions/` with sequential numbering (0001, 0002, ...).
+- Production migrations run automatically at startup (`src/startup/db_init.py`).
+- Test fixtures use `Base.metadata.create_all` directly (no Alembic).
