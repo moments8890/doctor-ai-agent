@@ -304,11 +304,11 @@ export default function VoiceInput({ onResult, onCancel }) {
 
   return (
     <Box
-      onTouchStart={(e) => { e.preventDefault(); startRecording(e.touches[0].clientY); }}
-      onTouchEnd={() => stopRecording()}
-      onTouchMove={(e) => handleMove(e.touches[0].clientY)}
-      onMouseDown={(e) => startRecording(e.clientY)}
-      onMouseUp={() => stopRecording()}
+      onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); startRecording(e.touches[0].clientY); }}
+      onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); stopRecording(); }}
+      onTouchMove={(e) => { e.preventDefault(); handleMove(e.touches[0].clientY); }}
+      onMouseDown={(e) => { if (e.button === 0) startRecording(e.clientY); }}
+      onMouseUp={(e) => { if (e.button === 0) stopRecording(); }}
       onMouseMove={(e) => { if (recording) handleMove(e.clientY); }}
       onContextMenu={(e) => e.preventDefault()}
       sx={{
