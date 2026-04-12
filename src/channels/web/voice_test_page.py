@@ -21,7 +21,8 @@ h2{margin-bottom:8px}
   box-shadow:0 1px 4px rgba(0,0,0,0.1);margin-bottom:16px}
 .card h3{font-size:15px;margin-bottom:12px;color:#07C160}
 .btn{display:block;width:100%;padding:14px;border:none;border-radius:8px;font-size:16px;
-  cursor:pointer;font-weight:600;margin-bottom:8px;transition:all 0.15s}
+  cursor:pointer;font-weight:600;margin-bottom:8px;transition:all 0.15s;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
 .btn-record{background:#07C160;color:#fff}
 .btn-record:active{background:#06a050}
 .btn-record.recording{background:#e53935;animation:pulse 1s infinite}
@@ -46,7 +47,7 @@ h2{margin-bottom:8px}
   <h3>Method 1: Microphone</h3>
   <button id="recBtn" class="btn btn-record"
     onmousedown="startRec()" onmouseup="stopRec()"
-    ontouchstart="startRec()" ontouchend="stopRec()">
+    ontouchstart="event.preventDefault();startRec()" ontouchend="event.preventDefault();stopRec()">
     Hold to Record
   </button>
   <div id="timer" class="timer" style="display:none">00:00</div>
