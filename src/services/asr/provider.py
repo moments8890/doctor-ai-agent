@@ -71,6 +71,33 @@ async def _whisper_batch(audio_bytes: bytes, format: str, language: str) -> str:
         _os.unlink(tmp_path)
 
 
+async def _convert_to_wav(audio_bytes: bytes, src_format: str) -> bytes:
+    """Convert audio to 16kHz mono WAV via ffmpeg (runs in thread pool)."""
+    import asyncio
+    import subprocess
+    import tempfile
+
+    def _run():
+        with tempfile.NamedTemporaryFile(suffix=f".{src_format}", delete=False) as src:
+            src.write(audio_bytes)
+            src_path = src.name
+        dst_path = src_path + ".wav"
+        try:
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", src_path, "-ar", "16000", "-ac", "1", dst_path],
+                capture_output=True, timeout=30,
+            )
+            with open(dst_path, "rb") as f:
+                return f.read()
+        finally:
+            import os as _os
+            _os.unlink(src_path)
+            if _os.path.exists(dst_path):
+                _os.unlink(dst_path)
+
+    return await asyncio.get_event_loop().run_in_executor(None, _run)
+
+
 async def _tencent_batch(audio_bytes: bytes, format: str, language: str) -> str:
     """Transcribe using Tencent Cloud ASR one-sentence recognition API.
 
@@ -89,13 +116,19 @@ async def _tencent_batch(audio_bytes: bytes, format: str, language: str) -> str:
         log("[ASR] Tencent ASR credentials not configured (TENCENT_ASR_SECRET_ID/KEY)", level="warning")
         return ""
 
-    # Convert format name to Tencent's voice format code
+    # Tencent ASR supported formats (webm is NOT supported)
+    TENCENT_FORMATS = {"wav", "pcm", "ogg-opus", "speex", "silk", "mp3", "m4a", "aac"}
     FORMAT_MAP = {
         "wav": "wav", "pcm": "pcm", "ogg": "ogg-opus",
         "speex": "speex", "silk": "silk", "mp3": "mp3",
-        "m4a": "m4a", "aac": "aac", "webm": "webm",
+        "m4a": "m4a", "aac": "aac",
     }
-    voice_format = FORMAT_MAP.get(format, "wav")
+    voice_format = FORMAT_MAP.get(format)
+
+    # Convert unsupported formats (webm, amr, flac, etc.) to wav via ffmpeg
+    if not voice_format:
+        audio_bytes = await _convert_to_wav(audio_bytes, format)
+        voice_format = "wav"
 
     # Base64 encode the audio
     audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")

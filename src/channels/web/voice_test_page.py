@@ -162,12 +162,13 @@ async function sendAudio(blob, filename, resultId, statusId) {
     const ms = Date.now() - t0;
     const data = await resp.json();
 
-    if (resp.ok && data.text) {
-      showResult(resultId, data.text, false);
+    if (resp.ok) {
+      const text = data.text || '(no speech detected)';
+      showResult(resultId, text, !data.text);
       statusEl.textContent = 'Provider: ' + data.provider + ' | ' + ms + 'ms';
-      log('ASR OK: "' + data.text.slice(0,30) + '..." (' + ms + 'ms)');
+      log('ASR: "' + text.slice(0,30) + '" (' + ms + 'ms)');
     } else {
-      const err = data.detail || data.text || JSON.stringify(data);
+      const err = data.detail || JSON.stringify(data);
       showResult(resultId, 'Error: ' + err, true);
       statusEl.textContent = 'HTTP ' + resp.status + ' | ' + ms + 'ms';
       log('ASR error: ' + err);
