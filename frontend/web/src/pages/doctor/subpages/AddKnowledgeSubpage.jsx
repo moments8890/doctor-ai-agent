@@ -397,7 +397,6 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
             <TextField fullWidth size="small" placeholder="https://..." value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleFetchUrl(); }}
-              autoFocus
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.md } }} />
             <AppButton variant="secondary" size="md" onClick={handleFetchUrl} disabled={fetchingUrl || !urlInput.trim()}
               sx={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 0.5 }}>
@@ -414,7 +413,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
         <Box sx={{ px: 2, mb: 2 }}>
           <TextField fullWidth multiline minRows={5} maxRows={10} size="small"
             placeholder="用自然语言描述您的临床经验、诊断规则、问诊策略等"
-            value={content} onChange={(e) => setContent(e.target.value)} autoFocus
+            value={content} onChange={(e) => setContent(e.target.value)}
             sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.md } }} />
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 0.5 }}>
             <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, flex: 1 }}>

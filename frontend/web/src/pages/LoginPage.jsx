@@ -187,7 +187,7 @@ export default function LoginPage() {
               <Box component="form" onSubmit={handleLogin} sx={{ width: "100%" }}>
                 <Stack spacing={2}>
                   <TextField label="昵称" value={nickname} onChange={e => setNickname(e.target.value)}
-                    fullWidth size="small" autoFocus />
+                    fullWidth size="small" />
                   <TextField label="口令" value={passcode} onChange={e => setPasscode(e.target.value)}
                     placeholder="请输入数字口令" fullWidth size="small" type="number"
                     inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }} />

@@ -29,6 +29,7 @@ import PageSkeleton from "../../components/PageSkeleton";
 
 import TaskDetailSubpage from "./subpages/TaskDetailSubpage";
 
+import ActionRow from "../../components/ActionRow";
 import FilterBar from "../../components/FilterBar";
 import NewItemCard from "../../components/NewItemCard";
 import { TYPE, COLOR, RADIUS, HIGHLIGHT_ROW_SX } from "../../theme";
@@ -294,16 +295,57 @@ export default function TaskPage({ doctorId, urlSubpage }) {
   const pendingTasks = effectiveData?.tasks || [];
   const recentlySent = effectiveData?.recently_sent || [];
 
-  // Merge followups + tasks into one sorted list
+  // Merge followups + tasks, filter out review type (belongs in 审核 tab)
   const allPendingItems = [
     ...upcomingFollowups.map((f) => ({ ...f, _isFollowup: true, _sortDate: f.due_at || f.due_label || "" })),
-    ...pendingTasks.map((t) => ({ ...t, _isFollowup: false, _sortDate: t.due_at || t.due || "" })),
+    ...pendingTasks
+      .filter((t) => t.task_type !== "review")
+      .map((t) => ({ ...t, _isFollowup: false, _sortDate: t.due_at || t.due || "" })),
   ].sort((a, b) => {
-    // Urgent/soon items first
-    if (a.soon && !b.soon) return -1;
-    if (!a.soon && b.soon) return 1;
     return (a._sortDate || "").localeCompare(b._sortDate || "");
   });
+
+  // Group items by relative time buckets (local timezone)
+  const _groupByDate = (items) => {
+    const now = new Date();
+    const localDate = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    const todayStr = localDate(now);
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = localDate(tomorrow);
+    const weekEnd = new Date(now);
+    weekEnd.setDate(weekEnd.getDate() + (7 - now.getDay()));
+    const weekEndStr = localDate(weekEnd);
+
+    const groups = [];
+    const buckets = { overdue: [], today: [], tomorrow: [], thisWeek: [], later: [] };
+
+    items.forEach((item) => {
+      const dueRaw = item.due_at || item._sortDate || "";
+      const dueDate = dueRaw ? new Date(dueRaw) : null;
+      const dueDateStr = dueDate ? localDate(dueDate) : "";
+
+      if (!dueDate || dueDateStr < todayStr) {
+        buckets.overdue.push(item);
+      } else if (dueDateStr === todayStr) {
+        buckets.today.push(item);
+      } else if (dueDateStr === tomorrowStr) {
+        buckets.tomorrow.push(item);
+      } else if (dueDateStr <= weekEndStr) {
+        buckets.thisWeek.push(item);
+      } else {
+        buckets.later.push(item);
+      }
+    });
+
+    if (buckets.overdue.length) groups.push({ label: "已逾期", color: COLOR.danger, items: buckets.overdue });
+    if (buckets.today.length) groups.push({ label: "今天", color: COLOR.primary, items: buckets.today });
+    if (buckets.tomorrow.length) groups.push({ label: "明天", color: COLOR.text3, items: buckets.tomorrow });
+    if (buckets.thisWeek.length) groups.push({ label: "本周", color: COLOR.text4, items: buckets.thisWeek });
+    if (buckets.later.length) groups.push({ label: "之后", color: COLOR.text4, items: buckets.later });
+    return groups;
+  };
+  const dateGroups = _groupByDate(allPendingItems);
 
   const handleOpenSend = (item) => {
     setConfirmItem(item);
@@ -516,75 +558,45 @@ export default function TaskPage({ doctorId, urlSubpage }) {
 
             <NewItemCard title="新建任务" subtitle="添加待办提醒或随访任务" onClick={() => setCreateOpen(true)} />
 
-            {/* ── Section: 待完成 (grouped by urgency) ── */}
+            {/* ── Date-grouped task list ── */}
             {showFollowups && allPendingItems.length > 0 && (() => {
-              const urgent = allPendingItems.filter(item => item.soon);
-              const upcoming = allPendingItems.filter(item => !item.soon);
-
-              const renderRow = (item) => {
-                const isUrgent = item.soon;
-                const title = item._isFollowup ? `${item.patient_name} · ${item.task}` : (item.title || "任务");
+              const renderRow = (item, urgency) => {
+                const title = item._isFollowup
+                  ? `${item.patient_name} · ${item.task}`
+                  : (item.title || "任务");
                 const subtitle = item._isFollowup ? item.detail : item.content;
-                const dateStr = item._isFollowup ? (item.due_label || "") : relativeFuture(item.due_at);
+                const dueRaw = item.due_at || item._sortDate || "";
+                const dueDate = dueRaw ? new Date(dueRaw) : null;
+                const timeStr = urgency === "overdue"
+                  ? (relativeFuture(item.due_at) || "逾期")
+                  : dueDate
+                    ? `${String(dueDate.getHours()).padStart(2, "0")}:${String(dueDate.getMinutes()).padStart(2, "0")}`
+                    : "";
+
                 return (
-                  <Box key={`${item._isFollowup ? "f" : "t"}-${item.id}`}
-                    sx={{
-                      display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5,
-                      borderBottom: `0.5px solid ${COLOR.borderLight}`,
-                      ...(isUrgent ? { bgcolor: COLOR.dangerLight } : {}),
-                      "&:last-child": { borderBottom: "none" },
-                      ...(highlightTaskIds.has(String(item.id)) ? HIGHLIGHT_ROW_SX : {}),
-                    }}>
-                    <Box
-                      onClick={(e) => { e.stopPropagation(); handleCompleteTask(item); }}
-                      sx={{
-                        width: 22, height: 22, borderRadius: "50%",
-                        border: `2px solid ${isUrgent ? COLOR.danger : COLOR.border}`,
-                        flexShrink: 0, cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        "&:active": { bgcolor: COLOR.primaryLight, borderColor: COLOR.primary },
-                      }}
-                    />
-                    <Box
-                      onClick={() => navigate(`${dp("tasks")}/${item.id}`)}
-                      sx={{ flex: 1, minWidth: 0, cursor: "pointer", "&:active": { opacity: 0.8 } }}>
-                      <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {title}
-                      </Typography>
-                      {subtitle && (
-                        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.25, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {subtitle}
-                        </Typography>
-                      )}
-                    </Box>
-                    <Box onClick={() => navigate(`${dp("tasks")}/${item.id}`)} sx={{ flexShrink: 0, textAlign: "right", cursor: "pointer" }}>
-                      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: isUrgent ? COLOR.danger : COLOR.text4, fontWeight: isUrgent ? 500 : 400 }}>
-                        {dateStr}
-                      </Typography>
-                      <Typography sx={{ fontSize: 14, color: COLOR.text4, mt: 0.5 }}>›</Typography>
-                    </Box>
-                  </Box>
+                  <ActionRow
+                    key={`${item._isFollowup ? "f" : "t"}-${item.id}`}
+                    title={title}
+                    subtitle={subtitle}
+                    right={timeStr}
+                    overdue={urgency === "overdue"}
+                    onToggle={() => handleCompleteTask(item)}
+                    onClick={() => navigate(`${dp("tasks")}/${item.id}`)}
+                    sx={highlightTaskIds.has(String(item.id)) ? HIGHLIGHT_ROW_SX : {}}
+                  />
                 );
               };
 
               return (
                 <>
-                  {urgent.length > 0 && (
-                    <>
-                      <SectionLabel sx={{ color: COLOR.danger }}>紧急 · 今天到期</SectionLabel>
+                  {dateGroups.map((group) => (
+                    <Box key={group.label}>
+                      <SectionLabel sx={{ color: group.color }}>{group.label}</SectionLabel>
                       <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-                        {urgent.map(renderRow)}
+                        {group.items.map((item) => renderRow(item, group.label === "已逾期" ? "overdue" : group.label === "今天" ? "today" : "upcoming"))}
                       </Box>
-                    </>
-                  )}
-                  {upcoming.length > 0 && (
-                    <>
-                      <SectionLabel>{urgent.length > 0 ? "即将到期" : "待完成"}</SectionLabel>
-                      <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-                        {upcoming.map(renderRow)}
-                      </Box>
-                    </>
-                  )}
+                    </Box>
+                  ))}
                 </>
               );
             })()}

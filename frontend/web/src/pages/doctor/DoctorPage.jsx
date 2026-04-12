@@ -113,7 +113,7 @@ function OnboardingDialog({ open, name, saving, onChange, onSubmit, onClose }) {
       footer={<DialogFooter onCancel={onClose} onConfirm={onSubmit} confirmLabel="完成设置" confirmDisabled={!name.trim() || saving} confirmLoading={saving} confirmLoadingLabel="保存中..." />}
     >
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField label="您的姓名" value={name} onChange={(e) => onChange(e.target.value)} fullWidth autoFocus required />
+          <TextField label="您的姓名" value={name} onChange={(e) => onChange(e.target.value)} fullWidth required />
         </Stack>
     </SheetDialog>
   );
