@@ -19,11 +19,8 @@ function getWsUrl() {
 
 async function detectAsrMode() {
   if (_asrModeCache) return _asrModeCache;
-  // In miniprogram, use JSSDK mode (wx.startRecord)
-  if (IS_MINIPROGRAM) {
-    _asrModeCache = "miniprogram";
-    return "miniprogram";
-  }
+  // In miniprogram, prefer server mode (MediaRecorder → WebSocket → Tencent ASR).
+  // Falls through to WebSocket detection below.
   try {
     const ws = new WebSocket(getWsUrl());
     const result = await new Promise((resolve) => {
@@ -50,7 +47,7 @@ async function detectAsrMode() {
 }
 
 export function isVoiceSupported() {
-  if (IS_MINIPROGRAM) return false; // Voice not supported in miniprogram web-view
+  if (IS_MINIPROGRAM) return true; // Server-side ASR via MediaRecorder works in WeChat WebView
   return !!BrowserSpeechRecognition || _asrModeCache === "server";
 }
 
@@ -60,7 +57,7 @@ export default function VoiceInput({ onResult, onCancel }) {
   const [cancelled, setCancelled] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [asrMode, setAsrMode] = useState(
-    IS_MINIPROGRAM ? "miniprogram" : (BrowserSpeechRecognition ? "browser" : null)
+    BrowserSpeechRecognition && !IS_MINIPROGRAM ? "browser" : null
   );
   const [interimText, setInterimText] = useState("");
 
