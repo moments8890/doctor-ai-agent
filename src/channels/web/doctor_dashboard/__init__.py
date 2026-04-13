@@ -29,6 +29,7 @@ from channels.web.doctor_dashboard.review_queue_handlers import router as _revie
 from channels.web.doctor_dashboard.admin_overview import router as _admin_overview_router
 from channels.web.doctor_dashboard.admin_cleanup import router as _admin_cleanup_router
 from channels.web.doctor_dashboard.preferences_handlers import router as _preferences_router
+from channels.web.doctor_dashboard.today_summary_handlers import router as _today_summary_router
 
 router = APIRouter(tags=["ui"])
 
@@ -55,3 +56,4 @@ router.include_router(_review_queue_router)
 router.include_router(_admin_overview_router)
 router.include_router(_admin_cleanup_router)
 router.include_router(_preferences_router)
+router.include_router(_today_summary_router)

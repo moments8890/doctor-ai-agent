@@ -171,6 +171,18 @@ export function usePersonaPending() {
   });
 }
 
+export function useTodaySummary() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.todaySummary(doctorId),
+    queryFn:  () => api.getTodaySummary(doctorId),
+    staleTime: 30 * 60_000,
+    enabled:  !!doctorId,
+    retry: 1,
+  });
+}
+
 export function useAcceptPendingItem() {
   const { doctorId } = useDoctorStore();
   const api = useApi();

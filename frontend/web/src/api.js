@@ -726,6 +726,20 @@ export async function teachByExample(doctorId, exampleText) {
   });
 }
 
+export async function getPersonaTemplates(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/templates?${qs.toString()}`);
+}
+
+export async function applyPersonaTemplate(doctorId, templateId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/persona/apply-template?${qs.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ template_id: templateId }),
+  });
+}
+
 export async function generateQRToken(role, doctorId, patientId) {
   return request("/api/auth/qr-token", {
     method: "POST",
@@ -916,6 +930,12 @@ export async function getKnowledgeBatch(doctorId, ids) {
 export async function getBriefing(doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   return request(`/api/doctor/briefing?${qs.toString()}`);
+}
+
+export async function getTodaySummary(doctorId, { refresh = false } = {}) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  if (refresh) qs.set("refresh", "true");
+  return request(`/api/doctor/today-summary?${qs.toString()}`);
 }
 
 // ---------------------------------------------------------------------------

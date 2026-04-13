@@ -70,3 +70,11 @@ PATIENT_INTERVIEW_LAYERS = LayerConfig(
     patient_context=True,
     conversation_mode=True,
 )
+
+DAILY_SUMMARY_LAYERS = LayerConfig(
+    domain=False,
+    intent="daily_summary",
+    load_knowledge=True,
+    load_persona=False,
+    patient_context=False,
+)

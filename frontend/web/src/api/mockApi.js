@@ -1048,3 +1048,30 @@ export async function fetchKnowledgeUsageHistory(doctorId, itemId) {
   };
   return { usage: usageMap[itemId] || usageMap[7] };
 }
+
+export async function getTodaySummary() {
+  return {
+    section_title: "今日摘要",
+    mode: "llm",
+    summary: "今天有1项随访需要关注",
+    items: [
+      {
+        id: "summary_0", kind: "followup_due", priority: "high",
+        title: "陈伟强术后第7天，建议复查",
+        detail: "按你的术后随访规则，术后7天应复查伤口和神经功能",
+        patient_id: 1, patient_name: "陈伟强", task_id: null, record_id: 102,
+        knowledge_ids: [3], fact_ids: ["task_1", "record_102"],
+      },
+      {
+        id: "summary_1", kind: "message_knowledge_match", priority: "medium",
+        title: "刘建国反馈开浦兰副作用",
+        detail: "患者报告服药后嗜睡，和你的用药管理规则一致",
+        patient_id: 3, patient_name: "刘建国", task_id: null, record_id: null,
+        knowledge_ids: [5], fact_ids: ["msg_8"],
+      },
+    ],
+    generated_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 30 * 60000).toISOString(),
+    cache_hit: false,
+  };
+}

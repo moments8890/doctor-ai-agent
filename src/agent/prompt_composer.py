@@ -22,6 +22,7 @@ from agent.prompt_config import (
     REVIEW_LAYERS,
     FOLLOWUP_REPLY_LAYERS,
     PATIENT_INTERVIEW_LAYERS,
+    DAILY_SUMMARY_LAYERS,
 )
 from utils.log import log, _ctx_layers
 from utils.prompt_loader import get_prompt_sync
@@ -249,5 +250,24 @@ async def compose_for_patient_interview(
         patient_context=patient_context,
         doctor_message=doctor_message,
         history=history,
+        specialty=specialty,
+    )
+
+
+async def compose_for_daily_summary(
+    *,
+    doctor_id: str = "",
+    doctor_message: str = "",
+    specialty: str = "neurology",
+) -> List[Dict[str, str]]:
+    """Compose messages for the daily summary generation.
+
+    doctor_message contains the serialized fact pack JSON.
+    KB is auto-loaded via DAILY_SUMMARY_LAYERS.load_knowledge=True.
+    """
+    return await compose_messages(
+        DAILY_SUMMARY_LAYERS,
+        doctor_id=doctor_id,
+        doctor_message=doctor_message,
         specialty=specialty,
     )

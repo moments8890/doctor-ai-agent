@@ -5,31 +5,25 @@
  * status, knowledge rules, quick actions, and recent AI activity.
  */
 import { useState } from "react";
-import { Badge, Box, CircularProgress, IconButton, Skeleton, Typography } from "@mui/material";
+import { Box, IconButton, Typography } from "@mui/material";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
-import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
-import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
-import ContentPasteOutlinedIcon from "@mui/icons-material/ContentPasteOutlined";
-import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import { useDoctorStore } from "../../store/doctorStore";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import SectionLabel from "../../components/SectionLabel";
-import ListCard from "../../components/ListCard";
 import KnowledgeCard from "../../components/KnowledgeCard";
-import AppButton from "../../components/AppButton";
 import IconBadge from "../../components/IconBadge";
 import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
 import PullToRefresh from "../../components/PullToRefresh";
 import { ICON_BADGES } from "./constants";
-import { isWizardDone, clearWizardDone } from "./onboardingWizardState";
 import StatColumn from "../../components/StatColumn";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
-import { useKnowledgeItems, useReviewQueue, usePersona } from "../../lib/doctorQueries";
+import { useKnowledgeItems, useReviewQueue, usePersona, useTodaySummary } from "../../lib/doctorQueries";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import { relativeDate as formatRelativeDate } from "../../utils/time";
 import CloseIcon from "@mui/icons-material/Close";
 
@@ -49,36 +43,6 @@ function AIAvatar({ size = 44 }) {
   );
 }
 
-function QuickActionIcon({ bg, children }) {
-  return (
-    <Box sx={{
-      width: 36, height: 36, borderRadius: RADIUS.md, flexShrink: 0,
-      bgcolor: bg, display: "flex", alignItems: "center", justifyContent: "center",
-      color: COLOR.white, fontSize: 16,
-    }}>
-      {children}
-    </Box>
-  );
-}
-
-function InlineBadge({ count, color = COLOR.warning }) {
-  if (!count) return null;
-  return (
-    <Box sx={{
-      fontSize: TYPE.micro.fontSize, fontWeight: 500, color: COLOR.white,
-      bgcolor: color, borderRadius: RADIUS.md, px: 1, minWidth: 16, textAlign: "center",
-      lineHeight: "18px",
-    }}>
-      {count}
-    </Box>
-  );
-}
-
-
-
-// RuleDot removed — knowledge preview now uses ListCard + IconBadge
-
-// ── Activity helpers ─────────────────────────────────────────────────────────
 
 
 
@@ -92,13 +56,14 @@ export default function MyAIPage({ doctorId }) {
   const { data: knowledgeData, isLoading: kLoading } = useKnowledgeItems();
   const { data: reviewQueueData, isLoading: qLoading } = useReviewQueue();
   const { data: personaData, isLoading: pLoading } = usePersona();
+  const { data: summaryData, isLoading: sLoading, isError: sError } = useTodaySummary();
 
   const loading = kLoading || qLoading || pLoading;
   const knowledge = knowledgeData ?? null;
   const reviewQueue = reviewQueueData || { pending: [], completed: [] };
 
   // Derived values — all stats computed from actual data
-  const aiName = `${doctorName || "医生"} 的 AI`;
+  const displayName = doctorName || "医生";
   const knowledgeListRaw = Array.isArray(knowledge) ? knowledge : (knowledge?.items || []);
   const knowledgeList = knowledgeListRaw.filter((k) => k.category !== "persona");
   const knowledgeCount = knowledgeList.length;
@@ -116,258 +81,183 @@ export default function MyAIPage({ doctorId }) {
   const [showAddGuide, setShowAddGuide] = useState(false);
   const isMiniprogram = typeof window !== "undefined" && window.__wxjs_environment === "miniprogram";
 
+  // Persona summary — single line for the bar
+  const personaSummary = (() => {
+    if (pLoading) return null;
+    const summary = personaData?.summary_text || "";
+    if (!summary) {
+      const rules = personaData ? Object.values(personaData.fields || {}).flat() : [];
+      return rules.length > 0 ? rules.slice(0, 3).map(r => r.text).join(" · ") : "";
+    }
+    // Extract first few keywords from markdown sections
+    const items = summary.split(/[·\n###]/).map(s => s.trim()).filter(s => s && s.length < 20);
+    return items.slice(0, 4).join(" · ");
+  })();
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
-      {/* Top bar — no action buttons on main page nav bar */}
-      <SubpageHeader title="我的AI" />
+      <SubpageHeader title="AI助手" />
 
-      {/* AI-generated content disclaimer (WeChat regulation) */}
-      <Box sx={{ bgcolor: COLOR.surfaceAlt, px: 2, py: 0.75, textAlign: "center" }}>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-          本服务为AI生成内容，结果仅供参考
-        </Typography>
-      </Box>
-
-      {/* Scrollable content */}
       <PullToRefresh sx={{ flex: 1 }} pb="80px">
 
-        {/* ── A. Hero Identity Card ──────────────────────────────── */}
+        {/* ── 1. Identity header ─────────────────────────────────── */}
+        <Box sx={{ bgcolor: COLOR.white, px: 2, py: 2, display: "flex", alignItems: "center", gap: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
+          <AIAvatar />
+          <Box sx={{ flex: 1 }}>
+            <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+              {displayName}的助手
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.25 }}>
+              随时为你工作
+            </Typography>
+          </Box>
+          <Box onClick={() => navigate(dp("settings"))}
+            sx={{ p: 1, cursor: "pointer", borderRadius: RADIUS.md, "&:active": { bgcolor: COLOR.surfaceAlt } }}>
+            <SettingsOutlinedIcon sx={{ fontSize: ICON.lg, color: COLOR.text4 }} />
+          </Box>
+        </Box>
+
+        {/* ── 2. Stats row ─────────────────────────────────────────── */}
         <Box sx={{ bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}` }}>
-          {/* Identity row */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 2, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
-            <AIAvatar />
-            <Box sx={{ flex: 1 }}>
-              <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 600, color: COLOR.text1 }}>
-                {aiName}
-              </Typography>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.5 }}>
-                {knowledgeCount > 0 ? `已学会 ${knowledgeCount} 条知识` : "尚未添加知识"}
-              </Typography>
-            </Box>
-            <Box
-              onClick={() => navigate(dp("settings"))}
-              sx={{
-                display: "flex", alignItems: "center", gap: 0.5,
-                cursor: "pointer", px: 1, py: 0.5, borderRadius: RADIUS.md,
-                "&:active": { bgcolor: COLOR.surfaceAlt },
-              }}
-            >
-              <SettingsOutlinedIcon sx={{ fontSize: ICON.lg, color: COLOR.text4 }} />
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>设置</Typography>
-            </Box>
-          </Box>
-
-          {/* Stats row */}
-          <Box sx={{ display: "flex", py: 1.5, px: 2, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
+          <Box sx={{ display: "flex", py: 1.5, px: 2 }}>
+            <StatColumn value={pendingReview} label="待处理" onClick={() => navigate(`${dp("review")}?tab=pending`)}
+              sx={pendingReview > 0 ? { "& .stat-value": { color: COLOR.danger } } : {}} />
+            <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
+            <StatColumn value={completedToday} label="今日完成" onClick={() => navigate(`${dp("review")}?tab=completed`)} />
+            <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
             <StatColumn value={weekCitations} label="7天引用" />
-            <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-            <StatColumn value={pendingReview} label="待确认" onClick={() => navigate(`${dp("review")}?tab=pending`)} />
-            <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-            <StatColumn value={completedToday} label="今日处理" onClick={() => navigate(`${dp("review")}?tab=completed`)} />
           </Box>
+        </Box>
 
-          {/* Onboarding hint when no knowledge yet */}
-          {!loading && knowledgeCount === 0 && (
-            <Box sx={{ px: 2, py: 1 }}>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.5 }}>
-                上传你的诊疗规则或常用模板后，它才会按你的方法工作
-              </Typography>
+        {/* ── 3. Today Summary (LLM-generated, single narrative) ── */}
+        {summaryData && summaryData.mode !== "empty" && summaryData.summary && (
+          <Box sx={{ bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
+              <AutoAwesomeOutlinedIcon sx={{ fontSize: 14, color: COLOR.primary }} />
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, fontWeight: 600 }}>今日摘要</Typography>
             </Box>
-          )}
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.7 }}>
+              {summaryData.summary.replace(/\s*\[KB-\d+\]/g, "")}
+            </Typography>
+            {/* Render item titles as tappable inline links below the paragraph */}
+            {summaryData.items?.length > 0 && (
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
+                {summaryData.items.map((item, idx) => (
+                  <Box key={item.id || idx}
+                    onClick={() => {
+                      if (item.task_id) navigate(`${dp("tasks")}/${item.task_id}`);
+                      else if (item.patient_id) navigate(`${dp("patients")}/${item.patient_id}`);
+                      else if (item.kind === "knowledge_gap") navigate(dp("settings/knowledge/add"));
+                    }}
+                    sx={{
+                      fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer",
+                      px: 1, py: 0.25, borderRadius: RADIUS.sm, bgcolor: COLOR.primaryLight,
+                      "&:active": { opacity: 0.7 },
+                    }}>
+                    {item.patient_name || item.title.replace(/\s*\[KB-\d+\]/g, "").slice(0, 15)}
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
+        )}
+        {sLoading && !sError && (
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <SectionLoading rows={2} />
+          </Box>
+        )}
+        {summaryData && summaryData.mode === "empty" && summaryData.summary && (
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, textAlign: "center" }}>
+              {summaryData.summary}
+            </Typography>
+          </Box>
+        )}
 
-          {/* CTA row — two primary entry points */}
-          <Box sx={{ display: "flex", gap: 1, px: 2, py: 1.5 }}>
-            <AppButton
-              variant="secondary" size="md" fullWidth
-              onClick={() => navigate(dp("settings/persona"))}
-              sx={{ border: `1px solid ${COLOR.primary}`, color: COLOR.primary, bgcolor: COLOR.primaryLight, gap: 0.75 }}
-            >
-              <SmartToyOutlinedIcon sx={{ fontSize: ICON.md }} />
-              我的AI风格
-            </AppButton>
-            <AppButton
-              variant="secondary" size="md" fullWidth
-              onClick={() => navigate(dp("settings/knowledge"))}
-              sx={{ border: `1px solid ${COLOR.primary}`, color: COLOR.primary, bgcolor: COLOR.primaryLight, gap: 0.75 }}
-            >
-              <MenuBookOutlinedIcon sx={{ fontSize: ICON.md }} />
-              我的知识库
-            </AppButton>
+        {/* ── 4. Knowledge list ───────────────────────────────────── */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
+          <SectionLabel>我的知识（{knowledgeCount}）</SectionLabel>
+          {knowledgeList.length > 0 && (
+            <Typography onClick={() => navigate(dp("settings/knowledge"))}
+              sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}>
+              管理 ›
+            </Typography>
+          )}
+        </Box>
+        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+          {loading && knowledgeList.length === 0 && <SectionLoading />}
+          {knowledgeList.length === 0 && !loading && (
+            <EmptyState text="添加知识后，AI 会按你的方法工作" />
+          )}
+          {knowledgeList.slice(0, 3).map((rule, idx) => {
+            const refs = rule.reference_count || 0;
+            const status = refs > 0
+              ? { label: `已引用${refs}次`, color: COLOR.primary }
+              : { label: "待应用", color: COLOR.text4 };
+            return (
+              <KnowledgeCard
+                key={rule.id || idx}
+                title={rule.title || rule.text?.slice(0, 20) || "规则"}
+                referenceCount={0}
+                source={rule.source}
+                date={rule.created_at ? formatRelativeDate(rule.created_at) : ""}
+                status={status}
+                onClick={() => navigate(`${dp("settings/knowledge")}/${rule.id}`)}
+              />
+            );
+          })}
+          {/* Inline add */}
+          <Box onClick={() => navigate(dp("settings/knowledge/add"))}
+            sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5, py: 1.5,
+              cursor: "pointer", color: COLOR.primary, fontSize: TYPE.secondary.fontSize, fontWeight: 500,
+              borderTop: knowledgeList.length > 0 ? `0.5px solid ${COLOR.borderLight}` : "none",
+              "&:active": { bgcolor: COLOR.surface } }}>
+            <AddOutlinedIcon sx={{ fontSize: 16 }} />
+            添加知识
           </Box>
         </Box>
 
-        {/* ── B. Quick Actions ───────────────────────────────────── */}
-        <SectionLabel>快捷入口</SectionLabel>
-        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-          <ListCard
-            avatar={<IconBadge config={ICON_BADGES.new_record} />}
-            title="新建病历"
-            subtitle="语音或文字录入患者信息"
-            chevron
-            onClick={() => navigate(`${dp("patients")}?action=new`)}
-          />
-          <ListCard
-            avatar={<IconBadge config={ICON_BADGES.qr_code} />}
-            title="患者预问诊码"
-            subtitle="患者扫码自助填写病史"
-            chevron
-            onClick={() => navigate(dp("settings/qr"))}
-            sx={isWizardDone(doctorId) ? {} : { borderBottom: "none" }}
-          />
-          {isWizardDone(doctorId) && (
-            <ListCard
-              avatar={<IconBadge config={ICON_BADGES.kb_doctor} />}
-              title="重新体验引导"
-              subtitle="再次走一遍产品引导流程"
-              chevron
-              onClick={() => { clearWizardDone(doctorId); navigate(`${dp("onboarding")}?step=1`); }}
-              sx={isMiniprogram ? {} : { borderBottom: "none" }}
-            />
-          )}
-          {isMiniprogram && (
-            <ListCard
-              avatar={<IconBadge config={ICON_BADGES.add_home} />}
-              title="添加到手机桌面"
-              subtitle="像App一样一键打开"
-              chevron
-              onClick={() => setShowAddGuide(true)}
-              sx={{ borderBottom: "none" }}
-            />
-          )}
-        </Box>
-
-        {/* ── C1. 我的AI人设 (Persona) ─────────────────────── */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
-          <SectionLabel>
-            <Box component="span">我的AI风格</Box>
-            <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 1 }}>
-              决定AI怎么说话
-            </Typography>
-          </SectionLabel>
-          <Typography
-            onClick={() => navigate(dp("settings/persona"))}
-            sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
-          >
-            编辑 ›
-          </Typography>
-        </Box>
-        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-          {pLoading && <SectionLoading />}
-          {!pLoading && (() => {
-            const summary = personaData?.summary_text || "";
-            const fallbackRules = personaData ? Object.values(personaData.fields || {}).flat() : [];
-            const hasContent = !!(summary || fallbackRules.length > 0);
-
-            // Parse "### Section\ncontent" into [{title, items}]
-            const sections = (() => {
-              if (!summary) return [];
-              const parts = summary.split(/^###\s+/m).filter(Boolean);
-              return parts.map((part) => {
-                const [firstLine, ...rest] = part.split("\n");
-                const body = rest.join(" ").trim();
-                const items = body.split(/\s*·\s*/).map(s => s.trim()).filter(Boolean);
-                return { title: firstLine.trim(), items };
-              }).filter(s => s.title);
-            })();
-
-            if (!hasContent) {
-              return (
-                <Box
-                  onClick={() => navigate(dp("settings/persona"))}
-                  sx={{ display: "flex", gap: 1.5, px: 2, py: 1.5, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}
-                >
-                  <IconBadge config={ICON_BADGES.persona} size={36} />
-                  <Typography sx={{ flex: 1, fontSize: TYPE.secondary.fontSize, color: COLOR.text4, lineHeight: 1.7 }}>
-                    尚未设置，点击编辑开始配置
-                  </Typography>
-                  <ChevronRightOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4, flexShrink: 0 }} />
-                </Box>
-              );
-            }
-
-            return (
-              <Box
-                onClick={() => navigate(dp("settings/persona"))}
-                sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.5, cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}
-              >
-                <IconBadge config={ICON_BADGES.persona} size={36} />
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  {sections.length > 0 ? sections.slice(0, 3).map((sec) => (
-                    <Box key={sec.title} sx={{ mb: 0.5, "&:last-child": { mb: 0 } }}>
-                      <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, fontWeight: 600, color: COLOR.text3 }}>
-                        {sec.title}
-                      </Typography>
-                      <Typography component="span" sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, ml: 0.75 }}>
-                        {sec.items.slice(0, 3).join(" · ")}{sec.items.length > 3 ? " …" : ""}
-                      </Typography>
-                    </Box>
-                  )) : (
-                    <Typography sx={{
-                      fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.7,
-                      display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
-                    }}>
-                      {summary || fallbackRules.slice(0, 3).map(r => r.text).join("；")}
-                    </Typography>
-                  )}
-                </Box>
-                <ChevronRightOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4, flexShrink: 0 }} />
-              </Box>
-            );
-          })()}
-        </Box>
-
-        {/* ── C2. 我的知识库 (Knowledge) ───────────────────── */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
-          <SectionLabel>
-            <Box component="span">我的知识库</Box>
-            <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, ml: 1 }}>
-              决定AI知道什么
-            </Typography>
-          </SectionLabel>
-          {knowledgeList.length > 0 && (
-            <Typography
-              onClick={() => navigate(dp("settings/knowledge"))}
-              sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}
-            >
-              全部 {knowledgeList.length} 条 ›
-            </Typography>
-          )}
-        </Box>
-        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-          {knowledgeList.length === 0 && !loading && (
-            <>
-              <ListCard
-                avatar={<IconBadge config={ICON_BADGES.upload} />}
-                title="上传指南"
-                subtitle="PDF / Word 文档"
-                onClick={() => navigate(dp("settings/knowledge/add"))}
-                chevron
-              />
-              <ListCard
-                avatar={<IconBadge config={ICON_BADGES.new_record} />}
-                title="粘贴常用回复"
-                subtitle="你常用的回复模板"
-                onClick={() => navigate(dp("settings/knowledge/add"))}
-                chevron
-                sx={{ borderBottom: "none" }}
-              />
-            </>
-          )}
-          {loading && knowledgeList.length === 0 && <SectionLoading />}
-          {knowledgeList.slice(0, 3).map((rule, idx) => (
-            <KnowledgeCard
-              key={rule.id || idx}
-              title={rule.title || rule.text?.slice(0, 20) || "规则"}
-              summary={rule.summary || rule.text?.slice(0, 40) || ""}
-              referenceCount={rule.reference_count || 0}
-              source={rule.source}
-              date={rule.created_at ? formatRelativeDate(rule.created_at) : ""}
-              onClick={() => navigate(`${dp("settings/knowledge")}/${rule.id}`)}
-              sx={idx === Math.min(knowledgeList.length, 3) - 1 ? { borderBottom: "none" } : {}}
-            />
+        {/* ── 5. Quick tools (secondary) ──────────────────────────── */}
+        <SectionLabel>快捷工具</SectionLabel>
+        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`,
+          display: "grid", gridTemplateColumns: isMiniprogram ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gap: 0 }}>
+          {[
+            { config: ICON_BADGES.new_record, label: "新建病历", onClick: () => navigate(`${dp("patients")}?action=new`) },
+            { config: ICON_BADGES.qr_code, label: "预问诊码", onClick: () => navigate(dp("settings/qr")) },
+            ...(isMiniprogram ? [{ config: ICON_BADGES.add_home, label: "加到桌面", onClick: () => setShowAddGuide(true) }] : []),
+          ].map(({ config, label, onClick: onTap }, idx, arr) => (
+            <Box key={label} onClick={onTap}
+              sx={{
+                display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5, cursor: "pointer",
+                borderRight: idx < arr.length - 1 ? `0.5px solid ${COLOR.borderLight}` : "none",
+                "&:active": { bgcolor: COLOR.surface },
+              }}>
+              <IconBadge config={config} size={32} />
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>{label}</Typography>
+            </Box>
           ))}
         </Box>
 
+        {/* ── 6. Persona bar (compact) ────────────────────────────── */}
+        <SectionLabel>AI 风格</SectionLabel>
+        <Box onClick={() => navigate(dp("settings/persona"))}
+          sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`,
+            display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.5,
+            cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}>
+          <IconBadge config={ICON_BADGES.persona} size={32} />
+          <Typography sx={{ flex: 1, fontSize: TYPE.secondary.fontSize, color: personaSummary ? COLOR.text2 : COLOR.text4,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {personaSummary || "点击选择沟通风格"}
+          </Typography>
+          <ChevronRightOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4, flexShrink: 0 }} />
+        </Box>
+
+        {/* Disclaimer footer */}
+        <Box sx={{ py: 2, textAlign: "center" }}>
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
+            本服务为AI生成内容，结果仅供参考
+          </Typography>
+        </Box>
 
       </PullToRefresh>
 

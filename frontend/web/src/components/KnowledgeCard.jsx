@@ -41,7 +41,7 @@ function getSourceBadge(source) {
   return ICON_BADGES.kb_doctor;
 }
 
-export default function KnowledgeCard({ title, summary, referenceCount = 0, source, date, onClick, sx }) {
+export default function KnowledgeCard({ title, summary, referenceCount = 0, source, date, status, onClick, sx }) {
   const badge = getSourceBadge(source);
   const sourceLabel = getSourceLabel(source);
 
@@ -68,13 +68,20 @@ export default function KnowledgeCard({ title, summary, referenceCount = 0, sour
       <IconBadge config={badge} />
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        {/* Row 1: Title */}
-        <Typography sx={{
-          fontSize: TYPE.body.fontSize, fontWeight: 500, color: COLOR.text1,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>
-          {title}
-        </Typography>
+        {/* Row 1: Title + status */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <Typography sx={{
+            fontSize: TYPE.body.fontSize, fontWeight: 500, color: COLOR.text1,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1,
+          }}>
+            {title}
+          </Typography>
+          {status && (
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: status.color || COLOR.text4, flexShrink: 0 }}>
+              {status.label}
+            </Typography>
+          )}
+        </Box>
 
         {/* Row 2: Summary */}
         {summary && (

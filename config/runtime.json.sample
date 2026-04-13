@@ -52,6 +52,16 @@
             "openai"
           ]
         },
+        "DAILY_SUMMARY_LLM": {
+          "value": "dashscope",
+          "description": "Provider for today summary generation. Uses qwen-turbo for speed.",
+          "description_zh": "今日摘要使用的提供商。使用 qwen-turbo 保证速度。",
+          "options": [
+            "dashscope",
+            "groq",
+            "siliconflow"
+          ]
+        },
         "OPENAI_API_KEY": {
           "value": "",
           "description": "OpenAI API key.",
