@@ -8,15 +8,13 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, Box, Button, CircularProgress, IconButton, Stack, Typography } from "@mui/material";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import MicIcon from "@mui/icons-material/Mic";
-import KeyboardIcon from "@mui/icons-material/Keyboard";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import HelpTip from "../../components/HelpTip";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SuggestionChips from "../../components/SuggestionChips";
-import VoiceInput, { isVoiceSupported, MiniVoiceMicHint } from "../../components/VoiceInput";
+import { MiniVoiceMicHint } from "../../components/VoiceInput";
 import ActionPanel from "../../components/ActionPanel";
 import ImportChoiceDialog from "../../components/ImportChoiceDialog";
 import FieldReviewCard from "../../components/doctor/FieldReviewCard";
@@ -57,12 +55,10 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
   }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [voiceMode, setVoiceMode] = useState(false);
   const [actionPanelOpen, setActionPanelOpen] = useState(false);
   const [importChoice, setImportChoice] = useState(null);
   const cameraInputRef = useRef(null);
   const fileInputRef = useRef(null);
-  const voiceSupported = isVoiceSupported();
   const [voiceHint, setVoiceHint] = useState(false);
   const [session, setSession] = useState({
     sessionId: resumeSessionId || null,
@@ -438,61 +434,36 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
 
       {/* Bottom banner removed — single 完成 button in status line is sufficient */}
 
-      {/* Voice hint banner — shown above input bar when mic tapped in miniapp */}
-      {voiceHint && (
-        <Box sx={{ px: 2, py: 0.75, bgcolor: COLOR.primaryLight, textAlign: "center", flexShrink: 0 }}>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary }}>
-            点击键盘右下角 🎤 语音输入
-          </Typography>
-        </Box>
-      )}
-
-      {/* Input bar — WeChat style: voice/keyboard toggle | input or voice btn | + | send */}
+      {/* Input bar */}
       {session.status !== "draft_created" && (
         <Box sx={{ borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, px: 1, py: 1,
           display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
-          {/* Voice/keyboard toggle */}
-          {voiceSupported && (
-            <IconButton onClick={() => setVoiceMode(!voiceMode)} sx={{ color: COLOR.text4, p: 1, flexShrink: 0 }}>
-              {voiceMode ? <KeyboardIcon sx={{ fontSize: 22 }} /> : <MicIcon sx={{ fontSize: 22 }} />}
-            </IconButton>
-          )}
-          <MiniVoiceMicHint inputRef={inputRef} onHint={() => { setVoiceHint(true); setTimeout(() => setVoiceHint(false), 5000); }} />
-          {/* Middle: voice button OR text input */}
-          {voiceMode ? (
-            <Box sx={{ flex: 1 }}>
-              <VoiceInput
-                onResult={(text) => { setInput((prev) => prev ? prev + text : text); setVoiceMode(false); }}
-                onCancel={() => {}}
-              />
-            </Box>
-          ) : (
-            <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1, py: 0.5,
-              display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>
-              {selectedSuggestions.map((s, i) => (
-                <Box key={i} sx={{
-                  display: "inline-flex", alignItems: "center", gap: 0.5,
-                  px: 1, py: 0.5, borderRadius: RADIUS.lg, fontSize: TYPE.secondary.fontSize,
-                  bgcolor: COLOR.successLight, color: COLOR.primary, fontWeight: 500, flexShrink: 0,
-                }}>
-                  {s}
-                  <Box component="span"
-                    onClick={() => setSelectedSuggestions(prev => prev.filter(x => x !== s))}
-                    sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, ml: 0.5, "&:active": { opacity: 0.5 } }}>
-                    ×
-                  </Box>
+          <MiniVoiceMicHint inputRef={inputRef} showHint={voiceHint} onHint={() => { setVoiceHint(true); setTimeout(() => setVoiceHint(false), 5000); }} />
+          <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1, py: 0.5,
+            display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>
+            {selectedSuggestions.map((s, i) => (
+              <Box key={i} sx={{
+                display: "inline-flex", alignItems: "center", gap: 0.5,
+                px: 1, py: 0.5, borderRadius: RADIUS.lg, fontSize: TYPE.secondary.fontSize,
+                bgcolor: COLOR.successLight, color: COLOR.primary, fontWeight: 500, flexShrink: 0,
+              }}>
+                {s}
+                <Box component="span"
+                  onClick={() => setSelectedSuggestions(prev => prev.filter(x => x !== s))}
+                  sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, ml: 0.5, "&:active": { opacity: 0.5 } }}>
+                  ×
                 </Box>
-              ))}
-              <Box component="input" ref={inputRef} value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={loading}
-                placeholder={selectedSuggestions.length > 0 ? "" : "输入患者信息..."}
-                sx={{ flex: 1, minWidth: 60, border: "none", outline: "none", fontSize: TYPE.body.fontSize,
-                  fontFamily: "inherit", bgcolor: "transparent", p: 0.5 }}
-              />
-            </Box>
-          )}
+              </Box>
+            ))}
+            <Box component="input" ref={inputRef} value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={loading}
+              placeholder={selectedSuggestions.length > 0 ? "" : "输入患者信息..."}
+              sx={{ flex: 1, minWidth: 60, border: "none", outline: "none", fontSize: TYPE.body.fontSize,
+                fontFamily: "inherit", bgcolor: "transparent", p: 0.5 }}
+            />
+          </Box>
           {/* Action panel toggle */}
           <IconButton onClick={() => setActionPanelOpen(true)} sx={{ color: COLOR.text4, p: 1, flexShrink: 0 }}>
             <AddCircleOutlineIcon sx={{ fontSize: 24 }} />

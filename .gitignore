@@ -47,6 +47,7 @@ frontend/web/android/app/build/
 # Playwright artifacts
 frontend/web/playwright-report/
 frontend/web/test-results/
+frontend/web/test-results-archive/
 frontend/web/.playwright/
 
 # local screts, runtime config

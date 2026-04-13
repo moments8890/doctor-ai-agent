@@ -22,6 +22,7 @@ import { syncFontScaleFromServer, saveFontScaleToServer, useFontScaleStore } fro
 import { RADIUS } from "./theme";
 import { MOBILE_FRAME_CONTAINER_ID } from "./utils/dialogContainer";
 import { isMiniApp } from "./utils/env";
+import { useKeyboardSafeArea } from "./hooks/useKeyboardSafeArea";
 
 const DEV_MODE = import.meta.env.DEV; // true in `vite dev`, false in `vite build`
 
@@ -141,6 +142,7 @@ function patientRoutes(prefix, Provider) {
 }
 
 export default function App() {
+	useKeyboardSafeArea();
 	const { accessToken, doctorId, setAuth } = useDoctorStore();
 
 	// Dev mode: restore real login session if current session is synthetic (dev/mock)

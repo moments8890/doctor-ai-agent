@@ -18,7 +18,6 @@ import { SpotlightHint } from "../OnboardingWizard";
 import BarButton from "../../../components/BarButton";
 import AppButton from "../../../components/AppButton";
 import SheetDialog from "../../../components/SheetDialog";
-import VoiceInput, { isVoiceSupported } from "../../../components/VoiceInput";
 import Toast, { useToast } from "../../../components/Toast";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import { useQueryClient } from "@tanstack/react-query";
@@ -423,11 +422,6 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
               {content.length}/3000
             </Typography>
           </Box>
-          {isVoiceSupported() && (
-            <Box sx={{ mt: 1 }}>
-              <VoiceInput onResult={(text) => { setContent((prev) => prev ? prev + text : text); }} onCancel={() => {}} />
-            </Box>
-          )}
         </Box>
         </SpotlightHint>
       )}
@@ -444,7 +438,7 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
         listPane={
           <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
             <Box sx={{ flex: 1, overflow: "auto" }}>{formContent}</Box>
-            <Box sx={{ px: 2, pt: 1.5, pb: "calc(12px + env(safe-area-inset-bottom))", bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}` }}>
+            <Box sx={{ px: 2, pt: 1.5, pb: "calc(12px + var(--safe-bottom, env(safe-area-inset-bottom)))", bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}` }}>
               <AppButton variant="primary" size="lg" fullWidth onClick={handleAdd} loading={adding || processing}
                 disabled={sourceTab === "text" ? !content.trim() : false}>
                 添加

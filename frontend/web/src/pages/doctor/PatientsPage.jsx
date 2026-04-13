@@ -478,7 +478,7 @@ function RecordDetailSubpage({ recordId, doctorId, patientName, onBack, onDelete
           </Box>
         )}
         {record && (
-          <Box sx={{ px: 2, pt: 1.5, pb: "calc(12px + env(safe-area-inset-bottom))", bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}` }}>
+          <Box sx={{ px: 2, pt: 1.5, pb: "calc(12px + var(--safe-bottom, env(safe-area-inset-bottom)))", bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}` }}>
             <AppButton variant="secondary" size="md" fullWidth onClick={() => setEditOpen(true)}>编辑病历</AppButton>
           </Box>
         )}
@@ -491,7 +491,7 @@ function RecordDetailSubpage({ recordId, doctorId, patientName, onBack, onDelete
   );
 }
 
-export default function PatientsPage({ doctorId, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed, chatInterviewSessionId, onChatInterviewSessionConsumed, chatInterviewPrePopulated }) {
+export default function PatientsPage({ doctorId, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed, chatInterviewSessionId, onChatInterviewSessionConsumed, chatInterviewPrePopulated, onInterviewChange }) {
   const { patientId } = useParams();
   const navigate = useAppNavigate();
   const theme = useTheme();
@@ -501,10 +501,14 @@ export default function PatientsPage({ doctorId, onPatientSelected, refreshKey =
 
   const [interviewActive, setInterviewActive] = useState(patientId === "new");
 
-  // URL-driven: /doctor/patients/new opens interview
+  // Notify parent when interview opens/closes (hides bottom nav)
+  useEffect(() => { onInterviewChange?.(interviewActive); }, [interviewActive]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // URL-driven: /doctor/patients/new opens interview (only on entry, not re-entry)
   useEffect(() => {
-    if (patientId === "new") setInterviewActive(true);
-  }, [patientId]);
+    if (patientId === "new" && !interviewActive) setInterviewActive(true);
+    if (patientId !== "new" && interviewActive) setInterviewActive(false);
+  }, [patientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // URL-driven: ?action=new opens patient picker (from home page shortcut)
   useEffect(() => {
@@ -564,8 +568,8 @@ export default function PatientsPage({ doctorId, onPatientSelected, refreshKey =
         sessionId={chatInterviewSessionId}
         patientContext={interviewPatient}
         prePopulated={chatInterviewPrePopulated}
-        onComplete={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); load(); }}
-        onCancel={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); navigate(-1); }} />
+        onComplete={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); navigate(dp("patients"), { replace: true }); load(); }}
+        onCancel={() => { setInterviewActive(false); setInterviewPatient(null); onChatInterviewSessionConsumed?.(); navigate(dp("patients"), { replace: true }); }} />
     </Box>
   ) : isMobile && selectedId && viewParam === "record" ? (
     <RecordDetailSubpage

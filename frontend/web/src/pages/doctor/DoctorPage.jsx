@@ -15,8 +15,6 @@ import BottomNavigationMui from "@mui/material/BottomNavigation";
 import BottomNavigationActionMui from "@mui/material/BottomNavigationAction";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
-import KeyboardOutlinedIcon from "@mui/icons-material/KeyboardOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
@@ -46,7 +44,7 @@ import DialogFooter from "../../components/DialogFooter";
 import SubpageHeader from "../../components/SubpageHeader";
 import BarButton from "../../components/BarButton";
 import SuggestionChips from "../../components/SuggestionChips";
-import VoiceInput, { isVoiceSupported } from "../../components/VoiceInput";
+import { MiniVoiceMicHint } from "../../components/VoiceInput";
 import PersonaToast from "../../components/PersonaToast";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
@@ -87,7 +85,7 @@ function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, 
 function MobileBottomNav({ activeSection, navBadge, onNav }) {
   const navValue = activeSection;
   return (
-    <Box sx={{ flexShrink: 0, borderTop: `0.5px solid ${COLOR.border}`, bgcolor: COLOR.surface, pb: "env(safe-area-inset-bottom)" }}>
+    <Box sx={{ flexShrink: 0, borderTop: `0.5px solid ${COLOR.border}`, bgcolor: COLOR.surface, pb: "var(--safe-bottom, env(safe-area-inset-bottom))" }}>
       <BottomNavigationMui value={navValue} onChange={(_, val) => onNav(val)}
         sx={{ height: 64, bgcolor: COLOR.surface, "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "8px", color: COLOR.text4 }, "& .Mui-selected": { color: COLOR.primary }, "& .Mui-selected .MuiBottomNavigationAction-label": { color: COLOR.primary, fontWeight: 600 } }}>
         {NAV.map((item) => {
@@ -289,8 +287,9 @@ function PatientPreviewPage({ doctorId, previewId }) {
   const sessionConfig = parsePreviewSession(previewId, doctorId);
   const patientName = sessionConfig.patientName || "患者";
   const token = sessionConfig.token;
-  const voiceSupported = isVoiceSupported();
   const chatEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const [voiceHint, setVoiceHint] = useState(false);
 
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState([]);
@@ -303,7 +302,6 @@ function PatientPreviewPage({ doctorId, previewId }) {
   const [confirming, setConfirming] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [selectedSuggestions, setSelectedSuggestions] = useState([]);
-  const [voiceMode, setVoiceMode] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(null);
@@ -536,89 +534,72 @@ function PatientPreviewPage({ doctorId, previewId }) {
             flexShrink: 0,
           }}
         >
-          {voiceSupported && (
-            <IconButton
-              onClick={() => setVoiceMode((value) => !value)}
-              sx={{ color: COLOR.text3, flexShrink: 0, alignSelf: "center" }}
-            >
-              {voiceMode ? <KeyboardOutlinedIcon /> : <MicNoneOutlinedIcon />}
-            </IconButton>
-          )}
-          {voiceMode ? (
-            <Box sx={{ flex: 1 }}>
-              <VoiceInput
-                onResult={(text) => {
-                  setInput((prev) => (prev ? `${prev} ${text}` : text));
+          <MiniVoiceMicHint inputRef={inputRef} showHint={voiceHint} onHint={() => { setVoiceHint(true); setTimeout(() => setVoiceHint(false), 5000); }} />
+          <Box
+            sx={{
+              flex: 1,
+              bgcolor: COLOR.white,
+              borderRadius: RADIUS.md,
+              border: `1px solid ${COLOR.border}`,
+              px: 1,
+              py: 0.5,
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 0.5,
+              minHeight: 36,
+            }}
+          >
+            {selectedSuggestions.map((item) => (
+              <Box
+                key={item}
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: RADIUS.lg,
+                  fontSize: TYPE.secondary.fontSize,
+                  bgcolor: COLOR.primaryLight,
+                  color: COLOR.primary,
+                  fontWeight: 500,
                 }}
-                onCancel={() => setVoiceMode(false)}
-              />
-            </Box>
-          ) : (
+              >
+                {item}
+                <Box
+                  component="span"
+                  onClick={() => setSelectedSuggestions((prev) => prev.filter((value) => value !== item))}
+                  sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, "&:active": { opacity: 0.5 } }}
+                >
+                  ×
+                </Box>
+              </Box>
+            ))}
             <Box
+              component="input"
+              ref={inputRef}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder={selectedSuggestions.length > 0 ? "" : "请输入患者描述…"}
               sx={{
                 flex: 1,
-                bgcolor: COLOR.white,
-                borderRadius: RADIUS.md,
-                border: `1px solid ${COLOR.border}`,
-                px: 1,
-                py: 0.5,
-                display: "flex",
-                flexWrap: "wrap",
-                alignItems: "center",
-                gap: 0.5,
-                minHeight: 36,
+                minWidth: 60,
+                border: "none",
+                outline: "none",
+                fontSize: TYPE.body.fontSize,
+                fontFamily: "inherit",
+                bgcolor: "transparent",
+                p: 0.5,
               }}
-            >
-              {selectedSuggestions.map((item) => (
-                <Box
-                  key={item}
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    px: 1,
-                    py: 0.5,
-                    borderRadius: RADIUS.lg,
-                    fontSize: TYPE.secondary.fontSize,
-                    bgcolor: COLOR.primaryLight,
-                    color: COLOR.primary,
-                    fontWeight: 500,
-                  }}
-                >
-                  {item}
-                  <Box
-                    component="span"
-                    onClick={() => setSelectedSuggestions((prev) => prev.filter((value) => value !== item))}
-                    sx={{ cursor: "pointer", fontSize: TYPE.body.fontSize, lineHeight: 1, "&:active": { opacity: 0.5 } }}
-                  >
-                    ×
-                  </Box>
-                </Box>
-              ))}
-              <Box
-                component="input"
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder={selectedSuggestions.length > 0 ? "" : "请输入患者描述…"}
-                sx={{
-                  flex: 1,
-                  minWidth: 60,
-                  border: "none",
-                  outline: "none",
-                  fontSize: TYPE.body.fontSize,
-                  fontFamily: "inherit",
-                  bgcolor: "transparent",
-                  p: 0.5,
-                }}
-              />
-            </Box>
-          )}
+            />
+          </Box>
           <IconButton
             onClick={handleSend}
             disabled={sending || (!input.trim() && selectedSuggestions.length === 0)}
@@ -654,7 +635,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
   );
 }
 
-function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, patientRefreshKey, setPatientRefreshKey, handleLogout, triggerInterview, setTriggerInterview, chatInterviewSessionId, setChatInterviewSessionId, chatInterviewPrePopulated, setChatInterviewPrePopulated }) {
+function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, patientRefreshKey, setPatientRefreshKey, handleLogout, triggerInterview, setTriggerInterview, chatInterviewSessionId, setChatInterviewSessionId, chatInterviewPrePopulated, setChatInterviewPrePopulated, onInterviewChange }) {
   return (
     <Box sx={{ flex: 1, overflow: "hidden", position: "relative" }}>
       <Fade in={activeSection === "my-ai"} timeout={150} unmountOnExit>
@@ -673,7 +654,8 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
               onTriggerInterviewConsumed={() => setTriggerInterview(false)}
               chatInterviewSessionId={chatInterviewSessionId}
               onChatInterviewSessionConsumed={() => { setChatInterviewSessionId(null); setChatInterviewPrePopulated(null); }}
-              chatInterviewPrePopulated={chatInterviewPrePopulated} />
+              chatInterviewPrePopulated={chatInterviewPrePopulated}
+              onInterviewChange={onInterviewChange} />
           </ErrorBoundary>
         </Box>
       </Fade>
@@ -735,6 +717,7 @@ export default function DoctorPage() {
   const [triggerInterview, setTriggerInterview] = useState(false);
   const [chatInterviewSessionId, setChatInterviewSessionId] = useState(null);
   const [chatInterviewPrePopulated, setChatInterviewPrePopulated] = useState(null);
+  const [interviewActive, setInterviewActive] = useState(false);
 
   const { pendingTaskCount, reviewCount, followupCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
@@ -757,7 +740,7 @@ export default function DoctorPage() {
   // Main tabs show bottom nav; subpages hide it and show ‹ back in top bar.
   // WeChat pattern: bottom nav only on root tab views.
   const MAIN_TABS = new Set(["my-ai", "patients", "review", "tasks"]);
-  const isSubpage = isReviewPage || !MAIN_TABS.has(activeSection) || !!patientId;
+  const isSubpage = isReviewPage || !MAIN_TABS.has(activeSection) || !!patientId || interviewActive;
 
   function handleNav(key) { navigate(key === "my-ai" ? dp() : dp(key)); }
   function handleLogout() {
@@ -781,7 +764,7 @@ export default function DoctorPage() {
     <Box sx={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: "100%", position: "relative", bgcolor: COLOR.surface }}>
       {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={navBadge} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-        <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} />
+        <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} onInterviewChange={setInterviewActive} />
         <Slide direction="left" in={isReviewPage} timeout={300} mountOnEnter unmountOnExit>
           <Box sx={{ position: "absolute", inset: 0, zIndex: 5, bgcolor: COLOR.surfaceAlt }}>
             <ErrorBoundary label="诊断审核">

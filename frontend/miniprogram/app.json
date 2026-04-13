@@ -2,7 +2,8 @@
   "pages": [
     "pages/login/login",
     "pages/doctor/doctor",
-    "pages/voice/voice"
+    "pages/voice/voice",
+    "pages/voice-test/voice-test"
   ],
   "window": {
     "navigationStyle": "custom",

@@ -2,33 +2,43 @@
   <!-- Processing -->
   <view wx:if="{{processing}}" class="center-col">
     <view class="spinner" />
-    <text class="hint">识别中...</text>
+    <text class="hint-text">识别中...</text>
   </view>
 
   <!-- Error -->
   <view wx:elif="{{error}}" class="center-col">
-    <text class="error">{{error}}</text>
-    <view class="link" bindtap="onRetry">重试</view>
-    <view class="link muted" bindtap="onBack">返回</view>
+    <text class="error-text">{{error}}</text>
+    <view class="btn btn-secondary" bindtap="onCancel">返回</view>
   </view>
 
-  <!-- Recording -->
+  <!-- Recording / Ready -->
   <view wx:else class="center-col">
-    <view class="wave-row" wx:if="{{recording}}">
-      <view class="bar" style="animation-delay:0s" />
-      <view class="bar" style="animation-delay:0.15s" />
-      <view class="bar" style="animation-delay:0.3s" />
-      <view class="bar" style="animation-delay:0.15s" />
-      <view class="bar" style="animation-delay:0s" />
+    <!-- Timer + wave animation while recording -->
+    <view wx:if="{{recording}}" class="wave-container">
+      <view class="wave-bar" style="animation-delay:0s" />
+      <view class="wave-bar" style="animation-delay:0.15s" />
+      <view class="wave-bar" style="animation-delay:0.3s" />
+      <view class="wave-bar" style="animation-delay:0.15s" />
+      <view class="wave-bar" style="animation-delay:0s" />
+    </view>
+    <text wx:if="{{recording}}" class="timer">{{timerText}}</text>
+
+    <!-- Big mic button -->
+    <view
+      class="mic-btn {{recording ? (cancelled ? 'mic-cancel' : 'mic-active') : ''}}"
+      bindtouchstart="onTouchStart"
+      bindtouchend="onTouchEnd"
+      bindtouchmove="onTouchMove"
+    >
+      <text class="mic-icon">🎤</text>
     </view>
 
-    <text class="timer" wx:if="{{recording}}">{{timerText}}</text>
-    <text class="hint" wx:if="{{recording}}">正在录音...</text>
-    <text class="hint" wx:if="{{!recording}}">准备录音</text>
+    <text class="hint-text">
+      {{recording ? (cancelled ? '松开取消' : '松开发送') : '按住录音'}}
+    </text>
+    <text wx:if="{{recording}}" class="cancel-hint">上滑取消</text>
 
-    <view class="btn-row">
-      <view class="btn cancel" bindtap="onCancel">取消</view>
-      <view class="btn primary" wx:if="{{recording}}" bindtap="onStop">完成</view>
-    </view>
+    <!-- Cancel link -->
+    <view class="btn btn-secondary" bindtap="onCancel">取消</view>
   </view>
 </view>

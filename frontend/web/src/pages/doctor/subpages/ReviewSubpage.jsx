@@ -239,7 +239,7 @@ export default function ReviewSubpage({
       </Box>
 
       {hasSuggestions && (
-        <Box sx={{ position: "absolute", bottom: 0, left: 0, right: 0, px: 2, pt: 1.5, pb: "calc(12px + env(safe-area-inset-bottom))", bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}` }}>
+        <Box sx={{ position: "absolute", bottom: 0, left: 0, right: 0, px: 2, pt: 1.5, pb: "calc(12px + var(--safe-bottom, env(safe-area-inset-bottom)))", bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}` }}>
           <AppButton variant="primary" size="lg" fullWidth onClick={onFinalize} loading={finalizing} loadingLabel="提交中..." disabled={!allDecided}>
             {allDecided ? "完成审核" : `还有 ${undecidedCount} 项未处理`}
           </AppButton>

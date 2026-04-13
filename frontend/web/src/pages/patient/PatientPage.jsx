@@ -215,7 +215,7 @@ export default function PatientPage() {
         sx={{
           flexShrink: 0, height: 64, bgcolor: COLOR.surface,
           borderTop: `0.5px solid ${COLOR.border}`,
-          paddingBottom: "env(safe-area-inset-bottom)",
+          paddingBottom: "var(--safe-bottom, env(safe-area-inset-bottom))",
           "& .MuiBottomNavigationAction-root": { minWidth: 56, paddingTop: "8px", color: COLOR.text4 },
           "& .Mui-selected": { color: COLOR.primary },
           "& .Mui-selected .MuiBottomNavigationAction-label": { color: COLOR.primary, fontWeight: 600 },

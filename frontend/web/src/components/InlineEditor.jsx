@@ -7,13 +7,10 @@
  */
 import { useState, useRef, useEffect } from "react";
 import { Box, Typography } from "@mui/material";
-import MicIcon from "@mui/icons-material/Mic";
-import VoiceInput, { isVoiceSupported } from "./VoiceInput";
 import { TYPE, COLOR, RADIUS } from "../theme";
 
 export default function InlineEditor({ value, onSave, onCancel, onDelete }) {
   const [text, setText] = useState(value);
-  const [showVoice, setShowVoice] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -44,31 +41,7 @@ export default function InlineEditor({ value, onSave, onCancel, onDelete }) {
           }}
           rows={1}
         />
-        {isVoiceSupported() && (
-          <Box
-            onClick={() => setShowVoice(!showVoice)}
-            sx={{
-              width: 32, height: 32, borderRadius: "50%",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", flexShrink: 0, mt: 0.5,
-              bgcolor: showVoice ? COLOR.primaryLight : COLOR.surface,
-              "&:active": { opacity: 0.6 },
-            }}
-          >
-            <MicIcon sx={{ fontSize: 18, color: showVoice ? COLOR.primary : COLOR.text4 }} />
-          </Box>
-        )}
       </Box>
-      {showVoice && (
-        <Box sx={{ mt: 1 }}>
-          <VoiceInput
-            onResult={(transcript) => {
-              setText((prev) => prev ? prev + transcript : transcript);
-            }}
-            onCancel={() => setShowVoice(false)}
-          />
-        </Box>
-      )}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1 }}>
         {onDelete ? (
           <Typography onClick={onDelete}

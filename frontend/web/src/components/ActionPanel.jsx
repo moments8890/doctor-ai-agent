@@ -30,7 +30,7 @@ export default function ActionPanel({ open, onClose, onAction }) {
             right: 0,
             bgcolor: COLOR.white,
             borderRadius: `${RADIUS.lg} ${RADIUS.lg} 0 0`,
-            pb: "calc(20px + env(safe-area-inset-bottom))",
+            pb: "calc(20px + var(--safe-bottom, env(safe-area-inset-bottom)))",
           }}
         >
           <Box

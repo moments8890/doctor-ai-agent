@@ -309,7 +309,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
                     sx={{
                       display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5, cursor: "pointer",
                       borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" },
-                      ...(item.urgency === "urgent" ? { bgcolor: COLOR.warningLight } : {}),
+                      /* no row-level color highlight — badges convey urgency */
                       "&:active": { opacity: 0.8 },
                     }}>
                     <NameAvatar name={item.patient_name || "?"} size={36} />
@@ -331,7 +331,7 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
                         {aiSummary && <><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>·</Typography><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.warning, fontWeight: 500 }}>{aiSummary}</Typography></>}
                       </Box>
                     </Box>
-                    <Box sx={{ flexShrink: 0, textAlign: "right" }}>
+                    <Box sx={{ flexShrink: 0, textAlign: "right", alignSelf: "center" }}>
                       <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{item.time}</Typography>
                       <Typography sx={{ fontSize: 14, color: COLOR.text4, mt: 0.5 }}>›</Typography>
                     </Box>
