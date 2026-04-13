@@ -115,9 +115,9 @@ export default function SettingsListSubpage({
   doctorId,
   doctorName,
   specialty,
-  clinicName,
   bio,
-  onClinicTap,
+  onNameTap,
+  onSpecialtyTap,
   onBioTap,
   onTemplate,
   onKnowledge,
@@ -141,9 +141,8 @@ export default function SettingsListSubpage({
         name={doctorName || doctorId}
         subtitle={doctorId}
         rows={[
-          { label: "昵称", value: doctorName },
-          { label: "科室专业", value: specialty },
-          { label: "诊所/医院", value: clinicName, onClick: onClinicTap },
+          { label: "昵称", value: doctorName, onClick: onNameTap },
+          { label: "科室专业", value: specialty, onClick: onSpecialtyTap },
           { label: "简介", value: bio, onClick: onBioTap },
         ]}
       />

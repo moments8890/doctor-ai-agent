@@ -209,10 +209,9 @@ function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
   const [specialtyInput, setSpecialtyInput] = useState("");
   const [specialtySaving, setSpecialtySaving] = useState(false);
   const [specialtyError, setSpecialtyError] = useState("");
-  const [clinicName, setClinicName] = useState("");
   const [bio, setBio] = useState("");
 
-  useEffect(() => { getDoctorProfile(doctorId).then((p) => { setSpecialty(p.specialty || ""); setClinicName(p.clinic_name || ""); setBio(p.bio || ""); }).catch(() => {}); }, [doctorId]);
+  useEffect(() => { getDoctorProfile(doctorId).then((p) => { setSpecialty(p.specialty || ""); setBio(p.bio || ""); }).catch(() => {}); }, [doctorId]);
 
   async function handleSaveName() {
     const trimmed = nameInput.trim();
@@ -227,16 +226,6 @@ function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
     catch (e) { setSpecialtyError(e.message || "保存失败"); } finally { setSpecialtySaving(false); }
   }
 
-  // Clinic name
-  const [clinicDialogOpen, setClinicDialogOpen] = useState(false);
-  const [clinicInput, setClinicInput] = useState("");
-  const [clinicSaving, setClinicSaving] = useState(false);
-  async function handleSaveClinic() {
-    const trimmed = clinicInput.trim(); setClinicSaving(true);
-    try { await updateDoctorProfile(doctorId, { clinic_name: trimmed || null }); queryClient.invalidateQueries({ queryKey: QK.doctorProfile(doctorId) }); setClinicName(trimmed); setClinicDialogOpen(false); }
-    catch {} finally { setClinicSaving(false); }
-  }
-
   // Bio
   const [bioDialogOpen, setBioDialogOpen] = useState(false);
   const [bioInput, setBioInput] = useState("");
@@ -247,7 +236,7 @@ function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
     catch {} finally { setBioSaving(false); }
   }
 
-  return { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty, clinicName, setClinicName, bio, setBio, clinicDialogOpen, setClinicDialogOpen, clinicInput, setClinicInput, clinicSaving, handleSaveClinic, bioDialogOpen, setBioDialogOpen, bioInput, setBioInput, bioSaving, handleSaveBio };
+  return { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty, bio, setBio, bioDialogOpen, setBioDialogOpen, bioInput, setBioInput, bioSaving, handleSaveBio };
 }
 
 export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId }) {
@@ -257,7 +246,7 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   const { doctorName, setAuth, accessToken } = useDoctorStore();
   const api = useApi();
   const queryClient = useQueryClient();
-  const { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty, clinicName, setClinicName, bio, setBio, clinicDialogOpen, setClinicDialogOpen, clinicInput, setClinicInput, clinicSaving, handleSaveClinic, bioDialogOpen, setBioDialogOpen, bioInput, setBioInput, bioSaving, handleSaveBio } = useSettingsState({ doctorId, doctorName, accessToken, setAuth });
+  const { nameDialogOpen, setNameDialogOpen, nameInput, setNameInput, nameSaving, nameError, setNameError, specialty, specialtyDialogOpen, setSpecialtyDialogOpen, specialtyInput, setSpecialtyInput, specialtySaving, specialtyError, handleSaveName, handleSaveSpecialty, bio, setBio, bioDialogOpen, setBioDialogOpen, bioInput, setBioInput, bioSaving, handleSaveBio } = useSettingsState({ doctorId, doctorName, accessToken, setAuth });
 
   const [qrUrl, setQrUrl] = useState("");
   const [qrError, setQrError] = useState("");
@@ -511,9 +500,9 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
       doctorId={doctorId}
       doctorName={doctorName}
       specialty={specialty}
-      clinicName={clinicName}
       bio={bio}
-      onClinicTap={() => { setClinicInput(clinicName); setClinicDialogOpen(true); }}
+      onNameTap={() => { setNameInput(doctorName); setNameError(""); setNameDialogOpen(true); }}
+      onSpecialtyTap={() => { setSpecialtyInput(specialty); setSpecialtyDialogOpen(true); }}
       onBioTap={() => { setBioInput(bio); setBioDialogOpen(true); }}
       onTemplate={() => goSub("template")}
       onKnowledge={() => goSub("knowledge")}
@@ -530,13 +519,6 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
         onChange={setNameInput} onSave={handleSaveName} onClose={() => setNameDialogOpen(false)} />
       <SpecialtyDialog open={specialtyDialogOpen} specialtyInput={specialtyInput} specialtySaving={specialtySaving}
         specialtyError={specialtyError} onChange={setSpecialtyInput} onSave={handleSaveSpecialty} onClose={() => setSpecialtyDialogOpen(false)} />
-      <SheetDialog open={clinicDialogOpen} onClose={() => setClinicDialogOpen(false)} title="诊所/医院"
-        footer={<AppButton variant="primary" size="md" fullWidth loading={clinicSaving} onClick={handleSaveClinic}>保存</AppButton>}>
-        <Box sx={{ px: 0.5 }}>
-          <TextField value={clinicInput} onChange={e => setClinicInput(e.target.value)} placeholder="例如：北京协和医院"
-            fullWidth size="small" autoFocus />
-        </Box>
-      </SheetDialog>
       <SheetDialog open={bioDialogOpen} onClose={() => setBioDialogOpen(false)} title="简介"
         footer={<AppButton variant="primary" size="md" fullWidth loading={bioSaving} onClick={handleSaveBio}>保存</AppButton>}>
         <Box sx={{ px: 0.5 }}>

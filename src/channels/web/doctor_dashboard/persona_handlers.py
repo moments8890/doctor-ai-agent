@@ -48,6 +48,10 @@ class ActivateRequest(BaseModel):
     active: bool
 
 
+class ApplyTemplateRequest(BaseModel):
+    template_id: str
+
+
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 @router.get("/api/manage/persona")
@@ -302,6 +306,55 @@ async def complete_onboarding(
 
     await session.commit()
     return {"status": "ok", "fields": persona.fields, "persona_status": persona.status}
+
+
+# ── Templates ────────────────────────────────────────────────────────────────
+
+@router.get("/api/manage/persona/templates")
+async def list_templates(
+    doctor_id: str = Query(...),
+    authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
+):
+    """Return available persona templates (lightweight list)."""
+    _resolve_ui_doctor_id(doctor_id, authorization)  # auth check only
+    from domain.knowledge.persona_templates import PERSONA_TEMPLATES
+    return {
+        "templates": [
+            {"id": t["id"], "name": t["name"], "subtitle": t["subtitle"], "summary_text": t["summary_text"], "sample_reply": t.get("sample_reply", "")}
+            for t in PERSONA_TEMPLATES
+        ]
+    }
+
+
+@router.post("/api/manage/persona/apply-template")
+async def apply_template(
+    body: ApplyTemplateRequest,
+    doctor_id: str = Query(...),
+    authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
+):
+    """Apply a pre-built persona template to the doctor's persona."""
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+
+    from domain.knowledge.persona_templates import PERSONA_TEMPLATES
+    template = next((t for t in PERSONA_TEMPLATES if t["id"] == body.template_id), None)
+    if not template:
+        raise HTTPException(404, "模板不存在")
+
+    persona = await get_or_create_persona(session, resolved)
+    persona.summary_text = template["summary_text"]
+    persona.fields = template["build_fields"]()
+    persona.status = "active"
+    persona.onboarded = True
+
+    await session.commit()
+    return {
+        "status": "ok",
+        "summary_text": persona.summary_text,
+        "fields": persona.fields,
+        "persona_status": "active",
+    }
 
 
 # ── Teach by Example ──────────────────────────────────────────────────────────

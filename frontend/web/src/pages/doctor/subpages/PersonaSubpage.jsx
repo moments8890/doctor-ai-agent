@@ -78,6 +78,9 @@ export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [applying, setApplying] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
 
   // Build display text: summary_text first, then fallback to concatenated rules
   const savedSummary = persona?.summary_text || "";
@@ -139,6 +142,28 @@ export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
   const hasContent = displayText.length > 0;
   const sections = useMemo(() => parseSections(displayText), [displayText]);
 
+  // Fetch persona templates when empty state is shown
+  useEffect(() => {
+    if (!loading && !hasContent && resolvedDoctorId) {
+      api.getPersonaTemplates(resolvedDoctorId)
+        .then((res) => setTemplates(res.templates || []))
+        .catch(() => {}); // silent fail, templates are optional
+    }
+  }, [loading, hasContent, resolvedDoctorId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleApplyTemplate(templateId) {
+    setApplying(templateId);
+    try {
+      await api.applyPersonaTemplate(resolvedDoctorId, templateId);
+      queryClient.invalidateQueries({ queryKey: QK.persona(resolvedDoctorId) });
+      setSelectedTemplate(null);
+    } catch {
+      // stay on preview
+    } finally {
+      setApplying(null);
+    }
+  }
+
   const listContent = (
     <Box sx={{ flex: 1, overflowY: "auto" }}>
       {pendingCount > 0 && (
@@ -167,27 +192,68 @@ export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
 
       {!loading && (
         <Box sx={{ px: 2, py: 2 }}>
-          {/* Empty state with onboarding CTA */}
-          {!hasContent && !editing && (
-            <Box sx={{
-              bgcolor: COLOR.primaryLight,
-              borderRadius: RADIUS.md,
-              border: `0.5px solid ${COLOR.primaryBorder}`,
-              p: 2, mb: 2,
-            }}>
-              <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.primaryText, mb: 0.5 }}>
-                还没有AI风格描述
+          {/* Empty state with template picker */}
+          {!hasContent && !editing && !selectedTemplate && (
+            <Box>
+              <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.text1, mb: 0.25 }}>
+                选择一个沟通风格开始
               </Typography>
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mb: 1.5, lineHeight: 1.6 }}>
-                描述你希望AI如何与患者沟通，或用引导流程快速生成
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mb: 1.5 }}>
+                点击预览，确认后再应用
               </Typography>
+
+              {/* Template cards */}
+              {templates.length > 0 && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 2 }}>
+                  {templates.map((t) => (
+                    <Box
+                      key={t.id}
+                      onClick={() => setSelectedTemplate(t)}
+                      sx={{
+                        border: `0.5px solid ${COLOR.border}`,
+                        borderRadius: RADIUS.md,
+                        px: 1.5, py: 1.25,
+                        cursor: "pointer",
+                        bgcolor: COLOR.white,
+                        transition: "background-color 0.15s, border-color 0.15s",
+                        "&:hover": {
+                          bgcolor: COLOR.primaryLight,
+                          borderColor: COLOR.primary,
+                        },
+                        "&:active": {
+                          bgcolor: COLOR.primaryLight,
+                          borderColor: COLOR.primary,
+                        },
+                      }}
+                    >
+                      <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.text1 }}>
+                        {t.name}
+                      </Typography>
+                      <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.25 }}>
+                        {t.subtitle}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+
+              {/* Divider with "或者" */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, my: 2 }}>
+                <Box sx={{ flex: 1, height: "0.5px", bgcolor: COLOR.border }} />
+                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+                  或者
+                </Typography>
+                <Box sx={{ flex: 1, height: "0.5px", bgcolor: COLOR.border }} />
+              </Box>
+
+              {/* Secondary options */}
               <Box sx={{ display: "flex", gap: 1 }}>
-                <AppButton variant="primary" size="sm" onClick={startEditing}>
+                <AppButton variant="secondary" size="md" fullWidth onClick={startEditing}>
                   直接写
                 </AppButton>
                 {hasRules ? (
                   <AppButton
-                    variant="secondary" size="sm"
+                    variant="primary" size="md" fullWidth
                     onClick={handleGenerate}
                     loading={generating}
                     loadingLabel="生成中…"
@@ -196,7 +262,7 @@ export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
                   </AppButton>
                 ) : (
                   <AppButton
-                    variant="secondary" size="sm"
+                    variant="primary" size="md" fullWidth
                     onClick={() => navigate(dp("settings/persona/onboarding"))}
                   >
                     引导生成
@@ -205,6 +271,95 @@ export default function PersonaSubpage({ doctorId, onBack, isMobile }) {
               </Box>
             </Box>
           )}
+
+          {/* Template preview — shown after picking, before confirming */}
+          {!hasContent && !editing && selectedTemplate && (() => {
+            const previewSections = parseSections(selectedTemplate.summary_text);
+            return (
+              <Box>
+                <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.text1, mb: 0.25 }}>
+                  {selectedTemplate.name}
+                </Typography>
+                <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mb: 1.5 }}>
+                  {selectedTemplate.subtitle}
+                </Typography>
+
+                {/* Sample reply — shows what the AI would actually say */}
+                {selectedTemplate.sample_reply && (
+                  <Box sx={{
+                    bgcolor: COLOR.primaryLight,
+                    borderRadius: RADIUS.md,
+                    border: `0.5px solid ${COLOR.primaryBorder}`,
+                    p: 1.5, mb: 1.5,
+                  }}>
+                    <Typography sx={{ fontSize: TYPE.caption.fontSize, fontWeight: 600, color: COLOR.primaryText, mb: 0.75 }}>
+                      示例回复
+                    </Typography>
+                    <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text1, lineHeight: 1.7 }}>
+                      {selectedTemplate.sample_reply}
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* Structured sections */}
+                {previewSections.length > 0 && (
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mb: 2 }}>
+                    {previewSections.map((sec) => {
+                      const color = SECTION_COLORS[sec.title] || COLOR.text4;
+                      return (
+                        <Box key={sec.title} sx={{ bgcolor: COLOR.surfaceAlt, borderRadius: RADIUS.sm, px: 1.5, py: 1 }}>
+                          <Typography sx={{ fontSize: TYPE.caption.fontSize, fontWeight: 600, color, mb: 0.5 }}>
+                            {sec.title}
+                          </Typography>
+                          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.6 }}>
+                            {sec.items.join(" · ")}
+                          </Typography>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                )}
+
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <AppButton
+                    variant="secondary" size="md" fullWidth
+                    onClick={() => setSelectedTemplate(null)}
+                    disabled={!!applying}
+                  >
+                    重新选择
+                  </AppButton>
+                  <AppButton
+                    variant="primary" size="md" fullWidth
+                    onClick={() => handleApplyTemplate(selectedTemplate.id)}
+                    loading={!!applying}
+                    loadingLabel="应用中…"
+                  >
+                    确认使用
+                  </AppButton>
+                </Box>
+
+                {/* Secondary options */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, my: 2 }}>
+                  <Box sx={{ flex: 1, height: "0.5px", bgcolor: COLOR.border }} />
+                  <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+                    或者
+                  </Typography>
+                  <Box sx={{ flex: 1, height: "0.5px", bgcolor: COLOR.border }} />
+                </Box>
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <AppButton variant="secondary" size="md" fullWidth onClick={() => { setSelectedTemplate(null); startEditing(); }}>
+                    直接写
+                  </AppButton>
+                  <AppButton
+                    variant="primary" size="md" fullWidth
+                    onClick={() => { setSelectedTemplate(null); navigate(dp("settings/persona/onboarding")); }}
+                  >
+                    引导生成
+                  </AppButton>
+                </Box>
+              </Box>
+            );
+          })()}
 
           {/* Read mode — render sections as styled cards */}
           {hasContent && !editing && (

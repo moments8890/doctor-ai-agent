@@ -21,7 +21,7 @@ router = APIRouter(tags=["ui"], include_in_schema=False)
 # ── Models ────────────────────────────────────────────────────────────────────
 
 class DoctorProfileUpdate(BaseModel):
-    name: str
+    name: Optional[str] = None
     specialty: Optional[str] = None
     clinic_name: Optional[str] = None
     bio: Optional[str] = None
@@ -67,24 +67,24 @@ async def patch_doctor_profile(
 ):
     """Update the doctor's display name and specialty."""
     resolved_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    name = body.name.strip()
-    if not name:
-        raise HTTPException(status_code=422, detail="name is required")
 
     result = await db.execute(select(Doctor).where(Doctor.doctor_id == resolved_id))
     doctor = result.scalar_one_or_none()
     if doctor is None:
         raise HTTPException(status_code=404, detail="Doctor not found")
-    doctor.name = name
-    try:
-        doctor.specialty = body.specialty or None
-    except Exception:
-        pass  # specialty column not yet migrated — skip
-    try:
-        doctor.clinic_name = body.clinic_name or None
-        doctor.bio = body.bio or None
-    except Exception:
-        pass  # columns not yet migrated — skip
+
+    if body.name is not None:
+        name = body.name.strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="name is required")
+        doctor.name = name
+    if body.specialty is not None:
+        doctor.specialty = body.specialty.strip() or None
+    if body.clinic_name is not None:
+        doctor.clinic_name = body.clinic_name.strip() or None
+    if body.bio is not None:
+        doctor.bio = body.bio.strip() or None
+
     await db.commit()
 
-    return {"ok": True, "name": name, "specialty": body.specialty or "", "clinic_name": body.clinic_name or "", "bio": body.bio or ""}
+    return {"ok": True, "name": doctor.name or "", "specialty": doctor.specialty or "", "clinic_name": getattr(doctor, "clinic_name", "") or "", "bio": getattr(doctor, "bio", "") or ""}
