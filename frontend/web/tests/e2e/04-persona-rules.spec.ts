@@ -2,89 +2,81 @@
  * Workflow 04 — Persona rules CRUD
  *
  * Mirrors docs/qa/workflows/04-persona-rules.md.
+ *
+ * NOTE: The PersonaSubpage has been redesigned as a free-text bio editor.
+ * The old 5-field sections (回复风格, 常用结尾语, etc.) no longer exist.
+ * Tests below verify the current "AI 风格" page with its summary_text editor.
  */
 import { test, expect } from "./fixtures/doctor-auth";
 import { addPersonaRule } from "./fixtures/seed";
 
-const FIELD_LABELS = ["回复风格", "常用结尾语", "回复结构", "回避内容", "常见修改"];
-
 test.describe("Workflow 04 — Persona rules", () => {
-  test("1. Page shell renders 5 field sections", async ({ doctorPage }) => {
+  test("1. Page shell renders with correct title and empty state", async ({ doctorPage }) => {
     await doctorPage.goto("/doctor/settings/persona");
 
-    await expect(doctorPage.getByText("AI 人设")).toBeVisible();
-    for (const label of FIELD_LABELS) {
-      await expect(doctorPage.getByText(label, { exact: true })).toBeVisible();
-    }
-    // Empty hint for 回复风格
-    await expect(doctorPage.getByText(/口语化回复/)).toBeVisible();
-    // Stats section
-    await expect(doctorPage.getByText("统计")).toBeVisible();
-    await expect(doctorPage.getByText("规则总数")).toBeVisible();
-    await expect(doctorPage.getByText("学习获得")).toBeVisible();
+    // PageSkeleton title is "AI 风格"
+    await expect(doctorPage.getByText("AI 风格").first()).toBeVisible();
+    // Empty state CTA
+    await expect(doctorPage.getByText("还没有AI风格描述")).toBeVisible();
+    // Two buttons: 直接写 and 引导生成
+    await expect(doctorPage.getByText("直接写", { exact: true })).toBeVisible();
   });
 
-  test("2. Add rule to 回复风格", async ({ doctorPage }) => {
+  test("2. Edit and save persona summary", async ({ doctorPage }) => {
     await doctorPage.goto("/doctor/settings/persona");
 
-    // Tap + on 回复风格 row — the first AddCircleOutlineIcon.
-    const replyStyleHeader = doctorPage.getByText("回复风格", { exact: true }).locator("..");
-    await replyStyleHeader.locator("button").click();
+    // Tap "直接写" to enter edit mode
+    await doctorPage.getByText("直接写", { exact: true }).click();
 
-    // Dialog opens
-    await expect(doctorPage.getByText("添加回复风格")).toBeVisible();
-    const addButton = doctorPage.getByRole("button", { name: "添加" });
-    await expect(addButton).toBeDisabled();
+    // Save button should exist (AppButton renders as div)
+    const saveButton = doctorPage.getByText("保存", { exact: true }).first();
 
-    // Fill and submit
-    await doctorPage.getByPlaceholder(/口语化回复/).fill("口语化，像朋友聊天");
-    await expect(addButton).toBeEnabled();
-    await addButton.click();
+    // Fill the editor
+    await doctorPage.locator("textarea").first().fill("### 沟通风格\n口语化，像朋友聊天");
+    await saveButton.click();
 
-    // Sheet closes, rule visible with 手动 badge
-    await expect(doctorPage.getByText("添加回复风格")).toBeHidden();
+    // After save, content should be visible in read mode
     await expect(doctorPage.getByText("口语化，像朋友聊天")).toBeVisible();
-    await expect(doctorPage.getByText("手动").first()).toBeVisible();
   });
 
-  test("3. Edit an existing rule", async ({ doctorPage, doctor, request }) => {
+  test("3. Edit an existing persona via seeded rules", async ({ doctorPage, doctor, request }) => {
     await addPersonaRule(request, doctor, "closing", "有问题随时联系我");
     await doctorPage.goto("/doctor/settings/persona");
 
-    const rule = doctorPage.getByText("有问题随时联系我");
-    await expect(rule).toBeVisible();
+    // The fallback from rules should show the closing text
+    await expect(doctorPage.getByText(/有问题随时联系我/)).toBeVisible();
 
-    // Click edit icon (EditOutlinedIcon) — the first icon-button in the row.
-    const row = rule.locator("..").locator("..");
-    await row.locator("button").first().click();
+    // Tap edit to enter edit mode
+    await doctorPage.getByText("编辑", { exact: true }).click();
 
-    await expect(doctorPage.getByText("编辑规则")).toBeVisible();
     const textArea = doctorPage.locator("textarea").first();
-    await textArea.fill("有问题随时联系我，微信也可以");
-    await doctorPage.getByRole("button", { name: "保存" }).click();
+    await textArea.fill("### 结尾习惯\n有问题随时联系我，微信也可以");
+    await doctorPage.getByText("保存", { exact: true }).first().click();
 
     await expect(doctorPage.getByText("有问题随时联系我，微信也可以")).toBeVisible();
   });
 
-  test("4. Delete rule with confirm dialog", async ({ doctorPage, doctor, request }) => {
+  test("4. Cancel editing discards changes", async ({ doctorPage, doctor, request }) => {
     await addPersonaRule(request, doctor, "avoid", "不主动展开罕见风险");
     await doctorPage.goto("/doctor/settings/persona");
 
-    const rule = doctorPage.getByText("不主动展开罕见风险");
-    const row = rule.locator("..").locator("..");
+    await expect(doctorPage.getByText(/不主动展开罕见风险/)).toBeVisible();
 
-    // Trash icon is the second button in the row.
-    await row.locator("button").nth(1).click();
+    // Enter edit mode
+    await doctorPage.getByText("编辑", { exact: true }).click();
 
-    // ConfirmDialog — cancel LEFT "保留" / confirm RIGHT "删除"
-    await expect(doctorPage.getByText("确认删除")).toBeVisible();
-    await expect(doctorPage.getByRole("button", { name: "保留" })).toBeVisible();
-    await doctorPage.getByRole("button", { name: "删除" }).click();
+    const textArea = doctorPage.locator("textarea").first();
+    await textArea.fill("完全不同的内容");
 
-    await expect(doctorPage.getByText("不主动展开罕见风险")).toBeHidden();
+    // Cancel
+    await doctorPage.getByText("取消", { exact: true }).first().click();
+
+    // Original content should still be visible
+    await expect(doctorPage.getByText(/不主动展开罕见风险/)).toBeVisible();
+    await expect(doctorPage.getByText("完全不同的内容")).toBeHidden();
   });
 
-  test("5. Stats count seeded rules correctly", async ({
+  test("5. Multiple seeded rules show in fallback display", async ({
     doctorPage,
     doctor,
     request,
@@ -94,8 +86,10 @@ test.describe("Workflow 04 — Persona rules", () => {
     await addPersonaRule(request, doctor, "structure", "先结论后解释");
 
     await doctorPage.goto("/doctor/settings/persona");
-    // 规则总数 should read 3.
-    const totalCard = doctorPage.getByText("规则总数").locator("..");
-    await expect(totalCard).toContainText("3");
+
+    // All rules should appear in the fallback text
+    await expect(doctorPage.getByText(/直接给结论/)).toBeVisible();
+    await expect(doctorPage.getByText(/祝早日康复/)).toBeVisible();
+    await expect(doctorPage.getByText(/先结论后解释/)).toBeVisible();
   });
 });

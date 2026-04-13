@@ -11,8 +11,11 @@ test.describe("Workflow 16 — Template management", () => {
   }) => {
     await doctorPage.goto("/doctor/settings/template");
 
-    // 1.1 — page header
-    await expect(doctorPage.getByText("报告模板", { exact: true })).toBeVisible();
+    // 1.1 — page header (may appear in both header and settings list; use .first())
+    // Allow extra time for settings subpage to render after navigation.
+    // On mobile, .first() picks the hidden settings list row. Use .last()
+    // to get the visible page header on the template subpage.
+    await expect(doctorPage.getByText("报告模板", { exact: true }).last()).toBeVisible({ timeout: 10_000 });
 
     // 1.2 — section labels
     await expect(doctorPage.getByText("当前模板", { exact: true })).toBeVisible();
@@ -55,8 +58,8 @@ test.describe("Workflow 16 — Template management", () => {
       await expect(doctorPage.getByText(field)).toBeVisible();
     }
 
-    // 2.3 — dismiss
-    await doctorPage.getByText("知道了", { exact: true }).click();
+    // 2.3 — dismiss (ConfirmDialog uses AppButton = div, use getByText inside dialog)
+    await doctorPage.locator("[role=dialog]").getByText("知道了", { exact: true }).click();
     await expect(
       doctorPage.getByText("门诊病历标准格式", { exact: true }),
     ).toBeHidden();
@@ -98,13 +101,13 @@ test.describe("Workflow 16 — Template management", () => {
       doctorPage.getByText("删除后将恢复国家卫生部 2010 年标准格式。"),
     ).toBeVisible();
 
-    // 5.2 — cancel (保留)
-    await doctorPage.getByText("保留", { exact: true }).click();
+    // 5.2 — cancel (保留) — inside dialog
+    await doctorPage.locator("[role=dialog]").getByText("保留", { exact: true }).click();
     await expect(doctorPage.getByText("已自定义")).toBeVisible();
 
-    // 5.3 — confirm delete
+    // 5.3 — confirm delete — inside dialog
     await doctorPage.getByText("删除模板，恢复默认").click();
-    await doctorPage.getByText("确认删除", { exact: true }).click();
+    await doctorPage.locator("[role=dialog]").getByText("确认删除", { exact: true }).click();
     await expect(doctorPage.getByText(/模板已删除/)).toBeVisible();
 
     // 5.4 — reverted to default

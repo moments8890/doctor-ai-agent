@@ -204,11 +204,16 @@ export const test = base.extend<Fixtures>({
 
   doctorPage: async ({ page, doctor }, use) => {
     await authenticateDoctorPage(page, doctor);
+    // Inject click indicator AFTER auth (page is loaded and DOM exists).
+    const { injectClickIndicator } = await import("./click-indicator");
+    await injectClickIndicator(page);
     await use(page);
   },
 
   patientPage: async ({ page, patient }, use) => {
     await authenticatePatientPage(page, patient);
+    const { injectClickIndicator } = await import("./click-indicator");
+    await injectClickIndicator(page);
     await use(page);
   },
 });

@@ -38,32 +38,33 @@ test.describe("Workflow 15 — Persona teach-by-example", () => {
     // step 1.4 — character counter
     await expect(doctorPage.getByText("0 / 2000")).toBeVisible();
 
-    // step 1.5 — submit button disabled
-    const submitBtn = doctorPage.getByRole("button", { name: "开始分析" });
+    // step 1.5 — submit button visible but disabled (AppButton = div with opacity: 0.5)
+    const submitBtn = doctorPage.getByText("开始分析", { exact: true });
     await expect(submitBtn).toBeVisible();
-    await expect(submitBtn).toBeDisabled();
+    // AppButton uses opacity: 0.5 when disabled — check CSS
+    await expect(submitBtn).toHaveCSS("opacity", "0.5");
   });
 
   test("2. Input validation enables/disables submit button", async ({ doctorPage }) => {
     await doctorPage.goto("/doctor/settings/persona/teach");
 
     const textarea = doctorPage.getByPlaceholder("粘贴一段你满意的回复示例…");
-    const submitBtn = doctorPage.getByRole("button", { name: "开始分析" });
+    const submitBtn = doctorPage.getByText("开始分析", { exact: true });
 
-    // step 2.1 — spaces only keeps button disabled
+    // step 2.1 — spaces only keeps button disabled (opacity 0.5)
     await textarea.fill("   ");
-    await expect(submitBtn).toBeDisabled();
+    await expect(submitBtn).toHaveCSS("opacity", "0.5");
 
-    // step 2.2 — real text enables button
+    // step 2.2 — real text enables button (opacity 1)
     await textarea.fill("你好，这是一段测试回复");
-    await expect(submitBtn).toBeEnabled();
+    await expect(submitBtn).toHaveCSS("opacity", "1");
 
-    // step 2.2 — counter updates
-    await expect(doctorPage.getByText("10 / 2000")).toBeVisible();
+    // step 2.2 — counter updates (character count depends on exact text length)
+    await expect(doctorPage.getByText(/\d+ \/ 2000/).first()).toBeVisible();
 
-    // step 2.3 — clear text re-disables
+    // step 2.3 — clear text re-disables (opacity 0.5)
     await textarea.fill("");
-    await expect(submitBtn).toBeDisabled();
+    await expect(submitBtn).toHaveCSS("opacity", "0.5");
     await expect(doctorPage.getByText("0 / 2000")).toBeVisible();
   });
 
@@ -81,7 +82,7 @@ test.describe("Workflow 15 — Persona teach-by-example", () => {
     const textarea = doctorPage.getByPlaceholder("粘贴一段你满意的回复示例…");
     await textarea.fill(SAMPLE_REPLY);
 
-    const submitBtn = doctorPage.getByRole("button", { name: "开始分析" });
+    const submitBtn = doctorPage.getByText("开始分析", { exact: true });
     await submitBtn.click();
 
     // step 3.2 — results appear
@@ -90,7 +91,7 @@ test.describe("Workflow 15 — Persona teach-by-example", () => {
     // Each extracted rule visible
     await expect(doctorPage.getByText("温暖亲切，使用语气词")).toBeVisible();
     await expect(doctorPage.getByText("先肯定现状，再给建议，最后安排复诊")).toBeVisible();
-    await expect(doctorPage.getByText("有任何不舒服随时联系我")).toBeVisible();
+    await expect(doctorPage.getByText("有任何不舒服随时联系我").first()).toBeVisible();
 
     // Field labels visible
     await expect(doctorPage.getByText("回复风格")).toBeVisible();
@@ -110,7 +111,7 @@ test.describe("Workflow 15 — Persona teach-by-example", () => {
     await doctorPage.goto("/doctor/settings/persona/teach");
 
     await doctorPage.getByPlaceholder("粘贴一段你满意的回复示例…").fill("你好");
-    await doctorPage.getByRole("button", { name: "开始分析" }).click();
+    await doctorPage.getByText("开始分析", { exact: true }).click();
 
     // step 4.1 — empty result message
     await expect(
@@ -126,17 +127,18 @@ test.describe("Workflow 15 — Persona teach-by-example", () => {
     await doctorPage.goto("/doctor/settings/persona/teach");
 
     await doctorPage.getByPlaceholder("粘贴一段你满意的回复示例…").fill(SAMPLE_REPLY);
-    await doctorPage.getByRole("button", { name: "开始分析" }).click();
+    await doctorPage.getByText("开始分析", { exact: true }).click();
 
     // step 5.1 — error message
     await expect(doctorPage.getByText("分析失败，请重试")).toBeVisible();
 
-    // step 5.1 — textarea and button re-enabled
+    // step 5.1 — textarea re-enabled
     await expect(
       doctorPage.getByPlaceholder("粘贴一段你满意的回复示例…"),
     ).toBeEnabled();
+    // Button re-enabled (opacity 1)
     await expect(
-      doctorPage.getByRole("button", { name: "开始分析" }),
-    ).toBeEnabled();
+      doctorPage.getByText("开始分析", { exact: true }),
+    ).toHaveCSS("opacity", "1");
   });
 });

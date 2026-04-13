@@ -48,5 +48,11 @@ export default defineConfig({
     },
   ],
 
+  // Write results to a subdirectory so Playwright's cleanup doesn't wipe
+  // the parent index.html.
+  outputDir: "./test-results/runs/latest",
+
+  preserveOutput: "always",
+
   // No webServer — see README. User starts backend + frontend manually.
 });

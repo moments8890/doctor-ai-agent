@@ -20,8 +20,9 @@ test.describe("Workflow 17 — QR invite + Patient preview", () => {
     ).toBeVisible();
 
     // 1.3 — generate button disabled when name is empty
-    const generateBtn = doctorPage.getByRole("button", { name: "生成入口" });
-    await expect(generateBtn).toBeDisabled();
+    // AppButton renders as div, not <button> — check opacity for disabled state
+    const generateBtn = doctorPage.getByText("生成入口", { exact: true });
+    await expect(generateBtn).toHaveCSS("opacity", "0.5");
   });
 
   test("2. Generate QR code and see result", async ({
@@ -36,16 +37,18 @@ test.describe("Workflow 17 — QR invite + Patient preview", () => {
     );
     await nameInput.fill("测试患者");
 
-    // 2.1 — button enables
-    const generateBtn = doctorPage.getByRole("button", { name: "生成入口" });
-    await expect(generateBtn).toBeEnabled();
+    // 2.1 — button enables (opacity 1)
+    const generateBtn = doctorPage.getByText("生成入口", { exact: true });
+    await expect(generateBtn).toHaveCSS("opacity", "1");
 
     // 2.2 — tap generate
     await generateBtn.click();
 
-    // 2.3 — wait for QR code to render (the QRCodeSVG component renders an
-    // <svg> element once the portal_url is set)
-    await expect(doctorPage.locator("svg")).toBeVisible({ timeout: 10_000 });
+    // 2.3 — wait for QR code to render. Multiple SVGs exist on page (MUI icons),
+    // so check for the description text that appears alongside the QR code instead.
+    await expect(
+      doctorPage.getByText(/患者扫码后将进入 AI 预问诊/),
+    ).toBeVisible({ timeout: 10_000 });
 
     // 2.3 — patient name displayed below QR
     await expect(doctorPage.getByText("测试患者").first()).toBeVisible();
@@ -55,12 +58,12 @@ test.describe("Workflow 17 — QR invite + Patient preview", () => {
       doctorPage.getByText(/患者扫码后将进入 AI 预问诊/),
     ).toBeVisible();
 
-    // 2.3 — action buttons
+    // 2.3 — action buttons (AppButton = div, use getByText)
     await expect(
-      doctorPage.getByRole("button", { name: "复制" }),
+      doctorPage.getByText("复制", { exact: true }),
     ).toBeVisible();
     await expect(
-      doctorPage.getByRole("button", { name: "预览" }),
+      doctorPage.getByText("预览", { exact: true }),
     ).toBeVisible();
   });
 
@@ -94,7 +97,7 @@ test.describe("Workflow 17 — QR invite + Patient preview", () => {
     await doctorPage.goto(previewUrl);
 
     // 4.2 — intro card
-    await expect(doctorPage.getByText("患者端预览")).toBeVisible({
+    await expect(doctorPage.getByText("患者端预览").first()).toBeVisible({
       timeout: 10_000,
     });
     await expect(
