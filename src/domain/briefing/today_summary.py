@@ -6,6 +6,7 @@ Cached in runtime_tokens for 30 minutes.
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Literal, Optional
@@ -305,7 +306,7 @@ async def _generate_via_llm(
         response_model=LLMSummaryResponse,
         messages=messages,
         op_name="daily_summary.generate",
-        env_var="DAILY_SUMMARY_LLM",
+        env_var="CONVERSATION_LLM" if os.environ.get("CONVERSATION_LLM") else "ROUTING_LLM",
         temperature=0.2,
         max_tokens=1024,
     )
