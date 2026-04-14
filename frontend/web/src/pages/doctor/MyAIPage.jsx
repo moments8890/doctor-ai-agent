@@ -23,7 +23,7 @@ import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
 import { useKnowledgeItems, useReviewQueue, usePersona, useTodaySummary } from "../../lib/doctorQueries";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
-import { relativeDate as formatRelativeDate } from "../../utils/time";
+import { relativeDate as formatRelativeDate, relativeTime } from "../../utils/time";
 import CloseIcon from "@mui/icons-material/Close";
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -135,8 +135,18 @@ export default function MyAIPage({ doctorId }) {
         {summaryData && summaryData.mode !== "empty" && summaryData.summary && (
           <Box sx={{ bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.5 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
-              <AutoAwesomeOutlinedIcon sx={{ fontSize: 14, color: COLOR.primary }} />
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, fontWeight: 600 }}>今日摘要</Typography>
+              <AutoAwesomeOutlinedIcon sx={{ fontSize: 14, color: summaryData.is_new ? COLOR.primary : COLOR.text4 }} />
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: summaryData.is_new ? COLOR.primary : COLOR.text4, fontWeight: 600 }}>
+                今日摘要
+              </Typography>
+              {summaryData.is_new === false && (
+                <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, ml: 0.5 }}>
+                  暂无新变化
+                </Typography>
+              )}
+              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, ml: "auto" }}>
+                {summaryData.generated_at ? relativeTime(summaryData.generated_at) : ""}
+              </Typography>
             </Box>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.7 }}>
               {summaryData.summary.replace(/\s*\[KB-\d+\]/g, "")}

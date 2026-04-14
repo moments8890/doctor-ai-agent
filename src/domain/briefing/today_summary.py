@@ -5,6 +5,7 @@ Cached in runtime_tokens for 30 minutes.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -57,6 +58,8 @@ class TodaySummaryResponse(BaseModel):
     generated_at: str
     expires_at: str
     cache_hit: bool = False
+    is_new: bool = True
+    fact_hash: str = ""
     empty_reason: Optional[Literal["no_data", "no_knowledge", "quiet_day"]] = None
 
 
@@ -176,6 +179,15 @@ async def build_fact_pack(
     return facts
 
 
+# ── Fact hash ────────────────────────────────────────────────────────
+
+
+def _hash_facts(facts: list[dict]) -> str:
+    """Stable hash of the fact pack — changes only when underlying data changes."""
+    canonical = json.dumps(facts, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(canonical.encode()).hexdigest()[:16]
+
+
 # ── Cache helpers ─────────────────────────────────────────────────────
 
 CACHE_TTL_MINUTES = 30
@@ -188,12 +200,10 @@ def _cache_key(doctor_id: str) -> str:
 
 
 async def _get_cached(session: AsyncSession, doctor_id: str) -> Optional[TodaySummaryResponse]:
+    """Return cached summary if it exists for today (no TTL — hash-based invalidation)."""
     from db.crud.runtime import get_runtime_token
     row = await get_runtime_token(session, _cache_key(doctor_id))
     if not row or not row.token_value:
-        return None
-    expires = row.expires_at.replace(tzinfo=timezone.utc) if row.expires_at and row.expires_at.tzinfo is None else row.expires_at
-    if expires and expires < datetime.now(timezone.utc):
         return None
     try:
         data = json.loads(row.token_value)
@@ -224,27 +234,32 @@ async def get_today_summary(
     doctor_id: str,
     refresh: bool = False,
 ) -> TodaySummaryResponse:
-    """Generate or return cached today summary."""
+    """Generate or return cached today summary.
+
+    Uses content-addressed caching: the summary is only regenerated when the
+    underlying fact pack changes (new messages, tasks, records).  When the
+    same facts produce the same hash, the cached summary is returned with
+    is_new=False so the frontend can avoid re-highlighting stale content.
+    """
     now = datetime.now(timezone.utc)
+    cached = await _get_cached(session, doctor_id)
 
-    # Check cache (skip if refresh requested)
-    if not refresh:
-        cached = await _get_cached(session, doctor_id)
-        if cached:
-            log(f"[today_summary] cache hit for {doctor_id}")
-            return cached
-
-    # Build fact pack
+    # Build fact pack (always — needed for hash comparison)
     facts = await build_fact_pack(session, doctor_id=doctor_id, now=now)
+    current_hash = _hash_facts(facts)
+
+    # If cache exists and facts haven't changed, return cached (is_new=False)
+    if cached and not refresh and cached.fact_hash == current_hash:
+        log(f"[today_summary] unchanged facts for {doctor_id}, returning cached")
+        cached.is_new = False
+        return cached
 
     # Check for empty states (no LLM call needed)
     if not facts:
-        # Check if doctor has any knowledge
         from db.crud.knowledge import get_knowledge_items
         kb = await get_knowledge_items(session, doctor_id)
         kb_count = len(kb) if kb else 0
 
-        # Check if doctor has any patients
         patient_count = (await session.execute(
             select(func.count()).select_from(Patient).where(Patient.doctor_id == doctor_id)
         )).scalar_one()
@@ -263,15 +278,19 @@ async def get_today_summary(
             mode="empty",
             summary=summary,
             generated_at=now.isoformat(),
-            expires_at=(now + timedelta(minutes=CACHE_TTL_MINUTES)).isoformat(),
+            expires_at=(now + timedelta(days=1)).isoformat(),
+            fact_hash=current_hash,
+            is_new=not cached or cached.fact_hash != current_hash,
             empty_reason=reason,
         )
         await _set_cached(session, doctor_id, resp)
         return resp
 
-    # Generate via LLM
+    # Generate via LLM (facts changed or no cache)
     try:
         resp = await _generate_via_llm(doctor_id=doctor_id, facts=facts, now=now)
+        resp.fact_hash = current_hash
+        resp.is_new = True
     except Exception as exc:
         log(f"[today_summary] LLM failed: {exc}", level="warning")
         resp = TodaySummaryResponse(
@@ -279,6 +298,7 @@ async def get_today_summary(
             summary="摘要生成中，请稍后刷新",
             generated_at=now.isoformat(),
             expires_at=(now + timedelta(minutes=5)).isoformat(),
+            fact_hash=current_hash,
         )
 
     await _set_cached(session, doctor_id, resp)

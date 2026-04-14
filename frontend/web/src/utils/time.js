@@ -30,6 +30,26 @@ export function relativeDate(dateStr) {
 }
 
 /**
+ * Fine-grained relative time (includes minutes/hours).
+ * 刚刚, N分钟前, N小时前, 今天, 昨天, N天前, N周前, N个月前, N年前
+ */
+export function relativeTime(dateStr) {
+  if (!dateStr) return "";
+  const normalized = dateStr.includes("Z") || dateStr.includes("+") ? dateStr : dateStr + "Z";
+  const d = new Date(normalized);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  const diffMs = now - d;
+  if (diffMs < 0) return "刚刚";
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "刚刚";
+  if (diffMin < 60) return `${diffMin}分钟前`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}小时前`;
+  return relativeDate(dateStr);
+}
+
+/**
  * Relative timestamp for future dates (deadlines, due dates).
  * 明天, N天后, N周后, N个月后
  */
