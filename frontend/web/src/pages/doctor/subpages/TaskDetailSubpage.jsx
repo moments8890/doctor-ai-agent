@@ -22,20 +22,7 @@ import Toast, { useToast } from "../../../components/Toast";
 import { TYPE, COLOR, RADIUS } from "../../../theme";
 import { dp } from "../../../utils/doctorBasePath";
 
-const SOURCE_LABELS = {
-  manual: "医生手动创建",
-  rule: "知识规则 → 自动生成",
-  diagnosis_auto: "AI诊断审核 → 自动生成",
-};
 
-const TYPE_LABELS = {
-  general: "通用",
-  follow_up: "随访",
-  // Legacy types (pre-migration data)
-  medication: "用药",
-  checkup: "复查",
-  review: "审核",
-};
 
 function dueLabel(dueAt) {
   if (!dueAt) return null;
@@ -221,7 +208,6 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
   const isCompleted = task.status === "completed";
   const due = dueLabel(task.due_at);
   const isUrgent = due?.color === COLOR.danger;
-  const sourceLabel = SOURCE_LABELS[task.source_type] || "系统创建";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
@@ -230,23 +216,30 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
       <Box sx={{ flex: 1, overflow: "auto", pb: "80px" }}>
         {/* Task header card */}
         <Box sx={{ mt: 1, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-          {/* Title row */}
-          <Box sx={{ px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}`, display: "flex", alignItems: "center", gap: 1 }}>
-            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: isUrgent ? COLOR.danger : COLOR.warning, flexShrink: 0 }} />
-            <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 600, flex: 1 }}>
-              {task.title}
-            </Typography>
-            {isUrgent && (
-              <Box component="span" sx={{ fontSize: TYPE.micro.fontSize, fontWeight: 600, bgcolor: COLOR.danger, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.75, py: 0.25, lineHeight: 1.5 }}>
-                紧急
-              </Box>
+          {/* Title + subtitle */}
+          <Box sx={{ px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: isUrgent ? COLOR.danger : COLOR.warning, flexShrink: 0 }} />
+              <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 600, flex: 1 }}>
+                {task.title}
+              </Typography>
+              {isUrgent && (
+                <Box component="span" sx={{ fontSize: TYPE.micro.fontSize, fontWeight: 600, bgcolor: COLOR.danger, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.75, py: 0.25, lineHeight: 1.5 }}>
+                  紧急
+                </Box>
+              )}
+            </Box>
+            {task.content && (
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, mt: 0.5, ml: "16px" }}>
+                {task.content}
+              </Typography>
             )}
           </Box>
 
           {/* AI provenance — source card */}
           <SourceCard task={task} navigate={navigate} />
 
-          {/* Detail fields */}
+          {/* Detail fields — only patient + due date */}
           {task.patient_name && (
             <DetailField label="患者">
               <Typography
@@ -262,32 +255,6 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
           {due && (
             <DetailField label="截止" color={due.color}>
               {due.text}
-            </DetailField>
-          )}
-
-          <DetailField label="来源">
-            {sourceLabel}
-          </DetailField>
-
-          <DetailField label="类型">
-            {TYPE_LABELS[task.task_type] || task.task_type}
-          </DetailField>
-
-          {task.content && (
-            <DetailField label="详情">
-              {task.content}
-            </DetailField>
-          )}
-
-          {task.record_id && (
-            <DetailField label="关联">
-              <Typography
-                component="span"
-                onClick={() => navigate(`${dp("review")}/${task.record_id}`)}
-                sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.primary, cursor: "pointer", "&:active": { opacity: 0.6 } }}
-              >
-                查看关联记录 ›
-              </Typography>
             </DetailField>
           )}
 
@@ -314,62 +281,45 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
           )}
         </Box>
 
-        {/* Notes section */}
-        <Box sx={{ px: 2, py: 2 }}>
-          <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 600, color: COLOR.text2, mb: 1 }}>
-            备注
-          </Typography>
-          <Box
-            component="textarea"
-            value={notes}
-            onChange={(e) => { setNotes(e.target.value); setNotesDirty(true); }}
-            onBlur={handleSaveNotes}
-            placeholder="添加备注..."
-            sx={{
-              width: "100%", minHeight: 60, p: 1.5,
-              bgcolor: COLOR.white, border: `0.5px solid ${COLOR.border}`,
-              borderRadius: RADIUS.md, fontSize: TYPE.secondary.fontSize,
-              color: COLOR.text2, resize: "vertical",
-              fontFamily: "inherit", outline: "none",
-              "&:focus": { borderColor: COLOR.primary },
-            }}
-          />
-          {notesDirty && (
-            <Typography
-              onClick={handleSaveNotes}
-              sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, mt: 0.5, cursor: "pointer" }}
-            >
-              {saving ? "保存中..." : "保存备注"}
-            </Typography>
-          )}
+        {/* Notes — inline editable row, same layout as DetailField */}
+        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, mt: 1 }}>
+          <Box sx={{ display: "flex", gap: 1.5, px: 2, py: 1 }}>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, flexShrink: 0, minWidth: 48 }}>备注</Typography>
+            <Box
+              component="input"
+              value={notes}
+              onChange={(e) => { setNotes(e.target.value); setNotesDirty(true); }}
+              onBlur={handleSaveNotes}
+              placeholder="添加备注..."
+              sx={{
+                flex: 1, border: "none", outline: "none", p: 0,
+                fontSize: TYPE.secondary.fontSize, color: COLOR.text2,
+                fontFamily: "inherit", bgcolor: "transparent",
+                "&::placeholder": { color: COLOR.text4 },
+              }}
+            />
+            {saving && <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, flexShrink: 0 }}>保存中</Typography>}
+          </Box>
         </Box>
 
-        {/* Reminder + Delete */}
-        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-          <Box sx={{ display: "flex", alignItems: "center", px: 2, py: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
-            <Typography sx={{ fontSize: TYPE.body.fontSize, flex: 1 }}>提醒</Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: task.reminder_at ? COLOR.primary : COLOR.text4 }}>
-              {task.reminder_at ? task.reminder_at.slice(0, 16).replace("T", " ") : "未设置"}
+        {/* Delete */}
+        {!isCompleted && (
+          <Box sx={{ px: 2, py: 2 }}>
+            <Typography
+              onClick={() => setConfirmDelete(true)}
+              sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, cursor: "pointer", "&:active": { opacity: 0.6 } }}
+            >
+              删除任务
             </Typography>
           </Box>
-
-          {!isCompleted && (
-            <Box
-              onClick={() => setConfirmDelete(true)}
-              sx={{ px: 2, py: 1.5, cursor: "pointer", "&:active": { opacity: 0.6 } }}
-            >
-              <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.danger }}>
-                删除任务
-              </Typography>
-            </Box>
-          )}
-        </Box>
+        )}
       </Box>
 
       {/* Delete confirmation — cancel LEFT (grey), danger RIGHT (red) */}
       <ConfirmDialog
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
+        onCancel={() => setConfirmDelete(false)}
         title="确认删除"
         message={`确定要删除任务"${task.title}"吗？`}
         confirmLabel="删除"

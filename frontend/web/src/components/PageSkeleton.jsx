@@ -5,7 +5,7 @@
  * Mobile:             SubpageHeader (back|title|actions) | content | bottom nav
  */
 import { useCallback, useRef, useState } from "react";
-import { Box, Slide, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { COLOR } from "../theme";
 import SubpageHeader from "./SubpageHeader";
 
@@ -49,23 +49,21 @@ export default function PageSkeleton({ title, headerRight, onBack, listPane, det
     localStorage.setItem("pageskeleton_list_width", String(w));
   }, []);
 
-  // Mobile: list stays mounted; subpage slides in from the right when active
+  // Mobile: list stays mounted; subpage overlays instantly (no animation)
   if (isMobile) {
     return (
       <Box sx={{ position: "relative", height: "100%", overflow: "hidden" }}>
-        {/* List — hidden (but mounted) when subpage is showing */}
-        <Box sx={{ height: "100%", display: mobileView ? "none" : "flex", flexDirection: "column", bgcolor: COLOR.surface }}>
+        <Box sx={{ height: "100%", display: "flex", flexDirection: "column", bgcolor: COLOR.surface }}>
           <SubpageHeader title={title} onBack={onBack} right={headerRight} />
           <Box sx={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
             {listPane}
           </Box>
         </Box>
-        {/* Subpage — slides in from right (WeChat push convention) */}
-        <Slide direction="left" in={!!mobileView} timeout={300} mountOnEnter unmountOnExit>
+        {mobileView && (
           <Box sx={{ position: "absolute", inset: 0, zIndex: 2, bgcolor: COLOR.surface }}>
             {mobileView}
           </Box>
-        </Slide>
+        )}
       </Box>
     );
   }

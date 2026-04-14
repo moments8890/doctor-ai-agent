@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
-  Badge, Box, Chip, CircularProgress, Fade, IconButton, LinearProgress, Slide, Stack, TextField, Typography,
+  Badge, Box, Chip, CircularProgress, IconButton, LinearProgress, Stack, TextField, Typography,
 } from "@mui/material";
 import BottomNavigationMui from "@mui/material/BottomNavigation";
 import BottomNavigationActionMui from "@mui/material/BottomNavigationAction";
@@ -638,14 +638,9 @@ function PatientPreviewPage({ doctorId, previewId }) {
 function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, patientRefreshKey, setPatientRefreshKey, handleLogout, triggerInterview, setTriggerInterview, chatInterviewSessionId, setChatInterviewSessionId, chatInterviewPrePopulated, setChatInterviewPrePopulated, onInterviewChange }) {
   return (
     <Box sx={{ flex: 1, overflow: "hidden", position: "relative" }}>
-      <Fade in={activeSection === "my-ai"} timeout={150} unmountOnExit>
-        <Box sx={{ position: "absolute", inset: 0 }}>
-          <ErrorBoundary label="我的AI">
-            <MyAIPage doctorId={doctorId} />
-          </ErrorBoundary>
-        </Box>
-      </Fade>
-      <Fade in={activeSection === "patients"} timeout={150} unmountOnExit>
+      {/* Main tabs — instant switch, no animation */}
+      {activeSection === "my-ai" && <Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="我的AI"><MyAIPage doctorId={doctorId} /></ErrorBoundary></Box>}
+      {activeSection === "patients" && (
         <Box sx={{ position: "absolute", inset: 0 }}>
           <ErrorBoundary label="患者">
             <PatientsPage doctorId={doctorId}
@@ -658,11 +653,11 @@ function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpag
               onInterviewChange={onInterviewChange} />
           </ErrorBoundary>
         </Box>
-      </Fade>
-      <Fade in={activeSection === "review"} timeout={150} unmountOnExit><Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="门诊"><ReviewQueuePage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary></Box></Fade>
-      <Fade in={activeSection === "tasks"} timeout={150} unmountOnExit><Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="任务"><TaskPage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary></Box></Fade>
-      <Fade in={activeSection === "settings"} timeout={150} unmountOnExit><Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="设置"><SettingsPage doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary></Box></Fade>
-      <Fade in={activeSection === "preview"} timeout={150} unmountOnExit><Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="患者端预览"><PatientPreviewPage doctorId={doctorId} previewId={urlSubpage} /></ErrorBoundary></Box></Fade>
+      )}
+      {activeSection === "review" && <Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="门诊"><ReviewQueuePage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary></Box>}
+      {activeSection === "tasks" && <Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="任务"><TaskPage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary></Box>}
+      {activeSection === "settings" && <Box sx={{ position: "absolute", inset: 0, zIndex: 3 }}><ErrorBoundary label="设置"><SettingsPage doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary></Box>}
+      {activeSection === "preview" && <Box sx={{ position: "absolute", inset: 0, zIndex: 3 }}><ErrorBoundary label="患者端预览"><PatientPreviewPage doctorId={doctorId} previewId={urlSubpage} /></ErrorBoundary></Box>}
     </Box>
   );
 }
@@ -740,7 +735,7 @@ export default function DoctorPage() {
   // Main tabs show bottom nav; subpages hide it and show ‹ back in top bar.
   // WeChat pattern: bottom nav only on root tab views.
   const MAIN_TABS = new Set(["my-ai", "patients", "review", "tasks"]);
-  const isSubpage = isReviewPage || !MAIN_TABS.has(activeSection) || !!patientId || interviewActive;
+  const isSubpage = isReviewPage || !MAIN_TABS.has(activeSection) || !!patientId || interviewActive || !!urlSubpage;
 
   function handleNav(key) { navigate(key === "my-ai" ? dp() : dp(key)); }
   function handleLogout() {
@@ -765,13 +760,13 @@ export default function DoctorPage() {
       {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={navBadge} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
         <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} onInterviewChange={setInterviewActive} />
-        <Slide direction="left" in={isReviewPage} timeout={300} mountOnEnter unmountOnExit>
+        {isReviewPage && (
           <Box sx={{ position: "absolute", inset: 0, zIndex: 5, bgcolor: COLOR.surfaceAlt }}>
             <ErrorBoundary label="诊断审核">
               <ReviewPage recordId={recordId} />
             </ErrorBoundary>
           </Box>
-        </Slide>
+        )}
       </Box>
       {isMobile && !isSubpage && <MobileBottomNav activeSection={activeSection} navBadge={navBadge} onNav={handleNav} />}
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} onClose={() => setShowOnboarding(false)} />

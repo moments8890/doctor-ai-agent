@@ -20,6 +20,7 @@ export default function ConfirmDialog({
   showCancel = true,
   maxWidth = 360,
 }) {
+  const cancelHandler = onCancel || onClose;
   const closeHandler = onClose || onCancel;
   const danger = confirmTone === "danger";
 
@@ -29,7 +30,7 @@ export default function ConfirmDialog({
       size="md"
       fullWidth
       disabled={cancelDisabled}
-      onClick={onCancel}
+      onClick={cancelHandler}
     >
       {cancelLabel}
     </AppButton>

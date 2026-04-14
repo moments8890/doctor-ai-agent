@@ -588,7 +588,7 @@ export default function PatientsPage({ doctorId, onPatientSelected, refreshKey =
     </Box>
   ) : isMobile && selectedId ? (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surface }}>
-      <SubpageHeader title={selectedPatient?.name || ""} onBack={() => navigate(dp("patients"))} right={<HelpTip message={PAGE_HELP.patientDetail} />} />
+      <SubpageHeader title={selectedPatient?.name || ""} onBack={() => navigate(-1)} right={<HelpTip message={PAGE_HELP.patientDetail} />} />
       <Box sx={{ flex: 1, overflow: "hidden" }}>
         <PatientDetail patient={selectedPatient} doctorId={doctorId} onStartInterview={handleStartInterview}
           triggerExport={triggerExport} onTriggerExportConsumed={() => setTriggerExport(false)} />
