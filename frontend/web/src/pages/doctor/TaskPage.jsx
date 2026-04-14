@@ -8,7 +8,7 @@
  *   3. 待办提醒           (doctor-created tasks/reminders)
  *   4. 最近已发送         (recently sent messages)
  */
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Box, CircularProgress, Snackbar, Typography, useMediaQuery, useTheme } from "@mui/material";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
@@ -214,6 +214,117 @@ function CreateTaskSheet({ open, onClose, doctorId, onCreated }) {
   );
 }
 
+// ── Snooze / reschedule sheet ──
+function SnoozeSheet({ open, onClose, taskId, doctorId, onSnoozed }) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const dateRef = useRef(null);
+
+  const handlePick = async (isoDate) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await api.postponeTask(taskId, doctorId, isoDate);
+      queryClient.invalidateQueries({ queryKey: QK.tasks(doctorId, "pending") });
+      queryClient.invalidateQueries({ queryKey: QK.draftSummary(doctorId) });
+      onSnoozed?.();
+      onClose();
+    } catch {
+      // keep sheet open
+    } finally {
+      setSaving(false);
+      setShowDatePicker(false);
+    }
+  };
+
+  const tomorrow = () => {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  };
+  const plus3 = () => {
+    const d = new Date(); d.setDate(d.getDate() + 3);
+    return d.toISOString().slice(0, 10);
+  };
+  const nextMonday = () => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = day === 0 ? 1 : 8 - day;
+    d.setDate(d.getDate() + diff);
+    return d.toISOString().slice(0, 10);
+  };
+
+  const options = [
+    { label: "明天", getDate: tomorrow },
+    { label: "3天后", getDate: plus3 },
+    { label: "下周一", getDate: nextMonday },
+  ];
+
+  return (
+    <SheetDialog
+      open={open}
+      onClose={() => { if (!saving) { onClose(); setShowDatePicker(false); } }}
+      title="延期任务"
+      subtitle="选择新的截止日期"
+    >
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        {options.map((opt) => (
+          <AppButton
+            key={opt.label}
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onClick={() => handlePick(opt.getDate())}
+            loading={saving}
+          >
+            {opt.label}
+          </AppButton>
+        ))}
+
+        {/* Custom date picker */}
+        {!showDatePicker ? (
+          <AppButton
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onClick={() => {
+              setShowDatePicker(true);
+              setTimeout(() => dateRef.current?.showPicker?.(), 50);
+            }}
+          >
+            自选日期
+          </AppButton>
+        ) : (
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+            <Box
+              component="input"
+              ref={dateRef}
+              type="date"
+              onChange={(e) => {
+                if (e.target.value) handlePick(e.target.value);
+              }}
+              sx={{
+                flex: 1, p: 1.5, border: `0.5px solid ${COLOR.border}`,
+                borderRadius: RADIUS.sm, fontSize: TYPE.body.fontSize,
+                outline: "none", fontFamily: "inherit",
+                "&:focus": { borderColor: COLOR.primary },
+              }}
+            />
+            <AppButton
+              variant="secondary"
+              size="md"
+              onClick={() => setShowDatePicker(false)}
+            >
+              取消
+            </AppButton>
+          </Box>
+        )}
+      </Box>
+    </SheetDialog>
+  );
+}
+
 // ── Main page ──
 const VALID_TABS = new Set(["followups", "completed", "sent"]);
 
@@ -234,6 +345,9 @@ export default function TaskPage({ doctorId, urlSubpage }) {
   const { doctorId: _doctorId } = useDoctorStore();
   const queryClient = useQueryClient();
   const [error, setError] = useState(null);
+
+  // Snooze sheet state
+  const [snoozeTaskId, setSnoozeTaskId] = useState(null);
 
   // Send confirmation sheet state
   const [confirmItem, setConfirmItem] = useState(null);
@@ -565,14 +679,38 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                   : (item.title || "任务");
                 const subtitle = item._isFollowup ? item.detail : item.content;
                 const dueLabel = item.due_at ? (relativeFuture(item.due_at) || "") : "";
+                const isOverdue = urgency === "overdue";
+
+                // When overdue, wrap the label in a tappable element to open the snooze sheet
+                const rightContent = isOverdue && dueLabel ? (
+                  <Box
+                    component="span"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSnoozeTaskId(item.id);
+                    }}
+                    sx={{
+                      color: COLOR.danger,
+                      fontWeight: 500,
+                      fontSize: TYPE.caption.fontSize,
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                      textDecorationStyle: "dashed",
+                      textUnderlineOffset: "2px",
+                      "&:active": { opacity: 0.6 },
+                    }}
+                  >
+                    {dueLabel}
+                  </Box>
+                ) : dueLabel;
 
                 return (
                   <ActionRow
                     key={`${item._isFollowup ? "f" : "t"}-${item.id}`}
                     title={title}
                     subtitle={subtitle}
-                    right={dueLabel}
-                    overdue={urgency === "overdue"}
+                    right={rightContent}
+                    overdue={isOverdue}
                     onToggle={() => handleCompleteTask(item)}
                     onClick={() => navigate(`${dp("tasks")}/${item.id}`)}
                     sx={highlightTaskIds.has(String(item.id)) ? HIGHLIGHT_ROW_SX : {}}
@@ -657,6 +795,15 @@ export default function TaskPage({ doctorId, urlSubpage }) {
         onClose={() => setCreateOpen(false)}
         doctorId={doctorId}
         onCreated={() => loadData()}
+      />
+
+      {/* Snooze / reschedule sheet */}
+      <SnoozeSheet
+        open={!!snoozeTaskId}
+        onClose={() => setSnoozeTaskId(null)}
+        taskId={snoozeTaskId}
+        doctorId={doctorId}
+        onSnoozed={() => loadData()}
       />
 
       {/* Teaching prompt: save edited draft as knowledge rule */}

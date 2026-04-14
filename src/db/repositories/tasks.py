@@ -99,6 +99,22 @@ class TaskRepository:
         )
         return list(result.scalars().all())
 
+    async def list_overdue_unnotified(self, *, today_start: datetime) -> List[DoctorTask]:
+        """Return pending tasks whose due_at is strictly before today_start
+        and that have never been notified (notified_at IS NULL).
+
+        Results are ordered by doctor_id then due_at so the caller can
+        group-by-doctor in a single pass.
+        """
+        result = await self.session.execute(
+            select(DoctorTask).where(
+                DoctorTask.status == TaskStatus.pending,
+                DoctorTask.notified_at.is_(None),
+                DoctorTask.due_at < today_start,
+            ).order_by(DoctorTask.doctor_id, DoctorTask.due_at)
+        )
+        return list(result.scalars().all())
+
     async def get_by_id(self, *, task_id: int, doctor_id: str) -> Optional[DoctorTask]:
         result = await self.session.execute(
             select(DoctorTask).where(DoctorTask.id == task_id, DoctorTask.doctor_id == doctor_id)

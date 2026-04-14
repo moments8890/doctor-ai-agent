@@ -12,6 +12,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import SubpageHeader from "../../../components/SubpageHeader";
 import AppButton from "../../../components/AppButton";
 import SectionLoading from "../../../components/SectionLoading";
@@ -61,6 +63,59 @@ function DetailField({ label, children, color }) {
       <Box sx={{ fontSize: TYPE.secondary.fontSize, color: color || COLOR.text2, lineHeight: 1.5, flex: 1 }}>
         {children}
       </Box>
+    </Box>
+  );
+}
+
+// ── AI Provenance source card ──
+function SourceCard({ task, navigate }) {
+  if (task.record_id) {
+    // AI-generated task — link to the originating record
+    const recordDate = task.record_created_at ? task.record_created_at.slice(0, 10) : null;
+    const recordType = task.record_type || null;
+    const description = recordDate && recordType
+      ? `来自 ${recordDate} ${recordType} 记录`
+      : "来自关联病历";
+
+    return (
+      <Box sx={{
+        mx: 2, mt: 1.5, mb: 0.5, px: 2, py: 1.5,
+        bgcolor: COLOR.surface, borderRadius: RADIUS.md,
+      }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.75 }}>
+          <DescriptionOutlinedIcon sx={{ fontSize: 14, color: COLOR.text4 }} />
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, fontWeight: 500, color: COLOR.text4 }}>
+            AI生成来源
+          </Typography>
+        </Box>
+        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, mb: 0.75 }}>
+          {description}
+        </Typography>
+        <Typography
+          onClick={() => navigate(`${dp("patients")}/${task.patient_id}?view=record&record=${task.record_id}`)}
+          sx={{
+            fontSize: TYPE.caption.fontSize, color: COLOR.primary,
+            cursor: "pointer", fontWeight: 500,
+            "&:active": { opacity: 0.6 },
+          }}
+        >
+          查看原记录 ›
+        </Typography>
+      </Box>
+    );
+  }
+
+  // Manual task — simple gray label
+  return (
+    <Box sx={{
+      mx: 2, mt: 1.5, mb: 0.5, px: 2, py: 1.5,
+      bgcolor: COLOR.surface, borderRadius: RADIUS.md,
+      display: "flex", alignItems: "center", gap: 0.75,
+    }}>
+      <PersonOutlineOutlinedIcon sx={{ fontSize: 14, color: COLOR.text4 }} />
+      <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>
+        来源：医生手动创建
+      </Typography>
     </Box>
   );
 }
@@ -187,6 +242,9 @@ export default function TaskDetailSubpage({ taskId, doctorId, onBack, isMobile }
               </Box>
             )}
           </Box>
+
+          {/* AI provenance — source card */}
+          <SourceCard task={task} navigate={navigate} />
 
           {/* Detail fields */}
           {task.patient_name && (

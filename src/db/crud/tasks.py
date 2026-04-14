@@ -129,6 +129,34 @@ async def revert_task_to_pending(
     await session.commit()
 
 
+async def get_overdue_unnotified_tasks(
+    session: AsyncSession,
+    today_start: datetime,
+) -> List[DoctorTask]:
+    """Return pending tasks overdue before *today_start* that were never notified."""
+    return await TaskRepository(session).list_overdue_unnotified(today_start=today_start)
+
+
+async def bulk_mark_notified(
+    session: AsyncSession,
+    task_ids: List[int],
+) -> None:
+    """Set notified_at on a batch of tasks in one statement."""
+    if not task_ids:
+        return
+    from sqlalchemy import update as _update
+    now = _utcnow()
+    await session.execute(
+        _update(DoctorTask)
+        .where(
+            DoctorTask.id.in_(task_ids),
+            DoctorTask.notified_at.is_(None),
+        )
+        .values(notified_at=now, updated_at=now)
+    )
+    await session.commit()
+
+
 async def update_task_notes(
     session: AsyncSession,
     task_id: int,

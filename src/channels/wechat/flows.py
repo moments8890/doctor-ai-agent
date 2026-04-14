@@ -98,14 +98,14 @@ async def handle_notify_control_command(doctor_id: str, text: str) -> str:
         await set_notify_immediate(doctor_id)
         return "✅ 通知计划已更新为：实时检查"
     if action == "trigger_now":
-        result = await _w.run_due_task_cycle(doctor_id=doctor_id, include_manual=True, force=True)
+        result = await _w.run_due_task_cycle(doctor_id=doctor_id)
         return (
-            "✅ 待办通知已触发\n"
-            "due={0} eligible={1}\n"
-            "sent={2} failed={3}"
+            "✅ 逾期摘要通知已触发\n"
+            "overdue={0} doctors_notified={1}\n"
+            "failed={2}"
         ).format(
-            result.get("due_count", 0), result.get("eligible_count", 0),
-            result.get("sent_count", 0), result.get("failed_count", 0),
+            result.get("overdue_count", 0), result.get("doctors_notified", 0),
+            result.get("failed_count", 0),
         )
     return ""
 

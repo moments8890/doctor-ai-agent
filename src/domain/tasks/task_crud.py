@@ -1,5 +1,9 @@
 """
-任务创建、通知发送。
+任务创建、逾期摘要通知发送。
+
+Scheduler calls ``check_and_send_due_tasks()`` once daily at 08:30.
+It queries *overdue* tasks (due_at < today, status=pending, notified_at IS NULL),
+groups them by doctor, and sends ONE consolidated digest per doctor.
 """
 
 from __future__ import annotations
@@ -7,18 +11,19 @@ from __future__ import annotations
 import os
 import asyncio
 import inspect
-from datetime import datetime, timezone
+from collections import defaultdict
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, List
 
 from db.engine import AsyncSessionLocal
 from db.crud import (
     create_task,
-    get_due_tasks,
-    mark_task_notified,
-    revert_task_to_pending,
+    get_overdue_unnotified_tasks,
+    bulk_mark_notified,
 )
 from db.models import DoctorTask
-from domain.tasks.notifications import send_doctor_notification
+from db.models.patient import Patient
+from domain.tasks.notifications import send_digest_notification
 from utils.log import task_log
 
 _TASK_ICONS = {
@@ -70,133 +75,144 @@ async def create_general_task(
     return task
 
 
-async def send_task_notification(doctor_id: str, task: DoctorTask) -> None:
-    icon = _TASK_ICONS.get(task.task_type, "📌")
-    lines = [f"{icon} 【{task.title}】"]
-    if task.content:
-        lines.append(task.content)
-    if task.due_at:
-        lines.append(f"⏰ 预定时间：{task.due_at.strftime('%Y-%m-%d %H:%M')}")
-    lines.append(f"\n回复「完成 {task.id}」标记完成")
-    message = "\n".join(lines)
+# ---------------------------------------------------------------------------
+# Digest helpers
+# ---------------------------------------------------------------------------
 
-    # Claim-before-send: atomically set notified_at.
-    # If another worker already claimed this task, skip silently.
+def _today_start_utc() -> datetime:
+    """Return midnight UTC of the current day."""
+    now = datetime.now(timezone.utc)
+    return now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def _overdue_days(due_at: datetime, today_start: datetime) -> int:
+    """Number of full days a task is overdue (minimum 1)."""
+    if due_at.tzinfo is None:
+        due_at = due_at.replace(tzinfo=timezone.utc)
+    delta = today_start - due_at
+    return max(1, delta.days)
+
+
+async def _resolve_patient_names(patient_ids: set[int]) -> Dict[int, str]:
+    """Batch-fetch patient names for a set of IDs."""
+    if not patient_ids:
+        return {}
+    from sqlalchemy import select
     async with AsyncSessionLocal() as session:
-        claimed = await mark_task_notified(session, task.id)
-    if not claimed:
-        return  # another worker already notified this task
+        result = await session.execute(
+            select(Patient.id, Patient.name).where(Patient.id.in_(patient_ids))
+        )
+        return {row.id: row.name for row in result}
 
-    retries = _notify_retry_count()
-    delay_seconds = _notify_retry_delay_seconds()
-    last_error = None
-    for attempt in range(1, retries + 1):
-        try:
-            await send_doctor_notification(doctor_id, message)
-            break
-        except Exception as e:
-            last_error = e
-            await _emit_task_log(
-                "task_notify_attempt_failed",
-                task_id=task.id,
-                doctor_id=doctor_id,
-                task_type=task.task_type,
-                attempt=attempt,
-                retries=retries,
-                error=str(e),
-            )
-            if attempt < retries and delay_seconds > 0:
-                await asyncio.sleep(delay_seconds)
-    else:
-        # All send attempts failed — clear notified_at so the next cycle
-        # can retry. This is the safer direction: at worst a notification is
-        # missed this cycle, not duplicated.
-        async with AsyncSessionLocal() as session:
-            await revert_task_to_pending(session, task.id)
-        raise RuntimeError(
-            f"task notification failed after {retries} attempt(s) for task_id={task.id}"
-        ) from last_error
 
-    await _emit_task_log(
-        "task_notified",
-        task_id=task.id,
-        doctor_id=doctor_id,
-        task_type=task.task_type,
-    )
+def _build_task_line(
+    task: DoctorTask,
+    patient_names: Dict[int, str],
+    today_start: datetime,
+) -> str:
+    """Format one bullet line for the digest message."""
+    name = patient_names.get(task.patient_id, "未知患者") if task.patient_id else "未关联患者"
+    days = _overdue_days(task.due_at, today_start)  # type: ignore[arg-type]
+    return f"· {name} — {task.title}（逾期{days}天）"
 
+
+# ---------------------------------------------------------------------------
+# Core digest cycle
+# ---------------------------------------------------------------------------
 
 async def check_and_send_due_tasks() -> None:
-    """APScheduler job: query pending due tasks and send WeChat notifications."""
+    """APScheduler job: daily overdue digest at 08:30."""
     await run_due_task_cycle()
-
-
-async def _fetch_and_filter_tasks(
-    doctor_id: Optional[str],
-    now: datetime,
-    include_manual: bool,
-    force: bool,
-) -> tuple[List[DoctorTask], List[DoctorTask]]:
-    """拉取到期任务并按医生通知偏好筛选；返回 (all_tasks, eligible_tasks)。"""
-    async with AsyncSessionLocal() as session:
-        tasks = await get_due_tasks(session, now)
-    if doctor_id:
-        tasks = [t for t in tasks if t.doctor_id == doctor_id]
-
-    tasks_by_doctor: Dict[str, List[DoctorTask]] = {}
-    for task in tasks:
-        tasks_by_doctor.setdefault(task.doctor_id, []).append(task)
-
-    # DoctorNotifyPreference table removed — all doctors are always allowed.
-    allowed_doctors = set(tasks_by_doctor.keys())
-
-    filtered_tasks = [t for t in tasks if t.doctor_id in allowed_doctors]
-    return tasks, filtered_tasks
-
-
-async def _send_eligible_tasks(filtered_tasks: List[DoctorTask]) -> tuple[int, int]:
-    """依次发送通知给所有合格任务；返回 (success_count, failed_count)。"""
-    success_count = 0
-    failed_count = 0
-    for task in filtered_tasks:
-        try:
-            await send_task_notification(task.doctor_id, task)
-            success_count += 1
-        except Exception as e:
-            failed_count += 1
-            await _emit_task_log(
-                "task_notify_failed",
-                task_id=task.id,
-                doctor_id=task.doctor_id,
-                task_type=task.task_type,
-                error=str(e),
-            )
-    return success_count, failed_count
 
 
 async def run_due_task_cycle(
     doctor_id: Optional[str] = None,
-    *,
-    include_manual: bool = False,
-    force: bool = False,
 ) -> dict:
-    """Run one due-task notification cycle and return summary stats."""
-    await _emit_task_log("scheduler_tick_start", level="debug")
-    now = datetime.now(timezone.utc)
+    """Query overdue unnotified tasks, group by doctor, send one digest each.
 
-    tasks, filtered_tasks = await _fetch_and_filter_tasks(
-        doctor_id, now, include_manual, force
+    Returns summary stats for observability.
+    """
+    await _emit_task_log("digest_cycle_start", level="debug")
+    today_start = _today_start_utc()
+
+    # 1. Fetch all overdue unnotified tasks
+    async with AsyncSessionLocal() as session:
+        tasks = await get_overdue_unnotified_tasks(session, today_start)
+    if doctor_id:
+        tasks = [t for t in tasks if t.doctor_id == doctor_id]
+
+    if not tasks:
+        await _emit_task_log("digest_cycle_no_overdue", level="debug")
+        return {"overdue_count": 0, "doctors_notified": 0, "failed_count": 0}
+
+    # 2. Group by doctor
+    by_doctor: Dict[str, List[DoctorTask]] = defaultdict(list)
+    for task in tasks:
+        by_doctor[task.doctor_id].append(task)
+
+    # 3. Resolve patient names in bulk
+    all_patient_ids = {t.patient_id for t in tasks if t.patient_id}
+    patient_names = await _resolve_patient_names(all_patient_ids)
+
+    await _emit_task_log(
+        "digest_cycle_overdue",
+        count=len(tasks),
+        doctors=len(by_doctor),
     )
-    due_count = len(tasks)
-    eligible_count = len(filtered_tasks)
-    if due_count > 0:
-        await _emit_task_log("scheduler_due_tasks", count=due_count, eligible_count=eligible_count)
-    else:
-        await _emit_task_log("scheduler_due_tasks", level="debug", count=0)
 
-    success_count, failed_count = await _send_eligible_tasks(filtered_tasks)
+    # 4. Send one digest per doctor
+    retries = _notify_retry_count()
+    delay_seconds = _notify_retry_delay_seconds()
+    doctors_notified = 0
+    failed_count = 0
+
+    for doc_id, doc_tasks in by_doctor.items():
+        task_lines = [
+            _build_task_line(t, patient_names, today_start) for t in doc_tasks
+        ]
+        count = len(doc_tasks)
+
+        last_error = None
+        send_ok = False
+        for attempt in range(1, retries + 1):
+            try:
+                await send_digest_notification(doc_id, task_lines, count)
+                send_ok = True
+                break
+            except Exception as e:
+                last_error = e
+                await _emit_task_log(
+                    "digest_send_attempt_failed",
+                    doctor_id=doc_id,
+                    attempt=attempt,
+                    retries=retries,
+                    error=str(e),
+                )
+                if attempt < retries and delay_seconds > 0:
+                    await asyncio.sleep(delay_seconds)
+
+        if send_ok:
+            # Mark all tasks in this digest as notified
+            task_ids = [t.id for t in doc_tasks]
+            async with AsyncSessionLocal() as session:
+                await bulk_mark_notified(session, task_ids)
+            doctors_notified += 1
+            await _emit_task_log(
+                "digest_sent",
+                doctor_id=doc_id,
+                task_count=count,
+            )
+        else:
+            failed_count += 1
+            await _emit_task_log(
+                "digest_send_failed",
+                doctor_id=doc_id,
+                task_count=count,
+                error=str(last_error),
+            )
+
     return {
-        "due_count": due_count,
-        "eligible_count": eligible_count,
-        "sent_count": success_count,
+        "overdue_count": len(tasks),
+        "doctors_notified": doctors_notified,
         "failed_count": failed_count,
     }

@@ -180,6 +180,18 @@ async def _send_via_wechat_mini(doctor_id: str, message: str) -> None:
     await _send_miniprogram_subscribe_msg(target_user, message)
 
 
+async def send_digest_notification(doctor_id: str, task_lines: list[str], count: int) -> None:
+    """Send a single consolidated overdue-task digest to a doctor.
+
+    *task_lines* is a pre-formatted list like:
+        ["· 张三 — 术后随访（逾期3天）", "· 李四 — 复查提醒（逾期1天）"]
+    """
+    header = "📌 随访提醒"
+    summary = f"您有 {count} 项随访已逾期："
+    body = "\n".join([header, summary] + task_lines)
+    await send_doctor_notification(doctor_id, body)
+
+
 async def send_doctor_notification(doctor_id: str, message: str) -> None:
     """按配置的通知渠道（log / wechat / wechat_mini_subscribe）向医生发送通知。"""
     provider = _provider()

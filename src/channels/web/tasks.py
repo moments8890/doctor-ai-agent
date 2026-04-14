@@ -374,11 +374,9 @@ async def get_task_record(
 @router.post("/dev/run-notifier")
 async def dev_run_notifier(
     doctor_id: str,
-    include_manual: bool = True,
-    force: bool = True,
     authorization: Optional[str] = Header(default=None),
 ) -> dict:
-    """Dev-only endpoint: trigger one background notification cycle immediately."""
+    """Dev-only endpoint: trigger one overdue-digest cycle immediately."""
     if not _env_flag_true("TASK_DEV_ENDPOINT_ENABLED", default=False):
         raise HTTPException(status_code=404, detail="Not found")
     resolved_doctor_id = resolve_doctor_id_from_auth_or_fallback(
@@ -388,8 +386,4 @@ async def dev_run_notifier(
         default_doctor_id="test_doctor",
     )
     enforce_doctor_rate_limit(resolved_doctor_id, scope="tasks.dev_notifier")
-    return await run_due_task_cycle(
-        doctor_id=resolved_doctor_id,
-        include_manual=include_manual,
-        force=force,
-    )
+    return await run_due_task_cycle(doctor_id=resolved_doctor_id)

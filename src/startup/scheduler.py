@@ -1,23 +1,10 @@
-"""APScheduler configuration: task notifications, cleanup jobs, retention jobs."""
+"""APScheduler configuration: daily overdue digest, cleanup jobs, retention jobs."""
 
 import logging
-import os
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from domain.tasks.task_crud import check_and_send_due_tasks
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _scheduler_interval_minutes() -> int:
-    raw = os.environ.get("TASK_SCHEDULER_INTERVAL_MINUTES", "10")
-    try:
-        return max(1, int(raw))
-    except (TypeError, ValueError):
-        return 10
 
 
 # ---------------------------------------------------------------------------
@@ -78,10 +65,9 @@ async def _prune_turn_log() -> None:
 # ---------------------------------------------------------------------------
 
 def _schedule_task_notifications(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
-    """Register task notification timer (interval mode only)."""
-    interval_minutes = _scheduler_interval_minutes()
-    scheduler.add_job(check_and_send_due_tasks, "interval", minutes=interval_minutes)
-    startup_log.info("[Tasks] scheduler configured | mode=interval minutes=%s", interval_minutes)
+    """Register daily overdue-task digest at 08:30 local time."""
+    scheduler.add_job(check_and_send_due_tasks, "cron", hour=8, minute=30)
+    startup_log.info("[Tasks] scheduler configured | mode=cron daily at 08:30")
 
 
 def _schedule_retention_jobs(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
