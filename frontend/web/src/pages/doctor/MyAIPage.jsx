@@ -175,7 +175,7 @@ export default function MyAIPage({ doctorId }) {
         )}
         {sLoading && !sError && (
           <Box sx={{ px: 2, py: 1.5 }}>
-            <SectionLoading rows={2} />
+            <SectionLoading rows={1} />
           </Box>
         )}
         {summaryData && summaryData.mode === "empty" && summaryData.summary && (
