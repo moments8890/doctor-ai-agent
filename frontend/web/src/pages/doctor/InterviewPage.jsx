@@ -436,7 +436,8 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
 
       {/* Input bar */}
       {session.status !== "draft_created" && (
-        <Box sx={{ borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, px: 1, py: 1,
+        <Box sx={{ borderTop: `1px solid ${COLOR.border}`, bgcolor: COLOR.surface, px: 1, pt: 1,
+          pb: "calc(8px + var(--safe-bottom, 0px))",
           display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
           <MiniVoiceMicHint inputRef={inputRef} showHint={voiceHint} onHint={() => { setVoiceHint(true); setTimeout(() => setVoiceHint(false), 5000); }} />
           <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1, py: 0.5,

@@ -217,7 +217,8 @@ export default function InterviewPage({ token, onBack, onLogout, initialSuggesti
       {/* Input with selected chips */}
       {canInput && (
         <Box component="form" onSubmit={handleSend}
-          sx={{ display: "flex", alignItems: "flex-end", gap: 1, px: 2, py: 1, bgcolor: COLOR.surface,
+          sx={{ display: "flex", alignItems: "flex-end", gap: 1, px: 2, pt: 1,
+            pb: "calc(8px + var(--safe-bottom, 0px))", bgcolor: COLOR.surface,
             borderTop: suggestions.length > 0 ? "none" : `1px solid ${COLOR.border}`, flexShrink: 0 }}>
           <MiniVoiceMicHint inputRef={inputRef} showHint={voiceHint} onHint={() => { setVoiceHint(true); setTimeout(() => setVoiceHint(false), 5000); }} />
           <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.md, border: `1px solid ${COLOR.border}`,

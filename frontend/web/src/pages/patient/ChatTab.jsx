@@ -321,7 +321,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
 
       {/* Input */}
       <Box component="form" onSubmit={handleSend}
-        sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5, bgcolor: COLOR.surface, borderTop: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
+        sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, pt: 1.5, pb: "calc(1.5 * 8px + var(--safe-bottom, 0px))", bgcolor: COLOR.surface, borderTop: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
         <MiniVoiceMicHint inputRef={inputRef} showHint={voiceHint} onHint={() => { setVoiceHint(true); setTimeout(() => setVoiceHint(false), 5000); }} />
         <TextField inputRef={inputRef} value={input} onChange={e => setInput(e.target.value)} placeholder="请输入…"
           fullWidth size="small" sx={{ bgcolor: COLOR.white, borderRadius: 1 }} />
