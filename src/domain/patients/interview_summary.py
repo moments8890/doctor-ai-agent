@@ -238,7 +238,6 @@ async def _confirm_interview_inner(
     """Inner implementation of confirm_interview — always called under the session lock."""
     from db.crud.patient import get_patient_for_doctor
     from db.crud.records import save_record
-    from db.crud.tasks import create_task
     from db.engine import AsyncSessionLocal
 
     # Batch-extract all fields from the full transcript in one pass
@@ -272,27 +271,10 @@ async def _confirm_interview_inner(
             commit=True,
         )
 
-        # Create review task for the doctor with diagnosis summary
-        chief = collected.get("chief_complaint", "")
-        present = collected.get("present_illness", "")
-        summary_parts = []
-        if chief:
-            summary_parts.append(f"主诉: {chief}")
-        if present:
-            summary_parts.append(f"现病史: {present[:80]}")
-        task_content = "\n".join(summary_parts) if summary_parts else "患者已完成预问诊，请审阅病历记录。"
-
-        task = await create_task(
-            db, doctor_id,
-            task_type="general",
-            title=f"审阅患者【{patient_name}】预问诊记录",
-            content=task_content,
-            patient_id=patient_id,
-            record_id=db_record.id,
-        )
+        # Review notification handled by 审核 tab — no task created.
         await db.commit()
 
-    log(f"[interview] confirmed session={session_id} record={db_record.id} task={task.id}")
+    log(f"[interview] confirmed session={session_id} record={db_record.id}")
 
     # Auto-trigger diagnosis pipeline (fire-and-forget)
     try:

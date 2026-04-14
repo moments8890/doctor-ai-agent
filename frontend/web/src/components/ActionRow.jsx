@@ -51,7 +51,7 @@ export default function ActionRow({ title, subtitle, right, done = false, edited
     <Box
       onClick={dimmed ? undefined : onClick}
       sx={{
-        display: "flex", alignItems: "center", gap: 1,
+        display: "flex", alignItems: "center", gap: 1, minWidth: 0, overflow: "hidden",
         px: 2, py: 1.5,
         borderBottom: `0.5px solid ${COLOR.borderLight}`,
         cursor: onClick && !dimmed ? "pointer" : "default",

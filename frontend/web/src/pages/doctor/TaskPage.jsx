@@ -413,6 +413,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
   const allPendingItems = [
     ...upcomingFollowups.map((f) => ({ ...f, _isFollowup: true, _sortDate: f.due_at || f.due_label || "" })),
     ...pendingTasks
+      .filter((t) => !t.title?.startsWith("审阅"))
       .map((t) => ({ ...t, _isFollowup: false, _sortDate: t.due_at || t.due || "" })),
   ].sort((a, b) => {
     return (a._sortDate || "").localeCompare(b._sortDate || "");
