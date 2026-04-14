@@ -433,7 +433,12 @@ export default function TaskPage({ doctorId, urlSubpage }) {
 
     items.forEach((item) => {
       const dueRaw = item.due_at || item._sortDate || "";
-      const dueDate = dueRaw ? new Date(dueRaw) : null;
+      // Backend stores naive UTC; normalize like relativeFuture() so that
+      // bucketing and the right-side label always agree on the local date.
+      const normalized = dueRaw && !dueRaw.includes("Z") && !dueRaw.includes("+")
+        ? dueRaw + "Z"
+        : dueRaw;
+      const dueDate = normalized ? new Date(normalized) : null;
       const dueDateStr = dueDate ? localDate(dueDate) : "";
 
       if (!dueDate || dueDateStr < todayStr) {

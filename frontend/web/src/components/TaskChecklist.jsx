@@ -29,7 +29,11 @@ function formatDate(iso) {
 
 function isOverdue(dueAt) {
   if (!dueAt) return false;
-  try { return new Date(dueAt) < new Date(); } catch { return false; }
+  try {
+    // Normalize naive UTC (no Z/offset) to agree with relativeFuture/TaskPage.
+    const normalized = dueAt.includes("Z") || dueAt.includes("+") ? dueAt : dueAt + "Z";
+    return new Date(normalized) < new Date();
+  } catch { return false; }
 }
 
 function isWorkupTask(taskType) {

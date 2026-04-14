@@ -26,15 +26,16 @@ import { dp } from "../../../utils/doctorBasePath";
 
 function dueLabel(dueAt) {
   if (!dueAt) return null;
-  const d = new Date(dueAt);
+  // Normalize naive UTC (no Z/offset) so date label matches relativeFuture.
+  const normalized = dueAt.includes("Z") || dueAt.includes("+") ? dueAt : dueAt + "Z";
+  const d = new Date(normalized);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const dDate = new Date(d);
-  dDate.setHours(0, 0, 0, 0);
+  const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-  const dateStr = dueAt.slice(0, 10);
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   if (dDate.getTime() < today.getTime()) return { text: `${dateStr} (已过期)`, color: COLOR.danger };
   if (dDate.getTime() === today.getTime()) return { text: `${dateStr} (今天)`, color: COLOR.danger };
   if (dDate.getTime() === tomorrow.getTime()) return { text: `${dateStr} (明天)`, color: COLOR.warning };
