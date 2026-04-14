@@ -178,34 +178,31 @@ function CreateTaskSheet({ open, onClose, doctorId, onCreated }) {
         </Box>
       }
     >
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Box>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2, overflow: "hidden" }}>
+        <Box sx={{ minWidth: 0 }}>
           <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.5 }}>任务标题</Typography>
-          <Box
-            component="input"
+          <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="例如：术后复查CT"
-            sx={{
-              width: "100%", p: 1.5, border: `0.5px solid ${COLOR.border}`,
-              borderRadius: RADIUS.sm, fontSize: TYPE.body.fontSize,
+            style={{
+              width: "100%", padding: "12px", border: `0.5px solid #e8e8e8`,
+              borderRadius: "6px", fontSize: "15px", boxSizing: "border-box",
               outline: "none", fontFamily: "inherit",
-              "&:focus": { borderColor: COLOR.primary },
             }}
           />
         </Box>
-        <Box>
+        <Box sx={{ minWidth: 0 }}>
           <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mb: 0.5 }}>截止日期（可选）</Typography>
-          <Box
-            component="input"
+          <input
             type="date"
             value={dueAt}
             onChange={(e) => setDueAt(e.target.value)}
-            sx={{
-              width: "100%", p: 1.5, border: `0.5px solid ${COLOR.border}`,
-              borderRadius: RADIUS.sm, fontSize: TYPE.body.fontSize,
+            style={{
+              width: "100%", padding: "12px",
+              border: `0.5px solid #e8e8e8`,
+              borderRadius: "6px", fontSize: "15px", boxSizing: "border-box",
               outline: "none", fontFamily: "inherit",
-              "&:focus": { borderColor: COLOR.primary },
             }}
           />
         </Box>
