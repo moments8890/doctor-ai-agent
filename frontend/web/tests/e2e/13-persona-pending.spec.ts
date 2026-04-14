@@ -23,8 +23,8 @@ function fakePendingItem(overrides: Record<string, unknown> = {}) {
   };
 }
 
-test.describe("Workflow 13 — Persona pending review", () => {
-  test("1. Empty state shows placeholder", async ({ doctorPage }) => {
+test.describe("工作流 13 — 待确认风格", () => {
+  test("1. 空状态显示占位提示", async ({ doctorPage, steps }) => {
     // Intercept pending API to return empty list
     await doctorPage.route(PENDING_URL, (route) =>
       route.fulfill({
@@ -38,6 +38,7 @@ test.describe("Workflow 13 — Persona pending review", () => {
 
     // step 1.1 — page header
     await expect(doctorPage.getByText("AI发现")).toBeVisible();
+    await steps.capture(doctorPage, "打开AI发现页面");
     // step 1.2 — empty state (EmptyState component uses `title` prop;
     // PendingReviewSubpage passes `message` which doesn't render as text.
     // The component still renders, so look for the wrapper or the
@@ -53,9 +54,10 @@ test.describe("Workflow 13 — Persona pending review", () => {
       // Verify no pending items are shown (no action buttons present).
       await expect(doctorPage.getByText("确认", { exact: true })).toBeHidden();
     }
+    await steps.capture(doctorPage, "验证空状态");
   });
 
-  test("2. Items render with field labels and confidence", async ({ doctorPage }) => {
+  test("2. 列表项显示字段标签和置信度", async ({ doctorPage, steps }) => {
     const items = [
       fakePendingItem({
         id: "p1",
@@ -86,6 +88,7 @@ test.describe("Workflow 13 — Persona pending review", () => {
     // step 2.1 — both items render
     await expect(doctorPage.getByText("简洁直接，不绕弯")).toBeVisible();
     await expect(doctorPage.getByText("祝早日康复")).toBeVisible();
+    await steps.capture(doctorPage, "待确认项目列表加载");
 
     // step 2.2 — field label chips
     await expect(doctorPage.getByText("回复风格")).toBeVisible();
@@ -105,9 +108,10 @@ test.describe("Workflow 13 — Persona pending review", () => {
     // At least 2 items seeded — count may be higher if preseed adds items
     expect(await confirmButtons.count()).toBeGreaterThanOrEqual(2);
     expect(await ignoreButtons.count()).toBeGreaterThanOrEqual(2);
+    await steps.capture(doctorPage, "验证字段标签和操作按钮");
   });
 
-  test("3. Accept removes item from list", async ({ doctorPage, doctor }) => {
+  test("3. 确认后从列表移除", async ({ doctorPage, doctor, steps }) => {
     const items = [
       fakePendingItem({ id: "p1", proposed_rule: "口语化回复" }),
       fakePendingItem({ id: "p2", field: "avoid", proposed_rule: "不要用医学缩写" }),
@@ -137,6 +141,7 @@ test.describe("Workflow 13 — Persona pending review", () => {
     // Both items visible
     await expect(doctorPage.getByText("口语化回复")).toBeVisible();
     await expect(doctorPage.getByText("不要用医学缩写")).toBeVisible();
+    await steps.capture(doctorPage, "确认前两项可见");
 
     // step 3.1 — tap confirm on first item (AppButton = div, use getByText)
     const confirmButtons = doctorPage.getByText("确认", { exact: true });
@@ -145,9 +150,10 @@ test.describe("Workflow 13 — Persona pending review", () => {
     // step 3.2 — first item disappears, second remains
     await expect(doctorPage.getByText("口语化回复")).toBeHidden();
     await expect(doctorPage.getByText("不要用医学缩写")).toBeVisible();
+    await steps.capture(doctorPage, "确认后第一项消失");
   });
 
-  test("4. Reject removes item and shows empty state when last", async ({ doctorPage }) => {
+  test("4. 忽略最后一项后显示空状态", async ({ doctorPage, steps }) => {
     const items = [
       fakePendingItem({ id: "p1", proposed_rule: "结尾加鼓励语" }),
     ];
@@ -172,6 +178,7 @@ test.describe("Workflow 13 — Persona pending review", () => {
 
     await doctorPage.goto("/doctor/settings/persona/pending");
     await expect(doctorPage.getByText("结尾加鼓励语")).toBeVisible();
+    await steps.capture(doctorPage, "单项待确认列表");
 
     // step 4.2 — tap ignore (AppButton = div, use getByText)
     await doctorPage.getByText("忽略", { exact: true }).first().click();
@@ -185,5 +192,6 @@ test.describe("Workflow 13 — Persona pending review", () => {
       // Verify no action buttons remain
       await expect(doctorPage.getByText("确认", { exact: true })).toBeHidden();
     }
+    await steps.capture(doctorPage, "忽略后显示空状态");
   });
 });

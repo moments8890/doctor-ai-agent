@@ -50,8 +50,8 @@ const FAKE_SCENARIOS = [
   },
 ];
 
-test.describe("Workflow 14 — Persona onboarding", () => {
-  test("1. Scenarios load and render correctly", async ({ doctorPage }) => {
+test.describe("工作流 14 — 风格引导", () => {
+  test("1. 场景加载并正确渲染", async ({ doctorPage, steps }) => {
     await doctorPage.route(SCENARIOS_URL, (route) =>
       route.fulfill({
         status: 200,
@@ -69,6 +69,7 @@ test.describe("Workflow 14 — Persona onboarding", () => {
     await expect(doctorPage.getByText("慢性病随访")).toBeVisible();
     await expect(doctorPage.getByText("高血压患者，50岁男性")).toBeVisible();
     await expect(doctorPage.getByText(/血压有点高/)).toBeVisible();
+    await steps.capture(doctorPage, "场景1加载完成");
 
     // step 2.2 — instruction text
     await expect(doctorPage.getByText("选择你更习惯的回复方式：")).toBeVisible();
@@ -76,9 +77,10 @@ test.describe("Workflow 14 — Persona onboarding", () => {
     // step 2.3 — both options visible, none pre-selected
     await expect(doctorPage.getByText(/增加半片降压药/)).toBeVisible();
     await expect(doctorPage.getByText(/降压药调整一下/)).toBeVisible();
+    await steps.capture(doctorPage, "验证两个选项可见");
   });
 
-  test("2. Pick options, advance through scenarios, see summary", async ({ doctorPage }) => {
+  test("2. 选择选项、推进场景、查看摘要", async ({ doctorPage, steps }) => {
     await doctorPage.route(SCENARIOS_URL, (route) =>
       route.fulfill({
         status: 200,
@@ -102,6 +104,7 @@ test.describe("Workflow 14 — Persona onboarding", () => {
     // step 2.5 — auto-advance to scenario 2
     await expect(doctorPage.getByText("2 / 2")).toBeVisible();
     await expect(doctorPage.getByText("术后复查")).toBeVisible();
+    await steps.capture(doctorPage, "自动进入场景2");
 
     // step 3.1 — pick option A on last scenario (triggers summary)
     await doctorPage.getByText(/术后2周伤口轻微发红/).click();
@@ -121,11 +124,12 @@ test.describe("Workflow 14 — Persona onboarding", () => {
     // step 3.3 — footer buttons (AppButton = div, use getByText)
     await expect(doctorPage.getByText("返回修改", { exact: true })).toBeVisible();
     await expect(doctorPage.getByText("确认开始", { exact: true })).toBeVisible();
+    await steps.capture(doctorPage, "确认风格摘要页面");
   });
 
   // SubpageHeader back button navigates to parent page, not previous scenario.
   // In-scenario back navigation needs component-level fix.
-  test.skip("3. Back navigation preserves picks", async ({ doctorPage }) => {
+  test.skip("3. 返回导航保留已选项", async ({ doctorPage }) => {
     await doctorPage.route(SCENARIOS_URL, (route) =>
       route.fulfill({
         status: 200,
@@ -154,7 +158,7 @@ test.describe("Workflow 14 — Persona onboarding", () => {
     await expect(doctorPage.getByText(/降压药调整一下/)).toBeVisible();
   });
 
-  test("4. Error state when scenarios fail to load", async ({ doctorPage }) => {
+  test("4. 场景加载失败显示错误状态", async ({ doctorPage, steps }) => {
     await doctorPage.route(SCENARIOS_URL, (route) =>
       route.fulfill({ status: 500, body: "Internal Server Error" }),
     );
@@ -163,5 +167,6 @@ test.describe("Workflow 14 — Persona onboarding", () => {
 
     // step 1.2 — error message
     await expect(doctorPage.getByText("加载失败，请重试")).toBeVisible();
+    await steps.capture(doctorPage, "验证加载失败提示");
   });
 });

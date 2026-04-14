@@ -30,14 +30,15 @@ import {
 // Skip: all tests in this spec require a live LLM backend for draft generation,
 // teaching prompt detection, and diagnosis pipeline. Cannot be run in CI without
 // a real LLM endpoint.
-test.describe("Workflow 18 — Teaching loop round-trip", () => {
+test.describe("工作流 18 — 教学闭环", () => {
   test.slow();
 
-  test.skip("Full chain: edit draft → save as rule → rule cited in next diagnosis", async ({
+  test.skip("完整链路：编辑草稿→保存规则→下次诊断引用规则", async ({
     doctorPage,
     doctor,
     patient,
     request,
+    steps,
   }) => {
     // ────────────────────────────────────────────────────────
     // Phase 1 — Seed data and generate a draft (workflow 09)
@@ -75,6 +76,8 @@ test.describe("Workflow 18 — Teaching loop round-trip", () => {
       timeout: 10_000,
     });
 
+    await steps.capture(doctorPage, "待回复队列", "显示待回复患者列表");
+
     // 2.2 — Open the chat view for this patient.
     await doctorPage.getByText(patient.name).click();
     // After clicking, the app navigates to patient detail with ?view=chat
@@ -82,6 +85,8 @@ test.describe("Workflow 18 — Teaching loop round-trip", () => {
     await expect(
       doctorPage.getByText("AI起草回复 · 待你确认"),
     ).toBeVisible({ timeout: 10_000 });
+
+    await steps.capture(doctorPage, "AI草稿页面", "显示AI起草的回复内容");
 
     // 2.3 — Enter edit mode.
     await doctorPage.getByText("修改").first().click();
@@ -114,6 +119,8 @@ test.describe("Workflow 18 — Teaching loop round-trip", () => {
       doctorPage.getByText(/你的修改有价值/),
     ).toBeVisible();
 
+    await steps.capture(doctorPage, "教学提示弹窗", "显示保存为知识规则确认");
+
     // 2.7 — Verify button order: 跳过 LEFT, 保存 RIGHT.
     const skipBtn = doctorPage.locator("[role=dialog]").getByText("跳过", { exact: true });
     const saveBtn = doctorPage.locator("[role=dialog]").getByText("保存", { exact: true });
@@ -135,12 +142,13 @@ test.describe("Workflow 18 — Teaching loop round-trip", () => {
     });
 
     // 3.2–3.3 — Navigate to knowledge list and verify the rule exists.
-    await doctorPage.goto("/doctor/myai");
-    await doctorPage.getByText("我的知识库").click();
+    await doctorPage.goto("/doctor/settings/knowledge");
 
     await expect(
       doctorPage.getByText(/ARB类药物/).first(),
     ).toBeVisible({ timeout: 10_000 });
+
+    await steps.capture(doctorPage, "知识列表含新规则", "保存的ARB规则出现在知识列表中");
 
     // ────────────────────────────────────────────────────────
     // Phase 4 — Round-trip: rule cited in next diagnosis (workflow 08)
@@ -182,6 +190,8 @@ test.describe("Workflow 18 — Teaching loop round-trip", () => {
 
     // 4.6 — No raw [KB-N] citation markers in the rendered page.
     expect(bodyText).not.toMatch(/\[KB-\d+\]/);
+
+    await steps.capture(doctorPage, "诊断引用教学规则", "新患者诊断中包含ARB相关内容且无原始引用标记");
   });
 
   // ──────────────────────────────────────────────────────────
@@ -189,11 +199,12 @@ test.describe("Workflow 18 — Teaching loop round-trip", () => {
   // ──────────────────────────────────────────────────────────
 
   // Skip: requires live LLM backend for draft generation.
-  test.skip("Minor edit does not trigger teaching prompt", async ({
+  test.skip("小幅修改不触发教学提示", async ({
     doctorPage,
     doctor,
     patient,
     request,
+    steps,
   }) => {
     // 5.1 — Seed and generate a draft.
     await addKnowledgeText(request, doctor, "常规回复知识");
@@ -241,11 +252,12 @@ test.describe("Workflow 18 — Teaching loop round-trip", () => {
   // ──────────────────────────────────────────────────────────
 
   // Skip: requires live LLM backend for draft generation.
-  test.skip("Skip dismisses teaching prompt without creating a rule", async ({
+  test.skip("跳过教学提示不创建规则", async ({
     doctorPage,
     doctor,
     patient,
     request,
+    steps,
   }) => {
     // 6.1 — Seed, generate draft, and edit significantly.
     await addKnowledgeText(request, doctor, "复查检验项目标准");

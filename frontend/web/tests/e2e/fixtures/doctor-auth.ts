@@ -15,6 +15,7 @@
  * dirty DB do not collide. Downstream seed helpers live in `./seed.ts`.
  */
 import { test as base, expect, type Page } from "@playwright/test";
+import { StepRecorder } from "./step-recorder";
 
 export const API_BASE_URL = process.env.E2E_API_BASE_URL || "http://127.0.0.1:8000";
 
@@ -189,6 +190,7 @@ type Fixtures = {
   patient: TestPatient;
   doctorPage: Page;
   patientPage: Page;
+  steps: StepRecorder;
 };
 
 export const test = base.extend<Fixtures>({
@@ -216,6 +218,15 @@ export const test = base.extend<Fixtures>({
     await injectClickIndicator(page);
     await use(page);
   },
+
+  steps: async ({}, use, testInfo) => {
+    const recorder = new StepRecorder(testInfo);
+    await use(recorder);
+    // Teardown: write result.json after the test body finishes.
+    await recorder.writeResult(testInfo.titlePath[0] || "", testInfo.title);
+  },
 });
 
 export { expect };
+export { StepRecorder } from "./step-recorder";
+export type { Step, TestResult } from "./step-recorder";

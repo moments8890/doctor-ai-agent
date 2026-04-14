@@ -7,7 +7,6 @@
 import { useState } from "react";
 import { Box, IconButton, Typography } from "@mui/material";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import { useDoctorStore } from "../../store/doctorStore";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
@@ -103,12 +102,15 @@ export default function MyAIPage({ doctorId }) {
         {/* ── 1. Identity header ─────────────────────────────────── */}
         <Box sx={{ bgcolor: COLOR.white, px: 2, py: 2, display: "flex", alignItems: "center", gap: 1.5, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
           <AIAvatar />
-          <Box sx={{ flex: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 600, color: COLOR.text1 }}>
               {displayName}的助手
             </Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.25 }}>
-              随时为你工作
+            <Typography onClick={(e) => { e.stopPropagation(); navigate(dp("settings/persona")); }}
+              sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mt: 0.25,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                cursor: "pointer", "&:active": { opacity: 0.7 } }}>
+              AI风格：{personaSummary || "设置你的AI风格"}
             </Typography>
           </Box>
           <Box onClick={() => navigate(dp("settings"))}
@@ -174,7 +176,28 @@ export default function MyAIPage({ doctorId }) {
           </Box>
         )}
 
-        {/* ── 4. Knowledge list ───────────────────────────────────── */}
+        {/* ── 4. Quick tools ──────────────────────────────────────── */}
+        <SectionLabel>快捷工具</SectionLabel>
+        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`,
+          display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
+          {[
+            { config: ICON_BADGES.new_record, label: "新建病历", onClick: () => navigate(`${dp("patients")}?action=new`) },
+            { config: ICON_BADGES.qr_code, label: "预问诊码", onClick: () => navigate(dp("settings/qr")) },
+            { config: ICON_BADGES.add_home, label: "加到桌面", onClick: () => setShowAddGuide(true) },
+          ].map(({ config, label, onClick: onTap }, idx, arr) => (
+            <Box key={label} onClick={onTap}
+              sx={{
+                display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5, cursor: "pointer",
+                borderRight: idx < arr.length - 1 ? `0.5px solid ${COLOR.borderLight}` : "none",
+                "&:active": { bgcolor: COLOR.surface },
+              }}>
+              <IconBadge config={config} size={32} />
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>{label}</Typography>
+            </Box>
+          ))}
+        </Box>
+
+        {/* ── 5. Knowledge list ───────────────────────────────────── */}
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
           <SectionLabel>我的知识（{knowledgeCount}）</SectionLabel>
           {knowledgeList.length > 0 && (
@@ -215,41 +238,6 @@ export default function MyAIPage({ doctorId }) {
             <AddOutlinedIcon sx={{ fontSize: 16 }} />
             添加知识
           </Box>
-        </Box>
-
-        {/* ── 5. Quick tools (secondary) ──────────────────────────── */}
-        <SectionLabel>快捷工具</SectionLabel>
-        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`,
-          display: "grid", gridTemplateColumns: isMiniprogram ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gap: 0 }}>
-          {[
-            { config: ICON_BADGES.new_record, label: "新建病历", onClick: () => navigate(`${dp("patients")}?action=new`) },
-            { config: ICON_BADGES.qr_code, label: "预问诊码", onClick: () => navigate(dp("settings/qr")) },
-            ...(isMiniprogram ? [{ config: ICON_BADGES.add_home, label: "加到桌面", onClick: () => setShowAddGuide(true) }] : []),
-          ].map(({ config, label, onClick: onTap }, idx, arr) => (
-            <Box key={label} onClick={onTap}
-              sx={{
-                display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5, cursor: "pointer",
-                borderRight: idx < arr.length - 1 ? `0.5px solid ${COLOR.borderLight}` : "none",
-                "&:active": { bgcolor: COLOR.surface },
-              }}>
-              <IconBadge config={config} size={32} />
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>{label}</Typography>
-            </Box>
-          ))}
-        </Box>
-
-        {/* ── 6. Persona bar (compact) ────────────────────────────── */}
-        <SectionLabel>AI 风格</SectionLabel>
-        <Box onClick={() => navigate(dp("settings/persona"))}
-          sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`,
-            display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.5,
-            cursor: "pointer", "&:active": { bgcolor: COLOR.surface } }}>
-          <IconBadge config={ICON_BADGES.persona} size={32} />
-          <Typography sx={{ flex: 1, fontSize: TYPE.secondary.fontSize, color: personaSummary ? COLOR.text2 : COLOR.text4,
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {personaSummary || "点击选择沟通风格"}
-          </Typography>
-          <ChevronRightOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4, flexShrink: 0 }} />
         </Box>
 
         {/* Disclaimer footer */}

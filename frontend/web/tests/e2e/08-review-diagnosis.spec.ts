@@ -11,12 +11,13 @@ import {
   waitForSuggestions,
 } from "./fixtures/seed";
 
-test.describe("Workflow 08 — Review diagnosis", () => {
-  test("1. Queue tab renders with pending record", async ({
+test.describe("工作流 08 — 审核诊断", () => {
+  test("1. 队列标签页渲染待审核记录", async ({
     doctorPage,
     doctor,
     patient,
     request,
+    steps,
   }) => {
     // Seed one knowledge rule relevant to the interview symptoms.
     // category must be enum: custom|diagnosis|followup|medication (default "custom")
@@ -29,6 +30,8 @@ test.describe("Workflow 08 — Review diagnosis", () => {
 
     await doctorPage.goto("/doctor/review");
 
+    await steps.capture(doctorPage, "审核队列页面", "显示待审核列表");
+
     // Sub-tabs
     for (const label of ["待审核", "待回复", "已完成"]) {
       await expect(doctorPage.getByText(label, { exact: true }).first()).toBeVisible();
@@ -39,13 +42,16 @@ test.describe("Workflow 08 — Review diagnosis", () => {
     await expect(
       doctorPage.getByText(patient.name).or(doctorPage.getByText("张秀兰")).first(),
     ).toBeVisible();
+
+    await steps.capture(doctorPage, "验证审核卡片", "显示患者姓名和三个子标签");
   });
 
-  test("2. Open review detail — three sections + no raw [KB-N]", async ({
+  test("2. 审核详情 — 三个区域且无原始引用标记", async ({
     doctorPage,
     doctor,
     patient,
     request,
+    steps,
   }) => {
     await addKnowledgeText(request, doctor, "规则内容");
     const { recordId } = await completePatientInterview(request, patient);
@@ -58,6 +64,8 @@ test.describe("Workflow 08 — Review diagnosis", () => {
     await doctorPage.goto(`/doctor/review/${recordId}`);
     await expect(doctorPage.getByText("诊断审核")).toBeVisible();
 
+    await steps.capture(doctorPage, "诊断审核详情页", "显示诊断审核标题");
+
     // 2.3 — three sections
     for (const label of ["鉴别诊断", "检查建议", "治疗方向"]) {
       await expect(doctorPage.getByText(label, { exact: true })).toBeVisible();
@@ -66,14 +74,17 @@ test.describe("Workflow 08 — Review diagnosis", () => {
     // 2.4 — no literal [KB-N]
     const body = await doctorPage.locator("body").innerText();
     expect(body).not.toMatch(/\[KB-\d+\]/);
+
+    await steps.capture(doctorPage, "验证三个诊断区域", "鉴别诊断、检查建议、治疗方向可见且无原始引用标记");
   });
 
   // Skip: custom suggestion UI redesigned
-  test.skip("5. Add custom suggestion in a section", async ({
+  test.skip("5. 在区域中添加自定义建议", async ({
     doctorPage,
     doctor,
     patient,
     request,
+    steps,
   }) => {
     const { recordId } = await completePatientInterview(request, patient);
     await waitForSuggestions(request, doctor, recordId);
@@ -93,11 +104,12 @@ test.describe("Workflow 08 — Review diagnosis", () => {
   });
 
   // Skip: edit form flow changed, needs investigation
-  test.skip("4. Edit form has 取消 LEFT / 保存 RIGHT (BUG-05 regression)", async ({
+  test.skip("4. 编辑表单取消在左保存在右（BUG-05回归）", async ({
     doctorPage,
     doctor,
     patient,
     request,
+    steps,
   }) => {
     const { recordId } = await completePatientInterview(request, patient);
     await waitForSuggestions(request, doctor, recordId);
@@ -137,8 +149,9 @@ test.describe("Workflow 08 — Review diagnosis", () => {
 
   // Preseed creates a demo interview on registration, so the review queue
   // is never empty for a fresh doctor. Skip until preseed is configurable.
-  test.skip("8. Empty state — no pending reviews for fresh doctor", async ({
+  test.skip("8. 空状态 — 新医生无待审核项", async ({
     doctorPage,
+    steps,
   }) => {
     // The doctorPage fixture registers a fresh doctor with zero seeded
     // records, so the pending review queue is guaranteed empty. This is

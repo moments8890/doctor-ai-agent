@@ -6,7 +6,7 @@
  */
 import { test, expect } from "./fixtures/doctor-auth";
 
-test.describe("Workflow 02 — Onboarding wizard", () => {
+test.describe("工作流 02 — 引导向导", () => {
   test.beforeEach(async ({ doctorPage, doctor }) => {
     // Clear any stored wizard state from previous runs. Real keys come from
     // frontend/web/src/pages/doctor/onboardingWizardState.js.
@@ -16,7 +16,7 @@ test.describe("Workflow 02 — Onboarding wizard", () => {
     }, doctor.doctorId);
   });
 
-  test("1. Wizard shell renders step 1", async ({ doctorPage }) => {
+  test("1. 向导外壳渲染步骤一", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/onboarding?step=1");
 
     // 1.1 — header + progress + footer. AppButton renders as <Box> not
@@ -25,6 +25,8 @@ test.describe("Workflow 02 — Onboarding wizard", () => {
     await expect(doctorPage.getByText("步骤 1/3")).toBeVisible();
     await expect(doctorPage.getByText("下一步")).toBeVisible();
 
+    await steps.capture(doctorPage, "引导步骤一页面", "显示添加规则引导");
+
     // 1.2 — context card
     await expect(doctorPage.getByText(/添加一条你的诊疗规则/)).toBeVisible();
 
@@ -32,14 +34,18 @@ test.describe("Workflow 02 — Onboarding wizard", () => {
     for (const label of ["文件上传", "网址导入", "手动输入"]) {
       await expect(doctorPage.getByText(label)).toBeVisible();
     }
+
+    await steps.capture(doctorPage, "验证三种来源入口", "文件上传、网址导入、手动输入可见");
   });
 
-  test("2. Step 1 — save text rule unlocks 下一步", async ({ doctorPage }) => {
+  test("2. 步骤一 — 保存文本规则解锁下一步", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/onboarding?step=1");
 
     // 2.1 — tap manual input → routes to add-knowledge subpage
     await doctorPage.getByText("手动输入").click();
     await expect(doctorPage).toHaveURL(/settings\/knowledge\/add/);
+
+    await steps.capture(doctorPage, "进入手动输入页面", "跳转到知识添加页");
 
     // 2.2 — AddKnowledgeSubpage has a single content textarea (no separate
     // title field). Wizard pre-fills it with example text. Just click "添加".
@@ -52,15 +58,20 @@ test.describe("Workflow 02 — Onboarding wizard", () => {
     // 2.3 — wizard auto-advances to step 2 after saving
     await expect(doctorPage).toHaveURL(/\/doctor\/onboarding/);
     await expect(doctorPage.getByText("步骤 2/3")).toBeVisible();
+
+    await steps.capture(doctorPage, "保存后进入步骤二", "自动跳转到步骤2/3");
   });
 
-  test("3. Full wizard walkthrough — step 1 → 2 → 3 → complete", async ({
+  test("3. 完整向导流程 — 步骤1→2→3→完成", async ({
     doctorPage,
+    steps,
   }) => {
     // ── Step 1: add a knowledge rule ──────────────────────────────────
     await doctorPage.goto("/doctor/onboarding?step=1");
     await expect(doctorPage.getByText("步骤 1/3")).toBeVisible();
     await expect(doctorPage.getByText(/添加一条你的诊疗规则/)).toBeVisible();
+
+    await steps.capture(doctorPage, "引导步骤一", "步骤1/3页面");
 
     // Tap "手动输入" → add-knowledge subpage
     await doctorPage.getByText("手动输入").click();
@@ -84,6 +95,8 @@ test.describe("Workflow 02 — Onboarding wizard", () => {
     // Mock patient strip
     await expect(doctorPage.getByText("张秀兰 · 72岁")).toBeVisible();
 
+    await steps.capture(doctorPage, "引导步骤二", "显示模拟患者和规则回显");
+
     // Click diagnosis row to confirm it
     await doctorPage.getByText("高血压脑病/高血压急症").click();
 
@@ -98,6 +111,8 @@ test.describe("Workflow 02 — Onboarding wizard", () => {
     await expect(doctorPage.getByText("设置完成")).toBeVisible();
     await expect(doctorPage.getByText(/AI 已学会你的规则/)).toBeVisible();
 
+    await steps.capture(doctorPage, "引导完成页面", "步骤3/3设置完成");
+
     // Click "完成引导" → land on /doctor workbench
     await doctorPage.getByText("完成引导").click();
     await expect(doctorPage).toHaveURL(/\/doctor(\/|$|\?)/);
@@ -105,10 +120,14 @@ test.describe("Workflow 02 — Onboarding wizard", () => {
     // Verify wizard doesn't come back on reload
     await doctorPage.reload();
     await expect(doctorPage.getByText("添加一条规则")).toBeHidden();
+
+    await steps.capture(doctorPage, "完成引导后工作台", "刷新后不再显示引导");
   });
 
-  test("5. Skip with confirm dialog", async ({ doctorPage }) => {
+  test("5. 跳过引导确认弹窗", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/onboarding?step=1");
+
+    await steps.capture(doctorPage, "引导页面初始状态", "步骤1页面");
 
     // AppButton renders as <Box>, use getByText.
     await doctorPage.getByText("跳过引导").click();
@@ -116,6 +135,9 @@ test.describe("Workflow 02 — Onboarding wizard", () => {
     // Cancel LEFT grey / confirm RIGHT green per dialog convention.
     // ConfirmDialog also uses AppButton (Box), not real <button>.
     await expect(doctorPage.getByText("跳过引导？")).toBeVisible();
+
+    await steps.capture(doctorPage, "跳过确认弹窗", "显示跳过引导确认对话框");
+
     // Dialog has "取消" and "跳过" — click the confirm "跳过" inside the dialog.
     await doctorPage.locator("[role=dialog]").getByText("跳过", { exact: true }).click();
 
@@ -123,5 +145,7 @@ test.describe("Workflow 02 — Onboarding wizard", () => {
     // Reload — wizard should not re-appear
     await doctorPage.reload();
     await expect(doctorPage.getByText("添加一条规则")).toBeHidden();
+
+    await steps.capture(doctorPage, "跳过后工作台", "跳过引导后正常进入工作台");
   });
 });

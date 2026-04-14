@@ -68,20 +68,13 @@ export default function KnowledgeCard({ title, summary, referenceCount = 0, sour
       <IconBadge config={badge} />
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        {/* Row 1: Title + status */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-          <Typography sx={{
-            fontSize: TYPE.body.fontSize, fontWeight: 500, color: COLOR.text1,
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1,
-          }}>
-            {title}
-          </Typography>
-          {status && (
-            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: status.color || COLOR.text4, flexShrink: 0 }}>
-              {status.label}
-            </Typography>
-          )}
-        </Box>
+        {/* Row 1: Title */}
+        <Typography sx={{
+          fontSize: TYPE.body.fontSize, fontWeight: 500, color: COLOR.text1,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>
+          {title}
+        </Typography>
 
         {/* Row 2: Summary */}
         {summary && (
@@ -105,9 +98,17 @@ export default function KnowledgeCard({ title, summary, referenceCount = 0, sour
         )}
       </Box>
 
-      {onClick && (
-        <ChevronRightOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4, flexShrink: 0 }} />
-      )}
+      {/* Right: status + chevron on same line */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+        {status && (
+          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: status.color || COLOR.text4 }}>
+            {status.label}
+          </Typography>
+        )}
+        {onClick && (
+          <ChevronRightOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4 }} />
+        )}
+      </Box>
     </Box>
   );
 }

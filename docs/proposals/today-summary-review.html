@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日摘要 — Feature Review</title>
+<style>
+  :root {
+    --green: #07C160; --green-light: #07C16018; --red: #E53935;
+    --orange: #FF9800; --blue: #1976D2; --gray1: #111; --gray2: #444;
+    --gray3: #888; --gray4: #bbb; --bg: #f7f8fa; --card: #fff;
+    --border: #e8e8e8; --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Helvetica Neue', 'PingFang SC', sans-serif; background: var(--bg); color: var(--gray1); line-height: 1.7; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  h2 { font-size: 20px; font-weight: 600; margin: 40px 0 16px; color: var(--gray1); }
+  h3 { font-size: 16px; font-weight: 600; margin: 24px 0 12px; color: var(--gray2); }
+  .subtitle { font-size: 14px; color: var(--gray3); margin-bottom: 32px; }
+  p { font-size: 15px; color: var(--gray2); margin-bottom: 12px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin-right: 6px; }
+  .tag-codex { background: #10a37f18; color: #10a37f; }
+  .tag-claude { background: #d4763118; color: #d47631; }
+  .tag-agree { background: var(--green-light); color: var(--green); }
+  .tag-risk { background: #E5393518; color: var(--red); }
+
+  .card { background: var(--card); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; border: 1px solid var(--border); }
+  .card-accent { border-left: 3px solid var(--green); }
+  .card-warn { border-left: 3px solid var(--orange); }
+  .card-red { border-left: 3px solid var(--red); }
+
+  .verdict-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .verdict-grid { grid-template-columns: 1fr; } }
+
+  .quote { font-size: 14px; color: var(--gray3); border-left: 3px solid var(--gray4); padding-left: 12px; margin: 12px 0; font-style: italic; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0; }
+  th { text-align: left; padding: 10px 12px; background: var(--bg); font-weight: 600; border-bottom: 2px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--gray2); }
+  td:first-child { font-weight: 500; color: var(--gray1); }
+
+  /* Phone mockup */
+  .phone { width: 340px; margin: 24px auto; background: var(--card); border-radius: 28px; border: 2px solid #ddd; padding: 12px 0; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.08); }
+  .phone-header { text-align: center; font-weight: 600; font-size: 16px; padding: 8px 16px 12px; }
+  .phone-section { padding: 0 16px; margin-bottom: 12px; }
+  .phone-label { font-size: 11px; color: var(--gray3); font-weight: 500; margin-bottom: 6px; padding-left: 2px; }
+
+  .alert-card { background: #FFF3E0; border-radius: 10px; padding: 12px; margin-bottom: 8px; border: 1px solid #FFE0B2; }
+  .alert-card.urgent { background: #FFEBEE; border-color: #FFCDD2; }
+  .alert-title { font-size: 13px; font-weight: 600; color: var(--gray1); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+  .alert-sub { font-size: 12px; color: var(--gray3); }
+  .alert-action { font-size: 12px; color: var(--green); font-weight: 500; text-align: right; margin-top: 6px; }
+  .alert-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .alert-dot.red { background: var(--red); }
+  .alert-dot.orange { background: var(--orange); }
+  .alert-dot.blue { background: var(--blue); }
+
+  .quiet-card { background: var(--bg); border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+  .quiet-card .alert-title { color: var(--gray3); font-weight: 500; }
+
+  .mockup-row { display: flex; gap: 20px; align-items: flex-start; justify-content: center; flex-wrap: wrap; margin: 32px 0; }
+
+  .decision-box { background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 1px solid #bbf7d0; border-radius: var(--radius); padding: 24px; margin: 32px 0; }
+  .decision-box h3 { color: var(--green); margin-top: 0; }
+
+  .pro-con { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 14px; }
+  .pro-con > div { padding: 12px; border-radius: 8px; }
+  .pros { background: #f0fdf4; }
+  .cons { background: #fef2f2; }
+  .pro-con strong { display: block; margin-bottom: 6px; }
+  .pro-con ul { padding-left: 16px; margin: 0; }
+  .pro-con li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>今日摘要 Feature Review</h1>
+<p class="subtitle">Codex (GPT-5.4) + Claude (Opus 4.6) independent feedback · 2026-04-13</p>
+
+<!-- ─── CONSENSUS ─── -->
+<h2>Consensus: Both Agree</h2>
+
+<div class="card card-accent">
+  <p><span class="tag tag-agree">ALIGNED</span> <strong>The paragraph format is wrong for the use case.</strong></p>
+  <p>Doctors scan in 30-second bursts between patients. A 2-4 sentence paragraph forces sequential reading (10-15s) when they need scannable answers (3-5s).</p>
+  <div class="quote">Codex: "Paragraph-first is the wrong default. Busy specialists scan first and read second."</div>
+  <div class="quote">Claude: "Reading a paragraph requires sequential processing. A bullet point or card can be scanned."</div>
+</div>
+
+<div class="card card-accent">
+  <p><span class="tag tag-agree">ALIGNED</span> <strong>The cross-dimensional insight IS genuinely valuable.</strong></p>
+  <p>Connecting patient symptoms to the doctor's own KB rules is real synthesis that saves time. It's not just impressive — it surfaces connections the doctor might miss.</p>
+  <div class="quote">Codex: "Yes, but only when it changes what the doctor does or the order they do it in."</div>
+  <div class="quote">Claude: "This is the feature's real differentiator — keep it, but only surface it when it matters."</div>
+</div>
+
+<div class="card card-accent">
+  <p><span class="tag tag-agree">ALIGNED</span> <strong>On quiet days, show nothing special — don't generate filler.</strong></p>
+  <p>Forced daily content destroys trust. If the LLM has nothing non-obvious to say, just show structured items. When an alert appears, doctors learn it actually matters.</p>
+</div>
+
+<div class="card card-accent">
+  <p><span class="tag tag-agree">ALIGNED</span> <strong>Don't remove the feature. Evolve it.</strong></p>
+  <p>The data and synthesis capability are strong. The problem is presentation format, not substance.</p>
+</div>
+
+<!-- ─── RISKS ─── -->
+<h2>Risks Flagged</h2>
+
+<div class="card card-red">
+  <p><span class="tag tag-risk">LIABILITY</span> <strong>"应优先评估血压并考虑急诊CT" reads like clinical instruction.</strong></p>
+  <p>The summary should state observations and connections, not recommendations. Say "按你的高血压脑病规则，该组合症状需关注" — let the doctor decide the action.</p>
+</div>
+
+<div class="card card-red">
+  <p><span class="tag tag-risk">TRUST</span> <strong>One bad alert poisons the entire feature.</strong></p>
+  <p>If every day generates 3 AI tags regardless of value, none of them matter. Sparse + high-precision beats clever + frequent.</p>
+</div>
+
+<div class="card card-warn">
+  <p><span class="tag tag-risk">STALENESS</span> <strong>30-min cache can hide new urgent messages.</strong></p>
+  <p>Codex suggests: invalidate on new patient messages, abnormal results, or urgent task changes. Show "更新至 08:12" timestamp.</p>
+</div>
+
+<!-- ─── COMPARISON TABLE ─── -->
+<h2>Current vs. Proposed</h2>
+
+<table>
+  <tr><th>Aspect</th><th>Current</th><th>Proposed</th></tr>
+  <tr><td>Format</td><td>Narrative paragraph</td><td>Structured alert cards</td></tr>
+  <tr><td>Quiet days</td><td>Generic filler (always 2-4 sentences)</td><td>Tasks/messages cards only, no alert</td></tr>
+  <tr><td>Insight days</td><td>Insight buried in prose</td><td>Top-priority alert card with provenance</td></tr>
+  <tr><td>Scan time</td><td>10-15 seconds</td><td>3-5 seconds</td></tr>
+  <tr><td>Actionability</td><td>Tap tags below paragraph</td><td>Tap each card directly</td></tr>
+  <tr><td>Clinical tone</td><td>Gives recommendations ("应优先...")</td><td>States connections, doctor decides</td></tr>
+  <tr><td>Trust over time</td><td>Degrades (filler erodes attention)</td><td>Strengthens (alert = meaningful)</td></tr>
+</table>
+
+<!-- ─── MOCKUPS ─── -->
+<h2>Proposed Design: Alert Cards</h2>
+<p>Replace the narrative paragraph with scannable cards. AI insight appears only when there's a genuine cross-dimensional finding.</p>
+
+<div class="mockup-row">
+  <!-- Insight day -->
+  <div>
+    <h3 style="text-align:center;">Insight Day (有发现)</h3>
+    <div class="phone">
+      <div class="phone-header">AI助手</div>
+
+      <div class="phone-section">
+        <div class="phone-label">需要关注</div>
+        <div class="alert-card urgent">
+          <div class="alert-title"><span class="alert-dot red"></span> 张秀兰 — 头痛加重+呕吐+视力模糊</div>
+          <div class="alert-sub">按你的「高血压头痛处理」规则，该症状组合需关注</div>
+          <div class="alert-action">查看患者 →</div>
+        </div>
+      </div>
+
+      <div class="phone-section">
+        <div class="phone-label">今日到期</div>
+        <div class="alert-card">
+          <div class="alert-title"><span class="alert-dot orange"></span> 3 项任务到期</div>
+          <div class="alert-sub">李明术后随访 · 王芳用药评估 · 赵强复查CT</div>
+          <div class="alert-action">查看全部 →</div>
+        </div>
+      </div>
+
+      <div class="phone-section">
+        <div class="phone-label">新消息</div>
+        <div class="alert-card">
+          <div class="alert-title"><span class="alert-dot blue"></span> 2 条患者消息</div>
+          <div class="alert-sub">赵强回复了用药反馈</div>
+          <div class="alert-action">查看消息 →</div>
+        </div>
+      </div>
+
+      <div style="text-align:center; font-size:11px; color:#bbb; padding:8px;">
+        更新至 08:12 · AI生成，仅供参考
+      </div>
+    </div>
+  </div>
+
+  <!-- Quiet day -->
+  <div>
+    <h3 style="text-align:center;">Quiet Day (无异常)</h3>
+    <div class="phone">
+      <div class="phone-header">AI助手</div>
+
+      <div class="phone-section">
+        <div class="phone-label">今日到期</div>
+        <div class="alert-card">
+          <div class="alert-title"><span class="alert-dot orange"></span> 1 项任务到期</div>
+          <div class="alert-sub">王芳用药评估</div>
+          <div class="alert-action">查看 →</div>
+        </div>
+      </div>
+
+      <div class="phone-section">
+        <div class="quiet-card">
+          <div class="alert-title">无高优先级变化</div>
+        </div>
+      </div>
+
+      <div style="text-align:center; font-size:11px; color:#bbb; padding:8px;">
+        更新至 08:12 · AI生成，仅供参考
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── CURRENT DESIGN ─── -->
+<h2>Current Design (for comparison)</h2>
+<div class="mockup-row">
+  <div>
+    <h3 style="text-align:center;">Current — paragraph</h3>
+    <div class="phone">
+      <div class="phone-header">AI助手</div>
+      <div class="phone-section">
+        <div style="display:flex; align-items:center; gap:4px; margin-bottom:8px;">
+          <span style="font-size:13px; color:var(--green);">✦</span>
+          <span style="font-size:12px; color:var(--green); font-weight:600;">今日摘要</span>
+        </div>
+        <p style="font-size:13px; color:var(--gray2); line-height:1.7; margin-bottom:10px;">
+          张秀兰近期头痛加重，伴有呕吐和视力模糊，按你的知识库应优先排除高血压脑病和颅内出血，建议尽快安排急诊CT检查。
+        </p>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <span style="font-size:12px; background:var(--green-light); color:var(--green); padding:2px 8px; border-radius:4px;">张秀兰</span>
+          <span style="font-size:12px; background:var(--green-light); color:var(--green); padding:2px 8px; border-radius:4px;">张秀兰</span>
+        </div>
+      </div>
+      <div style="text-align:center; font-size:11px; color:#bbb; padding:16px 8px 8px;">
+        (paragraph always present, even on quiet days)
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── DECISION ─── -->
+<h2>Three Options</h2>
+
+<div class="card" style="border-left: 3px solid var(--gray4);">
+  <h3 style="margin-top:0;">Option A: Keep As-Is</h3>
+  <div class="pro-con">
+    <div class="pros"><strong>✓ Pros</strong>
+      <ul>
+        <li>Zero engineering effort</li>
+        <li>Narrative feels personal/warm</li>
+        <li>Already working, users haven't complained</li>
+      </ul>
+    </div>
+    <div class="cons"><strong>✗ Cons</strong>
+      <ul>
+        <li>Filler on quiet days erodes trust</li>
+        <li>Paragraph is slow to scan</li>
+        <li>Clinical recommendation liability</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="border-left: 3px solid var(--green);">
+  <h3 style="margin-top:0;">Option B: Alert Cards (recommended by both AIs)</h3>
+  <div class="pro-con">
+    <div class="pros"><strong>✓ Pros</strong>
+      <ul>
+        <li>3-5s scan time</li>
+        <li>AI insight only when meaningful</li>
+        <li>Quiet days stay calm</li>
+        <li>Each card → one tap → one action</li>
+      </ul>
+    </div>
+    <div class="cons"><strong>✗ Cons</strong>
+      <ul>
+        <li>Engineering effort: prompt rewrite + UI cards</li>
+        <li>Need to tune "when to show insight" threshold</li>
+        <li>May feel less "AI-powered" to new users</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="border-left: 3px solid var(--orange);">
+  <h3 style="margin-top:0;">Option C: Minimal — One-liner + Tags (compromise)</h3>
+  <div class="pro-con">
+    <div class="pros"><strong>✓ Pros</strong>
+      <ul>
+        <li>Least change: just shorten the paragraph</li>
+        <li>Still feels like "AI summary"</li>
+        <li>Quick win — change prompt, not UI</li>
+      </ul>
+    </div>
+    <div class="cons"><strong>✗ Cons</strong>
+      <ul>
+        <li>Doesn't solve filler problem</li>
+        <li>One line can't distinguish urgent vs routine</li>
+        <li>Half-measure — may need cards later anyway</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="decision-box">
+  <h3>Codex's Bottom Line</h3>
+  <p>"The strongest version of this feature is not 'daily summary.' It is <strong>morning exception-based triage</strong>. If it reliably helps doctors catch what changed and act faster, it becomes habit. If it mainly produces polished prose, it becomes decoration."</p>
+  <br>
+  <h3>Claude's Bottom Line</h3>
+  <p>"The cross-dimensional synthesis is the feature's real differentiator — keep it, but only surface it when it matters, and present it as a scannable alert card rather than prose."</p>
+</div>
+
+</div>
+</body>
+</html>

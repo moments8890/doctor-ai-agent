@@ -565,20 +565,14 @@ export default function TaskPage({ doctorId, urlSubpage }) {
                   ? `${item.patient_name} · ${item.task}`
                   : (item.title || "任务");
                 const subtitle = item._isFollowup ? item.detail : item.content;
-                const dueRaw = item.due_at || item._sortDate || "";
-                const dueDate = dueRaw ? new Date(dueRaw) : null;
-                const timeStr = urgency === "overdue"
-                  ? (relativeFuture(item.due_at) || "逾期")
-                  : dueDate
-                    ? `${String(dueDate.getHours()).padStart(2, "0")}:${String(dueDate.getMinutes()).padStart(2, "0")}`
-                    : "";
+                const dueLabel = item.due_at ? (relativeFuture(item.due_at) || "") : "";
 
                 return (
                   <ActionRow
                     key={`${item._isFollowup ? "f" : "t"}-${item.id}`}
                     title={title}
                     subtitle={subtitle}
-                    right={timeStr}
+                    right={dueLabel}
                     overdue={urgency === "overdue"}
                     onToggle={() => handleCompleteTask(item)}
                     onClick={() => navigate(`${dp("tasks")}/${item.id}`)}

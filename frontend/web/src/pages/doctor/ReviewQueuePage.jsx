@@ -24,6 +24,7 @@ import EmptyState from "../../components/EmptyState";
 import SectionLoading from "../../components/SectionLoading";
 import PullToRefresh from "../../components/PullToRefresh";
 import NameAvatar from "../../components/NameAvatar";
+import ListCard from "../../components/ListCard";
 import SectionLabel from "../../components/SectionLabel";
 import ActionRow from "../../components/ActionRow";
 import SubpageHeader from "../../components/SubpageHeader";
@@ -66,65 +67,60 @@ function PendingReviewCard({ item, onNavigate }) {
 
   return (
     <Box sx={{
+      display: "flex", alignItems: "center", gap: 1.5,
       px: 2, py: 1.5,
       borderBottom: `0.5px solid ${COLOR.borderLight}`,
       bgcolor: COLOR.white,
       "&:last-child": { borderBottom: "none" },
     }}>
-      {/* Header: avatar + name + badge + time — same layout as ReplyCard */}
-      <Box
-        onClick={() => onNavigate?.(item)}
-        sx={{
-          display: "flex", alignItems: "center", gap: 1, mb: 1,
-          cursor: "pointer",
-        }}
-      >
+      {/* Left: avatar — vertically centered against full card */}
+      <Box sx={{ flexShrink: 0, alignSelf: "center" }}>
         <NameAvatar name={item.patient_name || "?"} size={36} />
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>
-              {item.patient_name}
-            </Typography>
-            <Box
-              component="span"
-              sx={{
-                fontSize: 10, fontWeight: 600,
-                borderRadius: RADIUS.sm, px: 0.5, py: 0.5,
-                bgcolor: urgencyColor, color: COLOR.white,
-                lineHeight: 1.5,
-              }}
-            >
-              {urgencyLabel}
-            </Box>
+      </Box>
+
+      {/* Center: content column */}
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        {/* Name + badge row */}
+        <Box
+          onClick={() => onNavigate?.(item)}
+          sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75, cursor: "pointer" }}
+        >
+          <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500, color: COLOR.text1 }}>
+            {item.patient_name}
+          </Typography>
+          <Box
+            component="span"
+            sx={{
+              fontSize: 10, fontWeight: 600,
+              borderRadius: RADIUS.sm, px: 0.5, py: 0.5,
+              bgcolor: urgencyColor, color: COLOR.white,
+              lineHeight: 1.5,
+            }}
+          >
+            {urgencyLabel}
           </Box>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.1 }}>
-            {item.time}
+        </Box>
+
+        {/* Diagnosis preview */}
+        <Box
+          onClick={() => onNavigate?.(item)}
+          sx={{
+            px: 1.5, py: 1,
+            bgcolor: COLOR.surface,
+            borderRadius: RADIUS.md,
+            cursor: "pointer",
+            mb: 0.75,
+          }}
+        >
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 400, color: COLOR.text1, mb: 0.5 }}>
+            {SECTION_LABEL[item.section] || item.section}：{item.content}
+          </Typography>
+          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+            {item.detail}
           </Typography>
         </Box>
-        <ChevronRightOutlinedIcon sx={{ fontSize: 18, color: COLOR.text4, flexShrink: 0 }} />
-      </Box>
 
-      {/* Diagnosis preview — same card style as ReplyCard's message bubble */}
-      <Box
-        onClick={() => onNavigate?.(item)}
-        sx={{
-          px: 1.5, py: 1,
-          bgcolor: COLOR.surface,
-          borderRadius: RADIUS.md,
-          cursor: "pointer",
-          mb: 1,
-        }}
-      >
-        <Typography sx={{ fontSize: TYPE.secondary.fontSize, fontWeight: 400, color: COLOR.text1, mb: 0.5 }}>
-          {SECTION_LABEL[item.section] || item.section}：{item.content}
-        </Typography>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-          {item.detail}
-        </Typography>
-      </Box>
-
-      {/* Citation line */}
-      <Box sx={{ px: 2, mb: 1 }}>
+        {/* Citation line */}
         {hasCitation ? (
           <>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4 }}>
@@ -162,25 +158,32 @@ function PendingReviewCard({ item, onNavigate }) {
             </Box>
           </Box>
         )}
+
+        {/* Case memory card */}
+        {hasCaseMemory && (
+          <Box sx={{
+            mt: 0.75,
+            bgcolor: COLOR.primaryLight, borderRadius: RADIUS.md,
+            padding: "10px 12px",
+          }}>
+            <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>
+              你处理过类似病例
+            </Typography>
+            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text2, lineHeight: 1.6 }}>
+              {extractCaseText(item.detail)}
+            </Typography>
+          </Box>
+        )}
       </Box>
 
-      {/* Case memory card */}
-      {hasCaseMemory && (
-        <Box sx={{
-          mx: 2, mb: 1,
-          bgcolor: COLOR.primaryLight, borderRadius: RADIUS.md,
-          padding: "10px 12px",
-        }}>
-          <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.primary, fontWeight: 500, mb: 0.5 }}>
-            你处理过类似病例
-          </Typography>
-          <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text2, lineHeight: 1.6 }}>
-            {extractCaseText(item.detail)}
-          </Typography>
-        </Box>
-      )}
-
-      {/* Tap anywhere to go to diagnosis page */}
+      {/* Right: time + chevron */}
+      <Box onClick={() => onNavigate?.(item)}
+        sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0, cursor: "pointer", alignSelf: "center" }}>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+          {item.time}
+        </Typography>
+        <ChevronRightOutlinedIcon sx={{ fontSize: 18, color: COLOR.text4 }} />
+      </Box>
     </Box>
   );
 }
@@ -302,40 +305,21 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
               {pending.map((item) => {
                 const chiefComplaint = item.chief_complaint || "";
                 const sourceLabel = item.record_type === "interview_summary" ? "预问诊" : item.record_type === "import" ? "导入" : "门诊记录";
-                const fieldCount = item.field_count;
                 const aiSummary = item.detail ? `AI：${item.content || (SECTION_LABEL[item.section] || "")}` : "";
+                const urgencyBadge = item.urgency === "urgent"
+                  ? <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.danger, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.5, py: 0.5, lineHeight: 1.5, ml: 0.5, verticalAlign: "middle" }}>紧急</Box>
+                  : <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.warning, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.5, py: 0.5, lineHeight: 1.5, ml: 0.5, verticalAlign: "middle" }}>待处理</Box>;
+                const metaParts = [sourceLabel, aiSummary].filter(Boolean).join(" · ");
                 return (
-                  <Box key={item.id} onClick={() => handleNavigate(item)}
-                    sx={{
-                      display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5, cursor: "pointer",
-                      borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" },
-                      /* no row-level color highlight — badges convey urgency */
-                      "&:active": { opacity: 0.8 },
-                    }}>
-                    <NameAvatar name={item.patient_name || "?"} size={36} />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500 }}>{item.patient_name}</Typography>
-                        {item.age && <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>{item.age}岁</Typography>}
-                        {item.urgency === "urgent" && <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.danger, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.5, py: 0.5, lineHeight: 1.5 }}>紧急</Box>}
-                        {item.urgency !== "urgent" && <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.warning, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.5, py: 0.5, lineHeight: 1.5 }}>待处理</Box>}
-                      </Box>
-                      {chiefComplaint && (
-                        <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, mt: 0.5, lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          主诉：{chiefComplaint}
-                        </Typography>
-                      )}
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, fontSize: TYPE.micro.fontSize, color: COLOR.text4, flexWrap: "wrap" }}>
-                        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.accent, fontWeight: 500 }}>{sourceLabel}</Typography>
-                        {fieldCount && <><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>·</Typography><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{fieldCount}</Typography></>}
-                        {aiSummary && <><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>·</Typography><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.warning, fontWeight: 500 }}>{aiSummary}</Typography></>}
-                      </Box>
-                    </Box>
-                    <Box sx={{ flexShrink: 0, textAlign: "right", alignSelf: "center" }}>
-                      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{item.time}</Typography>
-                      <Typography sx={{ fontSize: 14, color: COLOR.text4, mt: 0.5 }}>›</Typography>
-                    </Box>
-                  </Box>
+                  <ListCard
+                    key={item.id}
+                    avatar={<NameAvatar name={item.patient_name || "?"} size={36} />}
+                    title={<>{item.patient_name}{urgencyBadge}</>}
+                    subtitle={chiefComplaint ? `主诉：${chiefComplaint}` : metaParts}
+                    right={<Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{item.time}</Typography>}
+                    chevron
+                    onClick={() => handleNavigate(item)}
+                  />
                 );
               })}
             </Box>
@@ -357,39 +341,18 @@ export default function ReviewQueuePage({ doctorId, urlSubpage }) {
             <SectionLabel>患者消息 · 待回复</SectionLabel>
             <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
               {activeDrafts.map((msg) => {
-                const triageLabel = msg.badge === "urgent" ? "需紧急处理" : "常规咨询";
-                const citedRule = msg.rule_cited || (msg.cited_rules?.[0]?.title) || "";
+                const statusLabel = msg.type === "undrafted" ? "需手动回复" : "AI已起草";
                 return (
-                  <Box key={msg.id}
+                  <ListCard
+                    key={msg.id}
+                    avatar={<NameAvatar name={msg.patient_name || "?"} size={36} />}
+                    title={<>{msg.patient_name}{msg.badge === "urgent" && <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.danger, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.5, py: 0.5, lineHeight: 1.5, ml: 0.5, verticalAlign: "middle" }}>紧急</Box>}</>}
+                    subtitle={`"${msg.patient_message || msg.content || ""}" · ${statusLabel}`}
+                    right={<Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{msg.time || ""}</Typography>}
+                    chevron
                     onClick={() => navigate(`${dp("patients")}/${msg.patient_id}?view=chat`, { replace: false })}
-                    sx={{
-                      display: "flex", alignItems: "flex-start", gap: 1.5, px: 2, py: 1.5, cursor: "pointer",
-                      borderBottom: `0.5px solid ${COLOR.borderLight}`, "&:last-child": { borderBottom: "none" },
-                      ...(String(msg.id) === highlightDraftId ? HIGHLIGHT_ROW_SX : {}),
-                      "&:active": { opacity: 0.8 },
-                    }}>
-                    <NameAvatar name={msg.patient_name || "?"} size={36} />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Typography sx={{ fontSize: TYPE.action.fontSize, fontWeight: 500 }}>{msg.patient_name}</Typography>
-                        {(msg.pending_count || 1) > 1 && <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.accent, color: COLOR.white, borderRadius: RADIUS.round, minWidth: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>{msg.pending_count}</Box>}
-                        {msg.badge === "urgent" && <Box component="span" sx={{ fontSize: 10, fontWeight: 600, bgcolor: COLOR.danger, color: COLOR.white, borderRadius: RADIUS.sm, px: 0.5, py: 0.5, lineHeight: 1.5 }}>紧急</Box>}
-                      </Box>
-                      <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, mt: 0.5, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-                        "{msg.patient_message || msg.content || ""}"
-                      </Typography>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5, fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
-                        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: msg.type === "undrafted" ? COLOR.text3 : COLOR.primary, fontWeight: 500 }}>{msg.type === "undrafted" ? "需手动回复" : "AI已起草"}</Typography>
-                        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>·</Typography>
-                        <Typography sx={{ fontSize: TYPE.micro.fontSize, color: msg.badge === "urgent" ? COLOR.danger : COLOR.text4 }}>{triageLabel}</Typography>
-                        {citedRule && <><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>·</Typography><Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>引用: {citedRule}</Typography></>}
-                      </Box>
-                    </Box>
-                    <Box sx={{ flexShrink: 0, textAlign: "right" }}>
-                      <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>{msg.time || ""}</Typography>
-                      <Typography sx={{ fontSize: 14, color: COLOR.text4, mt: 0.5 }}>›</Typography>
-                    </Box>
-                  </Box>
+                    sx={String(msg.id) === highlightDraftId ? HIGHLIGHT_ROW_SX : {}}
+                  />
                 );
               })}
             </Box>

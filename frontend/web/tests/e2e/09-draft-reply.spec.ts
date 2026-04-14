@@ -15,13 +15,14 @@ import {
   waitForDraft,
 } from "./fixtures/seed";
 
-test.describe("Workflow 09 — Draft reply send", () => {
+test.describe("工作流 09 — 草稿回复", () => {
   // Skip: requires LLM to generate draft
-  test.skip("2-3. Open draft, edit, send confirmation sheet", async ({
+  test.skip("2-3. 打开草稿、编辑、发送确认", async ({
     doctorPage,
     doctor,
     patient,
     request,
+    steps,
   }) => {
     // Seed context + patient message.
     // category must be enum: custom|diagnosis|followup|medication (default "custom")
@@ -85,7 +86,7 @@ test.describe("Workflow 09 — Draft reply send", () => {
 
   // Preseed creates a demo interview + draft on registration, so the 待回复
   // tab is never empty for a fresh doctor. Skip until preseed is configurable.
-  test.skip("1.3 — empty 待回复 tab for a fresh doctor", async ({ doctorPage }) => {
+  test.skip("1.3 — 新医生待回复标签为空", async ({ doctorPage, steps }) => {
     // Fresh doctor = no seeded drafts, so empty state MUST render. Drop the
     // soft if-visible guard — if the copy drifts, the test should fail and we
     // update the regex, not silently skip.
@@ -98,11 +99,12 @@ test.describe("Workflow 09 — Draft reply send", () => {
     ).toBeVisible({ timeout: 10_000 });
   });
 
-  test("5.4 — patient portal receives the doctor reply", async ({
+  test("5.4 — 患者端收到医生回复", async ({
     browser,
     doctor,
     patient,
     request,
+    steps,
   }) => {
     // This test verifies the "doctor sends → patient sees" half of §5.
     // We skip the UI-driven send (covered in the first test) and use the
@@ -133,8 +135,12 @@ test.describe("Workflow 09 — Draft reply send", () => {
       await page.getByRole("button", { name: "登录" }).click();
       await page.waitForURL(/\/patient/, { timeout: 15_000 });
 
+      await steps.capture(page, "患者端登录成功", "患者登录后进入患者首页");
+
       // Chat is the default tab on /patient — assert the doctor's reply.
       await expect(page.getByText(replyText)).toBeVisible({ timeout: 15_000 });
+
+      await steps.capture(page, "患者收到医生回复", "聊天中显示医生发送的回复内容");
     } finally {
       await ctx.close();
     }

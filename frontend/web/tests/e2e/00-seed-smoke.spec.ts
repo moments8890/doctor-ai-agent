@@ -36,8 +36,8 @@ import {
   completePatientInterview,
 } from "./fixtures/seed";
 
-test.describe("Workflow 00 — Seed smoke", () => {
-  test("backend /healthz is reachable", async ({ request }) => {
+test.describe("工作流 00 — 基础冒烟测试", () => {
+  test("后端健康检查可达", async ({ request, steps }) => {
     const res = await request.get(`${API_BASE_URL}/healthz`);
     expect(
       res.ok(),
@@ -45,15 +45,16 @@ test.describe("Workflow 00 — Seed smoke", () => {
     ).toBeTruthy();
   });
 
-  test("registerDoctor returns doctor_id + token", async ({ request }) => {
+  test("注册医生返回ID和令牌", async ({ request, steps }) => {
     const doctor = await registerDoctor(request);
     expect(doctor.doctorId, "doctor_id missing in register response").toBeTruthy();
     expect(doctor.token, "token missing in register response").toBeTruthy();
     expect(doctor.name).toBeTruthy();
   });
 
-  test("registerPatient returns patient_id + token and is linked to doctor", async ({
+  test("注册患者返回ID和令牌并关联医生", async ({
     request,
+    steps,
   }) => {
     const doctor = await registerDoctor(request);
     const patient = await registerPatient(request, doctor.doctorId);
@@ -63,9 +64,10 @@ test.describe("Workflow 00 — Seed smoke", () => {
     expect(patient.gender).toBe("男");
   });
 
-  test("authenticateDoctorPage writes the doctor-session localStorage blob", async ({
+  test("医生登录写入会话存储", async ({
     page,
     request,
+    steps,
   }) => {
     const doctor = await registerDoctor(request);
     await authenticateDoctorPage(page, doctor);
@@ -87,8 +89,9 @@ test.describe("Workflow 00 — Seed smoke", () => {
     expect(unifiedToken).toBeTruthy();
   });
 
-  test("addKnowledgeText succeeds against /api/manage/knowledge", async ({
+  test("添加知识文本接口正常", async ({
     request,
+    steps,
   }) => {
     const doctor = await registerDoctor(request);
     const result = await addKnowledgeText(
@@ -101,8 +104,9 @@ test.describe("Workflow 00 — Seed smoke", () => {
     expect(result).toBeTruthy();
   });
 
-  test("addPersonaRule succeeds against /api/manage/persona/rules", async ({
+  test("添加风格规则接口正常", async ({
     request,
+    steps,
   }) => {
     const doctor = await registerDoctor(request);
     const result = await addPersonaRule(
@@ -114,8 +118,9 @@ test.describe("Workflow 00 — Seed smoke", () => {
     expect(result).toBeTruthy();
   });
 
-  test("sendPatientMessage succeeds against /api/patient/message", async ({
+  test("发送患者消息接口正常", async ({
     request,
+    steps,
   }) => {
     const doctor = await registerDoctor(request);
     const patient = await registerPatient(request, doctor.doctorId);
@@ -123,7 +128,7 @@ test.describe("Workflow 00 — Seed smoke", () => {
     await sendPatientMessage(request, patient, "医生，我今天血压有点高。");
   });
 
-  test("completePatientInterview returns a recordId", async ({ request }) => {
+  test("完成患者问诊返回记录ID", async ({ request, steps }) => {
     const doctor = await registerDoctor(request);
     const patient = await registerPatient(request, doctor.doctorId);
     // Seed a knowledge rule so the interview has context for diagnosis later.

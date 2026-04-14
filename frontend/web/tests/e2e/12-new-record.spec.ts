@@ -11,12 +11,13 @@
 import { test, expect } from "./fixtures/doctor-auth";
 import { addKnowledgeText } from "./fixtures/seed";
 
-test.describe("Workflow 12 — New record creation", () => {
+test.describe("工作流 12 — 新建病历", () => {
   // Skip: requires live LLM backend to generate AI replies within 30s.
-  test.skip("1-2. Enter from /doctor/patients/new, send messages, get AI replies", async ({
+  test.skip("1-2. 进入新建页面、发送消息、获取AI回复", async ({
     doctorPage,
     doctor,
     request,
+    steps,
   }) => {
     // Seed one knowledge rule so the AI has context for field extraction.
     await addKnowledgeText(
@@ -32,6 +33,7 @@ test.describe("Workflow 12 — New record creation", () => {
     await expect(
       doctorPage.getByText(/病历采集模式已开启|建立门诊记录|请输入/).first(),
     ).toBeVisible();
+    await steps.capture(doctorPage, "打开病历采集页面");
 
     // 1.4 — Input bar visible.
     const input = doctorPage.locator(
@@ -53,15 +55,18 @@ test.describe("Workflow 12 — New record creation", () => {
     await expect(
       doctorPage.locator(".MuiBox-root").filter({ hasText: /？|请|描述|检查|什么时候/ }).first(),
     ).toBeVisible({ timeout: 30_000 });
+    await steps.capture(doctorPage, "AI回复已到达");
   });
 
-  test("5. Cancel flow — back arrow exits without saving", async ({
+  test("5. 取消流程 — 返回箭头退出不保存", async ({
     doctorPage,
+    steps,
   }) => {
     await doctorPage.goto("/doctor/patients/new");
     await expect(
       doctorPage.getByText(/病历采集模式已开启|建立门诊记录/).first(),
     ).toBeVisible();
+    await steps.capture(doctorPage, "进入新建病历页面");
 
     // Tap back arrow.
     const back = doctorPage.locator('[aria-label="返回"], [aria-label="back"]').first();
@@ -81,11 +86,13 @@ test.describe("Workflow 12 — New record creation", () => {
 
     // Should exit interview and land on patient list or previous page.
     await expect(doctorPage).not.toHaveURL(/patients\/new/);
+    await steps.capture(doctorPage, "确认退出成功");
   });
 
-  test("4. Entry from patient detail includes patient name", async ({
+  test("4. 从患者详情进入包含患者姓名", async ({
     doctorPage,
     patient,
+    steps,
   }) => {
     // Navigate to a specific patient's detail, then trigger new record.
     await doctorPage.goto(`/doctor/patients/${patient.patientId}`);
@@ -103,5 +110,6 @@ test.describe("Workflow 12 — New record creation", () => {
     // On mobile, patient name appears in hidden list pane + visible page.
     // Just verify we arrived at the correct URL.
     await expect(doctorPage).toHaveURL(/patients\/new/, { timeout: 15_000 });
+    await steps.capture(doctorPage, "从患者详情进入新建病历");
   });
 });

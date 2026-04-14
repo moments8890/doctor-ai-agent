@@ -5,11 +5,13 @@
  */
 import { test, expect } from "./fixtures/doctor-auth";
 
-test.describe("Workflow 11 — Settings", () => {
-  test("1. Shell renders account + tools + general sections", async ({
+test.describe("工作流 11 — 设置", () => {
+  test("1. 外壳渲染账户、工具、通用区域", async ({
     doctorPage,
+    steps,
   }) => {
     await doctorPage.goto("/doctor/settings");
+    await steps.capture(doctorPage, "打开设置页面");
 
     for (const label of ["账户", "工具", "通用", "账户操作"]) {
       await expect(doctorPage.getByText(label, { exact: true }).first()).toBeVisible();
@@ -26,9 +28,10 @@ test.describe("Workflow 11 — Settings", () => {
     ]) {
       await expect(doctorPage.getByText(label, { exact: true }).first()).toBeVisible();
     }
+    await steps.capture(doctorPage, "验证所有设置项可见");
   });
 
-  test("2. Font scale picker changes level + persists", async ({ doctorPage }) => {
+  test("2. 字体大小选择器切换并持久化", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings");
 
     // 2.1 — default sublabel is 标准
@@ -41,11 +44,13 @@ test.describe("Workflow 11 — Settings", () => {
     for (const label of ["标准", "大字", "超大"]) {
       await expect(doctorPage.getByText(label, { exact: true }).first()).toBeVisible();
     }
+    await steps.capture(doctorPage, "打开字体选择器");
 
     // 2.4 — tap 大字
     await doctorPage.getByRole("dialog").getByText("大字", { exact: true }).click();
     await expect(doctorPage.getByRole("dialog")).toBeHidden();
     await expect(fontRow).toContainText("大字");
+    await steps.capture(doctorPage, "选择大字字体");
 
     // 2.6 — localStorage updated
     const persisted = await doctorPage.evaluate(() =>
@@ -57,21 +62,24 @@ test.describe("Workflow 11 — Settings", () => {
     await doctorPage.getByText("字体大小").first().click();
     await doctorPage.getByRole("dialog").getByText("标准", { exact: true }).click();
     await expect(fontRow).toContainText("标准");
+    await steps.capture(doctorPage, "恢复标准字体");
   });
 
-  test("3. Tool row navigation", async ({ doctorPage }) => {
+  test("3. 工具行导航跳转", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings");
 
     await doctorPage.getByText("知识库", { exact: true }).first().click();
     await expect(doctorPage).toHaveURL(/\/doctor\/settings\/knowledge/);
+    await steps.capture(doctorPage, "导航到知识库子页面");
   });
 
-  test("5. About navigation", async ({ doctorPage }) => {
+  test("5. 关于页面导航", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings");
     await doctorPage.getByText("关于", { exact: true }).first().click();
     // "版本信息" sublabel in settings list is hidden on about page.
     // "版本 1.0.0" is visible. Use last() to pick the about page text.
     await expect(doctorPage.getByText(/版本/).last()).toBeVisible();
+    await steps.capture(doctorPage, "打开关于页面");
   });
 
   // Logout test is covered in 01-auth.spec.ts §3.

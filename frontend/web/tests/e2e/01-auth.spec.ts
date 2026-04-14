@@ -6,14 +6,16 @@
  */
 import { test, expect, API_BASE_URL, registerDoctor } from "./fixtures/doctor-auth";
 
-test.describe("Workflow 01 — Auth", () => {
-  test("1. Login with valid credentials", async ({ page, request }) => {
+test.describe("工作流 01 — 登录认证", () => {
+  test("1. 有效凭证登录成功", async ({ page, request, steps }) => {
     const doctor = await registerDoctor(request);
 
     // 1.1 — navigate to clean /login
     await page.goto("/login");
     await page.evaluate(() => localStorage.clear());
     await page.reload();
+
+    await steps.capture(page, "打开登录页面", "清除缓存后的登录页面");
 
     // Doctor tab should be default.
     await expect(page.getByRole("tab", { name: "医生" })).toBeVisible();
@@ -36,6 +38,8 @@ test.describe("Workflow 01 — Auth", () => {
     await page.getByRole("button", { name: "登录" }).click();
     await expect(page).toHaveURL(/\/doctor/);
 
+    await steps.capture(page, "登录成功跳转", "已跳转到医生工作台");
+
     // 1.5 — localStorage populated. Real key is "doctor-session" (zustand
     // persist blob), not the old "doctor_token" / "doctor_id" / "doctor_name"
     // trio. See src/store/doctorStore.js:13.
@@ -50,9 +54,11 @@ test.describe("Workflow 01 — Auth", () => {
     // 1.6 — reload preserves session
     await page.reload();
     await expect(page).toHaveURL(/\/doctor/);
+
+    await steps.capture(page, "刷新后保持登录", "页面刷新后仍在医生工作台");
   });
 
-  test("2. Login with invalid credentials stays on /login", async ({ page, request }) => {
+  test("2. 无效凭证停留在登录页", async ({ page, request, steps }) => {
     const doctor = await registerDoctor(request);
     await page.goto("/login");
     await page.evaluate(() => localStorage.clear());
@@ -60,6 +66,8 @@ test.describe("Workflow 01 — Auth", () => {
     await page.getByLabel(/昵称|手机号/).fill(doctor.phone);
     await page.getByLabel(/口令|密码/).fill("9999");
     await page.getByRole("button", { name: "登录" }).click();
+
+    await steps.capture(page, "错误凭证登录", "输入错误口令后仍停留在登录页");
 
     // 2.2 — still on /login, no authed session written. The doctor-session
     // blob may exist from an earlier test; the key assertion is that
@@ -73,14 +81,18 @@ test.describe("Workflow 01 — Auth", () => {
     expect(accessToken).toBeFalsy();
   });
 
-  test("3. Logout clears session", async ({ doctorPage }) => {
+  test("3. 退出登录清除会话", async ({ doctorPage, steps }) => {
     // doctorPage fixture → already authed.
     await doctorPage.goto("/doctor");
+
+    await steps.capture(doctorPage, "进入医生工作台", "登录后的医生首页");
 
     // 3.1 — open settings (adjust selector if settings is a subpage route)
     await doctorPage.goto("/doctor/settings");
     const logoutRow = doctorPage.getByText("退出登录");
     await expect(logoutRow).toBeVisible();
+
+    await steps.capture(doctorPage, "打开设置页", "设置页面显示退出登录选项");
 
     // 3.2 — logout fires immediately (no confirm dialog in current code:
     // SettingsListSubpage onClick → DoctorPage handleLogout → clearAuth()
@@ -97,12 +109,14 @@ test.describe("Workflow 01 — Auth", () => {
       try { return JSON.parse(raw)?.state?.accessToken ?? null; } catch { return null; }
     });
     expect(accessToken).toBeFalsy();
+
+    await steps.capture(doctorPage, "退出登录成功", "已跳转回登录页面");
   });
 
   // BUG-07: Browser-back after logout still navigates to the cached /doctor
   // page. The SPA auth guard does not currently redirect stale history entries.
   // Skipping until the guard is implemented.
-  test.skip("4. Browser-back after logout does not show authed pages (BUG-07)", async ({ doctorPage }) => {
+  test.skip("4. 退出后浏览器返回不显示已认证页面", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings");
     await doctorPage.getByText("退出登录").click();
     await expect(doctorPage).toHaveURL(/\/login/);
@@ -113,7 +127,7 @@ test.describe("Workflow 01 — Auth", () => {
   });
 
   // Sanity: expected API endpoints exist on this backend.
-  test("backend is reachable", async ({ request }) => {
+  test("后端接口可达", async ({ request, steps }) => {
     const res = await request.get(`${API_BASE_URL}/healthz`);
     expect(res.ok()).toBeTruthy();
   });

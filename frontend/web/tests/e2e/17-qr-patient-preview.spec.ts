@@ -6,12 +6,13 @@
 import { test, expect } from "./fixtures/doctor-auth";
 import { API_BASE_URL } from "./fixtures/doctor-auth";
 
-test.describe("Workflow 17 — QR invite + Patient preview", () => {
-  test("1. QR subpage shell renders with form", async ({ doctorPage }) => {
+test.describe("工作流 17 — 二维码与预览", () => {
+  test("1. 二维码页面外壳和表单渲染", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings/qr");
 
     // 1.1 — header
     await expect(doctorPage.getByText("患者预问诊码")).toBeVisible();
+    await steps.capture(doctorPage, "打开二维码页面");
 
     // 1.2 — form elements
     await expect(doctorPage.getByText("为患者生成专属入口")).toBeVisible();
@@ -23,11 +24,13 @@ test.describe("Workflow 17 — QR invite + Patient preview", () => {
     // AppButton renders as div, not <button> — check opacity for disabled state
     const generateBtn = doctorPage.getByText("生成入口", { exact: true });
     await expect(generateBtn).toHaveCSS("opacity", "0.5");
+    await steps.capture(doctorPage, "验证表单和按钮禁用");
   });
 
-  test("2. Generate QR code and see result", async ({
+  test("2. 生成二维码并查看结果", async ({
     doctorPage,
     doctor,
+    steps,
   }) => {
     await doctorPage.goto("/doctor/settings/qr");
 
@@ -49,6 +52,7 @@ test.describe("Workflow 17 — QR invite + Patient preview", () => {
     await expect(
       doctorPage.getByText(/患者扫码后将进入 AI 预问诊/),
     ).toBeVisible({ timeout: 10_000 });
+    await steps.capture(doctorPage, "二维码生成成功");
 
     // 2.3 — patient name displayed below QR
     await expect(doctorPage.getByText("测试患者").first()).toBeVisible();
@@ -65,12 +69,14 @@ test.describe("Workflow 17 — QR invite + Patient preview", () => {
     await expect(
       doctorPage.getByText("预览", { exact: true }),
     ).toBeVisible();
+    await steps.capture(doctorPage, "验证操作按钮可见");
   });
 
-  test("3. Preview page loads from QR flow", async ({
+  test("3. 从二维码流程加载预览页", async ({
     doctorPage,
     doctor,
     request,
+    steps,
   }) => {
     // Seed a patient entry via API (same as what the QR flow does internally)
     const res = await request.post(
@@ -103,5 +109,6 @@ test.describe("Workflow 17 — QR invite + Patient preview", () => {
     await expect(
       doctorPage.getByText(/2 分钟左右的 AI 预问诊流程/),
     ).toBeVisible();
+    await steps.capture(doctorPage, "患者端预览页面加载");
   });
 });

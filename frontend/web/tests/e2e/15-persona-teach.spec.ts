@@ -18,8 +18,8 @@ const FAKE_EXTRACTED = [
   { field: "closing", text: "有任何不舒服随时联系我" },
 ];
 
-test.describe("Workflow 15 — Persona teach-by-example", () => {
-  test("1. Page shell renders correctly", async ({ doctorPage }) => {
+test.describe("工作流 15 — 教AI学偏好", () => {
+  test("1. 页面外壳正确渲染", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings/persona/teach");
 
     // step 1.1 — header
@@ -29,6 +29,7 @@ test.describe("Workflow 15 — Persona teach-by-example", () => {
     await expect(
       doctorPage.getByText(/粘贴一段你满意的回复.*风格偏好.*待确认队列/),
     ).toBeVisible();
+    await steps.capture(doctorPage, "教AI页面加载完成");
 
     // step 1.3 — textarea placeholder
     await expect(
@@ -43,9 +44,10 @@ test.describe("Workflow 15 — Persona teach-by-example", () => {
     await expect(submitBtn).toBeVisible();
     // AppButton uses opacity: 0.5 when disabled — check CSS
     await expect(submitBtn).toHaveCSS("opacity", "0.5");
+    await steps.capture(doctorPage, "验证按钮禁用状态");
   });
 
-  test("2. Input validation enables/disables submit button", async ({ doctorPage }) => {
+  test("2. 输入验证启用/禁用提交按钮", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings/persona/teach");
 
     const textarea = doctorPage.getByPlaceholder("粘贴一段你满意的回复示例…");
@@ -58,6 +60,7 @@ test.describe("Workflow 15 — Persona teach-by-example", () => {
     // step 2.2 — real text enables button (opacity 1)
     await textarea.fill("你好，这是一段测试回复");
     await expect(submitBtn).toHaveCSS("opacity", "1");
+    await steps.capture(doctorPage, "输入文本后按钮启用");
 
     // step 2.2 — counter updates (character count depends on exact text length)
     await expect(doctorPage.getByText(/\d+ \/ 2000/).first()).toBeVisible();
@@ -66,9 +69,10 @@ test.describe("Workflow 15 — Persona teach-by-example", () => {
     await textarea.fill("");
     await expect(submitBtn).toHaveCSS("opacity", "0.5");
     await expect(doctorPage.getByText("0 / 2000")).toBeVisible();
+    await steps.capture(doctorPage, "清空后按钮重新禁用");
   });
 
-  test("3. Successful analysis shows extracted rules", async ({ doctorPage }) => {
+  test("3. 分析成功显示提取的规则", async ({ doctorPage, steps }) => {
     await doctorPage.route(TEACH_URL, (route) =>
       route.fulfill({
         status: 200,
@@ -97,9 +101,10 @@ test.describe("Workflow 15 — Persona teach-by-example", () => {
     await expect(doctorPage.getByText("回复风格")).toBeVisible();
     await expect(doctorPage.getByText("回复结构")).toBeVisible();
     await expect(doctorPage.getByText("常用结尾语")).toBeVisible();
+    await steps.capture(doctorPage, "分析结果显示提取规则");
   });
 
-  test("4. No rules found shows fallback message", async ({ doctorPage }) => {
+  test("4. 未发现规则显示兜底提示", async ({ doctorPage, steps }) => {
     await doctorPage.route(TEACH_URL, (route) =>
       route.fulfill({
         status: 200,
@@ -117,9 +122,10 @@ test.describe("Workflow 15 — Persona teach-by-example", () => {
     await expect(
       doctorPage.getByText("未发现明显的风格偏好，请尝试粘贴更完整的回复"),
     ).toBeVisible();
+    await steps.capture(doctorPage, "未发现偏好提示");
   });
 
-  test("5. API error shows error message", async ({ doctorPage }) => {
+  test("5. API报错显示错误提示", async ({ doctorPage, steps }) => {
     await doctorPage.route(TEACH_URL, (route) =>
       route.fulfill({ status: 500, body: "Internal Server Error" }),
     );
@@ -140,5 +146,6 @@ test.describe("Workflow 15 — Persona teach-by-example", () => {
     await expect(
       doctorPage.getByText("开始分析", { exact: true }),
     ).toHaveCSS("opacity", "1");
+    await steps.capture(doctorPage, "API错误后恢复可用");
   });
 });

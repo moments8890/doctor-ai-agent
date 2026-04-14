@@ -11,24 +11,30 @@ import { addKnowledgeText } from "./fixtures/seed";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-test.describe("Workflow 05 — Knowledge CRUD", () => {
-  test("1. List — fresh doctor shows pre-seeded knowledge items", async ({ doctorPage }) => {
+test.describe("工作流 05 — 知识库管理", () => {
+  test("1. 列表 — 新医生显示预置知识条目", async ({ doctorPage, steps }) => {
     // A fresh doctor has 3 pre-seeded knowledge items, so the empty state
     // ("暂无知识条目") will NOT appear. Instead, verify the list renders
     // with the search bar and stats row.
     await doctorPage.goto("/doctor/settings/knowledge");
     await expect(doctorPage.getByText(/条规则/)).toBeVisible();
+
+    await steps.capture(doctorPage, "知识列表初始状态", "新医生显示预置知识条目");
   });
 
-  test("1. List — seeded doctor shows stats + items", async ({
+  test("1. 列表 — 已配置医生显示统计和条目", async ({
     doctorPage,
     doctor,
     request,
+    steps,
   }) => {
     await addKnowledgeText(request, doctor, "高血压患者新发头痛需排除高血压脑病");
     await addKnowledgeText(request, doctor, "回访后记录血压读数");
 
     await doctorPage.goto("/doctor/settings/knowledge");
+
+    await steps.capture(doctorPage, "知识列表页面", "显示添加的知识条目");
+
     // Stats bar labels
     for (const label of ["条规则", "本周引用", "未引用"]) {
       await expect(doctorPage.getByText(label)).toBeVisible();
@@ -37,10 +43,14 @@ test.describe("Workflow 05 — Knowledge CRUD", () => {
     // 1.4 — no "-1天前" (BUG-01 gate)
     const body = await doctorPage.locator("body").innerText();
     expect(body).not.toMatch(/-1天前/);
+
+    await steps.capture(doctorPage, "验证统计栏", "条规则、本周引用、未引用统计可见");
   });
 
-  test("2. Add via text", async ({ doctorPage }) => {
+  test("2. 通过文本添加", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings/knowledge/add");
+
+    await steps.capture(doctorPage, "添加知识页面", "手动输入知识页面");
 
     const textarea = doctorPage.locator("textarea").first();
     await textarea.fill("高血压患者新发头痛→排除高血压脑病");
@@ -53,10 +63,12 @@ test.describe("Workflow 05 — Knowledge CRUD", () => {
     // Lands back on doctor page (may navigate to list or main page).
     await expect(doctorPage).toHaveURL(/\/doctor/);
     await expect(doctorPage.getByText(/高血压患者新发头痛/).first()).toBeVisible();
+
+    await steps.capture(doctorPage, "添加知识成功", "新知识条目在列表中可见");
   });
 
   // Skip: URL import requires serving static HTML fixture from the dev server
-  test.skip("3. Add via URL (onboarding prefill)", async ({ doctorPage }) => {
+  test.skip("3. 通过网址导入添加", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings/knowledge/add?source=url");
     await doctorPage.getByText("网页导入").click();
 
@@ -71,21 +83,27 @@ test.describe("Workflow 05 — Knowledge CRUD", () => {
     await expect(doctorPage.locator("textarea").first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test("6. Search filters the list", async ({ doctorPage, doctor, request }) => {
+  test("6. 搜索过滤列表", async ({ doctorPage, doctor, request, steps }) => {
     await addKnowledgeText(request, doctor, "头痛鉴别诊断要点");
     await addKnowledgeText(request, doctor, "高血压随访48小时要点");
     await doctorPage.goto("/doctor/settings/knowledge");
+
+    await steps.capture(doctorPage, "搜索前列表", "显示全部知识条目");
 
     const search = doctorPage.getByPlaceholder(/搜索知识规则/);
     await search.fill("头痛");
     await expect(doctorPage.getByText("头痛鉴别诊断要点").first()).toBeVisible();
     await expect(doctorPage.getByText("高血压随访48小时要点")).toBeHidden();
 
+    await steps.capture(doctorPage, "搜索过滤结果", "搜索头痛后只显示匹配条目");
+
     await search.fill("");
     await expect(doctorPage.getByText("高血压随访48小时要点").first()).toBeVisible();
+
+    await steps.capture(doctorPage, "清除搜索恢复", "清空搜索后显示全部条目");
   });
 
-  test("7. Detail view shows full text", async ({ doctorPage, doctor, request }) => {
+  test("7. 详情页显示完整内容", async ({ doctorPage, doctor, request, steps }) => {
     const { id } = await addKnowledgeText(
       request,
       doctor,
@@ -93,10 +111,12 @@ test.describe("Workflow 05 — Knowledge CRUD", () => {
     );
     await doctorPage.goto(`/doctor/settings/knowledge/${id}`);
     await expect(doctorPage.getByText(/继发性高血压/).first()).toBeVisible();
+
+    await steps.capture(doctorPage, "知识详情页", "显示完整知识内容");
   });
 
   // Skip: file extract preview depends on backend PDF processing
-  test.skip("4. Add via file upload", async ({ doctorPage }) => {
+  test.skip("4. 通过文件上传添加", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings/knowledge/add");
 
     // The hidden file input is in the DOM before any tab click.
@@ -122,5 +142,5 @@ test.describe("Workflow 05 — Knowledge CRUD", () => {
   });
 
   // Camera test: skipped — requires a fixture image and device camera capability.
-  test.skip("5. Add via camera (requires fixture image)", async () => {});
+  test.skip("5. 通过拍照添加（需设备摄像头）", async () => {});
 });

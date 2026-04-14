@@ -16,6 +16,7 @@
  * If both provided, `right` is shown before the chevron.
  */
 import { Box, Typography } from "@mui/material";
+import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import { TYPE, COLOR } from "../theme";
 
 export default function ListCard({ avatar, title, subtitle, right, chevron, onClick, sx }) {
@@ -27,7 +28,7 @@ export default function ListCard({ avatar, title, subtitle, right, chevron, onCl
       onClick={onClick}
       sx={{
         display: "flex", alignItems: "center", gap: 1.5,
-        px: 1.5, py: 1, bgcolor: COLOR.white,
+        px: 2, py: 1.5, bgcolor: COLOR.white,
         borderBottom: `0.5px solid ${COLOR.borderLight}`,
         cursor: onClick ? "pointer" : "default",
         userSelect: "none", WebkitUserSelect: "none",
@@ -48,7 +49,7 @@ export default function ListCard({ avatar, title, subtitle, right, chevron, onCl
       </Box>
       {right && <Box sx={{ flexShrink: 0 }}>{right}</Box>}
       {chevron && (
-        <Typography sx={{ fontSize: TYPE.title.fontSize, color: COLOR.text4, flexShrink: 0, lineHeight: 1 }}>›</Typography>
+        <ChevronRightOutlinedIcon sx={{ fontSize: 16, color: COLOR.text4, flexShrink: 0 }} />
       )}
     </Box>
   );

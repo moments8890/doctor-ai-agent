@@ -5,9 +5,10 @@
  */
 import { test, expect } from "./fixtures/doctor-auth";
 
-test.describe("Workflow 16 — Template management", () => {
-  test("1. Shell renders with no template (default state)", async ({
+test.describe("工作流 16 — 模板管理", () => {
+  test("1. 默认状态下页面正确渲染", async ({
     doctorPage,
+    steps,
   }) => {
     await doctorPage.goto("/doctor/settings/template");
 
@@ -16,6 +17,7 @@ test.describe("Workflow 16 — Template management", () => {
     // On mobile, .first() picks the hidden settings list row. Use .last()
     // to get the visible page header on the template subpage.
     await expect(doctorPage.getByText("报告模板", { exact: true }).last()).toBeVisible({ timeout: 10_000 });
+    await steps.capture(doctorPage, "打开报告模板页面");
 
     // 1.2 — section labels
     await expect(doctorPage.getByText("当前模板", { exact: true })).toBeVisible();
@@ -35,9 +37,10 @@ test.describe("Workflow 16 — Template management", () => {
     await expect(
       doctorPage.getByText(/支持格式：PDF、DOCX、DOC、TXT、JPG、PNG/),
     ).toBeVisible();
+    await steps.capture(doctorPage, "验证默认模板状态");
   });
 
-  test("2. Standard format preview dialog", async ({ doctorPage }) => {
+  test("2. 标准格式预览弹窗", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings/template");
 
     // 2.1 — tap the standard format link
@@ -57,12 +60,14 @@ test.describe("Workflow 16 — Template management", () => {
     for (const field of ["1. 科别", "5. 过敏史", "12. 初步诊断", "14. 医嘱及随访"]) {
       await expect(doctorPage.getByText(field)).toBeVisible();
     }
+    await steps.capture(doctorPage, "标准格式预览弹窗");
 
     // 2.3 — dismiss (ConfirmDialog uses AppButton = div, use getByText inside dialog)
     await doctorPage.locator("[role=dialog]").getByText("知道了", { exact: true }).click();
     await expect(
       doctorPage.getByText("门诊病历标准格式", { exact: true }),
     ).toBeHidden();
+    await steps.capture(doctorPage, "关闭预览弹窗");
   });
 
   // Upload requires a real file and triggers a native file picker which
@@ -70,7 +75,7 @@ test.describe("Workflow 16 — Template management", () => {
   // page.setInputFiles() on the hidden <input>, but that needs a fixture
   // file and backend support. Marking as skip until a test fixture file
   // is added to the repo (e.g. tests/e2e/fixtures/test-template.txt).
-  test.skip("3. Upload, replace, and delete template", async ({
+  test.skip("3. 上传、替换和删除模板", async ({
     doctorPage,
   }) => {
     await doctorPage.goto("/doctor/settings/template");

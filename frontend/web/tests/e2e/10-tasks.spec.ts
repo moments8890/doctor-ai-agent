@@ -10,12 +10,14 @@ import { createPatientTask } from "./fixtures/seed";
 
 test.describe.configure({ mode: "serial" });
 
-test.describe("Workflow 10 — Tasks", () => {
-  test("1. List shell renders 2 tabs with followups default", async ({
+test.describe("工作流 10 — 任务管理", () => {
+  test("1. 列表外壳渲染两个标签默认待完成", async ({
     doctorPage,
+    steps,
   }) => {
     await doctorPage.goto("/doctor/tasks");
     await expect(doctorPage.getByText("任务").first()).toBeVisible();
+    await steps.capture(doctorPage, "打开任务页面", "任务列表已加载");
     // Only 2 visible tabs in the FilterBar — "待完成" and "已完成".
     await expect(doctorPage.getByText("待完成", { exact: true }).first()).toBeVisible();
     await expect(doctorPage.getByText("已完成", { exact: true }).first()).toBeVisible();
@@ -24,9 +26,10 @@ test.describe("Workflow 10 — Tasks", () => {
     await expect(doctorPage.getByText("已发送", { exact: true })).toBeHidden();
     // NewItemCard visible.
     await expect(doctorPage.getByText("新建任务").first()).toBeVisible();
+    await steps.capture(doctorPage, "验证标签和新建按钮");
   });
 
-  test("2. URL tab param round-trips", async ({ doctorPage }) => {
+  test("2. URL标签参数往返正确", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/tasks");
     // Default tab is followups — no explicit query needed.
     await doctorPage.getByText("已完成", { exact: true }).first().click();
@@ -34,17 +37,20 @@ test.describe("Workflow 10 — Tasks", () => {
     await expect
       .poll(() => new URL(doctorPage.url()).searchParams.get("tab"))
       .toBe("completed");
+    await steps.capture(doctorPage, "切换到已完成标签");
 
     // Explicit ?tab=followups restores to default view.
     await doctorPage.goto("/doctor/tasks?tab=followups");
     await expect(doctorPage.getByText("待完成", { exact: true }).first()).toBeVisible();
+    await steps.capture(doctorPage, "URL参数恢复默认标签");
   });
 
-  test("2.3 / 3. Tap checkbox to complete task round-trips", async ({
+  test("2.3 / 3. 点击任务行跳转详情", async ({
     doctorPage,
     doctor,
     patient,
     request,
+    steps,
   }) => {
     const { taskId } = await createPatientTask(request, doctor, patient.patientId, {
       title: "E2E 完成任务测试",
@@ -57,15 +63,17 @@ test.describe("Workflow 10 — Tasks", () => {
     // as a plain title depending on source — match either form.
     const titleLocator = doctorPage.getByText(/E2E 完成任务测试/);
     await expect(titleLocator).toBeVisible();
+    await steps.capture(doctorPage, "任务列表显示新任务");
 
     // The row body tap navigates to detail (2.3 gate). Verify first.
     await titleLocator.click();
     await expect(doctorPage).toHaveURL(new RegExp(`/doctor/tasks/${taskId}`));
+    await steps.capture(doctorPage, "进入任务详情页");
   });
 
   // Preseed creates demo tasks on registration, so the task list
   // is never empty for a fresh doctor. Skip until preseed is configurable.
-  test.skip("5.1 Empty followups state for a fresh doctor", async ({ doctorPage }) => {
+  test.skip("5.1 新医生待完成为空", async ({ doctorPage }) => {
     await doctorPage.goto("/doctor/tasks");
     // FilterBar still present, but no task rows.
     await expect(doctorPage.getByText("待完成", { exact: true }).first()).toBeVisible();
@@ -76,17 +84,21 @@ test.describe("Workflow 10 — Tasks", () => {
     ).toBeVisible();
   });
 
-  test("6. Origin banner shows for ?origin=patient_submit", async ({
+  test("6. 患者提交来源横幅显示", async ({
     doctorPage,
+    steps,
   }) => {
     await doctorPage.goto("/doctor/tasks?origin=patient_submit");
     await expect(doctorPage.getByText("已创建审核任务")).toBeVisible();
+    await steps.capture(doctorPage, "患者提交来源横幅");
   });
 
-  test("6. Origin banner shows for ?origin=review_finalize", async ({
+  test("6. 审核完成来源横幅显示", async ({
     doctorPage,
+    steps,
   }) => {
     await doctorPage.goto("/doctor/tasks?origin=review_finalize");
     await expect(doctorPage.getByText("已生成随访任务")).toBeVisible();
+    await steps.capture(doctorPage, "审核完成来源横幅");
   });
 });
