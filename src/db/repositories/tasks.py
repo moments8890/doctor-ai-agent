@@ -93,6 +93,7 @@ class TaskRepository:
         result = await self.session.execute(
             select(DoctorTask).where(
                 DoctorTask.status == TaskStatus.pending,
+                DoctorTask.notified_at.is_(None),
                 DoctorTask.due_at <= now,
             )
         )
@@ -123,12 +124,12 @@ class TaskRepository:
         return task
 
     async def mark_notified(self, *, task_id: int, notified_at: datetime) -> None:
-        """Transition task from 'pending' to 'notified'."""
+        """Set notified_at timestamp (replaces old status transition)."""
         from sqlalchemy import update as _update
         await self.session.execute(
             _update(DoctorTask)
-            .where(DoctorTask.id == task_id, DoctorTask.status == TaskStatus.pending)
-            .values(status=TaskStatus.notified, updated_at=notified_at)
+            .where(DoctorTask.id == task_id, DoctorTask.notified_at.is_(None))
+            .values(notified_at=notified_at, updated_at=notified_at)
         )
         await self.session.commit()
 

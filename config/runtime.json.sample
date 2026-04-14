@@ -164,34 +164,10 @@
           "description": "Enable auto follow-up task generation.",
           "description_zh": "是否开启自动生成随访任务。"
         },
-        "TASK_SCHEDULER_MODE": {
-          "value": "interval",
-          "description": "Scheduler mode: interval or cron.",
-          "description_zh": "调度模式：interval 或 cron。",
-          "options": [
-            "interval",
-            "cron"
-          ]
-        },
         "TASK_SCHEDULER_INTERVAL_MINUTES": {
           "value": 1,
           "description": "Interval mode cadence in minutes.",
           "description_zh": "interval 模式的分钟间隔。"
-        },
-        "TASK_SCHEDULER_CRON": {
-          "value": "*/1 * * * *",
-          "description": "Cron expression used in cron mode.",
-          "description_zh": "cron 模式表达式。"
-        },
-        "TASK_SCHEDULER_LEASE_ENABLED": {
-          "value": true,
-          "description": "Enable distributed lease to avoid duplicate runs.",
-          "description_zh": "是否启用分布式租约防重复执行。"
-        },
-        "TASK_SCHEDULER_LEASE_TTL_SECONDS": {
-          "value": 90,
-          "description": "Lease TTL for failover recovery.",
-          "description_zh": "租约 TTL（故障恢复用）。"
         },
         "TASK_NOTIFY_RETRY_COUNT": {
           "value": 3,

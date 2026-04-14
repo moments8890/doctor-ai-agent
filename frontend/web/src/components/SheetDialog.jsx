@@ -11,8 +11,6 @@ export default function SheetDialog({
   children,
   footer,
   maxWidth = "xs",
-  desktopMinWidth = 320,
-  desktopMaxWidth = 420,
   mobileMaxHeight = "80vh",
   showHandle = true,
   paperSx,
@@ -20,9 +18,7 @@ export default function SheetDialog({
   contentSx,
   footerSx,
 }) {
-  // Use the real browser viewport here instead of app theme breakpoints.
-  // The app theme forces `sm` to a huge value so mobile layouts render inside
-  // the desktop phone frame, but sheet positioning should still center in that frame.
+  // Real viewport check — SwipeableDrawer on actual mobile, Dialog on desktop frame.
   const isMobile = useMediaQuery("(max-width:520px)");
 
   const sheetContent = (
@@ -88,14 +84,17 @@ export default function SheetDialog({
       onClose={onClose}
       fullWidth
       maxWidth={maxWidth}
+      disablePortal
       PaperProps={{
         sx: {
-          borderRadius: 2,
-          minWidth: desktopMinWidth,
-          maxWidth: desktopMaxWidth,
+          borderRadius: RADIUS.lg,
           width: "100%",
           ...paperSx,
         },
+      }}
+      sx={{
+        position: "absolute",
+        "& .MuiBackdrop-root": { position: "absolute" },
       }}
     >
       {sheetContent}

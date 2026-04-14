@@ -241,7 +241,7 @@ def make_tasks(doctor_id, patient_id, patient_name, category, risk, fu_state):
     if fu_state == "overdue":
         tasks.append(DoctorTask(
             doctor_id=doctor_id, patient_id=patient_id,
-            task_type="review",
+            task_type="follow_up",
             title=f"随访 {patient_name}（已逾期）",
             content=f"患者{category}，风险等级{risk}，上次随访已超期，请尽快联系。",
             status="pending",
@@ -251,7 +251,7 @@ def make_tasks(doctor_id, patient_id, patient_name, category, risk, fu_state):
     elif fu_state == "due_soon":
         tasks.append(DoctorTask(
             doctor_id=doctor_id, patient_id=patient_id,
-            task_type="review",
+            task_type="follow_up",
             title=f"随访 {patient_name}",
             content=f"患者{category}，随访时间将至。",
             status="pending",
@@ -261,7 +261,7 @@ def make_tasks(doctor_id, patient_id, patient_name, category, risk, fu_state):
     if risk == "high":
         tasks.append(DoctorTask(
             doctor_id=doctor_id, patient_id=patient_id,
-            task_type="review",
+            task_type="follow_up",
             title=f"复查结果跟进 — {patient_name}",
             content="高风险患者，请审阅最新检查结果并更新治疗方案。",
             status="pending",

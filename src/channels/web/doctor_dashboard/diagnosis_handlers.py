@@ -424,7 +424,7 @@ async def finalize_review(
                     .where(
                         DoctorTask.doctor_id == resolved,
                         DoctorTask.record_id == record_id,
-                        DoctorTask.task_type != "review",
+                        DoctorTask.task_type != "general",
                         DoctorTask.status == "pending",
                     )
                     .order_by(DoctorTask.id.asc())

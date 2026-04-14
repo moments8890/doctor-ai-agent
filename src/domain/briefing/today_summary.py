@@ -103,7 +103,7 @@ async def build_fact_pack(
         .outerjoin(Patient, DoctorTask.patient_id == Patient.id)
         .where(
             DoctorTask.doctor_id == doctor_id,
-            DoctorTask.status.in_([TaskStatus.pending, TaskStatus.notified]),
+            DoctorTask.status == TaskStatus.pending,
             DoctorTask.due_at.isnot(None),
             DoctorTask.due_at >= task_window_start,
             DoctorTask.due_at <= task_window_end,

@@ -93,17 +93,23 @@ async def mark_task_notified(
     session: AsyncSession,
     task_id: int,
 ) -> bool:
-    """Atomically mark a task as notified (pending → notified).
+    """Atomically claim a task for notification by setting notified_at.
 
-    Returns True if the transition succeeded, False if another process
-    already claimed it.  The caller should only send the notification
-    when this returns True.
+    Returns True if the claim succeeded (notified_at was NULL), False if
+    another process already claimed it.  The caller should only send the
+    notification when this returns True.
     """
-    from sqlalchemy import select as _select, update as _update
+    from sqlalchemy import update as _update
+    now = _utcnow()
     result = await session.execute(
         _update(DoctorTask)
-        .where(DoctorTask.id == task_id, DoctorTask.status == TaskStatus.pending)
-        .values(status=TaskStatus.notified, updated_at=_utcnow())
+        .where(
+            DoctorTask.id == task_id,
+            DoctorTask.status == TaskStatus.pending,
+            DoctorTask.notified_at.is_(None),
+            DoctorTask.due_at <= now,
+        )
+        .values(notified_at=now, updated_at=now)
     )
     await session.commit()
     return (result.rowcount or 0) > 0
@@ -113,12 +119,12 @@ async def revert_task_to_pending(
     session: AsyncSession,
     task_id: int,
 ) -> None:
-    """Revert a 'notified' task back to 'pending' (used when send fails after mark)."""
+    """Clear notified_at on send failure so the next cycle can retry."""
     from sqlalchemy import update as _update
     await session.execute(
         _update(DoctorTask)
-        .where(DoctorTask.id == task_id, DoctorTask.status == TaskStatus.notified)
-        .values(status=TaskStatus.pending, updated_at=_utcnow())
+        .where(DoctorTask.id == task_id)
+        .values(notified_at=None, updated_at=_utcnow())
     )
     await session.commit()
 

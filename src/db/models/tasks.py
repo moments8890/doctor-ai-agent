@@ -16,18 +16,14 @@ from db.models.base import _utcnow
 class TaskStatus(str, Enum):
     """DoctorTask lifecycle status — mirrors ck_doctor_tasks_status CHECK."""
     pending = "pending"
-    notified = "notified"
     completed = "completed"
     cancelled = "cancelled"
 
 
 class TaskType(str, Enum):
-    """Task classification: general to-dos, reviews, follow-ups, medication, checkups."""
+    """Task classification — mirrors ck_doctor_tasks_task_type CHECK."""
     general = "general"
-    review = "review"
     follow_up = "follow_up"
-    medication = "medication"
-    checkup = "checkup"
 
 
 class DoctorTask(Base):
@@ -37,10 +33,10 @@ class DoctorTask(Base):
     doctor_id: Mapped[str] = mapped_column(String(64), ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False)
     patient_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("patients.id", ondelete="SET NULL"), nullable=True)
     record_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("medical_records.id", ondelete="SET NULL"), nullable=True)
-    task_type: Mapped[str] = mapped_column(String(32), nullable=False)  # general | review | follow_up | medication | checkup
+    task_type: Mapped[str] = mapped_column(String(32), nullable=False)  # general | follow_up
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default=TaskStatus.pending)  # pending | notified | completed | cancelled
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default=TaskStatus.pending)  # pending | completed | cancelled
     due_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=True)
@@ -55,6 +51,9 @@ class DoctorTask(Base):
     link_type: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)  # record | task | chat
     link_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    # --- Notification timestamp (replaces old 'notified' status) ---
+    notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # --- Task detail & reminder support ---
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     reminder_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -62,9 +61,9 @@ class DoctorTask(Base):
     seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     __table_args__ = (
-        CheckConstraint("status IN ('pending','notified','completed','cancelled')", name="ck_doctor_tasks_status"),
+        CheckConstraint("status IN ('pending','completed','cancelled')", name="ck_doctor_tasks_status"),
         CheckConstraint(
-            "task_type IN ('general','review','follow_up','medication','checkup')",
+            "task_type IN ('general','follow_up')",
             name="ck_doctor_tasks_task_type",
         ),
         CheckConstraint("target IN ('doctor','patient')", name="ck_doctor_tasks_target"),

@@ -2,7 +2,7 @@
  * TasksTab — patient task list (pending + completed).
  *
  * Extracted from PatientPage.jsx. Splits tasks into pending
- * (status "pending" | "notified") and completed, renders with
+ * (status "pending") and completed, renders with
  * TaskChecklist, and shows an empty-state when there are none.
  */
 
@@ -51,11 +51,11 @@ export default function TasksTab({ token }) {
     return <SectionLoading py={6} />;
   }
 
-  const pending = tasks.filter(t => t.status === "pending" || t.status === "notified");
+  const pending = tasks.filter(t => t.status === "pending");
   const completed = tasks.filter(t => t.status === "completed");
 
   const filtered = filter === "all" ? tasks
-    : filter === "pending" ? tasks.filter(t => t.status === "pending" || t.status === "notified")
+    : filter === "pending" ? tasks.filter(t => t.status === "pending")
     : tasks.filter(t => t.status === "completed");
 
   return (

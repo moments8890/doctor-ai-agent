@@ -28,10 +28,11 @@ const SOURCE_LABELS = {
 
 const TYPE_LABELS = {
   general: "通用",
-  review: "审核",
   follow_up: "随访",
+  // Legacy types (pre-migration data)
   medication: "用药",
-  checkup: "检查",
+  checkup: "复查",
+  review: "审核",
 };
 
 function dueLabel(dueAt) {

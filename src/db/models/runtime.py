@@ -1,5 +1,5 @@
 """
-运行时状态的数据库模型：游标、令牌缓存、配置文档和调度器租约。
+运行时状态的数据库模型：游标、令牌缓存和配置文档。
 """
 
 from __future__ import annotations
@@ -22,11 +22,3 @@ class RuntimeToken(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
-class SchedulerLease(Base):
-    """Distributed scheduler lease to avoid duplicate multi-instance runs."""
-    __tablename__ = "scheduler_leases"
-
-    lease_key: Mapped[str] = mapped_column(String(64), primary_key=True)
-    owner_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)

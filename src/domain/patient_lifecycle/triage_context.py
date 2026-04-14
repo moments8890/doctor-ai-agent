@@ -115,7 +115,7 @@ async def load_patient_context(
                 DoctorTask.patient_id == patient_id,
                 DoctorTask.doctor_id == doctor_id,
                 DoctorTask.target == "patient",
-                DoctorTask.status.in_([TaskStatus.pending, TaskStatus.notified]),
+                DoctorTask.status == TaskStatus.pending,
             )
             .order_by(DoctorTask.due_at.asc())
             .limit(20)

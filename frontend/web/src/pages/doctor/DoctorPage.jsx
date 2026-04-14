@@ -681,7 +681,7 @@ function useDoctorPageState({ doctorId, accessToken, setAuth }) {
   const pendingTaskCount = (() => {
     if (!tasksData) return 0;
     const items = Array.isArray(tasksData) ? tasksData : (tasksData.items || []);
-    return items.filter((t) => t.task_type !== "review").length;
+    return items.length;
   })();
 
   // Review badge = pending review records + pending reply drafts (from cached queries, no extra DB call)

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
-_VALID_TASK_TYPES = {"general", "review", "follow_up", "medication", "checkup"}
+_VALID_TASK_TYPES = {"general", "follow_up"}
 
 
 class TaskOut(BaseModel):

@@ -8,10 +8,43 @@ from channels.wechat.wechat_media_pipeline import download_media
 from channels.wechat.wechat_notify import _get_config, _get_access_token, _send_customer_service_msg
 from infra.llm.vision import extract_text_from_image
 from domain.knowledge.pdf_extract import extract_text_from_pdf
-from domain.tasks.scheduler import (
-    parse_notify_command, get_notify_pref, set_notify_interval,
-    set_notify_cron, set_notify_immediate, format_notify_pref,
+# Notification preference commands are no-ops (DoctorNotifyPreference table removed).
+# Inline stubs replace the deleted domain.tasks.scheduler module.
+import re as _re
+
+_NOTIFY_CMD_RE = _re.compile(
+    r"^\s*(通知设置|查看通知设置|通知模式|通知频率|通知计划|立即发送待办|立即触发通知|发送待办通知)"
 )
+
+
+def parse_notify_command(text):
+    """Stub — always returns None (notification preferences removed)."""
+    return None
+
+
+async def get_notify_pref(doctor_id):
+    return None
+
+
+async def set_notify_interval(doctor_id, interval_minutes):
+    return None
+
+
+async def set_notify_cron(doctor_id, cron_expr):
+    return None
+
+
+async def set_notify_immediate(doctor_id):
+    return None
+
+
+def format_notify_pref(pref=None):
+    return (
+        "\u2699\ufe0f 通知设置\n"
+        "模式：自动\n"
+        "计划：实时\n"
+        "最近调度：未执行"
+    )
 from channels.wechat import wechat_domain as wd
 from utils.log import log
 

@@ -118,11 +118,6 @@
         },
         "taskType": {
           "follow_up": "随访",
-          "medication": "用药",
-          "lab_review": "检验复核",
-          "referral": "转诊",
-          "imaging": "影像",
-          "appointment": "预约",
           "general": "常规"
         }
       },

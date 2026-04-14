@@ -433,9 +433,9 @@ export async function sendChat(payload) {
       reply: "您有 5 个待办任务，其中1个紧急：",
       view_payload: {
         tasks: [
-          { id: 201, title: "陈伟强 术后复查CT", task_type: "imaging", due_at: "2026-03-27", status: "pending" },
-          { id: 202, title: "李复诊 颈动脉超声", task_type: "checkup", due_at: "2026-03-28", status: "pending" },
-          { id: 203, title: "王明 术后复查DSA", task_type: "imaging", due_at: "2026-04-03", status: "pending" },
+          { id: 201, title: "陈伟强 术后复查CT", task_type: "follow_up", due_at: "2026-03-27", status: "pending" },
+          { id: 202, title: "李复诊 颈动脉超声", task_type: "follow_up", due_at: "2026-03-28", status: "pending" },
+          { id: 203, title: "王明 术后复查DSA", task_type: "follow_up", due_at: "2026-04-03", status: "pending" },
           { id: 204, title: "张小红 用药效果复查", task_type: "follow_up", due_at: "2026-04-03", status: "pending" },
           { id: 205, title: "刘建国 保守治疗1月评估", task_type: "follow_up", due_at: "2026-04-10", status: "pending" },
         ],
@@ -602,7 +602,7 @@ export async function interviewConfirm(token, sessionId) {
       doctor_id: "mock_doctor",
       patient_id: patient.id,
       record_id: recordId,
-      task_type: "review",
+      task_type: "general",
       title: `审阅患者【${patient.name}】预问诊记录`,
       content: "患者已完成预问诊，请审阅病历记录。",
       status: "pending",
@@ -668,7 +668,7 @@ export async function finalizeReview(recordId) {
     Number(item.id) === Number(recordId) ? { ...item, status: "completed" } : item
   ));
   const existingIds = tasks
-    .filter((task) => Number(task.record_id) === Number(recordId) && task.task_type !== "review" && task.status === "pending")
+    .filter((task) => Number(task.record_id) === Number(recordId) && task.status === "pending")
     .map((task) => task.id);
   if (existingIds.length > 0) {
     return {
@@ -699,7 +699,7 @@ export async function finalizeReview(recordId) {
       doctor_id: "mock_doctor",
       patient_id: patientId,
       record_id: Number(recordId),
-      task_type: "checkup",
+      task_type: "follow_up",
       title: `${patientName} 预约头颅CT复查`,
       content: "结合复诊情况安排影像复查。",
       status: "pending",

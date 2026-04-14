@@ -42,8 +42,6 @@ from db.crud.tasks import (
 from db.crud.runtime import (
     get_runtime_token,
     upsert_runtime_token,
-    try_acquire_scheduler_lease,
-    release_scheduler_lease,
 )
 from db.crud.patient_message import (
     save_patient_message,
@@ -99,8 +97,6 @@ __all__ = [
     # runtime
     "get_runtime_token",
     "upsert_runtime_token",
-    "try_acquire_scheduler_lease",
-    "release_scheduler_lease",
     # patient_message
     "save_patient_message",
     "list_patient_messages",

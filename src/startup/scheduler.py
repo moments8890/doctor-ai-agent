@@ -12,21 +12,12 @@ from domain.tasks.task_crud import check_and_send_due_tasks
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _scheduler_mode() -> str:
-    mode = os.environ.get("TASK_SCHEDULER_MODE", "interval").strip().lower()
-    return mode if mode in {"interval", "cron"} else "interval"
-
-
 def _scheduler_interval_minutes() -> int:
-    raw = os.environ.get("TASK_SCHEDULER_INTERVAL_MINUTES", "1")
+    raw = os.environ.get("TASK_SCHEDULER_INTERVAL_MINUTES", "10")
     try:
         return max(1, int(raw))
     except (TypeError, ValueError):
-        return 1
-
-
-def _scheduler_cron_expr() -> str:
-    return os.environ.get("TASK_SCHEDULER_CRON", "*/1 * * * *").strip() or "*/1 * * * *"
+        return 10
 
 
 # ---------------------------------------------------------------------------
@@ -87,34 +78,10 @@ async def _prune_turn_log() -> None:
 # ---------------------------------------------------------------------------
 
 def _schedule_task_notifications(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
-    """Register task notification timer (interval or cron mode)."""
-    mode = _scheduler_mode()
-    if mode == "cron":
-        cron_expr = _scheduler_cron_expr()
-        try:
-            minute, hour, day, month, day_of_week = cron_expr.split()
-            scheduler.add_job(
-                check_and_send_due_tasks,
-                "cron",
-                minute=minute,
-                hour=hour,
-                day=day,
-                month=month,
-                day_of_week=day_of_week,
-            )
-            startup_log.info("[Tasks] scheduler configured | mode=cron expr=%s", cron_expr)
-        except Exception:
-            interval_minutes = _scheduler_interval_minutes()
-            scheduler.add_job(check_and_send_due_tasks, "interval", minutes=interval_minutes)
-            startup_log.warning(
-                "[Tasks] invalid TASK_SCHEDULER_CRON=%r, fallback to interval=%s min",
-                cron_expr,
-                interval_minutes,
-            )
-    else:
-        interval_minutes = _scheduler_interval_minutes()
-        scheduler.add_job(check_and_send_due_tasks, "interval", minutes=interval_minutes)
-        startup_log.info("[Tasks] scheduler configured | mode=interval minutes=%s", interval_minutes)
+    """Register task notification timer (interval mode only)."""
+    interval_minutes = _scheduler_interval_minutes()
+    scheduler.add_job(check_and_send_due_tasks, "interval", minutes=interval_minutes)
+    startup_log.info("[Tasks] scheduler configured | mode=interval minutes=%s", interval_minutes)
 
 
 def _schedule_retention_jobs(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:

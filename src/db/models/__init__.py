@@ -9,7 +9,7 @@ from db.models.patient import Patient
 from db.models.patient_auth import PatientAuth
 from db.models.records import MedicalRecordDB, RecordStatus
 from db.models.tasks import DoctorTask, TaskStatus, TaskType
-from db.models.runtime import RuntimeToken, SchedulerLease
+from db.models.runtime import RuntimeToken
 from db.models.audit import AuditLog
 from db.models.medical_record import MedicalRecord
 from db.models.patient_message import PatientMessage
@@ -32,7 +32,7 @@ __all__ = [
     "PatientAuth",
     "MedicalRecordDB", "RecordStatus",
     "DoctorTask", "TaskStatus", "TaskType",
-    "RuntimeToken", "SchedulerLease",
+    "RuntimeToken",
     "AuditLog",
     "MedicalRecord",
     "PatientMessage",

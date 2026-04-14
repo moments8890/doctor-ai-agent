@@ -13,7 +13,6 @@ import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
-import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import { COLOR } from "../theme";
 
 export const SHARED_ICON_BADGES = {
@@ -33,10 +32,7 @@ export const SHARED_ICON_BADGES = {
 
   // Task types
   task_follow_up:  { icon: EventRepeatOutlinedIcon, bg: COLOR.primary },
-  task_medication: { icon: MedicationOutlinedIcon, bg: COLOR.accent },
-  task_checkup:    { icon: BiotechOutlinedIcon, bg: COLOR.accent },
   task_general:    { icon: AssignmentOutlinedIcon, bg: COLOR.recordDoc },
-  task_imaging:    { icon: MonitorHeartOutlinedIcon, bg: COLOR.accent },
 };
 
 export const RECORD_TYPE_BADGE = {
@@ -51,8 +47,5 @@ export const RECORD_TYPE_BADGE = {
 
 export const TASK_TYPE_BADGE = {
   follow_up:  SHARED_ICON_BADGES.task_follow_up,
-  medication: SHARED_ICON_BADGES.task_medication,
-  checkup:    SHARED_ICON_BADGES.task_checkup,
   general:    SHARED_ICON_BADGES.task_general,
-  imaging:    SHARED_ICON_BADGES.task_imaging,
 };

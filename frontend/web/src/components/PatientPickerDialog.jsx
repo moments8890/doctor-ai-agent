@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Box, CircularProgress, Dialog, DialogTitle, IconButton,
-  InputAdornment, TextField, Typography, useMediaQuery, useTheme,
+  Box, CircularProgress,
+  InputAdornment, TextField, Typography,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
 import SearchIcon from "@mui/icons-material/Search";
 import { useApi } from "../api/ApiContext";
 import ListCard from "./ListCard";
 import NameAvatar from "./NameAvatar";
+import SheetDialog from "./SheetDialog";
 import SectionLabel from "./SectionLabel";
-import { TYPE, ICON, COLOR, RADIUS } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../theme";
 
 function formatPatientTime(dateStr) {
   if (!dateStr) return "";
@@ -54,8 +54,6 @@ function PatientPickerRow({ patient, onClick }) {
 
 export default function PatientPickerDialog({ open, onClose, doctorId, onSelect }) {
   const { getPatients, searchPatients } = useApi();
-  const theme = useTheme();
-  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const [query, setQuery] = useState("");
   const [patients, setPatients] = useState([]);
   const [results, setResults] = useState([]);
@@ -116,20 +114,9 @@ export default function PatientPickerDialog({ open, onClose, doctorId, onSelect 
   const emptyText = trimmedQuery ? `未找到患者「${trimmedQuery}」` : "暂无患者档案";
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      fullScreen={fullScreen}
-      fullWidth
-      maxWidth="xs"
-      PaperProps={{ sx: { borderRadius: fullScreen ? 0 : RADIUS.sm, display: "flex", flexDirection: "column", maxHeight: "80vh", bgcolor: COLOR.surfaceAlt } }}
-    >
-      <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: TYPE.title.fontSize }}>选择患者</Typography>
-        <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
-      </DialogTitle>
-
-      <Box sx={{ px: 1.5, pb: 1, bgcolor: COLOR.surfaceAlt }}>
+    <SheetDialog open={open} onClose={onClose} title="选择患者"
+      contentSx={{ px: 0, pb: 0 }}>
+      <Box sx={{ px: 1.5, pb: 1 }}>
         <TextField
           autoFocus
           fullWidth
@@ -155,26 +142,24 @@ export default function PatientPickerDialog({ open, onClose, doctorId, onSelect 
         />
       </Box>
 
-      <Box sx={{ flex: 1, overflowY: "auto", bgcolor: COLOR.surfaceAlt }}>
-        {!loading && (
-          <SectionLabel sx={{ bgcolor: COLOR.surface, borderTop: `0.5px solid ${COLOR.borderLight}`, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
-            {sectionLabel}
-          </SectionLabel>
-        )}
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-            <CircularProgress size={28} sx={{ color: COLOR.primary }} />
-          </Box>
-        ) : visibleItems.length > 0 ? (
-          visibleItems.map((patient) => (
-            <PatientPickerRow key={patient.id} patient={patient} onClick={() => handleSelect(patient)} />
-          ))
-        ) : (
-          <Typography sx={{ textAlign: "center", py: 6, color: COLOR.text4, fontSize: TYPE.body.fontSize }}>
-            {emptyText}
-          </Typography>
-        )}
-      </Box>
-    </Dialog>
+      {!loading && (
+        <SectionLabel sx={{ bgcolor: COLOR.surface, borderTop: `0.5px solid ${COLOR.borderLight}`, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
+          {sectionLabel}
+        </SectionLabel>
+      )}
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+          <CircularProgress size={28} sx={{ color: COLOR.primary }} />
+        </Box>
+      ) : visibleItems.length > 0 ? (
+        visibleItems.map((patient) => (
+          <PatientPickerRow key={patient.id} patient={patient} onClick={() => handleSelect(patient)} />
+        ))
+      ) : (
+        <Typography sx={{ textAlign: "center", py: 6, color: COLOR.text4, fontSize: TYPE.body.fontSize }}>
+          {emptyText}
+        </Typography>
+      )}
+    </SheetDialog>
   );
 }

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task Features — Beta Proposal</title>
+<style>
+  :root { --green: #07C160; --green-light: #07C16018; --red: #E53935; --orange: #FF9800; --blue: #1976D2; --gray1: #111; --gray2: #444; --gray3: #888; --gray4: #bbb; --bg: #f7f8fa; --card: #fff; --border: #e8e8e8; --radius: 12px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; background: var(--bg); color: var(--gray1); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  h2 { font-size: 20px; font-weight: 600; margin: 40px 0 16px; }
+  h3 { font-size: 16px; font-weight: 600; margin: 24px 0 12px; color: var(--gray2); }
+  .subtitle { font-size: 14px; color: var(--gray3); margin-bottom: 32px; }
+  p { font-size: 15px; color: var(--gray2); margin-bottom: 12px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin-right: 6px; }
+  .tag-now { background: var(--green-light); color: var(--green); }
+  .tag-defer { background: #9E9E9E18; color: #757575; }
+  .tag-skip { background: #E5393518; color: var(--red); }
+  .tag-agree { background: #E3F2FD; color: var(--blue); }
+  .card { background: var(--card); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; border: 1px solid var(--border); }
+  .card-green { border-left: 3px solid var(--green); }
+  .card-gray { border-left: 3px solid #9E9E9E; }
+  .card-red { border-left: 3px solid var(--red); }
+  .card-split { border-left: 3px solid var(--orange); }
+  .quote { font-size: 14px; color: var(--gray3); border-left: 3px solid var(--gray4); padding-left: 12px; margin: 12px 0; font-style: italic; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0; }
+  th { text-align: left; padding: 10px 12px; background: var(--bg); font-weight: 600; border-bottom: 2px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--gray2); }
+  td:first-child { font-weight: 500; color: var(--gray1); }
+  .decision-box { background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 1px solid #bbf7d0; border-radius: var(--radius); padding: 24px; margin: 32px 0; }
+  .decision-box h3 { color: var(--green); margin-top: 0; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+  .phone { width: 320px; margin: 16px auto; background: var(--card); border-radius: 24px; border: 2px solid #ddd; padding: 10px 0; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.08); }
+  .phone-header { text-align: center; font-weight: 600; font-size: 15px; padding: 6px 16px 10px; border-bottom: 0.5px solid var(--border); }
+  .phone-row { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 0.5px solid #f0f0f0; }
+  .phone-row:last-child { border-bottom: none; }
+  .phone-check { width: 20px; height: 20px; border: 1.5px solid var(--gray4); border-radius: 50%; flex-shrink: 0; }
+  .phone-content { flex: 1; min-width: 0; }
+  .phone-title { font-size: 14px; font-weight: 500; color: var(--gray1); }
+  .phone-sub { font-size: 12px; color: var(--gray3); margin-top: 2px; }
+  .phone-right { font-size: 11px; color: var(--gray4); flex-shrink: 0; }
+  .phone-right.overdue { color: var(--red); font-weight: 500; }
+  .phone-badge { font-size: 10px; padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+  .phone-badge.red { background: #FFEBEE; color: var(--red); }
+  .phone-badge.green { background: var(--green-light); color: var(--green); }
+  .phone-badge.orange { background: #FFF3E0; color: var(--orange); }
+  .sheet { background: var(--card); border-radius: 16px 16px 0 0; margin: 0 -2px -10px; padding: 12px 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.08); }
+  .sheet-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 0 auto 8px; }
+  .sheet-title { text-align: center; font-weight: 600; font-size: 15px; padding: 4px 16px 12px; }
+  .sheet-option { padding: 12px 20px; font-size: 14px; color: var(--gray1); border-bottom: 0.5px solid #f0f0f0; cursor: pointer; }
+  .sheet-option:hover { background: var(--bg); }
+  .sheet-option.active { color: var(--green); font-weight: 500; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .cols { grid-template-columns: 1fr; } }
+  .mockup-row { display: flex; gap: 20px; align-items: flex-start; justify-content: center; flex-wrap: wrap; margin: 24px 0; }
+  .source-card { background: #f8f9fa; border-radius: 8px; padding: 10px 14px; margin: 8px 16px; font-size: 12px; color: var(--gray3); border: 0.5px solid var(--border); }
+  .source-link { color: var(--green); font-weight: 500; cursor: pointer; }
+  .outcome-row { display: flex; gap: 8px; padding: 8px 16px; }
+  .outcome-btn { flex: 1; text-align: center; padding: 8px 0; border-radius: 8px; font-size: 13px; font-weight: 500; border: 1.5px solid var(--border); }
+  .outcome-btn.selected { border-color: var(--green); color: var(--green); background: var(--green-light); }
+  .wechat-msg { background: var(--card); border-radius: 12px; padding: 14px 16px; margin: 16px auto; max-width: 340px; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .wechat-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .wechat-body { font-size: 13px; color: var(--gray2); line-height: 1.6; }
+  .wechat-footer { font-size: 11px; color: var(--gray4); margin-top: 8px; border-top: 0.5px solid var(--border); padding-top: 6px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Task Features for Beta</h1>
+<p class="subtitle">Codex + Claude recommendations &middot; 2026-04-13</p>
+
+<div class="decision-box">
+  <h3>Ship 3 now, defer 3</h3>
+  <p>Both AIs agree: ship <strong>snooze</strong>, <strong>AI provenance</strong>, and <strong>overdue-only push</strong>. These protect the core loop: see tasks &rarr; trust them &rarr; act on them &rarr; come back. Everything else can wait.</p>
+</div>
+
+<!-- ── PRIORITY TABLE ── -->
+<table>
+  <tr><th>#</th><th>Feature</th><th>Verdict</th><th>Effort</th><th>Risk if skipped</th></tr>
+  <tr><td>1</td><td>Snooze/Reschedule</td><td><span class="tag tag-now">DO NOW</span></td><td>Small</td><td>Overdue wall &rarr; tab abandoned</td></tr>
+  <tr><td>2</td><td>AI Provenance</td><td><span class="tag tag-now">DO NOW</span></td><td>Small</td><td>One bad task &rarr; trust collapse</td></tr>
+  <tr><td>5</td><td>Overdue-only Push</td><td><span class="tag tag-now">DO NOW</span></td><td>Small</td><td>Push fatigue &rarr; miniprogram muted forever</td></tr>
+  <tr><td>4</td><td>Completion Outcome</td><td><span class="tag tag-defer">SPLIT</span></td><td>Small</td><td>Low short-term, blocks AI learning long-term</td></tr>
+  <tr><td>3</td><td>Task Dedup</td><td><span class="tag tag-defer">DEFER</span></td><td>Medium</td><td>Mild annoyance, not system-breaking</td></tr>
+  <tr><td>6</td><td>Recurring Tasks</td><td><span class="tag tag-skip">SKIP</span></td><td>Large</td><td>AI pipeline covers this organically</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>1. Snooze / Reschedule</h2>
+
+<div class="card card-green">
+  <p><span class="tag tag-now">DO NOW</span> <span class="tag tag-agree">BOTH AGREE</span></p>
+  <p><strong>Problem:</strong> Overdue tasks pile up. Doctor can't act today but has no way to defer. Result: a "wall of red" they learn to ignore.</p>
+  <p><strong>Risk if skipped:</strong> Doctors abandon the task tab within weeks.</p>
+</div>
+
+<h3>Proposed UX</h3>
+<p>Tap the overdue label (e.g. "逾期3天") to open a bottom sheet with quick-pick dates. No swipe gestures — WeChat users don't expect them.</p>
+
+<div class="mockup-row">
+  <div>
+    <h3 style="text-align:center; font-size:13px;">Task list — tap overdue label</h3>
+    <div class="phone">
+      <div class="phone-header">任务</div>
+      <div style="padding: 8px 16px; font-size: 12px; font-weight: 600; color: var(--gray3);">已逾期</div>
+      <div class="phone-row">
+        <div class="phone-check"></div>
+        <div class="phone-content">
+          <div class="phone-title">复查血压控制及头颅CT结果</div>
+          <div class="phone-sub">张秀兰 · 评估降压方案</div>
+        </div>
+        <div class="phone-right overdue" style="text-decoration: underline; cursor: pointer;">逾期3天 ›</div>
+      </div>
+      <div class="phone-row">
+        <div class="phone-check"></div>
+        <div class="phone-content">
+          <div class="phone-title">化疗后复查CT</div>
+          <div class="phone-sub">李明 · 评估肿瘤缩小情况</div>
+        </div>
+        <div class="phone-right overdue" style="text-decoration: underline; cursor: pointer;">逾期1天 ›</div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <h3 style="text-align:center; font-size:13px;">Bottom sheet — pick new date</h3>
+    <div class="phone">
+      <div style="height: 180px; background: #f5f5f5; opacity: 0.3;"></div>
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">改期</div>
+        <div class="sheet-option">明天</div>
+        <div class="sheet-option">3天后</div>
+        <div class="sheet-option">下周一</div>
+        <div class="sheet-option" style="color: var(--green);">自选日期...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>Implementation</h3>
+<p>Tap overdue label &rarr; <code>SheetDialog</code> with 3 presets + date picker &rarr; PATCH <code>/api/tasks/{id}/due</code>. No new API, no new DB field. Existing endpoint already supports this.</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>2. AI Provenance</h2>
+
+<div class="card card-green">
+  <p><span class="tag tag-now">DO NOW</span> <span class="tag tag-agree">BOTH AGREE</span></p>
+  <p><strong>Problem:</strong> Doctor sees AI-generated task but can't verify why it was created. One unexplained task poisons trust in ALL AI tasks.</p>
+  <p><strong>Risk if skipped:</strong> Trust collapse is non-linear. One bad unexplained task &rarr; doctor ignores all AI tasks.</p>
+</div>
+
+<h3>Proposed UX</h3>
+<p>Show a source card on the task detail page. One tap to see the original record. No inline expansion, no citation UI — just: label + link.</p>
+
+<div class="mockup-row">
+  <div>
+    <h3 style="text-align:center; font-size:13px;">Task detail — source card</h3>
+    <div class="phone">
+      <div class="phone-header">&larr; &nbsp; 任务详情</div>
+      <div style="padding: 14px 16px;">
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom: 12px;">
+          <div style="width:8px; height:8px; border-radius:50%; background: var(--orange);"></div>
+          <div style="font-size:16px; font-weight:600;">复查血压控制及头颅CT结果</div>
+        </div>
+
+        <div class="source-card">
+          <div style="font-size:11px; color:var(--gray4); margin-bottom:4px;">AI生成来源</div>
+          <div style="font-size:13px; color:var(--gray2); margin-bottom:6px;">来自 4月12日门诊记录 — 医嘱及随访</div>
+          <div class="source-link">查看原记录 &rarr;</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:0; margin-top:12px; border-top: 0.5px solid var(--border);">
+          <div style="display:flex; padding:10px 0; border-bottom: 0.5px solid #f0f0f0;">
+            <span style="width:50px; font-size:13px; color:var(--gray3);">患者</span>
+            <span style="font-size:13px; color:var(--green);">张秀兰 &rsaquo;</span>
+          </div>
+          <div style="display:flex; padding:10px 0; border-bottom: 0.5px solid #f0f0f0;">
+            <span style="width:50px; font-size:13px; color:var(--gray3);">截止</span>
+            <span style="font-size:13px;">2026-04-15</span>
+          </div>
+          <div style="display:flex; padding:10px 0;">
+            <span style="width:50px; font-size:13px; color:var(--gray3);">类型</span>
+            <span style="font-size:13px;">随访</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>Implementation</h3>
+<p><code>record_id</code> already stored in DB. On task detail, query the record's <code>record_type</code> + <code>created_at</code> for the label. Tap navigates to <code>/doctor/patients/{patient_id}?view=record&record={record_id}</code>. For manual tasks (<code>record_id IS NULL</code>), show "医生手动创建" — no link.</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>3. Overdue-only WeChat Push</h2>
+
+<div class="card card-green">
+  <p><span class="tag tag-now">DO NOW</span> <span class="tag tag-agree">BOTH AGREE</span></p>
+  <p><strong>Problem:</strong> Pushing ALL due tasks gets the miniprogram muted within days. WeChat doesn't re-prompt for notification permission — once muted, permanently muted.</p>
+  <p><strong>Risk if skipped:</strong> You get one shot at notification credibility. Waste it on noise and you lose the push channel forever.</p>
+</div>
+
+<h3>Proposed change</h3>
+<p>One daily digest at <strong>08:30</strong> for <strong>overdue items only</strong>. No per-task pushes. No "due today" pushes — the in-app badge handles that.</p>
+
+<div class="mockup-row">
+  <div>
+    <h3 style="text-align:center; font-size:13px;">WeChat push — daily digest</h3>
+    <div class="wechat-msg">
+      <div class="wechat-title">📌 随访提醒</div>
+      <div class="wechat-body">
+        您有 <strong>3 项随访已逾期</strong>，最早逾期 5 天：<br><br>
+        · 张秀兰 — 复查血压控制（逾期5天）<br>
+        · 李明 — 化疗后复查CT（逾期2天）<br>
+        · 王芳 — 用药评估（逾期1天）
+      </div>
+      <div class="wechat-footer">点击查看详情 &rsaquo;</div>
+    </div>
+  </div>
+
+  <div>
+    <h3 style="text-align:center; font-size:13px;">Quiet day — no push</h3>
+    <div class="wechat-msg" style="opacity: 0.4;">
+      <div class="wechat-title" style="color:var(--gray4);">📌 随访提醒</div>
+      <div class="wechat-body" style="color:var(--gray4);">
+        无逾期任务 — 不发送
+      </div>
+      <div class="wechat-footer">（不打扰医生）</div>
+    </div>
+  </div>
+</div>
+
+<h3>Implementation</h3>
+<p>Change scheduler: run once daily at 08:30 instead of every minute. Query <code>status=pending AND due_at &lt; today AND notified_at IS NULL</code>. Send ONE consolidated message. Set <code>notified_at</code> on all included tasks. Deep-link: if 1 task → open task detail; if multiple → open task list filtered to overdue.</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>4. Completion Outcome</h2>
+
+<div class="card card-split">
+  <p><span class="tag tag-defer">SPLIT DECISION</span></p>
+  <p><strong>Codex:</strong> DEFER. Don't slow down completion. Data entry is poison for mobile doctors.</p>
+  <p><strong>Claude:</strong> DO NOW — but make default path zero extra effort. Pre-select "稳定", doctor can just tap confirm.</p>
+</div>
+
+<div class="mockup-row">
+  <div>
+    <h3 style="text-align:center; font-size:13px;">Option A: one-tap (current)</h3>
+    <div class="phone" style="height: auto;">
+      <div style="padding: 16px;">
+        <div style="display:flex; gap:8px;">
+          <div style="flex:1; text-align:center; padding:10px; border-radius:8px; background:#f5f5f5; color:var(--gray3); font-size:14px;">取消</div>
+          <div style="flex:1; text-align:center; padding:10px; border-radius:8px; background:var(--green); color:white; font-size:14px; font-weight:500;">标记完成</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <h3 style="text-align:center; font-size:13px;">Option B: outcome sheet</h3>
+    <div class="phone" style="height: auto;">
+      <div class="sheet" style="margin: 0; box-shadow: none;">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">完成任务</div>
+        <div class="outcome-row">
+          <div class="outcome-btn">好转</div>
+          <div class="outcome-btn selected">稳定</div>
+          <div class="outcome-btn">需关注</div>
+        </div>
+        <div style="padding: 12px 16px;">
+          <div style="text-align:center; padding:10px; border-radius:8px; background:var(--green); color:white; font-size:14px; font-weight:500;">完成</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p><strong>My recommendation:</strong> Defer for beta. The one-tap flow is fine for 10 doctors. Add the outcome sheet when you need AI learning from outcomes.</p>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>5. Task Dedup</h2>
+
+<div class="card card-gray">
+  <p><span class="tag tag-defer">DEFER</span> <span class="tag tag-agree">BOTH AGREE</span></p>
+  <p><strong>Why:</strong> At 10-50 patients, duplicates are a mild annoyance. Fuzzy dedup is deceptively hard — "复查血压" vs "监测血压变化" are different clinical actions. A false merge is worse than a duplicate reminder.</p>
+  <p><strong>When to revisit:</strong> When record volume per patient increases and you have real examples to define "same task" accurately.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<h2>6. Recurring Tasks</h2>
+
+<div class="card card-gray">
+  <p><span class="tag tag-skip">SKIP</span> <span class="tag tag-agree">BOTH AGREE</span></p>
+  <p><strong>Why:</strong> The AI pipeline already handles this organically. Doctor sees patient again &rarr; new record &rarr; AI generates next follow-up. Recurrence adds schema complexity (pause, skip, end date, interval changes) for a workflow the system already covers.</p>
+  <p><strong>If ever needed:</strong> Simplest model = auto-clone completed task N days later. No calendar rules.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="decision-box">
+  <h3>Summary: 3 features, ~2 days of work</h3>
+  <table style="margin-bottom:0;">
+    <tr><th>Feature</th><th>What to build</th><th>Effort</th></tr>
+    <tr><td>Snooze</td><td>Tap overdue label → SheetDialog → PATCH due_at</td><td>~0.5 day</td></tr>
+    <tr><td>AI Provenance</td><td>Source card on task detail → link to record</td><td>~0.5 day</td></tr>
+    <tr><td>Overdue Push</td><td>Daily 08:30 digest, overdue only, consolidated</td><td>~1 day</td></tr>
+  </table>
+</div>
+
+</div>
+</body>
+</html>

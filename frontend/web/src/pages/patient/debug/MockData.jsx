@@ -139,19 +139,19 @@ export const MOCK_TASKS = [
     created_at: "2026-03-26",
   },
   {
-    id: 2, patient_id: 1, task_type: "medication", title: "降压药服药提醒",
+    id: 2, patient_id: 1, task_type: "follow_up", title: "降压药服药提醒",
     content: "氨氯地平5mg，每日一次",
-    status: "notified", due_at: "2026-03-25",
+    status: "pending", due_at: "2026-03-25",
     created_at: "2026-03-24",
   },
   {
-    id: 3, patient_id: 1, task_type: "checkup", title: "复查头颅MRI",
+    id: 3, patient_id: 1, task_type: "follow_up", title: "复查头颅MRI",
     content: "空腹，预约放射科",
     status: "pending", due_at: "2026-04-02",
     created_at: "2026-03-26",
   },
   {
-    id: 4, patient_id: 1, task_type: "checkup", title: "空腹血糖检测",
+    id: 4, patient_id: 1, task_type: "follow_up", title: "空腹血糖检测",
     content: "空腹采血，检测血糖及HbA1c",
     status: "completed", due_at: "2026-03-24",
     completed_at: "2026-03-24", created_at: "2026-03-20",

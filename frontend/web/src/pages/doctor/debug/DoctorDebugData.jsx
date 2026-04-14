@@ -142,9 +142,9 @@ export const MOCK_RECORDS = [
 ];
 
 export const MOCK_TASKS = [
-  { id: 201, doctor_id: "mock_doctor", patient_id: 1, patient_name: "陈伟强", task_type: "imaging", title: "陈伟强 术后复查CT", content: "脑膜瘤术后第7天，头痛加剧，急查头颅CT排除再出血", status: "pending", due_at: "2026-03-27", created_at: "2026-03-27" },
-  { id: 202, doctor_id: "mock_doctor", patient_id: 2, patient_name: "李复诊", task_type: "checkup", title: "李复诊 颈动脉超声", content: "TIA首发48h内完成颈动脉超声+头颅MRA血管评估", status: "pending", due_at: "2026-03-28", created_at: "2026-03-25" },
-  { id: 203, doctor_id: "mock_doctor", patient_id: 3, patient_name: "王明", task_type: "imaging", title: "王明 术后复查DSA", content: "动脉瘤夹闭术后复查DSA评估夹闭效果", status: "pending", due_at: "2026-04-03", created_at: "2026-03-27" },
+  { id: 201, doctor_id: "mock_doctor", patient_id: 1, patient_name: "陈伟强", task_type: "follow_up", title: "陈伟强 术后复查CT", content: "脑膜瘤术后第7天，头痛加剧，急查头颅CT排除再出血", status: "pending", due_at: "2026-03-27", created_at: "2026-03-27" },
+  { id: 202, doctor_id: "mock_doctor", patient_id: 2, patient_name: "李复诊", task_type: "follow_up", title: "李复诊 颈动脉超声", content: "TIA首发48h内完成颈动脉超声+头颅MRA血管评估", status: "pending", due_at: "2026-03-28", created_at: "2026-03-25" },
+  { id: 203, doctor_id: "mock_doctor", patient_id: 3, patient_name: "王明", task_type: "follow_up", title: "王明 术后复查DSA", content: "动脉瘤夹闭术后复查DSA评估夹闭效果", status: "pending", due_at: "2026-04-03", created_at: "2026-03-27" },
   { id: 204, doctor_id: "mock_doctor", patient_id: 4, patient_name: "张小红", task_type: "follow_up", title: "张小红 用药效果复查", content: "卡马西平2周疗效评估，观察疼痛控制情况及副作用", status: "pending", due_at: "2026-04-03", created_at: "2026-03-25" },
   { id: 205, doctor_id: "mock_doctor", patient_id: 5, patient_name: "刘建国", task_type: "follow_up", title: "刘建国 保守治疗1月评估", content: "腰椎管狭窄保守治疗1个月后评估疗效，决定是否手术", status: "pending", due_at: "2026-04-10", created_at: "2026-03-22" },
 ];

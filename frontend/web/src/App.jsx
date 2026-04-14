@@ -41,9 +41,7 @@ function DebugRedirect() {
  * On actual mobile (<520px), renders full-screen.
  */
 function MobileFrame({ children }) {
-	// Aspect ratio: 9 / 19.5 ≈ 0.4615
-	// Height from width: h = w / 0.4615 = w * 2.167
-	// Width from height: w = h * 0.4615
+	// iPhone 14: 390 × 844pt (19.5:9 aspect ratio)
 	return (
 		<Box
 			sx={{
@@ -63,15 +61,12 @@ function MobileFrame({ children }) {
 					overflow: "hidden",
 					position: "relative",
 					"@media (min-width: 520px)": {
-						// Pick the smaller of: height-driven width vs width-driven width
-						width: "min(calc(95vh * 9 / 19.5), 90vw)",
-						// Pick the smaller of: width-driven height vs height-driven height
-						height: "min(calc(90vw * 19.5 / 9), 95vh)",
-						maxWidth: 480,
+						width: "min(calc(95vh * 390 / 844), 90vw)",
+						height: "min(calc(90vw * 844 / 390), 95vh)",
+						maxWidth: 390,
+						maxHeight: 844,
 						borderRadius: RADIUS.pill,
 						boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
-						// Creates a new containing block for position:fixed children
-						// so they stay inside the frame instead of viewport
 						transform: "translateZ(0)",
 					},
 				}}

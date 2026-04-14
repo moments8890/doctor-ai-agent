@@ -284,7 +284,7 @@ async def _confirm_interview_inner(
 
         task = await create_task(
             db, doctor_id,
-            task_type="review",
+            task_type="general",
             title=f"审阅患者【{patient_name}】预问诊记录",
             content=task_content,
             patient_id=patient_id,

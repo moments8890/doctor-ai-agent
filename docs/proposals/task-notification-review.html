@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task/Notification System Review</title>
+<style>
+  :root { --green: #07C160; --green-light: #07C16018; --red: #E53935; --orange: #FF9800; --gray1: #111; --gray2: #444; --gray3: #888; --gray4: #bbb; --bg: #f7f8fa; --card: #fff; --border: #e8e8e8; --radius: 12px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; background: var(--bg); color: var(--gray1); line-height: 1.7; }
+  .container { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  h2 { font-size: 20px; font-weight: 600; margin: 40px 0 16px; }
+  h3 { font-size: 16px; font-weight: 600; margin: 24px 0 12px; color: var(--gray2); }
+  .subtitle { font-size: 14px; color: var(--gray3); margin-bottom: 32px; }
+  p { font-size: 15px; color: var(--gray2); margin-bottom: 12px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin-right: 6px; }
+  .tag-agree { background: var(--green-light); color: var(--green); }
+  .tag-codex { background: #10a37f18; color: #10a37f; }
+  .tag-claude { background: #d4763118; color: #d47631; }
+  .tag-del { background: #E5393518; color: var(--red); }
+  .tag-simplify { background: #FF980018; color: var(--orange); }
+  .tag-keep { background: var(--green-light); color: var(--green); }
+  .tag-defer { background: #9E9E9E18; color: #757575; }
+  .card { background: var(--card); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 16px; border: 1px solid var(--border); }
+  .card-red { border-left: 3px solid var(--red); }
+  .card-orange { border-left: 3px solid var(--orange); }
+  .card-green { border-left: 3px solid var(--green); }
+  .card-gray { border-left: 3px solid #9E9E9E; }
+  .quote { font-size: 14px; color: var(--gray3); border-left: 3px solid var(--gray4); padding-left: 12px; margin: 12px 0; font-style: italic; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0; }
+  th { text-align: left; padding: 10px 12px; background: var(--bg); font-weight: 600; border-bottom: 2px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--gray2); }
+  td:first-child { font-weight: 500; color: var(--gray1); }
+  .decision-box { background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 1px solid #bbf7d0; border-radius: var(--radius); padding: 24px; margin: 32px 0; }
+  .decision-box h3 { color: var(--green); margin-top: 0; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Task/Notification System Review</h1>
+<p class="subtitle">Codex (GPT-5.4) + Claude (Opus 4.6) independent analysis &middot; 2026-04-13</p>
+
+<!-- ── VERDICT ── -->
+<div class="decision-box">
+  <h3>Verdict: ~40% overbuilt, core is solid</h3>
+  <p>The AI task extraction from records, date-grouped frontend, and notification delivery are well-designed. The overengineering is in infrastructure (distributed leases, 4-state lifecycle, 7 env vars, dead code) built for a multi-instance deployment that doesn't exist.</p>
+</div>
+
+<!-- ── CONSENSUS ── -->
+<h2>Both Agree</h2>
+
+<div class="card card-green">
+  <p><span class="tag tag-agree">ALIGNED</span> <strong>Drop <code>notified</code> as a status. Use a timestamp instead.</strong></p>
+  <p><code>notified</code> is a messaging event, not a task state. Every UI query already treats pending + notified identically. Replace with <code>notified_at</code> column. Two states: <strong>pending / completed</strong> (cancelled = soft delete).</p>
+</div>
+
+<div class="card card-green">
+  <p><span class="tag tag-agree">ALIGNED</span> <strong>5 task types &rarr; 2-3 is enough.</strong></p>
+  <p>No code branches on <code>medication</code> vs <code>checkup</code> vs <code>follow_up</code> &mdash; they share identical behavior. Ship with <code>general</code> (manual) + <code>follow_up</code> (AI-extracted). <code>review</code> already goes to the 审核 tab, not 任务.</p>
+</div>
+
+<div class="card card-green">
+  <p><span class="tag tag-agree">ALIGNED</span> <strong>Dead notification-preference code should be deleted.</strong></p>
+  <p><code>src/domain/tasks/scheduler.py</code> has regex parsers, Chinese commands, and 5 no-op async functions. The <code>DoctorNotifyPreference</code> table is already removed. This is dead code.</p>
+</div>
+
+<div class="card card-green">
+  <p><span class="tag tag-agree">ALIGNED</span> <strong>The distributed lease system is premature.</strong></p>
+  <p>Full lock implementation with TTL, hostname:pid owners, fallback logic &mdash; for a single-instance product. The code even says "run anyway" when the lease fails. Delete <code>SchedulerLease</code> model + CRUD.</p>
+</div>
+
+<div class="card card-green">
+  <p><span class="tag tag-agree">ALIGNED</span> <strong>Keep a global task list, don't bury in patient detail only.</strong></p>
+  <p>A doctor needs a cross-patient worklist. Per-patient task views are supplementary, not primary.</p>
+</div>
+
+<!-- ── ACTION ITEMS ── -->
+<h2>Recommended Actions</h2>
+
+<h3>Delete (safe today)</h3>
+
+<div class="card card-red">
+  <p><span class="tag tag-del">DELETE</span> <code>src/domain/tasks/scheduler.py</code> &mdash; dead notification preference code (parse_notify_command, 5 no-op functions)</p>
+</div>
+<div class="card card-red">
+  <p><span class="tag tag-del">DELETE</span> <code>SchedulerLease</code> model + <code>try_acquire_scheduler_lease</code> CRUD + lease logic in task_crud.py</p>
+</div>
+<div class="card card-red">
+  <p><span class="tag tag-del">DELETE</span> 4 of 7 scheduler env vars: <code>TASK_SCHEDULER_MODE</code>, <code>TASK_SCHEDULER_CRON</code>, <code>TASK_SCHEDULER_LEASE_ENABLED</code>, <code>TASK_SCHEDULER_LEASE_TTL_SECONDS</code></p>
+</div>
+
+<h3>Simplify</h3>
+
+<div class="card card-orange">
+  <p><span class="tag tag-simplify">SIMPLIFY</span> <strong>Task status: 4 states &rarr; 2 + timestamps</strong></p>
+  <table>
+    <tr><th>Current</th><th>Proposed</th></tr>
+    <tr><td>pending &rarr; notified &rarr; completed</td><td>pending &rarr; completed</td></tr>
+    <tr><td>cancelled (separate status)</td><td>cancelled_at timestamp (soft delete)</td></tr>
+    <tr><td><code>status IN (pending, notified)</code> everywhere</td><td><code>status = pending</code></td></tr>
+  </table>
+  <p>Add <code>notified_at</code> timestamp. Scheduler checks <code>notified_at IS NULL AND due_at &lt;= now</code>.</p>
+</div>
+
+<div class="card card-orange">
+  <p><span class="tag tag-simplify">SIMPLIFY</span> <strong>Task types: 5 &rarr; 2</strong></p>
+  <table>
+    <tr><th>Current</th><th>Proposed</th></tr>
+    <tr><td>general, review, follow_up, medication, checkup</td><td>general, follow_up</td></tr>
+  </table>
+  <p><code>review</code> goes to 审核 tab (already filtered out of TaskPage). <code>medication</code>/<code>checkup</code> become <code>follow_up</code> with descriptive titles. Keep <code>general</code> for manual tasks.</p>
+</div>
+
+<div class="card card-orange">
+  <p><span class="tag tag-simplify">SIMPLIFY</span> <strong>Scheduler: remove cron mode, keep interval only</strong></p>
+  <p>Reduce from 7 env vars to 2: <code>TASK_SCHEDULER_INTERVAL_MINUTES</code> (default 10) and <code>TASK_NOTIFY_RETRY_COUNT</code> (default 3). Consider increasing interval from 1min to 10-30min.</p>
+</div>
+
+<div class="card card-orange">
+  <p><span class="tag tag-simplify">SIMPLIFY</span> <strong>Use <code>due_on</code> date instead of <code>due_at</code> datetime</strong></p>
+  <p>Follow-ups are "check BP in 2 weeks" not "check BP at 14:37." Minute-precision creates false urgency. Date-only simplifies grouping and comparison.</p>
+  <div class="quote">Codex: "Use due_on date, not minute-precise due_at, unless a doctor explicitly sets a time."</div>
+</div>
+
+<h3>Keep (well-designed)</h3>
+
+<div class="card card-green">
+  <p><span class="tag tag-keep">KEEP</span> <strong>LLM task extraction from records</strong> &mdash; Pydantic schema, max 5 per record, dedup index. Elegant.</p>
+</div>
+<div class="card card-green">
+  <p><span class="tag tag-keep">KEEP</span> <strong>Claim-before-send pattern</strong> &mdash; atomic WHERE clause for concurrent safety. Just change the implementation from status to timestamp.</p>
+</div>
+<div class="card card-green">
+  <p><span class="tag tag-keep">KEEP</span> <strong>Notification provider abstraction</strong> &mdash; log/wechat/wechat_mini_subscribe with fallback. Production-worthy.</p>
+</div>
+<div class="card card-green">
+  <p><span class="tag tag-keep">KEEP</span> <strong>Frontend date-grouped bucketing</strong> &mdash; overdue/today/tomorrow/this week/later. Good UX.</p>
+</div>
+
+<h3>Defer (not needed yet)</h3>
+
+<div class="card card-gray">
+  <p><span class="tag tag-defer">DEFER</span> <strong>Recurring tasks</strong> &mdash; "check BP every 2 weeks for 3 months." Real need, but implement when doctors ask.</p>
+</div>
+<div class="card card-gray">
+  <p><span class="tag tag-defer">DEFER</span> <strong>Smart snooze/reschedule</strong> &mdash; "remind me again tomorrow." The due_at PATCH already enables manual rescheduling.</p>
+</div>
+<div class="card card-gray">
+  <p><span class="tag tag-defer">DEFER</span> <strong>Merge 任务 tab into 我的AI</strong> &mdash; bigger UX change. Current separate tab works fine.</p>
+</div>
+<div class="card card-gray">
+  <p><span class="tag tag-defer">DEFER</span> <strong>Per-doctor notification preferences</strong> &mdash; removing was correct. If needed later, add only coarse control: immediate / daily digest / quiet hours.</p>
+</div>
+
+<!-- ── MISSING FEATURES ── -->
+<h2>Missing Features Worth Noting</h2>
+
+<div class="cols">
+  <div class="card">
+    <h3 style="margin-top:0;">Codex's top picks</h3>
+    <ol style="padding-left:18px; font-size:14px;">
+      <li><strong>Snooze/reschedule</strong> &mdash; without this, doctors ignore overdue or falsely mark done</li>
+      <li><strong>AI provenance</strong> &mdash; show source sentence + confidence, one-tap edit/dismiss</li>
+      <li><strong>Dedup/superseding</strong> &mdash; new visit notes create duplicate follow-ups</li>
+      <li><strong>Completion outcome</strong> &mdash; "BP stable, follow up in 1 month"</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0;">Claude's top picks</h3>
+    <ol style="padding-left:18px; font-size:14px;">
+      <li><strong>Recurring tasks</strong> &mdash; "check BP every 2 weeks" has no model today</li>
+      <li><strong>Overdue-only WeChat push</strong> &mdash; don't push everything, only things the doctor missed</li>
+      <li><strong>Task dedup</strong> &mdash; LLM creates duplicates across records for same patient</li>
+      <li><strong>Source traceability</strong> &mdash; jump from task to the exact record/order that created it</li>
+    </ol>
+  </div>
+</div>
+
+<!-- ── BOTTOM LINE ── -->
+<h2>Bottom Line</h2>
+
+<div class="decision-box">
+  <h3>Codex</h3>
+  <p>"You do not need a mini workflow engine for a solo specialist managing 10-50 patients. You need a <strong>trusted follow-up queue</strong>. Cut the model down to 1 core task type plus optional tags, open/done/cancelled states, due_on date, coarse notification mode, strong snooze, source traceability, and dedupe."</p>
+  <br>
+  <h3>Claude</h3>
+  <p>"The system is about 40% overbuilt for its current use case. The core value &mdash; 'AI extracts tasks from records, doctor sees them grouped by urgency, checks them off' &mdash; is solid and well-implemented. The overengineering is concentrated in notification delivery infrastructure built for a deployment that doesn't exist yet."</p>
+</div>
+
+</div>
+</body>
+</html>

@@ -22,7 +22,6 @@ import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import EventRepeatOutlinedIcon from "@mui/icons-material/EventRepeatOutlined";
-import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import BiotechOutlinedIcon from "@mui/icons-material/BiotechOutlined";
 import MonitorHeartOutlinedIcon from "@mui/icons-material/MonitorHeartOutlined";
 import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
@@ -33,12 +32,7 @@ import { COLOR } from "../../theme";
 
 export const TASK_TYPE_LABEL = {
   follow_up:   "随访",
-  medication:  "用药",
-  checkup:     "检查",
   general:     "通用",
-  review:      "审阅记录",
-  lab_review:  "检验结果",
-  imaging:     "影像检查",
 };
 
 export const TASK_STATUS_LABEL = {
@@ -342,10 +336,7 @@ export const ICON_BADGES = {
 
   // Task types
   task_follow_up:  { icon: EventRepeatOutlinedIcon, bg: COLOR.primary },
-  task_medication: { icon: MedicationOutlinedIcon, bg: COLOR.accent },
-  task_checkup:    { icon: BiotechOutlinedIcon, bg: COLOR.accent },
   task_general:    { icon: AssignmentOutlinedIcon, bg: COLOR.recordDoc },
-  task_imaging:    { icon: MonitorHeartOutlinedIcon, bg: COLOR.accent },
 };
 
 // Record type → IconBadge config lookup (shared with patient app)

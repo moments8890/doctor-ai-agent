@@ -145,10 +145,10 @@ function CreateTaskSheet({ open, onClose, doctorId, onCreated }) {
     if (!title.trim() || creating) return;
     setCreating(true);
     try {
-      const task = await (api.createTask || (() => Promise.resolve({})))(doctorId, {
-        task_type: "general",
+      const task = await api.createTask(doctorId, {
+        taskType: "general",
         title: title.trim(),
-        due_at: dueAt || undefined,
+        dueAt: dueAt || undefined,
       });
       queryClient.invalidateQueries({ queryKey: QK.tasks(doctorId, "pending") });
       onCreated?.(task);
@@ -295,11 +295,10 @@ export default function TaskPage({ doctorId, urlSubpage }) {
   const pendingTasks = effectiveData?.tasks || [];
   const recentlySent = effectiveData?.recently_sent || [];
 
-  // Merge followups + tasks, filter out review type (belongs in 审核 tab)
+  // Merge followups + tasks
   const allPendingItems = [
     ...upcomingFollowups.map((f) => ({ ...f, _isFollowup: true, _sortDate: f.due_at || f.due_label || "" })),
     ...pendingTasks
-      .filter((t) => t.task_type !== "review")
       .map((t) => ({ ...t, _isFollowup: false, _sortDate: t.due_at || t.due || "" })),
   ].sort((a, b) => {
     return (a._sortDate || "").localeCompare(b._sortDate || "");

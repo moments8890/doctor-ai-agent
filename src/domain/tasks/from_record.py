@@ -16,8 +16,6 @@ from utils.log import log
 
 class TaskType(str, Enum):
     follow_up = "follow_up"
-    medication = "medication"
-    checkup = "checkup"
     general = "general"
 
 
@@ -69,7 +67,7 @@ async def generate_tasks_from_record(
             if not title:
                 continue
             task_type = t.get("task_type", "follow_up")
-            if task_type not in ("follow_up", "medication", "checkup", "general"):
+            if task_type not in ("follow_up", "general"):
                 task_type = "follow_up"
 
             # Parse relative days to absolute date
@@ -118,7 +116,8 @@ async def _extract_tasks_via_llm(text: str) -> list:
 
 ## Constraints
 - 只提取明确的可执行项，不要编造
-- 如果没有可执行任务，tasks 返回空数组"""
+- 如果没有可执行任务，tasks 返回空数组
+- task_type 只能是 follow_up 或 general（用药、检查等都归入 follow_up）"""
 
     try:
         result = await structured_call(
