@@ -6,7 +6,7 @@
  * Default route is the AI chat composer.
  * Admin/management surfaces are reachable but secondary.
  */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   Badge, Box, Chip, CircularProgress, IconButton, LinearProgress, Stack, TextField, Typography,
@@ -41,6 +41,7 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import SheetDialog from "../../components/SheetDialog";
 import AppButton from "../../components/AppButton";
 import DialogFooter from "../../components/DialogFooter";
+import SlideOverlay from "../../components/SlideOverlay";
 import SubpageHeader from "../../components/SubpageHeader";
 import BarButton from "../../components/BarButton";
 import SuggestionChips from "../../components/SuggestionChips";
@@ -635,29 +636,105 @@ function PatientPreviewPage({ doctorId, previewId }) {
   );
 }
 
-function SectionContent({ activeSection, doctorId, isMobile, navigate, urlSubpage, urlSubId, patientRefreshKey, setPatientRefreshKey, handleLogout, triggerInterview, setTriggerInterview, chatInterviewSessionId, setChatInterviewSessionId, chatInterviewPrePopulated, setChatInterviewPrePopulated, onInterviewChange }) {
+/**
+ * useTransitioningSection — when `activeSection` changes, keep the outgoing
+ * section mounted until the incoming section's animation completes. Returns
+ * `{ previous, isTransitioning, handleDone }`. `previous` is non-null during
+ * the transition window; render it as a static backdrop underneath the
+ * incoming (sliding) section so the base layer doesn't flash between them.
+ *
+ * State is computed during render (not effect) so the backdrop is present on
+ * the very first frame after the section change — no one-frame gap.
+ */
+function useTransitioningSection(activeSection) {
+  const prevRef = useRef(activeSection);
+  const [previous, setPrevious] = useState(null);
+
+  if (prevRef.current !== activeSection) {
+    // Capture the section we're leaving. Safe to call setState during render
+    // — React batches this into the same commit.
+    if (previous !== prevRef.current) setPrevious(prevRef.current);
+    prevRef.current = activeSection;
+  }
+
+  const handleDone = useCallback(() => {
+    setPrevious(null);
+  }, []);
+
+  return { previous, isTransitioning: previous !== null, handleDone };
+}
+
+function renderSection(section, sharedProps) {
+  const {
+    doctorId, patientRefreshKey, triggerInterview, setTriggerInterview,
+    chatInterviewSessionId, setChatInterviewSessionId, chatInterviewPrePopulated,
+    setChatInterviewPrePopulated, onInterviewChange, urlSubpage, urlSubId,
+    handleLogout,
+  } = sharedProps;
+  switch (section) {
+    case "my-ai":
+      return <ErrorBoundary label="我的AI"><MyAIPage doctorId={doctorId} /></ErrorBoundary>;
+    case "patients":
+      return (
+        <ErrorBoundary label="患者">
+          <PatientsPage doctorId={doctorId}
+            refreshKey={patientRefreshKey}
+            triggerInterview={triggerInterview}
+            onTriggerInterviewConsumed={() => setTriggerInterview(false)}
+            chatInterviewSessionId={chatInterviewSessionId}
+            onChatInterviewSessionConsumed={() => { setChatInterviewSessionId(null); setChatInterviewPrePopulated(null); }}
+            chatInterviewPrePopulated={chatInterviewPrePopulated}
+            onInterviewChange={onInterviewChange} />
+        </ErrorBoundary>
+      );
+    case "review":
+      return <ErrorBoundary label="门诊"><ReviewQueuePage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary>;
+    case "tasks":
+      return <ErrorBoundary label="任务"><TaskPage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary>;
+    case "settings":
+      return <ErrorBoundary label="设置"><SettingsPage doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary>;
+    case "preview":
+      return <ErrorBoundary label="患者端预览"><PatientPreviewPage doctorId={doctorId} previewId={urlSubpage} /></ErrorBoundary>;
+    default:
+      return null;
+  }
+}
+
+function SectionContent(sharedProps) {
+  const { activeSection, isMobile } = sharedProps;
+  const { previous, isTransitioning, handleDone } = useTransitioningSection(activeSection);
+  // `settings` and `preview` originally had zIndex:3; preserve that on the
+  // current layer only. The backdrop previous-section stays at zIndex:1.
+  const currentZIndex = (activeSection === "settings" || activeSection === "preview") ? 3 : 2;
+
+  const currentEl = renderSection(activeSection, sharedProps);
+  const previousEl = isTransitioning && previous ? renderSection(previous, sharedProps) : null;
+
+  // Desktop and within-section views stay instant. Section-level slide only
+  // triggers on mobile AND when a real cross-section change happened.
+  const shouldAnimate = isMobile && isTransitioning;
+
   return (
     <Box sx={{ flex: 1, overflow: "hidden", position: "relative" }}>
-      {/* Main tabs — instant switch, no animation */}
-      {activeSection === "my-ai" && <Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="我的AI"><MyAIPage doctorId={doctorId} /></ErrorBoundary></Box>}
-      {activeSection === "patients" && (
-        <Box sx={{ position: "absolute", inset: 0 }}>
-          <ErrorBoundary label="患者">
-            <PatientsPage doctorId={doctorId}
-              refreshKey={patientRefreshKey}
-              triggerInterview={triggerInterview}
-              onTriggerInterviewConsumed={() => setTriggerInterview(false)}
-              chatInterviewSessionId={chatInterviewSessionId}
-              onChatInterviewSessionConsumed={() => { setChatInterviewSessionId(null); setChatInterviewPrePopulated(null); }}
-              chatInterviewPrePopulated={chatInterviewPrePopulated}
-              onInterviewChange={onInterviewChange} />
-          </ErrorBoundary>
+      {previousEl && (
+        <Box sx={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none" }}>
+          {previousEl}
         </Box>
       )}
-      {activeSection === "review" && <Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="门诊"><ReviewQueuePage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary></Box>}
-      {activeSection === "tasks" && <Box sx={{ position: "absolute", inset: 0 }}><ErrorBoundary label="任务"><TaskPage doctorId={doctorId} urlSubpage={urlSubpage} /></ErrorBoundary></Box>}
-      {activeSection === "settings" && <Box sx={{ position: "absolute", inset: 0, zIndex: 3 }}><ErrorBoundary label="设置"><SettingsPage doctorId={doctorId} onLogout={handleLogout} urlSubpage={urlSubpage} urlSubId={urlSubId} /></ErrorBoundary></Box>}
-      {activeSection === "preview" && <Box sx={{ position: "absolute", inset: 0, zIndex: 3 }}><ErrorBoundary label="患者端预览"><PatientPreviewPage doctorId={doctorId} previewId={urlSubpage} /></ErrorBoundary></Box>}
+      {shouldAnimate ? (
+        <SlideOverlay
+          show={true}
+          stackKey={`section-${activeSection}`}
+          zIndex={currentZIndex}
+          onAnimationComplete={handleDone}
+        >
+          {currentEl}
+        </SlideOverlay>
+      ) : (
+        <Box sx={{ position: "absolute", inset: 0, zIndex: currentZIndex }}>
+          {currentEl}
+        </Box>
+      )}
     </Box>
   );
 }
@@ -730,7 +807,14 @@ export default function DoctorPage() {
   const navBadge = { tasks: pendingTaskCount, review: reviewCount };
 
   const isReviewPage = !!recordId;
-  const activeSection = patientId ? "patients" : (section || "my-ai");
+  // Keep the base section in sync with the URL even when we're on a
+  // specific-route pattern like /doctor/patients/:patientId or /doctor/review/:recordId
+  // (those routes don't populate `section`). Without this, /doctor/review/X
+  // fell back to "my-ai" and the review overlay slid in on top of the MyAI
+  // tab, causing a visible "base is MyAI" flash during transitions.
+  const activeSection = patientId ? "patients"
+    : recordId ? "review"
+    : (section || "my-ai");
 
   // Main tabs show bottom nav; subpages hide it and show ‹ back in top bar.
   // WeChat pattern: bottom nav only on root tab views.
@@ -760,13 +844,11 @@ export default function DoctorPage() {
       {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={navBadge} onNav={handleNav} onLogout={handleLogout} />}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
         <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} onInterviewChange={setInterviewActive} />
-        {isReviewPage && (
-          <Box sx={{ position: "absolute", inset: 0, zIndex: 5, bgcolor: COLOR.surfaceAlt }}>
-            <ErrorBoundary label="诊断审核">
-              <ReviewPage recordId={recordId} />
-            </ErrorBoundary>
-          </Box>
-        )}
+        <SlideOverlay show={isReviewPage} stackKey={`review-${recordId || ""}`} zIndex={5} sx={{ backgroundColor: COLOR.surfaceAlt }}>
+          <ErrorBoundary label="诊断审核">
+            <ReviewPage recordId={recordId} />
+          </ErrorBoundary>
+        </SlideOverlay>
       </Box>
       {isMobile && !isSubpage && <MobileBottomNav activeSection={activeSection} navBadge={navBadge} onNav={handleNav} />}
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} onClose={() => setShowOnboarding(false)} />

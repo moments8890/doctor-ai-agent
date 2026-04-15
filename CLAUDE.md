@@ -106,11 +106,29 @@ These rules are enforced by `scripts/lint-ui.sh`. Run it before pushing.
 
 ### Layout conventions
 
-- **Tab switch:** `Fade` (150ms) — see `DoctorPage SectionContent`
-- **Subpage push/pop:** `Slide` (300ms, direction="left") via `PageSkeleton mobileView`
+- **Tab switch:** instant (no animation — tabs are peers, animating them looks janky)
+- **Subpage push/pop:** framer-motion tween (~280ms, ease [0.32,0.72,0,1]) via
+  `SlideOverlay`. Use `PageSkeleton mobileView` (preferred) or `SlideOverlay` directly
+  for overlays not rendered through PageSkeleton (e.g. DoctorPage's ReviewPage overlay).
+  Direction detection: PUSH → slide-in-from-right; iOS ← arrow → slide-out-to-right
+  (via `markIntentionalBack()` flag set by SubpageHeader before navigate(-1));
+  Android/non-iOS ← arrow OR hardware back → slide-out-to-right; iOS swipe/browser-back
+  → instant (browser renders its own native visual); first mount / deep-link → instant.
+- **Custom back triggers:** if you need to trigger an animated back nav outside
+  `SubpageHeader`, use `useBackWithAnimation()` from `hooks/useNavDirection.js`. A bare
+  `navigate(-1)` will NOT animate (on iOS) because the intentional-back flag won't fire.
+- **Same-level subpage swap:** parents pass `subpageKey` to PageSkeleton so
+  AnimatePresence transitions between peers (e.g. /settings/persona → /settings/knowledge).
 - **Dialog buttons:** cancel LEFT (gray), primary RIGHT (green). Always.
 - **Danger dialogs:** same layout, primary button red. No button-swap.
-- **Mobile subpages:** must use `PageSkeleton mobileView` (auto-gets Slide transition)
+- **Mobile subpages:** must use `PageSkeleton mobileView` (auto-gets slide transition).
+- **Reduced motion:** `useReducedMotion()` (framer-motion) disables animations
+  for users who prefer it and for automated tests that opt in.
+- **Known dependency — revisit before next react-router upgrade:** `useNavDirection`
+  reads `window.history.state?.idx`, which is a react-router v6+ implementation
+  detail (monotonic id). If react-router changes this shape, the hook breaks silently
+  (direction stays "none" → no animations). Replace with a route-level transition
+  context + `useNavigationType()` when we upgrade.
 
 ## E2E QA Tests (Ship Gate)
 

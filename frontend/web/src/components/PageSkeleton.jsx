@@ -3,11 +3,25 @@
  *
  * Desktop (3-column): DoctorPage sidebar | list pane (resizable) | detail pane (flex)
  * Mobile:             SubpageHeader (back|title|actions) | content | bottom nav
+ *
+ * Mobile subpages slide in from the right on forward navigation (PUSH).
+ * Back navigation (tap-back, swipe-back, browser back) is instant: iOS
+ * Safari renders its own swipe-back visual during the gesture and
+ * animating on top of that causes a visible double play. Tap-on-←-arrow
+ * is also instant on iOS Safari by convention, so making all back nav
+ * instant matches native behaviour without needing to distinguish
+ * between tap-back and swipe-back.
+ *
+ * Direction comes from useNavDirection(), which diffs react-router's
+ * history.state.idx across renders. On "forward" the entry animation
+ * plays; on "none" (first render / back-nav / deep-link) no animation
+ * runs and the overlay appears / disappears instantly.
  */
 import { useCallback, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { COLOR } from "../theme";
 import SubpageHeader from "./SubpageHeader";
+import SlideOverlay from "./SlideOverlay";
 
 function DragHandle({ onDrag }) {
   const dragging = useRef(false);
@@ -33,7 +47,11 @@ function DragHandle({ onDrag }) {
   );
 }
 
-export default function PageSkeleton({ title, headerRight, onBack, listPane, detailPane, mobileView, isMobile }) {
+export default function PageSkeleton({
+  title, headerRight, onBack, listPane, detailPane,
+  mobileView, isMobile,
+  subpageKey = "subpage",
+}) {
   const containerRef = useRef(null);
   const [listWidth, setListWidth] = useState(() => {
     const saved = localStorage.getItem("pageskeleton_list_width");
@@ -49,7 +67,6 @@ export default function PageSkeleton({ title, headerRight, onBack, listPane, det
     localStorage.setItem("pageskeleton_list_width", String(w));
   }, []);
 
-  // Mobile: list stays mounted; subpage overlays instantly (no animation)
   if (isMobile) {
     return (
       <Box sx={{ position: "relative", height: "100%", overflow: "hidden" }}>
@@ -59,11 +76,9 @@ export default function PageSkeleton({ title, headerRight, onBack, listPane, det
             {listPane}
           </Box>
         </Box>
-        {mobileView && (
-          <Box sx={{ position: "absolute", inset: 0, zIndex: 2, bgcolor: COLOR.surface }}>
-            {mobileView}
-          </Box>
-        )}
+        <SlideOverlay show={!!mobileView} stackKey={subpageKey}>
+          {mobileView}
+        </SlideOverlay>
       </Box>
     );
   }

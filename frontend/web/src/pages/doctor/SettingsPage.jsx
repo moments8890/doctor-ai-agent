@@ -557,12 +557,18 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
     <PrivacySubpage onBack={goBack} />
   ) : null;
 
+  // Stable identity for the current subpage level — changes between peers
+  // (e.g. knowledge list vs knowledge detail) so SlideOverlay animates the
+  // transition instead of silently swapping children.
+  const subpageKey = subpage ? `${subpage}${urlSubId ? `:${urlSubId}` : ""}` : "subpage";
+
   return (
     <PageSkeleton
       title="设置"
       onBack={isMobile ? () => navigate(-1) : undefined}
       isMobile={isMobile}
       mobileView={mobileSubpage}
+      subpageKey={subpageKey}
       listPane={listPane}
       detailPane={detailContent}
     />

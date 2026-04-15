@@ -580,9 +580,13 @@ export default function PatientsPage({ doctorId, onPatientSelected, refreshKey =
       onDeleted={() => { load(); navigate(`${dp("patients")}/${selectedId}`, { replace: true }); }}
     />
   ) : selectedId && viewParam === "chat" ? (
+    // PatientChatPage owns its own overflowY:auto. An extra overflow:auto
+    // wrapper here would fight the slide transform and create a visible
+    // judder on the cross-section entry animation. The wrapper uses
+    // overflow:hidden so flex sizing works but no second scroll layer exists.
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt, overflow: "hidden" }}>
       <SubpageHeader title={`${selectedPatient?.name || ""} · 消息`} onBack={() => navigate(-1)} sx={{ flexShrink: 0 }} />
-      <Box sx={{ flex: 1, overflow: "auto" }}>
+      <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
         <PatientChatPage patientId={selectedId} doctorId={doctorId} bubbleView patientName={selectedPatient?.name} />
       </Box>
     </Box>
@@ -609,12 +613,26 @@ export default function PatientsPage({ doctorId, onPatientSelected, refreshKey =
       triggerExport={triggerExport} onTriggerExportConsumed={() => setTriggerExport(false)} />
   );
 
+  // Distinct key per subpage flavour so SlideOverlay animates when switching
+  // between interview / record-detail / chat / patient-detail for the same
+  // selected patient (not just when transitioning from null → truthy).
+  const subpageKey = interviewActive
+    ? `interview:${chatInterviewSessionId || "new"}`
+    : (selectedId && viewParam === "record")
+    ? `record:${new URLSearchParams(window.location.search).get("record") || ""}`
+    : (selectedId && viewParam === "chat")
+    ? `chat:${selectedId}`
+    : selectedId
+    ? `detail:${selectedId}`
+    : "subpage";
+
   return (
     <>
       <PageSkeleton
         title="患者"
         isMobile={isMobile}
         mobileView={mobileSubpage}
+        subpageKey={subpageKey}
         listPane={<PatientListPane {...listPaneProps} />}
         detailPane={selectedPatient || interviewActive ? detailContent : null}
       />

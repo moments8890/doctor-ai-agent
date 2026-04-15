@@ -189,6 +189,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
       title="病历"
       isMobile
       mobileView={detailSubpage}
+      subpageKey={urlSubpage ? `record:${urlSubpage}` : "subpage"}
       listPane={
         <Box sx={{ flex: 1, overflowY: "auto", position: "relative" }}>
           <NewItemCard title="新建病历" subtitle="开始AI预问诊" onClick={onNewRecord} />

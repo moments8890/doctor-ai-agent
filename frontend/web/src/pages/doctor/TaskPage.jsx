@@ -614,6 +614,7 @@ export default function TaskPage({ doctorId, urlSubpage }) {
       title="任务"
       isMobile={isMobile}
       mobileView={mobileSubpage}
+      subpageKey={showDetail ? `task:${urlSubpage}` : "subpage"}
       listPane={
       <PullToRefresh sx={{ flex: 1 }} pb="80px">
         {origin === "patient_submit" && (

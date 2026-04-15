@@ -379,62 +379,53 @@ function usePatientDetailState({ patient, doctorId, onDeleted }) {
   return { records, setRecords, loading, error, exportingPdf, exportingReport, exportError, deleteConfirmOpen, setDeleteConfirmOpen, deleting, load, handleDelete, handleExportPdf, handleExportReport };
 }
 
-/* ── PatientChatPage ── */
-
-export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCount, hidden = false, bubbleView = false, patientName }) {
-  const { getPatientChat, replyToPatient, fetchDrafts, editDraft, sendDraft, getDraftConfirmation, createRuleFromEdit } = useApi();
+/* ── BubbleChatView ──
+ *
+ * Full-screen chat subpage (WeChat-style bubbles + reply input + AI-draft
+ * confirm sheet + teach-as-rule prompt). Extracted from PatientChatPage so
+ * its local state (`replyText`, `editingDraft`, `confirmDraft`, `teachState`,
+ * scroll refs, etc.) lives inside a component that is always rendered when
+ * present — avoiding a Rules-of-Hooks violation when conditional hook calls
+ * were inlined under `if (bubbleView)`.
+ *
+ * Data flows in via props (`messages`, `drafts`, `draftByMsgId`, ...) from
+ * the parent PatientChatPage which owns fetching. Mutations call API
+ * functions from useApi() and notify the parent through `refreshMessages`
+ * / `refreshDrafts` for cache invalidation.
+ */
+function BubbleChatView({
+  patientId, doctorId, patientName,
+  messages, drafts, loading,
+  draftByMsgId, matchedCount, activeDraft,
+  refreshMessages, refreshDrafts,
+}) {
+  const { replyToPatient, editDraft, sendDraft, getDraftConfirmation, createRuleFromEdit } = useApi();
   const navigate = useAppNavigate();
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [drafts, setDrafts] = useState([]);
-  const [draftsLoading, setDraftsLoading] = useState(false);
-  const [open, setOpen] = useState(true);
+  const [replyText, setReplyText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [editingDraft, setEditingDraft] = useState(null);
   const [confirmDraft, setConfirmDraft] = useState(null);
   const [confirmData, setConfirmData] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [teachState, setTeachState] = useState(null);
   const [savingRule, setSavingRule] = useState(false);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
+  const hasScrolledRef = useRef(false);
 
-  const refreshMessages = useCallback(async () => {
-    if (!patientId) return;
-    const data = await getPatientChat(patientId, doctorId);
-    const nextMessages = Array.isArray(data?.messages) ? data.messages : [];
-    nextMessages.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
-    setMessages(nextMessages);
-  }, [patientId, doctorId, getPatientChat]);
-
-  const refreshDrafts = useCallback(async () => {
-    if (!patientId || !doctorId) return;
-    const data = await fetchDrafts(doctorId, { patientId });
-    const allDrafts = Array.isArray(data) ? data : (data?.pending_messages || []);
-    // Only keep actual AI drafts (not "undrafted" placeholders)
-    const actualDrafts = allDrafts.filter(d => d.type === "draft");
-    actualDrafts.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
-    setDrafts(actualDrafts);
-  }, [patientId, doctorId, fetchDrafts]);
-
+  // Initial mount → scroll instantly so the smooth-scroll doesn't race the
+  // SlideOverlay transition and look like a bounce. Subsequent message
+  // arrivals (reply sent, patient responds) still animate smoothly.
   useEffect(() => {
-    if (!patientId) return;
-    setLoading(true);
-    refreshMessages()
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [patientId, refreshMessages]);
-
-  useEffect(() => {
-    if (!patientId || !doctorId) return;
-    setDraftsLoading(true);
-    refreshDrafts()
-      .catch(() => setDrafts([]))
-      .finally(() => setDraftsLoading(false));
-  }, [patientId, doctorId, refreshDrafts]);
+    if (!bottomRef.current) return;
+    bottomRef.current.scrollIntoView({ behavior: hasScrolledRef.current ? "smooth" : "auto" });
+    hasScrolledRef.current = true;
+  }, [messages, drafts]);
 
   async function handleDraftEdit(nextText, draft) {
     if (!draft?.id) return;
     const result = await editDraft(draft.id, doctorId, nextText);
-    setDrafts((prev) => prev.map((item) => (
-      item.id === draft.id ? { ...item, draft_text: nextText } : item
-    )));
+    await refreshDrafts?.();
     if (result?.teach_prompt && result?.edit_id) {
       setTeachState({ editId: result.edit_id });
     }
@@ -442,29 +433,44 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
 
   async function handleDraftSend(draft) {
     if (!draft?.id) return;
-    if (!bubbleView) {
-      await sendDraft(draft.id, doctorId);
-      setDrafts((prev) => prev.filter((item) => item.id !== draft.id));
-      await refreshMessages();
-      return;
-    }
     try {
       const data = await getDraftConfirmation(draft.id, doctorId);
       setConfirmDraft(draft);
       setConfirmData(data);
     } catch {
       await sendDraft(draft.id, doctorId);
-      setDrafts((prev) => prev.filter((item) => item.id !== draft.id));
-      await refreshMessages();
+      await Promise.allSettled([refreshMessages?.(), refreshDrafts?.()]);
     }
   }
 
-  async function handleManualReply(nextText) {
-    const text = nextText.trim();
-    if (!text) return;
-    await replyToPatient(patientId, text);
-    // Draft stays visible — only removed when doctor explicitly sends or dismisses it
-    await Promise.allSettled([refreshMessages(), refreshDrafts()]);
+  async function handleSendReply() {
+    const text = replyText.trim();
+    if (!text || sending) return;
+    setSending(true);
+    try {
+      if (editingDraft) {
+        await handleDraftEdit(text, editingDraft);
+        await handleDraftSend({ ...editingDraft, draft_text: text });
+        setEditingDraft(null);
+      } else {
+        await replyToPatient(patientId, text);
+      }
+      setReplyText("");
+      await Promise.allSettled([refreshMessages?.(), refreshDrafts?.()]);
+    } finally { setSending(false); }
+  }
+
+  function handleEditDraft(draft) {
+    setEditingDraft(draft);
+    setReplyText(draft.draft_text || draft.content || "");
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }
+
+  function handleReplyKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      handleSendReply();
+    }
   }
 
   async function handleConfirmedSend() {
@@ -472,10 +478,9 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
     setConfirming(true);
     try {
       await sendDraft(confirmDraft.id, doctorId);
-      setDrafts((prev) => prev.filter((item) => item.id !== confirmDraft.id));
       setConfirmDraft(null);
       setConfirmData(null);
-      await refreshMessages();
+      await Promise.allSettled([refreshMessages?.(), refreshDrafts?.()]);
     } finally { setConfirming(false); }
   }
 
@@ -490,70 +495,8 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
     }
   }
 
-  // Build draft lookup by source_message_id for inline timeline display
-  const messageIdSet = new Set(messages.map(m => m.id));
-  const pendingDrafts = drafts.filter(d => d.status !== "sent" && (d.draft_text || d.content));
-  const draftByMsgId = {};
-  let matchedCount = 0;
-  for (const d of pendingDrafts) {
-    if (d.source_message_id && messageIdSet.has(d.source_message_id)) {
-      draftByMsgId[d.source_message_id] = d;
-      matchedCount++;
-    }
-  }
-  // Don't show orphan drafts — they're stale from old conversations
-  const activeDraft = matchedCount > 0 ? pendingDrafts[0] : null; // for backward-compat (counts, hints)
-  const timelineCount = messages.length + matchedCount;
-  const hasContent = timelineCount > 0;
-
-  // Report counts to parent
-  useEffect(() => { onDraftCount?.(drafts.filter((d) => d.status !== "sent").length); }, [drafts.length]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { onMessageCount?.(messages.length + drafts.filter((d) => d.status !== "sent").length); }, [messages.length, drafts.length]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Hidden mode: only fetch draft count, don't render UI
-  if (hidden) return null;
-
-  /* ── Bubble view (dedicated chat subpage) ── */
-  if (bubbleView) {
-    const [replyText, setReplyText] = useState("");
-    const [sending, setSending] = useState(false);
-    const [editingDraft, setEditingDraft] = useState(null);
-    const bottomRef = useRef(null);
-    const inputRef = useRef(null);
-    useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, drafts]);
-
-    async function handleSendReply() {
-      const text = replyText.trim();
-      if (!text || sending) return;
-      setSending(true);
-      try {
-        if (editingDraft) {
-          await handleDraftEdit(text, editingDraft);
-          await handleDraftSend({ ...editingDraft, draft_text: text });
-          setEditingDraft(null);
-        } else {
-          await replyToPatient(patientId, text);
-        }
-        setReplyText("");
-        await Promise.allSettled([refreshMessages(), refreshDrafts()]);
-      } finally { setSending(false); }
-    }
-
-    function handleEditDraft(draft) {
-      setEditingDraft(draft);
-      setReplyText(draft.draft_text || draft.content || "");
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-
-    function handleReplyKeyDown(e) {
-      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-        e.preventDefault();
-        handleSendReply();
-      }
-    }
-
-    return (
-      <>
+  return (
+    <>
       <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
         {/* Messages area */}
         <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: 1.5, bgcolor: COLOR.surfaceAlt }}>
@@ -746,7 +689,120 @@ export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCo
         confirmLoading={savingRule}
         confirmLoadingLabel="保存中…"
       />
-      </>
+    </>
+  );
+}
+
+/* ── PatientChatPage ── */
+
+export function PatientChatPage({ patientId, doctorId, onDraftCount, onMessageCount, hidden = false, bubbleView = false, patientName }) {
+  const { getPatientChat, replyToPatient, fetchDrafts, editDraft, sendDraft } = useApi();
+  const navigate = useAppNavigate();
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [drafts, setDrafts] = useState([]);
+  const [draftsLoading, setDraftsLoading] = useState(false);
+  const [open, setOpen] = useState(true);
+
+  const refreshMessages = useCallback(async () => {
+    if (!patientId) return;
+    const data = await getPatientChat(patientId, doctorId);
+    const nextMessages = Array.isArray(data?.messages) ? data.messages : [];
+    nextMessages.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
+    setMessages(nextMessages);
+  }, [patientId, doctorId, getPatientChat]);
+
+  const refreshDrafts = useCallback(async () => {
+    if (!patientId || !doctorId) return;
+    const data = await fetchDrafts(doctorId, { patientId });
+    const allDrafts = Array.isArray(data) ? data : (data?.pending_messages || []);
+    // Only keep actual AI drafts (not "undrafted" placeholders)
+    const actualDrafts = allDrafts.filter(d => d.type === "draft");
+    actualDrafts.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
+    setDrafts(actualDrafts);
+  }, [patientId, doctorId, fetchDrafts]);
+
+  useEffect(() => {
+    if (!patientId) return;
+    setLoading(true);
+    refreshMessages()
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [patientId, refreshMessages]);
+
+  useEffect(() => {
+    if (!patientId || !doctorId) return;
+    setDraftsLoading(true);
+    refreshDrafts()
+      .catch(() => setDrafts([]))
+      .finally(() => setDraftsLoading(false));
+  }, [patientId, doctorId, refreshDrafts]);
+
+  // Timeline-view handlers. Bubble view owns its own richer handlers (with
+  // confirm-send sheet and teach-prompt flow) inside BubbleChatView so hooks
+  // aren't conditionally called.
+  async function handleDraftEdit(nextText, draft) {
+    if (!draft?.id) return;
+    await editDraft(draft.id, doctorId, nextText);
+    setDrafts((prev) => prev.map((item) => (
+      item.id === draft.id ? { ...item, draft_text: nextText } : item
+    )));
+  }
+
+  async function handleDraftSend(draft) {
+    if (!draft?.id) return;
+    await sendDraft(draft.id, doctorId);
+    setDrafts((prev) => prev.filter((item) => item.id !== draft.id));
+    await refreshMessages();
+  }
+
+  async function handleManualReply(nextText) {
+    const text = nextText.trim();
+    if (!text) return;
+    await replyToPatient(patientId, text);
+    // Draft stays visible — only removed when doctor explicitly sends or dismisses it
+    await Promise.allSettled([refreshMessages(), refreshDrafts()]);
+  }
+
+  // Build draft lookup by source_message_id for inline timeline display
+  const messageIdSet = new Set(messages.map(m => m.id));
+  const pendingDrafts = drafts.filter(d => d.status !== "sent" && (d.draft_text || d.content));
+  const draftByMsgId = {};
+  let matchedCount = 0;
+  for (const d of pendingDrafts) {
+    if (d.source_message_id && messageIdSet.has(d.source_message_id)) {
+      draftByMsgId[d.source_message_id] = d;
+      matchedCount++;
+    }
+  }
+  // Don't show orphan drafts — they're stale from old conversations
+  const activeDraft = matchedCount > 0 ? pendingDrafts[0] : null; // for backward-compat (counts, hints)
+  const timelineCount = messages.length + matchedCount;
+  const hasContent = timelineCount > 0;
+
+  // Report counts to parent
+  useEffect(() => { onDraftCount?.(drafts.filter((d) => d.status !== "sent").length); }, [drafts.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onMessageCount?.(messages.length + drafts.filter((d) => d.status !== "sent").length); }, [messages.length, drafts.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hidden mode: only fetch draft count, don't render UI
+  if (hidden) return null;
+
+  /* ── Bubble view (dedicated chat subpage) ── */
+  if (bubbleView) {
+    return (
+      <BubbleChatView
+        patientId={patientId}
+        doctorId={doctorId}
+        patientName={patientName}
+        messages={messages}
+        drafts={drafts}
+        loading={loading}
+        draftByMsgId={draftByMsgId}
+        matchedCount={matchedCount}
+        activeDraft={activeDraft}
+        refreshMessages={refreshMessages}
+        refreshDrafts={refreshDrafts}
+      />
     );
   }
 
