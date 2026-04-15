@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="wiki-common.css">
+</head>
+<body>
+<div class="page-wrap">
+
+<div class="breadcrumb">
+  <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">帮助中心</a> › 设置
+</div>
+
+<h1>设置</h1>
+
+<p class="hatnote">在设置页面，您可以配置个人档案、管理知识库、自定义 AI 助手行为，以及导出患者数据。</p>
+
+
+<h2>设置中心概览</h2>
+
+<div class="section-grid">
+  <div class="section-card">
+    <h3>我的档案</h3>
+    <p>设置您的姓名、科室和诊所名称。AI 助手会用您设定的称谓与患者沟通（例如"张医生"）。</p>
+  </div>
+  <div class="section-card">
+    <h3>我的二维码</h3>
+    <p>生成专属二维码，分享给患者。患者扫码即可注册并与您建立绑定关系。</p>
+  </div>
+  <div class="section-card">
+    <h3>知识库</h3>
+    <p>管理您的临床规则和经验条目，让 AI 按照您的诊疗思路工作。</p>
+  </div>
+  <div class="section-card">
+    <h3>报告模板</h3>
+    <p>上传您诊所的门诊报告格式，导出病历 PDF 时自动套用您的模板样式。</p>
+  </div>
+  <div class="section-card">
+    <h3>AI 助手风格</h3>
+    <p>定制 AI 与患者沟通的语气和风格，体现您的个人沟通偏好。</p>
+  </div>
+  <div class="section-card">
+    <h3>数据导出</h3>
+    <p>将患者病历导出为 PDF，或将所有数据打包下载为 ZIP 文件。</p>
+  </div>
+</div>
+
+<p>此外，设置页还提供关于本产品的说明、隐私政策，以及退出登录入口。</p>
+
+
+<h2>我的档案</h2>
+
+<p>您可以修改以下个人信息：</p>
+
+<table>
+  <tr><th>字段</th><th>用途</th></tr>
+  <tr><td>姓名</td><td>AI 在对患者的沟通中会使用"[您的姓]医生"这一称谓</td></tr>
+  <tr><td>科室</td><td>从列表中选择（神经外科、心内科等），影响 AI 诊断建议的专业方向</td></tr>
+  <tr><td>诊所名称</td><td>显示在患者端的医生信息卡片上</td></tr>
+  <tr><td>个人简介</td><td>显示在患者端的医生介绍页，帮助患者了解您</td></tr>
+</table>
+
+
+<h2>我的二维码</h2>
+
+<p>您的专属二维码是患者加入的入口：</p>
+
+<ul>
+  <li>患者扫码后自动完成注册，并与您的账号绑定，无需您手动操作</li>
+  <li>可复制链接分享到微信、短信或任意渠道</li>
+  <li>也可长按二维码图片保存，打印后放置于诊室供患者扫码</li>
+</ul>
+
+<div class="info-box">
+  <b>提示：</b>同一个二维码可以无限次使用，任何扫码的患者都会自动绑定到您的账号。
+</div>
+
+
+<h2>知识库</h2>
+
+<p>知识库是 AI 的"大脑"，存放您的临床规则和诊疗经验。您可以：</p>
+
+<ul>
+  <li>查看和管理所有已添加的条目</li>
+  <li>按类型筛选（诊断规则 / 随访规则 / 用药规则 / 其他）</li>
+  <li>添加新条目：手动输入、上传文件（PDF / Word / 图片），或粘贴网页链接</li>
+  <li>点击任意条目查看完整内容或进行编辑</li>
+  <li>删除不再需要的条目</li>
+</ul>
+
+<p>详细说明请参阅 <a href="wiki-knowledge.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-knowledge.html')}">知识库使用指南</a>。</p>
+
+
+<h2>报告模板</h2>
+
+<p>如果您的诊所有固定的门诊报告格式，可以在此上传：</p>
+
+<ul>
+  <li>支持格式：PDF、Word 文档、纯文本</li>
+  <li>上传后，所有从系统导出的病历 PDF 将按照您的模板样式排版</li>
+  <li>可随时删除自定义模板，恢复系统默认格式</li>
+</ul>
+
+
+<h2>AI 助手风格</h2>
+
+<p>您可以告诉 AI 如何与患者沟通：</p>
+
+<ul>
+  <li><b>回复语气：</b>正式 / 亲切 / 简洁，根据您的个人风格选择</li>
+  <li><b>关注重点：</b>例如特别强调用药安全、随访依从性、注意危险信号等</li>
+  <li><b>专科背景：</b>影响 AI 在回复患者时使用的专业侧重方向</li>
+</ul>
+
+<div class="info-box">
+  <b>首次使用：</b>如果您是第一次登录，系统会引导您完成 3 步初始设置，帮助 AI 快速了解您的工作方式。
+</div>
+
+
+<h2>数据导出</h2>
+
+<h3>单个患者的病历 PDF</h3>
+<p>在患者详情页操作，可以选择：</p>
+<ul>
+  <li>导出哪些类型的病历记录</li>
+  <li>导出哪个时间段的记录</li>
+  <li>是否使用您上传的自定义模板</li>
+</ul>
+
+<h3>全量数据导出</h3>
+<p>在设置页面点击"导出全部数据"，系统会将您所有患者的病历打包为一个 ZIP 文件（每位患者一个 PDF）。导出过程在后台进行，页面会显示进度，完成后即可下载。</p>
+
+
+<div class="categories">
+  分类: <a href="#">使用指南</a> <a href="#">账户设置</a>
+</div>
+
+</div>
+</body>
+</html>

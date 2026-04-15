@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="wiki-common.css">
+<style>
+  .value-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 16px 0; }
+  .value-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #fafafa; }
+  .value-card .phase { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 6px; }
+  .value-card h3 { font-size: 16px; color: #0d5c2e; margin: 0 0 8px; border: none; padding: 0; }
+  .value-card .ai-does { font-size: 13px; color: #333; margin-bottom: 6px; }
+  .value-card .you-do { font-size: 13px; color: #666; font-style: italic; }
+  .value-card .label { font-size: 11px; font-weight: bold; color: #999; margin-bottom: 2px; margin-top: 10px; }
+  .cta-box { background: linear-gradient(135deg, #e8f5e9, #f1f8e9); border: 1px solid #a5d6a7; border-radius: 10px; padding: 24px; margin: 20px 0; text-align: center; }
+  .cta-box h3 { color: #0d5c2e; font-size: 18px; margin-bottom: 8px; }
+  .cta-box p { color: #555; font-size: 14px; margin-bottom: 16px; }
+  .cta-btn { display: inline-block; background: #2e7d32; color: #fff; text-decoration: none; padding: 10px 28px; border-radius: 6px; font-size: 14px; font-weight: bold; }
+  .cta-btn:hover { background: #1b5e20; }
+  .benefit-row { display: flex; gap: 12px; margin: 16px 0; flex-wrap: wrap; }
+  .benefit-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px 20px; flex: 1; min-width: 160px; }
+  .benefit-item .num { font-size: 26px; font-weight: 700; color: #0d5c2e; }
+  .benefit-item .desc { font-size: 13px; color: #666; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<h1>欢迎使用 Doctor AI</h1>
+<p class="hatnote">您的专属 AI 随访助手 — 学习您的诊疗经验，替您处理每天的随访工作。</p>
+
+<!-- ── Infobox ── -->
+<table class="infobox">
+  <tr><td colspan="2" class="infobox-title">Doctor AI</td></tr>
+  <tr><th>版本</th><td>v1.2.0</td></tr>
+  <tr><th>适用科室</th><td>各专科门诊</td></tr>
+  <tr><th>使用渠道</th><td>网页 + 微信小程序</td></tr>
+  <tr><th>患者入口</th><td>扫码即用，无需下载</td></tr>
+  <tr><th>数据安全</th><td>数据仅属于您，可随时导出</td></tr>
+</table>
+
+<p><b>Doctor AI</b> 是面向专科医生的个人 AI 随访助手。您把自己的临床经验和诊疗规则教给它，它就能按照您的方式，帮您结构化采集病史、生成诊断建议、起草患者回复、追踪随访任务。</p>
+
+<div class="notice-box">
+  <b>核心理念：</b>"这个 AI 像我一样思考" — AI 引用的是您自己添加的规则，做出的建议来自您的临床经验，每一条输出都等待您的最终确认。
+</div>
+
+<div class="clear"></div>
+
+<!-- ── Key benefits ── -->
+<h2>它能帮您做什么</h2>
+
+<div class="benefit-row">
+  <div class="benefit-item">
+    <div class="num">1+ 小时</div>
+    <div class="desc">每天节省的随访沟通时间</div>
+  </div>
+  <div class="benefit-item">
+    <div class="num">200+</div>
+    <div class="desc">AI 可同时处理的患者消息</div>
+  </div>
+  <div class="benefit-item">
+    <div class="num">100%</div>
+    <div class="desc">每条建议都经您审核确认</div>
+  </div>
+</div>
+
+<!-- ── Value cards ── -->
+<h2>诊前 · 诊中 · 诊后，全程辅助</h2>
+
+<div class="value-grid">
+  <div class="value-card">
+    <div class="phase">诊前</div>
+    <h3>AI 替您采集病史</h3>
+    <div class="label">AI 做：</div>
+    <div class="ai-does">患者扫码后，AI 用对话方式逐一询问症状、病程、用药史，自动整理成结构化病历，您就诊前已能看到完整信息。</div>
+    <div class="label">您做：</div>
+    <div class="you-do">审阅 AI 整理的病历，补充或修改细节，节省问诊时间。</div>
+  </div>
+  <div class="value-card">
+    <div class="phase">诊中</div>
+    <h3>AI 提供诊断参考</h3>
+    <div class="label">AI 做：</div>
+    <div class="ai-does">根据病历和您设置的规则，生成鉴别诊断、建议检查项目、提出治疗方向，并注明引用了哪条您的规则。</div>
+    <div class="label">您做：</div>
+    <div class="you-do">确认、修改或拒绝每条建议 — 您的每次编辑都让 AI 更了解您。</div>
+  </div>
+  <div class="value-card">
+    <div class="phase">诊后</div>
+    <h3>AI 处理随访工作</h3>
+    <div class="label">AI 做：</div>
+    <div class="ai-does">患者发消息后，AI 分诊优先级、起草回复草稿、自动创建随访任务，让复杂案例优先到达您眼前。</div>
+    <div class="label">您做：</div>
+    <div class="you-do">审核草稿，一键发送，或稍作修改再发。紧急情况会自动置顶提醒。</div>
+  </div>
+</div>
+
+<!-- ── CTA ── -->
+<div class="cta-box">
+  <h3>5 分钟完成上手</h3>
+  <p>添加第一条规则、邀请第一位患者，立刻体验 AI 问诊和审核流程。</p>
+  <a class="cta-btn" href="wiki-quickstart.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-quickstart.html')}">查看快速上手指南</a>
+</div>
+
+<!-- ── Section links ── -->
+<h2>使用指南</h2>
+
+<div class="section-grid">
+  <a class="section-card" href="wiki-knowledge.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-knowledge.html')}">
+    <h3>知识库</h3>
+    <p>把您的临床经验和诊疗规则教给 AI — 规则越多，AI 越像您。支持文字、文件、网址三种方式添加。</p>
+  </a>
+  <a class="section-card" href="wiki-review.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-review.html')}">
+    <h3>审核中心</h3>
+    <p>您的每日工作台。AI 已完成初步分析，等您最终确认。门诊诊断、患者回复一站处理。</p>
+  </a>
+  <a class="section-card" href="wiki-patients.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-patients.html')}">
+    <h3>患者管理</h3>
+    <p>搜索患者、查看病历时间线、与患者沟通、按优先级排序。紧急患者自动标红置顶。</p>
+  </a>
+  <a class="section-card" href="wiki-tasks.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-tasks.html')}">
+    <h3>随访任务</h3>
+    <p>AI 审核后自动生成随访提醒，按日历视图或患者分组查看，确保不遗漏任何跟进。</p>
+  </a>
+  <a class="section-card" href="wiki-interview.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-interview.html')}">
+    <h3>患者问诊</h3>
+    <p>了解患者扫码后的体验 — AI 如何引导问诊，生成什么格式的病历，支持哪些输入方式。</p>
+  </a>
+  <a class="section-card" href="wiki-faq.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-faq.html')}">
+    <h3>常见问题</h3>
+    <p>AI 会不会出错？患者数据安全吗？如何更换 AI 风格？这里解答最常见的疑问。</p>
+  </a>
+</div>
+
+<!-- ── Footer ── -->
+<div class="wiki-footer">
+  Doctor AI 帮助中心 &middot; 更新于 2026-04-14 &middot; <a href="wiki-quickstart.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-quickstart.html')}">快速上手</a>
+</div>
+
+</div><!-- .page-wrap -->
+</body>
+</html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="wiki-common.css">
+</head>
+<body>
+<div class="page-wrap">
+
+<div class="breadcrumb">
+  <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">帮助中心</a> › AI 如何工作
+</div>
+
+<h1>AI 如何工作</h1>
+
+<p class="hatnote">用您熟悉的方式理解 AI 助手的工作原理。这里不涉及技术细节，只说对您有用的部分。</p>
+
+
+<h2>AI 如何学习您的思维方式</h2>
+
+<p>这套 AI 系统与通用 AI 工具最大的区别在于：它是您的专属助手，而不是面向所有人的通用工具。</p>
+
+<div class="notice-box">
+  <b>核心原则：</b>您添加的每一条规则，AI 在每次诊断和回复时都会参考。知识库是 AI "了解您"的唯一途径，规则越详细，AI 越像您。
+</div>
+
+<p>AI 在生成任何建议之前，都会先读取：</p>
+
+<ul>
+  <li>您在知识库中添加的全部临床规则和经验</li>
+  <li>该患者的完整病历记录</li>
+  <li>您设定的专科方向和沟通风格</li>
+</ul>
+
+<p>只有综合这三项信息，AI 才会给出建议。这意味着两位使用相同系统的医生，会得到完全不同的 AI 回复——因为他们的规则不同。</p>
+
+
+<h2>AI 如何生成诊断建议</h2>
+
+<p>当您打开一份患者病历并请求 AI 分析时：</p>
+
+<div class="pipeline">
+  <div class="pipeline-step">
+    <div class="step-title">读取病历</div>
+    <div class="step-desc">AI 读取该患者的全部症状和病史信息</div>
+  </div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step">
+    <div class="step-title">对照您的规则</div>
+    <div class="step-desc">AI 将症状与您知识库中的诊断规则逐一比对</div>
+  </div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step">
+    <div class="step-title">生成建议</div>
+    <div class="step-desc">鉴别诊断、推荐检查、治疗方案选项</div>
+  </div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step">
+    <div class="step-title">标注依据</div>
+    <div class="step-desc">每条建议标注引用了您的哪条规则</div>
+  </div>
+</div>
+
+<p>您看到的诊断建议会包含：</p>
+<ul>
+  <li><b>鉴别诊断列表：</b>按可能性排序，说明支持和反对的理由</li>
+  <li><b>推荐检查项目：</b>基于症状和您的规则建议的检查</li>
+  <li><b>治疗方案参考：</b>可选的治疗方向</li>
+  <li><b>危险信号提示：</b>如发现需要紧急关注的情况会特别标出</li>
+</ul>
+
+
+<h2>AI 如何起草患者回复</h2>
+
+<p>当患者向您发来消息，AI 会自动起草一份回复供您审核：</p>
+
+<div class="pipeline">
+  <div class="pipeline-step">
+    <div class="step-title">理解患者问题</div>
+    <div class="step-desc">识别患者消息的类型和意图</div>
+  </div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step">
+    <div class="step-title">查找相关规则</div>
+    <div class="step-desc">从您的知识库中找到相关的随访规则和用药说明</div>
+  </div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step">
+    <div class="step-title">起草回复</div>
+    <div class="step-desc">按照您设定的语气和风格撰写回复草稿</div>
+  </div>
+  <div class="pipeline-arrow">→</div>
+  <div class="pipeline-step">
+    <div class="step-title">等待您确认</div>
+    <div class="step-desc">草稿出现在审核队列，您确认后才会发送</div>
+  </div>
+</div>
+
+
+<h2>引用标注：让您清楚每条建议的依据</h2>
+
+<p>AI 的每条诊断或回复建议，都会标注引用了您知识库中的哪条规则。例如：</p>
+
+<div class="info-box">
+  "建议复查颅脑 MRI（依据：您的规则 — 神经外科术后随访应在 3 个月内复查影像）"
+</div>
+
+<p>点击引用标注可以查看原始规则的完整内容，方便您判断 AI 的建议是否合理。如果您发现某条规则需要修改，可以直接进入知识库更新。</p>
+
+
+<h2>从您的决策中学习</h2>
+
+<p>每次您对 AI 建议做出处理，系统都会记录：</p>
+
+<table>
+  <tr><th>您的操作</th><th>AI 学到什么</th></tr>
+  <tr><td>直接确认发送</td><td>这种情况下这类回复是合适的</td></tr>
+  <tr><td>修改后发送</td><td>记录修改方向，未来类似情况参考</td></tr>
+  <tr><td>拒绝草稿</td><td>这种情况下这类回复不符合您的偏好</td></tr>
+</table>
+
+<p>这个学习过程是渐进式的。使用时间越长、反馈越多，AI 的建议会越贴近您的实际诊疗风格。</p>
+
+
+<h2>安全原则</h2>
+
+<div class="warn-box">
+  <b>AI 只辅助，不代替您：</b>系统设计的核心原则是 AI 永远不会自动发送消息或做出任何影响患者的操作。每一条诊断建议和每一条患者回复，都必须经过您的确认才会生效。
+</div>
+
+<p>具体来说：</p>
+<ul>
+  <li>AI 生成的每条回复都停留在草稿状态，等待您审核</li>
+  <li>AI 生成的诊断建议仅供参考，不会自动写入病历</li>
+  <li>删除或完成任何任务，都需要您手动操作</li>
+  <li>AI 无法访问您诊所以外的任何系统</li>
+</ul>
+
+
+<h2>当前最适合的使用场景</h2>
+
+<p>AI 在以下场景表现最好：</p>
+
+<ul>
+  <li>随访患者的常规问题回复（复查提醒、用药咨询、症状随访）</li>
+  <li>病历整理和结构化录入</li>
+  <li>基于您的规则生成鉴别诊断参考清单</li>
+</ul>
+
+<p>以下场景建议以您的临床判断为主，AI 仅作参考：</p>
+
+<ul>
+  <li>首次门诊的复杂诊断（AI 对新患者了解有限）</li>
+  <li>紧急情况（AI 会提示危险信号，但应对措施需要您决定）</li>
+  <li>知识库规则较少时（建议先添加您科室的核心诊疗规则）</li>
+</ul>
+
+
+<div class="categories">
+  分类: <a href="#">使用指南</a> <a href="#">AI 功能</a>
+</div>
+
+</div>
+</body>
+</html>

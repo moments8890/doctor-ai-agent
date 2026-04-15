@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doctor AI 帮助中心</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f6f6f6; color: #202122; font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif; font-size: 14px; overflow: hidden; height: 100vh; }
+
+  /* ── Topbar ── */
+  .wiki-topbar {
+    background: linear-gradient(180deg, #0d5c2e 0%, #0a4a24 100%);
+    border-bottom: 3px solid #4caf50;
+    display: flex; align-items: center;
+    padding: 0 16px; height: 50px;
+  }
+  .wiki-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #fff; margin-right: 24px; flex-shrink: 0; }
+  .wiki-logo-icon { width: 32px; height: 32px; background: #4caf50; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; color: #fff; }
+  .wiki-logo-text { font-size: 16px; font-weight: bold; letter-spacing: 0.5px; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .wiki-logo-text small { display: block; font-size: 9px; font-weight: normal; color: #8bc34a; letter-spacing: 2px; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .topbar-search { padding: 5px 10px; border: 1px solid #2d6a3e; border-radius: 3px; background: rgba(255,255,255,0.1); color: #fff; font-size: 12px; width: 200px; }
+  .topbar-search::placeholder { color: #8bc34a; }
+
+  /* ── Layout ── */
+  .wiki-layout { display: flex; height: calc(100vh - 53px); }
+
+  /* ── Sidebar ── */
+  .wiki-sidebar {
+    width: 220px; flex-shrink: 0;
+    background: #fff; border-right: 1px solid #ddd;
+    overflow-y: auto; padding: 12px 0;
+  }
+  .sidebar-section { padding: 0 12px; margin-bottom: 12px; }
+  .sidebar-heading {
+    font-size: 11px; font-weight: bold; text-transform: uppercase;
+    color: #888; letter-spacing: 1px; padding: 4px 0;
+  }
+  .sidebar-section a {
+    display: block; padding: 3px 8px; margin: 1px 0;
+    color: #333; text-decoration: none; font-size: 13px;
+    border-radius: 3px;
+  }
+  .sidebar-section a:hover { background: #e8f5e9; color: #0d5c2e; }
+  .sidebar-section a.active { background: #e8f5e9; color: #2e7d32; font-weight: bold; }
+
+  /* ── Content iframe ── */
+  .wiki-content { flex: 1; border: none; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="wiki-topbar">
+  <a class="wiki-logo" href="wiki.html" onclick="event.preventDefault(); loadPage('wiki-home.html');">
+    <div class="wiki-logo-icon">AI</div>
+    <div class="wiki-logo-text">
+      Doctor AI
+      <small>您的专属 AI 助手</small>
+    </div>
+  </a>
+  <div class="topbar-right">
+    <input class="topbar-search" type="text" placeholder="搜索帮助..." id="search-input">
+  </div>
+</div>
+
+<div class="wiki-layout">
+  <aside class="wiki-sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-heading">导航</div>
+      <a href="wiki-home.html" data-page>首页</a>
+      <a href="wiki-quickstart.html" data-page>快速上手</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-heading">使用指南</div>
+      <a href="wiki-knowledge.html" data-page>知识库</a>
+      <a href="wiki-review.html" data-page>审核中心</a>
+      <a href="wiki-patients.html" data-page>患者管理</a>
+      <a href="wiki-tasks.html" data-page>随访任务</a>
+      <a href="wiki-settings.html" data-page>设置</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-heading">患者体验</div>
+      <a href="wiki-interview.html" data-page>患者问诊</a>
+      <a href="wiki-patient-portal.html" data-page>患者门户</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-heading">了解更多</div>
+      <a href="wiki-ai.html" data-page>AI 如何工作</a>
+      <a href="wiki-faq.html" data-page>常见问题</a>
+      <a href="wiki-whats-new.html" data-page>更新计划</a>
+    </div>
+  </aside>
+
+  <iframe id="content-frame" class="wiki-content" src="wiki-home.html"></iframe>
+</div>
+
+<script>
+  // SPA-like navigation via iframe
+  function loadPage(page) {
+    const frame = document.getElementById('content-frame');
+    frame.src = page;
+    // Update active link
+    document.querySelectorAll('.sidebar-section a[data-page]').forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === page);
+    });
+    // Update URL without reload
+    const url = new URL(window.location);
+    url.searchParams.set('page', page);
+    history.pushState({page}, '', url);
+  }
+
+  // Sidebar click handler
+  document.querySelectorAll('.sidebar-section a[data-page]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      loadPage(a.getAttribute('href'));
+    });
+  });
+
+  // Load page from URL param
+  const params = new URLSearchParams(window.location.search);
+  const page = params.get('page');
+  if (page) loadPage(page);
+  else loadPage('wiki-home.html');
+
+  // Back/forward
+  window.addEventListener('popstate', e => {
+    if (e.state?.page) loadPage(e.state.page);
+  });
+
+  // Search (basic: filter sidebar links)
+  document.getElementById('search-input').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll('.sidebar-section a[data-page]').forEach(a => {
+      a.style.display = !q || a.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="wiki-common.css">
+<style>
+  .add-method-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin: 16px 0; }
+  .add-method-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #fafafa; }
+  .add-method-card .method-tag { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 8px; }
+  .add-method-card h3 { font-size: 15px; color: #0d5c2e; margin: 0 0 8px; border: none; padding: 0; }
+  .add-method-card p { font-size: 13px; color: #555; }
+  .example-rule { background: #f8f9fa; border-left: 4px solid #4caf50; padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 12px 0; font-size: 13px; color: #333; line-height: 1.7; }
+  .example-rule .label { font-size: 11px; color: #888; font-weight: bold; margin-bottom: 4px; }
+  .manage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+  .manage-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 14px; }
+  .manage-item h4 { font-size: 13px; color: #0d5c2e; margin-bottom: 4px; }
+  .manage-item p { font-size: 12px; color: #666; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<div class="breadcrumb">
+  <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">首页</a> › 使用指南 › 知识库
+</div>
+
+<h1>知识库</h1>
+<p class="hatnote">把您的临床经验教给 AI — 规则越具体，AI 越像您。</p>
+
+<table class="infobox">
+  <tr><td colspan="2" class="infobox-title">知识库</td></tr>
+  <tr><th>添加方式</th><td>文字 / 文件 / 网址</td></tr>
+  <tr><th>支持格式</th><td>PDF、Word、图片、网页</td></tr>
+  <tr><th>规则分类</th><td>通用 / 诊断 / 随访 / 用药</td></tr>
+  <tr><th>引用显示</th><td>AI 建议旁内联标注</td></tr>
+</table>
+
+<p>知识库是 Doctor AI 的核心。您在这里添加的每一条规则，AI 都会在生成诊断建议和患者回复时主动引用。它不是一个静态的文档库，而是 AI 的"思维方式" — 您的规则越多、越具体，AI 的行为就越符合您的临床风格。</p>
+
+<div class="notice-box">
+  <b>为什么要添加规则？</b> 没有规则的 AI 只能给出通用建议；有了您的规则，AI 会知道您的禁忌用药、习惯的检查顺序、对特定病情的处置偏好，生成的建议才真正有参考价值。
+</div>
+
+<div class="clear"></div>
+
+<!-- ── 3 ways ── -->
+<h2>三种添加方式</h2>
+
+<div class="add-method-grid">
+  <div class="add-method-card">
+    <div class="method-tag">方式 1</div>
+    <h3>直接输入文字</h3>
+    <p>最快的方式。直接写下一条规则，保存即可。适合随手记录诊疗心得、禁忌提醒、用药注意事项。</p>
+    <p style="margin-top:8px; font-size:12px; color:#888;">入口：设置 > 知识库 > 加号 > 文字输入</p>
+  </div>
+  <div class="add-method-card">
+    <div class="method-tag">方式 2</div>
+    <h3>上传文件</h3>
+    <p>支持 PDF、Word 文档、手机拍摄的纸质材料。AI 自动识别并提取关键内容，您确认后保存。</p>
+    <p style="margin-top:8px; font-size:12px; color:#888;">适合：科室诊疗指南、临床路径文件、教学材料</p>
+  </div>
+  <div class="add-method-card">
+    <div class="method-tag">方式 3</div>
+    <h3>粘贴网址</h3>
+    <p>找到一篇有价值的临床指南网页，复制链接粘贴进来，AI 自动抓取并提取核心内容，无需手动整理。</p>
+    <p style="margin-top:8px; font-size:12px; color:#888;">适合：最新诊疗指南、学会推荐意见、文献摘要</p>
+  </div>
+</div>
+
+<!-- ── Good rule tips ── -->
+<h2>怎样写一条好规则</h2>
+
+<p>规则越具体，AI 引用时越有价值。以下是几个原则：</p>
+
+<ul>
+  <li><b>说清楚条件：</b>什么情况下适用，例如"术后患者"比"患者"更精确</li>
+  <li><b>包含决策点：</b>AI 需要的是判断逻辑，不只是结论</li>
+  <li><b>注明例外情况：</b>什么时候这条规则不适用</li>
+</ul>
+
+<div class="example-rule">
+  <div class="label">示例规则（较差）</div>
+  头痛患者注意用药。
+</div>
+
+<div class="example-rule">
+  <div class="label">示例规则（推荐）</div>
+  颅脑术后头痛患者，在排除脑脊液漏之前，不建议使用 NSAIDs 类止痛药（如布洛芬、阿司匹林）。首选对乙酰氨基酚，剂量不超过 3g/天。如头痛伴体位相关性加重，应立即排查低颅压。
+</div>
+
+<div class="info-box">
+  <b>上手建议：</b>第一周先添加 5-10 条您最常遇到的临床场景规则。不需要一次写完所有经验，遇到 AI 建议不对时，当场补充一条规则效果最好。
+</div>
+
+<!-- ── How AI uses rules ── -->
+<h2>AI 如何引用您的规则</h2>
+
+<p>每当 AI 生成诊断建议或患者回复时，它会在建议旁边标注引用了哪条规则。您可以点击引用标记，直接看到原文，无需离开当前页面。</p>
+
+<div class="flow">
+  <div class="flow-step">患者完成问诊</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">AI 读取您的规则</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">生成建议并标注引用</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">您在审核中看到规则来源</div>
+</div>
+
+<p>如果 AI 某条建议引用的规则不对，或者建议本身不准确，您可以直接编辑，并考虑在知识库中补充更精准的规则。</p>
+
+<!-- ── Managing rules ── -->
+<h2>管理已有规则</h2>
+
+<div class="manage-grid">
+  <div class="manage-item">
+    <h4>查看所有规则</h4>
+    <p>在知识库列表中，可按分类筛选，看到每条规则的标题和摘要。</p>
+  </div>
+  <div class="manage-item">
+    <h4>编辑规则</h4>
+    <p>点击任意规则卡片，进入编辑界面，可修改内容或更改分类。</p>
+  </div>
+  <div class="manage-item">
+    <h4>删除规则</h4>
+    <p>在规则编辑页面，点击删除。确认后该规则将不再被 AI 引用。</p>
+  </div>
+  <div class="manage-item">
+    <h4>查看引用频率</h4>
+    <p>每条规则会显示被 AI 引用的次数，帮助您判断哪些规则最有效。</p>
+  </div>
+</div>
+
+<!-- ── Categories ── -->
+<h2>规则分类说明</h2>
+
+<table>
+  <tr><th>分类</th><th>适合放什么</th></tr>
+  <tr><td>通用</td><td>一般临床注意事项、沟通原则、患者教育要点</td></tr>
+  <tr><td>诊断</td><td>鉴别诊断思路、危险信号识别、检查优先顺序</td></tr>
+  <tr><td>随访</td><td>术后复查时间点、随访频率要求、何时需要紧急回诊</td></tr>
+  <tr><td>用药</td><td>常用药物剂量范围、禁忌组合、特殊人群调整原则</td></tr>
+</table>
+
+<div class="notice-box">
+  <b>分类不影响 AI 引用：</b>AI 在生成建议时会读取所有分类的规则，分类只是方便您自己管理查找。
+</div>
+
+<div class="categories">
+  相关页面: <a href="wiki-review.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-review.html')}">审核中心</a> &nbsp; <a href="wiki-ai.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-ai.html')}">AI 如何工作</a>
+</div>
+
+</div>
+</body>
+</html>

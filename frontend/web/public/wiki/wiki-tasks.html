@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="wiki-common.css">
+</head>
+<body>
+<div class="page-wrap">
+
+<div class="breadcrumb">
+  <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">帮助中心</a> › 随访任务
+</div>
+
+<h1>随访任务</h1>
+
+<p class="hatnote">AI 帮您追踪每位患者的随访计划，到期提醒，不遗漏任何一位。</p>
+
+<div class="notice-box">
+  <b>核心设计：</b>患者问诊结束后，系统自动为您创建随访任务；您审核完病历后，下一步随访也自动进入日程。整个流程无需手动记录。
+</div>
+
+
+<h2>任务中心的四个视图</h2>
+
+<p>任务页面分为四个标签，每个标签对应一种工作场景：</p>
+
+<div class="section-grid">
+  <div class="section-card">
+    <h3>患者消息·待回复</h3>
+    <p>患者发来的消息会出现在这里。AI 已为每条消息准备了回复草稿，您只需查看、修改（如有需要），然后一键发送。</p>
+  </div>
+  <div class="section-card">
+    <h3>即将到期随访</h3>
+    <p>按到期时间排列的随访计划，显示"3 天后"、"明天"等相对时间提示，让您一眼知道哪位患者最紧迫。</p>
+  </div>
+  <div class="section-card">
+    <h3>待办提醒</h3>
+    <p>您自己创建的提醒事项，例如"提醒李女士复查"或"联系家属"。可以设置截止时间和备注。</p>
+  </div>
+  <div class="section-card">
+    <h3>最近已发送</h3>
+    <p>已完成的随访和已发送的消息历史，方便您回顾每位患者的沟通记录。</p>
+  </div>
+</div>
+
+
+<h2>回复患者消息</h2>
+
+<p>在"患者消息·待回复"标签中，每条患者消息都附有 AI 起草的回复建议。操作流程如下：</p>
+
+<div class="flow">
+  <div class="flow-step">点击消息条目</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">查看患者上下文和 AI 草稿</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">直接发送或修改后发送</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">消息进入"已发送"</div>
+</div>
+
+<div class="info-box">
+  <b>请注意：</b>AI 不会自动发送任何消息。每条回复都需要您确认后才会送达患者。
+</div>
+
+
+<h2>创建随访任务</h2>
+
+<h3>方式一：手动创建</h3>
+<p>点击页面右上角的 <b>+ 新建</b>，填写以下信息：</p>
+
+<table>
+  <tr><th>字段</th><th>说明</th></tr>
+  <tr><td>关联患者</td><td>从您的患者列表中选择</td></tr>
+  <tr><td>任务类型</td><td>随访 / 提醒 / 自定义</td></tr>
+  <tr><td>到期时间</td><td>选择具体日期和时间</td></tr>
+  <tr><td>备注</td><td>可选，填写注意事项</td></tr>
+</table>
+
+<h3>方式二：通过 AI 助手创建</h3>
+<p>在 AI 对话界面直接说："帮我给王先生设置两周后复诊提醒"，AI 会自动理解并创建任务，无需手动填表。</p>
+
+<h3>方式三：自动创建</h3>
+<p>以下操作会自动触发任务创建，无需您手动操作：</p>
+
+<table>
+  <tr><th>触发时机</th><th>自动创建的任务</th></tr>
+  <tr><td>患者完成问诊</td><td>新病历待审核提醒，出现在您的审核队列</td></tr>
+  <tr><td>您完成病历审核</td><td>该患者的下次随访任务，出现在"即将到期随访"</td></tr>
+</table>
+
+
+<h2>任务详情与提醒设置</h2>
+
+<p>点击任意任务条目进入详情页，可以：</p>
+
+<ul>
+  <li>查看完整任务信息：关联患者、类型、到期时间、备注</li>
+  <li>开启提醒通知，并选择提前时间（当日 / 提前 1 天 / 提前 3 天）</li>
+  <li>将任务标记为完成</li>
+  <li>删除任务（操作前会弹出确认提示）</li>
+</ul>
+
+<p>完成操作后，页面会短暂显示操作结果提示，例如"已标记完成"。</p>
+
+
+<div class="categories">
+  分类: <a href="#">使用指南</a> <a href="#">随访管理</a>
+</div>
+
+</div>
+</body>
+</html>
