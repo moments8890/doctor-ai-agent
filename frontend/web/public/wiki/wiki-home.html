@@ -26,13 +26,13 @@
 <div class="page-wrap">
 
 <h1>欢迎使用 Doctor AI</h1>
-<p class="hatnote">您的专属 AI 随访助手 — 学习您的诊疗经验，替您处理每天的随访工作。</p>
+<p class="hatnote">专科医生的个人随访副驾 — 学习您的诊疗规则，辅助处理术后随访工作。不是 EMR，不自动执行，所有输出需您确认。</p>
 
 <!-- ── Infobox ── -->
 <table class="infobox">
   <tr><td colspan="2" class="infobox-title">Doctor AI</td></tr>
   <tr><th>版本</th><td>v1.2.0</td></tr>
-  <tr><th>适用科室</th><td>各专科门诊</td></tr>
+  <tr><th>当前科室</th><td>神经外科（其他专科可通过规则定制）</td></tr>
   <tr><th>使用渠道</th><td>网页 + 微信小程序</td></tr>
   <tr><th>患者入口</th><td>扫码即用，无需下载</td></tr>
   <tr><th>数据安全</th><td>数据仅属于您，可随时导出</td></tr>
@@ -40,8 +40,8 @@
 
 <p><b>Doctor AI</b> 是面向专科医生的个人 AI 随访助手。您把自己的临床经验和诊疗规则教给它，它就能按照您的方式，帮您结构化采集病史、生成诊断建议、起草患者回复、追踪随访任务。</p>
 
-<div class="notice-box">
-  <b>核心理念：</b>"这个 AI 像我一样思考" — AI 引用的是您自己添加的规则，做出的建议来自您的临床经验，每一条输出都等待您的最终确认。
+<div class="warn-box">
+  <b>重要原则：</b>AI 永远不会自动发送消息或做出影响患者的操作。每条诊断建议和每条患者回复，都必须经过您的确认才会生效。AI 引用的是您在知识库中添加的规则。
 </div>
 
 <div class="clear"></div>
@@ -51,16 +51,13 @@
 
 <div class="benefit-row">
   <div class="benefit-item">
-    <div class="num">1+ 小时</div>
-    <div class="desc">每天节省的随访沟通时间</div>
+    <div class="desc">患者扫码后自动完成预问诊，您直接看到结构化病历</div>
   </div>
   <div class="benefit-item">
-    <div class="num">200+</div>
-    <div class="desc">AI 可同时处理的患者消息</div>
+    <div class="desc">患者消息先出 AI 草稿，您确认后才发送</div>
   </div>
   <div class="benefit-item">
-    <div class="num">100%</div>
-    <div class="desc">每条建议都经您审核确认</div>
+    <div class="desc">审核定稿后自动生成随访任务，到期提醒</div>
   </div>
 </div>
 
@@ -97,7 +94,7 @@
 <!-- ── CTA ── -->
 <div class="cta-box">
   <h3>5 分钟完成上手</h3>
-  <p>添加第一条规则、邀请第一位患者，立刻体验 AI 问诊和审核流程。</p>
+  <p>添加第一条规则、邀请第一位患者，立刻体验 预问诊和审核流程。</p>
   <a class="cta-btn" href="wiki-quickstart.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-quickstart.html')}">查看快速上手指南</a>
 </div>
 
@@ -110,8 +107,8 @@
     <p>把您的临床经验和诊疗规则教给 AI — 规则越多，AI 越像您。支持文字、文件、网址三种方式添加。</p>
   </a>
   <a class="section-card" href="wiki-review.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-review.html')}">
-    <h3>审核中心</h3>
-    <p>您的每日工作台。AI 已完成初步分析，等您最终确认。门诊诊断、患者回复一站处理。</p>
+    <h3>审核中心：诊断建议 + 回复草稿</h3>
+    <p>AI 生成的鉴别诊断等您确认，患者消息的回复草稿等您审核发送。两类审核，一个入口。</p>
   </a>
   <a class="section-card" href="wiki-patients.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-patients.html')}">
     <h3>患者管理</h3>
@@ -122,8 +119,8 @@
     <p>AI 审核后自动生成随访提醒，按日历视图或患者分组查看，确保不遗漏任何跟进。</p>
   </a>
   <a class="section-card" href="wiki-interview.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-interview.html')}">
-    <h3>患者问诊</h3>
-    <p>了解患者扫码后的体验 — AI 如何引导问诊，生成什么格式的病历，支持哪些输入方式。</p>
+    <h3>患者预问诊</h3>
+    <p>了解患者扫码后的体验 — AI 如何引导采集信息，生成什么格式的病历，支持哪些输入方式。</p>
   </a>
   <a class="section-card" href="wiki-faq.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-faq.html')}">
     <h3>常见问题</h3>

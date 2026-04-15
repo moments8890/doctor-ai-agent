@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from starlette.responses import Response
 
@@ -32,6 +33,9 @@ from db.engine import AsyncSessionLocal
 # ---------------------------------------------------------------------------
 _DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "static", "download")
 _WECHAT_STATIC_DIR = os.path.join(os.path.dirname(__file__), "static", "wechat")
+_WIKI_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "frontend", "web", "public", "wiki"
+)
 
 
 def include_routers(app: FastAPI) -> None:
@@ -51,6 +55,10 @@ def include_routers(app: FastAPI) -> None:
     app.include_router(transcribe_rest_router)
     app.include_router(voice_jssdk_router)
     app.include_router(voice_test_router)
+
+    # Wiki / help center — static HTML served at /wiki/
+    if os.path.isdir(_WIKI_DIR):
+        app.mount("/wiki", StaticFiles(directory=_WIKI_DIR, html=True), name="wiki")
 
 
 def register_health_and_utility_routes(
