@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import ForeignKey, Integer, String, DateTime, Text
+from sqlalchemy import ForeignKey, Integer, String, DateTime, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.engine import Base
@@ -15,6 +15,9 @@ from db.models.base import _utcnow
 class PersonaPendingItem(Base):
     """A pending persona rule discovered from a doctor edit."""
     __tablename__ = "persona_pending_items"
+    __table_args__ = (
+        UniqueConstraint("doctor_id", "pattern_hash", "status", name="uq_persona_pending_dedupe"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     doctor_id: Mapped[str] = mapped_column(
