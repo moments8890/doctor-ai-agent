@@ -7,7 +7,7 @@
  * @see /mock/doctor/settings/knowledge
  */
 import { useState } from "react";
-import { Box, InputAdornment, TextField, Typography } from "@mui/material";
+import { Box, Chip, InputAdornment, TextField, Typography } from "@mui/material";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import { TYPE, COLOR, ICON, RADIUS } from "../../../theme";
@@ -22,6 +22,9 @@ import AppButton from "../../../components/AppButton";
 import ListCard from "../../../components/ListCard";
 import IconBadge from "../../../components/IconBadge";
 import { ICON_BADGES, PAGE_HELP } from "../constants";
+import { useKbPending } from "../../../lib/doctorQueries";
+import { useAppNavigate } from "../../../hooks/useAppNavigate";
+import { dp } from "../../../utils/doctorBasePath";
 
 /* ── Helpers ── */
 
@@ -128,6 +131,10 @@ export default function KnowledgeSubpage({
   const sorted = mergeAndSort(regularItems, stats);
   const [search, setSearch] = useState("");
 
+  const { data: kbPendingData } = useKbPending();
+  const kbPendingCount = kbPendingData?.count || 0;
+  const navigate = useAppNavigate();
+
   // Compute weekly citation total
   const weekCitations = Array.isArray(stats)
     ? stats.reduce((sum, s) => sum + (s.total_count || 0), 0)
@@ -146,6 +153,23 @@ export default function KnowledgeSubpage({
 
   const listContent = (
     <Box sx={{ flex: 1, overflowY: "auto" }}>
+      {kbPendingCount > 0 && (
+        <Box
+          onClick={() => navigate(dp("settings/knowledge/pending"))}
+          sx={{
+            p: 1.5, m: 1.5, cursor: "pointer",
+            bgcolor: COLOR.surfaceAlt,
+            borderRadius: RADIUS.md,
+            display: "flex", alignItems: "center", gap: 1,
+          }}
+        >
+          <Chip label="新" size="small" color="warning" />
+          <Typography sx={{ fontSize: TYPE.body.fontSize }}>
+            AI 从您的编辑中发现 {kbPendingCount} 条待确认临床规则
+          </Typography>
+        </Box>
+      )}
+
       {loading && (
         <Box sx={{ textAlign: "center", py: 4 }}>
           <Typography sx={{ color: COLOR.text4 }}>加载中...</Typography>

@@ -30,6 +30,7 @@ import PersonaOnboardingSubpage from "./subpages/PersonaOnboardingSubpage";
 import PendingReviewSubpage from "./subpages/PendingReviewSubpage";
 import TeachByExampleSubpage from "./subpages/TeachByExampleSubpage";
 import AddKnowledgeSubpage from "./subpages/AddKnowledgeSubpage";
+import KbPendingSubpage from "./subpages/KbPendingSubpage";
 import { useDoctorStore } from "../../store/doctorStore";
 import SettingsListSubpage from "./subpages/SettingsListSubpage";
 import { SPECIALTY_OPTIONS, setOnboardingState, PAGE_HELP } from "./constants";
@@ -390,8 +391,11 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
   // Persona sub-routes: /settings/persona/onboarding, /settings/persona/pending, /settings/persona/teach
   // are encoded as urlSubpage="persona", urlSubId="onboarding"|"pending"|"teach" by the router.
   const PERSONA_SUB_IDS = ["onboarding", "pending", "teach"];
+  const KNOWLEDGE_SUB_IDS = ["pending"];
   const subpage = (urlSubpage === "persona" && PERSONA_SUB_IDS.includes(urlSubId))
     ? `persona/${urlSubId}`
+    : (urlSubpage === "knowledge" && KNOWLEDGE_SUB_IDS.includes(urlSubId))
+    ? `knowledge/${urlSubId}`
     : (urlSubpage || null);
   const goSub = (sub) => navigate(`${dp("settings")}/${sub}`);
   const goBack = () => navigate(-1);
@@ -480,6 +484,8 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
     <PersonaOnboardingSubpage onBack={goBack} isMobile />
   ) : isMobile && subpage === "persona/pending" ? (
     <PendingReviewSubpage onBack={goBack} isMobile />
+  ) : isMobile && subpage === "knowledge/pending" ? (
+    <KbPendingSubpage onBack={goBack} isMobile />
   ) : isMobile && subpage === "persona" ? (
     <PersonaSubpage doctorId={doctorId} onBack={goBack} isMobile />
   ) : isMobile && subpage === "template" ? (
@@ -542,6 +548,8 @@ export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId 
     <PersonaOnboardingSubpage onBack={goBack} />
   ) : subpage === "persona/pending" ? (
     <PendingReviewSubpage onBack={goBack} />
+  ) : subpage === "knowledge/pending" ? (
+    <KbPendingSubpage onBack={goBack} />
   ) : subpage === "persona" ? (
     <PersonaSubpage doctorId={doctorId} onBack={goBack} />
   ) : subpage === "template" ? (
