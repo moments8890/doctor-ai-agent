@@ -1,0 +1,114 @@
+.page {
+  min-height: 100vh;
+  background: #f7f7f7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48rpx 32rpx;
+  box-sizing: border-box;
+}
+
+.hint {
+  color: #8a8a8a;
+  font-size: 28rpx;
+  text-align: center;
+  max-width: 560rpx;
+  margin: 32rpx 0 48rpx;
+  line-height: 1.6;
+}
+
+.mic-btn {
+  width: 240rpx;
+  height: 240rpx;
+  border-radius: 50%;
+  background: #07C160;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(7, 193, 96, 0.25);
+}
+
+.mic-btn.recording {
+  background: #ff4d4f;
+  transform: scale(1.05);
+}
+
+.mic-icon {
+  color: #ffffff;
+  font-size: 88rpx;
+}
+
+.timer {
+  color: #8a8a8a;
+  font-size: 32rpx;
+  margin-top: 32rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  color: #8a8a8a;
+  font-size: 26rpx;
+  margin-top: 16rpx;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-top: 32rpx;
+  width: 100%;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.badge {
+  display: inline-block;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  margin-bottom: 16rpx;
+}
+.badge-custom { background: #f0f0f0; color: #555; }
+.badge-diagnosis { background: #e6f4ff; color: #1677ff; }
+.badge-followup { background: #e8f5e9; color: #07C160; }
+.badge-medication { background: #fff7e6; color: #fa8c16; }
+
+.content {
+  color: #1a1a1a;
+  font-size: 32rpx;
+  line-height: 1.6;
+  margin-bottom: 32rpx;
+}
+
+.btn-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+}
+
+.btn-primary { background: #07C160; color: #ffffff; }
+.btn-secondary { background: #ffffff; color: #333333; border: 2rpx solid #e0e0e0; }
+.btn-tertiary { background: transparent; color: #8a8a8a; }
+
+.transcript {
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid #f0f0f0;
+  color: #8a8a8a;
+  font-size: 26rpx;
+}
+
+.error-msg {
+  color: #333;
+  font-size: 30rpx;
+  margin: 48rpx 0;
+  text-align: center;
+}

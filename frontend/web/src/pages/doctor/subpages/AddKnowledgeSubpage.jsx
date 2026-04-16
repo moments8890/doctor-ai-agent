@@ -6,6 +6,7 @@
  *   2. File upload — extract text from PDF/DOCX/TXT, preview & edit, then save
  */
 import { useEffect, useState, useRef } from "react";
+import { isInMiniapp, openAddRuleVoice } from "../../../utils/miniappBridge";
 import { Alert, Box, CircularProgress, TextField, Typography } from "@mui/material";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
@@ -61,7 +62,6 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
   const [editedText, setEditedText] = useState("");
   const [sourceFilename, setSourceFilename] = useState("");
   const [llmProcessed, setLlmProcessed] = useState(false);
-  const [showVoice, setShowVoice] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, showToast] = useToast();
   const [nextStepOpen, setNextStepOpen] = useState(false);
@@ -71,12 +71,6 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
   // ── URL fetch state ──
   const [urlInput, setUrlInput] = useState("");
   const [fetchingUrl, setFetchingUrl] = useState(false);
-
-  // ── Voice input state ──
-  const [voiceRecording, setVoiceRecording] = useState(false);
-  const voiceRecRef = useRef(null);
-  const voiceTimerRef = useRef(null);
-  const [voiceSeconds, setVoiceSeconds] = useState(0);
 
   // ── Source tab state ──
   const [sourceTab, setSourceTab] = useState(wizardSource || "text");
@@ -387,6 +381,28 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
           })}
         </Box>
       </Box>
+
+      {/* Voice entry — only visible inside WeChat miniapp */}
+      {isInMiniapp() && (
+        <Box
+          onClick={() => {
+            openAddRuleVoice({
+              onStaleVersion: () => showToast("请更新小程序到最新版本"),
+            });
+          }}
+          sx={{
+            display: "flex", alignItems: "center", gap: 1,
+            px: 2, py: 1.5, mx: 2, mt: 1,
+            border: `1px solid ${COLOR.border}`,
+            borderRadius: RADIUS.md, cursor: "pointer",
+            bgcolor: COLOR.white,
+            "&:active": { opacity: 0.7 },
+          }}
+        >
+          <MicIcon sx={{ color: COLOR.primary }} />
+          <Typography sx={{ fontSize: TYPE.body.fontSize || TYPE.body, color: COLOR.text1 }}>语音添加规则</Typography>
+        </Box>
+      )}
 
       {/* URL input — shown when "网页导入" selected */}
       {sourceTab === "url" && (

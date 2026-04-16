@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import json
+import pathlib as _pathlib
 import pathlib
 from datetime import datetime
-from typing import List, Optional
+from enum import Enum
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
@@ -25,9 +27,12 @@ from domain.knowledge.doctor_knowledge import (
 )
 from channels.web.doctor_dashboard.deps import _resolve_ui_doctor_id
 from db.models.doctor import KnowledgeCategory
+from services.asr.provider import transcribe_audio_bytes, get_asr_provider, ASRProvider
 
 # Base directory for storing original uploaded files
 _UPLOADS_DIR = pathlib.Path(__file__).resolve().parents[4] / "uploads"
+
+_MAX_AUDIO_BYTES = 10 * 1024 * 1024  # 10 MB
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
 
@@ -40,6 +45,107 @@ class AddKnowledgeRequest(BaseModel):
 class ProcessTextRequest(BaseModel):
     text: str
 
+
+class VoiceExtractError(str, Enum):
+    no_rule_found = "no_rule_found"
+    multi_rule_detected = "multi_rule_detected"
+    audio_unclear = "audio_unclear"
+    too_long = "too_long"
+    internal = "internal"
+
+
+class VoiceRuleCandidate(BaseModel):
+    content: str
+    category: KnowledgeCategory
+
+
+class VoiceExtractLLMResult(BaseModel):
+    """Raw LLM output shape — strict JSON contract enforced via structured_call."""
+    content: str | None = None
+    category: KnowledgeCategory | None = None
+    error: Literal["no_rule_found", "multi_rule_detected"] | None = None
+
+
+class VoiceExtractResponse(BaseModel):
+    """HTTP response shape returned to miniapp."""
+    transcript: str
+    candidate: VoiceRuleCandidate | None = None
+    error: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Voice → rule extraction helpers
+# ---------------------------------------------------------------------------
+
+from agent.llm import structured_call as _structured_call
+
+_VOICE_PROMPT_PATH = (
+    _pathlib.Path(__file__).resolve().parents[4]
+    / "src" / "agent" / "prompts" / "voice_to_rule.md"
+)
+
+
+async def _call_voice_extract_llm(
+    transcript: str,
+    specialty: str,
+) -> VoiceExtractLLMResult:
+    """Call the LLM with voice_to_rule prompt. Returns structured result."""
+    prompt_template = _VOICE_PROMPT_PATH.read_text(encoding="utf-8")
+    filled = prompt_template.replace(
+        "{{transcript}}", transcript
+    ).replace("{{specialty}}", specialty or "")
+    return await _structured_call(
+        messages=[{"role": "user", "content": filled}],
+        response_model=VoiceExtractLLMResult,
+        op_name="voice_to_rule",
+        env_var="ROUTING_LLM",
+        temperature=0.1,
+        max_tokens=600,
+    )
+
+
+async def extract_rule_from_transcript(
+    transcript: str,
+    specialty: str,
+) -> VoiceExtractResponse:
+    """Extract a candidate rule from an ASR transcript.
+
+    Returns VoiceExtractResponse with one of:
+      - candidate populated, error=None (success)
+      - candidate=None, error="audio_unclear" (empty transcript)
+      - candidate=None, error="no_rule_found" | "multi_rule_detected"
+    """
+    if not transcript.strip():
+        return VoiceExtractResponse(
+            transcript="",
+            candidate=None,
+            error="audio_unclear",
+        )
+
+    llm_result = await _call_voice_extract_llm(transcript, specialty)
+
+    if llm_result.error:
+        return VoiceExtractResponse(
+            transcript=transcript,
+            candidate=None,
+            error=llm_result.error,
+        )
+
+    if llm_result.content and llm_result.category:
+        return VoiceExtractResponse(
+            transcript=transcript,
+            candidate=VoiceRuleCandidate(
+                content=llm_result.content,
+                category=llm_result.category,
+            ),
+            error=None,
+        )
+
+    return VoiceExtractResponse(
+        transcript=transcript,
+        candidate=None,
+        error="no_rule_found",
+    )
 
 
 @router.get("/api/manage/knowledge")
@@ -386,3 +492,62 @@ async def serve_knowledge_file(
         raise HTTPException(404, "文件不存在")
 
     return FileResponse(str(abs_path), filename=abs_path.name)
+
+
+# ---------------------------------------------------------------------------
+# Voice → rule extraction endpoint
+# ---------------------------------------------------------------------------
+
+async def _get_doctor_specialty(session: AsyncSession, doctor_id: str) -> str | None:
+    """Fetch the doctor's specialty field (nullable) for prompt context."""
+    from sqlalchemy import select
+    from db.models.doctor import Doctor
+
+    stmt = select(Doctor.specialty).where(Doctor.doctor_id == doctor_id)
+    row = (await session.execute(stmt)).scalar_one_or_none()
+    return row
+
+
+@router.post("/api/manage/knowledge/voice-extract")
+async def voice_extract(
+    file: UploadFile = File(...),
+    doctor_id: str = Query(...),
+    authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
+):
+    """Receive audio from miniapp, run ASR + LLM extract, return candidate."""
+    # Fail fast if ASR provider is not configured (mirror /api/transcribe)
+    if get_asr_provider() == ASRProvider.browser:
+        raise HTTPException(
+            400,
+            "ASR provider not configured on server (ASR_PROVIDER=browser).",
+        )
+
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+
+    audio_bytes = await file.read()
+    if len(audio_bytes) == 0:
+        return VoiceExtractResponse(transcript="", candidate=None, error="audio_unclear")
+    if len(audio_bytes) > _MAX_AUDIO_BYTES:
+        return VoiceExtractResponse(transcript="", candidate=None, error="too_long")
+
+    # Derive audio format from filename extension (e.g. "webm", "mp3", "wav")
+    filename = file.filename or "audio.mp3"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "mp3"
+
+    # ASR (shared service module)
+    try:
+        transcript = await transcribe_audio_bytes(audio_bytes, format=ext)
+    except Exception:
+        raise HTTPException(502, "ASR provider error")
+
+    # Fetch doctor specialty (nullable) for prompt context
+    specialty = await _get_doctor_specialty(session, resolved) or ""
+
+    # LLM extraction
+    try:
+        result = await extract_rule_from_transcript(transcript=transcript, specialty=specialty)
+    except Exception:
+        raise HTTPException(502, "Extraction error")
+
+    return result

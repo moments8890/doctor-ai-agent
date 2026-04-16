@@ -3,7 +3,8 @@
     "pages/login/login",
     "pages/doctor/doctor",
     "pages/voice/voice",
-    "pages/voice-test/voice-test"
+    "pages/voice-test/voice-test",
+    "pages/add-rule/add-rule"
   ],
   "window": {
     "navigationStyle": "custom",

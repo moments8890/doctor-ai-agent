@@ -1,0 +1,197 @@
+# Test cases for voice_to_rule.md
+# Prompt: Chinese voice transcript → {content, category, error} JSON
+
+- description: "clean followup rule for neurosurgery"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "前交通动脉瘤术后第二周要关注记忆问题"
+    specialty: "神经外科"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === null && o.category === 'followup' && o.content && o.content.includes('记忆');
+
+- description: "diagnosis rule with drug context"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "嗯那个服用抗凝药的患者如果出现新发头痛加重要警惕脑出血"
+    specialty: "神经外科"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === null && o.category === 'diagnosis' && o.content.includes('抗凝');
+
+- description: "medication rule with dosing"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "阿托伐他汀二十毫克晚上睡前吃"
+    specialty: ""
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === null && o.category === 'medication' && o.content.includes('阿托伐他汀') && o.content.includes('20');
+
+- description: "long story no rule → no_rule_found"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "今天遇到一个很有意思的病例啊患者五十多岁男性来的时候就是说头痛我就觉得可能是硬膜下血肿然后做了CT确实是但是后来处理得很顺利"
+    specialty: "神经外科"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === 'no_rule_found' && o.content === null;
+
+- description: "multi-rule memo → multi_rule_detected, not silently picked"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "前交通术后两周看记忆，另外如果患者有高血压要控制收缩压在140以下"
+    specialty: "神经外科"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === 'multi_rule_detected' && o.content === null;
+
+- description: "too short / ambiguous → no_rule_found"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "注意观察"
+    specialty: ""
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === 'no_rule_found';
+
+- description: "custom / communication style rule"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "回复患者的时候要尽量用大白话不要用太多专业术语"
+    specialty: ""
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === null && o.category === 'custom';
+
+- description: "red flag as custom rule"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "术后患者如果出现瞳孔不等大立刻联系我不管几点"
+    specialty: "神经外科"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === null && o.content.includes('瞳孔');
+
+- description: "followup schedule with time window"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "开颅术后第一个月每周回访一次之后每个月一次"
+    specialty: "神经外科"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === null && o.category === 'followup';
+
+- description: "filler-heavy transcript extracts cleanly"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "嗯就是那个呃术后第三天要拆线就这样"
+    specialty: ""
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === null && !o.content.includes('嗯') && !o.content.includes('呃');
+
+- description: "drug with contraindication"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "对磺胺过敏的病人不能用甘露醇要换成呋塞米"
+    specialty: ""
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === null && o.category === 'medication' && o.content.includes('磺胺');
+
+- description: "question (not a rule) → no_rule_found"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "这个病人怎么办啊"
+    specialty: ""
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === 'no_rule_found';
+
+- description: "empty specialty variable handled"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "高血压患者收缩压要控制在140以下"
+    specialty: ""
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === null;
+
+- description: "output parses as JSON regardless of fence formatting"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "术后第三天拆线"
+    specialty: ""
+  assert:
+    - type: javascript
+      value: |
+        // Accept either pure JSON or JSON wrapped in a ```json fence
+        const stripped = output.trim().replace(/^```json\s*|\s*```$/g, '');
+        try { JSON.parse(stripped); return true; } catch (_) { return false; }
+
+- description: "diagnosis with threshold"
+  options:
+    prompts: [voice-to-rule]
+  vars:
+    transcript: "GCS评分低于八分的要考虑气管插管"
+    specialty: "神经外科"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.error === null && o.category === 'diagnosis' && o.content.includes('GCS');

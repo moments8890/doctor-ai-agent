@@ -1,0 +1,62 @@
+<view class="page">
+  <!-- idle -->
+  <view wx:if="{{state === 'idle'}}">
+    <view class="mic-btn" bindtouchstart="onMicPressStart" bindtouchend="onMicPressEnd">
+      <text class="mic-icon">🎙</text>
+    </view>
+    <view class="hint">长按说话，例如：{{hintText}}</view>
+    <view class="label">松开结束</view>
+  </view>
+
+  <!-- recording -->
+  <view wx:if="{{state === 'recording'}}">
+    <view class="mic-btn recording" bindtouchend="onMicPressEnd">
+      <text class="mic-icon">🎙</text>
+    </view>
+    <view class="timer">{{elapsed}}s</view>
+    <view class="label">松开结束</view>
+  </view>
+
+  <!-- processing -->
+  <view wx:if="{{state === 'processing'}}">
+    <view class="hint">正在识别…</view>
+  </view>
+
+  <!-- perm_denied -->
+  <view wx:if="{{state === 'perm_denied'}}">
+    <view class="error-msg">需要录音权限才能使用此功能</view>
+    <view class="btn-row">
+      <view class="btn btn-primary" bindtap="onOpenSetting">去设置</view>
+      <view class="btn btn-secondary" bindtap="onCancel">取消</view>
+    </view>
+  </view>
+
+  <!-- candidate -->
+  <view wx:if="{{state === 'candidate'}}" class="card">
+    <view class="badge {{candidate._badgeClass}}">{{candidate._label}}</view>
+    <view class="content">{{candidate.content}}</view>
+    <view class="btn-row">
+      <view class="btn btn-primary" bindtap="onSave">保存</view>
+      <view class="btn btn-secondary" bindtap="onReRecord">重说</view>
+    </view>
+    <view class="btn-row" style="margin-top: 12rpx;">
+      <view class="btn btn-tertiary" bindtap="onEditContent">修改文字</view>
+    </view>
+    <view wx:if="{{transcript}}" class="transcript">原话：{{transcript}}</view>
+  </view>
+
+  <!-- saving -->
+  <view wx:if="{{state === 'saving'}}">
+    <view class="hint">正在保存…</view>
+  </view>
+
+  <!-- error -->
+  <view wx:if="{{state === 'error'}}">
+    <view class="error-msg">{{errorCopy[errorCode] || '出错了，请重试'}}</view>
+    <view class="btn-row">
+      <view class="btn btn-primary" bindtap="onReRecord">重说</view>
+      <view class="btn btn-secondary" bindtap="onCancel">取消</view>
+    </view>
+    <view wx:if="{{transcript}}" class="transcript">原话：{{transcript}}</view>
+  </view>
+</view>
