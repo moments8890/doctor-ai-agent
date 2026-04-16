@@ -37,17 +37,16 @@ router = APIRouter(tags=["ui"], include_in_schema=False)
 # ── Background helpers ─────────────────────────────────────────────────
 
 
-async def _process_edit_for_persona_bg(doctor_id: str, original: str, edited: str, edit_id: int):
-    """Fire-and-forget persona learning from edit."""
+async def _process_edit_for_learning_bg(doctor_id: str, original: str, edited: str, edit_id: int):
+    """Fire-and-forget: run dual-track learning classifier in a fresh session."""
     try:
         from db.engine import AsyncSessionLocal
-        from domain.knowledge.persona_learning import process_edit_for_persona
+        from domain.knowledge.persona_learning import process_edit_for_learning
         async with AsyncSessionLocal() as session:
-            await process_edit_for_persona(session, doctor_id, original, edited, edit_id)
+            await process_edit_for_learning(session, doctor_id, original, edited, edit_id)
             await session.commit()
     except Exception as exc:
-        from utils.log import log
-        log(f"[persona_learning] background processing failed (non-fatal): {exc}", level="warning")
+        log(f"[draft_handlers] learning bg task failed: {exc}", level="warning")
 
 
 # ── Request / Response Models ────────────────────────────────────────────
@@ -417,27 +416,24 @@ async def edit_draft(
     draft.edited_text = edited_text
     draft.status = DraftStatus.edited.value
 
-    # Teaching loop: check if edit is significant
-    teach_prompt = False
-    edit_id: Optional[int] = None
+    # Always log the edit — provides edit_id for learning pipeline
+    edit_id = await log_doctor_edit(
+        db,
+        doctor_id=resolved,
+        entity_type="draft_reply",
+        entity_id=draft_id,
+        original_text=original_text,
+        edited_text=edited_text,
+    )
 
-    if should_prompt_teaching(original_text, edited_text):
-        teach_prompt = True
-        edit_id = await log_doctor_edit(
-            db,
-            doctor_id=resolved,
-            entity_type="draft_reply",
-            entity_id=draft_id,
-            original_text=original_text,
-            edited_text=edited_text,
-        )
+    # Teach-prompt UI is still gated by significance (UX unchanged)
+    teach_prompt = should_prompt_teaching(original_text, edited_text)
 
     await db.commit()
 
-    # Fire-and-forget persona learning
-    if edit_id is not None:
-        import asyncio
-        asyncio.ensure_future(_process_edit_for_persona_bg(resolved, original_text, edited_text, edit_id))
+    # Always fire the learning pipeline regardless of teach-prompt gate
+    import asyncio
+    asyncio.ensure_future(_process_edit_for_learning_bg(resolved, original_text, edited_text, edit_id))
 
     log(f"[draft] edited draft {draft_id} for doctor={resolved} teach={teach_prompt}")
 
