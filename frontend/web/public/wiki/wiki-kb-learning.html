@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="wiki-common.css">
+<style>
+  /* Diagram */
+  .kb-diagram { background: #fafafa; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 16px 0; overflow-x: auto; }
+  .kb-row { display: flex; gap: 8px; align-items: stretch; margin: 8px 0; flex-wrap: nowrap; min-width: 780px; }
+  .kb-col { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 110px; }
+  .kb-box { background: #fff; border: 1px solid #c8c8c8; border-radius: 6px; padding: 8px 10px; font-size: 12px; line-height: 1.45; }
+  .kb-box h5 { font-size: 11px; font-weight: bold; color: #0d5c2e; margin: 0 0 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kb-box small { color: #888; font-size: 10px; }
+  .kb-box.input { background: #e8f5e9; border-color: #a5d6a7; }
+  .kb-box.llm { background: #fff3e0; border-color: #ffb74d; }
+  .kb-box.store { background: #e3f2fd; border-color: #90caf9; }
+  .kb-box.retrieve { background: #f3e5f5; border-color: #ce93d8; }
+  .kb-box.output { background: #fff; border-color: #4caf50; border-width: 2px; }
+  .kb-box.partial { background: #fff3e0; border-color: #ffb74d; }
+  .kb-box.partial h5 { color: #e65100; }
+  .kb-box.gap { background: #ffebee; border: 1px dashed #e57373; color: #b71c1c; }
+  .kb-box.gap h5 { color: #b71c1c; }
+  .kb-arrow { display: flex; align-items: center; justify-content: center; font-size: 16px; color: #4caf50; font-weight: bold; padding: 0 2px; min-width: 14px; }
+  .kb-stage-label { font-size: 10px; font-weight: bold; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-top: 16px; margin-bottom: 4px; }
+
+  /* Two-track compare */
+  .track-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+  @media (max-width: 600px) { .track-grid { grid-template-columns: 1fr; } }
+  .track-card { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 14px 16px; }
+  .track-card h4 { font-size: 14px; color: #0d5c2e; margin: 0 0 6px; }
+  .track-card .tag { display: inline-block; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 3px; margin-bottom: 6px; }
+  .tag-explicit { background: #e8f5e9; color: #0d5c2e; }
+  .tag-implicit { background: #fff3e0; color: #e65100; }
+  .track-card ul { margin: 6px 0 0 18px; font-size: 12px; color: #555; line-height: 1.6; }
+
+  /* Status badges */
+  .badge-built { background: #e8f5e9; color: #0d5c2e; padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+  .badge-partial { background: #fff3e0; color: #e65100; padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+  .badge-missing { background: #ffebee; color: #b71c1c; padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+
+  /* Gap callout */
+  .gap-box { background: #fff8e1; border-left: 4px solid #ffa726; border-radius: 0 6px 6px 0; padding: 12px 16px; margin: 12px 0; font-size: 13px; color: #555; line-height: 1.6; }
+  .gap-box b { color: #e65100; }
+  .gap-box code { background: #f5f5f5; padding: 1px 4px; border-radius: 3px; font-size: 11px; }
+
+  .code-ref { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #666; background: #f5f5f5; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<div class="breadcrumb">
+  <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">首页</a> › 了解更多 › AI 学习闭环
+</div>
+
+<h1>AI 学习闭环 — 当前全景</h1>
+<p class="hatnote">从规则输入到反馈回流的完整流程，以及还缺什么。</p>
+
+<div class="warn-box">
+  <b>一句话总结：</b>系统有两条并行学习线 — <b>显式规则</b>（您主动添加的临床知识）和 <b>隐式人格</b>（从您的编辑中提炼的<u>行文风格</u>）。人格线<b>按设计就只学风格</b>，所以当 LLM 把您的编辑识别为"事实修正"时会被<b>有意丢弃</b>。这就是真正的缺口所在。
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2>完整闭环图</h2>
+
+<p>下图展示从"规则进入"到"建议回流"的 5 个阶段。<span class="badge-built">绿色</span>=已上线，<span class="badge-partial">橙色</span>=部分/半成品，<span class="badge-missing">红框虚线</span>=未建。</p>
+
+<div class="kb-diagram">
+
+  <div class="kb-stage-label">① 输入 — 8+ 种入口</div>
+  <div class="kb-row">
+    <div class="kb-col"><div class="kb-box input"><h5>手动文字</h5>直接输入规则<br><small>AddKnowledge</small></div></div>
+    <div class="kb-col"><div class="kb-box input"><h5>文件上传</h5>PDF/Word/图片<br><small>LLM 抽取要点</small></div></div>
+    <div class="kb-col"><div class="kb-box input"><h5>URL 导入</h5>粘贴网页<br><small>自动抓取正文</small></div></div>
+    <div class="kb-col"><div class="kb-box input"><h5>拍照 OCR</h5>相机/相册<br><small>结构化</small></div></div>
+    <div class="kb-col"><div class="kb-box input"><h5>语音（新）</h5>腾讯医疗 ASR<br><small>小程序录音</small></div></div>
+    <div class="kb-col"><div class="kb-box input"><h5>引导问卷</h5>3 情景 → persona<br><small>新医生首次</small></div></div>
+    <div class="kb-col"><div class="kb-box input"><h5>persona 教学</h5>按例子教风格<br><small>/settings/persona/teach</small></div></div>
+    <div class="kb-col"><div class="kb-box input"><h5>WeChat 命令</h5>add_to_knowledge_base<br><small>微信公众号</small></div></div>
+  </div>
+  <div class="kb-row">
+    <div class="kb-col" style="flex:2;"><div class="kb-box input"><h5>"保存为规则"（编辑→KB 桥）</h5>医生改完草稿/诊断，UI 弹出"保存为规则"，调 <span class="code-ref">teaching_handlers.py:25</span> → <span class="code-ref">teaching.py:81</span> → 写入 doctor_knowledge_items。<b>已上线</b>：草稿回复路径。<b>半成品</b>：诊断审核路径（后端发 teach_prompt，前端不展示）。</div></div>
+  </div>
+
+  <div class="kb-stage-label">② 结构化 — LLM 解析为候选</div>
+  <div class="kb-row">
+    <div class="kb-col"><div class="kb-box llm"><h5>规则抽取 LLM</h5>voice_to_rule / 文件抽取 prompt<br><small>输出：{content, category}</small></div></div>
+    <div class="kb-arrow">→</div>
+    <div class="kb-col"><div class="kb-box llm"><h5>医生确认</h5>候选卡片：保存 / 修改文字 / 重说<br><small>人工把关，不自动落库</small></div></div>
+  </div>
+
+  <div class="kb-stage-label">③ 存储 — 两张表（双轨，按设计分工）</div>
+  <div class="kb-row">
+    <div class="kb-col" style="flex: 2;">
+      <div class="kb-box store">
+        <h5>doctor_knowledge_items（显式规则）</h5>
+        <b>您主动教的临床规则。</b><br>
+        字段：content、category、reference_count、seed_source、confidence<br>
+        <small>分类：custom / diagnosis / followup / medication</small>
+      </div>
+    </div>
+    <div class="kb-col" style="flex: 2;">
+      <div class="kb-box store">
+        <h5>doctor_personas（隐式人格·按设计仅限风格）</h5>
+        <b>AI 模仿您的行文方式，不存临床内容。</b><br>
+        字段：reply_style / closing / structure / avoid / edits<br>
+        <small>Prompt 规定：只接受 style 类，factual/context_specific 明确排除</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="kb-stage-label">④ 检索 — 喂给 AI（无 RAG，全量打分）</div>
+  <div class="kb-row">
+    <div class="kb-col"><div class="kb-box retrieve"><h5>候选池</h5>按 updated_at 降序<br><small>上限 30 条</small></div></div>
+    <div class="kb-arrow">→</div>
+    <div class="kb-col"><div class="kb-box retrieve"><h5>token 打分</h5>jieba × source_weight × confidence<br><small>doctor=0.5 &gt; imported=0.2</small></div></div>
+    <div class="kb-arrow">→</div>
+    <div class="kb-col"><div class="kb-box retrieve"><h5>取 top 5</h5>字符软上限 6000<br><small>5 分钟内存缓存</small></div></div>
+    <div class="kb-arrow">→</div>
+    <div class="kb-col"><div class="kb-box retrieve"><h5>注入 prompt</h5>第 4 层 = KB，第 5 层 = persona<br><small>诊断 / 回复 / 随访 / 摘要</small></div></div>
+  </div>
+
+  <div class="kb-stage-label">⑤ 回流 — 使用 → 计数 → 反学习</div>
+  <div class="kb-row">
+    <div class="kb-col"><div class="kb-box output"><h5>LLM 输出 [KB-N]</h5>建议里内联标注<br><small>前端点击查看原文</small></div></div>
+    <div class="kb-arrow">→</div>
+    <div class="kb-col"><div class="kb-box output"><h5>citation_parser</h5>正则抽取 [KB-N]<br><small>去重 + 幻觉检测（只打日志）</small></div></div>
+    <div class="kb-arrow">→</div>
+    <div class="kb-col"><div class="kb-box output"><h5>usage_log 写入</h5>reference_count += 1<br><small>在 LLM 输出时计数，非"被医生采纳"</small></div></div>
+    <div class="kb-arrow">→</div>
+    <div class="kb-col"><div class="kb-box partial"><h5>医生编辑（已捕获）</h5>草稿/诊断 both 写入 DoctorEdit<br><small>diagnosis_handlers.py:244</small></div></div>
+    <div class="kb-arrow">→</div>
+    <div class="kb-col"><div class="kb-box partial"><h5>persona-classify LLM</h5>仅草稿编辑触发<br><small>诊断编辑只发 teach_prompt</small></div></div>
+    <div class="kb-arrow">→</div>
+    <div class="kb-col"><div class="kb-box partial"><h5>persona_pending_items</h5>pattern_hash 去重 + 90 天抑制<br><small>accept 只能写 persona，不能写 KB</small></div></div>
+  </div>
+
+  <div class="kb-stage-label" style="color: #b71c1c;">⑥ 缺失 — 尚未接通的信号</div>
+  <div class="kb-row">
+    <div class="kb-col"><div class="kb-box gap"><h5>事实类编辑被丢弃</h5>persona-classify 识别为 factual / context_specific 时，persona_learning.py:32 直接 return<br><small>最密集的临床判断信号被有意丢弃</small></div></div>
+    <div class="kb-col"><div class="kb-box gap"><h5>诊断审核 teach_prompt 半成品</h5>后端已发 teach_prompt，ReviewPage.jsx:267 不读取<br><small>UI 没"保存为规则"按钮</small></div></div>
+    <div class="kb-col"><div class="kb-box gap"><h5>幻觉引用不暴露</h5>citation_parser.py:55 只打警告日志<br><small>医生看不到"AI 引用了不存在的 KB-X"</small></div></div>
+    <div class="kb-col"><div class="kb-box gap"><h5>拒绝反馈</h5>AI 引用被拒绝时不追溯到 KB-N<br><small>AISuggestion.decision 存了信号但没读模型</small></div></div>
+    <div class="kb-col"><div class="kb-box gap"><h5>规则健康仪表盘</h5>没有 per-rule 使用/编辑/拒绝比例<br><small>没有"淘汰机制"</small></div></div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2>两条学习线的分工</h2>
+
+<div class="track-grid">
+  <div class="track-card">
+    <div class="tag tag-explicit">显式线</div>
+    <h4>doctor_knowledge_items — 您教给 AI 的临床规则</h4>
+    <ul>
+      <li><b>来源：</b>您主动添加（文字/文件/URL/拍照/语音/WeChat 命令），或通过"保存为规则"从编辑里沉淀</li>
+      <li><b>内容：</b>临床规则 — 诊断逻辑、用药禁忌、随访频率</li>
+      <li><b>触发编辑→KB 的路径：</b>草稿回复已上线，诊断审核半成品（后端发 teach_prompt，前端不响应）</li>
+      <li><b>引用方式：</b>[KB-N] 标注 → 点击看原文</li>
+      <li><b>分类：</b>通用 / 诊断 / 随访 / 用药</li>
+    </ul>
+  </div>
+  <div class="track-card">
+    <div class="tag tag-implicit">隐式线</div>
+    <h4>doctor_personas — AI 偷学您的风格（按设计仅限风格）</h4>
+    <ul>
+      <li><b>来源：</b>仅草稿编辑触发 persona-classify LLM 分析</li>
+      <li><b>内容：</b>行文风格 — 称谓、结语、结构、避讳</li>
+      <li><b>按设计排除：</b>事实修正、情景特异性判断 — prompt 明确标注"不要归入 persona"</li>
+      <li><b>引用方式：</b>作为第 5 层 system prompt，不显式引用</li>
+      <li><b>字段：</b>reply_style / closing / structure / avoid / edits</li>
+    </ul>
+  </div>
+</div>
+
+<div class="info-box">
+  <b>关键澄清：</b>persona 只学风格是<b>有意的架构选择</b>，不是 bug。硬规则放 KB，风格放 persona — 两者互补。真正的缺口是：当 LLM 把您的编辑识别为"事实修正"时，这条信号没有第二个收集器，直接丢掉。
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2>当前已建 vs 缺失（清单）</h2>
+
+<table>
+  <tr><th>能力</th><th>状态</th><th>说明</th></tr>
+  <tr><td>8+ 种规则输入入口</td><td><span class="badge-built">已上线</span></td><td>文字 / 文件 / URL / 拍照 / 语音 / 引导 / persona 教学 / WeChat 命令 / 编辑→KB</td></tr>
+  <tr><td>LLM 结构化抽取</td><td><span class="badge-built">已上线</span></td><td>voice_to_rule / 文件 / URL 各有 prompt</td></tr>
+  <tr><td>KB 全量检索（非 RAG）</td><td><span class="badge-built">已上线</span></td><td>30 候选 × jieba × 来源权重，top 5，字符上限 6000</td></tr>
+  <tr><td>[KB-N] 引用标注</td><td><span class="badge-built">已上线</span></td><td>前端点击可弹窗看原文</td></tr>
+  <tr><td>引用次数统计</td><td><span class="badge-built">已上线</span></td><td>reference_count + usage_log 流水（LLM 输出时计数）</td></tr>
+  <tr><td>编辑→KB 桥（草稿）</td><td><span class="badge-built">已上线</span></td><td>teaching_handlers.py:25 + "保存为规则"按钮。注意：<code>teaching.py:107</code> 写入时 source="teaching"，在检索打分里走 0.2 权重（非 doctor 的 0.5），排序上会低于手动添加的规则</td></tr>
+  <tr><td>编辑→KB 桥（诊断）</td><td><span class="badge-partial">半成品</span></td><td>后端 diagnosis_handlers.py:244 发 teach_prompt，前端 ReviewPage.jsx:267 不读</td></tr>
+  <tr><td>草稿编辑→人格学习（仅风格）</td><td><span class="badge-built">已上线</span></td><td>draft_handlers.py:424 触发 process_edit_for_persona</td></tr>
+  <tr><td>人格候选卡片审核</td><td><span class="badge-built">已上线</span></td><td>pattern_hash 去重 + 90 天拒绝悬挂</td></tr>
+  <tr><td>事实类编辑的学习路径</td><td><span class="badge-missing">未建</span></td><td>persona_learning.py:32 显式丢弃 type != "style"；无第二收集器</td></tr>
+  <tr><td>幻觉引用暴露给医生</td><td><span class="badge-missing">未建</span></td><td>citation_parser.py:55 只写日志</td></tr>
+  <tr><td>拒绝→KB 归因</td><td><span class="badge-missing">未建</span></td><td>AISuggestion.decision 有原始信号，无读模型</td></tr>
+  <tr><td>规则健康仪表盘</td><td><span class="badge-missing">未建</span></td><td>无 per-rule 使用率/编辑率视图</td></tr>
+  <tr><td>冷启动加权</td><td><span class="badge-missing">未建</span></td><td>候选&lt;5 条时 source_weight 总是拿 top 5，无相关性阈值</td></tr>
+  <tr><td>规则过期 / 冲突检测</td><td><span class="badge-missing">未建</span></td><td>无 expires_at，两条矛盾规则都会被引用</td></tr>
+  <tr><td>危险信号检测</td><td><span class="badge-missing">未建</span></td><td>规划中：患者消息异常 → 自动置顶</td></tr>
+</table>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2>真正的 4 个缺口（按优先级）</h2>
+
+<div class="gap-box">
+  <b>缺口 ①：事实类编辑被悄悄丢弃。</b><br>
+  LLM 在 <code>persona-classify.md</code> 中已被明确告知将临床事实修正归为 <code>factual</code>/<code>context_specific</code>。<code>persona_learning.py:27-34</code> 随即 early-return，信号进垃圾桶。这是整条闭环里<b>最严重、成本最低、收益最大</b>的缺口 — LLM 已经做了分类，只是下游没人接。<br>
+  <small>修法：新增一张 <code>kb_pending_items</code> 表，<code>type=="fact"</code> 时路由过去，复用 pattern_hash + 90 天抑制，审核通过后写 doctor_knowledge_items。</small>
+</div>
+
+<div class="gap-box">
+  <b>缺口 ②：诊断审核编辑 teach_prompt 是半成品。</b><br>
+  后端 <code>diagnosis_handlers.py:244-270</code> 已经为诊断编辑发 teach_prompt，但 <code>ReviewPage.jsx:267-282</code> 忽略这个字段，UI 没"保存为规则"按钮。草稿路径有完整 UI，诊断路径只差前端几行。<br>
+  <small>修法：在 ReviewPage 里读 teach_prompt，渲染和草稿页相同的 SaveAsRule 卡片。</small>
+</div>
+
+<div class="gap-box">
+  <b>缺口 ③：规则健康没有可见性。</b><br>
+  <code>reference_count</code> 记录的是<b>被引用</b>次数（LLM 输出时就 +1），不是<b>被采纳</b>次数。一条被高频引用但被医生高频编辑/拒绝的规则，表面看很活跃，实际在帮倒忙。<br>
+  原始信号<b>不完整</b>：草稿有 <code>MessageDraft.cited_knowledge_ids</code>，但 <code>AISuggestion</code> 还没有结构化引用字段（只有 <code>decision</code>），诊断侧的归因必须先在模型上加字段才能做。<br>
+  <small>修法：先在 <code>AISuggestion</code> 加 <code>cited_knowledge_ids</code> 字段（step 0），再新增 analytics endpoint 按 KB id 聚合 (cited, accepted, edited, rejected) 四元组。</small>
+</div>
+
+<div class="gap-box">
+  <b>缺口 ④：幻觉引用只进日志。</b><br>
+  <code>citation_parser.py:55</code> 检测到 AI 引用了不存在的 [KB-N] 时只 <code>warn</code>。医生看不到这个信号，无法纠正 prompt。独立于 ①②③，实现最轻。<br>
+  <small>修法：把幻觉计数暴露到知识库页顶部 badge，或者在审核详情页标注"该建议含幻觉引用"。</small>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<h2>推荐实施顺序（经 2 名评审员一致）</h2>
+
+<table>
+  <tr><th>步骤</th><th>行动</th><th>改造量</th><th>为什么这个顺序</th></tr>
+  <tr><td>1</td><td>修 <code>persona_learning.py:32</code> 的 fact 分支丢弃（缺口 ①）</td><td><b>小</b></td><td>LLM 分类已经能用，只差路由；复用现有 pattern_hash + 90 天抑制基础设施</td></tr>
+  <tr><td>2</td><td>把诊断审核编辑接入 teach_prompt UI（缺口 ②）</td><td><b>小</b></td><td>后端已发信号，前端几行的工作；先完成半成品再扩面</td></tr>
+  <tr><td>3</td><td>幻觉引用暴露（缺口 ④）</td><td>小</td><td>独立于其它步骤，安全相关收益快；<code>citation_parser.py:55</code> 信号已存在</td></tr>
+  <tr><td>4</td><td>规则健康仪表盘（缺口 ③）</td><td>中</td><td>前置：在 <code>AISuggestion</code> 加 <code>cited_knowledge_ids</code>，把 reparse-free-text 改成结构化；否则诊断侧归因做不出来</td></tr>
+</table>
+
+<div class="info-box">
+  <b>前置条件：</b>在触碰这条闭环之前，补一条集成测试覆盖 <code>decide → edit → classify → pending → accept → render</code>。LLM 步骤当前失败时只打日志，回归会无声无息。此外建议把 cited KB ids 结构化存在 <code>AISuggestion</code> 上，避免在多个地方反复从文本里正则抽取。
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="categories">
+  相关页面: <a href="wiki-knowledge.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-knowledge.html')}">知识库基础</a> &nbsp; <a href="wiki-ai.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-ai.html')}">AI 如何工作</a> &nbsp; <a href="wiki-whats-new.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-whats-new.html')}">更新计划</a>
+</div>
+
+</div>
+</body>
+</html>
