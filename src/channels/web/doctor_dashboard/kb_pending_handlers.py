@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
+import os
+import sys
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -107,6 +111,43 @@ async def accept_pending_item(
         "knowledge_item_id": kb_item.id,
         "title": kb_item.title,
     }
+
+
+class _TestSeedKbPendingPayload(BaseModel):
+    category: str
+    proposed_rule: str
+    summary: str = ""
+    confidence: str = "medium"
+
+
+@router.post("/api/test/seed/kb-pending")
+async def test_seed_kb_pending(
+    payload: _TestSeedKbPendingPayload,
+    doctor_id: str = Query(...),
+    session: AsyncSession = Depends(get_db),
+):
+    """Test/dev only: insert a KbPendingItem for a doctor. Gated by ENVIRONMENT."""
+    _env = os.environ.get("ENVIRONMENT", "").strip().lower()
+    if _env not in ("development", "dev", "test") and "pytest" not in sys.modules:
+        raise HTTPException(status_code=404)
+
+    summary = payload.summary or payload.proposed_rule[:60]
+    ph = hashlib.md5((payload.category + payload.proposed_rule).encode()).hexdigest()[:16]
+
+    pending = KbPendingItem(
+        doctor_id=doctor_id,
+        category=payload.category,
+        proposed_rule=payload.proposed_rule,
+        summary=summary,
+        evidence_summary=summary,
+        confidence=payload.confidence,
+        pattern_hash=ph,
+    )
+    session.add(pending)
+    await session.commit()
+    await session.refresh(pending)
+    log(f"[kb_pending] test-seeded id={pending.id} doctor={doctor_id}")
+    return {"id": pending.id}
 
 
 @router.post("/api/manage/kb/pending/{item_id}/reject")
