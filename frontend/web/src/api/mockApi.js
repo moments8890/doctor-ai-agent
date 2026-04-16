@@ -341,6 +341,18 @@ export async function getKnowledgeBatch(_doctorId, ids) {
   return { items: knowledgeItems.filter((i) => ids.includes(i.id)) };
 }
 
+export async function getKbPending(_doctorId) {
+  return { items: [] };
+}
+
+export async function acceptKbPending(_doctorId, _itemId) {
+  return {};
+}
+
+export async function rejectKbPending(_doctorId, _itemId) {
+  return {};
+}
+
 export async function deletePatient(patientId) {
   patients = patients.filter((p) => p.id !== patientId);
   return {};

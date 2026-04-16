@@ -13,5 +13,6 @@ export const QK = {
   suggestions:    (rid, did) => ["doctor", did, "suggestions", rid],
   persona:        (did) => ["doctor", did, "persona"],
   personaPending: (did) => ["doctor", did, "persona-pending"],
+  kbPending:      (did) => ["doctor", did, "kb-pending"],
   todaySummary:   (did) => ["doctor", did, "todaySummary"],
 };

@@ -461,6 +461,14 @@ export async function getAdminTableRows({ tableKey, doctorId, patientName, dateF
   return adminRequest(`/api/admin/tables/${encodeURIComponent(tableKey)}?${qs.toString()}`);
 }
 
+export async function getAdminDoctorRelated(doctorId) {
+  return adminRequest(`/api/admin/doctors/${encodeURIComponent(doctorId)}/related`);
+}
+
+export async function getAdminPatientRelated(patientId) {
+  return adminRequest(`/api/admin/patients/${encodeURIComponent(patientId)}/related`);
+}
+
 export async function getAdminFilterOptions({ doctorId } = {}) {
   const qs = new URLSearchParams();
   if (doctorId) qs.set("doctor_id", doctorId);
@@ -602,12 +610,12 @@ export async function getDoctorProfile(doctorId) {
   return request(`/api/manage/profile?${qs.toString()}`);
 }
 
-export async function updateDoctorProfile(doctorId, { name, specialty }) {
+export async function updateDoctorProfile(doctorId, fields) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   return request(`/api/manage/profile?${qs.toString()}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, specialty: specialty || null }),
+    body: JSON.stringify(fields),
   });
 }
 
@@ -698,6 +706,27 @@ export async function acceptPendingItem(doctorId, itemId) {
 export async function rejectPendingItem(doctorId, itemId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   return request(`/api/manage/persona/pending/${itemId}/reject?${qs.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export async function getKbPending(doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/kb/pending?${qs.toString()}`);
+}
+
+export async function acceptKbPending(doctorId, itemId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/kb/pending/${itemId}/accept?${qs.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export async function rejectKbPending(doctorId, itemId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/kb/pending/${itemId}/reject?${qs.toString()}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
   });

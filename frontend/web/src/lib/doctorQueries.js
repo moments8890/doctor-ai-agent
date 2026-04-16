@@ -208,6 +208,43 @@ export function useRejectPendingItem() {
   });
 }
 
+export function useKbPending() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.kbPending(doctorId),
+    queryFn:  () => api.getKbPending(doctorId),
+    enabled:  !!doctorId,
+    staleTime: 30_000,
+    refetchInterval: POLL,
+  });
+}
+
+export function useAcceptKbPending() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId) => api.acceptKbPending(doctorId, itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QK.kbPending(doctorId) });
+      queryClient.invalidateQueries({ queryKey: QK.knowledge(doctorId) });
+    },
+  });
+}
+
+export function useRejectKbPending() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId) => api.rejectKbPending(doctorId, itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QK.kbPending(doctorId) });
+    },
+  });
+}
+
 export function useSuggestions(recordId) {
   const { doctorId } = useDoctorStore();
   const api = useApi();
