@@ -791,7 +791,6 @@ function SectionContent(sharedProps) {
   // ── Normal: tab switch or no cross-section transition ──
   return (
     <Box sx={{ flex: 1, overflow: "hidden", position: "relative" }}>
-      {debugToast}
       <Box sx={{ position: "absolute", inset: 0, zIndex: 2 }}>
         {currentEl}
       </Box>
