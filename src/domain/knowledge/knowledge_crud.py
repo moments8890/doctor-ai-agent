@@ -198,6 +198,7 @@ async def save_knowledge_item(
     summary: Optional[str] = None,
     source_url: Optional[str] = None,
     file_path: Optional[str] = None,
+    seed_source: Optional[str] = None,
 ) -> Optional[DoctorKnowledgeItem]:
     cleaned = _normalize_text(text)
     if not cleaned:
@@ -219,6 +220,8 @@ async def save_knowledge_item(
     item = await add_doctor_knowledge_item(session, doctor_id, payload, category=category)
     item.title = title or extract_title_from_text((text or "").strip())
     item.summary = summary
+    if seed_source:
+        item.seed_source = seed_source
     await session.commit()
     await session.refresh(item)
     return item
