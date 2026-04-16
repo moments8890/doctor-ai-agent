@@ -1,0 +1,599 @@
+# Test cases for persona-classify.md
+# Prompt: Chinese doctor edit → {type, persona_field, summary, confidence, kb_category, proposed_kb_rule} JSON
+
+# ═══ STYLE CASES (10 total) ═══
+
+- description: "style: delete closing blessing (high)"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "张阿姨您好，血压不错，继续用药。祝您身体健康，早日康复！"
+    edited: "张阿姨你好，血压还行，继续吃药就好。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'style' && o.persona_field === 'closing' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "style: reply_style 您→你 (high)"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "您好，建议您按时服药，有问题请及时联系我。"
+    edited: "你好，按时服药，有问题联系我。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'style' && o.persona_field === 'reply_style' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "style: structure — conclusion first (medium)"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "您的检查结果显示甲状腺功能正常，TSH和T3T4均在正常范围内。甲状腺超声也未见明显异常。综合来看，目前不需要特殊处理，建议半年后复查。"
+    edited: "结论：甲状腺没问题，半年后复查。\n\n检查结果：TSH、T3T4正常，超声未见异常。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'style' && o.persona_field === 'structure' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "style: avoid — remove empathy opener"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "看到您的消息，很理解您的担心。检查结果一切正常，请放心。"
+    edited: "检查结果正常，不用担心。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'style' && o.persona_field === 'avoid' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "style: edits — remove filler 一下 and 您 (low)"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "建议您近期复查一下血常规。"
+    edited: "建议近期复查血常规。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'style' && o.persona_field === 'edits' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "style: closing — remove 欢迎随时联系 (high)"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "伤口恢复良好，继续保持。如有任何问题，欢迎随时联系我，祝早日康复！"
+    edited: "伤口恢复良好，继续保持。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'style' && o.persona_field === 'closing' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "style: reply_style — formal to colloquial overall"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "根据您目前的检查结果，建议您继续维持现有治疗方案，并于下次随访时复查相关指标。"
+    edited: "检查结果还行，继续现在的治疗，下次随访再复查就好。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'style' && o.persona_field === 'reply_style' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "style: structure — bullet list instead of paragraph"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "术后需要注意休息，避免剧烈运动，按时服药，定期换药，出现发热及时就诊。"
+    edited: "术后注意事项：\n1. 休息，避免剧烈运动\n2. 按时服药\n3. 定期换药\n4. 发热立即就诊"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'style' && o.persona_field === 'structure' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "style: avoid — remove detailed explanation kept short"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "MRI结果提示腰椎间盘突出L4-L5，这是一种常见的退行性病变，通常与长期久坐、不良姿势有关。建议您注意腰部保护。"
+    edited: "MRI提示腰椎间盘突出L4-L5，注意腰部保护。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'style' && o.persona_field === 'avoid' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "style: edits — shorten verbose closing to one line"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "希望您尽快康复，如有任何不适或疑问，请随时与我们联系，我们将竭诚为您提供帮助。"
+    edited: "有问题随时联系。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'style' && (o.persona_field === 'edits' || o.persona_field === 'closing') && o.kb_category === '' && o.proposed_kb_rule === '';
+
+# ═══ CONTEXT_SPECIFIC CASES (5 total) ═══
+
+- description: "context: diabetes-specific wound healing add-on"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "术后注意伤口护理，按时换药，有异常及时就诊。"
+    edited: "术后注意伤口护理，按时换药。您有糖尿病，愈合较慢，请注意血糖控制。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'context_specific' && o.persona_field === '' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "context: renal-impairment drug dose cut"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "继续服用美托洛尔47.5mg每日一次。"
+    edited: "继续服用美托洛尔23.75mg每日一次，您的肾功能偏低，需要减量。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'context_specific' && o.persona_field === '' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "context: elderly fall-risk mobility restriction"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "可以适当下床活动，有助于术后恢复。"
+    edited: "可以适当下床活动，但您年龄较大且有跌倒史，请务必有家属陪同，不可独自行走。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'context_specific' && o.persona_field === '' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "context: allergy-specific drug substitution note"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "如疼痛明显，可服用布洛芬缓解。"
+    edited: "如疼痛明显，可服用对乙酰氨基酚缓解，您对布洛芬过敏，请避免使用。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'context_specific' && o.persona_field === '' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+- description: "context: pregnancy-specific dietary restriction"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "饮食均衡，适当补充维生素。"
+    edited: "饮食均衡，适当补充维生素。您目前妊娠期间，叶酸每日0.4mg需坚持服用，避免生食及高汞鱼类。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'context_specific' && o.persona_field === '' && o.kb_category === '' && o.proposed_kb_rule === '';
+
+# ═══ FACTUAL CASES — DIAGNOSIS (10 total) ═══
+
+- description: "factual: drug swap medication — amlodipine to nifedipine"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "建议继续服用氨氯地平控制血压。"
+    edited: "建议继续服用硝苯地平控制血压。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'medication' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: diagnosis — add red flag for thunderclap headache"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "头痛属于紧张性头痛，可以服用止痛药。"
+    edited: "头痛需先排除蛛网膜下腔出血，霹雳样头痛（突发剧烈头痛）应立即急诊，不可自行服药。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: diagnosis — add TIA referral trigger"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "短暂性肢体无力已缓解，观察即可。"
+    edited: "短暂性肢体无力即使已缓解，也需急诊评估排除TIA，ABCD2评分≥4分应住院。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: diagnosis — craniotomy NSAID contraindication"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "颅脑术后头痛患者可以使用布洛芬止痛。"
+    edited: "颅脑术后头痛患者在排除脑脊液漏之前不建议使用NSAIDs，首选对乙酰氨基酚。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: diagnosis — distinguish thyroid nodule TIRADS threshold"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "甲状腺结节TIRADS 3类可以随访，半年复查一次。"
+    edited: "甲状腺结节TIRADS 4A及以上应行细针穿刺活检，TIRADS 3类随访间隔为12个月，非6个月。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: diagnosis — PE diagnostic criterion correction"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "D-二聚体升高可以诊断肺栓塞。"
+    edited: "D-二聚体升高提示肺栓塞可能性，但确诊需CT肺动脉造影（CTPA），不能仅凭D-二聚体诊断。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: diagnosis — DKA blood glucose threshold"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "血糖超过20mmol/L考虑酮症酸中毒。"
+    edited: "DKA诊断不完全依赖血糖绝对值，血糖可正常；关键是血气pH<7.3、碳酸氢根<15、酮体阳性。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: diagnosis — parkinson vs essential tremor differentiation"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "手抖考虑帕金森病，建议多巴胺类药物治疗。"
+    edited: "手抖需鉴别帕金森（静止性震颤）和特发性震颤（动作性震颤），后者不用多巴胺类药物。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: diagnosis — GCS intubation threshold correction"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "GCS评分低于八分的要考虑气管插管。"
+    edited: "GCS≤8分（而非<8）是气管插管保护气道的标准阈值，8分本身需要插管。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: diagnosis — AF stroke risk CHADS2 correction"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "房颤患者CHADS2评分1分以上都需要抗凝治疗。"
+    edited: "房颤患者按CHA2DS2-VASc评分，男性≥2分、女性≥3分才推荐抗凝，评分1分需个体化评估。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+# ═══ FACTUAL CASES — MEDICATION (8 total) ═══
+
+- description: "factual: medication — ACEI+ARB contraindication"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "血压仍偏高，可以加用ARB类药物联合治疗。"
+    edited: "患者已在用ACEI，不要联用ARB，可换为钙通道阻滞剂。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'medication' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: medication — statin timing (evening)"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "阿托伐他汀建议早餐后服用。"
+    edited: "阿托伐他汀不受进餐时间影响，但建议晚上服用，与胆固醇合成峰值同步。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'medication' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: medication — metformin renal cutoff correction"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "二甲双胍肾功能不全患者禁用。"
+    edited: "二甲双胍在eGFR<30时禁用，eGFR 30-45需减量，eGFR≥45可正常使用。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'medication' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: medication — warfarin INR target range"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "华法林维持INR在1.5-2.0之间。"
+    edited: "非瓣膜性房颤华法林抗凝目标INR为2.0-3.0，1.5-2.0偏低，抗凝效果不足。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'medication' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: medication — sulfa allergy mannitol contraindication"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "颅内压升高使用甘露醇降压。"
+    edited: "对磺胺过敏的病人不能用甘露醇，要换成呋塞米。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'medication' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: medication — beta-blocker asthma contraindication"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "心率偏快，加用美托洛尔控制心率。"
+    edited: "患者有哮喘史，非选择性β受体阻滞剂禁用；需用心率控制的话选地尔硫卓或维拉帕米。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'medication' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: medication — clopidogrel loading dose after PCI"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "PCI术后开始氯吡格雷75mg每日一次。"
+    edited: "PCI术后氯吡格雷需给予300-600mg负荷剂量，之后再75mg/d维持，不可直接维持剂量。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'medication' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: medication — insulin injection site rotation"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "胰岛素注射在腹部即可。"
+    edited: "胰岛素注射需轮换部位（腹部、大腿、上臂、臀部），同区域注射点间距≥1cm，避免皮下脂肪增生。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'medication' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+# ═══ FACTUAL CASES — FOLLOWUP (7 total) ═══
+
+- description: "factual: followup — aneurysm clip CTA schedule correction"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "颅内动脉瘤夹闭术后3个月复查CTA即可。"
+    edited: "颅内动脉瘤夹闭术后2周首次复查CTA，之后3个月、1年各复查一次。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'followup' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: followup — HbA1c monitoring frequency"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "糖尿病患者每年复查糖化血红蛋白一次。"
+    edited: "血糖控制不稳定的糖尿病患者每3个月复查HbA1c，血糖稳定后可每6个月一次。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'followup' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: followup — thyroid cancer post-resection TSH target"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "甲状腺癌术后维持TSH正常范围。"
+    edited: "分化型甲状腺癌术后高危患者需TSH抑制治疗，目标TSH<0.1mIU/L；低危患者TSH维持正常低限。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'followup' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: followup — post-PCI antiplatelet duration"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "PCI术后双联抗血小板治疗三个月。"
+    edited: "药物洗脱支架置入后双联抗血小板（阿司匹林+P2Y12抑制剂）需维持至少12个月，除非出血风险极高。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'followup' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: followup — epilepsy seizure-free EEG check interval"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "癫痫患者发作控制后每年复查脑电图一次。"
+    edited: "癫痫患者连续无发作2年后可考虑逐步减药，减药前需复查视频脑电图，减药过程中每6个月随访。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'followup' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: followup — post-stroke MRI recheck window"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "脑卒中恢复期6个月后复查MRI。"
+    edited: "急性脑卒中患者建议发病后72小时内及出院时各行MRI评估，3个月、1年随访复查。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'followup' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: followup — hypertension BP monitoring frequency"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "高血压患者调药后一个月随访。"
+    edited: "高血压调整治疗方案后2-4周随访，血压稳定达标后每3个月随访，同时监测电解质和肾功能。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'followup' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+# ═══ FACTUAL CASES — CUSTOM (5 total) ═══
+
+- description: "factual: custom — diabetic wound healing rule"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "糖尿病患者伤口一般一周愈合。"
+    edited: "糖尿病患者伤口愈合较慢，需要额外1-2周观察，并严格控制血糖在7mmol/L以下。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'custom' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: custom — postop fever distinction rule"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "术后发热使用退烧药处理即可。"
+    edited: "术后72小时内低热属吸收热，无需特殊处理；72小时后持续发热或>38.5℃需排查感染、肺不张。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'custom' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: custom — sleep-wake cycle instruction for neurosurgery patients"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "神经外科术后患者正常作息即可。"
+    edited: "开颅术后患者家属需观察睡眠质量及觉醒状态，若无法唤醒或持续嗜睡立即急诊。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'custom' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: custom — cardiac rehab exercise principle"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "心肌梗死恢复期可以正常活动。"
+    edited: "心肌梗死后康复期运动遵循循序渐进原则，以靶心率（最大心率的50-70%）为指导，禁止剧烈运动。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'custom' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+
+- description: "factual: custom — contrast nephropathy hydration rule"
+  options:
+    prompts: [persona-classify]
+  vars:
+    original: "使用造影剂前正常饮食饮水即可。"
+    edited: "造影剂使用前后各12小时需充分水化（静脉输注生理盐水1-1.5ml/kg/h），肾功能不全患者尤其重要。"
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.type === 'factual' && o.kb_category === 'custom' && o.proposed_kb_rule.length > 0 && o.persona_field === '';

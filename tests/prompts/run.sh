@@ -19,6 +19,7 @@ ALL_PROMPTS=(
   interview patient-interview query general
   diagnosis vision-ocr
   triage-classify triage-informational triage-escalation knowledge-ingest
+  voice-to-rule persona-classify
 )
 
 if [ $# -gt 0 ]; then
