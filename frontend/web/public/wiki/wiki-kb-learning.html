@@ -192,7 +192,7 @@
   <tr><td>编辑→KB 桥（诊断）</td><td><span class="badge-partial">半成品</span></td><td>后端 diagnosis_handlers.py:244 发 teach_prompt，前端 ReviewPage.jsx:267 不读</td></tr>
   <tr><td>草稿编辑→人格学习（仅风格）</td><td><span class="badge-built">已上线</span></td><td>draft_handlers.py:424 触发 process_edit_for_persona</td></tr>
   <tr><td>人格候选卡片审核</td><td><span class="badge-built">已上线</span></td><td>pattern_hash 去重 + 90 天拒绝悬挂</td></tr>
-  <tr><td>事实类编辑的学习路径</td><td><span class="badge-missing">未建</span></td><td>persona_learning.py:32 显式丢弃 type != "style"；无第二收集器</td></tr>
+  <tr><td>事实类编辑的学习路径</td><td><span class="badge-built">已上线 2026-04-16</span></td><td>process_edit_for_learning 路由 type=factual → kb_pending_items；审核通过写入 doctor_knowledge_items</td></tr>
   <tr><td>幻觉引用暴露给医生</td><td><span class="badge-missing">未建</span></td><td>citation_parser.py:55 只写日志</td></tr>
   <tr><td>拒绝→KB 归因</td><td><span class="badge-missing">未建</span></td><td>AISuggestion.decision 有原始信号，无读模型</td></tr>
   <tr><td>规则健康仪表盘</td><td><span class="badge-missing">未建</span></td><td>无 per-rule 使用率/编辑率视图</td></tr>
@@ -205,9 +205,9 @@
 <h2>真正的 4 个缺口（按优先级）</h2>
 
 <div class="gap-box">
-  <b>缺口 ①：事实类编辑被悄悄丢弃。</b><br>
+  <b>缺口 ①：事实类编辑被悄悄丢弃。</b> <span class="badge-built">已修复 2026-04-16</span><br>
   LLM 在 <code>persona-classify.md</code> 中已被明确告知将临床事实修正归为 <code>factual</code>/<code>context_specific</code>。<code>persona_learning.py:27-34</code> 随即 early-return，信号进垃圾桶。这是整条闭环里<b>最严重、成本最低、收益最大</b>的缺口 — LLM 已经做了分类，只是下游没人接。<br>
-  <small>修法：新增一张 <code>kb_pending_items</code> 表，<code>type=="fact"</code> 时路由过去，复用 pattern_hash + 90 天抑制，审核通过后写 doctor_knowledge_items。</small>
+  <small>已实施：<code>persona_learning.py</code> 重构为 <code>process_edit_for_learning</code>，新增 <code>kb_pending_items</code> 表 + <code>KbPendingItem</code> ORM，<code>_route_to_kb_pending</code> 在 <code>type=factual</code> 时路由并执行 PII 脱敏。审核 UI 在 <code>/settings/knowledge/pending</code>。<code>FACT_LEARNING_ENABLED</code> 环境变量可关闭。</small>
 </div>
 
 <div class="gap-box">
@@ -234,7 +234,7 @@
 
 <table>
   <tr><th>步骤</th><th>行动</th><th>改造量</th><th>为什么这个顺序</th></tr>
-  <tr><td>1</td><td>修 <code>persona_learning.py:32</code> 的 fact 分支丢弃（缺口 ①）</td><td><b>小</b></td><td>LLM 分类已经能用，只差路由；复用现有 pattern_hash + 90 天抑制基础设施</td></tr>
+  <tr><td>1</td><td>修 <code>persona_learning.py:32</code> 的 fact 分支丢弃（缺口 ①）<span class="badge-built">已完成 2026-04-16</span></td><td><b>小</b></td><td>LLM 分类已经能用，只差路由；复用现有 pattern_hash + 90 天抑制基础设施</td></tr>
   <tr><td>2</td><td>把诊断审核编辑接入 teach_prompt UI（缺口 ②）</td><td><b>小</b></td><td>后端已发信号，前端几行的工作；先完成半成品再扩面</td></tr>
   <tr><td>3</td><td>幻觉引用暴露（缺口 ④）</td><td>小</td><td>独立于其它步骤，安全相关收益快；<code>citation_parser.py:55</code> 信号已存在</td></tr>
   <tr><td>4</td><td>规则健康仪表盘（缺口 ③）</td><td>中</td><td>前置：在 <code>AISuggestion</code> 加 <code>cited_knowledge_ids</code>，把 reparse-free-text 改成结构化；否则诊断侧归因做不出来</td></tr>
