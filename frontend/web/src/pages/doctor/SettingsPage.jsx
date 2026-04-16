@@ -10,8 +10,6 @@ import { QK } from "../../lib/queryKeys";
 import {
   Box, CircularProgress, TextField, Typography,
 } from "@mui/material";
-import useMediaQuery from "@mui/material/useMediaQuery";
-import { useTheme } from "@mui/material/styles";
 import { useApi } from "../../api/ApiContext";
 import { startBulkExport, getBulkExportStatus, downloadBulkExport } from "../../api";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
@@ -241,8 +239,7 @@ function useSettingsState({ doctorId, doctorName, accessToken, setAuth }) {
 
 export default function SettingsPage({ doctorId, onLogout, urlSubpage, urlSubId }) {
   const navigate = useAppNavigate();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMobile = true;
   const { doctorName, setAuth, accessToken } = useDoctorStore();
   const api = useApi();
   const queryClient = useQueryClient();

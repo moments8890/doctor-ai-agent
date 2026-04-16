@@ -107,13 +107,15 @@ These rules are enforced by `scripts/lint-ui.sh`. Run it before pushing.
 ### Layout conventions
 
 - **Tab switch:** instant (no animation — tabs are peers, animating them looks janky)
-- **Subpage push/pop:** framer-motion tween (~280ms, ease [0.32,0.72,0,1]) via
-  `SlideOverlay`. Use `PageSkeleton mobileView` (preferred) or `SlideOverlay` directly
-  for overlays not rendered through PageSkeleton (e.g. DoctorPage's ReviewPage overlay).
-  Direction detection: PUSH → slide-in-from-right; iOS ← arrow → slide-out-to-right
-  (via `markIntentionalBack()` flag set by SubpageHeader before navigate(-1));
-  Android/non-iOS ← arrow OR hardware back → slide-out-to-right; iOS swipe/browser-back
-  → instant (browser renders its own native visual); first mount / deep-link → instant.
+- **Subpage push/pop:** framer-motion tween (~300ms, ease [0.32,0.72,0,1]) via
+  `SlideOverlay`. WeChat miniapp conventions: edge shadow on incoming page, -24% parallax
+  exit on outgoing page. Use `PageSkeleton mobileView` (preferred) or `SlideOverlay`
+  directly for overlays not rendered through PageSkeleton (e.g. DoctorPage's ReviewPage
+  overlay). Direction detection: PUSH → slide-in-from-right; iOS ← arrow →
+  slide-out-to-right (via `markIntentionalBack()` flag set by SubpageHeader before
+  navigate(-1)); Android/non-iOS ← arrow OR hardware back → slide-out-to-right; iOS
+  swipe/browser-back → instant (browser renders its own native visual); first mount /
+  deep-link → instant.
 - **Custom back triggers:** if you need to trigger an animated back nav outside
   `SubpageHeader`, use `useBackWithAnimation()` from `hooks/useNavDirection.js`. A bare
   `navigate(-1)` will NOT animate (on iOS) because the intentional-back flag won't fire.

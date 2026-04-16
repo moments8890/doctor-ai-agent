@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Navigation Map — Doctor AI Agent</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #30363d;
+    --text1: #e6edf3;
+    --text2: #8b949e;
+    --text3: #6e7681;
+    --green: #3fb950;
+    --green-dim: rgba(63,185,80,0.15);
+    --blue: #58a6ff;
+    --blue-dim: rgba(88,166,255,0.15);
+    --purple: #bc8cff;
+    --purple-dim: rgba(188,140,255,0.15);
+    --orange: #f0883e;
+    --orange-dim: rgba(240,136,62,0.15);
+    --red: #f85149;
+    --red-dim: rgba(248,81,73,0.15);
+    --yellow: #e3b341;
+    --yellow-dim: rgba(227,179,65,0.15);
+    --cyan: #56d4dd;
+    --cyan-dim: rgba(86,212,221,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text1);
+    padding: 32px;
+    line-height: 1.5;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h1 .sub { color: var(--text2); font-weight: 400; font-size: 16px; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin: 20px 0 32px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text2);
+  }
+  .legend-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+
+  .app-section {
+    margin-bottom: 48px;
+  }
+  .app-section > h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .app-section > h2 .path {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 14px;
+    color: var(--text3);
+    font-weight: 400;
+  }
+
+  /* ── Tree ── */
+  .tree {
+    position: relative;
+    padding-left: 0;
+  }
+
+  .node {
+    position: relative;
+    margin-bottom: 4px;
+  }
+
+  .node-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: background 0.15s;
+    cursor: default;
+  }
+  .node-row:hover { background: var(--surface); }
+
+  .node-row.main-tab {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 2px;
+  }
+
+  .node-label {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .node-path {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 12px;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+  .node-component {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 11px;
+    color: var(--purple);
+    opacity: 0.8;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .badge-instant    { background: var(--green-dim);  color: var(--green);  }
+  .badge-slide      { background: var(--blue-dim);   color: var(--blue);   }
+
+  /* ── Children indentation ── */
+  .children {
+    margin-left: 24px;
+    padding-left: 16px;
+    border-left: 1px solid var(--border);
+  }
+
+  /* ── Connector arrows ── */
+  .arrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text3);
+    margin-left: 8px;
+  }
+  .arrow svg { width: 12px; height: 12px; fill: currentColor; }
+
+  /* ── Cross-section nav table ── */
+  .nav-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+  .nav-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .nav-table td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .nav-table tr:hover td { background: var(--surface); }
+  .nav-table code {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 12px;
+    background: var(--surface2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--text1);
+  }
+
+  .note {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 4px;
+    font-style: italic;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 40px 0;
+  }
+
+  /* ── Flow diagram ── */
+  .flow-section {
+    margin: 32px 0;
+  }
+  .flow-section h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: var(--text2);
+  }
+
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 8px 0;
+    flex-wrap: wrap;
+  }
+  .flow-box {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .flow-arrow {
+    padding: 0 8px;
+    color: var(--text3);
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .flow-arrow .label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text3);
+    line-height: 1;
+  }
+  .flow-arrow.slide { color: var(--blue); }
+  .flow-arrow.slide .label { color: var(--blue); }
+  .flow-arrow.instant { color: var(--green); }
+  .flow-arrow.instant .label { color: var(--green); }
+
+  .flow-box.active {
+    border-color: var(--green);
+    background: var(--green-dim);
+  }
+  .flow-box.tab { border-color: var(--border); }
+  .flow-box.sub { border-color: var(--blue); background: var(--blue-dim); }
+  .flow-box.deep { border-color: var(--purple); background: var(--purple-dim); }
+  .flow-box.special { border-color: var(--orange); background: var(--orange-dim); }
+</style>
+</head>
+<body>
+
+<h1>
+  Navigation Map
+  <span class="sub">Doctor AI Agent — all screens &amp; animation types</span>
+</h1>
+
+<!-- ── Legend ── -->
+<div class="legend">
+  <div class="legend-item">
+    <span class="badge badge-instant">INSTANT</span>
+    No animation — tab switches, peer swaps, deep links, browser back, route changes
+  </div>
+  <div class="legend-item">
+    <span class="badge badge-slide">SLIDE</span>
+    Push/pop slide via SlideOverlay (~300ms tween, currently 2s for debug). Edge shadow on incoming page, -24% parallax exit.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- DOCTOR APP                                          -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="app-section">
+  <h2>Doctor App <span class="path">/doctor/*</span></h2>
+
+  <div class="flow-section">
+    <h3>Main Tab Navigation (Bottom Nav / Sidebar)</h3>
+    <div class="flow-row">
+      <div class="flow-box tab">我的AI<br><span class="node-path">/doctor</span></div>
+      <div class="flow-arrow instant"><span class="label">instant</span>↔</div>
+      <div class="flow-box tab">患者<br><span class="node-path">/doctor/patients</span></div>
+      <div class="flow-arrow instant"><span class="label">instant</span>↔</div>
+      <div class="flow-box tab">审核<br><span class="node-path">/doctor/review</span></div>
+      <div class="flow-arrow instant"><span class="label">instant</span>↔</div>
+      <div class="flow-box tab">任务<br><span class="node-path">/doctor/tasks</span></div>
+    </div>
+    <p class="note">4 tabs: 我的AI, 患者, 审核, 任务. All switch instantly — no animation. Tabs are peers (wx.switchTab).</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── 我的AI ── -->
+  <div class="tree">
+    <div class="node">
+      <div class="node-row main-tab">
+        <span class="node-label">我的AI</span>
+        <span class="node-path">/doctor</span>
+        <span class="node-component">MyAIPage</span>
+        <span class="badge badge-instant">NO SUBPAGES</span>
+      </div>
+      <p class="note" style="margin-left:16px">
+        AI chat composer. Links to settings subpages (persona, knowledge, QR) navigate to /doctor/settings/* — cross-section, instant tab switch + slide into subpage.
+      </p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── 患者 ── -->
+  <div class="tree">
+    <div class="node">
+      <div class="node-row main-tab">
+        <span class="node-label">患者</span>
+        <span class="node-path">/doctor/patients</span>
+        <span class="node-component">PatientsPage → PageSkeleton</span>
+      </div>
+      <div class="children">
+
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">Patient Detail</span>
+            <span class="node-path">/doctor/patients/:id</span>
+            <span class="node-component">PatientDetail</span>
+            <span class="badge badge-slide">SLIDE</span>
+          </div>
+          <p class="note" style="margin-left:16px">subpageKey: <code>patient:{id}</code> — PageSkeleton mobileView → SlideOverlay</p>
+          <div class="children">
+
+            <div class="node">
+              <div class="node-row">
+                <span class="node-label">Chat View</span>
+                <span class="node-path">/doctor/patients/:id?view=chat</span>
+                <span class="node-component">PatientChatPage</span>
+                <span class="badge badge-slide">SLIDE</span>
+              </div>
+              <p class="note" style="margin-left:16px">subpageKey: <code>chat:{id}</code> — slides in from patient detail</p>
+            </div>
+
+            <div class="node">
+              <div class="node-row">
+                <span class="node-label">Record Detail</span>
+                <span class="node-path">/doctor/patients/:id?view=record&amp;record=X</span>
+                <span class="node-component">RecordDetailSubpage</span>
+                <span class="badge badge-slide">SLIDE</span>
+              </div>
+              <p class="note" style="margin-left:16px">subpageKey: <code>record:{recordId}</code> — different key triggers SlideOverlay transition</p>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">Interview (new patient)</span>
+            <span class="node-path">/doctor/patients/new</span>
+            <span class="node-component">InterviewPage</span>
+            <span class="badge badge-slide">SLIDE</span>
+          </div>
+          <p class="note" style="margin-left:16px">subpageKey: <code>interview:{sessionId}</code> — triggered by "新建" button</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-section">
+    <h3>Patient Section Flow</h3>
+    <div class="flow-row">
+      <div class="flow-box tab">Patient List</div>
+      <div class="flow-arrow slide"><span class="label">slide →</span>→</div>
+      <div class="flow-box sub">Patient Detail</div>
+      <div class="flow-arrow slide"><span class="label">slide →</span>→</div>
+      <div class="flow-box sub">Chat View</div>
+    </div>
+    <div class="flow-row" style="margin-top:4px">
+      <div class="flow-box tab" style="visibility:hidden">Patient List</div>
+      <div class="flow-arrow" style="visibility:hidden">→</div>
+      <div class="flow-box sub">Patient Detail</div>
+      <div class="flow-arrow slide"><span class="label">slide →</span>→</div>
+      <div class="flow-box deep">Record Detail</div>
+    </div>
+    <div class="flow-row" style="margin-top:4px">
+      <div class="flow-box tab">Patient List</div>
+      <div class="flow-arrow slide"><span class="label">slide →</span>→</div>
+      <div class="flow-box special">Interview</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── 审核 ── -->
+  <div class="tree">
+    <div class="node">
+      <div class="node-row main-tab">
+        <span class="node-label">审核</span>
+        <span class="node-path">/doctor/review</span>
+        <span class="node-component">ReviewQueuePage</span>
+      </div>
+      <div class="children">
+
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">Review Page (overlay)</span>
+            <span class="node-path">/doctor/review/:recordId</span>
+            <span class="node-component">ReviewPage</span>
+            <span class="badge badge-slide">SLIDE z=5</span>
+          </div>
+          <p class="note" style="margin-left:16px">
+            stackKey: <code>review-{recordId}</code> — SlideOverlay directly in DoctorPage (not PageSkeleton).
+            Sits above everything including bottom nav. Back = navigate(-1).
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-section">
+    <h3>Review Section Flow</h3>
+    <div class="flow-row">
+      <div class="flow-box tab">Review Queue</div>
+      <div class="flow-arrow slide"><span class="label">slide →</span>→</div>
+      <div class="flow-box deep">Review Page</div>
+      <div class="flow-arrow slide"><span class="label">slide →</span>→</div>
+      <div class="flow-box sub">Patient Detail</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── 任务 ── -->
+  <div class="tree">
+    <div class="node">
+      <div class="node-row main-tab">
+        <span class="node-label">任务</span>
+        <span class="node-path">/doctor/tasks</span>
+        <span class="node-component">TaskPage → PageSkeleton</span>
+      </div>
+      <div class="children">
+
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">Task Detail</span>
+            <span class="node-path">/doctor/tasks/:taskId</span>
+            <span class="node-component">TaskDetailSubpage</span>
+            <span class="badge badge-slide">SLIDE</span>
+          </div>
+          <p class="note" style="margin-left:16px">subpageKey: <code>task:{taskId}</code> — PageSkeleton mobileView → SlideOverlay</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── 设置 ── -->
+  <div class="tree">
+    <div class="node">
+      <div class="node-row main-tab">
+        <span class="node-label">设置 (desktop sidebar only)</span>
+        <span class="node-path">/doctor/settings</span>
+        <span class="node-component">SettingsPage → PageSkeleton</span>
+        <span class="badge badge-instant">URL ACCESS ONLY</span>
+      </div>
+      <div class="children">
+
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">AI 风格 (Persona)</span>
+            <span class="node-path">/doctor/settings/persona</span>
+            <span class="node-component">PersonaSubpage</span>
+            <span class="badge badge-slide">SLIDE</span>
+          </div>
+          <p class="note" style="margin-left:16px">subpageKey: <code>persona</code></p>
+
+          <div class="children">
+            <div class="node">
+              <div class="node-row">
+                <span class="node-label">Teach by Example</span>
+                <span class="node-path">/doctor/settings/persona/teach</span>
+                <span class="node-component">TeachByExampleSubpage</span>
+                <span class="badge badge-slide">SLIDE</span>
+              </div>
+              <p class="note" style="margin-left:16px">subpageKey: <code>persona/teach</code></p>
+            </div>
+            <div class="node">
+              <div class="node-row">
+                <span class="node-label">Persona Onboarding</span>
+                <span class="node-path">/doctor/settings/persona/onboarding</span>
+                <span class="node-component">PersonaOnboardingSubpage</span>
+                <span class="badge badge-slide">SLIDE</span>
+              </div>
+              <p class="note" style="margin-left:16px">subpageKey: <code>persona/onboarding</code></p>
+            </div>
+            <div class="node">
+              <div class="node-row">
+                <span class="node-label">Pending Review</span>
+                <span class="node-path">/doctor/settings/persona/pending</span>
+                <span class="node-component">PendingReviewSubpage</span>
+                <span class="badge badge-slide">SLIDE</span>
+              </div>
+              <p class="note" style="margin-left:16px">subpageKey: <code>persona/pending</code></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">知识库 (Knowledge)</span>
+            <span class="node-path">/doctor/settings/knowledge</span>
+            <span class="node-component">KnowledgeSubpage</span>
+            <span class="badge badge-slide">SLIDE</span>
+          </div>
+          <p class="note" style="margin-left:16px">subpageKey: <code>knowledge</code></p>
+
+          <div class="children">
+            <div class="node">
+              <div class="node-row">
+                <span class="node-label">Knowledge Detail</span>
+                <span class="node-path">/doctor/settings/knowledge/:id</span>
+                <span class="node-component">KnowledgeDetailSubpage</span>
+                <span class="badge badge-slide">SLIDE</span>
+              </div>
+              <p class="note" style="margin-left:16px">subpageKey: <code>knowledge:{id}</code></p>
+            </div>
+            <div class="node">
+              <div class="node-row">
+                <span class="node-label">Add Knowledge</span>
+                <span class="node-path">/doctor/settings/knowledge/new</span>
+                <span class="node-component">AddKnowledgeSubpage</span>
+                <span class="badge badge-slide">SLIDE</span>
+              </div>
+              <p class="note" style="margin-left:16px">subpageKey: <code>knowledge:new</code></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">报告模板 (Template)</span>
+            <span class="node-path">/doctor/settings/template</span>
+            <span class="node-component">TemplateSubpage</span>
+            <span class="badge badge-slide">SLIDE</span>
+          </div>
+          <p class="note" style="margin-left:16px">subpageKey: <code>template</code></p>
+        </div>
+
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">关于 (About)</span>
+            <span class="node-path">/doctor/settings/about</span>
+            <span class="node-component">AboutSubpage</span>
+            <span class="badge badge-slide">SLIDE</span>
+          </div>
+        </div>
+
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">隐私政策 (Privacy)</span>
+            <span class="node-path">/doctor/settings/privacy</span>
+            <span class="node-component">PrivacyPage</span>
+            <span class="badge badge-slide">SLIDE</span>
+          </div>
+        </div>
+
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">QR Code</span>
+            <span class="node-path">/doctor/settings/qr</span>
+            <span class="node-component">inline SettingsPage</span>
+            <span class="badge badge-instant">INSTANT</span>
+          </div>
+          <p class="note" style="margin-left:16px">Not a subpage — rendered directly inside SettingsPage (dialog/inline)</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-section">
+    <h3>Settings Section Flow</h3>
+    <div class="flow-row">
+      <div class="flow-box tab">Settings List</div>
+      <div class="flow-arrow slide"><span class="label">slide →</span>→</div>
+      <div class="flow-box sub">Knowledge List</div>
+      <div class="flow-arrow slide"><span class="label">slide →</span>→</div>
+      <div class="flow-box deep">Knowledge Detail</div>
+    </div>
+    <div class="flow-row" style="margin-top:4px">
+      <div class="flow-box tab">Settings List</div>
+      <div class="flow-arrow slide"><span class="label">slide →</span>→</div>
+      <div class="flow-box sub">Persona</div>
+      <div class="flow-arrow slide"><span class="label">slide →</span>→</div>
+      <div class="flow-box deep">Teach / Onboarding / Pending</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── Special screens ── -->
+  <div class="tree">
+    <div class="node">
+      <div class="node-row main-tab">
+        <span class="node-label">Special Screens (no bottom nav)</span>
+      </div>
+      <div class="children">
+
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">Onboarding Wizard</span>
+            <span class="node-path">/doctor/onboarding</span>
+            <span class="node-component">OnboardingWizard</span>
+            <span class="badge badge-instant">INSTANT</span>
+          </div>
+          <p class="note" style="margin-left:16px">First-time setup. Multi-step wizard. No bottom nav. Exits to /doctor.</p>
+        </div>
+
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">Patient Preview</span>
+            <span class="node-path">/doctor/preview/:previewId</span>
+            <span class="node-component">PatientPreviewPage</span>
+            <span class="badge badge-instant">INSTANT</span>
+          </div>
+          <p class="note" style="margin-left:16px">Rendered inside DoctorPage as a section (not a separate route). No bottom nav — hidden by isSubpage logic.</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- PATIENT PORTAL                                       -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="app-section">
+  <h2>Patient Portal <span class="path">/patient/*</span></h2>
+
+  <div class="flow-section">
+    <h3>Tab Navigation</h3>
+    <div class="flow-row">
+      <div class="flow-box tab">主页 (Chat)<br><span class="node-path">/patient/chat</span></div>
+      <div class="flow-arrow instant"><span class="label">instant</span>↔</div>
+      <div class="flow-box tab">病历 (Records)<br><span class="node-path">/patient/records</span></div>
+      <div class="flow-arrow instant"><span class="label">instant</span>↔</div>
+      <div class="flow-box tab">任务 (Tasks)<br><span class="node-path">/patient/tasks</span></div>
+      <div class="flow-arrow instant"><span class="label">instant</span>↔</div>
+      <div class="flow-box tab">我的 (Profile)<br><span class="node-path">/patient/profile</span></div>
+    </div>
+  </div>
+
+  <div class="tree">
+    <div class="node">
+      <div class="node-row main-tab">
+        <span class="node-label">病历 (Records)</span>
+        <span class="node-path">/patient/records</span>
+        <span class="node-component">RecordsTab</span>
+      </div>
+      <div class="children">
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">Record Detail</span>
+            <span class="node-path">/patient/records/:recordId</span>
+            <span class="node-component">RecordDetail</span>
+            <span class="badge badge-slide">SLIDE</span>
+          </div>
+        </div>
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">Interview</span>
+            <span class="node-path">/patient/records/interview</span>
+            <span class="node-component">InterviewPage</span>
+            <span class="badge badge-instant">INSTANT</span>
+          </div>
+          <p class="note" style="margin-left:16px">Full-screen interview — no bottom nav during flow</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- AUTH & ADMIN                                         -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="app-section">
+  <h2>Auth &amp; Admin <span class="path">/login, /admin/*</span></h2>
+
+  <div class="tree">
+    <div class="node">
+      <div class="node-row main-tab">
+        <span class="node-label">Login</span>
+        <span class="node-path">/login</span>
+        <span class="node-component">LoginPage</span>
+        <span class="badge badge-instant">INSTANT</span>
+      </div>
+      <p class="note" style="margin-left:16px">Unified doctor/patient login + registration. Redirects to /doctor or /patient on success.</p>
+    </div>
+
+    <div class="node" style="margin-top:8px">
+      <div class="node-row main-tab">
+        <span class="node-label">Privacy Policy</span>
+        <span class="node-path">/privacy</span>
+        <span class="node-component">PrivacyPage</span>
+        <span class="badge badge-instant">INSTANT</span>
+      </div>
+    </div>
+
+    <div class="node" style="margin-top:8px">
+      <div class="node-row main-tab">
+        <span class="node-label">Admin Dashboard</span>
+        <span class="node-path">/admin</span>
+        <span class="node-component">AdminPage</span>
+        <span class="badge badge-instant">INSTANT</span>
+      </div>
+      <div class="children">
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">Overview</span>
+            <span class="node-path">/admin/overview</span>
+            <span class="badge badge-instant">INSTANT</span>
+          </div>
+        </div>
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">Doctors</span>
+            <span class="node-path">/admin/doctors</span>
+            <span class="badge badge-instant">INSTANT</span>
+          </div>
+        </div>
+        <div class="node">
+          <div class="node-row">
+            <span class="node-label">Cleanup / Tables</span>
+            <span class="node-path">/admin/:table</span>
+            <span class="badge badge-instant">INSTANT</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- CROSS-SECTION NAVIGATIONS                            -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="app-section">
+  <h2>Cross-Section Navigations</h2>
+  <p class="note" style="margin-bottom:16px">These navigate across main tabs. The tab switch is instant; the destination subpage may slide in.</p>
+
+  <table class="nav-table">
+    <thead>
+      <tr>
+        <th>From</th>
+        <th>To</th>
+        <th>Trigger</th>
+        <th>Animation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Review Page</td>
+        <td><code>/doctor/patients/:id</code></td>
+        <td>Tap patient name</td>
+        <td><span class="badge badge-instant">INSTANT</span> tab switch + <span class="badge badge-slide">SLIDE</span> into detail</td>
+      </tr>
+      <tr>
+        <td>Review Page</td>
+        <td><code>/doctor/patients/:id?view=chat</code></td>
+        <td>Tap "回复" on message</td>
+        <td><span class="badge badge-instant">INSTANT</span> tab switch + <span class="badge badge-slide">SLIDE</span> into detail</td>
+      </tr>
+      <tr>
+        <td>Review Page</td>
+        <td><code>/doctor/tasks?tab=followups</code></td>
+        <td>Create followup task</td>
+        <td><span class="badge badge-instant">INSTANT</span> tab switch</td>
+      </tr>
+      <tr>
+        <td>Task Detail</td>
+        <td><code>/doctor/patients/:id</code></td>
+        <td>Tap patient link</td>
+        <td><span class="badge badge-instant">INSTANT</span> tab switch + <span class="badge badge-slide">SLIDE</span> into detail</td>
+      </tr>
+      <tr>
+        <td>Task Detail</td>
+        <td><code>/doctor/patients/:id?view=record&amp;record=X</code></td>
+        <td>Tap record link</td>
+        <td><span class="badge badge-instant">INSTANT</span> tab switch + <span class="badge badge-slide">SLIDE</span> into record</td>
+      </tr>
+      <tr>
+        <td>My AI</td>
+        <td><code>/doctor/settings/persona</code></td>
+        <td>Tap "AI 风格"</td>
+        <td><span class="badge badge-instant">INSTANT</span> tab switch + <span class="badge badge-slide">SLIDE</span> into persona</td>
+      </tr>
+      <tr>
+        <td>My AI</td>
+        <td><code>/doctor/settings/knowledge</code></td>
+        <td>Tap "知识库"</td>
+        <td><span class="badge badge-instant">INSTANT</span> tab switch + <span class="badge badge-slide">SLIDE</span> into knowledge</td>
+      </tr>
+      <tr>
+        <td>Patient Detail</td>
+        <td><code>/doctor/review/:recordId</code></td>
+        <td>Tap pending review</td>
+        <td><span class="badge badge-slide">SLIDE</span> (z-index 5, over bottom nav)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- ANIMATION DECISION TREE                              -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="app-section">
+  <h2>Animation Decision Logic</h2>
+
+  <table class="nav-table">
+    <thead>
+      <tr>
+        <th>Scenario</th>
+        <th>Mechanism</th>
+        <th>Animation</th>
+        <th>Why</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Tab ↔ Tab (doctor: 4 mobile / 5 desktop)</td>
+        <td>SectionContent renders inline</td>
+        <td><span class="badge badge-instant">INSTANT</span></td>
+        <td>wx.switchTab — tabs are peers, no animation</td>
+      </tr>
+      <tr>
+        <td>Tab ↔ Tab (patient: 4 tabs)</td>
+        <td>Conditional render (no Fade)</td>
+        <td><span class="badge badge-instant">INSTANT</span></td>
+        <td>wx.switchTab — tabs are peers, no animation</td>
+      </tr>
+      <tr>
+        <td>List → Subpage (push)</td>
+        <td>PageSkeleton → SlideOverlay, direction="forward"</td>
+        <td><span class="badge badge-slide">SLIDE</span></td>
+        <td>wx.navigateTo — ~300ms, ease [0.32,0.72,0,1], edge shadow, -24% parallax exit</td>
+      </tr>
+      <tr>
+        <td>Subpage → List (← arrow tap)</td>
+        <td>markIntentionalBack() + navigate(-1)</td>
+        <td><span class="badge badge-slide">SLIDE</span></td>
+        <td>wx.navigateBack — intentional back, animate pop</td>
+      </tr>
+      <tr>
+        <td>Subpage → List (iOS swipe / browser back)</td>
+        <td>Browser POP, no intentional flag</td>
+        <td><span class="badge badge-instant">INSTANT (iOS)</span></td>
+        <td>iOS/WeChat WebView renders own swipe visual — no double play</td>
+      </tr>
+      <tr>
+        <td>Subpage → List (Android / non-iOS back)</td>
+        <td>Browser POP, non-iOS detected</td>
+        <td><span class="badge badge-slide">SLIDE</span></td>
+        <td>No native visual on Android WeChat WebView — we provide it</td>
+      </tr>
+      <tr>
+        <td>Subpage → deeper subpage (knowledge → detail)</td>
+        <td>subpageKey changes, direction="forward"</td>
+        <td><span class="badge badge-slide">SLIDE</span></td>
+        <td>wx.navigateTo — deeper navigation, standard push</td>
+      </tr>
+      <tr>
+        <td>Review record overlay</td>
+        <td>SlideOverlay in DoctorPage, z-index 5</td>
+        <td><span class="badge badge-slide">SLIDE</span></td>
+        <td>Sits above all tabs + bottom nav (like page-container position=right)</td>
+      </tr>
+      <tr>
+        <td>Deep link / first render</td>
+        <td>direction="none", AnimatePresence initial=false</td>
+        <td><span class="badge badge-instant">INSTANT</span></td>
+        <td>No animation on cold start / deep link</td>
+      </tr>
+      <tr>
+        <td>prefers-reduced-motion</td>
+        <td>useReducedMotion() → direction="none"</td>
+        <td><span class="badge badge-instant">INSTANT</span></td>
+        <td>Respect accessibility preference</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- COMPONENT STACK                                      -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="app-section">
+  <h2>Component Stack (Mobile)</h2>
+  <p class="note" style="margin-bottom:16px">Rendering layers from outermost to innermost on mobile.</p>
+
+  <div style="font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; line-height: 2; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow-x: auto;">
+    <span style="color:var(--text3)">MobileFrame</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;└─ RequireAuth</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ ApiProvider</span><br>
+    <span style="color:var(--green)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ DoctorPage</span> <span style="color:var(--text3)">— owns activeSection, bottom nav, review overlay</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ <span style="color:var(--green)">SectionContent</span></span> <span style="color:var(--text3)">— instant tab switch, no animation</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─ <span style="color:var(--blue)">PatientsPage / SettingsPage / TaskPage / ...</span></span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span style="color:var(--blue)">PageSkeleton</span></span> <span style="color:var(--text3)">— list + mobileView</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ listPane</span> <span style="color:var(--text3)">— always visible</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span style="color:var(--purple)">SlideOverlay</span></span> <span style="color:var(--text3)">— animates mobileView (subpages)</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ AnimatePresence</span> <span style="color:var(--text3)">— keyed by subpageKey</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ motion.div</span> <span style="color:var(--text3)">— push/pop tween</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ <span style="color:var(--purple)">SlideOverlay (review)</span></span> <span style="color:var(--text3)">— z=5, above everything</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─ ReviewPage</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│</span><br>
+    <span style="color:var(--text3)">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ <span style="color:var(--green)">MobileBottomNav</span></span> <span style="color:var(--text3)">— hidden when isSubpage=true</span><br>
+  </div>
+</div>
+
+<div style="text-align:center; padding:32px 0; color:var(--text3); font-size:12px;">
+  Generated 2026-04-15 &middot; Doctor AI Agent navigation map
+</div>
+
+</body>
+</html>

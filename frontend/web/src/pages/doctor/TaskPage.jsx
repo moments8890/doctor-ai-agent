@@ -9,7 +9,7 @@
  *   4. 最近已发送         (recently sent messages)
  */
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Box, CircularProgress, Snackbar, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Box, CircularProgress, Snackbar, Typography } from "@mui/material";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { relativeFuture } from "../../utils/time";
@@ -328,8 +328,7 @@ const VALID_TABS = new Set(["followups", "completed", "sent"]);
 export default function TaskPage({ doctorId, urlSubpage }) {
   const api = useApi();
   const navigate = useAppNavigate();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMobile = true;
   const [createOpen, setCreateOpen] = useState(false);
   const params = new URLSearchParams(window.location.search);
   const origin = params.get("origin") || "";

@@ -13,18 +13,14 @@ import {
 } from "@mui/material";
 import BottomNavigationMui from "@mui/material/BottomNavigation";
 import BottomNavigationActionMui from "@mui/material/BottomNavigationAction";
-import LogoutIcon from "@mui/icons-material/Logout";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import useMediaQuery from "@mui/material/useMediaQuery";
-import { useTheme } from "@mui/material/styles";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { useDoctorStore } from "../../store/doctorStore";
 import { queryClient } from "../../lib/queryClient";
 import {
   NAV,
-  DESKTOP_NAV,
   getOnboardingState,
   markOnboardingStep,
   ONBOARDING_STEP,
@@ -41,47 +37,21 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import SheetDialog from "../../components/SheetDialog";
 import AppButton from "../../components/AppButton";
 import DialogFooter from "../../components/DialogFooter";
-import SlideOverlay from "../../components/SlideOverlay";
+import SlideOverlay, { SLIDE_TRANSITION, SuppressAnimationContext } from "../../components/SlideOverlay";
+import { motion, useReducedMotion } from "framer-motion";
+import { useNavDirection } from "../../hooks/useNavDirection";
 import SubpageHeader from "../../components/SubpageHeader";
 import BarButton from "../../components/BarButton";
 import SuggestionChips from "../../components/SuggestionChips";
 import { MiniVoiceMicHint } from "../../components/VoiceInput";
 import PersonaToast from "../../components/PersonaToast";
+import { useReleaseNotes } from "../../hooks/useReleaseNotes";
+import ReleaseNotesDialog from "../../components/ReleaseNotesDialog";
+import { getDoctorProfile, updateDoctorProfile } from "../../api";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
 import { usePendingTasks, useDraftSummary, useReviewQueue, useDrafts } from "../../lib/doctorQueries";
 
-function DesktopSidebar({ activeSection, doctorName, doctorId, navBadge, onNav, onLogout }) {
-  return (
-    <Box sx={{ width: 220, flexShrink: 0, borderRight: `0.5px solid ${COLOR.border}`, backgroundColor: COLOR.surface, display: "flex", flexDirection: "column", py: 2, px: 0 }}>
-      <Box sx={{ mb: 2, px: 2 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 800, color: COLOR.primary }}>鲸鱼随行</Typography>
-        <Typography variant="caption" color="text.secondary">{doctorName || doctorId}</Typography>
-      </Box>
-      <Box component="nav" aria-label="主导航" sx={{ flex: 1 }}>
-        {DESKTOP_NAV.map((item) => (
-          <Box key={item.key} component="button" type="button" onClick={() => onNav(item.key)}
-            aria-current={activeSection === item.key ? "page" : undefined}
-            sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1, cursor: "pointer", width: "100%", border: "none", textAlign: "left",
-              bgcolor: activeSection === item.key ? COLOR.primary : "transparent",
-              color: activeSection === item.key ? COLOR.white : COLOR.text4,
-              "&:hover": { bgcolor: activeSection === item.key ? COLOR.primary : COLOR.borderLight },
-              "&:focus-visible": { outline: `2px solid ${COLOR.primary}`, outlineOffset: -2 },
-              "&:active": { opacity: 0.8 } }}>
-            <Box sx={{ "& svg": { fontSize: ICON.lg, color: activeSection === item.key ? COLOR.white : COLOR.text4 } }}>
-              {item.badgeKey && navBadge[item.badgeKey] > 0 ? <Badge badgeContent={navBadge[item.badgeKey]} color="error">{item.icon}</Badge> : item.icon}
-            </Box>
-            <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: activeSection === item.key ? 600 : 400, color: "inherit" }}>{item.label}</Typography>
-          </Box>
-        ))}
-      </Box>
-      <Box component="button" type="button" onClick={onLogout} sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, py: 1, cursor: "pointer", width: "100%", border: "none", textAlign: "left", bgcolor: "transparent", color: COLOR.text4, "&:hover": { bgcolor: COLOR.borderLight }, "&:focus-visible": { outline: `2px solid ${COLOR.primary}`, outlineOffset: -2 }, "&:active": { opacity: 0.8 } }}>
-        <LogoutIcon fontSize="small" sx={{ color: COLOR.text4 }} />
-        <Typography sx={{ fontSize: TYPE.body.fontSize, color: COLOR.text4 }}>退出登录</Typography>
-      </Box>
-    </Box>
-  );
-}
 
 function MobileBottomNav({ activeSection, navBadge, onNav }) {
   const navValue = activeSection;
@@ -636,33 +606,6 @@ function PatientPreviewPage({ doctorId, previewId }) {
   );
 }
 
-/**
- * useTransitioningSection — when `activeSection` changes, keep the outgoing
- * section mounted until the incoming section's animation completes. Returns
- * `{ previous, isTransitioning, handleDone }`. `previous` is non-null during
- * the transition window; render it as a static backdrop underneath the
- * incoming (sliding) section so the base layer doesn't flash between them.
- *
- * State is computed during render (not effect) so the backdrop is present on
- * the very first frame after the section change — no one-frame gap.
- */
-function useTransitioningSection(activeSection) {
-  const prevRef = useRef(activeSection);
-  const [previous, setPrevious] = useState(null);
-
-  if (prevRef.current !== activeSection) {
-    // Capture the section we're leaving. Safe to call setState during render
-    // — React batches this into the same commit.
-    if (previous !== prevRef.current) setPrevious(prevRef.current);
-    prevRef.current = activeSection;
-  }
-
-  const handleDone = useCallback(() => {
-    setPrevious(null);
-  }, []);
-
-  return { previous, isTransitioning: previous !== null, handleDone };
-}
 
 function renderSection(section, sharedProps) {
   const {
@@ -700,41 +643,158 @@ function renderSection(section, sharedProps) {
   }
 }
 
+/**
+ * SectionContent — renders the active section with cross-section push/pop
+ * animations. When navigating between sections (e.g. review → patient detail),
+ * the previous section stays mounted as the parallax background while the new
+ * section slides in. This prevents the "wrong parent page" flash.
+ *
+ * Within-section transitions (e.g. patient list → patient detail) are handled
+ * by each section's own PageSkeleton/SlideOverlay. During a cross-section
+ * slide, inner animations are suppressed via SuppressAnimationContext.
+ */
+const SHADOW = "-1px 0 0 rgba(0,0,0,0.05), -8px 0 24px rgba(0,0,0,0.10)";
+
+/**
+ * Compute a stable page key from URL params. Encodes the full navigation depth.
+ * Tab roots → "tab:section". Subpages → "section:subpage:detail".
+ */
+function getPageKey(section, patientId, recordId, urlSubpage, urlSubId) {
+  if (patientId) {
+    const view = new URLSearchParams(window.location.search).get("view");
+    return `patients:${patientId}${view ? `:${view}` : ""}`;
+  }
+  if (recordId) return `review:${recordId}`;
+  if (urlSubpage) return `${section}:${urlSubpage}${urlSubId ? `:${urlSubId}` : ""}`;
+  return `tab:${section}`;
+}
+
+// Module-level state — survives component remounts across route changes.
+let modulePrevPageKey = null;
+let modulePrevSection = null;
+let modulePrevProps = null;
+
 function SectionContent(sharedProps) {
-  const { activeSection, isMobile } = sharedProps;
-  const { previous, isTransitioning, handleDone } = useTransitioningSection(activeSection);
-  // `settings` and `preview` originally had zIndex:3; preserve that on the
-  // current layer only. The backdrop previous-section stays at zIndex:1.
-  const currentZIndex = (activeSection === "settings" || activeSection === "preview") ? 3 : 2;
+  const { activeSection } = sharedProps;
+  const direction = useNavDirection();
+  const reduceMotion = useReducedMotion();
+  const effDir = reduceMotion ? "none" : direction;
+
+  const pageKey = getPageKey(activeSection, sharedProps.patientId, sharedProps.recordId, sharedProps.urlSubpage, sharedProps.urlSubId);
+
+  const [transition, setTransition] = useState(null);
+
+  // Detect page key change (covers both cross-section and same-section depth changes).
+  if (modulePrevPageKey !== null && modulePrevPageKey !== pageKey && !transition) {
+    const prevIsTab = modulePrevPageKey.startsWith("tab:");
+    const currIsTab = pageKey.startsWith("tab:");
+
+    if (prevIsTab && currIsTab) {
+      // Tab-to-tab: instant, no animation
+    } else if (effDir === "forward") {
+      setTransition({ prevSection: modulePrevSection, prevProps: modulePrevProps, dir: "forward" });
+    } else if (effDir === "back") {
+      setTransition({ prevSection: modulePrevSection, prevProps: modulePrevProps, dir: "back" });
+    }
+  }
+
+  // Update module state in effect — runs after commit, safe in StrictMode.
+  useEffect(() => {
+    modulePrevPageKey = pageKey;
+    modulePrevSection = activeSection;
+    modulePrevProps = sharedProps;
+  });
+
+  // Mark transition done (but keep tree structure to prevent inner remount).
+  const handleDone = useCallback(() => {
+    setTransition(prev => prev ? { ...prev, done: true } : null);
+  }, []);
+
+  // Clear completed transition when a new navigation changes the page key.
+  if (transition?.done && modulePrevPageKey !== pageKey) {
+    setTransition(null);
+  }
 
   const currentEl = renderSection(activeSection, sharedProps);
-  const previousEl = isTransitioning && previous ? renderSection(previous, sharedProps) : null;
+  const isAnimating = transition && !transition.done;
 
-  // Desktop and within-section views stay instant. Section-level slide only
-  // triggers on mobile AND when a real cross-section change happened.
-  const shouldAnimate = isMobile && isTransitioning;
 
-  return (
-    <Box sx={{ flex: 1, overflow: "hidden", position: "relative" }}>
-      {previousEl && (
-        <Box sx={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none" }}>
-          {previousEl}
-        </Box>
-      )}
-      {shouldAnimate ? (
-        <SlideOverlay
-          show={true}
-          stackKey={`section-${activeSection}`}
-          zIndex={currentZIndex}
+
+  // ── Cross-section forward (active or done) ──
+  // Same tree structure for both states — prevents inner remount on completion.
+  if (transition?.dir === "forward") {
+    return (
+      <Box sx={{ flex: 1, overflow: "hidden", position: "relative" }}>
+
+        {/* Previous section background — unmounted after animation done */}
+        {isAnimating && (
+          <motion.div
+            key={`xbg-${transition.prevSection}`}
+            initial={{ x: 0 }}
+            animate={{ x: "-24%" }}
+            transition={SLIDE_TRANSITION}
+            style={{ position: "absolute", inset: 0, zIndex: 1 }}
+          >
+            {renderSection(transition.prevSection, transition.prevProps)}
+          </motion.div>
+        )}
+        {/* Current section — slides in, then stays put */}
+        <motion.div
+          key={`xfg-${activeSection}`}
+          initial={isAnimating ? { x: "100%" } : false}
+          animate={{ x: 0 }}
+          transition={SLIDE_TRANSITION}
           onAnimationComplete={handleDone}
+          style={{ position: "absolute", inset: 0, zIndex: 2, backgroundColor: COLOR.surface,
+            boxShadow: isAnimating ? SHADOW : "none" }}
+        >
+          <SuppressAnimationContext.Provider value={isAnimating}>
+            {currentEl}
+          </SuppressAnimationContext.Provider>
+        </motion.div>
+      </Box>
+    );
+  }
+
+  // ── Cross-section back (active or done) ──
+  if (transition?.dir === "back") {
+    return (
+      <Box sx={{ flex: 1, overflow: "hidden", position: "relative" }}>
+
+        {/* Current section background — parallaxes back from left */}
+        <motion.div
+          key={`xbg-${activeSection}`}
+          initial={isAnimating ? { x: "-24%" } : false}
+          animate={{ x: 0 }}
+          transition={SLIDE_TRANSITION}
+          style={{ position: "absolute", inset: 0, zIndex: 1 }}
         >
           {currentEl}
-        </SlideOverlay>
-      ) : (
-        <Box sx={{ position: "absolute", inset: 0, zIndex: currentZIndex }}>
-          {currentEl}
-        </Box>
-      )}
+        </motion.div>
+        {/* Outgoing section — slides out to right, unmounted after done */}
+        {isAnimating && (
+          <motion.div
+            key={`xfg-${transition.prevSection}`}
+            initial={{ x: 0 }}
+            animate={{ x: "100%" }}
+            transition={SLIDE_TRANSITION}
+            onAnimationComplete={handleDone}
+            style={{ position: "absolute", inset: 0, zIndex: 2, backgroundColor: COLOR.surface, boxShadow: SHADOW }}
+          >
+            {renderSection(transition.prevSection, transition.prevProps)}
+          </motion.div>
+        )}
+      </Box>
+    );
+  }
+
+  // ── Normal: tab switch or no cross-section transition ──
+  return (
+    <Box sx={{ flex: 1, overflow: "hidden", position: "relative" }}>
+      {debugToast}
+      <Box sx={{ position: "absolute", inset: 0, zIndex: 2 }}>
+        {currentEl}
+      </Box>
     </Box>
   );
 }
@@ -783,8 +843,7 @@ export default function DoctorPage() {
   const { section, patientId, recordId, subpage: urlSubpage, subId: urlSubId } = useParams();
   const navigate = useAppNavigate();
   const { doctorId, doctorName, accessToken, clearAuth, setAuth } = useDoctorStore();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMobile = true; // Always mobile layout — no desktop sidebar
   const [patientRefreshKey, setPatientRefreshKey] = useState(0);
   const [triggerInterview, setTriggerInterview] = useState(false);
   const [chatInterviewSessionId, setChatInterviewSessionId] = useState(null);
@@ -793,16 +852,39 @@ export default function DoctorPage() {
 
   const { pendingTaskCount, reviewCount, followupCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
-  // Redirect to onboarding wizard on first login (skip for /mock and wizard subpages)
+  // Onboarding gate: fast localStorage check first (no flash), then async API
+  // for migration case. New doctors redirect instantly via isWizardDone().
+  const wizardDoneLocal = doctorId ? isWizardDone(doctorId) : true;
+  const [finishedOnboarding, setFinishedOnboarding] = useState(wizardDoneLocal);
   useEffect(() => {
     if (!doctorId) return;
     if (window.location.pathname.startsWith("/mock")) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("wizard") === "1" || params.get("onboarding") === "1") return;
-    if (!isWizardDone(doctorId)) {
+
+    if (!wizardDoneLocal) {
+      // Fast path: localStorage says not done — redirect immediately, no API call
+      setFinishedOnboarding(false);
       navigate(dp("onboarding"));
+      return;
     }
+
+    // Slow path: localStorage says done — verify + migrate to DB if needed
+    getDoctorProfile(doctorId).then((p) => {
+      if (p.finished_onboarding) {
+        setFinishedOnboarding(true);
+      } else {
+        // One-time migration: localStorage says done, DB doesn't know yet
+        updateDoctorProfile(doctorId, { finished_onboarding: true }).catch(() => {});
+        setFinishedOnboarding(true);
+      }
+    }).catch(() => {
+      // Network error — trust localStorage
+      setFinishedOnboarding(true);
+    });
   }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { showDialog: showReleaseNotes, release: releaseData, dismiss: dismissReleaseNotes } = useReleaseNotes(doctorId, finishedOnboarding);
 
   const navBadge = { tasks: pendingTaskCount, review: reviewCount };
 
@@ -840,19 +922,19 @@ export default function DoctorPage() {
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: isMobile ? "column" : "row", height: "100%", position: "relative", bgcolor: COLOR.surface }}>
-      {!isMobile && <DesktopSidebar activeSection={activeSection} doctorName={doctorName} doctorId={doctorId} navBadge={navBadge} onNav={handleNav} onLogout={handleLogout} />}
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", position: "relative", bgcolor: COLOR.surface }}>
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-        <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} urlSubpage={urlSubpage} urlSubId={urlSubId} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} onInterviewChange={setInterviewActive} />
+        <SectionContent activeSection={activeSection} doctorId={doctorId} isMobile={isMobile} navigate={navigate} patientId={patientId} recordId={recordId} urlSubpage={urlSubpage} urlSubId={urlSubId} patientRefreshKey={patientRefreshKey} setPatientRefreshKey={setPatientRefreshKey} handleLogout={handleLogout} triggerInterview={triggerInterview} setTriggerInterview={setTriggerInterview} chatInterviewSessionId={chatInterviewSessionId} setChatInterviewSessionId={setChatInterviewSessionId} chatInterviewPrePopulated={chatInterviewPrePopulated} setChatInterviewPrePopulated={setChatInterviewPrePopulated} onInterviewChange={setInterviewActive} />
         <SlideOverlay show={isReviewPage} stackKey={`review-${recordId || ""}`} zIndex={5} sx={{ backgroundColor: COLOR.surfaceAlt }}>
           <ErrorBoundary label="诊断审核">
             <ReviewPage recordId={recordId} />
           </ErrorBoundary>
         </SlideOverlay>
       </Box>
-      {isMobile && !isSubpage && <MobileBottomNav activeSection={activeSection} navBadge={navBadge} onNav={handleNav} />}
+      {!isSubpage && <MobileBottomNav activeSection={activeSection} navBadge={navBadge} onNav={handleNav} />}
       <OnboardingDialog open={showOnboarding} name={onboardName} saving={onboardSaving} onChange={setOnboardName} onSubmit={handleOnboardSubmit} onClose={() => setShowOnboarding(false)} />
       <PersonaToast />
+      <ReleaseNotesDialog open={showReleaseNotes} release={releaseData} onDismiss={dismissReleaseNotes} />
     </Box>
   );
 }

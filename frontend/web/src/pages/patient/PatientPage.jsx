@@ -10,7 +10,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
-import { Box, Fade } from "@mui/material";
+import { Box } from "@mui/material";
 import Badge from "@mui/material/Badge";
 import BottomNavigation from "@mui/material/BottomNavigation";
 import BottomNavigationAction from "@mui/material/BottomNavigationAction";
@@ -181,33 +181,33 @@ export default function PatientPage() {
         />
       )}
 
-      {/* Content area — Fade transition matches DoctorPage */}
+      {/* Content area — instant tab switch (WeChat convention: tabs are peers) */}
       <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
-        <Fade in={tab === "chat"} timeout={150} unmountOnExit>
-          <Box sx={{ position: tab === "chat" ? "relative" : "absolute", inset: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        {tab === "chat" && (
+          <Box sx={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
             <ChatTab token={token} doctorName={doctorName} onLogout={handleLogout}
               onNewInterview={startInterview}
               onViewRecords={() => setTab("records")}
               onUnreadCountChange={setUnreadCount} />
           </Box>
-        </Fade>
-        <Fade in={tab === "records"} timeout={150} unmountOnExit>
-          <Box sx={{ position: tab === "records" ? "relative" : "absolute", inset: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        )}
+        {tab === "records" && (
+          <Box sx={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
             <RecordsTab token={token} onNewRecord={startInterview} urlSubpage={urlSubpage} />
           </Box>
-        </Fade>
-        <Fade in={tab === "tasks"} timeout={150} unmountOnExit>
-          <Box sx={{ position: tab === "tasks" ? "relative" : "absolute", inset: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        )}
+        {tab === "tasks" && (
+          <Box sx={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
             <TasksTab token={token} />
           </Box>
-        </Fade>
-        <Fade in={tab === "profile"} timeout={150} unmountOnExit>
-          <Box sx={{ position: tab === "profile" ? "relative" : "absolute", inset: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        )}
+        {tab === "profile" && (
+          <Box sx={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
             <MyPage patientName={patientName} doctorName={doctorName}
               doctorSpecialty={doctorSpecialty} doctorId={doctorId}
               onLogout={handleLogout} />
           </Box>
-        </Fade>
+        )}
       </Box>
 
       {/* Bottom navigation */}

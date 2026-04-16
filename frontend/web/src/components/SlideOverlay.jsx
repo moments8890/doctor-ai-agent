@@ -14,15 +14,21 @@
  *   stackKey             — identity of the current overlay. Changes trigger
  *                          exit+enter transitions between peers.
  *   onAnimationComplete  — fires after every transition end (enter or exit).
- *                          Used by callers that render a fading backdrop and
- *                          need to drop it when the enter animation finishes.
  *   sx, zIndex           — cosmetic overrides for the overlay wrapper.
  */
+import { createContext, useContext, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { COLOR } from "../theme";
 import { useNavDirection } from "../hooks/useNavDirection";
 
-const SLIDE_TRANSITION = { type: "tween", duration: 0.28, ease: [0.32, 0.72, 0, 1] };
+export const SLIDE_TRANSITION = { type: "tween", duration: 0.3, ease: [0.32, 0.72, 0, 1] };
+
+/**
+ * When true, inner SlideOverlays skip their entry animation because an
+ * outer cross-section slide is already handling the visual transition.
+ */
+export const SuppressAnimationContext = createContext(false);
 
 export default function SlideOverlay({
   show,
@@ -34,7 +40,18 @@ export default function SlideOverlay({
 }) {
   const direction = useNavDirection();
   const reduceMotion = useReducedMotion();
+  const suppressAnimation = useContext(SuppressAnimationContext);
   const effectiveDirection = reduceMotion ? "none" : direction;
+  const location = useLocation();
+
+  // Track whether we already rendered content for this location.
+  // Prevents re-animation when suppress context transitions from true→false
+  // (outer cross-section animation completing doesn't re-trigger inner slide).
+  // Check BEFORE setting — otherwise first render always thinks it was already shown.
+  const shownForKeyRef = useRef(null);
+  const alreadyShown = show && shownForKeyRef.current === location.key;
+  if (show) shownForKeyRef.current = location.key;
+  if (!show) shownForKeyRef.current = null;
 
   const overlayStyle = {
     position: "absolute", inset: 0, zIndex,
@@ -42,9 +59,8 @@ export default function SlideOverlay({
     ...sx,
   };
 
-  if (effectiveDirection === "none") {
-    // Unmount synchronously. Still fire the completion callback so callers
-    // that rely on it for backdrop cleanup don't get stuck in transitioning.
+  // No animation: suppressed, direction=none, or already shown for this nav
+  if (effectiveDirection === "none" || suppressAnimation || (alreadyShown && effectiveDirection === "forward")) {
     return show ? (
       <div style={overlayStyle} ref={() => onAnimationComplete?.()}>
         {children}
@@ -52,20 +68,9 @@ export default function SlideOverlay({
     ) : null;
   }
 
-  // iOS/WeChat push semantics: on FORWARD, the outgoing page slides left
-  // (parallax) while the incoming page slides in from the right. On BACK,
-  // the outgoing page slides right off-screen. Without a non-zero exit
-  // target, framer-motion optimises the animation away and unmounts the old
-  // page immediately — which makes the base briefly visible before the new
-  // page arrives.
   const initialX = effectiveDirection === "forward" ? "100%" : 0;
-  const exitX = effectiveDirection === "back" ? "100%" : "-30%";
-  // `initial` on AnimatePresence only affects children present at FIRST
-  // MOUNT of AnimatePresence (deep-link / fresh-mount case). Children added
-  // after AnimatePresence is already mounted animate regardless. We set it
-  // false to keep deep-link mounts instant; the section-level SlideOverlay
-  // (in DoctorPage) handles cross-section slide-ins separately.
-  const animateInitial = false;
+  const exitX = effectiveDirection === "back" ? "100%" : "-24%";
+  const animateInitial = effectiveDirection === "forward";
 
   return (
     <AnimatePresence initial={animateInitial} mode="sync">
@@ -77,7 +82,11 @@ export default function SlideOverlay({
           exit={{ x: exitX }}
           transition={SLIDE_TRANSITION}
           onAnimationComplete={onAnimationComplete}
-          style={{ ...overlayStyle, willChange: "transform" }}
+          style={{
+            ...overlayStyle,
+            willChange: "transform",
+            boxShadow: "-1px 0 0 rgba(0,0,0,0.05), -8px 0 24px rgba(0,0,0,0.10)",
+          }}
         >
           {children}
         </motion.div>

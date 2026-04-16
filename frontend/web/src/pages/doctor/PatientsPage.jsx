@@ -12,8 +12,6 @@ import {
   Alert, Autocomplete, Box, Button, Chip, CircularProgress, InputAdornment,
   Stack, TextField, Typography,
 } from "@mui/material";
-import useMediaQuery from "@mui/material/useMediaQuery";
-import { useTheme } from "@mui/material/styles";
 import SearchIcon from "@mui/icons-material/Search";
 import ChatOutlinedIcon from "@mui/icons-material/ChatOutlined";
 import { textToInterview } from "../../api";
@@ -494,8 +492,7 @@ function RecordDetailSubpage({ recordId, doctorId, patientName, onBack, onDelete
 export default function PatientsPage({ doctorId, onPatientSelected, refreshKey = 0, triggerInterview, onTriggerInterviewConsumed, chatInterviewSessionId, onChatInterviewSessionConsumed, chatInterviewPrePopulated, onInterviewChange }) {
   const { patientId } = useParams();
   const navigate = useAppNavigate();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMobile = true;
   const selectedId = patientId ? Number(patientId) : null;
   const { patients, refetchPatients, loading, error, search, nlResults, nlLoading, importing, importError, importFileRef, filtered, selectedPatient, load, handleSearchChange, handleSearchSubmit, handleImportFile, attention, aiTagMap } = usePatientsState({ doctorId, onPatientSelected, selectedId, refreshKey });
 
@@ -613,9 +610,7 @@ export default function PatientsPage({ doctorId, onPatientSelected, refreshKey =
       triggerExport={triggerExport} onTriggerExportConsumed={() => setTriggerExport(false)} />
   );
 
-  // Distinct key per subpage flavour so SlideOverlay animates when switching
-  // between interview / record-detail / chat / patient-detail for the same
-  // selected patient (not just when transitioning from null → truthy).
+  // Distinct key per subpage so SlideOverlay animates transitions.
   const subpageKey = interviewActive
     ? `interview:${chatInterviewSessionId || "new"}`
     : (selectedId && viewParam === "record")
