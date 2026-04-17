@@ -40,6 +40,7 @@ async def knowledge_item_usage(
     from sqlalchemy import desc, select
 
     from db.models.knowledge_usage import KnowledgeUsageLog
+    from db.models.patient import Patient
 
     rows = (
         await session.execute(
@@ -52,12 +53,30 @@ async def knowledge_item_usage(
             .limit(limit)
         )
     ).scalars().all()
+
+    # Batch-fetch patient names so rows can show "<name> · <context>".
+    # knowledge_usage_log.patient_id is a string; Patient.id is int — coerce.
+    raw_ids = {r.patient_id for r in rows if r.patient_id}
+    int_ids: set[int] = set()
+    for pid in raw_ids:
+        try:
+            int_ids.add(int(pid))
+        except (TypeError, ValueError):
+            continue
+    name_map: dict[str, str] = {}
+    if int_ids:
+        pat_rows = (await session.execute(
+            select(Patient).where(Patient.id.in_(int_ids))
+        )).scalars().all()
+        name_map = {str(p.id): p.name for p in pat_rows if p.name}
+
     return {
         "usage": [
             {
                 "id": r.id,
                 "usage_context": r.usage_context,
                 "patient_id": r.patient_id,
+                "patient_name": name_map.get(str(r.patient_id)) if r.patient_id else None,
                 "record_id": r.record_id,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }
