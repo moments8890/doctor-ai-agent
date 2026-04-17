@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Optional
+import sqlalchemy as sa
 from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from db.engine import Base
@@ -65,6 +66,7 @@ class Doctor(Base):
     bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    finished_onboarding: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=sa.text("0"))
 
     __table_args__ = (
         Index("ix_doctors_phone", "phone"),
