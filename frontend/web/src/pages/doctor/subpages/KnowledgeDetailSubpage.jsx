@@ -16,6 +16,7 @@ import { dp } from "../../../utils/doctorBasePath";
 import PageSkeleton from "../../../components/PageSkeleton";
 import SectionLabel from "../../../components/SectionLabel";
 import ListCard from "../../../components/ListCard";
+import StatColumn from "../../../components/StatColumn";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import SheetDialog from "../../../components/SheetDialog";
 import DialogFooter from "../../../components/DialogFooter";
@@ -62,20 +63,6 @@ function getUsageTypeConfig(type) {
   return USAGE_TYPE_CONFIG[type] || { icon: <DescriptionOutlinedIcon sx={{ fontSize: 16, color: COLOR.text3 }} />, label: type || "引用" };
 }
 
-/* ── StatItem ── */
-
-function StatItem({ label, value, color }) {
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 48 }}>
-      <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: color || COLOR.text1 }}>
-        {value}
-      </Typography>
-      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
-        {label}
-      </Typography>
-    </Box>
-  );
-}
 
 /* ── Main ── */
 
@@ -204,7 +191,6 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
   const cfg = item ? getSourceConfig(item.source) : null;
   const sourceLabel = cfg ? (item.source?.startsWith("upload:") ? `来源：${cfg.label}` : `来源：${cfg.label}`) : "";
   const category = item?.category;
-  const refCount = item?.reference_count || 0;
   const { data: health } = useRuleHealth(isPersonaProp ? null : itemId);
 
   // Find most recent usage date
@@ -272,26 +258,20 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
               )}
             </Box>
 
-            {/* Usage stats line */}
-            <Box sx={{ px: 2, pb: health && health.cited_count > 0 ? 1.5 : 2 }}>
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3 }}>
-                {refCount > 0
-                  ? `引用 ${refCount} 次${lastUsedDate ? ` \u00B7 最近 ${lastUsedDate}` : ""}`
-                  : "尚未被引用"}
-              </Typography>
-            </Box>
-
-            {/* Rule health stats */}
-            {health && health.cited_count > 0 && (
-              <Box sx={{
-                display: "flex", gap: 2, flexWrap: "wrap",
-                mx: 2, mb: 2, p: 1.5,
-                bgcolor: COLOR.surfaceAlt, borderRadius: RADIUS.md,
-              }}>
-                <StatItem label="引用" value={health.cited_count} />
-                <StatItem label="采纳" value={health.accepted_count} color={COLOR.primary} />
-                <StatItem label="编辑" value={health.edited_count} color={COLOR.warning} />
-                <StatItem label="拒绝" value={health.rejected_count} color={COLOR.danger} />
+            {/* Rule health stats — unified StatColumn bar matching KnowledgeSubpage list header */}
+            {!isPersonaProp && (
+              <Box sx={{ display: "flex", py: 1.5, px: 2, bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.borderLight}`, borderBottom: `0.5px solid ${COLOR.borderLight}`, mt: 1 }}>
+                <StatColumn
+                  value={health?.cited_count ?? 0}
+                  label="引用"
+                  sublabel={lastUsedDate ? `最近 ${lastUsedDate}` : null}
+                />
+                <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight }} />
+                <StatColumn value={health?.accepted_count ?? 0} label="采纳" color={COLOR.primary} />
+                <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight }} />
+                <StatColumn value={health?.edited_count ?? 0} label="编辑" color={COLOR.warning} />
+                <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight }} />
+                <StatColumn value={health?.rejected_count ?? 0} label="拒绝" color={COLOR.danger} />
               </Box>
             )}
 
