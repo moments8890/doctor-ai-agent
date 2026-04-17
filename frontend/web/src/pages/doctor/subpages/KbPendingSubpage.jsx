@@ -32,7 +32,7 @@ export default function KbPendingSubpage({ onBack }) {
   const listContent = isLoading ? (
     <SectionLoading />
   ) : items.length === 0 ? (
-    <EmptyState message="暂无待确认的临床规则" />
+    <EmptyState message="暂无待采纳的临床规则" />
   ) : (
     <Box sx={{ px: 2, py: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
       {items.map((item) => {
@@ -111,7 +111,7 @@ export default function KbPendingSubpage({ onBack }) {
   return (
     <>
       <PageSkeleton
-        title="待确认的临床规则"
+        title="待采纳的临床规则"
         onBack={onBack}
         listPane={listContent}
       />

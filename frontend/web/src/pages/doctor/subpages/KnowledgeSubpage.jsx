@@ -202,7 +202,7 @@ export default function KnowledgeSubpage({
             <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight }} />
             <StatColumn
               value={kbPendingCount}
-              label="待确认"
+              label="待采纳"
               color={kbPendingCount > 0 ? COLOR.warning : COLOR.text4}
               onClick={kbPendingCount > 0 ? () => navigate(dp("settings/knowledge/pending")) : undefined}
             />
