@@ -35,8 +35,9 @@ export default function KbPendingSubpage({ onBack }) {
     if (link.entity_type === "diagnosis" && link.record_id) {
       navigate(`${dp("review")}/${link.record_id}`);
     } else if (link.entity_type === "draft_reply" && link.patient_id) {
-      const suffix = link.draft_id ? `?highlight_draft_id=${link.draft_id}` : "";
-      navigate(`${dp("patients")}/${link.patient_id}${suffix}`);
+      const qs = new URLSearchParams({ view: "chat" });
+      if (link.draft_id) qs.set("highlight_draft_id", String(link.draft_id));
+      navigate(`${dp("patients")}/${link.patient_id}?${qs.toString()}`);
     }
   }
 
