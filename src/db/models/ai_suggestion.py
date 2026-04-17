@@ -45,6 +45,8 @@ class AISuggestion(Base):
     reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
+    cited_knowledge_ids: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
     seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)

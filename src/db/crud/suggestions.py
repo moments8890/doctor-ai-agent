@@ -23,6 +23,7 @@ async def create_suggestion(
     urgency: Optional[str] = None,
     intervention: Optional[str] = None,
     is_custom: bool = False,
+    cited_knowledge_ids: Optional[str] = None,
 ) -> AISuggestion:
     row = AISuggestion(
         record_id=record_id,
@@ -34,6 +35,7 @@ async def create_suggestion(
         urgency=urgency,
         intervention=intervention,
         is_custom=is_custom,
+        cited_knowledge_ids=cited_knowledge_ids,
         decision=SuggestionDecision.custom.value if is_custom else None,
     )
     session.add(row)

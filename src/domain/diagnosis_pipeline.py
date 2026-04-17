@@ -9,6 +9,7 @@ Uses structured_call (instructor) for reliable structured output from LLMs.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from typing import Any, Dict, List, Optional
 
@@ -547,35 +548,47 @@ async def run_diagnosis(
                 from db.models.ai_suggestion import SuggestionSection
 
                 async with AsyncSessionLocal() as db:
+                    from domain.knowledge.citation_parser import extract_citations as _extract_citations
+
+                    def _cited_json(text: str) -> Optional[str]:
+                        ids = _extract_citations(text).cited_ids
+                        return json.dumps(ids) if ids else None
+
                     for d in result["differentials"]:
+                        _detail = d.get("detail") or ""
                         await create_suggestion(
                             db,
                             record_id=record_id,
                             doctor_id=doctor_id,
                             section=SuggestionSection.differential,
                             content=d["condition"],
-                            detail=d.get("detail") or None,
+                            detail=_detail or None,
                             confidence=d.get("confidence") or None,
+                            cited_knowledge_ids=_cited_json(f"{d['condition']} {_detail}"),
                         )
                     for w in result["workup"]:
+                        _detail = w.get("detail") or ""
                         await create_suggestion(
                             db,
                             record_id=record_id,
                             doctor_id=doctor_id,
                             section=SuggestionSection.workup,
                             content=w["test"],
-                            detail=w.get("detail") or None,
+                            detail=_detail or None,
                             urgency=w.get("urgency") or None,
+                            cited_knowledge_ids=_cited_json(f"{w['test']} {_detail}"),
                         )
                     for t in result["treatment"]:
+                        _detail = t.get("detail") or ""
                         await create_suggestion(
                             db,
                             record_id=record_id,
                             doctor_id=doctor_id,
                             section=SuggestionSection.treatment,
                             content=t["drug_class"],
-                            detail=t.get("detail") or None,
+                            detail=_detail or None,
                             intervention=t.get("intervention") or None,
+                            cited_knowledge_ids=_cited_json(f"{t['drug_class']} {_detail}"),
                         )
                     log(f"{_tag} diagnosis persisted to ai_suggestions for record {record_id}")
             except Exception as persist_err:
