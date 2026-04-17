@@ -1,7 +1,7 @@
 """add_kb_pending_items
 
 Revision ID: 1357bf8e6e2a
-Revises: dfbe8eaa5be9
+Revises: 0003_remove_review
 Create Date: 2026-04-16 15:03:51.663365
 """
 from __future__ import annotations
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 revision = "1357bf8e6e2a"
-down_revision = "dfbe8eaa5be9"
+down_revision = "0003_remove_review"
 branch_labels = None
 depends_on = None
 
