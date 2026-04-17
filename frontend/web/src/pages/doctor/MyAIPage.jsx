@@ -158,22 +158,22 @@ export default function MyAIPage({ doctorId }) {
         {/* ── 3. Today Summary (LLM-generated, single narrative) ── */}
         {summaryData && summaryData.mode !== "empty" && summaryData.summary && (
           <>
-            <SectionLabel sx={{
-              display: "flex", alignItems: "center", gap: 0.5,
-            }}>
-              <AutoAwesomeOutlinedIcon sx={{ fontSize: 14, color: summaryData.is_new ? COLOR.primary : COLOR.text4, verticalAlign: "middle", mr: 0.5 }} />
-              今日摘要
+            <Box sx={{ display: "flex", alignItems: "center", px: 1.5, pt: 2, pb: 0.5 }}>
+              <AutoAwesomeOutlinedIcon sx={{ fontSize: 14, color: summaryData.is_new ? COLOR.primary : COLOR.text4, mr: 0.5 }} />
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, fontWeight: 600, letterSpacing: 0.5 }}>
+                今日摘要
+              </Typography>
               {summaryData.is_new === false && (
-                <Typography component="span" sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, ml: 0.5, fontWeight: 400 }}>
+                <Typography component="span" sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, ml: 0.5 }}>
                   · 暂无新变化
                 </Typography>
               )}
               {summaryData.generated_at && (
-                <Typography component="span" sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, ml: "auto", fontWeight: 400 }}>
+                <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, ml: "auto" }}>
                   {relativeTime(summaryData.generated_at)}
                 </Typography>
               )}
-            </SectionLabel>
+            </Box>
           <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.5 }}>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.7 }}>
               {summaryData.summary.replace(/\s*\[KB-\d+\]/g, "")}
