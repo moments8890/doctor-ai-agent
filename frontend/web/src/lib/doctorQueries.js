@@ -220,6 +220,17 @@ export function useKbPending() {
   });
 }
 
+export function useKbHallucinations(days = 7) {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.kbHallucinations(doctorId, days),
+    queryFn:  () => api.getKbHallucinations(doctorId, days),
+    enabled:  !!doctorId,
+    staleTime: 60_000,
+  });
+}
+
 export function useAcceptKbPending() {
   const { doctorId } = useDoctorStore();
   const api = useApi();

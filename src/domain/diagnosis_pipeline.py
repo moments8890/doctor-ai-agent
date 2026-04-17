@@ -527,6 +527,12 @@ async def run_diagnosis(
                             cite_session, doctor_id, validated.valid_ids,
                             "diagnosis", patient_id=None, record_id=record_id,
                         )
+                    if validated.hallucinated_ids:
+                        from domain.knowledge.citation_parser import log_hallucinations
+                        await log_hallucinations(
+                            cite_session, doctor_id, "diagnosis", record_id,
+                            validated.hallucinated_ids,
+                        )
         except Exception as cite_exc:
             log(f"{_tag} citation logging failed (non-fatal): {cite_exc}", level="warning")
 

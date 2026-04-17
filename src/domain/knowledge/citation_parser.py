@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import List, Set
+from typing import List, Optional, Set
 
 from utils.log import log
 
@@ -54,3 +54,27 @@ def validate_citations(
     if hallucinated:
         log("Hallucinated KB citations", level="warning", ids=hallucinated)
     return ValidationResult(valid_ids=valid, hallucinated_ids=hallucinated)
+
+
+async def log_hallucinations(
+    session,
+    doctor_id: str,
+    context: str,
+    context_id: Optional[int],
+    hallucinated_ids: List[int],
+) -> None:
+    """Persist hallucinated [KB-N] references. Non-fatal — exceptions are swallowed."""
+    if not hallucinated_ids:
+        return
+    try:
+        from db.models.hallucinated_citation import HallucinatedCitation
+        for kb_id in hallucinated_ids:
+            session.add(HallucinatedCitation(
+                doctor_id=doctor_id,
+                context=context,
+                context_id=context_id,
+                hallucinated_id=kb_id,
+            ))
+        await session.commit()
+    except Exception as exc:
+        log(f"[citation_parser] hallucination log failed: {exc}", level="warning")

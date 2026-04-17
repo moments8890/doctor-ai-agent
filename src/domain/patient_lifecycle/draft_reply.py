@@ -104,6 +104,18 @@ async def generate_draft_reply(
             except Exception as cite_exc:
                 log(f"[draft_reply] citation logging failed (non-fatal): {cite_exc}", level="warning")
 
+        # Log hallucinated citations (non-fatal)
+        if validation.hallucinated_ids:
+            try:
+                from domain.knowledge.citation_parser import log_hallucinations
+                async with AsyncSessionLocal() as hal_session:
+                    await log_hallucinations(
+                        hal_session, doctor_id, "draft_reply", message_id,
+                        validation.hallucinated_ids,
+                    )
+            except Exception as hal_exc:
+                log(f"[draft_reply] hallucination logging failed (non-fatal): {hal_exc}", level="warning")
+
         confidence = 0.7 if is_red_flag else 0.9
 
         # Strip [KB-*] citation markers from user-facing text

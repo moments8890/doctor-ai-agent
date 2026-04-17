@@ -22,7 +22,7 @@ import AppButton from "../../../components/AppButton";
 import ListCard from "../../../components/ListCard";
 import IconBadge from "../../../components/IconBadge";
 import { ICON_BADGES, PAGE_HELP } from "../constants";
-import { useKbPending } from "../../../lib/doctorQueries";
+import { useKbPending, useKbHallucinations } from "../../../lib/doctorQueries";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { dp } from "../../../utils/doctorBasePath";
 
@@ -133,6 +133,8 @@ export default function KnowledgeSubpage({
 
   const { data: kbPendingData } = useKbPending();
   const kbPendingCount = kbPendingData?.count || 0;
+  const { data: hallucinationData } = useKbHallucinations();
+  const hallucinationCount = hallucinationData?.count || 0;
   const navigate = useAppNavigate();
 
   // Compute weekly citation total
@@ -166,6 +168,22 @@ export default function KnowledgeSubpage({
           <Chip label="新" size="small" color="warning" />
           <Typography sx={{ fontSize: TYPE.body.fontSize }}>
             AI 从您的编辑中发现 {kbPendingCount} 条待确认临床规则
+          </Typography>
+        </Box>
+      )}
+
+      {hallucinationCount > 0 && (
+        <Box
+          sx={{
+            p: 1.5, mx: 1.5, my: 1,
+            bgcolor: "#fff3e0",
+            borderRadius: RADIUS.md,
+            display: "flex", alignItems: "center", gap: 1,
+          }}
+        >
+          <Chip label="注意" size="small" color="warning" />
+          <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>
+            AI 最近 7 天引用了 {hallucinationCount} 条不存在的规则 — 可能需要检查 prompt 或补充 KB
           </Typography>
         </Box>
       )}

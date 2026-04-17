@@ -711,6 +711,10 @@ export async function rejectPendingItem(doctorId, itemId) {
   });
 }
 
+export async function getKbHallucinations(doctorId, days = 7) {
+  return request(`/api/manage/kb/hallucinations?doctor_id=${encodeURIComponent(doctorId)}&days=${days}`);
+}
+
 export async function getKbPending(doctorId) {
   const qs = new URLSearchParams({ doctor_id: doctorId });
   return request(`/api/manage/kb/pending?${qs.toString()}`);
