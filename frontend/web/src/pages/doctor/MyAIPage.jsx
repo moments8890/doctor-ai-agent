@@ -20,7 +20,7 @@ import SectionLabel from "../../components/SectionLabel";
 import { ICON_BADGES } from "./constants";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
-import { useReviewQueue, usePersona, useTodaySummary, useKbPending } from "../../lib/doctorQueries";
+import { useReviewQueue, usePersona, useTodaySummary, useKbPending, useKnowledgeItems } from "../../lib/doctorQueries";
 import { relativeTime } from "../../utils/time";
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -63,6 +63,7 @@ export default function MyAIPage({ doctorId }) {
   const { data: personaData, isLoading: pLoading } = usePersona();
   const { data: summaryData, isLoading: sLoading, isError: sError } = useTodaySummary();
   const { data: kbPendingData } = useKbPending();
+  const { data: knowledgeData } = useKnowledgeItems();
 
   const loading = qLoading || pLoading;
   const reviewQueue = reviewQueueData || { pending: [], completed: [] };
@@ -71,6 +72,8 @@ export default function MyAIPage({ doctorId }) {
   const displayName = doctorName || "医生";
   const pendingReview = loading ? 0 : (reviewQueue?.pending || []).length;
   const kbPendingCount = kbPendingData?.count || 0;
+  const knowledgeListRaw = Array.isArray(knowledgeData) ? knowledgeData : (knowledgeData?.items || []);
+  const knowledgeCount = knowledgeListRaw.filter((k) => k.category !== "persona").length;
 
   const isMiniprogram = typeof window !== "undefined" && window.__wxjs_environment === "miniprogram";
 
@@ -119,7 +122,7 @@ export default function MyAIPage({ doctorId }) {
           {[
             { config: ICON_BADGES.new_record, label: "新建病历", onClick: () => navigate(`${dp("patients")}?action=new`) },
             { config: ICON_BADGES.qr_code, label: "预问诊码", onClick: () => navigate(dp("settings/qr")) },
-            { config: ICON_BADGES.kb_add, label: "添加知识", onClick: () => navigate(dp("settings/knowledge/add")) },
+            { config: ICON_BADGES.kb_doctor, label: `知识库 (${knowledgeCount})`, onClick: () => navigate(dp("settings/knowledge")) },
           ].map(({ config, label, onClick: onTap }, idx, arr) => (
             <Box key={label} onClick={onTap}
               sx={{
