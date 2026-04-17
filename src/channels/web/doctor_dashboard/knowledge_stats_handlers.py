@@ -78,6 +78,7 @@ async def knowledge_item_usage(
                 "patient_id": r.patient_id,
                 "patient_name": name_map.get(str(r.patient_id)) if r.patient_id else None,
                 "record_id": r.record_id,
+                "draft_id": r.draft_id,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }
             for r in rows

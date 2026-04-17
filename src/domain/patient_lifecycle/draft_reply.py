@@ -93,29 +93,6 @@ async def generate_draft_reply(
 
         validation = validate_citations(citation_result.cited_ids, valid_kb_ids)
 
-        # Log valid citations to knowledge_usage_log (non-fatal)
-        if validation.valid_ids:
-            try:
-                async with AsyncSessionLocal() as cite_session:
-                    await log_citations(
-                        cite_session, doctor_id, validation.valid_ids,
-                        "followup", patient_id=patient_id,
-                    )
-            except Exception as cite_exc:
-                log(f"[draft_reply] citation logging failed (non-fatal): {cite_exc}", level="warning")
-
-        # Log hallucinated citations (non-fatal)
-        if validation.hallucinated_ids:
-            try:
-                from domain.knowledge.citation_parser import log_hallucinations
-                async with AsyncSessionLocal() as hal_session:
-                    await log_hallucinations(
-                        hal_session, doctor_id, "draft_reply", message_id,
-                        validation.hallucinated_ids,
-                    )
-            except Exception as hal_exc:
-                log(f"[draft_reply] hallucination logging failed (non-fatal): {hal_exc}", level="warning")
-
         confidence = 0.7 if is_red_flag else 0.9
 
         # Strip [KB-*] citation markers from user-facing text
@@ -138,7 +115,8 @@ async def generate_draft_reply(
             is_red_flag=is_red_flag,
         )
 
-        # Persist draft to MessageDraft table (non-fatal)
+        # Persist draft FIRST so we have draft.id for citation logging (non-fatal)
+        draft_id: Optional[int] = None
         try:
             from db.models.message_draft import MessageDraft, DraftStatus
 
@@ -153,9 +131,34 @@ async def generate_draft_reply(
                     status=DraftStatus.generated.value,
                 )
                 draft_session.add(draft)
+                await draft_session.flush()
+                draft_id = draft.id
                 await draft_session.commit()
         except Exception as draft_exc:
             log(f"[draft_reply] draft persistence failed (non-fatal): {draft_exc}", level="warning")
+
+        # Log valid citations to knowledge_usage_log with draft_id (non-fatal)
+        if validation.valid_ids:
+            try:
+                async with AsyncSessionLocal() as cite_session:
+                    await log_citations(
+                        cite_session, doctor_id, validation.valid_ids,
+                        "followup", patient_id=patient_id, draft_id=draft_id,
+                    )
+            except Exception as cite_exc:
+                log(f"[draft_reply] citation logging failed (non-fatal): {cite_exc}", level="warning")
+
+        # Log hallucinated citations (non-fatal)
+        if validation.hallucinated_ids:
+            try:
+                from domain.knowledge.citation_parser import log_hallucinations
+                async with AsyncSessionLocal() as hal_session:
+                    await log_hallucinations(
+                        hal_session, doctor_id, "draft_reply", message_id,
+                        validation.hallucinated_ids,
+                    )
+            except Exception as hal_exc:
+                log(f"[draft_reply] hallucination logging failed (non-fatal): {hal_exc}", level="warning")
 
         return result
 

@@ -332,7 +332,8 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
                   if (ctx === "diagnosis" && u.record_id) {
                     onRowClick = () => navigate(`${dp("review")}/${u.record_id}`);
                   } else if (u.patient_id) {
-                    onRowClick = () => navigate(`${dp("patients")}/${u.patient_id}`);
+                    const suffix = u.draft_id ? `?highlight_draft_id=${u.draft_id}` : "";
+                    onRowClick = () => navigate(`${dp("patients")}/${u.patient_id}${suffix}`);
                   }
                   return (
                     <ListCard

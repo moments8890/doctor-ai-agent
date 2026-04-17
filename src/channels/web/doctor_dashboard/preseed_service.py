@@ -289,12 +289,13 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
                     seed_source=_SEED_SOURCE,
                 )
                 db.add(draft)
+                await db.flush()  # get draft.id before citation logging
                 # Mirror live draft_reply path: also log to knowledge_usage_log
                 # and bump reference_count so stats and 引用记录 stay in lockstep.
                 if valid_cited:
                     await log_citations(
                         db, doctor_id, valid_cited,
-                        "followup", patient_id=str(patient.id),
+                        "followup", patient_id=str(patient.id), draft_id=draft.id,
                     )
 
         # Tasks

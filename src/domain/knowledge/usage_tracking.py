@@ -19,6 +19,7 @@ async def log_citations(
     usage_context: str,
     patient_id: Optional[str] = None,
     record_id: Optional[int] = None,
+    draft_id: Optional[int] = None,
 ) -> int:
     """Create a KnowledgeUsageLog entry for each cited KB ID.
 
@@ -36,6 +37,7 @@ async def log_citations(
             usage_context=usage_context,
             patient_id=patient_id,
             record_id=record_id,
+            draft_id=draft_id,
         )
         session.add(entry)
         count += 1
