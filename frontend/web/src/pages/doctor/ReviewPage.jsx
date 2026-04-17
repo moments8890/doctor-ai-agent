@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTaskRecord, useSuggestions } from "../../lib/doctorQueries";
 import { QK } from "../../lib/queryKeys";
-import { Box, Collapse, Skeleton, Typography } from "@mui/material";
+import { Box, Collapse, Skeleton, Snackbar, Typography } from "@mui/material";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import { useDoctorStore } from "../../store/doctorStore";
@@ -182,6 +182,7 @@ function InputProvenanceCard({ record }) {
 
 export default function ReviewPage({ recordId }) {
   const navigate = useAppNavigate();
+  const api = useApi();
   const {
     getSuggestions,
     decideSuggestion,
@@ -190,7 +191,7 @@ export default function ReviewPage({ recordId }) {
     finalizeReview,
     getTaskRecord,
     getKnowledgeBatch,
-  } = useApi();
+  } = api;
   const { doctorId } = useDoctorStore();
 
   // Local state for optimistic mutations
@@ -200,6 +201,8 @@ export default function ReviewPage({ recordId }) {
   const [finalizing, setFinalizing] = useState(false);
   const [toast, showToast] = useToast();
   const [knowledgeMap, setKnowledgeMap] = useState({});
+  const [teachEditId, setTeachEditId] = useState(null);
+  const [teachSaving, setTeachSaving] = useState(false);
   const queryClient = useQueryClient();
   const params = new URLSearchParams(window.location.search);
   const source = params.get("source") || "";
@@ -266,7 +269,7 @@ export default function ReviewPage({ recordId }) {
 
   async function handleDecide(suggestionId, decision, opts) {
     try {
-      await decideSuggestion(suggestionId, decision, opts);
+      const resp = await decideSuggestion(suggestionId, decision, opts);
       queryClient.invalidateQueries({ queryKey: QK.suggestions(recordId, doctorId) });
       queryClient.invalidateQueries({ queryKey: QK.reviewQueue(doctorId) });
       setSuggestions((prev) =>
@@ -276,9 +279,30 @@ export default function ReviewPage({ recordId }) {
             : s
         )
       );
+      if (resp?.teach_prompt && resp?.edit_id) {
+        setTeachEditId(resp.edit_id);
+      }
     } catch {
       showToast("操作失败");
     }
+  }
+
+  async function handleTeachSave() {
+    if (!teachEditId || teachSaving) return;
+    setTeachSaving(true);
+    try {
+      await (api.createRuleFromEdit || (() => Promise.resolve()))(teachEditId, doctorId);
+      queryClient.invalidateQueries({ queryKey: QK.knowledge(doctorId) });
+      setTeachEditId(null);
+    } catch {
+      showToast("保存失败");
+    } finally {
+      setTeachSaving(false);
+    }
+  }
+
+  function handleTeachDismiss() {
+    setTeachEditId(null);
   }
 
   async function handleAdd(section, content, detail) {
@@ -411,6 +435,37 @@ export default function ReviewPage({ recordId }) {
       </ReviewSubpage>
 
       <Toast message={toast} />
+
+      <Snackbar
+        open={!!teachEditId}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        message="您的修改已记录。要将这条诊断修正保存为知识条目吗？"
+        action={
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Typography
+              onClick={handleTeachDismiss}
+              sx={{
+                fontSize: TYPE.secondary.fontSize, color: COLOR.white,
+                cursor: "pointer", opacity: 0.8,
+                "&:active": { opacity: 0.5 },
+              }}
+            >
+              跳过
+            </Typography>
+            <Typography
+              onClick={handleTeachSave}
+              sx={{
+                fontSize: TYPE.secondary.fontSize, color: COLOR.primaryLight,
+                cursor: teachSaving ? "default" : "pointer",
+                fontWeight: 500, opacity: teachSaving ? 0.5 : 1,
+                "&:active": teachSaving ? {} : { opacity: 0.5 },
+              }}
+            >
+              {teachSaving ? "保存中..." : "保存"}
+            </Typography>
+          </Box>
+        }
+      />
     </>
   );
 }
