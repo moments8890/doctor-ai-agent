@@ -193,7 +193,7 @@
   <tr><td>草稿编辑→人格学习（仅风格）</td><td><span class="badge-built">已上线</span></td><td>draft_handlers.py:424 触发 process_edit_for_persona</td></tr>
   <tr><td>人格候选卡片审核</td><td><span class="badge-built">已上线</span></td><td>pattern_hash 去重 + 90 天拒绝悬挂</td></tr>
   <tr><td>事实类编辑的学习路径</td><td><span class="badge-built">已上线 2026-04-16</span></td><td>process_edit_for_learning 路由 type=factual → kb_pending_items；审核通过写入 doctor_knowledge_items</td></tr>
-  <tr><td>幻觉引用暴露给医生</td><td><span class="badge-missing">未建</span></td><td>citation_parser.py:55 只写日志</td></tr>
+  <tr><td>幻觉引用暴露给医生</td><td><span class="badge-built">已上线 2026-04-16</span></td><td>hallucinated_citations 表 + /api/manage/kb/hallucinations 端点 + Knowledge 页 banner</td></tr>
   <tr><td>拒绝→KB 归因</td><td><span class="badge-missing">未建</span></td><td>AISuggestion.decision 有原始信号，无读模型</td></tr>
   <tr><td>规则健康仪表盘</td><td><span class="badge-missing">未建</span></td><td>无 per-rule 使用率/编辑率视图</td></tr>
   <tr><td>冷启动加权</td><td><span class="badge-missing">未建</span></td><td>候选&lt;5 条时 source_weight 总是拿 top 5，无相关性阈值</td></tr>
@@ -224,9 +224,9 @@
 </div>
 
 <div class="gap-box">
-  <b>缺口 ④：幻觉引用只进日志。</b><br>
-  <code>citation_parser.py:55</code> 检测到 AI 引用了不存在的 [KB-N] 时只 <code>warn</code>。医生看不到这个信号，无法纠正 prompt。独立于 ①②③，实现最轻。<br>
-  <small>修法：把幻觉计数暴露到知识库页顶部 badge，或者在审核详情页标注"该建议含幻觉引用"。</small>
+  <b>缺口 ④：幻觉引用只进日志。</b> <span class="badge-built">已修复 2026-04-16</span><br>
+  <code>citation_parser.py:55</code> 检测到 AI 引用了不存在的 [KB-N] 时只 <code>warn</code>。医生看不到这个信号，无法纠正 prompt。<br>
+  <small>已实施：新增 <code>hallucinated_citations</code> 表 + <code>log_hallucinations</code> helper；draft_reply 和 diagnosis_pipeline 两条路径都会持久化。新增 <code>GET /api/manage/kb/hallucinations?days=7</code>，Knowledge 页顶部出现橙色 banner "AI 最近 7 天引用了 N 条不存在的规则"。</small>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════ -->
@@ -236,7 +236,7 @@
   <tr><th>步骤</th><th>行动</th><th>改造量</th><th>为什么这个顺序</th></tr>
   <tr><td>1</td><td>修 <code>persona_learning.py:32</code> 的 fact 分支丢弃（缺口 ①）<span class="badge-built">已完成 2026-04-16</span></td><td><b>小</b></td><td>LLM 分类已经能用，只差路由；复用现有 pattern_hash + 90 天抑制基础设施</td></tr>
   <tr><td>2</td><td>把诊断审核编辑接入 teach_prompt UI（缺口 ②）<span class="badge-built">已完成 2026-04-16</span></td><td><b>小</b></td><td>后端已发信号，前端几行的工作；先完成半成品再扩面</td></tr>
-  <tr><td>3</td><td>幻觉引用暴露（缺口 ④）</td><td>小</td><td>独立于其它步骤，安全相关收益快；<code>citation_parser.py:55</code> 信号已存在</td></tr>
+  <tr><td>3</td><td>幻觉引用暴露（缺口 ④）<span class="badge-built">已完成 2026-04-16</span></td><td>小</td><td>独立于其它步骤，安全相关收益快；<code>citation_parser.py:55</code> 信号已存在</td></tr>
   <tr><td>4</td><td>规则健康仪表盘（缺口 ③）</td><td>中</td><td>前置：在 <code>AISuggestion</code> 加 <code>cited_knowledge_ids</code>，把 reparse-free-text 改成结构化；否则诊断侧归因做不出来</td></tr>
 </table>
 
