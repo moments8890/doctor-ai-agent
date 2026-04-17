@@ -77,3 +77,17 @@ async def knowledge_activity(
     resolved = _resolve_ui_doctor_id(doctor_id, authorization)
     activity = await get_recent_activity(session, resolved, limit=limit)
     return {"activity": activity}
+
+
+@router.get("/api/manage/knowledge/{item_id}/health")
+async def get_rule_health(
+    item_id: int,
+    doctor_id: str = Query(...),
+    authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
+):
+    """Return AI citation + decision stats for a single knowledge rule."""
+    from domain.knowledge.rule_health import compute_rule_health
+
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+    return await compute_rule_health(session, resolved, item_id)

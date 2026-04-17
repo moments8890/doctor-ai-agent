@@ -25,6 +25,7 @@ import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { ICON_BADGES } from "../constants";
+import { useRuleHealth } from "../../../lib/doctorQueries";
 
 /* ── Source config (shared with KnowledgeSubpage) ── */
 
@@ -59,6 +60,21 @@ const USAGE_TYPE_CONFIG = {
 
 function getUsageTypeConfig(type) {
   return USAGE_TYPE_CONFIG[type] || { icon: <DescriptionOutlinedIcon sx={{ fontSize: 16, color: COLOR.text3 }} />, label: type || "引用" };
+}
+
+/* ── StatItem ── */
+
+function StatItem({ label, value, color }) {
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 48 }}>
+      <Typography sx={{ fontSize: TYPE.heading.fontSize, fontWeight: 600, color: color || COLOR.text1 }}>
+        {value}
+      </Typography>
+      <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+        {label}
+      </Typography>
+    </Box>
+  );
 }
 
 /* ── Main ── */
@@ -189,6 +205,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
   const sourceLabel = cfg ? (item.source?.startsWith("upload:") ? `来源：${cfg.label}` : `来源：${cfg.label}`) : "";
   const category = item?.category;
   const refCount = item?.reference_count || 0;
+  const { data: health } = useRuleHealth(isPersonaProp ? null : itemId);
 
   // Find most recent usage date
   const lastUsedDate = usage.length > 0
@@ -256,13 +273,27 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
             </Box>
 
             {/* Usage stats line */}
-            <Box sx={{ px: 2, pb: 2 }}>
+            <Box sx={{ px: 2, pb: health && health.cited_count > 0 ? 1.5 : 2 }}>
               <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3 }}>
                 {refCount > 0
                   ? `引用 ${refCount} 次${lastUsedDate ? ` \u00B7 最近 ${lastUsedDate}` : ""}`
                   : "尚未被引用"}
               </Typography>
             </Box>
+
+            {/* Rule health stats */}
+            {health && health.cited_count > 0 && (
+              <Box sx={{
+                display: "flex", gap: 2, flexWrap: "wrap",
+                mx: 2, mb: 2, p: 1.5,
+                bgcolor: COLOR.surfaceAlt, borderRadius: RADIUS.md,
+              }}>
+                <StatItem label="引用" value={health.cited_count} />
+                <StatItem label="采纳" value={health.accepted_count} color={COLOR.primary} />
+                <StatItem label="编辑" value={health.edited_count} color={COLOR.warning} />
+                <StatItem label="拒绝" value={health.rejected_count} color={COLOR.danger} />
+              </Box>
+            )}
 
             {/* Source footer: source_url link + file_path button */}
             {(item.source_url || item.file_path) && (

@@ -220,6 +220,17 @@ export function useKbPending() {
   });
 }
 
+export function useRuleHealth(itemId) {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.ruleHealth(doctorId, itemId),
+    queryFn:  () => api.getRuleHealth(doctorId, itemId),
+    enabled:  !!doctorId && !!itemId,
+    staleTime: 60_000,
+  });
+}
+
 export function useKbHallucinations(days = 7) {
   const { doctorId } = useDoctorStore();
   const api = useApi();

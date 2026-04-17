@@ -341,6 +341,13 @@ export async function getKnowledgeBatch(_doctorId, ids) {
   return { items: knowledgeItems.filter((i) => ids.includes(i.id)) };
 }
 
+export async function getRuleHealth(_doctorId, _itemId) {
+  return {
+    cited_count: 0, accepted_count: 0, edited_count: 0, rejected_count: 0,
+    last_30_days: { cited_count: 0, accepted_count: 0, edited_count: 0, rejected_count: 0 },
+  };
+}
+
 export async function getKbHallucinations(_doctorId, _days) {
   return { count: 0, days: 7, recent: [] };
 }

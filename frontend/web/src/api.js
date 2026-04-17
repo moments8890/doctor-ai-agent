@@ -711,6 +711,10 @@ export async function rejectPendingItem(doctorId, itemId) {
   });
 }
 
+export async function getRuleHealth(doctorId, itemId) {
+  return request(`/api/manage/knowledge/${itemId}/health?doctor_id=${encodeURIComponent(doctorId)}`);
+}
+
 export async function getKbHallucinations(doctorId, days = 7) {
   return request(`/api/manage/kb/hallucinations?doctor_id=${encodeURIComponent(doctorId)}&days=${days}`);
 }
