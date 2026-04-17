@@ -319,6 +319,15 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
               <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
                 {usage.map((u, idx) => {
                   const typeCfg = getUsageTypeConfig(u.type || u.usage_context);
+                  const ctx = u.type || u.usage_context;
+                  // Pick navigation target by context — diagnosis → review page,
+                  // draft/chat → patient page. Only make clickable when we have a target.
+                  let onRowClick;
+                  if (ctx === "diagnosis" && u.record_id) {
+                    onRowClick = () => navigate(`${dp("review")}/${u.record_id}`);
+                  } else if (u.patient_id) {
+                    onRowClick = () => navigate(`${dp("patients")}/${u.patient_id}`);
+                  }
                   return (
                     <ListCard
                       key={u.id || idx}
@@ -339,7 +348,8 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
                           {formatDate(u.date || u.created_at)}
                         </Typography>
                       }
-                      onClick={u.patient_id ? () => navigate(`${dp("patients")}/${u.patient_id}`) : undefined}
+                      onClick={onRowClick}
+                      chevron={!!onRowClick}
                       sx={idx === usage.length - 1 ? { borderBottom: "none" } : {}}
                     />
                   );
