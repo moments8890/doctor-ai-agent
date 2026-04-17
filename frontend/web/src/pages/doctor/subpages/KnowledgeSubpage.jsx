@@ -7,7 +7,7 @@
  * @see /mock/doctor/settings/knowledge
  */
 import { useState } from "react";
-import { Box, Chip, InputAdornment, TextField, Typography } from "@mui/material";
+import { Box, InputAdornment, TextField, Typography } from "@mui/material";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import { TYPE, COLOR, ICON, RADIUS } from "../../../theme";
@@ -140,8 +140,6 @@ export default function KnowledgeSubpage({
     ? stats.reduce((sum, s) => sum + (s.total_count || 0), 0)
     : sorted.reduce((sum, it) => sum + (it._usageCount || 0), 0);
 
-  const unusedCount = sorted.filter(item => (item._usageCount || 0) === 0).length;
-
   // Filter sorted items by search
   const filtered = search.trim()
     ? sorted.filter(item => {
@@ -153,23 +151,6 @@ export default function KnowledgeSubpage({
 
   const listContent = (
     <Box sx={{ flex: 1, overflowY: "auto" }}>
-      {kbPendingCount > 0 && (
-        <Box
-          onClick={() => navigate(dp("settings/knowledge/pending"))}
-          sx={{
-            p: 1.5, m: 1.5, cursor: "pointer",
-            bgcolor: COLOR.surfaceAlt,
-            borderRadius: RADIUS.md,
-            display: "flex", alignItems: "center", gap: 1,
-          }}
-        >
-          <Chip label="新" size="small" color="warning" />
-          <Typography sx={{ fontSize: TYPE.body.fontSize }}>
-            AI 从您的编辑中发现 {kbPendingCount} 条待确认临床规则
-          </Typography>
-        </Box>
-      )}
-
       {loading && (
         <Box sx={{ textAlign: "center", py: 4 }}>
           <Typography sx={{ color: COLOR.text4 }}>加载中...</Typography>
@@ -217,11 +198,14 @@ export default function KnowledgeSubpage({
 
           {/* Stats bar */}
           <Box sx={{ display: "flex", py: 1.5, px: 2, bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.borderLight}` }}>
-            <StatColumn value={regularItems.length} label="条规则" />
-            <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight }} />
             <StatColumn value={weekCitations} label="本周引用" color={COLOR.primary} />
             <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight }} />
-            <StatColumn value={unusedCount} label="未引用" color={unusedCount > 0 ? COLOR.warning : COLOR.text4} />
+            <StatColumn
+              value={kbPendingCount}
+              label="待确认"
+              color={kbPendingCount > 0 ? COLOR.warning : COLOR.text4}
+              onClick={kbPendingCount > 0 ? () => navigate(dp("settings/knowledge/pending")) : undefined}
+            />
           </Box>
 
           {onAdd && <NewItemCard title="添加知识" subtitle="上传文件、网址导入或手动输入" onClick={onAdd} />}
