@@ -136,12 +136,13 @@ export default function MyAIPage({ doctorId }) {
                 <IconBadge config={config} size={40} />
                 {badge > 0 && (
                   <Typography sx={{
-                    position: "absolute", top: -4, right: -6,
-                    minWidth: 16, height: 16, borderRadius: 8,
+                    position: "absolute", top: -4, right: -10,
+                    minWidth: 18, height: 16, borderRadius: 8,
                     px: 0.5,
-                    bgcolor: COLOR.danger, color: COLOR.white,
-                    fontSize: TYPE.micro.fontSize, fontWeight: 600,
-                    lineHeight: "16px", textAlign: "center",
+                    bgcolor: COLOR.surface, color: COLOR.text3,
+                    border: `0.5px solid ${COLOR.borderLight}`,
+                    fontSize: TYPE.micro.fontSize, fontWeight: 500,
+                    lineHeight: "15px", textAlign: "center",
                   }}>
                     {badge}
                   </Typography>

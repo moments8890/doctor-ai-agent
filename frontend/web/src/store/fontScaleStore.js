@@ -10,7 +10,7 @@ import { getPreferences, updatePreferences } from "../api";
 export const useFontScaleStore = create(
   persist(
     (set) => ({
-      fontScale: "standard",
+      fontScale: "large",
       setFontScale: (level) => set({ fontScale: level }),
     }),
     { name: "doctor-font-scale" }
