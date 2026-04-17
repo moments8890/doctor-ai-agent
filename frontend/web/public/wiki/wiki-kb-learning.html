@@ -194,8 +194,8 @@
   <tr><td>人格候选卡片审核</td><td><span class="badge-built">已上线</span></td><td>pattern_hash 去重 + 90 天拒绝悬挂</td></tr>
   <tr><td>事实类编辑的学习路径</td><td><span class="badge-built">已上线 2026-04-16</span></td><td>process_edit_for_learning 路由 type=factual → kb_pending_items；审核通过写入 doctor_knowledge_items</td></tr>
   <tr><td>幻觉引用暴露给医生</td><td><span class="badge-built">已上线 2026-04-16</span></td><td>hallucinated_citations 表 + /api/manage/kb/hallucinations 端点 + Knowledge 页 banner</td></tr>
-  <tr><td>拒绝→KB 归因</td><td><span class="badge-missing">未建</span></td><td>AISuggestion.decision 有原始信号，无读模型</td></tr>
-  <tr><td>规则健康仪表盘</td><td><span class="badge-missing">未建</span></td><td>无 per-rule 使用率/编辑率视图</td></tr>
+  <tr><td>拒绝→KB 归因</td><td><span class="badge-built">已上线 2026-04-16</span></td><td>AISuggestion.cited_knowledge_ids 列 + rule_health 聚合 decision 分布</td></tr>
+  <tr><td>规则健康仪表盘</td><td><span class="badge-built">已上线 2026-04-16</span></td><td>GET /api/manage/knowledge/{id}/health + KnowledgeDetailSubpage 四列统计</td></tr>
   <tr><td>冷启动加权</td><td><span class="badge-missing">未建</span></td><td>候选&lt;5 条时 source_weight 总是拿 top 5，无相关性阈值</td></tr>
   <tr><td>规则过期 / 冲突检测</td><td><span class="badge-missing">未建</span></td><td>无 expires_at，两条矛盾规则都会被引用</td></tr>
   <tr><td>危险信号检测</td><td><span class="badge-missing">未建</span></td><td>规划中：患者消息异常 → 自动置顶</td></tr>
@@ -217,10 +217,9 @@
 </div>
 
 <div class="gap-box">
-  <b>缺口 ③：规则健康没有可见性。</b><br>
-  <code>reference_count</code> 记录的是<b>被引用</b>次数（LLM 输出时就 +1），不是<b>被采纳</b>次数。一条被高频引用但被医生高频编辑/拒绝的规则，表面看很活跃，实际在帮倒忙。<br>
-  原始信号<b>不完整</b>：草稿有 <code>MessageDraft.cited_knowledge_ids</code>，但 <code>AISuggestion</code> 还没有结构化引用字段（只有 <code>decision</code>），诊断侧的归因必须先在模型上加字段才能做。<br>
-  <small>修法：先在 <code>AISuggestion</code> 加 <code>cited_knowledge_ids</code> 字段（step 0），再新增 analytics endpoint 按 KB id 聚合 (cited, accepted, edited, rejected) 四元组。</small>
+  <b>缺口 ③：规则健康没有可见性。</b> <span class="badge-built">已修复 2026-04-16</span><br>
+  <code>reference_count</code> 记录的是<b>被引用</b>次数（LLM 输出时就 +1），不是<b>被采纳</b>次数。<br>
+  <small>已实施：<code>AISuggestion</code> 新增 <code>cited_knowledge_ids</code> 列并在 <code>diagnosis_pipeline</code> 创建建议时填充。新增 <code>GET /api/manage/knowledge/{id}/health</code>，聚合 ai_suggestions + message_drafts 两侧的 cited / accepted / edited / rejected 四元组（含最近 30 天窗口）。<code>KnowledgeDetailSubpage</code> 渲染四列统计条（采纳绿 / 编辑黄 / 拒绝红），仅在 cited_count &gt; 0 时显示。</small>
 </div>
 
 <div class="gap-box">
@@ -237,7 +236,7 @@
   <tr><td>1</td><td>修 <code>persona_learning.py:32</code> 的 fact 分支丢弃（缺口 ①）<span class="badge-built">已完成 2026-04-16</span></td><td><b>小</b></td><td>LLM 分类已经能用，只差路由；复用现有 pattern_hash + 90 天抑制基础设施</td></tr>
   <tr><td>2</td><td>把诊断审核编辑接入 teach_prompt UI（缺口 ②）<span class="badge-built">已完成 2026-04-16</span></td><td><b>小</b></td><td>后端已发信号，前端几行的工作；先完成半成品再扩面</td></tr>
   <tr><td>3</td><td>幻觉引用暴露（缺口 ④）<span class="badge-built">已完成 2026-04-16</span></td><td>小</td><td>独立于其它步骤，安全相关收益快；<code>citation_parser.py:55</code> 信号已存在</td></tr>
-  <tr><td>4</td><td>规则健康仪表盘（缺口 ③）</td><td>中</td><td>前置：在 <code>AISuggestion</code> 加 <code>cited_knowledge_ids</code>，把 reparse-free-text 改成结构化；否则诊断侧归因做不出来</td></tr>
+  <tr><td>4</td><td>规则健康仪表盘（缺口 ③）<span class="badge-built">已完成 2026-04-16</span></td><td>中</td><td>前置：在 <code>AISuggestion</code> 加 <code>cited_knowledge_ids</code>，把 reparse-free-text 改成结构化；否则诊断侧归因做不出来</td></tr>
 </table>
 
 <div class="info-box">
