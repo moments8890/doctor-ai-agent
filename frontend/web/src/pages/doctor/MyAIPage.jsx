@@ -4,27 +4,23 @@
  * MyAIPage -- "我的AI" tab. AI identity dashboard showing the doctor's AI
  * status, knowledge rules, quick actions, and recent AI activity.
  */
-import { useState } from "react";
-import { Box, IconButton, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
+import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
+import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import TipsAndUpdatesOutlinedIcon from "@mui/icons-material/TipsAndUpdatesOutlined";
+import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import { useDoctorStore } from "../../store/doctorStore";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
-import SectionLabel from "../../components/SectionLabel";
-import KnowledgeCard from "../../components/KnowledgeCard";
-import IconBadge from "../../components/IconBadge";
-import EmptyState from "../../components/EmptyState";
-import SectionLoading from "../../components/SectionLoading";
 import PullToRefresh from "../../components/PullToRefresh";
-import { ICON_BADGES } from "./constants";
-import StatColumn from "../../components/StatColumn";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
-import { useKnowledgeItems, useReviewQueue, usePersona, useTodaySummary } from "../../lib/doctorQueries";
-import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
-import { relativeDate as formatRelativeDate, relativeTime } from "../../utils/time";
-import CloseIcon from "@mui/icons-material/Close";
+import { useReviewQueue, usePersona, useTodaySummary, useKbPending } from "../../lib/doctorQueries";
+import { relativeTime } from "../../utils/time";
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -42,7 +38,66 @@ function AIAvatar({ size = 44 }) {
   );
 }
 
+function QuickChip({ icon, label, primary, onClick }) {
+  return (
+    <Box
+      onClick={onClick}
+      sx={{
+        flexShrink: 0,
+        display: "flex", alignItems: "center", gap: 0.5,
+        px: 1.5, py: 0.75, borderRadius: 16,
+        bgcolor: primary ? COLOR.primary : "#f1f8f3",
+        color: primary ? COLOR.white : "#0d5c2e",
+        border: primary ? `1px solid ${COLOR.primary}` : "1px solid #d7ecdb",
+        fontSize: TYPE.caption.fontSize, fontWeight: 500,
+        cursor: "pointer",
+        "&:active": { opacity: 0.7 },
+      }}
+    >
+      {icon}
+      <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, fontWeight: 500, color: "inherit" }}>
+        {label}
+      </Typography>
+    </Box>
+  );
+}
 
+function TriageRow({ icon, iconBg, iconColor, title, sub, count, onClick }) {
+  const active = count > 0;
+  return (
+    <Box
+      onClick={onClick}
+      sx={{
+        display: "flex", alignItems: "center", gap: 1.25,
+        px: 2, py: 1.25,
+        borderTop: `0.5px solid ${COLOR.borderLight}`,
+        cursor: "pointer",
+        "&:active": { bgcolor: COLOR.surfaceAlt },
+      }}
+    >
+      <Box sx={{
+        width: 32, height: 32, borderRadius: RADIUS.md, flexShrink: 0,
+        bgcolor: iconBg, color: iconColor,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {icon}
+      </Box>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 500, color: COLOR.text1 }}>{title}</Typography>
+        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.25 }}>{sub}</Typography>
+      </Box>
+      <Box sx={{
+        fontSize: TYPE.heading.fontSize, fontWeight: 600,
+        color: active ? iconColor : COLOR.text4,
+        bgcolor: active ? iconBg : "transparent",
+        borderRadius: 12, px: 1.25, py: 0.25, minWidth: 28, textAlign: "center",
+      }}>
+        {count}
+      </Box>
+      <ChevronRightOutlinedIcon sx={{ color: COLOR.text4, fontSize: 18 }} />
+    </Box>
+  );
+}
 
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -52,32 +107,19 @@ export default function MyAIPage({ doctorId }) {
   const { doctorName } = useDoctorStore();
 
   // React Query-backed data fetching (shared cache — no redundant requests on tab switch)
-  const { data: knowledgeData, isLoading: kLoading } = useKnowledgeItems();
   const { data: reviewQueueData, isLoading: qLoading } = useReviewQueue();
   const { data: personaData, isLoading: pLoading } = usePersona();
   const { data: summaryData, isLoading: sLoading, isError: sError } = useTodaySummary();
+  const { data: kbPendingData } = useKbPending();
 
-  const loading = kLoading || qLoading || pLoading;
-  const knowledge = knowledgeData ?? null;
+  const loading = qLoading || pLoading;
   const reviewQueue = reviewQueueData || { pending: [], completed: [] };
 
-  // Derived values — all stats computed from actual data
+  // Derived values — triage counts drive the main action block
   const displayName = doctorName || "医生";
-  const knowledgeListRaw = Array.isArray(knowledge) ? knowledge : (knowledge?.items || []);
-  const knowledgeList = knowledgeListRaw.filter((k) => k.category !== "persona");
-  const knowledgeCount = knowledgeList.length;
+  const pendingReview = loading ? 0 : (reviewQueue?.pending || []).length;
+  const kbPendingCount = kbPendingData?.count || 0;
 
-  const weekCitations = loading ? null : knowledgeList.reduce((sum, k) => sum + (k.reference_count || 0), 0);
-  const pendingReview = loading ? null : (reviewQueue?.pending || []).length;
-  const completedToday = loading ? null : (() => {
-    const today = new Date().toISOString().slice(0, 10);
-    return (reviewQueue?.completed || []).filter((c) => (c.time || "").includes(today) || (c.time || "").includes("刚刚") || (c.time || "").includes("今天")).length;
-  })();
-
-  // Badge counts for quick actions
-  const reviewBadge = pendingReview || 0;
-  const followupBadge = 0; // TODO: derive from tasks data when fetched
-  const [showAddGuide, setShowAddGuide] = useState(false);
   const isMiniprogram = typeof window !== "undefined" && window.__wxjs_environment === "miniprogram";
 
   // Persona summary — single line for the bar
@@ -119,16 +161,56 @@ export default function MyAIPage({ doctorId }) {
           </Box>
         </Box>
 
-        {/* ── 2. Stats row ─────────────────────────────────────────── */}
+        {/* ── 2a. Quick-action chips ──────────────────────────────── */}
+        <Box sx={{
+          display: "flex", gap: 1, px: 2, py: 1,
+          bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.borderLight}`,
+          overflowX: "auto",
+        }}>
+          <QuickChip
+            icon={<AddOutlinedIcon sx={{ fontSize: 14 }} />}
+            label="新建病历" primary
+            onClick={() => navigate(`${dp("patients")}?action=new`)}
+          />
+          <QuickChip
+            icon={<QrCode2OutlinedIcon sx={{ fontSize: 14 }} />}
+            label="预问诊码"
+            onClick={() => navigate(dp("settings/qr"))}
+          />
+          {isMiniprogram && (
+            <QuickChip
+              icon={<MicNoneOutlinedIcon sx={{ fontSize: 14 }} />}
+              label="语音记规则"
+              onClick={() => navigate(dp("settings/knowledge/add"))}
+            />
+          )}
+        </Box>
+
+        {/* ── 2b. Triage block — primary action list ──────────────── */}
         <Box sx={{ bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}` }}>
-          <Box sx={{ display: "flex", py: 1.5, px: 2 }}>
-            <StatColumn value={pendingReview} label="待处理" onClick={() => navigate(`${dp("review")}?tab=pending`)}
-              sx={pendingReview > 0 ? { "& .stat-value": { color: COLOR.danger } } : {}} />
-            <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-            <StatColumn value={completedToday} label="今日完成" onClick={() => navigate(`${dp("review")}?tab=completed`)} />
-            <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight, my: 0.5 }} />
-            <StatColumn value={weekCitations} label="7天引用" />
-          </Box>
+          <Typography sx={{
+            px: 2, pt: 1.25, pb: 0.5,
+            fontSize: TYPE.micro.fontSize, fontWeight: 700, color: COLOR.primary,
+            letterSpacing: 0.5, textTransform: "uppercase",
+          }}>
+            现在请你确认
+          </Typography>
+          <TriageRow
+            icon={<AssignmentOutlinedIcon sx={{ fontSize: 18 }} />}
+            iconBg="#fff3e0" iconColor="#e65100"
+            title="待审核诊断建议"
+            sub={pendingReview > 0 ? `${pendingReview} 位患者的 AI 诊断等你确认` : "暂无待审核建议"}
+            count={pendingReview ?? 0}
+            onClick={() => navigate(`${dp("review")}?tab=pending`)}
+          />
+          <TriageRow
+            icon={<TipsAndUpdatesOutlinedIcon sx={{ fontSize: 18 }} />}
+            iconBg="#e8f5e9" iconColor="#0d5c2e"
+            title="待采纳的规则"
+            sub={kbPendingCount > 0 ? `AI 从你的编辑中提取了 ${kbPendingCount} 条新规则` : "暂无新规则提议"}
+            count={kbPendingCount}
+            onClick={() => navigate(dp("settings/knowledge/pending"))}
+          />
         </Box>
 
         {/* ── 3. Today Summary (LLM-generated, single narrative) ── */}
@@ -186,70 +268,6 @@ export default function MyAIPage({ doctorId }) {
           </Box>
         )}
 
-        {/* ── 4. Quick tools ──────────────────────────────────────── */}
-        <SectionLabel>快捷工具</SectionLabel>
-        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`,
-          display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
-          {[
-            { config: ICON_BADGES.new_record, label: "新建病历", onClick: () => navigate(`${dp("patients")}?action=new`) },
-            { config: ICON_BADGES.qr_code, label: "预问诊码", onClick: () => navigate(dp("settings/qr")) },
-            { config: ICON_BADGES.add_home, label: "加到桌面", onClick: () => setShowAddGuide(true) },
-          ].map(({ config, label, onClick: onTap }, idx, arr) => (
-            <Box key={label} onClick={onTap}
-              sx={{
-                display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5, cursor: "pointer",
-                borderRight: idx < arr.length - 1 ? `0.5px solid ${COLOR.borderLight}` : "none",
-                "&:active": { bgcolor: COLOR.surface },
-              }}>
-              <IconBadge config={config} size={32} />
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>{label}</Typography>
-            </Box>
-          ))}
-        </Box>
-
-        {/* ── 5. Knowledge list ───────────────────────────────────── */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 1.5 }}>
-          <SectionLabel>我的知识（{knowledgeCount}）</SectionLabel>
-          {knowledgeList.length > 0 && (
-            <Typography onClick={() => navigate(dp("settings/knowledge"))}
-              sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer" }}>
-              管理 ›
-            </Typography>
-          )}
-        </Box>
-        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-          {loading && knowledgeList.length === 0 && <SectionLoading />}
-          {knowledgeList.length === 0 && !loading && (
-            <EmptyState text="添加知识后，AI 会按你的方法工作" />
-          )}
-          {knowledgeList.slice(0, 3).map((rule, idx) => {
-            const refs = rule.reference_count || 0;
-            const status = refs > 0
-              ? { label: `已引用${refs}次`, color: COLOR.primary }
-              : { label: "待应用", color: COLOR.text4 };
-            return (
-              <KnowledgeCard
-                key={rule.id || idx}
-                title={rule.title || rule.text?.slice(0, 20) || "规则"}
-                referenceCount={0}
-                source={rule.source}
-                date={rule.created_at ? formatRelativeDate(rule.created_at) : ""}
-                status={status}
-                onClick={() => navigate(`${dp("settings/knowledge")}/${rule.id}`)}
-              />
-            );
-          })}
-          {/* Inline add */}
-          <Box onClick={() => navigate(dp("settings/knowledge/add"))}
-            sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5, py: 1.5,
-              cursor: "pointer", color: COLOR.primary, fontSize: TYPE.secondary.fontSize, fontWeight: 500,
-              borderTop: knowledgeList.length > 0 ? `0.5px solid ${COLOR.borderLight}` : "none",
-              "&:active": { bgcolor: COLOR.surface } }}>
-            <AddOutlinedIcon sx={{ fontSize: 16 }} />
-            添加知识
-          </Box>
-        </Box>
-
         {/* Disclaimer footer */}
         <Box sx={{ py: 2, textAlign: "center" }}>
           <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4 }}>
@@ -258,48 +276,6 @@ export default function MyAIPage({ doctorId }) {
         </Box>
 
       </PullToRefresh>
-
-      {showAddGuide && (
-        <Box
-          onClick={() => setShowAddGuide(false)}
-          sx={{
-            position: "fixed", inset: 0, zIndex: 9999,
-            bgcolor: "rgba(0,0,0,0.65)",
-            display: "flex", flexDirection: "column", alignItems: "flex-end",
-            pt: "12px", pr: "24px",
-          }}
-        >
-          {/* Arrow pointing to ··· capsule */}
-          <Box sx={{
-            width: 0, height: 0,
-            borderLeft: "12px solid transparent",
-            borderRight: "12px solid transparent",
-            borderBottom: "16px solid #fff",
-            mr: "42px", mb: "-2px",
-          }} />
-          {/* Instruction card */}
-          <Box sx={{
-            bgcolor: "#fff", borderRadius: RADIUS.lg, px: 2.5, py: 2,
-            maxWidth: 260, position: "relative",
-          }}>
-            <IconButton size="small" onClick={() => setShowAddGuide(false)} sx={{ position: "absolute", top: 4, right: 4, color: COLOR.text4 }}>
-              <CloseIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-            <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 600, color: COLOR.text1, mb: 1 }}>
-              添加到手机桌面
-            </Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.7 }}>
-              1. 点击右上角 <b>···</b> 按钮
-            </Typography>
-            <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.7 }}>
-              2. 选择「添加到桌面」
-            </Typography>
-            <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 1 }}>
-              添加后可像App一样一键打开
-            </Typography>
-          </Box>
-        </Box>
-      )}
     </Box>
   );
 }
