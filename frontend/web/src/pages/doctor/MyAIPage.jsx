@@ -6,18 +6,18 @@
  */
 import { Box, Typography } from "@mui/material";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
-import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import TipsAndUpdatesOutlinedIcon from "@mui/icons-material/TipsAndUpdatesOutlined";
-import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
-import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import { useDoctorStore } from "../../store/doctorStore";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
 import SubpageHeader from "../../components/SubpageHeader";
 import PullToRefresh from "../../components/PullToRefresh";
 import SectionLoading from "../../components/SectionLoading";
+import ListCard from "../../components/ListCard";
+import IconBadge from "../../components/IconBadge";
+import SectionLabel from "../../components/SectionLabel";
+import { ICON_BADGES } from "./constants";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
 import { useReviewQueue, usePersona, useTodaySummary, useKbPending } from "../../lib/doctorQueries";
@@ -39,64 +39,15 @@ function AIAvatar({ size = 44 }) {
   );
 }
 
-function QuickChip({ icon, label, primary, onClick }) {
+function CountPill({ value, active }) {
   return (
-    <Box
-      onClick={onClick}
-      sx={{
-        flexShrink: 0,
-        display: "flex", alignItems: "center", gap: 0.5,
-        px: 1.5, py: 0.75, borderRadius: 16,
-        bgcolor: primary ? COLOR.primary : "#f1f8f3",
-        color: primary ? COLOR.white : "#0d5c2e",
-        border: primary ? `1px solid ${COLOR.primary}` : "1px solid #d7ecdb",
-        fontSize: TYPE.caption.fontSize, fontWeight: 500,
-        cursor: "pointer",
-        "&:active": { opacity: 0.7 },
-      }}
-    >
-      {icon}
-      <Typography component="span" sx={{ fontSize: TYPE.caption.fontSize, fontWeight: 500, color: "inherit" }}>
-        {label}
-      </Typography>
-    </Box>
-  );
-}
-
-function TriageRow({ icon, iconBg, iconColor, title, sub, count, onClick }) {
-  const active = count > 0;
-  return (
-    <Box
-      onClick={onClick}
-      sx={{
-        display: "flex", alignItems: "center", gap: 1.25,
-        px: 2, py: 1.25,
-        borderTop: `0.5px solid ${COLOR.borderLight}`,
-        cursor: "pointer",
-        "&:active": { bgcolor: COLOR.surfaceAlt },
-      }}
-    >
-      <Box sx={{
-        width: 32, height: 32, borderRadius: RADIUS.md, flexShrink: 0,
-        bgcolor: iconBg, color: iconColor,
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
-        {icon}
-      </Box>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: TYPE.body.fontSize, fontWeight: 500, color: COLOR.text1 }}>{title}</Typography>
-        <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, mt: 0.25 }}>{sub}</Typography>
-      </Box>
-      <Box sx={{
-        fontSize: TYPE.heading.fontSize, fontWeight: 600,
-        color: active ? iconColor : COLOR.text4,
-        bgcolor: active ? iconBg : "transparent",
-        borderRadius: 12, px: 1.25, py: 0.25, minWidth: 28, textAlign: "center",
-      }}>
-        {count}
-      </Box>
-      <ChevronRightOutlinedIcon sx={{ color: COLOR.text4, fontSize: 18 }} />
-    </Box>
+    <Typography sx={{
+      fontSize: TYPE.body.fontSize, fontWeight: 600,
+      color: active ? COLOR.primary : COLOR.text4,
+      minWidth: 20, textAlign: "right",
+    }}>
+      {value}
+    </Typography>
   );
 }
 
@@ -162,75 +113,68 @@ export default function MyAIPage({ doctorId }) {
           </Box>
         </Box>
 
-        {/* ── 2a. Quick-action chips ──────────────────────────────── */}
-        <Box sx={{
-          display: "flex", gap: 1, px: 2, py: 1,
-          bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.borderLight}`,
-          overflowX: "auto",
-        }}>
-          <QuickChip
-            icon={<AddOutlinedIcon sx={{ fontSize: 14 }} />}
-            label="新建病历" primary
-            onClick={() => navigate(`${dp("patients")}?action=new`)}
-          />
-          <QuickChip
-            icon={<QrCode2OutlinedIcon sx={{ fontSize: 14 }} />}
-            label="预问诊码"
-            onClick={() => navigate(dp("settings/qr"))}
-          />
-          {isMiniprogram && (
-            <QuickChip
-              icon={<MicNoneOutlinedIcon sx={{ fontSize: 14 }} />}
-              label="语音记规则"
-              onClick={() => navigate(dp("settings/knowledge/add"))}
-            />
-          )}
+        {/* ── 2a. Quick tools (3-column grid with IconBadge) ──────── */}
+        <Box sx={{ bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}`,
+          display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
+          {[
+            { config: ICON_BADGES.new_record, label: "新建病历", onClick: () => navigate(`${dp("patients")}?action=new`) },
+            { config: ICON_BADGES.qr_code, label: "预问诊码", onClick: () => navigate(dp("settings/qr")) },
+            { config: ICON_BADGES.kb_add, label: "添加知识", onClick: () => navigate(dp("settings/knowledge/add")) },
+          ].map(({ config, label, onClick: onTap }, idx, arr) => (
+            <Box key={label} onClick={onTap}
+              sx={{
+                display: "flex", alignItems: "center", gap: 1, px: 2, py: 1.5, cursor: "pointer",
+                borderRight: idx < arr.length - 1 ? `0.5px solid ${COLOR.borderLight}` : "none",
+                "&:active": { bgcolor: COLOR.surface },
+              }}>
+              <IconBadge config={config} size={32} />
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2 }}>{label}</Typography>
+            </Box>
+          ))}
         </Box>
 
-        {/* ── 2b. Triage block — primary action list ──────────────── */}
-        <Box sx={{ bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}` }}>
-          <Typography sx={{
-            px: 2, pt: 1.25, pb: 0.5,
-            fontSize: TYPE.micro.fontSize, fontWeight: 700, color: COLOR.primary,
-            letterSpacing: 0.5, textTransform: "uppercase",
-          }}>
-            现在请你确认
-          </Typography>
-          <TriageRow
-            icon={<AssignmentOutlinedIcon sx={{ fontSize: 18 }} />}
-            iconBg="#fff3e0" iconColor="#e65100"
+        {/* ── 2b. Triage block — today's attention list ──────────── */}
+        <SectionLabel>今日关注</SectionLabel>
+        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+          <ListCard
+            avatar={<IconBadge config={ICON_BADGES.review} size={36} />}
             title="待审核诊断建议"
-            sub={pendingReview > 0 ? `${pendingReview} 位患者的 AI 诊断等你确认` : "暂无待审核建议"}
-            count={pendingReview ?? 0}
+            subtitle={pendingReview > 0 ? `${pendingReview} 位患者的 AI 诊断等你确认` : "暂无待审核建议"}
+            right={<CountPill value={pendingReview ?? 0} active={pendingReview > 0} />}
+            chevron
             onClick={() => navigate(`${dp("review")}?tab=pending`)}
           />
-          <TriageRow
-            icon={<TipsAndUpdatesOutlinedIcon sx={{ fontSize: 18 }} />}
-            iconBg="#e8f5e9" iconColor="#0d5c2e"
+          <ListCard
+            avatar={<IconBadge config={ICON_BADGES.kb_add} size={36} />}
             title="待采纳的规则"
-            sub={kbPendingCount > 0 ? `AI 从你的编辑中提取了 ${kbPendingCount} 条新规则` : "暂无新规则提议"}
-            count={kbPendingCount}
+            subtitle={kbPendingCount > 0 ? `AI 从你的编辑中提取了 ${kbPendingCount} 条新规则` : "暂无新规则提议"}
+            right={<CountPill value={kbPendingCount} active={kbPendingCount > 0} />}
+            chevron
             onClick={() => navigate(dp("settings/knowledge/pending"))}
+            sx={{ borderBottom: "none" }}
           />
         </Box>
 
         {/* ── 3. Today Summary (LLM-generated, single narrative) ── */}
         {summaryData && summaryData.mode !== "empty" && summaryData.summary && (
-          <Box sx={{ bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.5 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
-              <AutoAwesomeOutlinedIcon sx={{ fontSize: 14, color: summaryData.is_new ? COLOR.primary : COLOR.text4 }} />
-              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: summaryData.is_new ? COLOR.primary : COLOR.text4, fontWeight: 600 }}>
-                今日摘要
-              </Typography>
+          <>
+            <SectionLabel sx={{
+              display: "flex", alignItems: "center", gap: 0.5,
+            }}>
+              <AutoAwesomeOutlinedIcon sx={{ fontSize: 14, color: summaryData.is_new ? COLOR.primary : COLOR.text4, verticalAlign: "middle", mr: 0.5 }} />
+              今日摘要
               {summaryData.is_new === false && (
-                <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, ml: 0.5 }}>
-                  暂无新变化
+                <Typography component="span" sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, ml: 0.5, fontWeight: 400 }}>
+                  · 暂无新变化
                 </Typography>
               )}
-              <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, ml: "auto" }}>
-                {summaryData.generated_at ? relativeTime(summaryData.generated_at) : ""}
-              </Typography>
-            </Box>
+              {summaryData.generated_at && (
+                <Typography component="span" sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, ml: "auto", fontWeight: 400 }}>
+                  {relativeTime(summaryData.generated_at)}
+                </Typography>
+              )}
+            </SectionLabel>
+          <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`, px: 2, py: 1.5 }}>
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.7 }}>
               {summaryData.summary.replace(/\s*\[KB-\d+\]/g, "")}
             </Typography>
@@ -255,6 +199,7 @@ export default function MyAIPage({ doctorId }) {
               </Box>
             )}
           </Box>
+          </>
         )}
         {sLoading && !sError && (
           <Box sx={{ px: 2, py: 1.5 }}>
