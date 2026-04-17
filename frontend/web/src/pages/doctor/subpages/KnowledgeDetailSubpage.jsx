@@ -238,7 +238,7 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
             </Box>
 
             {/* Meta row */}
-            <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, px: 2, pb: 1.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, px: 2, pb: 0.5 }}>
               <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
                 {sourceLabel}
               </Typography>
@@ -257,6 +257,13 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
                 </Typography>
               )}
             </Box>
+            {lastUsedDate && (
+              <Box sx={{ px: 2, pb: 1.5 }}>
+                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4 }}>
+                  最近 {lastUsedDate}
+                </Typography>
+              </Box>
+            )}
 
             {/* Rule health stats — unified StatColumn bar matching KnowledgeSubpage list header */}
             {!isPersonaProp && (
@@ -264,7 +271,6 @@ export default function KnowledgeDetailSubpage({ doctorId, itemId, onBack, onDel
                 <StatColumn
                   value={health?.cited_count ?? 0}
                   label="引用"
-                  sublabel={lastUsedDate ? `最近 ${lastUsedDate}` : null}
                 />
                 <Box sx={{ width: "0.5px", bgcolor: COLOR.borderLight }} />
                 <StatColumn value={health?.accepted_count ?? 0} label="采纳" color={COLOR.primary} />
