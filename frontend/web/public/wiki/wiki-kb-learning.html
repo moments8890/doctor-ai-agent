@@ -189,7 +189,7 @@
   <tr><td>[KB-N] 引用标注</td><td><span class="badge-built">已上线</span></td><td>前端点击可弹窗看原文</td></tr>
   <tr><td>引用次数统计</td><td><span class="badge-built">已上线</span></td><td>reference_count + usage_log 流水（LLM 输出时计数）</td></tr>
   <tr><td>编辑→KB 桥（草稿）</td><td><span class="badge-built">已上线</span></td><td>teaching_handlers.py:25 + "保存为规则"按钮。注意：<code>teaching.py:107</code> 写入时 source="teaching"，在检索打分里走 0.2 权重（非 doctor 的 0.5），排序上会低于手动添加的规则</td></tr>
-  <tr><td>编辑→KB 桥（诊断）</td><td><span class="badge-partial">半成品</span></td><td>后端 diagnosis_handlers.py:244 发 teach_prompt，前端 ReviewPage.jsx:267 不读</td></tr>
+  <tr><td>编辑→KB 桥（诊断）</td><td><span class="badge-built">已上线 2026-04-16</span></td><td>ReviewPage.handleDecide 读取 teach_prompt，Snackbar 提示保存；后端 diagnosis_handlers.py:244 原本的 teach_prompt 现在有 UI 接收</td></tr>
   <tr><td>草稿编辑→人格学习（仅风格）</td><td><span class="badge-built">已上线</span></td><td>draft_handlers.py:424 触发 process_edit_for_persona</td></tr>
   <tr><td>人格候选卡片审核</td><td><span class="badge-built">已上线</span></td><td>pattern_hash 去重 + 90 天拒绝悬挂</td></tr>
   <tr><td>事实类编辑的学习路径</td><td><span class="badge-built">已上线 2026-04-16</span></td><td>process_edit_for_learning 路由 type=factual → kb_pending_items；审核通过写入 doctor_knowledge_items</td></tr>
@@ -211,9 +211,9 @@
 </div>
 
 <div class="gap-box">
-  <b>缺口 ②：诊断审核编辑 teach_prompt 是半成品。</b><br>
-  后端 <code>diagnosis_handlers.py:244-270</code> 已经为诊断编辑发 teach_prompt，但 <code>ReviewPage.jsx:267-282</code> 忽略这个字段，UI 没"保存为规则"按钮。草稿路径有完整 UI，诊断路径只差前端几行。<br>
-  <small>修法：在 ReviewPage 里读 teach_prompt，渲染和草稿页相同的 SaveAsRule 卡片。</small>
+  <b>缺口 ②：诊断审核编辑 teach_prompt 是半成品。</b> <span class="badge-built">已修复 2026-04-16</span><br>
+  后端 <code>diagnosis_handlers.py:244-270</code> 已经为诊断编辑发 teach_prompt，但 <code>ReviewPage.jsx:267-282</code> 忽略这个字段，UI 没"保存为规则"按钮。<br>
+  <small>已实施：ReviewPage.handleDecide 现在读取 decideSuggestion 响应里的 teach_prompt + edit_id，触发 Snackbar 提示"保存为知识条目？"，确认后调 api.createRuleFromEdit。行为与草稿回复路径（TaskPage）一致。</small>
 </div>
 
 <div class="gap-box">
@@ -235,7 +235,7 @@
 <table>
   <tr><th>步骤</th><th>行动</th><th>改造量</th><th>为什么这个顺序</th></tr>
   <tr><td>1</td><td>修 <code>persona_learning.py:32</code> 的 fact 分支丢弃（缺口 ①）<span class="badge-built">已完成 2026-04-16</span></td><td><b>小</b></td><td>LLM 分类已经能用，只差路由；复用现有 pattern_hash + 90 天抑制基础设施</td></tr>
-  <tr><td>2</td><td>把诊断审核编辑接入 teach_prompt UI（缺口 ②）</td><td><b>小</b></td><td>后端已发信号，前端几行的工作；先完成半成品再扩面</td></tr>
+  <tr><td>2</td><td>把诊断审核编辑接入 teach_prompt UI（缺口 ②）<span class="badge-built">已完成 2026-04-16</span></td><td><b>小</b></td><td>后端已发信号，前端几行的工作；先完成半成品再扩面</td></tr>
   <tr><td>3</td><td>幻觉引用暴露（缺口 ④）</td><td>小</td><td>独立于其它步骤，安全相关收益快；<code>citation_parser.py:55</code> 信号已存在</td></tr>
   <tr><td>4</td><td>规则健康仪表盘（缺口 ③）</td><td>中</td><td>前置：在 <code>AISuggestion</code> 加 <code>cited_knowledge_ids</code>，把 reparse-free-text 改成结构化；否则诊断侧归因做不出来</td></tr>
 </table>
