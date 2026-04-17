@@ -233,26 +233,47 @@ export default function MyAIPage({ doctorId }) {
             <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, lineHeight: 1.7 }}>
               {summaryData.summary.replace(/\s*\[KB-\d+\]/g, "")}
             </Typography>
-            {/* Render item titles as tappable inline links below the paragraph */}
-            {summaryData.items?.length > 0 && (
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
-                {summaryData.items.map((item, idx) => (
-                  <Box key={item.id || idx}
-                    onClick={() => {
-                      if (item.task_id) navigate(`${dp("tasks")}/${item.task_id}`);
-                      else if (item.patient_id) navigate(`${dp("patients")}/${item.patient_id}`);
-                      else if (item.kind === "knowledge_gap") navigate(dp("settings/knowledge/add"));
-                    }}
-                    sx={{
-                      fontSize: TYPE.caption.fontSize, color: COLOR.primary, cursor: "pointer",
-                      px: 1, py: 0.25, borderRadius: RADIUS.sm, bgcolor: COLOR.primaryLight,
-                      "&:active": { opacity: 0.7 },
-                    }}>
-                    {item.patient_name || item.title.replace(/\s*\[KB-\d+\]/g, "").slice(0, 15)}
-                  </Box>
-                ))}
-              </Box>
-            )}
+            {/* Render item titles as tappable inline links below the paragraph.
+                Chip routing preference: task > diagnosis review > chat view > knowledge.
+                Dedupe by (patient_id, kind) so the same patient doesn't appear twice. */}
+            {summaryData.items?.length > 0 && (() => {
+              const seen = new Set();
+              const deduped = summaryData.items.filter((item) => {
+                const key = `${item.patient_id || ""}:${item.kind || ""}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+              const routeFor = (item) => {
+                if (item.task_id) return `${dp("tasks")}/${item.task_id}`;
+                if (item.record_id) return `${dp("review")}/${item.record_id}`;
+                if (item.patient_id && item.kind === "message_knowledge_match") {
+                  return `${dp("patients")}/${item.patient_id}?view=chat`;
+                }
+                if (item.patient_id) return `${dp("patients")}/${item.patient_id}`;
+                if (item.kind === "knowledge_gap") return dp("settings/knowledge/add");
+                return null;
+              };
+              return (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
+                  {deduped.map((item, idx) => {
+                    const href = routeFor(item);
+                    return (
+                      <Box key={item.id || idx}
+                        onClick={href ? () => navigate(href) : undefined}
+                        sx={{
+                          fontSize: TYPE.caption.fontSize, color: COLOR.primary,
+                          cursor: href ? "pointer" : "default",
+                          px: 1, py: 0.25, borderRadius: RADIUS.sm, bgcolor: COLOR.primaryLight,
+                          "&:active": href ? { opacity: 0.7 } : {},
+                        }}>
+                        {item.patient_name || item.title.replace(/\s*\[KB-\d+\]/g, "").slice(0, 15)}
+                      </Box>
+                    );
+                  })}
+                </Box>
+              );
+            })()}
           </Box>
           </>
         )}
