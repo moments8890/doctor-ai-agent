@@ -276,6 +276,7 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
             else:
                 # Only cite KB items actually referenced in the reply
                 from domain.knowledge.citation_parser import extract_citations
+                from domain.knowledge.usage_tracking import log_citations
                 cited = extract_citations(reply_text)
                 valid_cited = [kid for kid in cited.cited_ids if kid in set(kb_map.values())]
                 draft = MessageDraft(
@@ -288,6 +289,13 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
                     seed_source=_SEED_SOURCE,
                 )
                 db.add(draft)
+                # Mirror live draft_reply path: also log to knowledge_usage_log
+                # and bump reference_count so stats and 引用记录 stay in lockstep.
+                if valid_cited:
+                    await log_citations(
+                        db, doctor_id, valid_cited,
+                        "followup", patient_id=str(patient.id),
+                    )
 
         # Tasks
         for t_spec in p_spec.tasks:
