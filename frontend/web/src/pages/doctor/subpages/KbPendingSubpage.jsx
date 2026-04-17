@@ -12,6 +12,8 @@ import EmptyState from "../../../components/EmptyState";
 import AppButton from "../../../components/AppButton";
 import ConfirmDialog from "../../../components/ConfirmDialog";
 import { useKbPending, useAcceptKbPending, useRejectKbPending } from "../../../lib/doctorQueries";
+import { useAppNavigate } from "../../../hooks/useAppNavigate";
+import { dp } from "../../../utils/doctorBasePath";
 
 const CATEGORY_LABELS = {
   diagnosis: "诊断",
@@ -24,8 +26,18 @@ export default function KbPendingSubpage({ onBack }) {
   const { data, isLoading } = useKbPending();
   const acceptMutation = useAcceptKbPending();
   const rejectMutation = useRejectKbPending();
+  const navigate = useAppNavigate();
   const [actingId, setActingId] = useState(null);
   const [confirmReject, setConfirmReject] = useState(null);
+
+  function openSource(link) {
+    if (!link) return;
+    if (link.entity_type === "diagnosis" && link.record_id) {
+      navigate(`${dp("review")}/${link.record_id}`);
+    } else if (link.entity_type === "draft_reply" && link.patient_id) {
+      navigate(`${dp("patients")}/${link.patient_id}`);
+    }
+  }
 
   const items = data?.items || [];
 
@@ -69,11 +81,33 @@ export default function KbPendingSubpage({ onBack }) {
               {item.proposed_rule}
             </Typography>
 
-            {/* Evidence summary */}
+            {/* Evidence summary — clickable when source_link resolves */}
             {item.evidence_summary && (
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text4, mb: 1.25 }}>
-                依据：{item.evidence_summary}
-              </Typography>
+              (() => {
+                const link = item.source_link;
+                const clickable = !!(link && (link.record_id || link.patient_id));
+                return (
+                  <Typography
+                    onClick={clickable ? () => openSource(link) : undefined}
+                    sx={{
+                      fontSize: TYPE.secondary.fontSize,
+                      color: clickable ? COLOR.primary : COLOR.text4,
+                      mb: 1.25,
+                      cursor: clickable ? "pointer" : "default",
+                      textDecoration: clickable ? "underline" : "none",
+                      textDecorationColor: clickable ? COLOR.borderLight : "transparent",
+                      "&:active": clickable ? { opacity: 0.6 } : {},
+                    }}
+                  >
+                    依据：{item.evidence_summary}
+                    {clickable && (
+                      <Box component="span" sx={{ ml: 0.5, color: COLOR.text4 }}>
+                        · 查看{link.entity_type === "diagnosis" ? "诊断" : "回复"}
+                      </Box>
+                    )}
+                  </Typography>
+                );
+              })()
             )}
 
             {/* Action buttons */}

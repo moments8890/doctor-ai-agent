@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import sys
 from typing import Optional
@@ -14,11 +15,62 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from channels.web.doctor_dashboard.deps import _resolve_ui_doctor_id
 from db.engine import get_db
+from db.models.ai_suggestion import AISuggestion
 from db.models.doctor import KnowledgeCategory
+from db.models.doctor_edit import DoctorEdit
 from db.models.kb_pending import KbPendingItem
+from db.models.message_draft import MessageDraft
 from domain.knowledge.knowledge_crud import save_knowledge_item
 from domain.knowledge.knowledge_context import _invalidate_cache
 from utils.log import log
+
+
+async def _resolve_source_link(
+    session: AsyncSession, evidence_edit_ids_json: Optional[str],
+) -> Optional[dict]:
+    """Trace evidence_edit_ids → DoctorEdit → MessageDraft/AISuggestion → routable target.
+
+    Returns {entity_type, patient_id?, record_id?} for the UI to build a link,
+    or None when the edit chain doesn't resolve.
+    """
+    if not evidence_edit_ids_json:
+        return None
+    try:
+        edit_ids = json.loads(evidence_edit_ids_json)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not edit_ids:
+        return None
+
+    edit = (await session.execute(
+        select(DoctorEdit).where(DoctorEdit.id == int(edit_ids[0]))
+    )).scalar_one_or_none()
+    if edit is None:
+        return None
+
+    if edit.entity_type == "draft_reply":
+        draft = (await session.execute(
+            select(MessageDraft).where(MessageDraft.id == edit.entity_id)
+        )).scalar_one_or_none()
+        if draft is None:
+            return None
+        return {
+            "entity_type": "draft_reply",
+            "patient_id": draft.patient_id,
+            "draft_id": draft.id,
+        }
+    if edit.entity_type == "diagnosis":
+        sug = (await session.execute(
+            select(AISuggestion).where(AISuggestion.id == edit.entity_id)
+        )).scalar_one_or_none()
+        if sug is None:
+            return None
+        return {
+            "entity_type": "diagnosis",
+            "record_id": sug.record_id,
+            "suggestion_id": sug.id,
+        }
+    return None
 
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
@@ -43,22 +95,22 @@ async def list_pending_items(
     )
     items = result.scalars().all()
 
-    return {
-        "items": [
-            {
-                "id": item.id,
-                "category": item.category,
-                "proposed_rule": item.proposed_rule,
-                "summary": item.summary,
-                "evidence_summary": item.evidence_summary,
-                "confidence": item.confidence,
-                "status": item.status,
-                "created_at": item.created_at.isoformat() if item.created_at else None,
-            }
-            for item in items
-        ],
-        "count": len(items),
-    }
+    payload = []
+    for item in items:
+        source_link = await _resolve_source_link(session, item.evidence_edit_ids)
+        payload.append({
+            "id": item.id,
+            "category": item.category,
+            "proposed_rule": item.proposed_rule,
+            "summary": item.summary,
+            "evidence_summary": item.evidence_summary,
+            "confidence": item.confidence,
+            "status": item.status,
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+            "source_link": source_link,
+        })
+
+    return {"items": payload, "count": len(payload)}
 
 
 @router.post("/api/manage/kb/pending/{item_id}/accept")
