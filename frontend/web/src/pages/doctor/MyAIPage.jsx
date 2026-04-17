@@ -17,6 +17,8 @@ import SectionLoading from "../../components/SectionLoading";
 import ListCard from "../../components/ListCard";
 import IconBadge from "../../components/IconBadge";
 import SectionLabel from "../../components/SectionLabel";
+import AppButton from "../../components/AppButton";
+import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import { ICON_BADGES } from "./constants";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
 import { dp } from "../../utils/doctorBasePath";
@@ -150,27 +152,63 @@ export default function MyAIPage({ doctorId }) {
           ))}
         </Box>
 
-        {/* ── 2b. Triage block — today's attention list ──────────── */}
-        <SectionLabel>今日关注</SectionLabel>
-        <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
-          <ListCard
-            avatar={<IconBadge config={ICON_BADGES.review} size={36} />}
-            title="待审核诊断建议"
-            subtitle={pendingReview > 0 ? `${pendingReview} 位患者的 AI 诊断等你确认` : "暂无待审核建议"}
-            right={<CountPill value={pendingReview ?? 0} active={pendingReview > 0} />}
-            chevron
-            onClick={() => navigate(`${dp("review")}?tab=pending`)}
-          />
-          <ListCard
-            avatar={<IconBadge config={ICON_BADGES.kb_add} size={36} />}
-            title="待采纳的规则"
-            subtitle={kbPendingCount > 0 ? `AI 从你的编辑中提取了 ${kbPendingCount} 条新规则` : "暂无新规则提议"}
-            right={<CountPill value={kbPendingCount} active={kbPendingCount > 0} />}
-            chevron
-            onClick={() => navigate(dp("settings/knowledge/pending"))}
-            sx={{ borderBottom: "none" }}
-          />
-        </Box>
+        {/* ── 2b. New-doctor guided activation OR triage block ─────── */}
+        {knowledgeCount === 0 ? (
+          <>
+            <SectionLabel>开始使用</SectionLabel>
+            <Box sx={{
+              bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}`,
+              px: 3, py: 4, textAlign: "center",
+            }}>
+              <Typography sx={{ fontSize: TYPE.title.fontSize, fontWeight: 600, color: COLOR.text1, mb: 1 }}>
+                教 AI 第一条规则
+              </Typography>
+              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text3, lineHeight: 1.7, mb: 2.5, maxWidth: 280, mx: "auto" }}>
+                两分钟就够了。AI 还没学到你的诊疗经验 — 从这里开始。
+              </Typography>
+              <Box sx={{ display: "flex", justifyContent: "center", mb: 2.5 }}>
+                <AppButton variant="primary" size="lg" onClick={() => navigate(dp("settings/knowledge/add"))}>
+                  <MicNoneOutlinedIcon sx={{ fontSize: 18, mr: 0.75 }} />
+                  添加第一条规则
+                </AppButton>
+              </Box>
+              <Box sx={{ textAlign: "left", maxWidth: 300, mx: "auto",
+                bgcolor: COLOR.surfaceAlt, borderRadius: RADIUS.md, p: 1.5 }}>
+                <Typography sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, fontWeight: 600, letterSpacing: 0.4, mb: 0.5 }}>
+                  常见开端
+                </Typography>
+                <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text3, lineHeight: 1.7 }}>
+                  · 术后用药禁忌<br/>
+                  · 随访时间点<br/>
+                  · 诊断判断要点
+                </Typography>
+              </Box>
+            </Box>
+          </>
+        ) : (
+          <>
+            <SectionLabel>今日关注</SectionLabel>
+            <Box sx={{ bgcolor: COLOR.white, borderTop: `0.5px solid ${COLOR.border}`, borderBottom: `0.5px solid ${COLOR.border}` }}>
+              <ListCard
+                avatar={<IconBadge config={ICON_BADGES.review} size={36} />}
+                title="待审核诊断建议"
+                subtitle={pendingReview > 0 ? `${pendingReview} 位患者的 AI 诊断等你确认` : "暂无待审核建议"}
+                right={<CountPill value={pendingReview ?? 0} active={pendingReview > 0} />}
+                chevron
+                onClick={() => navigate(`${dp("review")}?tab=pending`)}
+              />
+              <ListCard
+                avatar={<IconBadge config={ICON_BADGES.kb_add} size={36} />}
+                title="待采纳的规则"
+                subtitle={kbPendingCount > 0 ? `AI 从你的编辑中提取了 ${kbPendingCount} 条新规则` : "暂无新规则提议"}
+                right={<CountPill value={kbPendingCount} active={kbPendingCount > 0} />}
+                chevron
+                onClick={() => navigate(dp("settings/knowledge/pending"))}
+                sx={{ borderBottom: "none" }}
+              />
+            </Box>
+          </>
+        )}
 
         {/* ── 3. Today Summary (LLM-generated, single narrative) ── */}
         {summaryData && summaryData.mode !== "empty" && summaryData.summary && (
