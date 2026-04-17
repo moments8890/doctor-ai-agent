@@ -412,15 +412,37 @@ function BubbleChatView({
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const hasScrolledRef = useRef(false);
+  const highlightRefs = useRef({});
 
-  // Initial mount → scroll instantly so the smooth-scroll doesn't race the
-  // SlideOverlay transition and look like a bounce. Subsequent message
-  // arrivals (reply sent, patient responds) still animate smoothly.
+  // Parse ?highlight_draft_id=N on mount. Used to deep-link from knowledge
+  // citation rows (KnowledgeDetailSubpage) → the specific reply.
+  const highlightDraftId = (() => {
+    try { return new URLSearchParams(window.location.search).get("highlight_draft_id"); }
+    catch { return null; }
+  })();
+  const [flashMsgId, setFlashMsgId] = useState(null);
+  const highlightAppliedRef = useRef(false);
+
+  // Initial mount: if highlight_draft_id is set, scroll to that message
+  // and flash it briefly. Otherwise scroll to bottom (normal behavior).
   useEffect(() => {
+    if (!messages.length) return;
+    if (highlightDraftId && !highlightAppliedRef.current) {
+      const draft = drafts.find((d) => String(d.id) === String(highlightDraftId));
+      const targetMsgId = draft?.source_message_id;
+      const el = targetMsgId != null ? highlightRefs.current[targetMsgId] : null;
+      if (el) {
+        el.scrollIntoView({ behavior: "auto", block: "center" });
+        setFlashMsgId(targetMsgId);
+        highlightAppliedRef.current = true;
+        setTimeout(() => setFlashMsgId(null), 2400);
+        return;
+      }
+    }
     if (!bottomRef.current) return;
     bottomRef.current.scrollIntoView({ behavior: hasScrolledRef.current ? "smooth" : "auto" });
     hasScrolledRef.current = true;
-  }, [messages, drafts]);
+  }, [messages, drafts, highlightDraftId]);
 
   async function handleDraftEdit(nextText, draft) {
     if (!draft?.id) return;
@@ -516,8 +538,18 @@ function BubbleChatView({
             const isAI = !isPatient && !isDoctor;
             const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "";
             const inlineDraft = draftByMsgId[msg.id];
+            const isFlash = flashMsgId != null && String(flashMsgId) === String(msg.id);
             return (
-              <Box key={idx}>
+              <Box
+                key={idx}
+                ref={(el) => { if (el) highlightRefs.current[msg.id] = el; }}
+                sx={{
+                  borderRadius: RADIUS.md,
+                  transition: "background-color 2s ease-out",
+                  bgcolor: isFlash ? `${COLOR.warning}22` : "transparent",
+                  py: isFlash ? 0.5 : 0,
+                }}
+              >
                 {/* Message bubble */}
                 <Box sx={{ display: "flex", flexDirection: isPatient ? "row" : "row-reverse", alignItems: "flex-end", gap: 1, px: 1.5 }}>
                   {isPatient ? (
