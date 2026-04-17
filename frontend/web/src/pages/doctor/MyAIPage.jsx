@@ -116,29 +116,36 @@ export default function MyAIPage({ doctorId }) {
           </Box>
         </Box>
 
-        {/* ── 2a. Quick tools — horizontal scroll row of IconBadge + label ──── */}
-        <Box sx={{
-          bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}`,
-          display: "flex", gap: 1.5, px: 2, py: 1.5,
-          overflowX: "auto",
-          "&::-webkit-scrollbar": { display: "none" },
-          scrollbarWidth: "none",
-        }}>
+        {/* ── 2a. Quick tools — home-screen-style grid (icon on top, label below) ── */}
+        <Box sx={{ bgcolor: COLOR.white, borderBottom: `0.5px solid ${COLOR.border}`,
+          display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0 }}>
           {[
             { config: ICON_BADGES.new_record, label: "新建病历", onClick: () => navigate(`${dp("patients")}?action=new`) },
             { config: ICON_BADGES.qr_code, label: "预问诊码", onClick: () => navigate(dp("settings/qr")) },
-            { config: ICON_BADGES.kb_doctor, label: `知识库 (${knowledgeCount})`, onClick: () => navigate(dp("settings/knowledge")) },
-          ].map(({ config, label, onClick: onTap }) => (
+            { config: ICON_BADGES.kb_doctor, label: "知识库", badge: knowledgeCount, onClick: () => navigate(dp("settings/knowledge")) },
+          ].map(({ config, label, badge, onClick: onTap }) => (
             <Box key={label} onClick={onTap}
               sx={{
-                flexShrink: 0,
-                display: "flex", alignItems: "center", gap: 0.75,
-                px: 1.25, py: 0.75, borderRadius: RADIUS.md,
-                bgcolor: COLOR.surfaceAlt, cursor: "pointer",
-                "&:active": { opacity: 0.7 },
+                display: "flex", flexDirection: "column", alignItems: "center",
+                gap: 0.5, py: 1.5, cursor: "pointer",
+                "&:active": { bgcolor: COLOR.surfaceAlt },
               }}>
-              <IconBadge config={config} size={28} />
-              <Typography sx={{ fontSize: TYPE.secondary.fontSize, color: COLOR.text2, whiteSpace: "nowrap" }}>{label}</Typography>
+              <Box sx={{ position: "relative" }}>
+                <IconBadge config={config} size={40} />
+                {badge > 0 && (
+                  <Typography sx={{
+                    position: "absolute", top: -4, right: -6,
+                    minWidth: 16, height: 16, borderRadius: 8,
+                    px: 0.5,
+                    bgcolor: COLOR.danger, color: COLOR.white,
+                    fontSize: TYPE.micro.fontSize, fontWeight: 600,
+                    lineHeight: "16px", textAlign: "center",
+                  }}>
+                    {badge}
+                  </Typography>
+                )}
+              </Box>
+              <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text2, whiteSpace: "nowrap" }}>{label}</Typography>
             </Box>
           ))}
         </Box>
