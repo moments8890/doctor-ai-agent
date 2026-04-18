@@ -1,283 +1,431 @@
 /**
  * @route /doctor/patients/:patientId
  *
- * v2 PatientDetail — message timeline + reply composer.
- * Full-screen subpage (hides TabBar). antd-mobile only. No MUI.
+ * v2 PatientDetail — records-first patient detail page.
+ * Displays patient profile, attention card, chat link, and record list.
+ * Chat/reply view is a separate subpage at ?view=chat.
  *
- * Core features:
- * - Fetch + display patient chat messages (patient side + doctor/AI replies)
- * - AI draft cards with "edit" and "confirm send" actions
- * - ChatComposer at bottom (keyboard-aware)
- * - NavBar with patient name + back button
+ * antd-mobile only. No MUI, no src/components, no src/theme.js.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { NavBar, SpinLoading, Button, Toast, Dialog } from "antd-mobile";
-import { LeftOutline } from "antd-mobile-icons";
+import {
+  NavBar,
+  List,
+  CapsuleTabs,
+  Tag,
+  SpinLoading,
+  ErrorBlock,
+  Collapse,
+} from "antd-mobile";
+import { LeftOutline, MessageOutline } from "antd-mobile-icons";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
-import { nowTs } from "../../../utils/time";
-import ChatComposer from "../../ChatComposer";
-import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { APP } from "../../theme";
 
-// ── Message bubble ─────────────────────────────────────────────────
+// ── Record type label map ─────────────────────────────────────────────
 
-function MessageBubble({ msg, patientName }) {
-  const isPatient =
-    msg.role === "patient" ||
-    msg.sender_type === "patient" ||
-    msg.source === "patient" ||
-    msg.direction === "inbound";
-  const isDoctor =
-    msg.role === "doctor" ||
-    msg.sender_type === "doctor" ||
-    msg.source === "doctor";
+const RECORD_TYPE_LABEL = {
+  visit: "门诊",
+  referral: "转诊",
+  surgery: "手术",
+  lab: "检验",
+  imaging: "影像",
+  dictation: "语音录入",
+  import: "导入",
+  interview_summary: "问诊总结",
+};
 
-  const time = msg.created_at
-    ? new Date(msg.created_at).toLocaleTimeString("zh-CN", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
+// ── Record tab config ─────────────────────────────────────────────────
 
-  const bubbleColor = isPatient
-    ? APP.surface
-    : isDoctor
-    ? APP.wechatGreen
-    : APP.surface;
+const RECORD_TABS = [
+  { key: "", label: "全部", types: null },
+  { key: "medical", label: "病历", types: ["visit", "dictation", "import", "surgery", "referral"] },
+  { key: "lab_imaging", label: "检验/影像", types: ["lab", "imaging"] },
+  { key: "interview", label: "问诊", types: ["interview_summary"] },
+];
 
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: isPatient ? "row" : "row-reverse",
-        alignItems: "flex-end",
-        gap: 8,
-        padding: "4px 12px",
-      }}
-    >
-      {/* Avatar */}
-      <div
+// ── Record status color ───────────────────────────────────────────────
+
+function recordStatusBadge(status) {
+  if (status === "pending_review") {
+    return (
+      <span
         style={{
-          width: 34,
-          height: 34,
-          borderRadius: "50%",
-          background: isPatient ? "#576B95" : "#07C160",
+          fontSize: 11,
           color: "#fff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 13,
+          background: "#FFC300",
+          borderRadius: 4,
+          padding: "1px 6px",
           fontWeight: 600,
           flexShrink: 0,
         }}
       >
-        {isPatient ? (patientName || "患")[0] : isDoctor ? "我" : "AI"}
-      </div>
-
-      {/* Bubble + timestamp */}
-      <div
+        待审核
+      </span>
+    );
+  }
+  if (status === "interview_active") {
+    return (
+      <span
         style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: isPatient ? "flex-start" : "flex-end",
-          gap: 3,
-          maxWidth: "72%",
+          fontSize: 11,
+          color: "#fff",
+          background: "#07C160",
+          borderRadius: 4,
+          padding: "1px 6px",
+          fontWeight: 600,
+          flexShrink: 0,
         }}
       >
-        {!isPatient && !isDoctor && (
-          <span style={{ fontSize: 11, color: APP.text4, fontWeight: 500 }}>
-            AI
-          </span>
-        )}
-        <div
-          style={{
-            background: bubbleColor,
-            borderRadius: isPatient
-              ? "14px 14px 14px 3px"
-              : "14px 14px 3px 14px",
-            padding: "9px 13px",
-            fontSize: 15,
-            color: APP.text1,
-            lineHeight: "1.6",
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            boxShadow: isDoctor ? "none" : "0 1px 3px rgba(0,0,0,0.07)",
-          }}
+        问诊中
+      </span>
+    );
+  }
+  return null;
+}
+
+function formatRecordDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const Y = d.getFullYear();
+  const M = String(d.getMonth() + 1).padStart(2, "0");
+  const D = String(d.getDate()).padStart(2, "0");
+  return `${Y}-${M}-${D}`;
+}
+
+// ── Patient profile helpers ───────────────────────────────────────────
+
+function maskPhone(phone) {
+  if (!phone || phone.length < 7) return phone || "—";
+  return phone.slice(0, 3) + "****" + phone.slice(-4);
+}
+
+// ── Profile section ───────────────────────────────────────────────────
+
+function PatientProfile({ patient, records }) {
+  const age = patient.year_of_birth
+    ? new Date().getFullYear() - patient.year_of_birth
+    : null;
+  const genderStr = patient.gender
+    ? { male: "男", female: "女" }[patient.gender] || patient.gender
+    : null;
+
+  const medical = ["visit", "dictation", "import", "surgery", "referral"];
+  let visitCount = 0;
+  for (const r of records) {
+    if (medical.includes(r.record_type)) visitCount++;
+  }
+
+  const summaryParts = [
+    genderStr,
+    age ? `${age}岁` : null,
+    `门诊${visitCount}次`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div
+      style={{
+        padding: "12px 16px",
+        background: APP.surface,
+        borderBottom: `0.5px solid ${APP.border}`,
+      }}
+    >
+      {/* Compact row always visible */}
+      <Collapse>
+        <Collapse.Panel
+          key="profile"
+          title={
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ fontWeight: 700, fontSize: 17, color: APP.text1 }}>
+                {patient.name || "患者"}
+              </span>
+              <span style={{ fontSize: 13, color: APP.text4 }}>{summaryParts}</span>
+            </div>
+          }
         >
-          {msg.content || msg.text || ""}
-        </div>
-        {time && (
-          <span style={{ fontSize: 11, color: APP.text4 }}>{time}</span>
-        )}
-      </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "8px 16px",
+              padding: "4px 0 8px",
+            }}
+          >
+            <ProfileRow label="性别" value={genderStr || "—"} />
+            <ProfileRow label="年龄" value={age ? `${age}岁` : "—"} />
+            <ProfileRow label="出生年份" value={patient.year_of_birth ? `${patient.year_of_birth}年` : "—"} />
+            <ProfileRow label="手机" value={maskPhone(patient.phone)} />
+          </div>
+        </Collapse.Panel>
+      </Collapse>
     </div>
   );
 }
 
-// ── AI Draft card (inline after patient message) ────────────────────
+function ProfileRow({ label, value }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <span style={{ fontSize: 11, color: APP.text4 }}>{label}</span>
+      <span style={{ fontSize: 14, color: APP.text2 }}>{value}</span>
+    </div>
+  );
+}
 
-function AIDraftCard({ draft, onEdit, onSend }) {
-  const text = draft.draft_text || draft.content || "";
-  if (!text) return null;
+// ── Attention card ────────────────────────────────────────────────────
+
+function AttentionCard({ pendingReviewCount, draftCount, onPendingClick, onDraftClick }) {
+  if (!pendingReviewCount && !draftCount) return null;
 
   return (
     <div
       style={{
-        display: "flex",
-        flexDirection: "row-reverse",
-        alignItems: "flex-end",
-        gap: 8,
-        padding: "4px 12px",
-        marginTop: 4,
+        background: APP.surface,
+        borderBottom: `0.5px solid ${APP.border}`,
+        padding: "8px 16px",
+        marginBottom: 8,
       }}
     >
-      {/* AI avatar */}
       <div
         style={{
-          width: 34,
-          height: 34,
-          borderRadius: "50%",
-          background: "#07C160",
-          color: "#fff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 13,
+          fontSize: 11,
           fontWeight: 600,
-          flexShrink: 0,
+          color: "#FFC300",
+          marginBottom: 8,
         }}
       >
-        AI
+        ⚡ 需要你处理
       </div>
 
-      {/* Draft bubble */}
-      <div
-        style={{
-          maxWidth: "78%",
-          background: APP.primaryLight,
-          border: `1px solid #07C16030`,
-          borderRadius: 12,
-          padding: "10px 14px",
-        }}
-      >
+      {pendingReviewCount > 0 && (
         <div
-          style={{
-            fontSize: 11,
-            color: "#07C160",
-            fontWeight: 600,
-            marginBottom: 6,
-          }}
-        >
-          AI起草回复 · 待你确认
-        </div>
-        <div
-          style={{
-            fontSize: 14,
-            color: APP.text1,
-            lineHeight: "1.65",
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-          }}
-        >
-          {text}
-        </div>
-        <div
+          onClick={onPendingClick}
           style={{
             display: "flex",
-            justifyContent: "flex-end",
-            gap: 16,
-            marginTop: 10,
-            paddingTop: 8,
-            borderTop: `0.5px solid #07C16020`,
+            alignItems: "center",
+            gap: 12,
+            padding: "8px 0",
+            cursor: "pointer",
+            borderBottom: draftCount ? `0.5px solid ${APP.borderLight}` : "none",
           }}
         >
-          <span
+          <div
             style={{
-              fontSize: 13,
-              color: APP.text4,
-              cursor: "pointer",
+              width: 32,
+              height: 32,
+              borderRadius: 6,
+              background: "#FFF8E0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 16,
+              flexShrink: 0,
             }}
-            onClick={() => onEdit?.(draft)}
           >
-            修改
-          </span>
-          <span
-            style={{
-              fontSize: 13,
-              color: "#07C160",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-            onClick={() => onSend?.(draft)}
-          >
-            确认发送 ›
-          </span>
+            📋
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: APP.text1 }}>
+              {pendingReviewCount} 条病历待审核
+            </div>
+            <div style={{ fontSize: 12, color: APP.text4, marginTop: 2 }}>
+              点击查看并确认
+            </div>
+          </div>
+          <span style={{ fontSize: 16, color: APP.text4 }}>›</span>
         </div>
+      )}
+
+      {draftCount > 0 && (
+        <div
+          onClick={onDraftClick}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "8px 0",
+            cursor: "pointer",
+          }}
+        >
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 6,
+              background: APP.primaryLight,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 16,
+              flexShrink: 0,
+            }}
+          >
+            ✉️
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: APP.text1 }}>
+              {draftCount} 条消息待回复
+            </div>
+            <div style={{ fontSize: 12, color: APP.text4, marginTop: 2 }}>
+              AI已起草 · 待你确认
+            </div>
+          </div>
+          <span style={{ fontSize: 16, color: APP.text4 }}>›</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Chat nav card ─────────────────────────────────────────────────────
+
+function ChatNavCard({ messageCount, draftCount, onClick }) {
+  return (
+    <div
+      style={{
+        background: APP.surface,
+        borderTop: `0.5px solid ${APP.border}`,
+        borderBottom: `0.5px solid ${APP.border}`,
+        marginBottom: 8,
+      }}
+    >
+      <div
+        onClick={onClick}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "12px 16px",
+          cursor: "pointer",
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 6,
+            background: APP.primaryLight,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <MessageOutline style={{ fontSize: 18, color: "#07C160" }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 500, color: APP.text1 }}>
+            患者消息
+            {messageCount > 0 && (
+              <span style={{ fontSize: 12, color: APP.text4, fontWeight: 400, marginLeft: 4 }}>
+                ({messageCount})
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: APP.text4, marginTop: 2 }}>
+            {draftCount > 0 ? `${draftCount} 条待回复` : "查看聊天记录"}
+          </div>
+        </div>
+        {draftCount > 0 && (
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#fff",
+              background: "#FA5151",
+              borderRadius: 8,
+              padding: "0 6px",
+              minWidth: 16,
+              textAlign: "center",
+              lineHeight: "18px",
+            }}
+          >
+            {draftCount}
+          </div>
+        )}
+        <span style={{ fontSize: 16, color: APP.text4 }}>›</span>
       </div>
     </div>
   );
 }
 
-// ── Edit banner (shown when editing a draft) ───────────────────────
+// ── Record row ────────────────────────────────────────────────────────
 
-function EditingBanner({ onCancel }) {
+function RecordRow({ record, onClick }) {
+  const typeLabel = RECORD_TYPE_LABEL[record.record_type] || record.record_type || "病历";
+  const dateStr = formatRecordDate(record.created_at || record.visit_date);
+  const complaint = record.chief_complaint || record.summary || "";
+  const preview = complaint.length > 40 ? complaint.slice(0, 40) + "…" : complaint;
+  const statusBadge = recordStatusBadge(record.status);
+
   return (
     <div
+      onClick={onClick}
       style={{
         display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "6px 14px",
-        background: APP.primaryLight,
-        borderBottom: `0.5px solid #07C16030`,
-        flexShrink: 0,
+        alignItems: "flex-start",
+        gap: 10,
+        padding: "12px 16px",
+        background: APP.surface,
+        borderBottom: `0.5px solid ${APP.borderLight}`,
+        cursor: "pointer",
       }}
     >
-      <span style={{ fontSize: 12, color: "#07C160", fontWeight: 500 }}>
-        正在编辑AI草稿
-      </span>
-      <span
-        style={{ fontSize: 12, color: APP.text4, cursor: "pointer" }}
-        onClick={onCancel}
-      >
-        取消
-      </span>
+      {/* Type tag */}
+      <div style={{ flexShrink: 0, paddingTop: 2 }}>
+        <Tag
+          color={
+            record.record_type === "lab"
+              ? "#576B95"
+              : record.record_type === "imaging"
+              ? "#576B95"
+              : "#07C160"
+          }
+          fill="outline"
+          style={{ "--border-radius": "4px", fontSize: 11 }}
+        >
+          {typeLabel}
+        </Tag>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, color: APP.text1, lineHeight: "1.5", wordBreak: "break-word" }}>
+          {preview || "（无主诉）"}
+        </div>
+        <div style={{ fontSize: 12, color: APP.text4, marginTop: 4 }}>{dateStr}</div>
+      </div>
+
+      {/* Status + chevron */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {statusBadge}
+        <span style={{ fontSize: 16, color: APP.text4 }}>›</span>
+      </div>
     </div>
   );
 }
 
-// ── Main component ─────────────────────────────────────────────────
+// ── Main component ─────────────────────────────────────────────────────
 
 export default function PatientDetail({ patientId: propPatientId }) {
   const params = useParams();
   const patientId = propPatientId || params.patientId;
   const navigate = useNavigate();
   const { doctorId } = useDoctorStore();
-  const {
-    getPatientChat,
-    fetchDrafts,
-    replyToPatient,
-    editDraft,
-    sendDraft,
-    getPatients,
-  } = useApi();
+  const { getPatients, getRecords, fetchDrafts } = useApi();
 
   const [patient, setPatient] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [drafts, setDrafts] = useState([]);
+  const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [replyText, setReplyText] = useState("");
-  const [editingDraft, setEditingDraft] = useState(null);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState("");
+  const [draftCount, setDraftCount] = useState(0);
+  const [messageCount] = useState(0);
 
-  const bottomRef = useRef(null);
-  const hasScrolledRef = useRef(false);
-
-  useScrollOnKeyboard(bottomRef);
-
-  // ── Load patient info ──────────────────────────────────────────
+  // ── Load patient info ──────────────────────────────────────────────
   useEffect(() => {
     if (!patientId || !doctorId) return;
     getPatients(doctorId, {}, 200)
@@ -289,104 +437,89 @@ export default function PatientDetail({ patientId: propPatientId }) {
       .catch(() => setPatient({ id: patientId, name: "患者" }));
   }, [patientId, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Load messages ──────────────────────────────────────────────
-  const refreshMessages = useCallback(async () => {
-    if (!patientId || !doctorId) return;
-    const data = await getPatientChat(patientId, doctorId);
-    const msgs = Array.isArray(data?.messages) ? data.messages : [];
-    msgs.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
-    setMessages(msgs);
-  }, [patientId, doctorId, getPatientChat]);
-
-  // ── Load drafts ────────────────────────────────────────────────
-  const refreshDrafts = useCallback(async () => {
-    if (!patientId || !doctorId) return;
-    const data = await fetchDrafts(doctorId, { patientId });
-    const all = Array.isArray(data) ? data : data?.pending_messages || [];
-    const actual = all.filter((d) => d.type === "draft");
-    actual.sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
-    setDrafts(actual);
-  }, [patientId, doctorId, fetchDrafts]);
-
-  // ── Initial load ───────────────────────────────────────────────
-  useEffect(() => {
+  // ── Load records ───────────────────────────────────────────────────
+  const loadRecords = useCallback(async () => {
     if (!patientId || !doctorId) return;
     setLoading(true);
-    Promise.allSettled([refreshMessages(), refreshDrafts()]).finally(() =>
-      setLoading(false)
-    );
-  }, [patientId, doctorId, refreshMessages, refreshDrafts]);
+    setError(null);
+    try {
+      const data = await getRecords({ doctorId, patientId, limit: 100 });
+      const items = Array.isArray(data) ? data : data?.items || [];
+      // Sort: actionable first, then by date desc
+      items.sort((a, b) => {
+        const actionable = (r) =>
+          r.status === "pending_review" || r.status === "interview_active" ? 1 : 0;
+        const diff = actionable(b) - actionable(a);
+        if (diff !== 0) return diff;
+        return (b.created_at || "").localeCompare(a.created_at || "");
+      });
+      setRecords(items);
+    } catch (e) {
+      setError(e.message || "加载失败");
+    } finally {
+      setLoading(false);
+    }
+  }, [patientId, doctorId, getRecords]);
 
-  // ── Scroll to bottom on new messages ──────────────────────────
+  // ── Load drafts (for counts) ───────────────────────────────────────
+  const loadDraftCount = useCallback(async () => {
+    if (!patientId || !doctorId) return;
+    try {
+      const data = await fetchDrafts(doctorId, { patientId });
+      const all = Array.isArray(data) ? data : data?.pending_messages || [];
+      const pending = all.filter(
+        (d) => d.type === "draft" && d.status !== "sent" && (d.draft_text || d.content)
+      );
+      setDraftCount(pending.length);
+    } catch {
+      // non-critical
+    }
+  }, [patientId, doctorId, fetchDrafts]);
+
   useEffect(() => {
-    if (!bottomRef.current) return;
-    bottomRef.current.scrollIntoView({
-      behavior: hasScrolledRef.current ? "smooth" : "auto",
-    });
-    hasScrolledRef.current = true;
-  }, [messages, drafts]);
+    loadRecords();
+    loadDraftCount();
+  }, [loadRecords, loadDraftCount]);
 
-  // ── Build draft lookup by source_message_id ────────────────────
-  const messageIdSet = new Set(messages.map((m) => m.id));
-  const pendingDrafts = drafts.filter(
-    (d) => d.status !== "sent" && (d.draft_text || d.content)
-  );
-  const draftByMsgId = {};
-  for (const d of pendingDrafts) {
-    if (d.source_message_id && messageIdSet.has(d.source_message_id)) {
-      draftByMsgId[d.source_message_id] = d;
-    }
-  }
+  // ── Tab filtering ──────────────────────────────────────────────────
+  const activeGroup = RECORD_TABS.find((g) => g.key === activeTab);
+  const filteredRecords = activeGroup?.types
+    ? records.filter((r) => activeGroup.types.includes(r.record_type))
+    : records;
 
-  // ── Handlers ──────────────────────────────────────────────────
-  async function handleSend(text) {
-    const trimmed = (text || replyText).trim();
-    if (!trimmed || sending) return;
-    setSending(true);
-    try {
-      if (editingDraft) {
-        await editDraft(editingDraft.id, doctorId, trimmed);
-        await sendDraft(editingDraft.id, doctorId);
-        setEditingDraft(null);
-      } else {
-        await replyToPatient(patientId, trimmed);
-      }
-      setReplyText("");
-      await Promise.allSettled([refreshMessages(), refreshDrafts()]);
-    } catch (e) {
-      Toast.show({ content: `发送失败：${e.message}`, position: "bottom" });
-    } finally {
-      setSending(false);
-    }
-  }
+  const pendingReviewCount = records.filter((r) => r.status === "pending_review").length;
 
-  function handleEditDraft(draft) {
-    setEditingDraft(draft);
-    setReplyText(draft.draft_text || draft.content || "");
-  }
-
-  async function handleDraftSend(draft) {
-    if (!draft?.id) return;
-    setSending(true);
-    try {
-      await sendDraft(draft.id, doctorId);
-      await Promise.allSettled([refreshMessages(), refreshDrafts()]);
-    } catch (e) {
-      Toast.show({ content: `发送失败：${e.message}`, position: "bottom" });
-    } finally {
-      setSending(false);
-    }
-  }
-
+  // ── Handlers ──────────────────────────────────────────────────────
   function handleBack() {
     navigate("/doctor/patients", { replace: true });
   }
 
+  function goToChat() {
+    navigate(`/doctor/patients/${patientId}?view=chat`);
+  }
+
+  function goToPendingReview() {
+    const pending = records.find((r) => r.status === "pending_review");
+    if (pending) navigate(`/doctor/review/${pending.id}`);
+  }
+
+  function goToRecord(record) {
+    navigate(`/doctor/review/${record.id}`);
+  }
+
   const patientName = patient?.name || "患者";
 
-  // ── Render ─────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────
   return (
-    <div style={keyboardAwareStyle}>
+    <div
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        background: APP.surfaceAlt,
+        overflow: "hidden",
+      }}
+    >
       {/* NavBar */}
       <NavBar
         backArrow={<LeftOutline />}
@@ -401,96 +534,95 @@ export default function PatientDetail({ patientId: propPatientId }) {
         {patientName}
       </NavBar>
 
-      {/* Messages area */}
-      <div style={msgAreaStyle}>
-        {loading && (
-          <div style={styles.center}>
-            <SpinLoading color="#07C160" style={{ "--size": "24px" }} />
-          </div>
-        )}
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {/* Patient profile (collapsible) */}
+        {patient && <PatientProfile patient={patient} records={records} />}
 
-        {!loading && messages.length === 0 && pendingDrafts.length === 0 && (
-          <div style={styles.emptyHint}>暂无消息</div>
-        )}
-
-        {messages.map((msg) => {
-          const inlineDraft = draftByMsgId[msg.id];
-          return (
-            <div key={msg.id || msg.created_at}>
-              <MessageBubble msg={msg} patientName={patientName} />
-              {inlineDraft && (
-                <AIDraftCard
-                  draft={inlineDraft}
-                  onEdit={handleEditDraft}
-                  onSend={handleDraftSend}
-                />
-              )}
-            </div>
-          );
-        })}
-
-        {/* Orphan drafts (no matching source message) */}
-        {pendingDrafts
-          .filter((d) => !d.source_message_id || !messageIdSet.has(d.source_message_id))
-          .map((draft) => (
-            <AIDraftCard
-              key={draft.id}
-              draft={draft}
-              onEdit={handleEditDraft}
-              onSend={handleDraftSend}
-            />
-          ))}
-
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Edit draft banner */}
-      {editingDraft && (
-        <EditingBanner
-          onCancel={() => {
-            setEditingDraft(null);
-            setReplyText("");
-          }}
+        {/* Attention card */}
+        <AttentionCard
+          pendingReviewCount={pendingReviewCount}
+          draftCount={draftCount}
+          onPendingClick={goToPendingReview}
+          onDraftClick={goToChat}
         />
-      )}
 
-      {/* Chat composer */}
-      <ChatComposer
-        value={replyText}
-        onChange={setReplyText}
-        onSend={handleSend}
-        disabled={sending}
-        placeholder={editingDraft ? "编辑回复内容..." : "直接回复患者..."}
-        doctorId={doctorId}
-      />
+        {/* Chat nav card */}
+        <ChatNavCard
+          messageCount={messageCount}
+          draftCount={draftCount}
+          onClick={goToChat}
+        />
+
+        {/* Record list */}
+        <div>
+          {/* Filter tabs */}
+          <CapsuleTabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            style={{
+              "--adm-color-primary": "#07C160",
+              background: APP.surface,
+              padding: "8px 12px",
+              borderBottom: `0.5px solid ${APP.border}`,
+            }}
+          >
+            {RECORD_TABS.map((tab) => (
+              <CapsuleTabs.Tab key={tab.key} title={tab.label} />
+            ))}
+          </CapsuleTabs>
+
+          {/* Loading */}
+          {loading && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                padding: "40px 0",
+              }}
+            >
+              <SpinLoading color="#07C160" style={{ "--size": "24px" }} />
+            </div>
+          )}
+
+          {/* Error */}
+          {!loading && error && (
+            <ErrorBlock
+              title="加载失败"
+              description={error}
+              style={{ padding: "24px 0" }}
+            />
+          )}
+
+          {/* Empty */}
+          {!loading && !error && filteredRecords.length === 0 && (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "48px 16px",
+                fontSize: 14,
+                color: APP.text4,
+              }}
+            >
+              暂无病历
+            </div>
+          )}
+
+          {/* Record rows */}
+          {!loading &&
+            !error &&
+            filteredRecords.map((record) => (
+              <RecordRow
+                key={record.id}
+                record={record}
+                onClick={() => goToRecord(record)}
+              />
+            ))}
+        </div>
+
+        {/* Bottom spacing */}
+        <div style={{ height: 32 }} />
+      </div>
     </div>
   );
 }
-
-// ── Styles ─────────────────────────────────────────────────────────
-
-const msgAreaStyle = {
-  flex: 1,
-  overflowY: "auto",
-  display: "flex",
-  flexDirection: "column",
-  gap: 4,
-  paddingTop: 12,
-  paddingBottom: 8,
-  background: APP.surfaceAlt,
-};
-
-const styles = {
-  center: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "40px 0",
-  },
-  emptyHint: {
-    textAlign: "center",
-    padding: "48px 16px",
-    fontSize: 14,
-    color: APP.text4,
-  },
-};

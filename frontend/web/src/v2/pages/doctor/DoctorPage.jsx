@@ -14,6 +14,7 @@ import InterviewPage from "./InterviewPage";
 import MyAIPage from "./MyAIPage";
 import PatientsPage from "./PatientsPage";
 import PatientDetail from "./PatientDetail";
+import PatientChatPage from "./PatientChatPage";
 import TaskPage from "./TaskPage";
 import ReviewQueuePage from "./ReviewQueuePage";
 import ReviewPage from "./ReviewPage";
@@ -236,8 +237,12 @@ export default function DoctorPage({ doctorId, onLogout }) {
             onCancel={handleInterviewCancel}
           />
         ) : patientDetailMatch ? (
-          /* Full-screen patient detail (no TabBar) */
-          <PatientDetail patientId={patientDetailMatch} />
+          /* Full-screen patient detail or chat subpage (no TabBar) */
+          new URLSearchParams(location.search).get("view") === "chat" ? (
+            <PatientChatPage patientId={patientDetailMatch} />
+          ) : (
+            <PatientDetail patientId={patientDetailMatch} />
+          )
         ) : reviewDetailMatch ? (
           /* Full-screen review detail (no TabBar) */
           <ReviewPage recordId={reviewDetailMatch} />
