@@ -14,6 +14,7 @@ import InterviewPage from "./InterviewPage";
 import MyAIPage from "./MyAIPage";
 import PatientsPage from "./PatientsPage";
 import PatientDetail from "./PatientDetail";
+import TaskPage from "./TaskPage";
 import {
   MessageOutline,
   TeamOutline,
@@ -183,6 +184,8 @@ export default function DoctorPage({ doctorId }) {
           <MyAIPage doctorId={doctorId} />
         ) : activeSection === "patients" ? (
           <PatientsPage />
+        ) : activeSection === "tasks" ? (
+          <TaskPage doctorId={doctorId} />
         ) : (
           <SectionPlaceholder name={activeTab.title} />
         )}
