@@ -15,6 +15,8 @@ import MyAIPage from "./MyAIPage";
 import PatientsPage from "./PatientsPage";
 import PatientDetail from "./PatientDetail";
 import TaskPage from "./TaskPage";
+import ReviewQueuePage from "./ReviewQueuePage";
+import ReviewPage from "./ReviewPage";
 import {
   MessageOutline,
   TeamOutline,
@@ -117,8 +119,18 @@ export default function DoctorPage({ doctorId }) {
     return null;
   })();
 
-  // Both interview and patient detail are full-screen (no NavBar/TabBar from shell)
-  const fullScreenActive = interviewActive || !!patientDetailMatch;
+  // Review detail subpage — /doctor/review/:recordId
+  const reviewDetailMatch = (() => {
+    const parts = location.pathname.split("/");
+    // parts: ["", "doctor", "review", ":recordId"]
+    if (parts[2] === "review" && parts[3]) {
+      return parts[3];
+    }
+    return null;
+  })();
+
+  // Full-screen overlays hide NavBar/TabBar
+  const fullScreenActive = interviewActive || !!patientDetailMatch || !!reviewDetailMatch;
 
   function handleTabChange(key) {
     const tab = TABS.find((t) => t.key === key);
@@ -180,10 +192,15 @@ export default function DoctorPage({ doctorId }) {
         ) : patientDetailMatch ? (
           /* Full-screen patient detail (no TabBar) */
           <PatientDetail />
+        ) : reviewDetailMatch ? (
+          /* Full-screen review detail (no TabBar) */
+          <ReviewPage recordId={reviewDetailMatch} />
         ) : activeSection === "my-ai" ? (
           <MyAIPage doctorId={doctorId} />
         ) : activeSection === "patients" ? (
           <PatientsPage />
+        ) : activeSection === "review" ? (
+          <ReviewQueuePage />
         ) : activeSection === "tasks" ? (
           <TaskPage doctorId={doctorId} />
         ) : (
