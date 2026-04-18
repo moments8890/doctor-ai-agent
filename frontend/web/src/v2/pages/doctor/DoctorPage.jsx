@@ -4,10 +4,13 @@
  * v2 DoctorPage shell — antd-mobile TabBar + NavBar.
  * No MUI, no framer-motion, no complex subpage logic.
  * Placeholder content areas; real subpages wired in later tasks.
+ *
+ * InterviewPage overlay: rendered when path is /doctor/patients/new
  */
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NavBar, SafeArea, TabBar } from "antd-mobile";
+import InterviewPage from "./InterviewPage";
 import {
   MessageOutline,
   TeamOutline,
@@ -87,7 +90,7 @@ function SectionPlaceholder({ name }) {
 
 // ── Main shell ─────────────────────────────────────────────────────
 
-export default function DoctorPage() {
+export default function DoctorPage({ doctorId }) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -97,9 +100,20 @@ export default function DoctorPage() {
   // Badge counts — placeholder zeros; real data wired in later
   const [badges] = useState({ review: 0, tasks: 0, patients: 0 });
 
+  // Interview overlay — active when navigated to /doctor/patients/new
+  const interviewActive = location.pathname.endsWith("/patients/new");
+
   function handleTabChange(key) {
     const tab = TABS.find((t) => t.key === key);
     if (tab) navigate(tab.path, { replace: true });
+  }
+
+  function handleInterviewComplete() {
+    navigate("/doctor/patients", { replace: true });
+  }
+
+  function handleInterviewCancel() {
+    navigate("/doctor/patients", { replace: true });
   }
 
   return (
@@ -110,23 +124,26 @@ export default function DoctorPage() {
         flexDirection: "column",
         backgroundColor: APP.surfaceAlt,
         overflow: "hidden",
+        position: "relative",
       }}
     >
       {/* Safe area top */}
       <SafeArea position="top" />
 
-      {/* Top NavBar */}
-      <NavBar
-        backArrow={false}
-        style={{
-          "--height": "44px",
-          "--border-bottom": `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-        }}
-      >
-        {activeTab.title}
-      </NavBar>
+      {/* Top NavBar — hidden when interview overlay is active */}
+      {!interviewActive && (
+        <NavBar
+          backArrow={false}
+          style={{
+            "--height": "44px",
+            "--border-bottom": `0.5px solid ${APP.border}`,
+            backgroundColor: APP.surface,
+            flexShrink: 0,
+          }}
+        >
+          {activeTab.title}
+        </NavBar>
+      )}
 
       {/* Content area */}
       <div
@@ -136,35 +153,47 @@ export default function DoctorPage() {
           position: "relative",
         }}
       >
-        <SectionPlaceholder name={activeTab.title} />
+        {interviewActive ? (
+          /* Full-screen interview overlay (keyboard-aware, no TabBar) */
+          <InterviewPage
+            doctorId={doctorId}
+            onComplete={handleInterviewComplete}
+            onCancel={handleInterviewCancel}
+          />
+        ) : (
+          <SectionPlaceholder name={activeTab.title} />
+        )}
       </div>
 
-      {/* Bottom TabBar */}
-      <TabBar
-        activeKey={activeSection}
-        onChange={handleTabChange}
-        style={{
-          borderTop: `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-          "--adm-color-primary": "#07C160",
-        }}
-      >
-        {TABS.map((tab) => {
-          const badgeCount = tab.badgeKey ? (badges[tab.badgeKey] || 0) : 0;
-          return (
-            <TabBar.Item
-              key={tab.key}
-              icon={tab.icon}
-              title={tab.label}
-              badge={badgeCount > 0 ? badgeCount : undefined}
-            />
-          );
-        })}
-      </TabBar>
+      {/* Bottom TabBar — hidden when interview overlay is active */}
+      {!interviewActive && (
+        <TabBar
+          activeKey={activeSection}
+          onChange={handleTabChange}
+          style={{
+            borderTop: `0.5px solid ${APP.border}`,
+            backgroundColor: APP.surface,
+            flexShrink: 0,
+            "--adm-color-primary": "#07C160",
+          }}
+        >
+          {TABS.map((tab) => {
+            const badgeCount = tab.badgeKey ? (badges[tab.badgeKey] || 0) : 0;
+            return (
+              <TabBar.Item
+                key={tab.key}
+                icon={tab.icon}
+                title={tab.label}
+                badge={badgeCount > 0 ? badgeCount : undefined}
+              />
+            );
+          })}
+        </TabBar>
+      )}
 
-      {/* Safe area bottom */}
-      <SafeArea position="bottom" />
+      {/* Safe area bottom — shown when TabBar is hidden */}
+      {interviewActive && <SafeArea position="bottom" />}
+      {!interviewActive && <SafeArea position="bottom" />}
     </div>
   );
 }

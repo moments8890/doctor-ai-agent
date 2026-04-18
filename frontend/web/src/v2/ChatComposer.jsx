@@ -11,8 +11,8 @@
 import { useState } from "react";
 import { TextArea, Button, SafeArea } from "antd-mobile";
 import { SendOutline } from "antd-mobile-icons";
-import { useVoiceInput } from "../../hooks/useVoiceInput";
-import { isInMiniapp } from "../../utils/miniappBridge";
+import { useVoiceInput } from "../hooks/useVoiceInput";
+import { isInMiniapp } from "../utils/miniappBridge";
 import { APP } from "./theme";
 
 export default function ChatComposer({
