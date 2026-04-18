@@ -18,10 +18,10 @@ import {
   ErrorBlock,
   Collapse,
 } from "antd-mobile";
-import { LeftOutline, MessageOutline } from "antd-mobile-icons";
+import { LeftOutline, MessageOutline, ContentOutline } from "antd-mobile-icons";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
-import { APP } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 
 // ── Record type label map ─────────────────────────────────────────────
 
@@ -225,7 +225,7 @@ function AttentionCard({ pendingReviewCount, draftCount, onPendingClick, onDraft
               flexShrink: 0,
             }}
           >
-            📋
+            <ContentOutline style={{ fontSize: 16, color: "#FFC300" }} />
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 14, fontWeight: 500, color: APP.text1 }}>

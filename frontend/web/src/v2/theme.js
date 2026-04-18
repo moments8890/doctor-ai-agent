@@ -25,10 +25,19 @@ export function applyThemeColors() {
 
 // App-specific tokens not covered by antd-mobile
 export const APP = {
+  // Colors
+  primary: "#07C160",
+  primaryHover: "#06ad56",
   accent: "#576B95",
+  accentLight: "#eef1f6",
   wechatGreen: "#95EC69",
   primaryLight: "#e7f8ee",
+  danger: "#FA5151",
   dangerLight: "#fff0f0",
+  warning: "#FFC300",
+  warningLight: "#fff8e0",
+  success: "#07C160",
+  successLight: "#e7f8ee",
   text1: "#1A1A1A",
   text2: "#333",
   text3: "#666",
@@ -37,6 +46,37 @@ export const APP = {
   surfaceAlt: "#f7f7f7",
   border: "#eee",
   borderLight: "#f0f0f0",
+  white: "#fff",
+  black: "#000",
+};
+
+// Border radius tokens
+export const RADIUS = {
+  xs: 4,
+  sm: 6,
+  md: 8,
+  lg: 12,
+  xl: 16,
+  pill: 999,
+  circle: "50%",
+};
+
+// Font size CSS variable references (use in inline styles)
+export const FONT = {
+  xs: "var(--adm-font-size-xs)",     // 10px base
+  sm: "var(--adm-font-size-sm)",     // 12px base
+  main: "var(--adm-font-size-main)", // 14px base
+  md: "var(--adm-font-size-md)",     // 15px base
+  lg: "var(--adm-font-size-lg)",     // 17px base
+  xl: "var(--adm-font-size-xl)",     // 20px base
+};
+
+// Category color palettes (knowledge, records, etc.)
+export const CATEGORY_COLORS = {
+  diagnosis: { bg: "#e7f8ee", text: "#07C160" },
+  medication: { bg: "#e8f0fe", text: "#1B6EF3" },
+  followup:   { bg: "#fff3e0", text: "#E67E22" },
+  custom:     { bg: "#f3f0ff", text: "#7C3AED" },
 };
 
 // ── Font scaling ───────────────────────────────────────────────────

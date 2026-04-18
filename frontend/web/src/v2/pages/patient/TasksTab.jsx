@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button, Checkbox, ErrorBlock, List, SpinLoading, Tag } from "antd-mobile";
 import { CheckCircleOutline, ClockCircleOutline } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
-import { APP } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 
 // ---------------------------------------------------------------------------
 // Filter pill row (shared pattern with RecordsTab)
@@ -36,13 +36,12 @@ function FilterPills({ items, active, onChange }) {
           style={{
             padding: "4px 12px",
             borderRadius: 100,
-            fontSize: 13,
+            fontSize: FONT.sm,
             whiteSpace: "nowrap",
             cursor: "pointer",
-            background: active === item.key ? "#07C160" : APP.borderLight,
-            color: active === item.key ? "#fff" : APP.text3,
+            background: active === item.key ? APP.primary : APP.borderLight,
+            color: active === item.key ? APP.white : APP.text3,
             fontWeight: active === item.key ? 600 : 400,
-            transition: "all 0.15s",
           }}
         >
           {item.label}
@@ -95,15 +94,15 @@ function TaskItem({ task, onComplete, onUndo }) {
     <List.Item
       prefix={
         isDone ? (
-          <CheckCircleOutline style={{ fontSize: 22, color: "#07C160" }} />
+          <CheckCircleOutline style={{ fontSize: 22, color: APP.primary }} />
         ) : (
-          <ClockCircleOutline style={{ fontSize: 22, color: "#FFC300" }} />
+          <ClockCircleOutline style={{ fontSize: 22, color: APP.warning }} />
         )
       }
       title={
         <span
           style={{
-            fontSize: 15,
+            fontSize: FONT.md,
             fontWeight: 500,
             color: isDone ? APP.text4 : APP.text1,
             textDecoration: isDone ? "line-through" : "none",
@@ -114,7 +113,7 @@ function TaskItem({ task, onComplete, onUndo }) {
       }
       description={
         task.due_date ? (
-          <span style={{ fontSize: 12, color: APP.text4 }}>
+          <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
             截止日期：{formatDate(task.due_date)}
           </span>
         ) : undefined

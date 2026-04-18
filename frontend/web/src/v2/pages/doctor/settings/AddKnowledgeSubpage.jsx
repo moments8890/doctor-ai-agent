@@ -6,6 +6,7 @@
  */
 import { useState, useRef } from "react";
 import { NavBar, Button, TextArea, Input, Toast, SpinLoading, Dialog } from "antd-mobile";
+import { LinkOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
@@ -397,7 +398,7 @@ export default function AddKnowledgeSubpage() {
                 <SpinLoading color="primary" />
               ) : (
                 <>
-                  <div style={{ fontSize: 36 }}>📎</div>
+                  <LinkOutline style={{ fontSize: 36, color: APP.text4 }} />
                   <div>支持 PDF / Word / 图片</div>
                   <Button
                     color="primary"

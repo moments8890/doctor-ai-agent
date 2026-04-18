@@ -19,12 +19,13 @@ import {
   SafeArea,
   Tag,
 } from "antd-mobile";
+import { CheckOutline } from "antd-mobile-icons";
 import { useTaskRecord, useSuggestions } from "../../../lib/doctorQueries";
 import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { dp } from "../../../utils/doctorBasePath";
-import { APP } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 import {
   STRUCTURED_FIELD_LABELS,
   markOnboardingStep,
@@ -342,7 +343,7 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
             }
           >
             {isConfirmed && (
-              <span style={{ color: "#fff", fontSize: 11 }}>✓</span>
+              <CheckOutline style={{ color: "#fff", fontSize: 11 }} />
             )}
           </div>
 

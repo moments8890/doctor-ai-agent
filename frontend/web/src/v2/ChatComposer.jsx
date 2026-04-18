@@ -13,7 +13,7 @@ import { TextArea, Button, SafeArea } from "antd-mobile";
 import { SendOutline } from "antd-mobile-icons";
 import { useVoiceInput } from "../hooks/useVoiceInput";
 import { isInMiniapp } from "../utils/miniappBridge";
-import { APP } from "./theme";
+import { APP, FONT, RADIUS } from "./theme";
 
 export default function ChatComposer({
   value = "",
@@ -64,7 +64,7 @@ export default function ChatComposer({
                 style={{
                   ...styles.chip,
                   background: active ? APP.wechatGreen : APP.surfaceAlt,
-                  color: active ? "#1a1a1a" : APP.text3,
+                  color: active ? APP.text1 : APP.text3,
                   border: `1px solid ${active ? APP.wechatGreen : APP.border}`,
                 }}
                 onClick={() => onToggleSuggestion?.(s)}
@@ -97,8 +97,8 @@ export default function ChatComposer({
           disabled={isDisabled || !value?.trim()}
           style={{
             ...styles.sendBtn,
-            background: value?.trim() && !isDisabled ? "#07C160" : APP.border,
-            color: value?.trim() && !isDisabled ? "#fff" : APP.text4,
+            background: value?.trim() && !isDisabled ? APP.primary : APP.border,
+            color: value?.trim() && !isDisabled ? APP.white : APP.text4,
           }}
         >
           <SendOutline fontSize={18} />
@@ -128,10 +128,9 @@ const styles = {
     display: "inline-block",
     padding: "4px 10px",
     borderRadius: 14,
-    fontSize: 13,
+    fontSize: FONT.sm,
     cursor: "pointer",
     userSelect: "none",
-    transition: "background 0.15s",
   },
   inputRow: {
     display: "flex",
@@ -155,7 +154,7 @@ const styles = {
     alignItems: "center",
   },
   textarea: {
-    "--font-size": "15px",
+    "--font-size": FONT.md,
     "--color": APP.text1,
     "--placeholder-color": APP.text4,
     background: "transparent",
@@ -168,13 +167,12 @@ const styles = {
     flexShrink: 0,
     width: 36,
     height: 36,
-    borderRadius: "50%",
+    borderRadius: RADIUS.circle,
     border: "none",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     padding: 0,
-    transition: "background 0.15s",
     minWidth: 0,
   },
 };

@@ -15,11 +15,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SpinLoading } from "antd-mobile";
+import { ContentOutline, FolderOutline } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
 import ChatBubble from "../../ChatBubble";
 import ChatComposer from "../../ChatComposer";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
-import { APP } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 
 const LAST_SEEN_CHAT_KEY = "patient_last_seen_chat";
 
@@ -29,14 +30,14 @@ const LAST_SEEN_CHAT_KEY = "patient_last_seen_chat";
 
 function QuickActions({ onNewInterview, onViewRecords }) {
   const items = [
-    { label: "新问诊", subtitle: "AI帮您整理病情", emoji: "📋", onClick: onNewInterview },
-    { label: "我的病历", subtitle: "查看历史记录", emoji: "📂", onClick: onViewRecords },
+    { label: "新问诊", subtitle: "AI帮您整理病情", icon: <ContentOutline style={{ fontSize: 22, color: APP.primary }} />, onClick: onNewInterview },
+    { label: "我的病历", subtitle: "查看历史记录", icon: <FolderOutline style={{ fontSize: 22, color: APP.text3 }} />, onClick: onViewRecords },
   ];
   return (
     <div style={styles.quickRow}>
       {items.map((a) => (
         <div key={a.label} style={styles.quickCard} onClick={a.onClick}>
-          <span style={styles.quickEmoji}>{a.emoji}</span>
+          <span style={styles.quickEmoji}>{a.icon}</span>
           <div>
             <div style={styles.quickTitle}>{a.label}</div>
             <div style={styles.quickSub}>{a.subtitle}</div>
@@ -57,7 +58,7 @@ function DoctorMessage({ msg, doctorName }) {
     : "";
   return (
     <div style={{ ...styles.msgRow, justifyContent: "flex-start", marginBottom: 12 }}>
-      <div style={{ ...styles.avatar, background: APP.accent, color: "#fff" }}>
+      <div style={{ ...styles.avatar, background: APP.accent, color: APP.white }}>
         {(doctorName || "医")[0]}
       </div>
       <div>
@@ -68,7 +69,7 @@ function DoctorMessage({ msg, doctorName }) {
             borderRadius: "18px 18px 18px 4px",
             background: APP.surface,
             boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-            fontSize: 15,
+            fontSize: FONT.md,
             color: APP.text1,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
@@ -92,8 +93,8 @@ function SystemMessage({ msg, onTap }) {
       onClick={onTap || undefined}
     >
       <span style={styles.systemDot} />
-      <span style={{ fontSize: 14, color: APP.text2, flex: 1 }}>{msg.content}</span>
-      {onTap && <span style={{ fontSize: 12, color: "#07C160", marginLeft: 8 }}>查看 &rsaquo;</span>}
+      <span style={{ fontSize: FONT.main, color: APP.text2, flex: 1 }}>{msg.content}</span>
+      {onTap && <span style={{ fontSize: FONT.sm, color: APP.primary, marginLeft: 8 }}>查看 &rsaquo;</span>}
     </div>
   );
 }
@@ -265,7 +266,7 @@ export default function ChatTab({
         {messages.map(renderMessage)}
         {sending && (
           <div style={{ paddingLeft: 44, paddingBottom: 8 }}>
-            <SpinLoading color="#07C160" style={{ "--size": "20px" }} />
+            <SpinLoading color={APP.primary} style={{ "--size": "20px" }} />
           </div>
         )}
         <div ref={chatEndRef} />
@@ -335,11 +336,11 @@ const styles = {
     flexShrink: 0,
     width: 32,
     height: 32,
-    borderRadius: "50%",
+    borderRadius: RADIUS.circle,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 12,
+    fontSize: FONT.sm,
     fontWeight: 600,
   },
   msgMeta: {
@@ -354,35 +355,35 @@ const styles = {
     margin: "4px 16px",
     padding: "10px 12px",
     background: APP.surface,
-    borderRadius: 8,
-    borderLeft: "3px solid #07C160",
+    borderRadius: RADIUS.md,
+    borderLeft: `3px solid ${APP.primary}`,
     cursor: "pointer",
   },
   systemDot: {
     width: 8,
     height: 8,
-    borderRadius: "50%",
-    background: "#07C160",
+    borderRadius: RADIUS.circle,
+    background: APP.primary,
     marginRight: 10,
     flexShrink: 0,
   },
   diagnosisBubble: {
     margin: "0 44px 0 44px",
     padding: "9px 13px",
-    borderRadius: 12,
-    background: "#e7f8ee",
-    fontSize: 14,
-    color: "#07C160",
+    borderRadius: RADIUS.lg,
+    background: APP.primaryLight,
+    fontSize: FONT.main,
+    color: APP.primary,
     fontWeight: 500,
   },
   urgentBanner: {
     margin: "4px 44px 0 44px",
     padding: "6px 12px",
-    borderRadius: 8,
-    background: "#fff0f0",
-    border: "0.5px solid #FA5151",
-    fontSize: 13,
-    color: "#FA5151",
+    borderRadius: RADIUS.md,
+    background: APP.dangerLight,
+    border: `0.5px solid ${APP.danger}`,
+    fontSize: FONT.sm,
+    color: APP.danger,
     fontWeight: 500,
   },
 };

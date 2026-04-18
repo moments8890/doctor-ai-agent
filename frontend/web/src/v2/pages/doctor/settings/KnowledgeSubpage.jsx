@@ -6,7 +6,7 @@
  */
 import { useState } from "react";
 import { NavBar, List, SearchBar, SpinLoading, Tag, Button } from "antd-mobile";
-import { AddOutline } from "antd-mobile-icons";
+import { AddOutline, FileOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { useKnowledgeItems } from "../../../../lib/doctorQueries";
 import { APP } from "../../../theme";
@@ -126,7 +126,7 @@ export default function KnowledgeSubpage() {
               fontSize: 15,
             }}
           >
-            <div style={{ fontSize: 36 }}>📚</div>
+            <FileOutline style={{ fontSize: 36, color: APP.text4 }} />
             <div>暂无知识条目</div>
             <Button
               color="primary"

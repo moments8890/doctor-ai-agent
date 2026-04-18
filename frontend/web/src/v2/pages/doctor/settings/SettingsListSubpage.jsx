@@ -6,6 +6,7 @@
  */
 import { useState } from "react";
 import { NavBar, List, Popup, Button, Toast, Dialog } from "antd-mobile";
+import { CheckOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { useFontScaleStore, saveFontScaleToServer } from "../../../../store/fontScaleStore";
 import { useDoctorStore } from "../../../../store/doctorStore";
@@ -197,7 +198,7 @@ export default function SettingsListSubpage({ onLogout }) {
                   {level.label}
                 </span>
                 {active && (
-                  <span style={{ color: "#07C160", fontSize: 18 }}>✓</span>
+                  <CheckOutline style={{ color: "#07C160", fontSize: 18 }} />
                 )}
               </div>
             );

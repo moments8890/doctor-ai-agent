@@ -4,12 +4,13 @@
  * antd-mobile only, no MUI.
  */
 import { Button } from "antd-mobile";
-import { APP } from "../../theme";
+import { ContentOutline, FlagOutline } from "antd-mobile-icons";
+import { APP, FONT, RADIUS } from "../../theme";
 
 const FEATURES = [
-  { bg: "#07C160", label: "随时咨询", desc: "AI助手帮你解答健康问题", icon: "💬" },
-  { bg: APP.accent, label: "健康档案", desc: "病历和检查结果一目了然", icon: "📋" },
-  { bg: "#FFC300", label: "任务提醒", desc: "用药和复查不再遗漏", icon: "📌" },
+  { bg: APP.primary, label: "随时咨询", desc: "AI助手帮你解答健康问题", icon: <ContentOutline style={{ fontSize: 20, color: APP.white }} /> },
+  { bg: APP.accent, label: "健康档案", desc: "病历和检查结果一目了然", icon: <ContentOutline style={{ fontSize: 20, color: APP.white }} /> },
+  { bg: APP.warning, label: "任务提醒", desc: "用药和复查不再遗漏", icon: <FlagOutline style={{ fontSize: 20, color: APP.white }} /> },
 ];
 
 /** Returns the localStorage key scoped to a patient id. */
@@ -40,7 +41,7 @@ export default function PatientOnboarding({ doctorName, doctorSpecialty, onDismi
     }}>
       {/* Header */}
       <div style={{
-        background: "linear-gradient(135deg, #07C160 0%, #05a050 100%)",
+        background: `linear-gradient(135deg, ${APP.primary} 0%, ${APP.primaryHover} 100%)`,
         paddingTop: 48,
         paddingBottom: 32,
         paddingLeft: 24,
@@ -54,21 +55,21 @@ export default function PatientOnboarding({ doctorName, doctorSpecialty, onDismi
         <div style={{
           width: 64,
           height: 64,
-          borderRadius: 32,
-          background: "#fff",
+          borderRadius: RADIUS.circle,
+          background: APP.white,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontSize: 28,
           fontWeight: 700,
-          color: "#07C160",
+          color: APP.primary,
           marginBottom: 16,
           flexShrink: 0,
         }}>
           {doctorName ? doctorName[0] : "医"}
         </div>
 
-        <div style={{ fontSize: 18, fontWeight: 600, color: "#fff", marginBottom: 4 }}>
+        <div style={{ fontSize: 18, fontWeight: 600, color: APP.white, marginBottom: 4 }}>
           {doctorName ? `${doctorName}的AI健康助手` : "AI健康助手"}
         </div>
 
@@ -81,7 +82,7 @@ export default function PatientOnboarding({ doctorName, doctorSpecialty, onDismi
 
       {/* Features */}
       <div style={{ flex: 1, padding: "24px 24px 16px", display: "flex", flexDirection: "column", gap: 20, overflowY: "auto" }}>
-        <div style={{ fontSize: 14, color: APP.text3, textAlign: "center" }}>
+        <div style={{ fontSize: FONT.main, color: APP.text3, textAlign: "center" }}>
           我会帮助{doctorName || "医生"}为你提供更好的随访服务
         </div>
 
@@ -90,7 +91,7 @@ export default function PatientOnboarding({ doctorName, doctorSpecialty, onDismi
             <div style={{
               width: 44,
               height: 44,
-              borderRadius: 12,
+              borderRadius: RADIUS.lg,
               background: f.bg,
               display: "flex",
               alignItems: "center",
@@ -101,8 +102,8 @@ export default function PatientOnboarding({ doctorName, doctorSpecialty, onDismi
               {f.icon}
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: APP.text1 }}>{f.label}</div>
-              <div style={{ fontSize: 13, color: APP.text3, marginTop: 2 }}>{f.desc}</div>
+              <div style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1 }}>{f.label}</div>
+              <div style={{ fontSize: FONT.sm, color: APP.text3, marginTop: 2 }}>{f.desc}</div>
             </div>
           </div>
         ))}
@@ -115,7 +116,7 @@ export default function PatientOnboarding({ doctorName, doctorSpecialty, onDismi
           block
           size="large"
           onClick={onDismiss}
-          style={{ "--border-radius": "12px" }}
+          style={{ "--border-radius": `${RADIUS.lg}px` }}
         >
           开始使用
         </Button>
@@ -128,7 +129,7 @@ export default function PatientOnboarding({ doctorName, doctorSpecialty, onDismi
           position: "absolute",
           top: 16,
           right: 16,
-          fontSize: 13,
+          fontSize: FONT.sm,
           color: "rgba(255,255,255,0.7)",
           cursor: "pointer",
           padding: "4px 8px",

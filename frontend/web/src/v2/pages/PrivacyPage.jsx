@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { NavBar } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
-import { APP } from "../theme";
+import { APP, FONT, RADIUS } from "../theme";
 
 const SECTIONS = [
   {
@@ -116,10 +116,10 @@ function CollapsibleSection({ title, children }) {
           userSelect: "none",
         }}
       >
-        <span style={{ fontSize: "var(--adm-font-size-main)", color: APP.text1, fontWeight: 500 }}>
+        <span style={{ fontSize: FONT.main, color: APP.text1, fontWeight: 500 }}>
           {title}
         </span>
-        <span style={{ fontSize: 12, color: APP.text4, transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "none" }}>
+        <span style={{ fontSize: FONT.sm, color: APP.text4, transform: open ? "rotate(180deg)" : "none" }}>
           ▼
         </span>
       </div>
@@ -152,10 +152,10 @@ export default function PrivacyPage() {
           padding: "16px",
           borderBottom: `0.5px solid ${APP.border}`,
         }}>
-          <div style={{ fontSize: "var(--adm-font-size-sm)", color: APP.text4, marginBottom: 8 }}>
+          <div style={{ fontSize: FONT.sm, color: APP.text4, marginBottom: 8 }}>
             最后更新日期：2026 年 3 月 23 日
           </div>
-          <div style={{ fontSize: "var(--adm-font-size-main)", color: APP.text2, lineHeight: 1.8 }}>
+          <div style={{ fontSize: FONT.main, color: APP.text2, lineHeight: 1.8 }}>
             「鲸鱼随行」由苏州市昆山市鲸鱼互联网有限责任公司（以下简称"我们"）开发和运营。我们深知个人信息对您的重要性，将严格遵守《中华人民共和国个人信息保护法》《中华人民共和国数据安全法》《中华人民共和国网络安全法》等法律法规，保护您的个人信息安全。
           </div>
         </div>
@@ -172,7 +172,7 @@ export default function PrivacyPage() {
                 line === "" ? (
                   <div key={i} style={{ height: 6 }} />
                 ) : (
-                  <div key={i} style={{ fontSize: "var(--adm-font-size-main)", color: APP.text2, lineHeight: 1.8 }}>
+                  <div key={i} style={{ fontSize: FONT.main, color: APP.text2, lineHeight: 1.8 }}>
                     {line}
                   </div>
                 )

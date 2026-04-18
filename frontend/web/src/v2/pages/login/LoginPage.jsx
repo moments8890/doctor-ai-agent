@@ -24,7 +24,7 @@ import {
   setWebToken,
 } from "../../../api";
 import { useDoctorStore } from "../../../store/doctorStore";
-import { APP } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 
 const STORAGE_KEY = "unified_auth_token";
 const STORAGE_ROLE_KEY = "unified_auth_role";
@@ -55,7 +55,7 @@ const styles = {
     width: "100%",
     maxWidth: 400,
     backgroundColor: APP.surface,
-    borderRadius: 12,
+    borderRadius: RADIUS.lg,
     boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
     padding: "28px 24px",
   },
@@ -69,7 +69,7 @@ const styles = {
   icon: {
     width: 48,
     height: 48,
-    borderRadius: "50%",
+    borderRadius: RADIUS.circle,
     backgroundColor: APP.primaryLight,
     display: "flex",
     alignItems: "center",
@@ -83,19 +83,19 @@ const styles = {
     color: APP.text1,
   },
   errorText: {
-    color: "#FA5151",
-    fontSize: 13,
+    color: APP.danger,
+    fontSize: FONT.sm,
     textAlign: "center",
     padding: "4px 0",
   },
   switchText: {
     textAlign: "center",
-    fontSize: 13,
+    fontSize: FONT.sm,
     color: APP.text3,
     paddingTop: 4,
   },
   link: {
-    color: "#07C160",
+    color: APP.primary,
     cursor: "pointer",
     marginLeft: 4,
   },
@@ -107,21 +107,21 @@ const styles = {
   },
   roleLabel: {
     fontWeight: 600,
-    fontSize: 15,
+    fontSize: FONT.md,
     color: APP.text1,
   },
   helperText: {
-    fontSize: 12,
+    fontSize: FONT.sm,
     color: APP.text4,
     marginTop: 2,
   },
   pickerValue: {
     color: APP.text1,
-    fontSize: 14,
+    fontSize: FONT.main,
   },
   pickerPlaceholder: {
     color: APP.text4,
-    fontSize: 14,
+    fontSize: FONT.main,
   },
 };
 
@@ -129,7 +129,7 @@ const styles = {
 function DoctorIcon() {
   return (
     <div style={styles.icon}>
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#07C160" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={APP.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
         <circle cx="12" cy="7" r="4" />
         <path d="M16 11h2v2h-2v2h-2v-2h-2v-2h2v-2h2v2z" />

@@ -8,6 +8,7 @@
  */
 import { useState } from "react";
 import { List, Card, Popup } from "antd-mobile";
+import { SetOutline, ContentOutline, CheckCircleFill, StarOutline, FileOutline, ScanningOutline } from "antd-mobile-icons";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import {
@@ -18,7 +19,7 @@ import {
   useKnowledgeItems,
 } from "../../../lib/doctorQueries";
 import { dp } from "../../../utils/doctorBasePath";
-import { APP } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ function CountPill({ value, active }) {
       style={{
         fontSize: 14,
         fontWeight: 600,
-        color: active ? "#07C160" : APP.text4,
+        color: active ? APP.primary : APP.text4,
         minWidth: 20,
         textAlign: "right",
       }}
@@ -134,7 +135,7 @@ export default function MyAIPage({ doctorId }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              fontSize: 17,
+              fontSize: FONT.lg,
               fontWeight: 600,
               color: APP.text1,
             }}
@@ -147,7 +148,7 @@ export default function MyAIPage({ doctorId }) {
               navigate(dp("settings/persona"));
             }}
             style={{
-              fontSize: 13,
+              fontSize: FONT.sm,
               color: APP.text4,
               marginTop: "2px",
               overflow: "hidden",
@@ -166,12 +167,12 @@ export default function MyAIPage({ doctorId }) {
           style={{
             padding: "8px",
             cursor: "pointer",
-            borderRadius: "8px",
+            borderRadius: RADIUS.md,
           }}
           onMouseDown={(e) => (e.target.style.backgroundColor = APP.surfaceAlt)}
           onMouseUp={(e) => (e.target.style.backgroundColor = "transparent")}
         >
-          <span style={{ fontSize: 20 }}>⚙️</span>
+          <SetOutline style={{ fontSize: 20, color: APP.text3 }} />
         </div>
       </div>
 
@@ -188,19 +189,19 @@ export default function MyAIPage({ doctorId }) {
         {[
           {
             label: "新建病历",
-            icon: "📋",
+            icon: <ContentOutline style={{ fontSize: 32, color: APP.text2 }} />,
             badge: 0,
             onClick: () => navigate(`${dp("patients")}?action=new`),
           },
           {
             label: "预问诊码",
-            icon: "📱",
+            icon: <ScanningOutline style={{ fontSize: 32, color: APP.text2 }} />,
             badge: 0,
             onClick: () => navigate(dp("settings/qr")),
           },
           {
             label: "知识库",
-            icon: "📚",
+            icon: <FileOutline style={{ fontSize: 32, color: APP.text2 }} />,
             badge: knowledgeCount,
             onClick: () => navigate(dp("settings/knowledge")),
           },
@@ -236,7 +237,7 @@ export default function MyAIPage({ doctorId }) {
                     backgroundColor: APP.surface,
                     color: APP.text3,
                     border: `0.5px solid ${APP.borderLight}`,
-                    fontSize: 10,
+                    fontSize: FONT.xs,
                     fontWeight: 500,
                     lineHeight: "15px",
                     textAlign: "center",
@@ -248,7 +249,7 @@ export default function MyAIPage({ doctorId }) {
             </div>
             <span
               style={{
-                fontSize: 12,
+                fontSize: FONT.sm,
                 color: APP.text2,
                 whiteSpace: "nowrap",
               }}
@@ -264,7 +265,7 @@ export default function MyAIPage({ doctorId }) {
         <>
           <div
             style={{
-              fontSize: 12,
+              fontSize: FONT.sm,
               fontWeight: 600,
               color: APP.text3,
               padding: "12px 16px 4px",
@@ -285,7 +286,7 @@ export default function MyAIPage({ doctorId }) {
           >
             <div
               style={{
-                fontSize: 17,
+                fontSize: FONT.lg,
                 fontWeight: 600,
                 color: APP.text1,
                 marginBottom: "8px",
@@ -295,7 +296,7 @@ export default function MyAIPage({ doctorId }) {
             </div>
             <div
               style={{
-                fontSize: 13,
+                fontSize: FONT.sm,
                 color: APP.text3,
                 lineHeight: 1.7,
                 marginBottom: "20px",
@@ -311,18 +312,18 @@ export default function MyAIPage({ doctorId }) {
               style={{
                 padding: "10px 16px",
                 marginBottom: "20px",
-                backgroundColor: "#07C160",
+                backgroundColor: APP.primary,
                 color: APP.surface,
                 border: "none",
-                borderRadius: "6px",
-                fontSize: 15,
+                borderRadius: RADIUS.sm,
+                fontSize: FONT.md,
                 fontWeight: 600,
                 cursor: "pointer",
               }}
               onMouseDown={(e) => (e.target.opacity = "0.7")}
               onMouseUp={(e) => (e.target.opacity = "1")}
             >
-              🎙️ 添加第一条规则
+              添加第一条规则
             </button>
             <div
               style={{
@@ -331,13 +332,13 @@ export default function MyAIPage({ doctorId }) {
                 marginLeft: "auto",
                 marginRight: "auto",
                 backgroundColor: APP.surfaceAlt,
-                borderRadius: "8px",
+                borderRadius: RADIUS.md,
                 padding: "12px",
               }}
             >
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: FONT.xs,
                   color: APP.text4,
                   fontWeight: 600,
                   letterSpacing: "0.4px",
@@ -348,7 +349,7 @@ export default function MyAIPage({ doctorId }) {
               </div>
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: FONT.sm,
                   color: APP.text3,
                   lineHeight: 1.7,
                 }}
@@ -362,7 +363,7 @@ export default function MyAIPage({ doctorId }) {
         <>
           <div
             style={{
-              fontSize: 12,
+              fontSize: FONT.sm,
               fontWeight: 600,
               color: APP.text3,
               padding: "12px 16px 4px",
@@ -388,14 +389,13 @@ export default function MyAIPage({ doctorId }) {
                   width: "100%",
                 }}
               >
-                <div style={{ fontSize: 32 }}>✓</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 500, color: APP.text1 }}>
+                  <div style={{ fontSize: FONT.md, fontWeight: 500, color: APP.text1 }}>
                     待审核诊断建议
                   </div>
                   <div
                     style={{
-                      fontSize: 13,
+                      fontSize: FONT.sm,
                       color: APP.text3,
                       marginTop: "2px",
                     }}
@@ -423,14 +423,13 @@ export default function MyAIPage({ doctorId }) {
                   width: "100%",
                 }}
               >
-                <div style={{ fontSize: 32 }}>➕</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 500, color: APP.text1 }}>
+                  <div style={{ fontSize: FONT.md, fontWeight: 500, color: APP.text1 }}>
                     待采纳的规则
                   </div>
                   <div
                     style={{
-                      fontSize: 13,
+                      fontSize: FONT.sm,
                       color: APP.text3,
                       marginTop: "2px",
                     }}
@@ -460,10 +459,10 @@ export default function MyAIPage({ doctorId }) {
                 marginTop: "12px",
               }}
             >
-              <span style={{ fontSize: 14, marginRight: "4px" }}>✨</span>
+              <StarOutline style={{ fontSize: FONT.main, marginRight: "4px", color: APP.text3 }} />
               <span
                 style={{
-                  fontSize: 12,
+                  fontSize: FONT.sm,
                   color: APP.text3,
                   fontWeight: 600,
                   letterSpacing: "0.5px",
@@ -474,7 +473,7 @@ export default function MyAIPage({ doctorId }) {
               {summaryData.is_new === false && (
                 <span
                   style={{
-                    fontSize: 10,
+                    fontSize: FONT.xs,
                     color: APP.text4,
                     marginLeft: "4px",
                   }}
@@ -485,7 +484,7 @@ export default function MyAIPage({ doctorId }) {
               {summaryData.generated_at && (
                 <span
                   style={{
-                    fontSize: 10,
+                    fontSize: FONT.xs,
                     color: APP.text4,
                     marginLeft: "auto",
                   }}
@@ -543,14 +542,14 @@ export default function MyAIPage({ doctorId }) {
                           key={item.id || idx}
                           onClick={href ? () => navigate(href) : undefined}
                           style={{
-                            fontSize: 12,
-                            color: "#07C160",
+                            fontSize: FONT.sm,
+                            color: APP.primary,
                             cursor: href ? "pointer" : "default",
                             paddingLeft: "8px",
                             paddingRight: "8px",
                             paddingTop: "2px",
                             paddingBottom: "2px",
-                            borderRadius: "6px",
+                            borderRadius: RADIUS.sm,
                             backgroundColor: APP.primaryLight,
                           }}
                           onMouseDown={(e) =>
@@ -580,7 +579,7 @@ export default function MyAIPage({ doctorId }) {
             style={{
               height: "20px",
               backgroundColor: APP.borderLight,
-              borderRadius: "4px",
+              borderRadius: RADIUS.xs,
               animation: "pulse 2s infinite",
             }}
           />
@@ -591,7 +590,7 @@ export default function MyAIPage({ doctorId }) {
           style={{
             padding: "12px 16px",
             marginTop: "12px",
-            fontSize: 13,
+            fontSize: FONT.sm,
             color: APP.text4,
             textAlign: "center",
           }}
@@ -602,7 +601,7 @@ export default function MyAIPage({ doctorId }) {
 
       {/* Disclaimer footer */}
       <div style={{ padding: "16px", textAlign: "center", marginTop: "auto" }}>
-        <span style={{ fontSize: 10, color: APP.text4 }}>
+        <span style={{ fontSize: FONT.xs, color: APP.text4 }}>
           本服务为AI生成内容，结果仅供参考
         </span>
       </div>

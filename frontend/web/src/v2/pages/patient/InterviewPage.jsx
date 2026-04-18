@@ -14,11 +14,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { NavBar, ProgressBar, Button, SpinLoading, Dialog, Toast } from "antd-mobile";
+import { CheckCircleFill, CloseCircleOutline } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
 import ChatBubble from "../../ChatBubble";
 import ChatComposer from "../../ChatComposer";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
-import { APP } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 
 const FIELD_LABELS = {
   chief_complaint: "主诉",
@@ -54,13 +55,13 @@ function SummarySheet({ collected, status, confirming, onResumeInput, onConfirm,
             const val = collected[f];
             return (
               <div key={f} style={summaryStyles.fieldRow}>
-                <span style={{ color: val ? "#07C160" : APP.border, marginRight: 6, fontSize: 14 }}>
-                  {val ? "✓" : "○"}
+                <span style={{ color: val ? APP.primary : APP.border, marginRight: 6, fontSize: FONT.main }}>
+                  {val ? <CheckCircleFill style={{ fontSize: FONT.main }} /> : <CloseCircleOutline style={{ fontSize: FONT.main }} />}
                 </span>
                 <div>
-                  <div style={{ fontSize: 13, color: APP.text4 }}>{FIELD_LABELS[f]}</div>
+                  <div style={{ fontSize: FONT.sm, color: APP.text4 }}>{FIELD_LABELS[f]}</div>
                   {val && (
-                    <div style={{ fontSize: 15, color: APP.text1, marginTop: 2 }}>{val}</div>
+                    <div style={{ fontSize: FONT.md, color: APP.text1, marginTop: 2 }}>{val}</div>
                   )}
                 </div>
               </div>
@@ -105,7 +106,7 @@ const summaryStyles = {
   },
   sheet: {
     background: APP.surface,
-    borderRadius: "16px 16px 0 0",
+    borderRadius: `${RADIUS.xl}px ${RADIUS.xl}px 0 0`,
     maxHeight: "75vh",
     display: "flex",
     flexDirection: "column",
@@ -313,8 +314,8 @@ export default function InterviewPage({ token, onBack }) {
           status !== "confirmed" ? (
             <span
               style={{
-                fontSize: 14,
-                color: reviewReady ? "#07C160" : APP.text4,
+                fontSize: FONT.main,
+                color: reviewReady ? APP.primary : APP.text4,
                 fontWeight: reviewReady ? 600 : 400,
                 cursor: reviewReady ? "pointer" : "default",
               }}
@@ -338,7 +339,7 @@ export default function InterviewPage({ token, onBack }) {
       <div style={styles.progressWrap}>
         <ProgressBar
           percent={progressPct}
-          style={{ "--fill-color": "#07C160", "--track-color": APP.border }}
+          style={{ "--fill-color": APP.primary, "--track-color": APP.border }}
         />
         <div style={styles.progressLabel}>{progressPct}%</div>
       </div>
@@ -352,7 +353,7 @@ export default function InterviewPage({ token, onBack }) {
         ))}
         {sending && (
           <div style={{ paddingLeft: 44, paddingBottom: 8 }}>
-            <SpinLoading color="#07C160" style={{ "--size": "20px" }} />
+            <SpinLoading color={APP.primary} style={{ "--size": "20px" }} />
           </div>
         )}
         <div ref={chatEndRef} />
@@ -415,7 +416,7 @@ const styles = {
   progressWrap: {
     padding: "6px 16px 4px",
     background: APP.surface,
-    borderBottom: `1px solid ${APP.borderLight || "#f0f0f0"}`,
+    borderBottom: `1px solid ${APP.borderLight}`,
     flexShrink: 0,
   },
   progressLabel: {

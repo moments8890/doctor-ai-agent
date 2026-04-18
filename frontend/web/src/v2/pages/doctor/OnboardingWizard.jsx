@@ -11,7 +11,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { NavBar, Button, Result, Dialog, SafeArea, ProgressBar } from "antd-mobile";
-import { CheckCircleFill } from "antd-mobile-icons";
+import { CheckCircleFill, FileOutline, GlobalOutline, EditSOutline, CheckOutline } from "antd-mobile-icons";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,7 +25,7 @@ import {
 import { seedDemo, updateDoctorProfile } from "../../../api";
 import { markAllReleasesSeen } from "../../../store/releaseStore";
 import { dp } from "../../../utils/doctorBasePath";
-import { APP } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 
 const TOTAL_STEPS = 3;
 
@@ -71,7 +71,7 @@ function RuleArrowConnector({ label }) {
         style={{
           width: 2,
           height: 18,
-          backgroundColor: "#07C160",
+          backgroundColor: APP.primary,
           borderRadius: 1,
           opacity: 0.5,
         }}
@@ -83,14 +83,14 @@ function RuleArrowConnector({ label }) {
           height: 0,
           borderLeft: "6px solid transparent",
           borderRight: "6px solid transparent",
-          borderTop: "8px solid #07C160",
+          borderTop: `8px solid ${APP.primary}`,
           opacity: 0.6,
         }}
       />
       <span
         style={{
-          fontSize: 11,
-          color: "#07C160",
+          fontSize: FONT.xs,
+          color: APP.primary,
           fontWeight: 600,
           marginTop: 4,
         }}
@@ -114,9 +114,9 @@ function RuleEchoCard({ title, body }) {
     >
       <div
         style={{
-          fontSize: 10,
+          fontSize: FONT.xs,
           fontWeight: 600,
-          color: "#07C160",
+          color: APP.primary,
           marginBottom: 4,
           textTransform: "uppercase",
           letterSpacing: "0.3px",
@@ -126,7 +126,7 @@ function RuleEchoCard({ title, body }) {
       </div>
       <div
         style={{
-          fontSize: 15,
+          fontSize: FONT.md,
           fontWeight: 700,
           color: APP.text1,
           marginBottom: 3,
@@ -134,7 +134,7 @@ function RuleEchoCard({ title, body }) {
       >
         {title}
       </div>
-      <div style={{ fontSize: 13, color: APP.text2, lineHeight: 1.6 }}>{body}</div>
+      <div style={{ fontSize: FONT.sm, color: APP.text2, lineHeight: 1.6 }}>{body}</div>
     </div>
   );
 }
@@ -241,40 +241,40 @@ function Step1Content({ doctorId, progress, updateProgress, setCanAdvance, api }
                 style={{
                   width: 36,
                   height: 36,
-                  borderRadius: 8,
+                  borderRadius: RADIUS.md,
                   backgroundColor: APP.primaryLight,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
                   marginRight: 12,
-                  fontSize: 18,
-                  color: "#07C160",
+                  fontSize: FONT.lg,
+                  color: APP.primary,
                 }}
               >
-                {s.key === "file" ? "📄" : s.key === "url" ? "🌐" : "✏"}
+                {s.key === "file" ? <FileOutline style={{ fontSize: 18 }} /> : s.key === "url" ? <GlobalOutline style={{ fontSize: 18 }} /> : <EditSOutline style={{ fontSize: 18 }} />}
               </div>
 
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 500, color: APP.text1 }}>
+                <div style={{ fontSize: FONT.md, fontWeight: 500, color: APP.text1 }}>
                   {s.label}
                 </div>
-                <div style={{ fontSize: 12, color: APP.text4, marginTop: 2 }}>
+                <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
                   {s.subtitle}
                 </div>
               </div>
 
               <div
                 style={{
-                  fontSize: 12,
-                  color: done ? "#07C160" : APP.text4,
+                  fontSize: FONT.sm,
+                  color: done ? APP.primary : APP.text4,
                   fontWeight: done ? 600 : 400,
                   marginRight: 6,
                 }}
               >
                 {done ? "已完成" : "待添加"}
               </div>
-              <div style={{ color: APP.text4, fontSize: 14 }}>›</div>
+              <div style={{ color: APP.text4, fontSize: FONT.main }}>›</div>
             </div>
           );
         })}
@@ -347,18 +347,18 @@ function Step2Content({ progress, setCanAdvance }) {
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-            fontSize: 16,
+            fontSize: FONT.md,
             fontWeight: 700,
-            color: "#576B95",
+            color: APP.accent,
           }}
         >
           张
         </div>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: APP.text1 }}>
+          <div style={{ fontSize: FONT.main, fontWeight: 500, color: APP.text1 }}>
             张秀兰 · 72岁
           </div>
-          <div style={{ fontSize: 12, color: APP.text4 }}>头痛头晕3天 · 高血压10年</div>
+          <div style={{ fontSize: FONT.sm, color: APP.text4 }}>头痛头晕3天 · 高血压10年</div>
         </div>
       </div>
 
@@ -382,7 +382,7 @@ function Step2Content({ progress, setCanAdvance }) {
             padding: "12px 14px",
             borderBottom: `0.5px solid ${APP.borderLight}`,
             cursor: diagConfirmed ? "default" : "pointer",
-            outline: diagConfirmed ? "none" : "2px dashed #07C160",
+            outline: diagConfirmed ? "none" : `2px dashed ${APP.primary}`,
             outlineOffset: -2,
           }}
         >
@@ -393,7 +393,7 @@ function Step2Content({ progress, setCanAdvance }) {
               borderRadius: "50%",
               flexShrink: 0,
               marginTop: 2,
-              backgroundColor: diagConfirmed ? "#07C160" : "transparent",
+              backgroundColor: diagConfirmed ? APP.primary : "transparent",
               border: diagConfirmed ? "none" : `1.5px solid ${APP.border}`,
               display: "flex",
               alignItems: "center",
@@ -401,7 +401,7 @@ function Step2Content({ progress, setCanAdvance }) {
             }}
           >
             {diagConfirmed && (
-              <span style={{ color: "#fff", fontSize: 11, lineHeight: 1 }}>✓</span>
+              <CheckOutline style={{ color: "#fff", fontSize: 11, lineHeight: 1 }} />
             )}
           </div>
           <div style={{ flex: 1 }}>

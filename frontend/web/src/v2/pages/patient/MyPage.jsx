@@ -13,8 +13,7 @@ import {
   TextOutline,
   UserOutline,
 } from "antd-mobile-icons";
-import { APP } from "../../theme";
-import { applyFontScale } from "../../theme";
+import { APP, FONT, RADIUS, applyFontScale } from "../../theme";
 
 // ---------------------------------------------------------------------------
 // Font scale store (inline — no MUI / v1 store dependency)
@@ -56,14 +55,14 @@ function AccountCard({ name, subtitle, color }) {
         style={{
           width: 44,
           height: 44,
-          borderRadius: "50%",
-          background: color || "#07C160",
+          borderRadius: RADIUS.circle,
+          background: color || APP.primary,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           marginRight: 12,
           flexShrink: 0,
-          color: "#fff",
+          color: APP.white,
           fontSize: 18,
           fontWeight: 700,
         }}
@@ -73,7 +72,7 @@ function AccountCard({ name, subtitle, color }) {
       <div>
         <div style={{ fontSize: 16, fontWeight: 600, color: APP.text1 }}>{name || "—"}</div>
         {subtitle && (
-          <div style={{ fontSize: 12, color: APP.text3, marginTop: 2 }}>{subtitle}</div>
+          <div style={{ fontSize: FONT.sm, color: APP.text3, marginTop: 2 }}>{subtitle}</div>
         )}
       </div>
     </div>
@@ -139,7 +138,7 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
     <div style={{ flex: 1, overflowY: "auto", background: APP.surfaceAlt }}>
       {/* Patient info */}
       <SectionLabel>我的信息</SectionLabel>
-      <AccountCard name={patientName || "患者"} subtitle="患者" color="#07C160" />
+      <AccountCard name={patientName || "患者"} subtitle="患者" color={APP.primary} />
 
       {/* Doctor info */}
       {doctorName && (
@@ -204,9 +203,9 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
       <List>
         <List.Item
           onClick={handleLogoutTap}
-          style={{ color: "#FA5151", textAlign: "center", cursor: "pointer" }}
+          style={{ color: APP.danger, textAlign: "center", cursor: "pointer" }}
         >
-          <span style={{ fontSize: 15, color: "#FA5151", fontWeight: 500 }}>退出登录</span>
+          <span style={{ fontSize: FONT.md, color: APP.danger, fontWeight: 500 }}>退出登录</span>
         </List.Item>
       </List>
 
@@ -217,12 +216,12 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
         visible={showFontPopup}
         onMaskClick={() => setShowFontPopup(false)}
         position="bottom"
-        bodyStyle={{ borderRadius: "16px 16px 0 0", padding: "16px 16px 32px" }}
+        bodyStyle={{ borderRadius: `${RADIUS.xl}px ${RADIUS.xl}px 0 0`, padding: "16px 16px 32px" }}
       >
         <div
           style={{
             textAlign: "center",
-            fontSize: 15,
+            fontSize: FONT.md,
             fontWeight: 600,
             color: APP.text1,
             marginBottom: 16,
@@ -239,7 +238,7 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
               <Radio
                 key={o.key}
                 value={o.key}
-                style={{ width: "100%", fontSize: 15 }}
+                style={{ width: "100%", fontSize: FONT.md }}
               >
                 {o.label}
               </Radio>
@@ -249,7 +248,7 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
         <Button
           block
           color="default"
-          style={{ marginTop: 16, borderRadius: 8 }}
+          style={{ marginTop: 16, borderRadius: RADIUS.md }}
           onClick={() => setShowFontPopup(false)}
         >
           取消

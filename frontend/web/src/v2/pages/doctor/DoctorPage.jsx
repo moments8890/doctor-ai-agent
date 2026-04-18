@@ -38,7 +38,7 @@ import {
   CheckShieldOutline,
   FileOutline,
 } from "antd-mobile-icons";
-import { APP } from "../../theme";
+import { APP, FONT } from "../../theme";
 
 // ── Tab config ─────────────────────────────────────────────────────
 
@@ -101,10 +101,9 @@ function SectionPlaceholder({ name }) {
         gap: 12,
         color: APP.text4,
         fontFamily: "system-ui, sans-serif",
-        fontSize: 15,
+        fontSize: FONT.md,
       }}
     >
-      <span style={{ fontSize: 32 }}>🚧</span>
       <span>{name} — 即将上线</span>
     </div>
   );
@@ -253,8 +252,11 @@ export default function DoctorPage({ doctorId, onLogout }) {
           /* Settings subpages — full-screen, hide TabBar */
           (() => {
             const { sub, sub2 } = settingsMatch;
+            if (sub === "persona" && sub2 === "pending") return <PendingReviewSubpage />;
+            if (sub === "persona" && sub2 === "teach") return <TeachByExampleSubpage />;
+            if (sub === "persona" && sub2 === "onboarding") return <PersonaOnboardingSubpage />;
             if (sub === "persona") return <PersonaSubpage />;
-            if (sub === "knowledge" && sub2 === "add") return <AddKnowledgeSubpage />;
+            if (sub === "knowledge" && (sub2 === "add" || sub2 === "new")) return <AddKnowledgeSubpage />;
             if (sub === "knowledge" && sub2 === "pending") return <KbPendingSubpage />;
             if (sub === "knowledge" && sub2) return <KnowledgeDetailSubpage itemId={sub2} />;
             if (sub === "knowledge") return <KnowledgeSubpage />;
@@ -264,7 +266,8 @@ export default function DoctorPage({ doctorId, onLogout }) {
             if (sub === "review") return <ReviewSubpage />;
             if (sub === "pending-review") return <PendingReviewSubpage />;
             if (sub === "persona-onboarding") return <PersonaOnboardingSubpage />;
-            if (sub === "templates") return <TemplateSubpage />;
+            if (sub === "template" || sub === "templates") return <TemplateSubpage />;
+            if (sub === "qr") return <div style={{ padding: 24 }}>QR Code — TODO</div>;
             // /doctor/settings → main list
             return <SettingsPage />;
           })()
@@ -281,35 +284,35 @@ export default function DoctorPage({ doctorId, onLogout }) {
         )}
       </div>
 
-      {/* Bottom TabBar — hidden when full-screen overlays are active */}
+      {/* Bottom TabBar + SafeArea — hidden when full-screen overlays are active */}
       {!fullScreenActive && (
-        <TabBar
-          activeKey={activeSection}
-          onChange={handleTabChange}
-          style={{
-            borderTop: `0.5px solid ${APP.border}`,
-            backgroundColor: APP.surface,
-            flexShrink: 0,
-            "--adm-color-primary": "#07C160",
-          }}
-        >
-          {TABS.map((tab) => {
-            const badgeCount = tab.badgeKey ? (badges[tab.badgeKey] || 0) : 0;
-            return (
-              <TabBar.Item
-                key={tab.key}
-                icon={tab.icon}
-                title={tab.label}
-                badge={badgeCount > 0 ? badgeCount : undefined}
-              />
-            );
-          })}
-        </TabBar>
+        <div style={{ backgroundColor: APP.surface, flexShrink: 0 }}>
+          <TabBar
+            activeKey={activeSection}
+            onChange={handleTabChange}
+            style={{
+              borderTop: `0.5px solid ${APP.border}`,
+              "--adm-color-primary": "var(--adm-color-primary)",
+            }}
+          >
+            {TABS.map((tab) => {
+              const badgeCount = tab.badgeKey ? (badges[tab.badgeKey] || 0) : 0;
+              return (
+                <TabBar.Item
+                  key={tab.key}
+                  icon={tab.icon}
+                  title={tab.label}
+                  badge={badgeCount > 0 ? badgeCount : undefined}
+                />
+              );
+            })}
+          </TabBar>
+          <SafeArea position="bottom" />
+        </div>
       )}
 
-      {/* Safe area bottom — always present (TabBar has its own) */}
+      {/* Safe area bottom for full-screen subpages */}
       {fullScreenActive && <SafeArea position="bottom" />}
-      {!fullScreenActive && <SafeArea position="bottom" />}
     </div>
   );
 }

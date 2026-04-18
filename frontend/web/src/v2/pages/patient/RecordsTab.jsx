@@ -22,7 +22,7 @@ import {
 } from "antd-mobile";
 import { AddOutline, FileOutline } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
-import { APP } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 
 // ---------------------------------------------------------------------------
 // Helpers (no MUI / theme.js deps)
@@ -107,13 +107,12 @@ function FilterPills({ items, active, onChange }) {
           style={{
             padding: "4px 12px",
             borderRadius: 100,
-            fontSize: 13,
+            fontSize: FONT.sm,
             whiteSpace: "nowrap",
             cursor: "pointer",
-            background: active === item.key ? "#07C160" : APP.borderLight,
-            color: active === item.key ? "#fff" : APP.text3,
+            background: active === item.key ? APP.primary : APP.borderLight,
+            color: active === item.key ? APP.white : APP.text3,
             fontWeight: active === item.key ? 600 : 400,
-            transition: "all 0.15s",
           }}
         >
           {item.label}
@@ -135,7 +134,7 @@ function TimelineView({ records, onTap }) {
         <div key={group.label}>
           <div
             style={{
-              fontSize: 12,
+              fontSize: FONT.sm,
               fontWeight: 600,
               color: APP.text4,
               marginTop: 12,
@@ -167,7 +166,7 @@ function TimelineView({ records, onTap }) {
               const d = new Date(rec.created_at);
               const dayStr = `${d.getMonth() + 1}/${d.getDate()}`;
               const diagnosis = rec.structured?.diagnosis;
-              const dotColor = "#07C160";
+              const dotColor = APP.primary;
 
               return (
                 <div
@@ -187,9 +186,9 @@ function TimelineView({ records, onTap }) {
                       top: 8,
                       width: 10,
                       height: 10,
-                      borderRadius: "50%",
+                      borderRadius: RADIUS.circle,
                       background: dotColor,
-                      border: "2px solid #fff",
+                      border: `2px solid ${APP.white}`,
                       zIndex: 1,
                     }}
                   />
@@ -197,7 +196,7 @@ function TimelineView({ records, onTap }) {
                   <div
                     style={{
                       background: APP.surface,
-                      borderRadius: 10,
+                      borderRadius: RADIUS.lg,
                       padding: "8px 12px",
                       border: `0.5px solid ${APP.borderLight}`,
                     }}
@@ -210,15 +209,15 @@ function TimelineView({ records, onTap }) {
                         marginBottom: 4,
                       }}
                     >
-                      <span style={{ fontSize: 12, color: dotColor, fontWeight: 600 }}>
+                      <span style={{ fontSize: FONT.sm, color: dotColor, fontWeight: 600 }}>
                         {typeLabel}
                       </span>
-                      <span style={{ fontSize: 12, color: APP.text4 }}>{dayStr}</span>
+                      <span style={{ fontSize: FONT.sm, color: APP.text4 }}>{dayStr}</span>
                     </div>
                     {preview && (
                       <div
                         style={{
-                          fontSize: 14,
+                          fontSize: FONT.main,
                           fontWeight: 500,
                           color: APP.text1,
                           lineHeight: 1.4,
@@ -241,7 +240,7 @@ function TimelineView({ records, onTap }) {
                       {diagnosis ? (
                         <span
                           style={{
-                            fontSize: 12,
+                            fontSize: FONT.sm,
                             color: APP.text3,
                             overflow: "hidden",
                             textOverflow: "ellipsis",
@@ -256,7 +255,7 @@ function TimelineView({ records, onTap }) {
                         <span />
                       )}
                       {dsLabel && (
-                        <Tag color={dsColor} fill="outline" style={{ fontSize: 11 }}>
+                        <Tag color={dsColor} fill="outline" style={{ fontSize: FONT.xs }}>
                           {dsLabel}
                         </Tag>
                       )}
@@ -357,7 +356,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
           block
           color="primary"
           size="middle"
-          style={{ borderRadius: 8 }}
+          style={{ borderRadius: RADIUS.md }}
           onClick={onNewRecord}
         >
           <AddOutline style={{ marginRight: 4 }} />
@@ -371,7 +370,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
           <div
             style={{
               padding: "6px 12px",
-              fontSize: 12,
+              fontSize: FONT.sm,
               color: APP.text4,
               background: APP.surface,
               flexShrink: 0,
@@ -419,16 +418,16 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
                   key={rec.id}
                   prefix={
                     <FileOutline
-                      style={{ fontSize: 22, color: "#07C160", marginTop: 2 }}
+                      style={{ fontSize: 22, color: APP.primary, marginTop: 2 }}
                     />
                   }
                   title={
-                    <span style={{ fontWeight: 600, fontSize: 15, color: APP.text1 }}>
+                    <span style={{ fontWeight: 600, fontSize: FONT.md, color: APP.text1 }}>
                       {typeLabel}
                     </span>
                   }
                   description={
-                    <span style={{ fontSize: 13, color: APP.text3 }}>{preview}</span>
+                    <span style={{ fontSize: FONT.sm, color: APP.text3 }}>{preview}</span>
                   }
                   extra={
                     <div
@@ -439,11 +438,11 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
                         gap: 4,
                       }}
                     >
-                      <span style={{ fontSize: 11, color: APP.text4 }}>
+                      <span style={{ fontSize: FONT.xs, color: APP.text4 }}>
                         {formatDate(rec.created_at)}
                       </span>
                       {dsLabel && (
-                        <Tag color={dsColor} fill="outline" style={{ fontSize: 11 }}>
+                        <Tag color={dsColor} fill="outline" style={{ fontSize: FONT.xs }}>
                           {dsLabel}
                         </Tag>
                       )}

@@ -9,7 +9,7 @@
  *   assistant → rounded everywhere except bottom-left
  */
 import ReactMarkdown from "react-markdown";
-import { APP } from "./theme";
+import { APP, FONT, RADIUS } from "./theme";
 
 export default function ChatBubble({ role, content, timestamp }) {
   const isUser = role === "user";
@@ -18,7 +18,7 @@ export default function ChatBubble({ role, content, timestamp }) {
     <div style={{ ...styles.row, justifyContent: isUser ? "flex-end" : "flex-start" }}>
       {/* AI avatar — left side */}
       {!isUser && (
-        <div style={{ ...styles.avatar, background: "#07C160", color: "#fff" }}>
+        <div style={{ ...styles.avatar, background: APP.primary, color: APP.white }}>
           AI
         </div>
       )}
@@ -58,7 +58,7 @@ export default function ChatBubble({ role, content, timestamp }) {
 
       {/* User avatar — right side */}
       {isUser && (
-        <div style={{ ...styles.avatar, background: APP.accent, color: "#fff" }}>
+        <div style={{ ...styles.avatar, background: APP.accent, color: APP.white }}>
           我
         </div>
       )}
@@ -77,11 +77,11 @@ const styles = {
     flexShrink: 0,
     width: 32,
     height: 32,
-    borderRadius: "50%",
+    borderRadius: RADIUS.circle,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 12,
+    fontSize: FONT.sm,
     fontWeight: 600,
     lineHeight: 1,
   },
@@ -96,19 +96,19 @@ const styles = {
     wordBreak: "break-word",
   },
   userText: {
-    fontSize: 15,
-    color: "#1a1a1a",
+    fontSize: FONT.md,
+    color: APP.text1,
     lineHeight: "1.55",
     whiteSpace: "pre-wrap",
   },
   markdown: {
-    fontSize: 15,
+    fontSize: FONT.md,
     color: APP.text1,
     lineHeight: "1.6",
     // Reset react-markdown default margins
   },
   ts: {
-    fontSize: 11,
+    fontSize: FONT.xs,
     color: APP.text4,
   },
 };

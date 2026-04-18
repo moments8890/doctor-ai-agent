@@ -8,6 +8,7 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { NavBar, Button, SpinLoading, Toast } from "antd-mobile";
+import { CheckOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
@@ -161,7 +162,7 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
                     flexShrink: 0, marginTop: 2,
                     fontSize: 11, color: "#fff", fontWeight: 700,
                   }}>
-                    ✓
+                    <CheckOutline style={{ fontSize: 11 }} />
                   </div>
                   <div>
                     <div style={{ fontSize: "var(--adm-font-size-xs)", color: APP.text4 }}>

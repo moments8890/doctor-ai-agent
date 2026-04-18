@@ -19,7 +19,7 @@ import { useDoctorStore } from "../../../store/doctorStore";
 import { nowTs } from "../../../utils/time";
 import ChatComposer from "../../ChatComposer";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
-import { APP } from "../../theme";
+import { APP, FONT } from "../../theme";
 
 // ── Message bubble ─────────────────────────────────────────────────
 

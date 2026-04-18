@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NavBar, Button, Dialog, SpinLoading, Toast } from "antd-mobile";
+import { FileOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
@@ -150,7 +151,7 @@ export default function TemplateSubpage() {
               display: "flex", alignItems: "center", justifyContent: "center",
               flexShrink: 0, fontSize: 20,
             }}>
-              📄
+              <FileOutline style={{ fontSize: 20, color: "#07C160" }} />
             </div>
 
             <div style={{ flex: 1 }}>

@@ -18,7 +18,7 @@ import {
   Popup,
   Tag,
 } from "antd-mobile";
-import { LeftOutline, QuestionCircleOutline, AddCircleOutline } from "antd-mobile-icons";
+import { LeftOutline, QuestionCircleOutline, AddCircleOutline, CheckOutline, CloseOutline } from "antd-mobile-icons";
 import { useApi } from "../../../api/ApiContext";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { isInMiniapp } from "../../../utils/miniappBridge";
@@ -27,7 +27,7 @@ import { dp } from "../../../utils/doctorBasePath";
 import ChatComposer from "../../ChatComposer";
 import ChatBubble from "../../ChatBubble";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
-import { APP } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 
 // ── Field label map ────────────────────────────────────────────────
 const FIELD_LABELS = {
@@ -99,7 +99,7 @@ function FieldReviewCard({ title, subtitle, items, confirmLabel, dismissLabel, c
             </div>
             <div style={cardStyles.rowActions}>
               <button
-                style={{ ...cardStyles.actionBtn, color: "#07C160" }}
+                style={{ ...cardStyles.actionBtn, color: APP.primary }}
                 onClick={() => onConfirm?.(item.field, item.value)}
                 disabled={disabled}
               >
@@ -145,20 +145,20 @@ const cardStyles = {
     padding: "8px 12px 4px",
   },
   title: {
-    fontSize: 13,
+    fontSize: FONT.sm,
     fontWeight: 600,
     color: APP.text2,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: FONT.sm,
     color: APP.text4,
     flex: 1,
   },
   allBtn: {
     border: "none",
     background: "none",
-    color: "#07C160",
-    fontSize: 12,
+    color: APP.primary,
+    fontSize: FONT.sm,
     cursor: "pointer",
     padding: "2px 4px",
   },
@@ -179,21 +179,21 @@ const cardStyles = {
     gap: 2,
   },
   label: {
-    fontSize: 11,
+    fontSize: FONT.xs,
     color: APP.text4,
     fontWeight: 500,
   },
   value: {
-    fontSize: 13,
+    fontSize: FONT.sm,
     color: APP.text1,
     lineHeight: "1.5",
   },
   editArea: {
     width: "100%",
-    border: `1px solid #07C160`,
-    borderRadius: 6,
+    border: `1px solid ${APP.primary}`,
+    borderRadius: RADIUS.sm,
     padding: "4px 6px",
-    fontSize: 13,
+    fontSize: FONT.sm,
     fontFamily: "inherit",
     lineHeight: "1.5",
     resize: "none",
@@ -209,7 +209,7 @@ const cardStyles = {
   actionBtn: {
     border: "none",
     background: "none",
-    fontSize: 12,
+    fontSize: FONT.sm,
     cursor: "pointer",
     padding: "2px 0",
     textAlign: "right",
@@ -296,13 +296,13 @@ const popupStyles = {
     paddingBottom: 8,
   },
   title: {
-    fontSize: 17,
+    fontSize: FONT.lg,
     fontWeight: 600,
     color: APP.text1,
     textAlign: "center",
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: FONT.sm,
     color: APP.text3,
     textAlign: "center",
   },
@@ -314,7 +314,7 @@ const popupStyles = {
     paddingBottom: 8,
   },
   nameLabel: {
-    fontSize: 14,
+    fontSize: FONT.main,
     color: APP.text2,
     flexShrink: 0,
     width: 56,
@@ -322,9 +322,9 @@ const popupStyles = {
   nameInput: {
     flex: 1,
     border: `1px solid ${APP.border}`,
-    borderRadius: 6,
+    borderRadius: RADIUS.sm,
     padding: "6px 10px",
-    fontSize: 14,
+    fontSize: FONT.main,
     fontFamily: "inherit",
     outline: "none",
     color: APP.text1,
@@ -332,7 +332,7 @@ const popupStyles = {
   fieldList: {
     maxHeight: 160,
     overflowY: "auto",
-    borderRadius: 6,
+    borderRadius: RADIUS.sm,
     background: APP.surfaceAlt,
     padding: "6px 10px",
     display: "flex",
@@ -345,14 +345,14 @@ const popupStyles = {
     alignItems: "flex-start",
   },
   fieldLabel: {
-    fontSize: 12,
+    fontSize: FONT.sm,
     color: APP.text4,
     width: 60,
     flexShrink: 0,
     paddingTop: 1,
   },
   fieldValue: {
-    fontSize: 13,
+    fontSize: FONT.sm,
     color: APP.text1,
     flex: 1,
     lineHeight: "1.5",
@@ -368,23 +368,23 @@ const popupStyles = {
     "--border-color": APP.border,
     "--text-color": APP.text2,
     height: 40,
-    borderRadius: 8,
+    borderRadius: RADIUS.md,
   },
   saveBtn: {
     flex: 1,
-    "--background-color": "#576B95",
-    "--border-color": "#576B95",
-    "--text-color": "#fff",
+    "--background-color": APP.accent,
+    "--border-color": APP.accent,
+    "--text-color": APP.white,
     height: 40,
-    borderRadius: 8,
+    borderRadius: RADIUS.md,
   },
   diagBtn: {
     flex: 1,
-    "--background-color": "#07C160",
-    "--border-color": "#07C160",
-    "--text-color": "#fff",
+    "--background-color": APP.primary,
+    "--border-color": APP.primary,
+    "--text-color": APP.white,
     height: 40,
-    borderRadius: 8,
+    borderRadius: RADIUS.md,
   },
 };
 
@@ -747,7 +747,7 @@ export default function InterviewPage({
       content: "未保存的内容将会丢失",
       cancelText: "取消",
       confirmText: "离开",
-      confirmButtonStyle: { color: "#FA5151" },
+      confirmButtonStyle: { color: APP.danger },
       onConfirm: () => handleCancel(),
     });
   }
@@ -807,12 +807,12 @@ export default function InterviewPage({
             <span
               style={{
                 ...statusStyles.count,
-                color: session.progress?.can_complete ? "#07C160" : APP.text4,
+                color: session.progress?.can_complete ? APP.primary : APP.text4,
               }}
             >
               必填 {session.progress?.required_count || 0}/
               {session.progress?.required_total || 0}
-              {session.progress?.can_complete ? " ✓" : ""}
+              {session.progress?.can_complete ? <CheckOutline style={{ fontSize: 12, marginLeft: 4 }} /> : null}
             </span>
             <span style={statusStyles.other}>
               其他{" "}
@@ -826,8 +826,8 @@ export default function InterviewPage({
           <button
             style={{
               ...statusStyles.doneBtn,
-              background: session.progress?.can_complete ? "#07C160" : "none",
-              color: session.progress?.can_complete ? "#fff" : APP.text4,
+              background: session.progress?.can_complete ? APP.primary : "none",
+              color: session.progress?.can_complete ? APP.white : APP.text4,
               border: session.progress?.can_complete
                 ? "none"
                 : `1px solid ${APP.border}`,
@@ -885,7 +885,7 @@ export default function InterviewPage({
         ))}
         {loading && (
           <div style={msgStyles.loadingRow}>
-            <SpinLoading color="#07C160" style={{ "--size": "16px" }} />
+            <SpinLoading color="primary" style={{ "--size": "16px" }} />
             <span style={msgStyles.loadingText}>处理中…</span>
           </div>
         )}
@@ -895,7 +895,7 @@ export default function InterviewPage({
       {/* Draft created banner */}
       {session.status === "draft_created" && (
         <div style={statusStyles.draftBanner}>
-          <span style={{ color: "#07C160", fontSize: 13 }}>草稿已生成</span>
+          <span style={{ color: APP.primary, fontSize: FONT.sm }}>草稿已生成</span>
         </div>
       )}
 
@@ -904,7 +904,7 @@ export default function InterviewPage({
         <div style={errStyles.bar}>
           <span style={errStyles.text}>{error}</span>
           <button style={errStyles.close} onClick={() => setError(null)}>
-            ×
+            <CloseOutline style={{ fontSize: 16 }} />
           </button>
         </div>
       )}
@@ -973,34 +973,33 @@ const statusStyles = {
     gap: 6,
   },
   name: {
-    fontSize: 12,
+    fontSize: FONT.sm,
   },
   dot: {
-    fontSize: 12,
+    fontSize: FONT.sm,
     color: APP.text4,
   },
   count: {
-    fontSize: 12,
+    fontSize: FONT.sm,
     fontWeight: 500,
   },
   other: {
-    fontSize: 12,
+    fontSize: FONT.sm,
     color: APP.text4,
   },
   doneBtn: {
-    borderRadius: 12,
+    borderRadius: RADIUS.lg,
     padding: "2px 10px",
-    fontSize: 12,
+    fontSize: FONT.sm,
     cursor: "pointer",
     minHeight: 24,
-    transition: "background 0.15s",
   },
   draftBanner: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     padding: "8px 12px",
-    background: "#e7f8ee",
+    background: APP.primaryLight,
     borderTop: `1px solid ${APP.border}`,
     flexShrink: 0,
   },
@@ -1024,7 +1023,7 @@ const msgStyles = {
     padding: "4px 16px",
   },
   loadingText: {
-    fontSize: 12,
+    fontSize: FONT.sm,
     color: APP.text4,
   },
 };
@@ -1035,20 +1034,20 @@ const errStyles = {
     alignItems: "center",
     gap: 8,
     padding: "8px 12px",
-    background: "#fff0f0",
-    borderTop: `1px solid #ffcccc`,
+    background: APP.dangerLight,
+    borderTop: `1px solid ${APP.dangerLight}`,
     flexShrink: 0,
   },
   text: {
     flex: 1,
-    fontSize: 13,
-    color: "#FA5151",
+    fontSize: FONT.sm,
+    color: APP.danger,
   },
   close: {
     border: "none",
     background: "none",
-    color: "#FA5151",
-    fontSize: 18,
+    color: APP.danger,
+    fontSize: FONT.lg,
     cursor: "pointer",
     padding: 0,
     lineHeight: 1,

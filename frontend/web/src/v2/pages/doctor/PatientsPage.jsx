@@ -10,7 +10,7 @@ import { List, SearchBar, Button, SpinLoading, ErrorBlock } from "antd-mobile";
 import { AddOutline } from "antd-mobile-icons";
 import { usePatients } from "../../../lib/doctorQueries";
 import { relativeDate } from "../../../utils/time";
-import { APP } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 
 // ── Helpers ────────────────────────────────────────────────────────
 
