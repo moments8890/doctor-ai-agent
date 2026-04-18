@@ -28,6 +28,9 @@ import {
 import { usePatientApi } from "../../../api/PatientApiContext";
 import ChatTab from "./ChatTab";
 import InterviewPage from "./InterviewPage";
+import RecordsTab from "./RecordsTab";
+import TasksTab from "./TasksTab";
+import MyPage from "./MyPage";
 import { APP } from "../../theme";
 
 const STORAGE_KEY = "patient_portal_token";
@@ -204,9 +207,22 @@ export default function PatientPage() {
             onUnreadCountChange={setUnreadCount}
           />
         )}
-        {tab === "records" && <TabPlaceholder name="病历" />}
-        {tab === "tasks" && <TabPlaceholder name="任务" />}
-        {tab === "profile" && <TabPlaceholder name="我的" />}
+        {tab === "records" && (
+          <RecordsTab
+            token={token}
+            onNewRecord={startInterview}
+            urlSubpage={urlSubpage}
+          />
+        )}
+        {tab === "tasks" && <TasksTab token={token} />}
+        {tab === "profile" && (
+          <MyPage
+            patientName={patientName}
+            doctorName={doctorName}
+            doctorId={doctorId}
+            onLogout={handleLogout}
+          />
+        )}
       </div>
 
       {/* Bottom tab bar */}
