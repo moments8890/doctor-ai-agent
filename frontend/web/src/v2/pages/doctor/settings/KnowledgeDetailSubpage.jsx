@@ -33,10 +33,10 @@ function getCategoryStyle(category) {
   return CATEGORY_COLORS[category] || { bg: APP.surfaceAlt, color: APP.text4 };
 }
 
-export default function KnowledgeDetailSubpage() {
+export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
   const navigate = useNavigate();
-  const { id } = useParams();
-  const itemId = parseInt(id);
+  const params = useParams();
+  const itemId = propItemId ? parseInt(propItemId) : parseInt(params.id);
   const api = useApi();
   const queryClient = useQueryClient();
   const { doctorId } = useDoctorStore();

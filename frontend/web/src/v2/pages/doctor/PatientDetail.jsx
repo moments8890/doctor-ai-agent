@@ -250,8 +250,9 @@ function EditingBanner({ onCancel }) {
 
 // ── Main component ─────────────────────────────────────────────────
 
-export default function PatientDetail() {
-  const { patientId } = useParams();
+export default function PatientDetail({ patientId: propPatientId }) {
+  const params = useParams();
+  const patientId = propPatientId || params.patientId;
   const navigate = useNavigate();
   const { doctorId } = useDoctorStore();
   const {

@@ -34,6 +34,7 @@ import LoginPage from "./pages/login/LoginPage";
 import DoctorPage from "./pages/doctor/DoctorPage";
 import OnboardingWizard from "./pages/doctor/OnboardingWizard";
 import PatientPage from "./pages/patient/PatientPage";
+import PrivacyPage from "./pages/PrivacyPage";
 
 const DEV_MODE = import.meta.env.DEV;
 const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "test_doctor";
@@ -268,6 +269,14 @@ export default function App() {
                   <PatientApiProvider>
                     <PatientPage />
                   </PatientApiProvider>
+                </MobileFrame>
+              }
+            />
+            <Route
+              path="/privacy"
+              element={
+                <MobileFrame>
+                  <PrivacyPage />
                 </MobileFrame>
               }
             />

@@ -28,6 +28,7 @@ import {
 import { usePatientApi } from "../../../api/PatientApiContext";
 import ChatTab from "./ChatTab";
 import InterviewPage from "./InterviewPage";
+import PatientOnboarding, { isOnboardingDone, markOnboardingDone } from "./PatientOnboarding";
 import RecordsTab from "./RecordsTab";
 import TasksTab from "./TasksTab";
 import MyPage from "./MyPage";
@@ -102,6 +103,10 @@ export default function PatientPage() {
     () => localStorage.getItem(STORAGE_DOCTOR_KEY) || ""
   );
   const [unreadCount, setUnreadCount] = useState(0);
+  const [onboardingDone, setOnboardingDone] = useState(() => {
+    const pid = localStorage.getItem("patient_portal_patient_id");
+    return isOnboardingDone(pid);
+  });
 
   // Mock mode: auto-set identity
   useEffect(() => {
@@ -157,6 +162,13 @@ export default function PatientPage() {
     }
   }, [tab]);
 
+  // Onboarding dismiss handler — scoped to current patient_id
+  const handleDismissOnboarding = useCallback(() => {
+    const pid = localStorage.getItem("patient_portal_patient_id");
+    markOnboardingDone(pid);
+    setOnboardingDone(true);
+  }, []);
+
   // Logout helper
   const handleLogout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
@@ -195,6 +207,14 @@ export default function PatientPage() {
   return (
     <div style={pageStyle}>
       <SafeArea position="top" />
+
+      {/* Onboarding overlay — shown once per patient_id */}
+      {!onboardingDone && (
+        <PatientOnboarding
+          doctorName={doctorName}
+          onDismiss={handleDismissOnboarding}
+        />
+      )}
 
       {/* Active tab content */}
       <div style={contentStyle}>

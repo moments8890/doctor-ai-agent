@@ -23,6 +23,14 @@ import KnowledgeSubpage from "./settings/KnowledgeSubpage";
 import AddKnowledgeSubpage from "./settings/AddKnowledgeSubpage";
 import KnowledgeDetailSubpage from "./settings/KnowledgeDetailSubpage";
 import SettingsListSubpage from "./settings/SettingsListSubpage";
+import KbPendingSubpage from "./settings/KbPendingSubpage";
+import TaskDetailSubpage from "./settings/TaskDetailSubpage";
+import AboutSubpage from "./settings/AboutSubpage";
+import TeachByExampleSubpage from "./settings/TeachByExampleSubpage";
+import ReviewSubpage from "./settings/ReviewSubpage";
+import PendingReviewSubpage from "./settings/PendingReviewSubpage";
+import PersonaOnboardingSubpage from "./settings/PersonaOnboardingSubpage";
+import TemplateSubpage from "./settings/TemplateSubpage";
 import {
   MessageOutline,
   TeamOutline,
@@ -136,6 +144,16 @@ export default function DoctorPage({ doctorId, onLogout }) {
     return null;
   })();
 
+  // Task detail subpage — /doctor/tasks/:taskId
+  const taskDetailMatch = (() => {
+    const parts = location.pathname.split("/");
+    // parts: ["", "doctor", "tasks", ":taskId"]
+    if (parts[2] === "tasks" && parts[3]) {
+      return parts[3];
+    }
+    return null;
+  })();
+
   // Settings subpage detection
   // /doctor/settings → SettingsPage list
   // /doctor/settings/persona → PersonaSubpage
@@ -153,7 +171,12 @@ export default function DoctorPage({ doctorId, onLogout }) {
   const settingsActive = !!settingsMatch;
 
   // Full-screen overlays hide NavBar/TabBar
-  const fullScreenActive = interviewActive || !!patientDetailMatch || !!reviewDetailMatch || settingsActive;
+  const fullScreenActive =
+    interviewActive ||
+    !!patientDetailMatch ||
+    !!reviewDetailMatch ||
+    !!taskDetailMatch ||
+    settingsActive;
 
   function handleTabChange(key) {
     const tab = TABS.find((t) => t.key === key);
@@ -214,19 +237,29 @@ export default function DoctorPage({ doctorId, onLogout }) {
           />
         ) : patientDetailMatch ? (
           /* Full-screen patient detail (no TabBar) */
-          <PatientDetail />
+          <PatientDetail patientId={patientDetailMatch} />
         ) : reviewDetailMatch ? (
           /* Full-screen review detail (no TabBar) */
           <ReviewPage recordId={reviewDetailMatch} />
+        ) : taskDetailMatch ? (
+          /* Full-screen task detail (no TabBar) */
+          <TaskDetailSubpage taskId={taskDetailMatch} />
         ) : settingsActive ? (
           /* Settings subpages — full-screen, hide TabBar */
           (() => {
             const { sub, sub2 } = settingsMatch;
             if (sub === "persona") return <PersonaSubpage />;
             if (sub === "knowledge" && sub2 === "add") return <AddKnowledgeSubpage />;
-            if (sub === "knowledge" && sub2) return <KnowledgeDetailSubpage />;
+            if (sub === "knowledge" && sub2 === "pending") return <KbPendingSubpage />;
+            if (sub === "knowledge" && sub2) return <KnowledgeDetailSubpage itemId={sub2} />;
             if (sub === "knowledge") return <KnowledgeSubpage />;
             if (sub === "preferences") return <SettingsListSubpage onLogout={onLogout} />;
+            if (sub === "about") return <AboutSubpage />;
+            if (sub === "teach") return <TeachByExampleSubpage />;
+            if (sub === "review") return <ReviewSubpage />;
+            if (sub === "pending-review") return <PendingReviewSubpage />;
+            if (sub === "persona-onboarding") return <PersonaOnboardingSubpage />;
+            if (sub === "templates") return <TemplateSubpage />;
             // /doctor/settings → main list
             return <SettingsPage />;
           })()
