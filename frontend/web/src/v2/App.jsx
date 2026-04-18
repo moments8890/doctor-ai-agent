@@ -31,6 +31,7 @@ const AdminLoginPage = lazy(() => import("../pages/admin/AdminLoginPage"));
 const AdminPage = lazy(() => import("../pages/admin/AdminPage"));
 
 import LoginPage from "./pages/login/LoginPage";
+import DoctorPage from "./pages/doctor/DoctorPage";
 
 const DEV_MODE = import.meta.env.DEV;
 const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "test_doctor";
@@ -237,11 +238,13 @@ export default function App() {
             <Route
               path="/doctor/*"
               element={
-                <RequireAuth>
-                  <ApiProvider>
-                    <PlaceholderPage name="DoctorPage" />
-                  </ApiProvider>
-                </RequireAuth>
+                <MobileFrame>
+                  <RequireAuth>
+                    <ApiProvider>
+                      <DoctorPage />
+                    </ApiProvider>
+                  </RequireAuth>
+                </MobileFrame>
               }
             />
             <Route
