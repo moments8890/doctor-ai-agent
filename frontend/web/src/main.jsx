@@ -1,3 +1,4 @@
+import "antd-mobile/es/global";
 import React, { useMemo } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
