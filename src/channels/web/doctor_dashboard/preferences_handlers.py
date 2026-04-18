@@ -22,6 +22,7 @@ router = APIRouter(tags=["ui"], include_in_schema=False)
 
 class PreferencesUpdate(BaseModel):
     font_scale: Optional[str] = None
+    seen_releases: Optional[list[str]] = None
 
 
 def _parse_prefs(row: UserPreferences | None) -> dict:
@@ -64,6 +65,14 @@ async def patch_preferences(
 
     # Merge only provided fields
     updates = body.model_dump(exclude_none=True)
+
+    # List-type keys use set-union merge (don't overwrite)
+    if "seen_releases" in updates:
+        existing = set(prefs.get("seen_releases", []))
+        incoming = set(updates.pop("seen_releases"))
+        prefs["seen_releases"] = sorted(existing | incoming)
+
+    # Scalar keys overwrite as before
     prefs.update(updates)
 
     if row is None:

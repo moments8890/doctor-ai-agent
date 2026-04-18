@@ -1,12 +1,6 @@
 const config = require('../../config.js');
 
-const RECORDER_OPTIONS = {
-  duration: 60000,
-  sampleRate: 16000,
-  numberOfChannels: 1,
-  encodeBitRate: 96000,
-  format: 'mp3',
-};
+const plugin = requirePlugin("WechatSI");
 
 const MIN_RECORDING_MS = 1000;
 
@@ -41,32 +35,43 @@ Page({
   },
 
   onLoad() {
-    this.recorderManager = wx.getRecorderManager();
+    const manager = plugin.getRecordRecognitionManager();
+    this._siManager = manager;
     this._recordStartTs = 0;
     this._timerHandle = null;
 
-    this.recorderManager.onStart(() => {
+    manager.onStart = () => {
       this._recordStartTs = Date.now();
       this.setData({ state: 'recording', elapsed: 0 });
       this._timerHandle = setInterval(() => {
         this.setData({ elapsed: Math.floor((Date.now() - this._recordStartTs) / 1000) });
       }, 250);
-    });
+    };
 
-    this.recorderManager.onStop((res) => {
+    manager.onRecognize = () => {
+      // interim results — no action needed
+    };
+
+    manager.onStop = (res) => {
       if (this._timerHandle) { clearInterval(this._timerHandle); this._timerHandle = null; }
       const duration = Date.now() - this._recordStartTs;
       if (duration < MIN_RECORDING_MS) {
         this.setData({ state: 'idle' });
         return;
       }
-      this._handleRecordingFinished(res.tempFilePath);
-    });
+      const transcript = (res && res.result) || "";
+      if (!transcript) {
+        this.setData({ state: 'error', errorCode: 'audio_unclear' });
+        return;
+      }
+      this._submitTranscript(transcript);
+    };
 
-    this.recorderManager.onError((err) => {
-      console.warn('recorder error', err);
+    manager.onError = (err) => {
+      console.warn('WechatSI error', err);
+      if (this._timerHandle) { clearInterval(this._timerHandle); this._timerHandle = null; }
       this.setData({ state: 'error', errorCode: 'internal' });
-    });
+    };
   },
 
   onUnload() {
@@ -75,36 +80,37 @@ Page({
 
   onHide() {
     if (this.data.state === 'recording') {
-      try { this.recorderManager.stop(); } catch (_) {}
+      try { this._siManager.stop(); } catch (_) {}
       this.setData({ state: 'idle' });
     }
   },
 
   onMicPressStart() {
-    wx.authorize({
-      scope: 'scope.record',
-      success: () => this.recorderManager.start(RECORDER_OPTIONS),
-      fail: () => this.setData({ state: 'perm_denied' }),
-    });
+    try {
+      this._siManager.start({ duration: 58000, lang: "zh_CN" });
+    } catch (e) {
+      // Plugin throws synchronously if permission denied
+      this.setData({ state: 'perm_denied' });
+    }
   },
 
   onMicPressEnd() {
     if (this.data.state === 'recording') {
-      this.recorderManager.stop();
+      this._siManager.stop();
     }
   },
 
-  _handleRecordingFinished(tempFilePath) {
+  _submitTranscript(transcript) {
     this.setData({ state: 'processing' });
 
     const token = wx.getStorageSync('token') || '';
     const doctorId = wx.getStorageSync('doctorId') || '';
 
-    wx.uploadFile({
+    wx.request({
       url: `${config.apiBase}/api/manage/knowledge/voice-extract?doctor_id=${encodeURIComponent(doctorId)}`,
-      filePath: tempFilePath,
-      name: 'file',
-      header: { 'Authorization': `Bearer ${token}` },
+      method: 'POST',
+      header: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      data: { doctor_id: doctorId, transcript: transcript },
       timeout: 15000,
       success: (res) => this._onExtractResponse(res),
       fail: () => this.setData({ state: 'error', errorCode: 'network' }),
@@ -117,7 +123,7 @@ Page({
       return;
     }
     let body;
-    try { body = JSON.parse(res.data); }
+    try { body = typeof res.data === 'string' ? JSON.parse(res.data) : res.data; }
     catch (_) { this.setData({ state: 'error', errorCode: 'internal' }); return; }
 
     if (body.error) {

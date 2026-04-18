@@ -130,6 +130,23 @@ async def lifespan(app: FastAPI):
     _bg_worker_tasks.clear()
 
 
+# Paths that poll frequently as a command bus — drop from uvicorn.access to
+# keep logs readable. They still reach the handler and can be debugged by
+# lowering the filter or logging from the route directly.
+_QUIET_ACCESS_PATHS = ("/api/voice/session",)
+
+
+class _QuietPathFilter:
+    def filter(self, record):
+        msg = record.getMessage() if hasattr(record, "getMessage") else ""
+        return not any(p in msg for p in _QUIET_ACCESS_PATHS)
+
+
+def _install_access_log_noise_filter() -> None:
+    import logging
+    logging.getLogger("uvicorn.access").addFilter(_QuietPathFilter())
+
+
 def create_app() -> FastAPI:
     """Assemble and return the FastAPI application."""
     _app = FastAPI(
@@ -138,6 +155,7 @@ def create_app() -> FastAPI:
         version="0.2.0",
         lifespan=lifespan,
     )
+    _install_access_log_noise_filter()
     setup_cors(_app)
     setup_exception_handlers(_app)
     setup_middleware(_app)

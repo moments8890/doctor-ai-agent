@@ -166,7 +166,7 @@ export default function LoginPage() {
 
   return (
     <Box sx={{
-      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", px: 2,
+      height: "100%", display: "flex", alignItems: "center", justifyContent: "center", px: 2,
       bgcolor: COLOR.surface,
     }}>
       <Card sx={{ width: "100%", maxWidth: 400, borderRadius: RADIUS.md, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>

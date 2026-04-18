@@ -25,6 +25,7 @@ class DoctorProfileUpdate(BaseModel):
     specialty: Optional[str] = None
     clinic_name: Optional[str] = None
     bio: Optional[str] = None
+    finished_onboarding: Optional[bool] = None
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -55,6 +56,7 @@ async def get_doctor_profile(
         "clinic_name": clinic_name,
         "bio": bio,
         "onboarded": onboarded,
+        "finished_onboarding": bool(doctor.finished_onboarding),
     }
 
 
@@ -85,6 +87,10 @@ async def patch_doctor_profile(
     if body.bio is not None:
         doctor.bio = body.bio.strip() or None
 
+    # Write-once: only allow false→true, never true→false
+    if body.finished_onboarding is True:
+        doctor.finished_onboarding = True
+
     await db.commit()
 
-    return {"ok": True, "name": doctor.name or "", "specialty": doctor.specialty or "", "clinic_name": getattr(doctor, "clinic_name", "") or "", "bio": getattr(doctor, "bio", "") or ""}
+    return {"ok": True, "name": doctor.name or "", "specialty": doctor.specialty or "", "clinic_name": getattr(doctor, "clinic_name", "") or "", "bio": getattr(doctor, "bio", "") or "", "finished_onboarding": bool(doctor.finished_onboarding)}

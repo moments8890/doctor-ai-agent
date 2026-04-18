@@ -682,7 +682,7 @@ def cmd_start(args: argparse.Namespace) -> None:
                            env=env, check=True)
         if not do_reload:
             fe_env["VITE_NO_HMR"] = "1"
-        fe_host = host if is_prod else "127.0.0.1"
+        fe_host = host
         info(f"Starting frontend on :{FRONTEND_PORT}...")
         _spawn(
             [npm_bin, "run", "dev", "--", "--host", fe_host, "--port", str(FRONTEND_PORT)],

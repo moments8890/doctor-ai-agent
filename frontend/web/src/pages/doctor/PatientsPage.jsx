@@ -560,7 +560,7 @@ export default function PatientsPage({ doctorId, onPatientSelected, refreshKey =
 
   // Mobile subpage override: interview, chat, or patient detail
   const mobileSubpage = isMobile && interviewActive ? (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surface }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surface, overflow: "hidden" }}>
       <InterviewPage doctorId={doctorId}
         sessionId={chatInterviewSessionId}
         patientContext={interviewPatient}

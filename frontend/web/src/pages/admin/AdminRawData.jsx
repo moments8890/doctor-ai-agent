@@ -34,6 +34,7 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
 import QRDialog from "../../components/QRDialog";
+import AdminRelatedDialog from "./AdminRelatedDialog";
 import {
   getAdminFilterOptions,
   getAdminRuntimeConfig,
@@ -223,6 +224,11 @@ export default function AdminRawData({ forcedTable }) {
   const [adminQrName, setAdminQrName] = useState("");
   const [adminQrDoctorId, setAdminQrDoctorId] = useState("");
   const [adminQrLoading, setAdminQrLoading] = useState(false);
+
+  // Related data dialog (for doctors/patients tables)
+  const [relatedOpen, setRelatedOpen] = useState(false);
+  const [relatedType, setRelatedType] = useState(""); // "doctors" or "patients"
+  const [relatedId, setRelatedId] = useState(null);
 
   async function handleAdminQR(doctorId, doctorName) {
     setAdminQrDoctorId(doctorId);
@@ -1008,7 +1014,20 @@ export default function AdminRawData({ forcedTable }) {
                   <TableBody>
                     {sortedRows.map((row, rowIdx) => (
                       <TableRow key={`row-${row.id ?? row.key ?? rowIdx}`}
-                        onClick={() => { setSelectedRow(row); setRowEditMode(false); }}
+                        onClick={() => {
+                          if (activeTable === "doctors" && row.doctor_id) {
+                            setRelatedType("doctors");
+                            setRelatedId(row.doctor_id);
+                            setRelatedOpen(true);
+                          } else if (activeTable === "patients" && row.id) {
+                            setRelatedType("patients");
+                            setRelatedId(row.id);
+                            setRelatedOpen(true);
+                          } else {
+                            setSelectedRow(row);
+                            setRowEditMode(false);
+                          }
+                        }}
                         sx={{ cursor: "pointer", "&:hover": { backgroundColor: GH.hoverBg } }}>
                         {columns.map((key) => (
                           <TableCell key={`cell-${rowIdx}-${key}`}
@@ -1100,6 +1119,12 @@ export default function AdminRawData({ forcedTable }) {
           {snack.message}
         </Alert>
       </Snackbar>
+      <AdminRelatedDialog
+        type={relatedType}
+        id={relatedId}
+        open={relatedOpen}
+        onClose={() => setRelatedOpen(false)}
+      />
       <QRDialog open={adminQrOpen} onClose={() => setAdminQrOpen(false)}
         title={"\u533b\u751f\u4e8c\u7ef4\u7801"} name={adminQrName} url={adminQrUrl}
         loading={adminQrLoading} error={adminQrError}

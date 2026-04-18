@@ -6,13 +6,13 @@
  *   2. File upload — extract text from PDF/DOCX/TXT, preview & edit, then save
  */
 import { useEffect, useState, useRef } from "react";
-import { isInMiniapp, openAddRuleVoice } from "../../../utils/miniappBridge";
+import { isVoiceSupported } from "../../../utils/miniappBridge";
+import { useVoiceInput } from "../../../hooks/useVoiceInput";
 import { Alert, Box, CircularProgress, TextField, Typography } from "@mui/material";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import CameraAltOutlinedIcon from "@mui/icons-material/CameraAltOutlined";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
-import MicIcon from "@mui/icons-material/Mic";
 import PageSkeleton from "../../../components/PageSkeleton";
 import HelpTip from "../../../components/HelpTip";
 import { SpotlightHint } from "../OnboardingWizard";
@@ -74,6 +74,15 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
 
   // ── Source tab state ──
   const [sourceTab, setSourceTab] = useState(wizardSource || "text");
+
+  // ── Voice input (streams into the content textarea) ──
+  const { micButton: voiceMicButton, voiceActive } = useVoiceInput({
+    doctorId,
+    value: content,
+    setValue: setContent,
+    separator: "\n",
+    onBeforeStart: () => setSourceTab("text"),
+  });
 
   // ── Cancel confirmation state ──
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -382,27 +391,8 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
         </Box>
       </Box>
 
-      {/* Voice entry — only visible inside WeChat miniapp */}
-      {isInMiniapp() && (
-        <Box
-          onClick={() => {
-            openAddRuleVoice({
-              onStaleVersion: () => showToast("请更新小程序到最新版本"),
-            });
-          }}
-          sx={{
-            display: "flex", alignItems: "center", gap: 1,
-            px: 2, py: 1.5, mx: 2, mt: 1,
-            border: `1px solid ${COLOR.border}`,
-            borderRadius: RADIUS.md, cursor: "pointer",
-            bgcolor: COLOR.white,
-            "&:active": { opacity: 0.7 },
-          }}
-        >
-          <MicIcon sx={{ color: COLOR.primary }} />
-          <Typography sx={{ fontSize: TYPE.body.fontSize || TYPE.body, color: COLOR.text1 }}>语音添加规则</Typography>
-        </Box>
-      )}
+      {/* Voice input — only visible inside WeChat miniapp */}
+      {isVoiceSupported() && voiceMicButton}
 
       {/* URL input — shown when "网页导入" selected */}
       {sourceTab === "url" && (
@@ -427,8 +417,9 @@ export default function AddKnowledgeSubpage({ doctorId, onBack, isMobile }) {
         <SpotlightHint active={wizardSource === "text"} hint="已预填示例规则，直接点击底部「添加」保存">
         <Box sx={{ px: 2, mb: 2 }}>
           <TextField fullWidth multiline minRows={5} maxRows={10} size="small"
-            placeholder="用自然语言描述您的临床经验、诊断规则、问诊策略等"
-            value={content} onChange={(e) => setContent(e.target.value)}
+            disabled={voiceActive}
+            placeholder={voiceActive ? "正在识别…" : "用自然语言描述您的临床经验、诊断规则、问诊策略等"}
+            value={content} onChange={(e) => { if (!voiceActive) setContent(e.target.value); }}
             sx={{ "& .MuiOutlinedInput-root": { borderRadius: RADIUS.md } }} />
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 0.5 }}>
             <Typography sx={{ fontSize: TYPE.caption.fontSize, color: COLOR.text4, flex: 1 }}>

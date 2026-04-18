@@ -8,6 +8,7 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import { COLOR } from "../../theme";
+import { KEYBOARD_AWARE_CONTAINER } from "../../hooks/useKeyboardSafeArea";
 
 // ---------------------------------------------------------------------------
 // localStorage keys
@@ -64,8 +65,9 @@ export const NAV_TABS = [
 
 // Layout matches DoctorPage — MobileFrame in App.jsx handles the phone container
 export const PAGE_LAYOUT = {
-  display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt,
-  position: "relative", overflow: "hidden",
+  ...KEYBOARD_AWARE_CONTAINER,
+  bgcolor: COLOR.surfaceAlt,
+  position: "relative",
 };
 
 // ---------------------------------------------------------------------------

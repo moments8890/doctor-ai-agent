@@ -27,7 +27,8 @@ import {
   markWizardDone,
   clearWizardProgress,
 } from "./onboardingWizardState";
-import { seedDemo } from "../../api";
+import { seedDemo, updateDoctorProfile } from "../../api";
+import { markAllReleasesSeen } from "../../store/releaseStore";
 
 const TOTAL_STEPS = 3;
 
@@ -534,6 +535,9 @@ export default function OnboardingWizard() {
     updateProgress({ completedSteps, currentStep: next });
     if (next > TOTAL_STEPS) {
       markWizardDone(doctorId, "completed");
+      // Persist to backend + suppress all existing release notes
+      updateDoctorProfile(doctorId, { finished_onboarding: true }).catch(() => {});
+      markAllReleasesSeen(doctorId);
       navigate(dp());
       // Seed in background, refresh data when done
       seedDemo(doctorId).then(() => queryClient.invalidateQueries()).catch(() => {});
@@ -547,6 +551,8 @@ export default function OnboardingWizard() {
 
   function handleSkip() {
     markWizardDone(doctorId, "skipped");
+    updateDoctorProfile(doctorId, { finished_onboarding: true }).catch(() => {});
+    markAllReleasesSeen(doctorId);
     navigate(dp());
   }
 

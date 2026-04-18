@@ -23,6 +23,19 @@
   .topbar-search { padding: 5px 10px; border: 1px solid #2d6a3e; border-radius: 3px; background: rgba(255,255,255,0.1); color: #fff; font-size: 12px; width: 200px; }
   .topbar-search::placeholder { color: #8bc34a; }
 
+  /* ── Font size toggle ── */
+  .font-toggle { display: flex; align-items: center; gap: 2px; }
+  .font-btn {
+    background: none; border: 1px solid #2d6a3e; border-radius: 3px;
+    color: #8bc34a; cursor: pointer; padding: 3px 8px; font-weight: bold;
+    font-family: sans-serif; line-height: 1;
+  }
+  .font-btn:hover { background: rgba(255,255,255,0.1); }
+  .font-btn.active { background: #4caf50; color: #fff; border-color: #4caf50; }
+  .font-btn-s { font-size: 11px; }
+  .font-btn-m { font-size: 13px; }
+  .font-btn-l { font-size: 16px; }
+
   /* ── Layout ── */
   .wiki-layout { display: flex; height: calc(100vh - 53px); }
 
@@ -47,6 +60,33 @@
 
   /* ── Content iframe ── */
   .wiki-content { flex: 1; border: none; background: #fff; }
+
+  /* ── Mobile hamburger ── */
+  .menu-btn {
+    display: none; background: none; border: 1px solid #2d6a3e; border-radius: 3px;
+    color: #8bc34a; cursor: pointer; padding: 4px 8px; font-size: 18px; line-height: 1;
+  }
+  .menu-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99;
+  }
+  .menu-overlay.open { display: block; }
+
+  /* ── Mobile responsive ── */
+  @media (max-width: 768px) {
+    .menu-btn { display: block; }
+    .topbar-search { width: 120px; }
+    .wiki-sidebar {
+      position: fixed; left: -260px; top: 50px; bottom: 0; z-index: 100;
+      width: 250px; transition: left 0.5s ease;
+      box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+    }
+    .wiki-sidebar.open { left: 0; }
+    .wiki-layout { height: calc(100vh - 53px); }
+    .wiki-content { width: 100%; }
+    .font-btn-s { font-size: 10px; padding: 3px 6px; }
+    .font-btn-m { font-size: 12px; padding: 3px 6px; }
+    .font-btn-l { font-size: 14px; padding: 3px 6px; }
+  }
 </style>
 </head>
 <body>
@@ -59,13 +99,20 @@
       <small>您的专属 AI 助手</small>
     </div>
   </a>
+  <button class="menu-btn" id="menu-btn" onclick="toggleMenu()">&#9776;</button>
   <div class="topbar-right">
+    <div class="font-toggle" title="字体大小">
+      <button class="font-btn font-btn-s" data-size="small" onclick="setFontSize('small')">A</button>
+      <button class="font-btn font-btn-m" data-size="medium" onclick="setFontSize('medium')">A</button>
+      <button class="font-btn font-btn-l" data-size="large" onclick="setFontSize('large')">A</button>
+    </div>
     <input class="topbar-search" type="text" placeholder="搜索帮助..." id="search-input">
   </div>
 </div>
 
+<div class="menu-overlay" id="menu-overlay" onclick="toggleMenu()"></div>
 <div class="wiki-layout">
-  <aside class="wiki-sidebar">
+  <aside class="wiki-sidebar" id="wiki-sidebar">
     <div class="sidebar-section">
       <div class="sidebar-heading">导航</div>
       <a href="wiki-home.html" data-page>首页</a>
@@ -90,6 +137,7 @@
     <div class="sidebar-section">
       <div class="sidebar-heading">了解更多</div>
       <a href="wiki-ai.html" data-page>AI 如何工作</a>
+      <a href="wiki-kb-learning.html" data-page>AI 学习闭环</a>
       <a href="wiki-faq.html" data-page>常见问题</a>
       <a href="wiki-whats-new.html" data-page>更新计划</a>
     </div>
@@ -137,6 +185,55 @@
     const q = e.target.value.toLowerCase();
     document.querySelectorAll('.sidebar-section a[data-page]').forEach(a => {
       a.style.display = !q || a.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+
+  // Font size: small=14px, medium=16px, large=19px (base size on content pages)
+  const FONT_SIZES = { small: 14, medium: 16, large: 19 };
+  const SIDEBAR_SIZES = { small: 13, medium: 14, large: 16 };
+
+  function setFontSize(size) {
+    localStorage.setItem('wiki_font_size', size);
+    // Update button states
+    document.querySelectorAll('.font-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.size === size);
+    });
+    // Apply to sidebar
+    document.querySelector('.wiki-sidebar').style.fontSize = SIDEBAR_SIZES[size] + 'px';
+    // Apply to iframe content
+    applyFontToIframe(size);
+  }
+
+  function applyFontToIframe(size) {
+    const frame = document.getElementById('content-frame');
+    try {
+      const doc = frame.contentDocument || frame.contentWindow.document;
+      if (doc && doc.body) {
+        doc.documentElement.style.fontSize = FONT_SIZES[size] + 'px';
+      }
+    } catch (e) { /* cross-origin or not loaded yet */ }
+  }
+
+  // Re-apply font size when iframe loads a new page
+  document.getElementById('content-frame').addEventListener('load', () => {
+    const size = localStorage.getItem('wiki_font_size') || 'medium';
+    applyFontToIframe(size);
+  });
+
+  // Restore saved preference
+  setFontSize(localStorage.getItem('wiki_font_size') || 'medium');
+
+  // Mobile menu
+  function toggleMenu() {
+    document.getElementById('wiki-sidebar').classList.toggle('open');
+    document.getElementById('menu-overlay').classList.toggle('open');
+  }
+
+  // Close sidebar on mobile after navigation
+  document.querySelectorAll('.sidebar-section a[data-page]').forEach(a => {
+    a.addEventListener('click', () => {
+      document.getElementById('wiki-sidebar').classList.remove('open');
+      document.getElementById('menu-overlay').classList.remove('open');
     });
   });
 </script>

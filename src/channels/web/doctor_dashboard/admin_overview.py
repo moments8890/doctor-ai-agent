@@ -23,13 +23,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.engine import get_db
 from db.models import (
     AISuggestion,
+    AuditLog,
+    DoctorEdit,
+    DoctorPersona,
+    DoctorWechat,
+    InviteCode,
+    KnowledgeUsageLog,
+    PatientAuth,
+    PersonaPendingItem,
     SuggestionDecision,
+    UserPreferences,
     Doctor,
     DoctorChatLog,
     DoctorKnowledgeItem,
     DoctorTask,
     InterviewSessionDB,
     MedicalRecordDB,
+    MessageDraft,
     Patient,
     PatientMessage,
     TaskStatus,
@@ -1250,4 +1260,419 @@ async def admin_doctor_timeline(
         "doctor_id": doctor_id,
         "patient_id": patient_id,
         "items": mapped,
+    }
+
+
+# ---------------------------------------------------------------------------
+# GET /api/admin/doctors/{doctor_id}/related
+# ---------------------------------------------------------------------------
+
+@router.get("/api/admin/doctors/{doctor_id}/related")
+async def admin_doctor_related(
+    doctor_id: str, db: AsyncSession = Depends(get_db)
+) -> dict:
+    """All related data for a doctor across every table."""
+    LIMIT = 50
+
+    doctor = (
+        await db.execute(select(Doctor).where(Doctor.doctor_id == doctor_id))
+    ).scalars().first()
+    if not doctor:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
+    profile = {
+        "doctor_id": doctor.doctor_id, "name": doctor.name,
+        "specialty": doctor.specialty, "department": doctor.department,
+        "phone": doctor.phone, "clinic_name": doctor.clinic_name,
+        "bio": doctor.bio, "finished_onboarding": doctor.finished_onboarding,
+        "created_at": _fmt_ts(doctor.created_at),
+        "updated_at": _fmt_ts(doctor.updated_at),
+    }
+
+    # Patients
+    patients = (await db.execute(
+        select(Patient).where(Patient.doctor_id == doctor_id)
+        .order_by(Patient.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    patients_data = [
+        {"id": p.id, "name": p.name, "gender": p.gender,
+         "year_of_birth": p.year_of_birth, "phone": p.phone or "",
+         "created_at": _fmt_ts(p.created_at),
+         "last_activity_at": _fmt_ts(p.last_activity_at)}
+        for p in patients
+    ]
+
+    # Medical records
+    records = (await db.execute(
+        select(MedicalRecordDB, Patient.name.label("patient_name"))
+        .outerjoin(Patient, MedicalRecordDB.patient_id == Patient.id)
+        .where(MedicalRecordDB.doctor_id == doctor_id)
+        .order_by(MedicalRecordDB.created_at.desc()).limit(LIMIT)
+    )).all()
+    records_data = [
+        {"id": r.id, "patient_id": r.patient_id, "patient_name": pn,
+         "record_type": r.record_type, "content": (r.content or "")[:200],
+         "status": r.status, "created_at": _fmt_ts(r.created_at)}
+        for r, pn in records
+    ]
+
+    # Tasks
+    tasks = (await db.execute(
+        select(DoctorTask, Patient.name.label("patient_name"))
+        .outerjoin(Patient, DoctorTask.patient_id == Patient.id)
+        .where(DoctorTask.doctor_id == doctor_id)
+        .order_by(DoctorTask.created_at.desc()).limit(LIMIT)
+    )).all()
+    tasks_data = [
+        {"id": t.id, "patient_id": t.patient_id, "patient_name": pn,
+         "task_type": t.task_type, "title": t.title, "status": t.status,
+         "due_at": _fmt_ts(t.due_at), "created_at": _fmt_ts(t.created_at)}
+        for t, pn in tasks
+    ]
+
+    # Knowledge items
+    kb = (await db.execute(
+        select(DoctorKnowledgeItem).where(DoctorKnowledgeItem.doctor_id == doctor_id)
+        .order_by(DoctorKnowledgeItem.updated_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    kb_data = [
+        {"id": k.id, "title": k.title, "category": k.category,
+         "content": (k.content or "")[:200], "reference_count": k.reference_count,
+         "created_at": _fmt_ts(k.created_at)}
+        for k in kb
+    ]
+
+    # Chat log
+    chats = (await db.execute(
+        select(DoctorChatLog).where(DoctorChatLog.doctor_id == doctor_id)
+        .order_by(DoctorChatLog.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    chats_data = [
+        {"id": c.id, "session_id": c.session_id, "role": c.role,
+         "content": (c.content or "")[:200], "created_at": _fmt_ts(c.created_at)}
+        for c in chats
+    ]
+
+    # Interview sessions
+    interviews = (await db.execute(
+        select(InterviewSessionDB).where(InterviewSessionDB.doctor_id == doctor_id)
+        .order_by(InterviewSessionDB.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    interviews_data = [
+        {"id": s.id[:8], "patient_id": s.patient_id, "status": s.status,
+         "turn_count": s.turn_count, "created_at": _fmt_ts(s.created_at)}
+        for s in interviews
+    ]
+
+    # AI suggestions (across all records for this doctor)
+    suggestions = (await db.execute(
+        select(AISuggestion).where(AISuggestion.doctor_id == doctor_id)
+        .order_by(AISuggestion.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    suggestions_data = [
+        {"id": s.id, "record_id": s.record_id, "section": s.section,
+         "content": (s.content or "")[:200], "decision": s.decision,
+         "created_at": _fmt_ts(s.created_at)}
+        for s in suggestions
+    ]
+
+    # Message drafts
+    drafts = (await db.execute(
+        select(MessageDraft).where(MessageDraft.doctor_id == doctor_id)
+        .order_by(MessageDraft.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    drafts_data = [
+        {"id": d.id, "patient_id": d.patient_id, "status": d.status,
+         "draft_text": (d.draft_text or "")[:200],
+         "created_at": _fmt_ts(d.created_at)}
+        for d in drafts
+    ]
+
+    # Patient messages (all for this doctor)
+    messages = (await db.execute(
+        select(PatientMessage, Patient.name.label("patient_name"))
+        .outerjoin(Patient, PatientMessage.patient_id == Patient.id)
+        .where(PatientMessage.doctor_id == doctor_id)
+        .order_by(PatientMessage.created_at.desc()).limit(LIMIT)
+    )).all()
+    messages_data = [
+        {"id": m.id, "patient_id": m.patient_id, "patient_name": pn,
+         "direction": m.direction, "content": (m.content or "")[:200],
+         "source": m.source, "created_at": _fmt_ts(m.created_at)}
+        for m, pn in messages
+    ]
+
+    # Persona
+    persona = (await db.execute(
+        select(DoctorPersona).where(DoctorPersona.doctor_id == doctor_id)
+    )).scalars().first()
+    persona_data = None
+    if persona:
+        import json
+        persona_data = {
+            "doctor_id": persona.doctor_id, "status": persona.status,
+            "onboarded": persona.onboarded, "edit_count": persona.edit_count,
+            "version": persona.version,
+            "summary_text": (persona.summary_text or "")[:300],
+            "fields": persona.fields,
+            "created_at": _fmt_ts(persona.created_at),
+            "updated_at": _fmt_ts(persona.updated_at),
+        }
+
+    # User preferences
+    prefs = (await db.execute(
+        select(UserPreferences).where(UserPreferences.user_id == doctor_id)
+    )).scalars().first()
+    prefs_data = None
+    if prefs:
+        import json as _json
+        try:
+            prefs_data = {
+                "user_id": prefs.user_id,
+                "preferences": _json.loads(prefs.preferences_json) if prefs.preferences_json else {},
+                "updated_at": _fmt_ts(prefs.updated_at),
+            }
+        except Exception:
+            prefs_data = {"user_id": prefs.user_id, "preferences": prefs.preferences_json, "updated_at": _fmt_ts(prefs.updated_at)}
+
+    # Doctor edits
+    edits = (await db.execute(
+        select(DoctorEdit).where(DoctorEdit.doctor_id == doctor_id)
+        .order_by(DoctorEdit.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    edits_data = [
+        {"id": e.id, "entity_type": e.entity_type, "entity_id": e.entity_id,
+         "field_name": e.field_name,
+         "original_text": (e.original_text or "")[:100],
+         "edited_text": (e.edited_text or "")[:100],
+         "rule_created": e.rule_created,
+         "created_at": _fmt_ts(e.created_at)}
+        for e in edits
+    ]
+
+    # Knowledge usage log
+    kb_usage = (await db.execute(
+        select(KnowledgeUsageLog).where(KnowledgeUsageLog.doctor_id == doctor_id)
+        .order_by(KnowledgeUsageLog.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    kb_usage_data = [
+        {"id": u.id, "knowledge_item_id": u.knowledge_item_id,
+         "usage_context": u.usage_context, "patient_id": u.patient_id,
+         "record_id": u.record_id, "created_at": _fmt_ts(u.created_at)}
+        for u in kb_usage
+    ]
+
+    # WeChat binding
+    wechat = (await db.execute(
+        select(DoctorWechat).where(DoctorWechat.doctor_id == doctor_id)
+    )).scalars().first()
+    wechat_data = None
+    if wechat:
+        wechat_data = {
+            "doctor_id": wechat.doctor_id,
+            "wechat_user_id": wechat.wechat_user_id,
+            "mini_openid": wechat.mini_openid,
+            "created_at": _fmt_ts(wechat.created_at),
+        }
+
+    # Invite codes
+    invites = (await db.execute(
+        select(InviteCode).where(InviteCode.doctor_id == doctor_id)
+    )).scalars().all()
+    invites_data = [
+        {"code": ic.code, "active": ic.active, "used_count": ic.used_count,
+         "created_at": _fmt_ts(ic.created_at)}
+        for ic in invites
+    ]
+
+    # Audit log
+    audits = (await db.execute(
+        select(AuditLog).where(AuditLog.doctor_id == doctor_id)
+        .order_by(AuditLog.ts.desc()).limit(LIMIT)
+    )).scalars().all()
+    audits_data = [
+        {"id": a.id, "action": a.action, "resource_type": a.resource_type,
+         "resource_id": a.resource_id, "ok": a.ok, "ip": a.ip,
+         "ts": _fmt_ts(a.ts)}
+        for a in audits
+    ]
+
+    # Persona pending items
+    pending_persona = (await db.execute(
+        select(PersonaPendingItem).where(PersonaPendingItem.doctor_id == doctor_id)
+        .order_by(PersonaPendingItem.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    pending_persona_data = [
+        {"id": pp.id, "field": pp.field, "proposed_rule": (pp.proposed_rule or "")[:200],
+         "summary": (pp.summary or "")[:200], "confidence": pp.confidence,
+         "status": pp.status, "created_at": _fmt_ts(pp.created_at)}
+        for pp in pending_persona
+    ]
+
+    return {
+        "profile": profile,
+        "patients": {"count": len(patients_data), "items": patients_data},
+        "records": {"count": len(records_data), "items": records_data},
+        "tasks": {"count": len(tasks_data), "items": tasks_data},
+        "knowledge": {"count": len(kb_data), "items": kb_data},
+        "chats": {"count": len(chats_data), "items": chats_data},
+        "interviews": {"count": len(interviews_data), "items": interviews_data},
+        "suggestions": {"count": len(suggestions_data), "items": suggestions_data},
+        "drafts": {"count": len(drafts_data), "items": drafts_data},
+        "messages": {"count": len(messages_data), "items": messages_data},
+        "persona": {"count": 1 if persona_data else 0, "item": persona_data},
+        "preferences": {"count": 1 if prefs_data else 0, "item": prefs_data},
+        "edits": {"count": len(edits_data), "items": edits_data},
+        "kb_usage": {"count": len(kb_usage_data), "items": kb_usage_data},
+        "wechat": {"count": 1 if wechat_data else 0, "item": wechat_data},
+        "invite_codes": {"count": len(invites_data), "items": invites_data},
+        "audit_log": {"count": len(audits_data), "items": audits_data},
+        "pending_persona": {"count": len(pending_persona_data), "items": pending_persona_data},
+    }
+
+
+# ---------------------------------------------------------------------------
+# GET /api/admin/patients/{patient_id}/related
+# ---------------------------------------------------------------------------
+
+@router.get("/api/admin/patients/{patient_id}/related")
+async def admin_patient_related(
+    patient_id: int, db: AsyncSession = Depends(get_db)
+) -> dict:
+    """All related data for a patient across every table."""
+    LIMIT = 50
+
+    patient = (
+        await db.execute(select(Patient).where(Patient.id == patient_id))
+    ).scalars().first()
+    if not patient:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    profile = {
+        "id": patient.id, "doctor_id": patient.doctor_id,
+        "name": patient.name, "gender": patient.gender,
+        "year_of_birth": patient.year_of_birth, "phone": patient.phone or "",
+        "created_at": _fmt_ts(patient.created_at),
+        "last_activity_at": _fmt_ts(patient.last_activity_at),
+    }
+
+    # Doctor name
+    doctor = (await db.execute(
+        select(Doctor.name).where(Doctor.doctor_id == patient.doctor_id)
+    )).scalar()
+    profile["doctor_name"] = doctor or patient.doctor_id
+
+    # Medical records
+    records = (await db.execute(
+        select(MedicalRecordDB).where(MedicalRecordDB.patient_id == patient_id)
+        .order_by(MedicalRecordDB.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    records_data = [
+        {"id": r.id, "record_type": r.record_type,
+         "content": (r.content or "")[:200], "status": r.status,
+         "diagnosis": (r.diagnosis or "")[:200],
+         "created_at": _fmt_ts(r.created_at)}
+        for r in records
+    ]
+
+    # Messages
+    messages = (await db.execute(
+        select(PatientMessage).where(PatientMessage.patient_id == patient_id)
+        .order_by(PatientMessage.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    messages_data = [
+        {"id": m.id, "direction": m.direction, "source": m.source,
+         "content": (m.content or "")[:200],
+         "created_at": _fmt_ts(m.created_at)}
+        for m in messages
+    ]
+
+    # Tasks
+    tasks = (await db.execute(
+        select(DoctorTask).where(DoctorTask.patient_id == patient_id)
+        .order_by(DoctorTask.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    tasks_data = [
+        {"id": t.id, "task_type": t.task_type, "title": t.title,
+         "status": t.status, "due_at": _fmt_ts(t.due_at),
+         "created_at": _fmt_ts(t.created_at)}
+        for t in tasks
+    ]
+
+    # AI suggestions (via records)
+    record_ids = [r.id for r in records]
+    suggestions_data = []
+    if record_ids:
+        suggestions = (await db.execute(
+            select(AISuggestion).where(AISuggestion.record_id.in_(record_ids))
+            .order_by(AISuggestion.created_at.desc()).limit(LIMIT)
+        )).scalars().all()
+        suggestions_data = [
+            {"id": s.id, "record_id": s.record_id, "section": s.section,
+             "content": (s.content or "")[:200], "decision": s.decision,
+             "created_at": _fmt_ts(s.created_at)}
+            for s in suggestions
+        ]
+
+    # Interview sessions
+    interviews = (await db.execute(
+        select(InterviewSessionDB).where(InterviewSessionDB.patient_id == patient_id)
+        .order_by(InterviewSessionDB.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    interviews_data = [
+        {"id": s.id[:8], "doctor_id": s.doctor_id, "status": s.status,
+         "turn_count": s.turn_count, "created_at": _fmt_ts(s.created_at)}
+        for s in interviews
+    ]
+
+    # Message drafts
+    drafts = (await db.execute(
+        select(MessageDraft).where(
+            MessageDraft.patient_id == str(patient_id)
+        ).order_by(MessageDraft.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    drafts_data = [
+        {"id": d.id, "status": d.status,
+         "draft_text": (d.draft_text or "")[:200],
+         "created_at": _fmt_ts(d.created_at)}
+        for d in drafts
+    ]
+
+    # Patient auth
+    auth = (await db.execute(
+        select(PatientAuth).where(PatientAuth.patient_id == patient_id)
+    )).scalars().first()
+    auth_data = None
+    if auth:
+        auth_data = {
+            "patient_id": auth.patient_id,
+            "access_code": auth.access_code[:6] + "***",
+            "access_code_version": auth.access_code_version,
+            "created_at": _fmt_ts(auth.created_at),
+        }
+
+    # Knowledge usage (for this patient)
+    kb_usage = (await db.execute(
+        select(KnowledgeUsageLog).where(KnowledgeUsageLog.patient_id == str(patient_id))
+        .order_by(KnowledgeUsageLog.created_at.desc()).limit(LIMIT)
+    )).scalars().all()
+    kb_usage_data = [
+        {"id": u.id, "knowledge_item_id": u.knowledge_item_id,
+         "usage_context": u.usage_context, "record_id": u.record_id,
+         "created_at": _fmt_ts(u.created_at)}
+        for u in kb_usage
+    ]
+
+    return {
+        "profile": profile,
+        "records": {"count": len(records_data), "items": records_data},
+        "messages": {"count": len(messages_data), "items": messages_data},
+        "tasks": {"count": len(tasks_data), "items": tasks_data},
+        "suggestions": {"count": len(suggestions_data), "items": suggestions_data},
+        "interviews": {"count": len(interviews_data), "items": interviews_data},
+        "drafts": {"count": len(drafts_data), "items": drafts_data},
+        "auth": {"count": 1 if auth_data else 0, "item": auth_data},
+        "kb_usage": {"count": len(kb_usage_data), "items": kb_usage_data},
     }

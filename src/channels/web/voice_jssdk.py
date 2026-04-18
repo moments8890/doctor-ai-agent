@@ -1,162 +1,124 @@
 """
-WeChat voice recording support for miniprogram web-view.
+Voice command-bus + legacy result relay for miniprogram ↔ web-view.
+
+The miniprogram performs ASR on-device via the WechatSI plugin. The backend
+just shuttles commands and transcripts between the web-view and the native
+miniprogram page (both poll this endpoint).
 
 Endpoints:
-  POST /api/wechat/jssdk-config   — returns wx.config parameters (signature)
-  POST /api/voice/wx-transcribe   — downloads AMR from WeChat by serverId, runs ASR
-  POST /api/voice/result          — store voice transcription result (native page → web-view)
-  GET  /api/voice/result          — retrieve and clear pending voice result
+  POST /api/voice/session   — web-view or miniapp posts {action, text?, error?}
+  GET  /api/voice/session   — either side polls to read current session state
+  POST /api/voice/result    — legacy standalone voice page posts final text
+  GET  /api/voice/result    — legacy retrieve-and-clear for web-view
 """
-
 from __future__ import annotations
 
-import hashlib
-import os
 import time
-from typing import Optional
+import uuid
+from typing import Literal, Optional
 
-import httpx
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
-
-from utils.log import log
 
 router = APIRouter(tags=["voice"])
 
-# ── JSSDK ticket cache ───────────────────────────────────────────────────────
 
-_ticket_cache: dict = {"ticket": "", "expires_at": 0.0}
+# ── Command-bus session store ───────────────────────────────────────────────
+# doctor_id → {session_id, status, action, text, error, created_at, updated_at}
 
-
-def _oa_app_id() -> str:
-    """Official Account AppId (NOT miniprogram AppId)."""
-    return (os.environ.get("WECHAT_OA_APP_ID") or os.environ.get("WECHAT_APP_ID") or "").strip()
+_SESSION_TTL = 60.0  # seconds before a stale session is reaped
+_voice_sessions: dict[str, dict] = {}
 
 
-def _oa_app_secret() -> str:
-    return (os.environ.get("WECHAT_OA_APP_SECRET") or os.environ.get("WECHAT_APP_SECRET") or "").strip()
-
-
-async def _get_oa_access_token() -> str:
-    """Get Official Account access token (separate from miniprogram token)."""
-    app_id = _oa_app_id()
-    app_secret = _oa_app_secret()
-    if not app_id or not app_secret:
-        raise HTTPException(503, "WECHAT_OA_APP_ID/SECRET not configured")
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(
-            "https://api.weixin.qq.com/cgi-bin/token",
-            params={"grant_type": "client_credential", "appid": app_id, "secret": app_secret},
-        )
-    data = resp.json()
-    if "access_token" not in data:
-        log(f"[JSSDK] OA token error: {data}", level="error")
-        raise HTTPException(503, "Failed to get OA access token")
-    return data["access_token"]
-
-
-async def _get_jsapi_ticket() -> str:
+def _clean_expired_sessions() -> None:
     now = time.time()
-    if _ticket_cache["ticket"] and now < _ticket_cache["expires_at"]:
-        return _ticket_cache["ticket"]
-
-    token = await _get_oa_access_token()
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(
-            "https://api.weixin.qq.com/cgi-bin/ticket/getticket",
-            params={"access_token": token, "type": "jsapi"},
-        )
-    data = resp.json()
-    if data.get("errcode", 0) != 0:
-        log(f"[JSSDK] ticket error: {data}", level="error")
-        raise HTTPException(503, "Failed to get jsapi_ticket")
-
-    _ticket_cache["ticket"] = data["ticket"]
-    _ticket_cache["expires_at"] = now + max(1, int(data.get("expires_in", 7200)) - 60)
-    return data["ticket"]
+    stale = [did for did, s in _voice_sessions.items() if now - s.get("created_at", 0) > _SESSION_TTL]
+    for did in stale:
+        _voice_sessions.pop(did, None)
 
 
-def _make_signature(ticket: str, nonce: str, timestamp: int, url: str) -> str:
-    raw = f"jsapi_ticket={ticket}&noncestr={nonce}&timestamp={timestamp}&url={url}"
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+class VoiceSessionCommand(BaseModel):
+    doctor_id: str
+    action: Literal["start", "stop", "recording", "interim", "result", "error", "clear"]
+    text: Optional[str] = None
+    error: Optional[str] = None
 
 
-# ── Endpoints ────────────────────────────────────────────────────────────────
+@router.post("/api/voice/session")
+async def post_voice_session(body: VoiceSessionCommand) -> dict:
+    """Update session state. Called by web-view (start/stop/clear) or miniapp
+    (recording/result/error)."""
+    _clean_expired_sessions()
+    now = time.time()
+    did = body.doctor_id
+    existing = _voice_sessions.get(did)
+
+    if body.action == "start":
+        session = {
+            "session_id": uuid.uuid4().hex,
+            "status": "pending_start",
+            "action": "start",
+            "text": None,
+            "error": None,
+            "created_at": now,
+            "updated_at": now,
+        }
+        _voice_sessions[did] = session
+        return {"status": "pending_start", "session_id": session["session_id"]}
+
+    if not existing:
+        # No session yet — only "start" creates one. Silently ignore others.
+        return {"status": "idle"}
+
+    if body.action == "stop":
+        existing["status"] = "pending_stop"
+        existing["action"] = "stop"
+    elif body.action == "recording":
+        existing["status"] = "recording"
+        existing["action"] = None  # cleared so miniapp doesn't re-trigger start
+    elif body.action == "interim":
+        # Streaming interim transcript while recording is in flight. Only
+        # accept while we're actually in a recording state — after stop,
+        # interims get discarded so the final "result" text wins cleanly.
+        if existing["status"] == "recording":
+            existing["text"] = body.text or ""
+    elif body.action == "result":
+        existing["status"] = "done"
+        existing["action"] = None
+        existing["text"] = body.text or ""
+    elif body.action == "error":
+        existing["status"] = "error"
+        existing["action"] = None
+        existing["error"] = body.error or "unknown"
+    elif body.action == "clear":
+        _voice_sessions.pop(did, None)
+        return {"status": "idle"}
+
+    existing["updated_at"] = now
+    return {"status": existing["status"]}
 
 
-class JssdkConfigRequest(BaseModel):
-    url: str
-
-
-@router.post("/api/wechat/jssdk-config")
-async def jssdk_config(body: JssdkConfigRequest):
-    """Return wx.config parameters for JSSDK voice recording."""
-    ticket = await _get_jsapi_ticket()
-    nonce = os.urandom(8).hex()
-    timestamp = int(time.time())
-    # Strip hash — iOS uses landing URL, Android uses current URL
-    url = body.url.split("#")[0]
-    signature = _make_signature(ticket, nonce, timestamp, url)
-
+@router.get("/api/voice/session")
+async def get_voice_session(doctor_id: str) -> dict:
+    """Read current session state. Both the web-view (waiting for transcript)
+    and the miniapp (waiting for a start/stop command) poll this."""
+    _clean_expired_sessions()
+    session = _voice_sessions.get(doctor_id)
+    if not session:
+        return {"status": "idle", "action": None, "text": None, "error": None}
     return {
-        "appId": _oa_app_id(),
-        "timestamp": timestamp,
-        "nonceStr": nonce,
-        "signature": signature,
+        "status": session["status"],
+        "action": session.get("action"),
+        "text": session.get("text"),
+        "error": session.get("error"),
     }
 
 
-class WxTranscribeRequest(BaseModel):
-    serverId: str
+# ── Legacy one-shot result relay (standalone voice page) ─────────────────────
+# voice/voice.js POSTs here when done; the web-view polls for the text.
+# Separate from /api/voice/session (which is the bidirectional command-bus).
 
-
-@router.post("/api/voice/wx-transcribe")
-async def wx_transcribe(
-    body: WxTranscribeRequest,
-    authorization: Optional[str] = Header(default=None),
-):
-    """Download AMR voice from WeChat by serverId, transcribe via ASR."""
-    from services.asr.provider import ASRProvider, get_asr_provider, transcribe_audio_bytes
-
-    provider = get_asr_provider()
-    if provider == ASRProvider.browser:
-        raise HTTPException(400, "Server-side ASR not configured (set ASR_PROVIDER)")
-
-    # Download the voice file from WeChat temp media
-    token = await _get_oa_access_token()
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(
-            "https://api.weixin.qq.com/cgi-bin/media/get",
-            params={"access_token": token, "media_id": body.serverId},
-        )
-    if resp.status_code != 200:
-        raise HTTPException(502, f"WeChat media download failed: HTTP {resp.status_code}")
-    content_type = resp.headers.get("content-type", "")
-    if "application/json" in content_type or "text/" in content_type:
-        log(f"[wx-transcribe] WeChat error response: {resp.text[:200]}", level="error")
-        raise HTTPException(502, "WeChat media download returned error")
-
-    audio_bytes = resp.content
-    log(f"[wx-transcribe] downloaded {len(audio_bytes)} bytes, type={content_type}")
-
-    # AMR is the default format from wx.uploadVoice
-    audio_format = "amr"
-    if "silk" in content_type or "speex" in content_type:
-        audio_format = "silk"
-
-    try:
-        text = await transcribe_audio_bytes(audio_bytes, format=audio_format)
-    except Exception as e:
-        log(f"[wx-transcribe] ASR failed: {e}", level="error")
-        raise HTTPException(500, f"语音识别失败: {e}")
-
-    return {"text": text}
-
-
-# ── Voice result relay (native miniprogram page → web-view) ──────────────────
-
-# In-memory store: doctor_id → {text, ts}. Entries expire after 30s.
-_voice_results: dict = {}
+_voice_results: dict[str, dict] = {}
 
 
 class VoiceResultStore(BaseModel):
@@ -165,18 +127,14 @@ class VoiceResultStore(BaseModel):
 
 
 @router.post("/api/voice/result")
-async def store_voice_result(body: VoiceResultStore):
-    """Store transcription result from native miniprogram voice page."""
-    import time as _time
-    _voice_results[body.doctor_id] = {"text": body.text, "ts": _time.time()}
+async def store_voice_result(body: VoiceResultStore) -> dict:
+    _voice_results[body.doctor_id] = {"text": body.text, "ts": time.time()}
     return {"ok": True}
 
 
 @router.get("/api/voice/result")
-async def get_voice_result(doctor_id: str):
-    """Retrieve and clear pending voice result for the web-view."""
-    import time as _time
+async def get_voice_result(doctor_id: str) -> dict:
     entry = _voice_results.pop(doctor_id, None)
-    if not entry or _time.time() - entry["ts"] > 30:
+    if not entry or time.time() - entry["ts"] > 30:
         return {"text": None}
     return {"text": entry["text"]}

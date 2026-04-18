@@ -6,6 +6,19 @@
     "pages/voice-test/voice-test",
     "pages/add-rule/add-rule"
   ],
+  "plugins": {
+    "WechatSI": {
+      "version": "0.3.5",
+      "provider": "wx069ba97219f66d99"
+    }
+  },
+  "permission": {
+    "scope.record": {
+      "desc": "用于语音录入规则、语音识别"
+    }
+  },
+  "requiredPrivateInfos": [],
+  "requiredBackgroundModes": [],
   "window": {
     "navigationStyle": "custom",
     "navigationBarBackgroundColor": "#ffffff",

@@ -1,6 +1,6 @@
 const runtimeConfig = require("../../config.js");
 
-const recorderManager = wx.getRecorderManager();
+const plugin = requirePlugin("WechatSI");
 
 Page({
   data: {
@@ -14,17 +14,17 @@ Page({
   _startY: 0,
   _seconds: 0,
   _timer: null,
-  _tempFilePath: null,
+  _manager: null,
 
   onLoad() {
-    // RecorderManager events
-    recorderManager.onStart(() => {
-      console.log("[Voice] recording started");
-    });
+    const manager = plugin.getRecordRecognitionManager();
+    this._manager = manager;
 
-    recorderManager.onStop((res) => {
-      console.log("[Voice] recording stopped, tempFilePath:", res.tempFilePath);
-      this._tempFilePath = res.tempFilePath;
+    manager.onStart = () => {};
+    manager.onRecognize = () => {};
+
+    manager.onStop = (res) => {
+      this._stopTimer();
 
       if (this.data.cancelled) {
         this.setData({ recording: false, cancelled: false });
@@ -32,20 +32,25 @@ Page({
         return;
       }
 
-      // Upload and transcribe
-      this.setData({ recording: false, processing: true });
-      this._uploadAndTranscribe(res.tempFilePath);
-    });
+      const text = (res && res.result) || "";
+      if (!text) {
+        this.setData({ recording: false, processing: false, error: "未识别到语音内容" });
+        return;
+      }
 
-    recorderManager.onError((err) => {
-      console.error("[Voice] recorder error:", err);
+      this.setData({ recording: false, processing: true });
+      this._postResult(text);
+    };
+
+    manager.onError = (err) => {
+      console.error("[Voice] recorder", err);
       this._stopTimer();
       this.setData({
         recording: false,
         processing: false,
-        error: "录音失败: " + (err.errMsg || "未知错误"),
+        error: "录音失败: " + ((err && err.msg) || "未知错误"),
       });
-    });
+    };
   },
 
   onTouchStart(e) {
@@ -54,12 +59,7 @@ Page({
     this._seconds = 0;
     this.setData({ recording: true, cancelled: false, error: "", timerText: "00:00" });
 
-    recorderManager.start({
-      format: "mp3",
-      sampleRate: 16000,
-      numberOfChannels: 1,
-      encodeBitRate: 96000,
-    });
+    this._manager.start({ duration: 58000, lang: "zh_CN" });
 
     this._startTimer();
   },
@@ -69,7 +69,7 @@ Page({
     this._stopTimer();
 
     if (this._seconds < 1) {
-      recorderManager.stop();
+      this._manager.stop();
       this.setData({ recording: false, error: "说话时间太短" });
       setTimeout(() => {
         if (this.data.error === "说话时间太短") this.setData({ error: "" });
@@ -77,7 +77,7 @@ Page({
       return;
     }
 
-    recorderManager.stop();
+    this._manager.stop();
   },
 
   onTouchMove(e) {
@@ -106,39 +106,16 @@ Page({
     }
   },
 
-  _uploadAndTranscribe(filePath) {
+  _postResult(text) {
     const apiBase = runtimeConfig.apiBase;
     const doctorId = getApp().globalData.doctorId || "";
 
-    wx.uploadFile({
-      url: apiBase + "/api/transcribe",
-      filePath: filePath,
-      name: "file",
-      success: (res) => {
-        console.log("[Voice] upload response:", res.data);
-        try {
-          const data = JSON.parse(res.data);
-          if (data.text) {
-            // Store result on server so the web-view can pick it up
-            wx.request({
-              url: apiBase + "/api/voice/result",
-              method: "POST",
-              header: { "Content-Type": "application/json" },
-              data: { doctor_id: doctorId, text: data.text },
-              complete: () => wx.navigateBack(),
-            });
-          } else {
-            this.setData({ processing: false, error: "未识别到语音内容" });
-          }
-        } catch (e) {
-          console.error("[Voice] parse error:", e);
-          this.setData({ processing: false, error: "语音识别失败" });
-        }
-      },
-      fail: (err) => {
-        console.error("[Voice] upload failed:", err);
-        this.setData({ processing: false, error: "上传失败: " + (err.errMsg || "") });
-      },
+    wx.request({
+      url: apiBase + "/api/voice/result",
+      method: "POST",
+      header: { "Content-Type": "application/json" },
+      data: { doctor_id: doctorId, text: text },
+      complete: () => wx.navigateBack(),
     });
   },
 });

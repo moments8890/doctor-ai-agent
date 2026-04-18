@@ -10,11 +10,14 @@ import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
+import { KEYBOARD_AWARE_CONTAINER } from "../../hooks/useKeyboardSafeArea";
 import SubpageHeader from "../../components/SubpageHeader";
 import HelpTip from "../../components/HelpTip";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SuggestionChips from "../../components/SuggestionChips";
 import { MiniVoiceMicHint } from "../../components/VoiceInput";
+import { useVoiceInput } from "../../hooks/useVoiceInput";
+import { isInMiniapp } from "../../utils/miniappBridge";
 import ActionPanel from "../../components/ActionPanel";
 import ImportChoiceDialog from "../../components/ImportChoiceDialog";
 import FieldReviewCard from "../../components/doctor/FieldReviewCard";
@@ -60,6 +63,9 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
   const cameraInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const [voiceHint, setVoiceHint] = useState(false);
+  const { micButton: voiceMicButton, voiceActive } = useVoiceInput({
+    doctorId, value: input, setValue: setInput, compact: true,
+  });
   const [session, setSession] = useState({
     sessionId: resumeSessionId || null,
     progress: { filled: 0, total: 7 },
@@ -330,7 +336,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <Box sx={KEYBOARD_AWARE_CONTAINER}>
       <SubpageHeader title="新建病历" right={<HelpTip message={PAGE_HELP.interview} />} onBack={() => {
           const hasWork = session.sessionId || messages.length > 1 || input.trim();
           hasWork ? setShowCancelConfirm(true) : handleCancel();
@@ -440,6 +446,7 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
           pb: "calc(8px + var(--safe-bottom, 0px))",
           display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
           <MiniVoiceMicHint inputRef={inputRef} showHint={voiceHint} onHint={() => { setVoiceHint(true); setTimeout(() => setVoiceHint(false), 5000); }} />
+          {isInMiniapp() && voiceMicButton}
           <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1, py: 0.5,
             display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5, minHeight: 36 }}>
             {selectedSuggestions.map((s, i) => (
@@ -457,10 +464,10 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
               </Box>
             ))}
             <Box component="input" ref={inputRef} value={input}
-              onChange={e => setInput(e.target.value)}
+              onChange={e => { if (!voiceActive) setInput(e.target.value); }}
               onKeyDown={handleKeyDown}
-              disabled={loading}
-              placeholder={selectedSuggestions.length > 0 ? "" : "输入患者信息..."}
+              disabled={loading || voiceActive}
+              placeholder={selectedSuggestions.length > 0 ? "" : (voiceActive ? "正在识别…" : "输入患者信息...")}
               sx={{ flex: 1, minWidth: 60, border: "none", outline: "none", fontSize: TYPE.body.fontSize,
                 fontFamily: "inherit", bgcolor: "transparent", p: 0.5 }}
             />

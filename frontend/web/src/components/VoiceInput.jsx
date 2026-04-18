@@ -1,21 +1,24 @@
 /**
- * VoiceInput — keyboard-dictation mode only.
+ * VoiceInput — keyboard-dictation mode only (fallback when not in miniapp).
  *
- * All platforms use the same behavior: a mic icon in the input bar that
- * focuses the text input and shows a hint to use the OS keyboard's
- * built-in dictation. No custom ASR, WebSocket, or native recording.
+ * When inside miniapp, VoiceMicButton handles voice — this component shows
+ * the keyboard mic hint only when NOT in miniapp.
  */
 import { Box } from "@mui/material";
 import MicIcon from "@mui/icons-material/Mic";
 import { TYPE, COLOR, RADIUS } from "../theme";
+import { isInMiniapp } from "../utils/miniappBridge";
 
-/** Always false — custom voice recording is disabled; use keyboard dictation. */
+/** True when inline voice recording is available (miniapp bridge). */
 export function isVoiceSupported() {
-  return false;
+  return isInMiniapp();
 }
 
-/** Mic button that focuses the text input and shows a floating dictation hint. */
+/** Mic button that focuses the text input and shows a floating dictation hint.
+ *  Only shows when NOT in miniapp (miniapp uses VoiceMicButton instead). */
 export function MiniVoiceMicHint({ inputRef, onHint, showHint }) {
+  if (isInMiniapp()) return null;
+
   return (
     <Box
       onClick={() => { inputRef?.current?.focus(); onHint?.(); }}
@@ -31,7 +34,6 @@ export function MiniVoiceMicHint({ inputRef, onHint, showHint }) {
           fontSize: TYPE.caption.fontSize, color: COLOR.primary,
           pointerEvents: "none",
         }}>
-          {/* Fake keyboard key with mic icon */}
           <Box sx={{
             width: 28, height: 28, borderRadius: "6px",
             bgcolor: COLOR.white, border: `1.5px solid ${COLOR.primary}`,
@@ -52,7 +54,7 @@ export function MiniVoiceMicHint({ inputRef, onHint, showHint }) {
   );
 }
 
-/** @deprecated No-op stub kept for backwards compatibility with ComponentShowcasePage. */
+/** @deprecated No-op stub kept for backwards compatibility. */
 export default function VoiceInput() {
   return null;
 }

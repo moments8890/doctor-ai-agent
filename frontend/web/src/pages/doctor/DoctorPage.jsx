@@ -25,7 +25,7 @@ import {
   markOnboardingStep,
   ONBOARDING_STEP,
 } from "./constants";
-import { isWizardDone } from "./onboardingWizardState";
+import { isWizardDone, markWizardDone } from "./onboardingWizardState";
 import MyAIPage from "./MyAIPage";
 import PatientsPage from "./PatientsPage";
 import SettingsPage from "./SettingsPage";
@@ -44,8 +44,11 @@ import SubpageHeader from "../../components/SubpageHeader";
 import BarButton from "../../components/BarButton";
 import SuggestionChips from "../../components/SuggestionChips";
 import { MiniVoiceMicHint } from "../../components/VoiceInput";
+import { useVoiceInput } from "../../hooks/useVoiceInput";
+import { isInMiniapp } from "../../utils/miniappBridge";
 import PersonaToast from "../../components/PersonaToast";
 import { useReleaseNotes } from "../../hooks/useReleaseNotes";
+import { KEYBOARD_AWARE_CONTAINER } from "../../hooks/useKeyboardSafeArea";
 import ReleaseNotesDialog from "../../components/ReleaseNotesDialog";
 import { getDoctorProfile, updateDoctorProfile } from "../../api";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
@@ -268,6 +271,9 @@ function PatientPreviewPage({ doctorId, previewId }) {
   const [progress, setProgress] = useState({ filled: 0, total: 7 });
   const [status, setStatus] = useState("interviewing");
   const [input, setInput] = useState("");
+  const { micButton: voiceMicButton, voiceActive } = useVoiceInput({
+    doctorId, value: input, setValue: setInput, compact: true,
+  });
   const [sending, setSending] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -410,7 +416,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: COLOR.surfaceAlt }}>
+    <Box sx={{ ...KEYBOARD_AWARE_CONTAINER, bgcolor: COLOR.surfaceAlt }}>
       {/*
         Top-bar action follows UI-DESIGN.md: single text-only BarButton, max 2 Chinese chars.
         Progress is shown as a disabled bar action until the interview is ready to submit.
@@ -506,6 +512,7 @@ function PatientPreviewPage({ doctorId, previewId }) {
           }}
         >
           <MiniVoiceMicHint inputRef={inputRef} showHint={voiceHint} onHint={() => { setVoiceHint(true); setTimeout(() => setVoiceHint(false), 5000); }} />
+          {isInMiniapp() && voiceMicButton}
           <Box
             sx={{
               flex: 1,
@@ -551,14 +558,15 @@ function PatientPreviewPage({ doctorId, previewId }) {
               component="input"
               ref={inputRef}
               value={input}
-              onChange={(event) => setInput(event.target.value)}
+              onChange={(event) => { if (!voiceActive) setInput(event.target.value); }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
                   handleSend();
                 }
               }}
-              placeholder={selectedSuggestions.length > 0 ? "" : "请输入患者描述…"}
+              disabled={voiceActive}
+              placeholder={selectedSuggestions.length > 0 ? "" : (voiceActive ? "正在识别…" : "请输入患者描述…")}
               sx={{
                 flex: 1,
                 minWidth: 60,
@@ -851,8 +859,8 @@ export default function DoctorPage() {
 
   const { pendingTaskCount, reviewCount, followupCount, showOnboarding, onboardName, setOnboardName, onboardSaving, handleOnboardSubmit } = useDoctorPageState({ doctorId, accessToken, setAuth });
 
-  // Onboarding gate: fast localStorage check first (no flash), then async API
-  // for migration case. New doctors redirect instantly via isWizardDone().
+  // Onboarding gate: DB is source of truth; localStorage is a same-device
+  // cache (seeded from DB) and an offline fallback.
   const wizardDoneLocal = doctorId ? isWizardDone(doctorId) : true;
   const [finishedOnboarding, setFinishedOnboarding] = useState(wizardDoneLocal);
   useEffect(() => {
@@ -861,25 +869,28 @@ export default function DoctorPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("wizard") === "1" || params.get("onboarding") === "1") return;
 
-    if (!wizardDoneLocal) {
-      // Fast path: localStorage says not done — redirect immediately, no API call
-      setFinishedOnboarding(false);
-      navigate(dp("onboarding"));
-      return;
-    }
-
-    // Slow path: localStorage says done — verify + migrate to DB if needed
     getDoctorProfile(doctorId).then((p) => {
       if (p.finished_onboarding) {
+        // DB says done — seed localStorage on fresh devices so offline fallback works
+        if (!wizardDoneLocal) markWizardDone(doctorId, "completed");
         setFinishedOnboarding(true);
-      } else {
-        // One-time migration: localStorage says done, DB doesn't know yet
+      } else if (wizardDoneLocal) {
+        // localStorage says done, DB doesn't — one-time forward migration
         updateDoctorProfile(doctorId, { finished_onboarding: true }).catch(() => {});
         setFinishedOnboarding(true);
+      } else {
+        // Both say not done — genuinely new doctor
+        setFinishedOnboarding(false);
+        navigate(dp("onboarding"));
       }
     }).catch(() => {
-      // Network error — trust localStorage
-      setFinishedOnboarding(true);
+      // Network error — fall back to localStorage
+      if (wizardDoneLocal) {
+        setFinishedOnboarding(true);
+      } else {
+        setFinishedOnboarding(false);
+        navigate(dp("onboarding"));
+      }
     });
   }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
 

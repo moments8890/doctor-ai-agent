@@ -36,6 +36,7 @@ import IconBadge from "../../components/IconBadge";
 import { TYPE, ICON, COLOR, RADIUS, BUBBLE_RADIUS } from "../../theme";
 import { LAST_SEEN_CHAT_KEY } from "./constants";
 import { RECORD_TYPE_BADGE } from "../../shared/badgeConfigs";
+import { KEYBOARD_AWARE_CONTAINER } from "../../hooks/useKeyboardSafeArea";
 
 const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
@@ -304,7 +305,7 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+    <Box sx={{ ...KEYBOARD_AWARE_CONTAINER, flex: 1, minHeight: 0 }}>
       {/* Quick actions */}
       <QuickActions onNewInterview={onNewInterview} onViewRecords={onViewRecords} />
 
