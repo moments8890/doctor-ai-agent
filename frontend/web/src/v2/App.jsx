@@ -30,6 +30,8 @@ import { initTheme, applyFontScale } from "./theme";
 const AdminLoginPage = lazy(() => import("../pages/admin/AdminLoginPage"));
 const AdminPage = lazy(() => import("../pages/admin/AdminPage"));
 
+import LoginPage from "./pages/login/LoginPage";
+
 const DEV_MODE = import.meta.env.DEV;
 const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "test_doctor";
 const DEV_DOCTOR_NAME = import.meta.env.VITE_DEV_DOCTOR_NAME || "";
@@ -229,7 +231,7 @@ export default function App() {
           <Routes>
             <Route
               path="/login"
-              element={<PlaceholderPage name="LoginPage" />}
+              element={<LoginPage />}
             />
             <Route path="/" element={<Navigate to="/doctor" replace />} />
             <Route
