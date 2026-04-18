@@ -47,11 +47,10 @@ Page({
     this._siManager = manager;
 
     manager.onStart = () => {
-      // WechatSI fires onStart only after its audio stream to the cloud is
-      // fully established (typically 500-1000ms after plugin.start()). Post
-      // "recording" here rather than in _startRecording so the web UI flips
-      // to "正在识别…" at the moment the plugin can actually hear the user —
-      // otherwise the first syllables get clipped.
+      // Redundant — _startRecording already posted "recording" synchronously
+      // after plugin.start(). But on some real devices onStart fires unreliably
+      // so we don't want to depend on it. Re-posting is harmless; the backend
+      // just sets status="recording" again.
       this._postVoiceSession("recording");
     };
 
@@ -207,9 +206,12 @@ Page({
       success: () => {
         try {
           this._siManager.start({ duration: 58000, lang: "zh_CN" });
-          // Don't post "recording" here — onStart posts it when the plugin is
-          // actually streaming to the cloud. Leaving the session at
-          // pending_start keeps the web UI in "准备中…" until we're truly live.
+          // Post "recording" right after plugin.start so the web exits its
+          // "准备中…" state reliably. onStart fires onStart (for real this time)
+          // ~500ms later and re-posts "recording" as a no-op safety net — on
+          // some devices onStart never fires and depending on it leaves the
+          // web stuck in preparing.
+          this._postVoiceSession("recording");
         } catch (e) {
           console.error("[voice] plugin.start", e);
           this._isRecording = false;
