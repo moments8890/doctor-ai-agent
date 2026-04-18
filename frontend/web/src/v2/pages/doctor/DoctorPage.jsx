@@ -12,6 +12,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { NavBar, SafeArea, TabBar } from "antd-mobile";
 import InterviewPage from "./InterviewPage";
 import MyAIPage from "./MyAIPage";
+import PatientsPage from "./PatientsPage";
+import PatientDetail from "./PatientDetail";
 import {
   MessageOutline,
   TeamOutline,
@@ -104,6 +106,19 @@ export default function DoctorPage({ doctorId }) {
   // Interview overlay — active when navigated to /doctor/patients/new
   const interviewActive = location.pathname.endsWith("/patients/new");
 
+  // Patient detail subpage — /doctor/patients/:id (any segment after /patients/ that isn't "new")
+  const patientDetailMatch = (() => {
+    const parts = location.pathname.split("/");
+    // parts: ["", "doctor", "patients", ":id"]
+    if (parts[2] === "patients" && parts[3] && parts[3] !== "new") {
+      return parts[3];
+    }
+    return null;
+  })();
+
+  // Both interview and patient detail are full-screen (no NavBar/TabBar from shell)
+  const fullScreenActive = interviewActive || !!patientDetailMatch;
+
   function handleTabChange(key) {
     const tab = TABS.find((t) => t.key === key);
     if (tab) navigate(tab.path, { replace: true });
@@ -131,8 +146,8 @@ export default function DoctorPage({ doctorId }) {
       {/* Safe area top */}
       <SafeArea position="top" />
 
-      {/* Top NavBar — hidden when interview overlay is active */}
-      {!interviewActive && (
+      {/* Top NavBar — hidden when full-screen overlays are active */}
+      {!fullScreenActive && (
         <NavBar
           backArrow={false}
           style={{
@@ -161,15 +176,20 @@ export default function DoctorPage({ doctorId }) {
             onComplete={handleInterviewComplete}
             onCancel={handleInterviewCancel}
           />
+        ) : patientDetailMatch ? (
+          /* Full-screen patient detail (no TabBar) */
+          <PatientDetail />
         ) : activeSection === "my-ai" ? (
           <MyAIPage doctorId={doctorId} />
+        ) : activeSection === "patients" ? (
+          <PatientsPage />
         ) : (
           <SectionPlaceholder name={activeTab.title} />
         )}
       </div>
 
-      {/* Bottom TabBar — hidden when interview overlay is active */}
-      {!interviewActive && (
+      {/* Bottom TabBar — hidden when full-screen overlays are active */}
+      {!fullScreenActive && (
         <TabBar
           activeKey={activeSection}
           onChange={handleTabChange}
@@ -194,9 +214,9 @@ export default function DoctorPage({ doctorId }) {
         </TabBar>
       )}
 
-      {/* Safe area bottom — shown when TabBar is hidden */}
-      {interviewActive && <SafeArea position="bottom" />}
-      {!interviewActive && <SafeArea position="bottom" />}
+      {/* Safe area bottom — always present (TabBar has its own) */}
+      {fullScreenActive && <SafeArea position="bottom" />}
+      {!fullScreenActive && <SafeArea position="bottom" />}
     </div>
   );
 }
