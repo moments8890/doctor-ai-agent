@@ -11,6 +11,7 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NavBar, SafeArea, TabBar } from "antd-mobile";
 import InterviewPage from "./InterviewPage";
+import MyAIPage from "./MyAIPage";
 import {
   MessageOutline,
   TeamOutline,
@@ -160,6 +161,8 @@ export default function DoctorPage({ doctorId }) {
             onComplete={handleInterviewComplete}
             onCancel={handleInterviewCancel}
           />
+        ) : activeSection === "my-ai" ? (
+          <MyAIPage doctorId={doctorId} />
         ) : (
           <SectionPlaceholder name={activeTab.title} />
         )}
