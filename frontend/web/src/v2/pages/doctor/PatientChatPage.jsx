@@ -63,12 +63,12 @@ function MessageBubble({ msg, patientName }) {
           width: 34,
           height: 34,
           borderRadius: "50%",
-          background: isPatient ? "#576B95" : "#07C160",
-          color: "#fff",
+          background: isPatient ? APP.accent : APP.primary,
+          color: APP.white,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 13,
+          fontSize: FONT.sm,
           fontWeight: 600,
           flexShrink: 0,
         }}
@@ -87,7 +87,7 @@ function MessageBubble({ msg, patientName }) {
         }}
       >
         {!isPatient && !isDoctor && (
-          <span style={{ fontSize: 11, color: APP.text4, fontWeight: 500 }}>
+          <span style={{ fontSize: FONT.xs, color: APP.text4, fontWeight: 500 }}>
             AI
           </span>
         )}
@@ -98,7 +98,7 @@ function MessageBubble({ msg, patientName }) {
               ? "14px 14px 14px 3px"
               : "14px 14px 3px 14px",
             padding: "9px 13px",
-            fontSize: 15,
+            fontSize: FONT.md,
             color: APP.text1,
             lineHeight: "1.6",
             whiteSpace: "pre-wrap",
@@ -109,7 +109,7 @@ function MessageBubble({ msg, patientName }) {
           {msg.content || msg.text || ""}
         </div>
         {time && (
-          <span style={{ fontSize: 11, color: APP.text4 }}>{time}</span>
+          <span style={{ fontSize: FONT.xs, color: APP.text4 }}>{time}</span>
         )}
       </div>
     </div>
@@ -139,12 +139,12 @@ function AIDraftCard({ draft, onEdit, onSend }) {
           width: 34,
           height: 34,
           borderRadius: "50%",
-          background: "#07C160",
-          color: "#fff",
+          background: APP.primary,
+          color: APP.white,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 13,
+          fontSize: FONT.sm,
           fontWeight: 600,
           flexShrink: 0,
         }}
@@ -157,15 +157,15 @@ function AIDraftCard({ draft, onEdit, onSend }) {
         style={{
           maxWidth: "78%",
           background: APP.primaryLight,
-          border: `1px solid #07C16030`,
-          borderRadius: 12,
+          border: `1px solid ${APP.primary}30`,
+          borderRadius: RADIUS.lg,
           padding: "10px 14px",
         }}
       >
         <div
           style={{
-            fontSize: 11,
-            color: "#07C160",
+            fontSize: FONT.xs,
+            color: APP.primary,
             fontWeight: 600,
             marginBottom: 6,
           }}
@@ -174,7 +174,7 @@ function AIDraftCard({ draft, onEdit, onSend }) {
         </div>
         <div
           style={{
-            fontSize: 14,
+            fontSize: FONT.main,
             color: APP.text1,
             lineHeight: "1.65",
             whiteSpace: "pre-wrap",
@@ -195,7 +195,7 @@ function AIDraftCard({ draft, onEdit, onSend }) {
         >
           <span
             style={{
-              fontSize: 13,
+              fontSize: FONT.sm,
               color: APP.text4,
               cursor: "pointer",
             }}
@@ -205,8 +205,8 @@ function AIDraftCard({ draft, onEdit, onSend }) {
           </span>
           <span
             style={{
-              fontSize: 13,
-              color: "#07C160",
+              fontSize: FONT.sm,
+              color: APP.primary,
               fontWeight: 600,
               cursor: "pointer",
             }}
@@ -235,11 +235,11 @@ function EditingBanner({ onCancel }) {
         flexShrink: 0,
       }}
     >
-      <span style={{ fontSize: 12, color: "#07C160", fontWeight: 500 }}>
+      <span style={{ fontSize: FONT.sm, color: APP.primary, fontWeight: 500 }}>
         正在编辑AI草稿
       </span>
       <span
-        style={{ fontSize: 12, color: APP.text4, cursor: "pointer" }}
+        style={{ fontSize: FONT.sm, color: APP.text4, cursor: "pointer" }}
         onClick={onCancel}
       >
         取消
@@ -406,7 +406,7 @@ export default function PatientChatPage({ patientId: propPatientId }) {
       <div style={msgAreaStyle}>
         {loading && (
           <div style={styles.center}>
-            <SpinLoading color="#07C160" style={{ "--size": "24px" }} />
+            <SpinLoading color="primary" style={{ "--size": "24px" }} />
           </div>
         )}
 
@@ -491,7 +491,7 @@ const styles = {
   emptyHint: {
     textAlign: "center",
     padding: "48px 16px",
-    fontSize: 14,
+    fontSize: FONT.main,
     color: APP.text4,
   },
 };

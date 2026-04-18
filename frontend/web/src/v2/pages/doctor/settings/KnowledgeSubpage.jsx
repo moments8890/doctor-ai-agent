@@ -9,7 +9,7 @@ import { NavBar, List, SearchBar, SpinLoading, Tag, Button } from "antd-mobile";
 import { AddOutline, FileOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { useKnowledgeItems } from "../../../../lib/doctorQueries";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS, CATEGORY_COLORS as THEME_CATEGORY_COLORS } from "../../../theme";
 
 /** Extract a short display title from knowledge text */
 function extractShortTitle(text, maxLen = 24) {
@@ -31,15 +31,14 @@ function extractShortTitle(text, maxLen = 24) {
 }
 
 const CATEGORY_COLORS = {
-  custom:     { bg: "#e7f8ee", color: "#07C160" },
-  diagnosis:  { bg: "#e8f4fd", color: "#576B95" },
-  followup:   { bg: "#fff8e0", color: "#B8860B" },
-  medication: { bg: "#fff0f0", color: "#FA5151" },
-  persona:    { bg: "#f5f0ff", color: "#9b59b6" },
+  ...THEME_CATEGORY_COLORS,
+  persona: { bg: "#f5f0ff", text: "#9b59b6" },
 };
 
 function getCategoryStyle(category) {
-  return CATEGORY_COLORS[category] || { bg: APP.surfaceAlt, color: APP.text4 };
+  const c = CATEGORY_COLORS[category];
+  if (c) return { bg: c.bg, color: c.text || c.color };
+  return { bg: APP.surfaceAlt, color: APP.text4 };
 }
 
 export default function KnowledgeSubpage() {
@@ -123,7 +122,7 @@ export default function KnowledgeSubpage() {
               paddingTop: 64,
               gap: 16,
               color: APP.text4,
-              fontSize: 15,
+              fontSize: FONT.md,
             }}
           >
             <FileOutline style={{ fontSize: 36, color: APP.text4 }} />
@@ -154,7 +153,7 @@ export default function KnowledgeSubpage() {
                   arrow
                   description={
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <span style={{ fontSize: 13, color: APP.text3, lineHeight: 1.5 }}>
+                      <span style={{ fontSize: FONT.base, color: APP.text3, lineHeight: 1.5 }}>
                         {summary ? (summary.length > 60 ? summary.slice(0, 60) + "…" : summary) : ""}
                       </span>
                       {item.category && (
@@ -186,7 +185,7 @@ export default function KnowledgeSubpage() {
               textAlign: "center",
               paddingTop: 48,
               color: APP.text4,
-              fontSize: 14,
+              fontSize: FONT.base,
             }}
           >
             未找到匹配内容

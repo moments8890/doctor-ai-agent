@@ -6,7 +6,7 @@
  */
 import { NavBar, List } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS } from "../../../theme";
 
 export default function AboutSubpage() {
   const navigate = useNavigate();
@@ -48,30 +48,30 @@ export default function AboutSubpage() {
             style={{
               width: 72,
               height: 72,
-              borderRadius: 18,
-              backgroundColor: "#07C160",
+              borderRadius: RADIUS.xl,
+              backgroundColor: APP.primary,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               marginBottom: 16,
               fontSize: 36,
-              color: "#fff",
+              color: APP.white,
               fontWeight: 700,
             }}
           >
             医
           </div>
           <div
-            style={{ fontSize: 20, fontWeight: 700, color: APP.text1, marginBottom: 6 }}
+            style={{ fontSize: FONT.xl, fontWeight: 700, color: APP.text1, marginBottom: 6 }}
           >
             AI 医疗助手
           </div>
-          <div style={{ fontSize: 13, color: APP.text4, marginBottom: 20 }}>
+          <div style={{ fontSize: FONT.sm, color: APP.text4, marginBottom: 20 }}>
             版本 1.0.0
           </div>
           <div
             style={{
-              fontSize: 14,
+              fontSize: FONT.main,
               color: APP.text3,
               lineHeight: 1.8,
               maxWidth: 300,

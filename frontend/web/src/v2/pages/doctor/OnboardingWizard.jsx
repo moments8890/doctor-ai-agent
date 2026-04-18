@@ -45,8 +45,8 @@ function ContextCard({ children }) {
         padding: "12px 14px",
         backgroundColor: APP.primaryLight,
         border: `1px solid rgba(7,193,96,0.18)`,
-        borderRadius: 10,
-        fontSize: 14,
+        borderRadius: RADIUS.md,
+        fontSize: FONT.base,
         color: APP.text2,
         lineHeight: 1.7,
       }}
@@ -72,8 +72,8 @@ function RuleArrowConnector({ label }) {
           width: 2,
           height: 18,
           backgroundColor: APP.primary,
-          borderRadius: 1,
-          opacity: 0.5,
+          borderRadius: RADIUS.xs,
+        opacity: 0.5,
         }}
       />
       {/* downward triangle */}
@@ -109,7 +109,7 @@ function RuleEchoCard({ title, body }) {
         padding: "12px 14px",
         backgroundColor: APP.primaryLight,
         border: "1px solid rgba(7,193,96,0.18)",
-        borderRadius: 10,
+        borderRadius: RADIUS.md,
       }}
     >
       <div
@@ -284,8 +284,8 @@ function Step1Content({ doctorId, progress, updateProgress, setCanAdvance, api }
         style={{
           padding: "8px 16px",
           textAlign: "center",
-          fontSize: 12,
-          color: allDone ? "#07C160" : APP.text4,
+          fontSize: FONT.sm,
+        color: allDone ? APP.primary : APP.text4,
           fontWeight: allDone ? 600 : 400,
         }}
       >
@@ -330,7 +330,7 @@ function Step2Content({ progress, setCanAdvance }) {
           margin: "0 16px 8px",
           padding: "10px 14px",
           backgroundColor: APP.surface,
-          borderRadius: 8,
+          borderRadius: RADIUS.md,
           border: `0.5px solid ${APP.border}`,
           display: "flex",
           alignItems: "center",
@@ -342,7 +342,7 @@ function Step2Content({ progress, setCanAdvance }) {
             width: 36,
             height: 36,
             borderRadius: "50%",
-            backgroundColor: "#e8f4fd",
+            backgroundColor: APP.accentLight,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -367,7 +367,7 @@ function Step2Content({ progress, setCanAdvance }) {
         style={{
           margin: "0 16px",
           backgroundColor: APP.surface,
-          borderRadius: 8,
+          borderRadius: RADIUS.md,
           border: `0.5px solid ${APP.border}`,
           overflow: "hidden",
         }}
@@ -401,22 +401,22 @@ function Step2Content({ progress, setCanAdvance }) {
             }}
           >
             {diagConfirmed && (
-              <CheckOutline style={{ color: "#fff", fontSize: 11, lineHeight: 1 }} />
+              <CheckOutline style={{ color: APP.white, fontSize: FONT.xs, lineHeight: 1 }} />
             )}
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 500, color: APP.text1 }}>
+            <div style={{ fontSize: FONT.main, fontWeight: 500, color: APP.text1 }}>
               高血压脑病/高血压急症
             </div>
             <div
-              style={{ fontSize: 12, color: APP.text3, marginTop: 4, lineHeight: 1.6 }}
+              style={{ fontSize: FONT.sm, color: APP.text3, marginTop: 4, lineHeight: 1.6 }}
             >
               患者有10年高血压病史，本次出现头痛加重伴呕吐，需{" "}
               <span
                 style={{
                   backgroundColor: "#fff8c5",
                   borderBottom: "2px solid #f0e040",
-                  borderRadius: 2,
+                  borderRadius: RADIUS.xs,
                   padding: "0 1px",
                 }}
               >
@@ -427,11 +427,11 @@ function Step2Content({ progress, setCanAdvance }) {
             <div style={{ marginTop: 4 }}>
               <span
                 style={{
-                  fontSize: 11,
-                  color: "#e53935",
-                  backgroundColor: "#fdecea",
+                  fontSize: FONT.xs,
+                  color: APP.danger,
+                  backgroundColor: APP.dangerLight,
                   padding: "2px 6px",
-                  borderRadius: 4,
+                  borderRadius: RADIUS.xs,
                 }}
               >
                 引用: {ruleTitle}
@@ -468,10 +468,10 @@ function Step2Content({ progress, setCanAdvance }) {
                 }}
               />
               <div>
-                <div style={{ fontSize: 14, fontWeight: 500, color: APP.text1 }}>
+                <div style={{ fontSize: FONT.main, fontWeight: 500, color: APP.text1 }}>
                   {row.title}
                 </div>
-                <div style={{ fontSize: 12, color: APP.text4, marginTop: 4 }}>
+                <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 4 }}>
                   {row.body}
                 </div>
               </div>
@@ -507,14 +507,14 @@ function Step2Content({ progress, setCanAdvance }) {
             width: 34,
             height: 34,
             borderRadius: "50%",
-            backgroundColor: "#e8f4fd",
+            backgroundColor: APP.accentLight,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-            fontSize: 14,
+            fontSize: FONT.main,
             fontWeight: 700,
-            color: "#576B95",
+            color: APP.accent,
           }}
         >
           张
@@ -525,7 +525,7 @@ function Step2Content({ progress, setCanAdvance }) {
             padding: "10px 12px",
             borderRadius: "8px 8px 8px 0",
             backgroundColor: APP.surface,
-            fontSize: 14,
+            fontSize: FONT.main,
             lineHeight: 1.7,
             color: APP.text1,
             border: `0.5px solid ${APP.border}`,
@@ -556,8 +556,8 @@ function Step2Content({ progress, setCanAdvance }) {
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              fontSize: 16,
-              color: "#07C160",
+              fontSize: FONT.md,
+              color: APP.primary,
             }}
           >
             AI
@@ -566,28 +566,28 @@ function Step2Content({ progress, setCanAdvance }) {
             style={{
               maxWidth: "78%",
               padding: "12px 14px",
-              borderRadius: 10,
+              borderRadius: RADIUS.md,
               backgroundColor: APP.primaryLight,
               border: "1px solid rgba(7,193,96,0.18)",
             }}
           >
             <div
               style={{
-                fontSize: 11,
-                color: "#07C160",
+                fontSize: FONT.xs,
+                color: APP.primary,
                 fontWeight: 600,
                 marginBottom: 4,
               }}
             >
               AI起草回复 · 待你确认
             </div>
-            <div style={{ fontSize: 14, color: APP.text1, lineHeight: 1.7 }}>
+            <div style={{ fontSize: FONT.main, color: APP.text1, lineHeight: 1.7 }}>
               {draftParts[0]}
               <span
                 style={{
                   backgroundColor: "#fff8c5",
                   borderBottom: "2px solid #f0e040",
-                  borderRadius: 2,
+                  borderRadius: RADIUS.xs,
                   padding: "0 1px",
                 }}
               >
@@ -598,11 +598,11 @@ function Step2Content({ progress, setCanAdvance }) {
             <div style={{ marginTop: 6 }}>
               <span
                 style={{
-                  fontSize: 11,
-                  color: "#e53935",
-                  backgroundColor: "#fdecea",
+                  fontSize: FONT.xs,
+                  color: APP.danger,
+                  backgroundColor: APP.dangerLight,
                   padding: "2px 6px",
-                  borderRadius: 4,
+                  borderRadius: RADIUS.xs,
                 }}
               >
                 引用: {ruleTitle}
@@ -618,18 +618,18 @@ function Step2Content({ progress, setCanAdvance }) {
                 borderTop: "0.5px solid rgba(7,193,96,0.15)",
               }}
             >
-              <span style={{ fontSize: 13, color: APP.text4 }}>修改</span>
+              <span style={{ fontSize: FONT.sm, color: APP.text4 }}>修改</span>
               <span
                 onClick={() => setReplySent(true)}
                 style={{
-                  fontSize: 13,
-                  color: "#07C160",
+                  fontSize: FONT.sm,
+                  color: APP.primary,
                   fontWeight: 600,
                   cursor: "pointer",
                   padding: "1px 4px",
-                  outline: "2px dashed #07C160",
+                  outline: `2px dashed ${APP.primary}`,
                   outlineOffset: 1,
-                  borderRadius: 4,
+                  borderRadius: RADIUS.xs,
                 }}
               >
                 确认发送 ›
@@ -654,13 +654,13 @@ function Step2Content({ progress, setCanAdvance }) {
               width: 34,
               height: 34,
               borderRadius: "50%",
-              backgroundColor: "#d4f4df",
+              backgroundColor: APP.primaryLight,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              fontSize: 16,
-              color: "#07C160",
+              fontSize: FONT.md,
+              color: APP.primary,
             }}
           >
             我
@@ -671,7 +671,7 @@ function Step2Content({ progress, setCanAdvance }) {
               padding: "10px 12px",
               borderRadius: "8px 8px 0 8px",
               backgroundColor: APP.wechatGreen,
-              fontSize: 14,
+              fontSize: FONT.main,
               lineHeight: 1.7,
               color: APP.text1,
             }}
@@ -729,11 +729,11 @@ function Step3Content({ doctorId, progress, updateProgress, setCanAdvance, api }
       }}
     >
       <CheckCircleFill
-        style={{ fontSize: 64, color: "#07C160", marginBottom: 16 }}
+        style={{ fontSize: 64, color: APP.primary, marginBottom: 16 }}
       />
       <div
         style={{
-          fontSize: 20,
+          fontSize: FONT.xl,
           fontWeight: 700,
           color: APP.text1,
           marginBottom: 8,
@@ -743,7 +743,7 @@ function Step3Content({ doctorId, progress, updateProgress, setCanAdvance, api }
       </div>
       <div
         style={{
-          fontSize: 14,
+          fontSize: FONT.main,
           color: APP.text3,
           textAlign: "center",
           lineHeight: 1.7,
@@ -759,18 +759,18 @@ function Step3Content({ doctorId, progress, updateProgress, setCanAdvance, api }
           width: "100%",
           padding: 16,
           backgroundColor: APP.surfaceAlt,
-          borderRadius: 10,
+          borderRadius: RADIUS.md,
           border: `1px solid ${APP.border}`,
         }}
       >
         <div
-          style={{ fontSize: 15, fontWeight: 600, color: APP.text1, marginBottom: 4 }}
+          style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1, marginBottom: 4 }}
         >
           可选：体验患者端预问诊
         </div>
         <div
           style={{
-            fontSize: 13,
+            fontSize: FONT.sm,
             color: APP.text3,
             lineHeight: 1.6,
             marginBottom: 12,
@@ -788,8 +788,8 @@ function Step3Content({ doctorId, progress, updateProgress, setCanAdvance, api }
             }
           }}
           style={{
-            "--border-color": "#07C160",
-            "--text-color": "#07C160",
+            "--border-color": APP.primary,
+            "--text-color": APP.primary,
           }}
         >
           体验患者端 →
@@ -942,7 +942,7 @@ export default function OnboardingWizard() {
             display: "flex",
             justifyContent: "space-between",
             marginBottom: 4,
-            fontSize: 11,
+            fontSize: FONT.xs,
             color: APP.text4,
           }}
         >
@@ -952,7 +952,7 @@ export default function OnboardingWizard() {
         <ProgressBar
           percent={progressPercent}
           style={{
-            "--fill-color": "#07C160",
+            "--fill-color": APP.primary,
             "--track-color": APP.primaryLight,
           }}
         />
@@ -980,7 +980,7 @@ export default function OnboardingWizard() {
           color="primary"
           disabled={!canAdvance}
           onClick={handleAdvance}
-          style={{ "--background-color": "#07C160", "--border-color": "#07C160" }}
+          style={{ "--background-color": APP.primary, "--border-color": APP.primary }}
         >
           {step === TOTAL_STEPS ? "完成引导" : "下一步"}
         </Button>

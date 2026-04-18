@@ -8,7 +8,7 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  CapsuleTabs,
+  JumboTabs,
   List,
   SpinLoading,
   ErrorBlock,
@@ -18,7 +18,7 @@ import {
 import { useReviewQueue, useDrafts } from "../../../lib/doctorQueries";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { dp } from "../../../utils/doctorBasePath";
-import { APP } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -30,12 +30,12 @@ function NameCircle({ name }) {
         width: 36,
         height: 36,
         borderRadius: "50%",
-        background: "#07C160",
-        color: "#fff",
+        background: APP.primary,
+        color: APP.white,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 15,
+        fontSize: FONT.md,
         fontWeight: 600,
         flexShrink: 0,
       }}
@@ -72,7 +72,7 @@ function PendingItem({ item, onNavigate }) {
     <List.Item
       prefix={<NameCircle name={item.patient_name} />}
       extra={
-        <span style={{ fontSize: 12, color: APP.text4 }}>{item.time}</span>
+        <span style={{ fontSize: FONT.sm, color: APP.text4 }}>{item.time}</span>
       }
       description={subtitle}
       arrow
@@ -80,11 +80,11 @@ function PendingItem({ item, onNavigate }) {
     >
       <span style={{ fontWeight: 500 }}>{item.patient_name}</span>
       {urgency ? (
-        <Tag color="danger" style={{ marginLeft: 6, fontSize: 10 }}>
+        <Tag color="danger" style={{ marginLeft: 6, fontSize: FONT.xs }}>
           紧急
         </Tag>
       ) : (
-        <Tag color="warning" style={{ marginLeft: 6, fontSize: 10 }}>
+        <Tag color="warning" style={{ marginLeft: 6, fontSize: FONT.xs }}>
           待处理
         </Tag>
       )}
@@ -102,7 +102,7 @@ function DraftItem({ item, onNavigate }) {
     <List.Item
       prefix={<NameCircle name={item.patient_name} />}
       extra={
-        <span style={{ fontSize: 12, color: APP.text4 }}>
+        <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
           {item.time || ""}
         </span>
       }
@@ -112,7 +112,7 @@ function DraftItem({ item, onNavigate }) {
     >
       <span style={{ fontWeight: 500 }}>{item.patient_name}</span>
       {item.badge === "urgent" && (
-        <Tag color="danger" style={{ marginLeft: 6, fontSize: 10 }}>
+        <Tag color="danger" style={{ marginLeft: 6, fontSize: FONT.xs }}>
           紧急
         </Tag>
       )}
@@ -134,7 +134,7 @@ function CompletedItem({ item, onNavigate }) {
     <List.Item
       prefix={<NameCircle name={item.patient_name} />}
       extra={
-        <span style={{ fontSize: 12, color: APP.text4 }}>{item.time}</span>
+        <span style={{ fontSize: FONT.sm, color: APP.text4 }}>{item.time}</span>
       }
       description={detail}
       arrow
@@ -239,20 +239,20 @@ export default function ReviewQueuePage() {
           flexShrink: 0,
         }}
       >
-        <CapsuleTabs activeKey={activeTab} onChange={handleTabChange}>
-          <CapsuleTabs.Tab
+        <JumboTabs activeKey={activeTab} onChange={handleTabChange}>
+          <JumboTabs.Tab
             title={`待审核${pendingCount > 0 ? ` ${pendingCount}` : ""}`}
             key="pending"
           />
-          <CapsuleTabs.Tab
+          <JumboTabs.Tab
             title={`待回复${repliesCount > 0 ? ` ${repliesCount}` : ""}`}
             key="replies"
           />
-          <CapsuleTabs.Tab
+          <JumboTabs.Tab
             title={`已完成${completedCount > 0 ? ` ${completedCount}` : ""}`}
             key="completed"
           />
-        </CapsuleTabs>
+        </JumboTabs>
       </div>
 
       {/* Scrollable content */}
@@ -347,7 +347,7 @@ export default function ReviewQueuePage() {
             style={{
               textAlign: "center",
               padding: "16px 0",
-              fontSize: 10,
+              fontSize: FONT.xs,
               color: APP.text4,
             }}
           >

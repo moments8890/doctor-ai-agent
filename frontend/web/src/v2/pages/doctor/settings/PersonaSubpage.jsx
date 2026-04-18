@@ -12,7 +12,7 @@ import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { usePersona } from "../../../../lib/doctorQueries";
 import { useDoctorStore } from "../../../../store/doctorStore";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS } from "../../../theme";
 
 const PLACEHOLDER = `用 ### 分节，用 · 分隔要点，例如：
 
@@ -110,10 +110,10 @@ export default function PersonaSubpage() {
   const previewSections = useMemo(() => parseSections(draft), [draft]);
 
   const sectionColorMap = {
-    身份: "#07C160",
+    身份: APP.primary,
     沟通风格: APP.accent,
-    回复方式: "#FFC300",
-    注意事项: "#FA5151",
+    回复方式: APP.warning,
+    注意事项: APP.danger,
     结尾习惯: APP.text4,
     修改习惯: APP.text4,
   };
@@ -183,7 +183,7 @@ export default function PersonaSubpage() {
                 "--placeholder-color": APP.text4,
                 fontFamily: "monospace",
                 backgroundColor: APP.surface,
-                borderRadius: 8,
+                borderRadius: RADIUS.md,
                 padding: "12px",
                 border: `0.5px solid ${APP.border}`,
               }}
@@ -192,7 +192,7 @@ export default function PersonaSubpage() {
             {/* Live preview */}
             {previewSections.length > 0 && (
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 12, color: APP.text4, marginBottom: 8 }}>预览</div>
+                <div style={{ fontSize: FONT.sm, color: APP.text4, marginBottom: 8 }}>预览</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {previewSections.map((sec) => {
                     const color = sectionColorMap[sec.title] || APP.text4;
@@ -201,15 +201,15 @@ export default function PersonaSubpage() {
                         key={sec.title}
                         style={{
                           backgroundColor: APP.surfaceAlt,
-                          borderRadius: 6,
+                          borderRadius: RADIUS.sm,
                           padding: "10px 14px",
                           border: `0.5px solid ${APP.border}`,
                         }}
                       >
-                        <div style={{ fontSize: 11, fontWeight: 600, color, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                        <div style={{ fontSize: FONT.xs, fontWeight: 600, color, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>
                           {sec.title}
                         </div>
-                        <div style={{ fontSize: 13, color: APP.text2, lineHeight: 1.6 }}>
+                        <div style={{ fontSize: FONT.sm, color: APP.text2, lineHeight: 1.6 }}>
                           {sec.items.join(" · ")}
                         </div>
                       </div>
@@ -253,13 +253,13 @@ export default function PersonaSubpage() {
                       key={sec.title}
                       style={{
                         backgroundColor: APP.surface,
-                        borderRadius: 8,
+                        borderRadius: RADIUS.md,
                         padding: "12px 16px",
                         border: `0.5px solid ${APP.border}`,
                       }}
                     >
                       <div style={{
-                        fontSize: 11,
+                        fontSize: FONT.xs,
                         fontWeight: 600,
                         color,
                         textTransform: "uppercase",
@@ -268,7 +268,7 @@ export default function PersonaSubpage() {
                       }}>
                         {sec.title}
                       </div>
-                      <div style={{ fontSize: 14, color: APP.text1, lineHeight: 1.7 }}>
+                      <div style={{ fontSize: FONT.main, color: APP.text1, lineHeight: 1.7 }}>
                         {sec.items.join(" · ")}
                       </div>
                     </div>
@@ -280,10 +280,10 @@ export default function PersonaSubpage() {
               <div
                 style={{
                   backgroundColor: APP.surface,
-                  borderRadius: 8,
+                  borderRadius: RADIUS.md,
                   padding: "16px",
                   border: `0.5px solid ${APP.border}`,
-                  fontSize: 14,
+                  fontSize: FONT.main,
                   color: APP.text1,
                   lineHeight: 1.8,
                   whiteSpace: "pre-wrap",

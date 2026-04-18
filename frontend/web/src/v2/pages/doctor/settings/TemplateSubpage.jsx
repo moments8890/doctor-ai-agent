@@ -10,7 +10,7 @@ import { FileOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS } from "../../../theme";
 
 const STANDARD_TEMPLATE_FIELDS = [
   { key: "department", label: "科别", desc: "就诊科室名称" },
@@ -146,12 +146,12 @@ export default function TemplateSubpage() {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {/* Icon */}
             <div style={{
-              width: 44, height: 44, borderRadius: 10,
-              background: "#e7f8ee",
+              width: 44, height: 44, borderRadius: RADIUS.sm,
+              background: APP.primaryLight,
               display: "flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0, fontSize: 20,
+              flexShrink: 0,
             }}>
-              <FileOutline style={{ fontSize: 20, color: "#07C160" }} />
+              <FileOutline style={{ fontSize: 20, color: APP.primary }} />
             </div>
 
             <div style={{ flex: 1 }}>
@@ -169,7 +169,7 @@ export default function TemplateSubpage() {
               ) : (
                 <div
                   onClick={showDefaultPreview}
-                  style={{ fontSize: "var(--adm-font-size-sm)", color: "#1B6EF3", marginTop: 2, cursor: "pointer" }}
+                  style={{ fontSize: FONT.sm, color: APP.accent, marginTop: 2, cursor: "pointer" }}
                 >
                   使用国家卫生部 2010 年标准格式 ›
                 </div>
@@ -179,10 +179,10 @@ export default function TemplateSubpage() {
             {status?.has_template && (
               <div style={{
                 padding: "3px 8px",
-                borderRadius: 10,
-                background: "#e7f8ee",
-                fontSize: "var(--adm-font-size-xs)",
-                color: "#07C160",
+                borderRadius: RADIUS.sm,
+                background: APP.primaryLight,
+                fontSize: FONT.xs,
+                color: APP.primary,
                 fontWeight: 600,
                 flexShrink: 0,
               }}>
@@ -216,12 +216,12 @@ export default function TemplateSubpage() {
             <span style={{
               flex: 1,
               fontSize: "var(--adm-font-size-main)",
-              color: uploading ? APP.text4 : "#07C160",
+              color: uploading ? APP.text4 : APP.primary,
               fontWeight: 500,
             }}>
               {uploading ? "上传中…" : status?.has_template ? "替换模板文件" : "上传模板文件"}
             </span>
-            <span style={{ fontSize: 12, color: APP.text4 }}>›</span>
+            <span style={{ fontSize: FONT.sm, color: APP.text4 }}>›</span>
           </div>
 
           {/* Delete row */}
@@ -242,7 +242,7 @@ export default function TemplateSubpage() {
               <span style={{
                 flex: 1,
                 fontSize: "var(--adm-font-size-main)",
-                color: deleting ? APP.text4 : "#FA5151",
+                color: deleting ? APP.text4 : APP.danger,
               }}>
                 {deleting ? "删除中…" : "删除模板，恢复默认"}
               </span>

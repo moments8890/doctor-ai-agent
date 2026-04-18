@@ -63,14 +63,14 @@ function AccountCard({ name, subtitle, color }) {
           marginRight: 12,
           flexShrink: 0,
           color: APP.white,
-          fontSize: 18,
+          fontSize: FONT.lg,
           fontWeight: 700,
         }}
       >
         {name ? name.slice(-1) : "?"}
       </div>
       <div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: APP.text1 }}>{name || "—"}</div>
+        <div style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1 }}>{name || "—"}</div>
         {subtitle && (
           <div style={{ fontSize: FONT.sm, color: APP.text3, marginTop: 2 }}>{subtitle}</div>
         )}
@@ -88,7 +88,7 @@ function SectionLabel({ children }) {
     <div
       style={{
         padding: "12px 16px 4px",
-        fontSize: 12,
+        fontSize: FONT.sm,
         color: APP.text4,
         fontWeight: 600,
         background: APP.surfaceAlt,
@@ -158,7 +158,7 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
         <List.Item
           prefix={<InformationCircleOutline style={{ fontSize: 20, color: APP.text4 }} />}
           extra={
-            <span style={{ fontSize: 13, color: APP.text4 }}>版本信息</span>
+            <span style={{ fontSize: FONT.base, color: APP.text4 }}>版本信息</span>
           }
           description={null}
           arrow
@@ -169,7 +169,7 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
         <List.Item
           prefix={<UserOutline style={{ fontSize: 20, color: APP.text4 }} />}
           extra={
-            <span style={{ fontSize: 13, color: APP.text4 }}>数据使用与保护</span>
+            <span style={{ fontSize: FONT.base, color: APP.text4 }}>数据使用与保护</span>
           }
           description={null}
           arrow
@@ -180,7 +180,7 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
         <List.Item
           prefix={<TextOutline style={{ fontSize: 20, color: APP.text4 }} />}
           extra={
-            <span style={{ fontSize: 13, color: APP.text4 }}>{currentFontLabel}</span>
+            <span style={{ fontSize: FONT.base, color: APP.text4 }}>{currentFontLabel}</span>
           }
           description={null}
           arrow

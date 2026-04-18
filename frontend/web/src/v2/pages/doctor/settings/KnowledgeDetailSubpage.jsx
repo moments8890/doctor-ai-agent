@@ -12,7 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS, CATEGORY_COLORS as THEME_CATEGORY_COLORS } from "../../../theme";
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -22,15 +22,14 @@ function formatDate(dateStr) {
 }
 
 const CATEGORY_COLORS = {
-  custom:     { bg: "#e7f8ee", color: "#07C160" },
-  diagnosis:  { bg: "#e8f4fd", color: "#576B95" },
-  followup:   { bg: "#fff8e0", color: "#B8860B" },
-  medication: { bg: "#fff0f0", color: "#FA5151" },
-  persona:    { bg: "#f5f0ff", color: "#9b59b6" },
+  ...THEME_CATEGORY_COLORS,
+  persona: { bg: "#f5f0ff", text: "#9b59b6" },
 };
 
 function getCategoryStyle(category) {
-  return CATEGORY_COLORS[category] || { bg: APP.surfaceAlt, color: APP.text4 };
+  const c = CATEGORY_COLORS[category];
+  if (c) return { bg: c.bg, color: c.text || c.color };
+  return { bg: APP.surfaceAlt, color: APP.text4 };
 }
 
 export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
@@ -152,9 +151,9 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
             maxLength={3000}
             showCount
             style={{
-              "--font-size": "14px",
+              "--font-size": FONT.base,
               backgroundColor: APP.surface,
-              borderRadius: 8,
+              borderRadius: RADIUS.md,
               padding: "12px",
               border: `0.5px solid ${APP.border}`,
             }}
@@ -226,7 +225,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
         )}
 
         {!loading && !item && (
-          <div style={{ textAlign: "center", paddingTop: 64, color: APP.text4, fontSize: 14 }}>
+          <div style={{ textAlign: "center", paddingTop: 64, color: APP.text4, fontSize: FONT.base }}>
             未找到该知识条目
           </div>
         )}
@@ -241,12 +240,12 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
                 padding: "16px",
               }}
             >
-              <div style={{ fontSize: 17, fontWeight: 600, color: APP.text1, marginBottom: 8 }}>
+              <div style={{ fontSize: FONT.lg, fontWeight: 600, color: APP.text1, marginBottom: 8 }}>
                 {title}
               </div>
               <div
                 style={{
-                  fontSize: 14,
+                  fontSize: FONT.base,
                   color: APP.text2,
                   lineHeight: 1.7,
                   whiteSpace: "pre-wrap",
@@ -271,12 +270,12 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
                   </Tag>
                 )}
                 {item.created_at && (
-                  <span style={{ fontSize: 12, color: APP.text4 }}>
+                  <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
                     {formatDate(item.created_at)}
                   </span>
                 )}
                 {item.reference_count > 0 && (
-                  <span style={{ fontSize: 12, color: APP.text4 }}>
+                  <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
                     引用 {item.reference_count} 次
                   </span>
                 )}
@@ -284,7 +283,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
 
               {/* Source URL */}
               {item.source_url && (
-                <div style={{ marginTop: 8, fontSize: 12, color: APP.text4, wordBreak: "break-all" }}>
+                <div style={{ marginTop: 8, fontSize: FONT.sm, color: APP.text4, wordBreak: "break-all" }}>
                   来源:{" "}
                   <a
                     href={item.source_url}

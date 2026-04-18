@@ -14,7 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS } from "../../../theme";
 
 const FIELD_LABELS = {
   reply_style: "回复风格",
@@ -99,7 +99,7 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
         <NavBar onBack={() => navigate(-1)} style={navStyle}>
           初始化风格
         </NavBar>
-        <div style={{ padding: 24, textAlign: "center", color: "#FA5151", fontSize: "var(--adm-font-size-main)" }}>
+        <div style={{ padding: 24, textAlign: "center", color: APP.danger, fontSize: FONT.base }}>
           {loadError}
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
           </div>
 
           {ruleSummary.length === 0 ? (
-            <div style={{ color: APP.text4, fontSize: "var(--adm-font-size-main)" }}>
+            <div style={{ color: APP.text4, fontSize: FONT.base }}>
               未检测到偏好，请返回重新选择
             </div>
           ) : (
@@ -156,19 +156,19 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
               {ruleSummary.map((r, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <div style={{
-                    width: 18, height: 18, borderRadius: 9,
-                    background: "#07C160",
+                    width: 18, height: 18, borderRadius: RADIUS.circle,
+                    background: APP.primary,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     flexShrink: 0, marginTop: 2,
-                    fontSize: 11, color: "#fff", fontWeight: 700,
-                  }}>
-                    <CheckOutline style={{ fontSize: 11 }} />
+                    fontSize: FONT.xs, color: APP.white, fontWeight: 700,
+                    }}>
+                    <CheckOutline style={{ fontSize: FONT.xs }} />
                   </div>
                   <div>
                     <div style={{ fontSize: "var(--adm-font-size-xs)", color: APP.text4 }}>
                       {FIELD_LABELS[r.field] || r.field}
                     </div>
-                    <div style={{ fontSize: "var(--adm-font-size-main)", color: APP.text1 }}>
+                    <div style={{ fontSize: FONT.base, color: APP.text1 }}>
                       {r.text}
                     </div>
                   </div>
@@ -178,7 +178,7 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
           )}
 
           {saveError && (
-            <div style={{ color: "#FA5151", fontSize: "var(--adm-font-size-sm)", marginTop: 12 }}>
+            <div style={{ color: APP.danger, fontSize: "var(--adm-font-size-sm)", marginTop: 12 }}>
               {saveError}
             </div>
           )}
@@ -223,10 +223,10 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
         {/* Progress bar */}
-        <div style={{ height: 3, background: APP.surfaceAlt, borderRadius: 2, marginBottom: 20, overflow: "hidden" }}>
+        <div style={{ height: 3, background: APP.surfaceAlt, borderRadius: RADIUS.xs, marginBottom: 20, overflow: "hidden" }}>
           <div style={{
             height: "100%",
-            background: "#07C160",
+            background: APP.primary,
             width: `${progress}%`,
             transition: "width 0.3s ease",
           }} />
@@ -247,11 +247,11 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
         {/* Patient message */}
         <div style={{
           background: APP.surfaceAlt,
-          borderRadius: 8,
+          borderRadius: RADIUS.md,
           padding: "12px",
           marginBottom: 20,
           border: `0.5px solid ${APP.border}`,
-          fontSize: "var(--adm-font-size-main)",
+          fontSize: FONT.base,
           color: APP.text2,
           lineHeight: 1.65,
         }}>
@@ -272,11 +272,11 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
                 onClick={() => handlePick(currentScenario.id, opt.id)}
                 style={{
                   padding: "12px",
-                  borderRadius: 8,
-                  border: `1.5px solid ${isSelected ? "#07C160" : APP.border}`,
-                  background: isSelected ? "#e7f8ee" : APP.surface,
+                  borderRadius: RADIUS.md,
+                  border: `1.5px solid ${isSelected ? APP.primary : APP.border}`,
+                  background: isSelected ? APP.primaryLight : APP.surface,
                   cursor: "pointer",
-                  fontSize: "var(--adm-font-size-main)",
+                  fontSize: FONT.base,
                   color: APP.text1,
                   lineHeight: 1.65,
                   transition: "border-color 0.15s, background 0.15s",

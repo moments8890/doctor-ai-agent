@@ -113,7 +113,7 @@ const summaryStyles = {
   },
   header: {
     padding: "16px 16px 8px",
-    fontSize: 16,
+    fontSize: FONT.md,
     fontWeight: 600,
     color: APP.text1,
     borderBottom: `1px solid ${APP.border}`,
@@ -420,7 +420,7 @@ const styles = {
     flexShrink: 0,
   },
   progressLabel: {
-    fontSize: 11,
+    fontSize: FONT.xs,
     color: APP.text4,
     marginTop: 3,
   },

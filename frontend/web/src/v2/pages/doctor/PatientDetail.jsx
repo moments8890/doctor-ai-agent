@@ -12,13 +12,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   NavBar,
   List,
-  CapsuleTabs,
+  JumboTabs,
   Tag,
   SpinLoading,
   ErrorBlock,
   Collapse,
 } from "antd-mobile";
-import { LeftOutline, MessageOutline, ContentOutline } from "antd-mobile-icons";
+import { LeftOutline, MessageOutline, ContentOutline, MailOutline } from "antd-mobile-icons";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../theme";
@@ -52,10 +52,10 @@ function recordStatusBadge(status) {
     return (
       <span
         style={{
-          fontSize: 11,
-          color: "#fff",
-          background: "#FFC300",
-          borderRadius: 4,
+          fontSize: FONT.xs,
+          color: APP.white,
+          background: APP.warning,
+          borderRadius: RADIUS.xs,
           padding: "1px 6px",
           fontWeight: 600,
           flexShrink: 0,
@@ -69,10 +69,10 @@ function recordStatusBadge(status) {
     return (
       <span
         style={{
-          fontSize: 11,
-          color: "#fff",
-          background: "#07C160",
-          borderRadius: 4,
+          fontSize: FONT.xs,
+          color: APP.white,
+          background: APP.primary,
+          borderRadius: RADIUS.xs,
           padding: "1px 6px",
           fontWeight: 600,
           flexShrink: 0,
@@ -140,10 +140,10 @@ function PatientProfile({ patient, records }) {
           key="profile"
           title={
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span style={{ fontWeight: 700, fontSize: 17, color: APP.text1 }}>
+              <span style={{ fontWeight: 700, fontSize: FONT.lg, color: APP.text1 }}>
                 {patient.name || "患者"}
               </span>
-              <span style={{ fontSize: 13, color: APP.text4 }}>{summaryParts}</span>
+              <span style={{ fontSize: FONT.sm, color: APP.text4 }}>{summaryParts}</span>
             </div>
           }
         >
@@ -169,8 +169,8 @@ function PatientProfile({ patient, records }) {
 function ProfileRow({ label, value }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <span style={{ fontSize: 11, color: APP.text4 }}>{label}</span>
-      <span style={{ fontSize: 14, color: APP.text2 }}>{value}</span>
+      <span style={{ fontSize: FONT.xs, color: APP.text4 }}>{label}</span>
+      <span style={{ fontSize: FONT.main, color: APP.text2 }}>{value}</span>
     </div>
   );
 }
@@ -191,9 +191,9 @@ function AttentionCard({ pendingReviewCount, draftCount, onPendingClick, onDraft
     >
       <div
         style={{
-          fontSize: 11,
+          fontSize: FONT.xs,
           fontWeight: 600,
-          color: "#FFC300",
+          color: APP.warning,
           marginBottom: 8,
         }}
       >
@@ -216,26 +216,26 @@ function AttentionCard({ pendingReviewCount, draftCount, onPendingClick, onDraft
             style={{
               width: 32,
               height: 32,
-              borderRadius: 6,
-              background: "#FFF8E0",
+              borderRadius: RADIUS.sm,
+              background: APP.warningLight,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 16,
+              fontSize: FONT.md,
               flexShrink: 0,
             }}
           >
-            <ContentOutline style={{ fontSize: 16, color: "#FFC300" }} />
+            <ContentOutline style={{ fontSize: FONT.md, color: APP.warning }} />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 500, color: APP.text1 }}>
+            <div style={{ fontSize: FONT.main, fontWeight: 500, color: APP.text1 }}>
               {pendingReviewCount} 条病历待审核
             </div>
-            <div style={{ fontSize: 12, color: APP.text4, marginTop: 2 }}>
+            <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
               点击查看并确认
             </div>
           </div>
-          <span style={{ fontSize: 16, color: APP.text4 }}>›</span>
+          <span style={{ fontSize: FONT.md, color: APP.text4 }}>›</span>
         </div>
       )}
 
@@ -254,26 +254,26 @@ function AttentionCard({ pendingReviewCount, draftCount, onPendingClick, onDraft
             style={{
               width: 32,
               height: 32,
-              borderRadius: 6,
+              borderRadius: RADIUS.sm,
               background: APP.primaryLight,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 16,
+              fontSize: FONT.md,
               flexShrink: 0,
             }}
           >
-            ✉️
+            <MailOutline style={{ fontSize: FONT.md, color: APP.primary }} />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 500, color: APP.text1 }}>
+            <div style={{ fontSize: FONT.main, fontWeight: 500, color: APP.text1 }}>
               {draftCount} 条消息待回复
             </div>
-            <div style={{ fontSize: 12, color: APP.text4, marginTop: 2 }}>
+            <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
               AI已起草 · 待你确认
             </div>
           </div>
-          <span style={{ fontSize: 16, color: APP.text4 }}>›</span>
+          <span style={{ fontSize: FONT.md, color: APP.text4 }}>›</span>
         </div>
       )}
     </div>
@@ -306,7 +306,7 @@ function ChatNavCard({ messageCount, draftCount, onClick }) {
           style={{
             width: 36,
             height: 36,
-            borderRadius: 6,
+            borderRadius: RADIUS.sm,
             background: APP.primaryLight,
             display: "flex",
             alignItems: "center",
@@ -314,29 +314,29 @@ function ChatNavCard({ messageCount, draftCount, onClick }) {
             flexShrink: 0,
           }}
         >
-          <MessageOutline style={{ fontSize: 18, color: "#07C160" }} />
+          <MessageOutline style={{ fontSize: FONT.lg, color: APP.primary }} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 500, color: APP.text1 }}>
+          <div style={{ fontSize: FONT.md, fontWeight: 500, color: APP.text1 }}>
             患者消息
             {messageCount > 0 && (
-              <span style={{ fontSize: 12, color: APP.text4, fontWeight: 400, marginLeft: 4 }}>
+              <span style={{ fontSize: FONT.sm, color: APP.text4, fontWeight: 400, marginLeft: 4 }}>
                 ({messageCount})
               </span>
             )}
           </div>
-          <div style={{ fontSize: 12, color: APP.text4, marginTop: 2 }}>
+          <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
             {draftCount > 0 ? `${draftCount} 条待回复` : "查看聊天记录"}
           </div>
         </div>
         {draftCount > 0 && (
           <div
             style={{
-              fontSize: 12,
+              fontSize: FONT.sm,
               fontWeight: 600,
-              color: "#fff",
-              background: "#FA5151",
-              borderRadius: 8,
+              color: APP.white,
+              background: APP.danger,
+              borderRadius: RADIUS.md,
               padding: "0 6px",
               minWidth: 16,
               textAlign: "center",
@@ -346,7 +346,7 @@ function ChatNavCard({ messageCount, draftCount, onClick }) {
             {draftCount}
           </div>
         )}
-        <span style={{ fontSize: 16, color: APP.text4 }}>›</span>
+        <span style={{ fontSize: FONT.md, color: APP.text4 }}>›</span>
       </div>
     </div>
   );
@@ -379,13 +379,13 @@ function RecordRow({ record, onClick }) {
         <Tag
           color={
             record.record_type === "lab"
-              ? "#576B95"
+              ? APP.accent
               : record.record_type === "imaging"
-              ? "#576B95"
-              : "#07C160"
+              ? APP.accent
+              : APP.primary
           }
           fill="outline"
-          style={{ "--border-radius": "4px", fontSize: 11 }}
+          style={{ "--border-radius": "4px", fontSize: FONT.xs }}
         >
           {typeLabel}
         </Tag>
@@ -393,16 +393,16 @@ function RecordRow({ record, onClick }) {
 
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, color: APP.text1, lineHeight: "1.5", wordBreak: "break-word" }}>
+        <div style={{ fontSize: FONT.main, color: APP.text1, lineHeight: "1.5", wordBreak: "break-word" }}>
           {preview || "（无主诉）"}
         </div>
-        <div style={{ fontSize: 12, color: APP.text4, marginTop: 4 }}>{dateStr}</div>
+        <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 4 }}>{dateStr}</div>
       </div>
 
       {/* Status + chevron */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
         {statusBadge}
-        <span style={{ fontSize: 16, color: APP.text4 }}>›</span>
+        <span style={{ fontSize: FONT.md, color: APP.text4 }}>›</span>
       </div>
     </div>
   );
@@ -557,20 +557,20 @@ export default function PatientDetail({ patientId: propPatientId }) {
         {/* Record list */}
         <div>
           {/* Filter tabs */}
-          <CapsuleTabs
+          <JumboTabs
             activeKey={activeTab}
             onChange={setActiveTab}
             style={{
-              "--adm-color-primary": "#07C160",
+              "--adm-color-primary": "var(--adm-color-primary)",
               background: APP.surface,
               padding: "8px 12px",
               borderBottom: `0.5px solid ${APP.border}`,
             }}
           >
             {RECORD_TABS.map((tab) => (
-              <CapsuleTabs.Tab key={tab.key} title={tab.label} />
+              <JumboTabs.Tab key={tab.key} title={tab.label} />
             ))}
-          </CapsuleTabs>
+          </JumboTabs>
 
           {/* Loading */}
           {loading && (
@@ -581,7 +581,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
                 padding: "40px 0",
               }}
             >
-              <SpinLoading color="#07C160" style={{ "--size": "24px" }} />
+              <SpinLoading color="primary" style={{ "--size": "24px" }} />
             </div>
           )}
 
@@ -600,7 +600,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
               style={{
                 textAlign: "center",
                 padding: "48px 16px",
-                fontSize: 14,
+                fontSize: FONT.main,
                 color: APP.text4,
               }}
             >

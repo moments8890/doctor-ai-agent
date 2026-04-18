@@ -14,7 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS } from "../../../theme";
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -30,11 +30,11 @@ function dueLabel(dueAt) {
   const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   if (dDate.getTime() < today.getTime())
-    return { text: `${dateStr} (已过期)`, color: "#FA5151" };
+    return { text: `${dateStr} (已过期)`, color: APP.danger };
   if (dDate.getTime() === today.getTime())
-    return { text: `${dateStr} (今天)`, color: "#FA5151" };
+    return { text: `${dateStr} (今天)`, color: APP.danger };
   if (dDate.getTime() === tomorrow.getTime())
-    return { text: `${dateStr} (明天)`, color: "#FFC300" };
+    return { text: `${dateStr} (明天)`, color: APP.warning };
   return { text: dateStr, color: APP.text3 };
 }
 
@@ -52,7 +52,7 @@ function DetailField({ label, children, color }) {
     >
       <span
         style={{
-          fontSize: 12,
+          fontSize: FONT.sm,
           color: APP.text4,
           flexShrink: 0,
           minWidth: 40,
@@ -63,7 +63,7 @@ function DetailField({ label, children, color }) {
       </span>
       <div
         style={{
-          fontSize: 14,
+          fontSize: FONT.base,
           color: color || APP.text2,
           lineHeight: 1.6,
           flex: 1,
@@ -94,13 +94,13 @@ function SourceCard({ task, navigate }) {
           margin: "12px 16px 4px",
           padding: "12px 16px",
           backgroundColor: APP.surfaceAlt,
-          borderRadius: 8,
+          borderRadius: RADIUS.md,
           border: `0.5px solid ${APP.borderLight}`,
         }}
       >
         <div
           style={{
-            fontSize: 11,
+            fontSize: FONT.xs,
             fontWeight: 600,
             color: APP.text4,
             marginBottom: 6,
@@ -108,7 +108,7 @@ function SourceCard({ task, navigate }) {
         >
           AI生成来源
         </div>
-        <div style={{ fontSize: 13, color: APP.text2, marginBottom: 6 }}>
+        <div style={{ fontSize: FONT.base, color: APP.text2, marginBottom: 6 }}>
           {description}
         </div>
         {task.patient_id && (
@@ -119,8 +119,8 @@ function SourceCard({ task, navigate }) {
               )
             }
             style={{
-              fontSize: 12,
-              color: "#07C160",
+              fontSize: FONT.sm,
+              color: APP.primary,
               fontWeight: 500,
               cursor: "pointer",
             }}
@@ -138,14 +138,14 @@ function SourceCard({ task, navigate }) {
         margin: "12px 16px 4px",
         padding: "10px 16px",
         backgroundColor: APP.surfaceAlt,
-        borderRadius: 8,
+        borderRadius: RADIUS.md,
         border: `0.5px solid ${APP.borderLight}`,
         display: "flex",
         alignItems: "center",
         gap: 8,
       }}
     >
-      <span style={{ fontSize: 14, color: APP.text4 }}>来源：医生手动创建</span>
+      <span style={{ fontSize: FONT.base, color: APP.text4 }}>来源：医生手动创建</span>
     </div>
   );
 }
@@ -322,7 +322,7 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
             paddingTop: 64,
             textAlign: "center",
             color: APP.text4,
-            fontSize: 14,
+            fontSize: FONT.base,
           }}
         >
           任务不存在
@@ -333,7 +333,7 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
 
   const isCompleted = task.status === "completed";
   const due = dueLabel(task.due_at);
-  const isUrgent = due?.color === "#FA5151";
+  const isUrgent = due?.color === APP.danger;
 
   return (
     <div
@@ -386,13 +386,13 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
                   width: 8,
                   height: 8,
                   borderRadius: "50%",
-                  backgroundColor: isUrgent ? "#FA5151" : "#FFC300",
+                  backgroundColor: isUrgent ? APP.danger : APP.warning,
                   flexShrink: 0,
                 }}
               />
               <span
                 style={{
-                  fontSize: 16,
+                  fontSize: FONT.md,
                   fontWeight: 600,
                   color: APP.text1,
                   flex: 1,
@@ -403,11 +403,11 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
               {isUrgent && (
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: FONT.xs,
                     fontWeight: 600,
-                    backgroundColor: "#FA5151",
-                    color: "#fff",
-                    borderRadius: 3,
+                    backgroundColor: APP.danger,
+                    color: APP.white,
+                    borderRadius: RADIUS.xs,
                     padding: "2px 6px",
                     lineHeight: 1.5,
                   }}
@@ -419,7 +419,7 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
             {task.content && (
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: FONT.base,
                   color: APP.text3,
                   marginTop: 4,
                   marginLeft: 16,
@@ -443,9 +443,9 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
                   navigate(`/doctor/patients/${task.patient_id}`)
                 }
                 style={{
-                  color: "#07C160",
+                  color: APP.primary,
                   cursor: task.patient_id ? "pointer" : "default",
-                  fontSize: 14,
+                  fontSize: FONT.base,
                 }}
               >
                 {task.patient_name} ›
@@ -497,8 +497,8 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
               style={{
                 padding: "12px 16px",
                 borderTop: `0.5px solid ${APP.borderLight}`,
-                fontSize: 14,
-                color: "#07C160",
+                fontSize: FONT.base,
+                color: APP.primary,
                 fontWeight: 500,
               }}
             >
@@ -526,7 +526,7 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
           >
             <span
               style={{
-                fontSize: 12,
+                fontSize: FONT.sm,
                 color: APP.text4,
                 flexShrink: 0,
                 minWidth: 40,
@@ -547,14 +547,14 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
                 border: "none",
                 outline: "none",
                 padding: 0,
-                fontSize: 14,
+                fontSize: FONT.base,
                 color: APP.text2,
                 fontFamily: "inherit",
                 backgroundColor: "transparent",
               }}
             />
             {saving && (
-              <span style={{ fontSize: 12, color: APP.text4, flexShrink: 0 }}>
+              <span style={{ fontSize: FONT.sm, color: APP.text4, flexShrink: 0 }}>
                 保存中
               </span>
             )}
@@ -566,7 +566,7 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
           <div style={{ padding: "16px" }}>
             <span
               onClick={confirmDelete}
-              style={{ fontSize: 13, color: APP.text4, cursor: "pointer" }}
+              style={{ fontSize: FONT.base, color: APP.text4, cursor: "pointer" }}
             >
               删除任务
             </span>

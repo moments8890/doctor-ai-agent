@@ -812,7 +812,7 @@ export default function InterviewPage({
             >
               必填 {session.progress?.required_count || 0}/
               {session.progress?.required_total || 0}
-              {session.progress?.can_complete ? <CheckOutline style={{ fontSize: 12, marginLeft: 4 }} /> : null}
+              {session.progress?.can_complete ? <CheckOutline style={{ fontSize: FONT.sm, marginLeft: 4 }} /> : null}
             </span>
             <span style={statusStyles.other}>
               其他{" "}
@@ -904,7 +904,7 @@ export default function InterviewPage({
         <div style={errStyles.bar}>
           <span style={errStyles.text}>{error}</span>
           <button style={errStyles.close} onClick={() => setError(null)}>
-            <CloseOutline style={{ fontSize: 16 }} />
+            <CloseOutline style={{ fontSize: FONT.md }} />
           </button>
         </div>
       )}

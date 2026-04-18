@@ -12,7 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS } from "../../../theme";
 
 const FIELD_LABELS = {
   reply_style: "回复风格",
@@ -79,7 +79,7 @@ export default function TeachByExampleSubpage() {
         {/* Helper text */}
         <p
           style={{
-            fontSize: 13,
+            fontSize: FONT.sm,
             color: APP.text4,
             lineHeight: 1.6,
             margin: "0 0 16px",
@@ -98,10 +98,10 @@ export default function TeachByExampleSubpage() {
           showCount
           disabled={loading}
           style={{
-            "--font-size": "14px",
+            "--font-size": FONT.main,
             "--placeholder-color": APP.text4,
             backgroundColor: APP.surface,
-            borderRadius: 8,
+            borderRadius: RADIUS.md,
             padding: "12px",
             border: `0.5px solid ${APP.border}`,
             marginBottom: 16,
@@ -121,7 +121,7 @@ export default function TeachByExampleSubpage() {
 
         {/* Error */}
         {error && (
-          <p style={{ color: "#FA5151", fontSize: 14, marginTop: 12 }}>
+          <p style={{ color: APP.danger, fontSize: FONT.main, marginTop: 12 }}>
             {error}
           </p>
         )}
@@ -134,7 +134,7 @@ export default function TeachByExampleSubpage() {
                 style={{
                   textAlign: "center",
                   color: APP.text4,
-                  fontSize: 14,
+                  fontSize: FONT.main,
                   padding: "16px 0",
                 }}
               >
@@ -144,7 +144,7 @@ export default function TeachByExampleSubpage() {
               <>
                 <p
                   style={{
-                    fontSize: 13,
+                    fontSize: FONT.sm,
                     color: APP.text4,
                     marginBottom: 12,
                   }}
@@ -166,32 +166,32 @@ export default function TeachByExampleSubpage() {
                         gap: 10,
                         alignItems: "flex-start",
                         backgroundColor: APP.surface,
-                        borderRadius: 8,
+                        borderRadius: RADIUS.md,
                         padding: "10px 14px",
                         border: `0.5px solid ${APP.border}`,
                       }}
                     >
                       <span
                         style={{
-                          fontSize: 16,
-                          color: "#07C160",
+                          fontSize: FONT.md,
+                          color: APP.primary,
                           flexShrink: 0,
                           lineHeight: 1.4,
                         }}
                       >
-                        <CheckOutline style={{ fontSize: 16 }} />
+                        <CheckOutline style={{ fontSize: FONT.md }} />
                       </span>
                       <div>
                         <div
                           style={{
-                            fontSize: 11,
+                            fontSize: FONT.xs,
                             color: APP.text4,
                             marginBottom: 2,
                           }}
                         >
                           {FIELD_LABELS[r.field] || r.field}
                         </div>
-                        <div style={{ fontSize: 14, color: APP.text1 }}>
+                        <div style={{ fontSize: FONT.main, color: APP.text1 }}>
                           {r.text}
                         </div>
                       </div>

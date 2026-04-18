@@ -10,7 +10,7 @@ import { CheckOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { useFontScaleStore, saveFontScaleToServer } from "../../../../store/fontScaleStore";
 import { useDoctorStore } from "../../../../store/doctorStore";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS } from "../../../theme";
 
 const FONT_SCALE_LEVELS = [
   { key: "standard",   label: "标准",     size: 14 },
@@ -89,13 +89,13 @@ export default function SettingsListSubpage({ onLogout }) {
             style={{
               width: 48,
               height: 48,
-              borderRadius: 24,
-              backgroundColor: "#576B95",
+              borderRadius: RADIUS.pill,
+              backgroundColor: APP.accent,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: APP.surface,
-              fontSize: 18,
+              fontSize: FONT.lg,
               fontWeight: 600,
               flexShrink: 0,
             }}
@@ -103,10 +103,10 @@ export default function SettingsListSubpage({ onLogout }) {
             {(doctorName || doctorId || "?").charAt(0).toUpperCase()}
           </div>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 600, color: APP.text1 }}>
+            <div style={{ fontSize: FONT.lg, fontWeight: 600, color: APP.text1 }}>
               {doctorName || doctorId}
             </div>
-            <div style={{ fontSize: 12, color: APP.text4, marginTop: 2 }}>{doctorId}</div>
+            <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>{doctorId}</div>
           </div>
         </div>
 
@@ -162,7 +162,7 @@ export default function SettingsListSubpage({ onLogout }) {
           <div
             style={{
               textAlign: "center",
-              fontSize: 16,
+              fontSize: FONT.md,
               fontWeight: 600,
               color: APP.text1,
               padding: "0 0 12px",
@@ -192,13 +192,13 @@ export default function SettingsListSubpage({ onLogout }) {
                   style={{
                     fontSize: level.size,
                     fontWeight: active ? 600 : 400,
-                    color: active ? "#07C160" : APP.text1,
+                    color: active ? APP.primary : APP.text1,
                   }}
                 >
                   {level.label}
                 </span>
                 {active && (
-                  <CheckOutline style={{ color: "#07C160", fontSize: 18 }} />
+                  <CheckOutline style={{ color: APP.primary, fontSize: FONT.lg }} />
                 )}
               </div>
             );

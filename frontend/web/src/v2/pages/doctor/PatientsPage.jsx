@@ -38,12 +38,12 @@ function NameCircle({ name }) {
         width: 40,
         height: 40,
         borderRadius: "50%",
-        background: "#07C160",
-        color: "#fff",
+        background: APP.primary,
+        color: APP.white,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 16,
+        fontSize: FONT.md,
         fontWeight: 600,
         flexShrink: 0,
       }}
@@ -59,12 +59,12 @@ function UrgencyTag({ triage }) {
     return (
       <span
         style={{
-          fontSize: 10,
+          fontSize: FONT.xs,
           fontWeight: 600,
           padding: "1px 5px",
-          borderRadius: 4,
-          background: "#FA5151",
-          color: "#fff",
+          borderRadius: RADIUS.xs,
+          background: APP.danger,
+          color: APP.white,
           marginLeft: 4,
           flexShrink: 0,
         }}
@@ -76,12 +76,12 @@ function UrgencyTag({ triage }) {
     return (
       <span
         style={{
-          fontSize: 10,
+          fontSize: FONT.xs,
           fontWeight: 600,
           padding: "1px 5px",
-          borderRadius: 4,
-          background: "#FFC300",
-          color: "#fff",
+          borderRadius: RADIUS.xs,
+          background: APP.warning,
+          color: APP.white,
           marginLeft: 4,
           flexShrink: 0,
         }}
@@ -122,7 +122,7 @@ export default function PatientsPage() {
   if (isLoading) {
     return (
       <div style={styles.center}>
-        <SpinLoading color="#07C160" style={{ "--size": "32px" }} />
+        <SpinLoading color="primary" style={{ "--size": "32px" }} />
       </div>
     );
   }
@@ -201,7 +201,7 @@ export default function PatientsPage() {
                   prefix={<NameCircle name={patient.name} />}
                   description={patientSubtitle(patient)}
                   extra={
-                    <span style={{ fontSize: 12, color: APP.text4 }}>
+                    <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
                       {timeStr}
                     </span>
                   }
@@ -209,7 +209,7 @@ export default function PatientsPage() {
                   style={{ "--align-items": "center" }}
                 >
                   <div style={{ display: "flex", alignItems: "center" }}>
-                    <span style={{ fontWeight: 500, fontSize: 15 }}>
+                    <span style={{ fontWeight: 500, fontSize: FONT.md }}>
                       {patient.name || "未命名"}
                     </span>
                     <UrgencyTag triage={triage} />
@@ -245,13 +245,13 @@ const styles = {
   },
   newBtn: {
     flexShrink: 0,
-    "--background-color": "#07C160",
-    "--border-color": "#07C160",
-    "--text-color": "#fff",
-    borderRadius: 8,
+    "--background-color": APP.primary,
+    "--border-color": APP.primary,
+    "--text-color": APP.white,
+    borderRadius: RADIUS.md,
     height: 32,
     padding: "0 10px",
-    fontSize: 13,
+    fontSize: FONT.sm,
     display: "flex",
     alignItems: "center",
   },

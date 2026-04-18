@@ -12,7 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS } from "../../../theme";
 
 const TABS = [
   { key: "text", label: "手动输入" },
@@ -184,12 +184,12 @@ export default function AddKnowledgeSubpage() {
 
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
           {sourceFilename && (
-            <div style={{ fontSize: 12, color: APP.text4, marginBottom: 12, wordBreak: "break-all" }}>
+            <div style={{ fontSize: FONT.sm, color: APP.text4, marginBottom: 12, wordBreak: "break-all" }}>
               来源：{sourceFilename.length > 50 ? sourceFilename.slice(0, 50) + "…" : sourceFilename}
             </div>
           )}
           {error && (
-            <div style={{ color: "var(--adm-color-danger)", fontSize: 13, marginBottom: 12 }}>
+            <div style={{ color: "var(--adm-color-danger)", fontSize: FONT.sm, marginBottom: 12 }}>
               {error}
             </div>
           )}
@@ -198,14 +198,14 @@ export default function AddKnowledgeSubpage() {
             onChange={setPreviewText}
             autoSize={{ minRows: 10, maxRows: 24 }}
             style={{
-              "--font-size": "14px",
+              "--font-size": FONT.main,
               backgroundColor: APP.surface,
-              borderRadius: 8,
+              borderRadius: RADIUS.md,
               padding: "12px",
               border: `0.5px solid ${APP.border}`,
             }}
           />
-          <div style={{ fontSize: 12, color: APP.text4, textAlign: "right", marginTop: 4 }}>
+          <div style={{ fontSize: FONT.sm, color: APP.text4, textAlign: "right", marginTop: 4 }}>
             {previewText.length} 字
           </div>
         </div>
@@ -291,12 +291,11 @@ export default function AddKnowledgeSubpage() {
                   flex: 1,
                   textAlign: "center",
                   padding: "10px 0",
-                  fontSize: 14,
+                  fontSize: FONT.main,
                   fontWeight: active ? 600 : 400,
-                  color: active ? "#07C160" : APP.text3,
-                  borderBottom: active ? "2px solid #07C160" : "2px solid transparent",
+                  color: active ? APP.primary : APP.text3,
+                  borderBottom: active ? `2px solid ${APP.primary}` : "2px solid transparent",
                   cursor: "pointer",
-                  transition: "color 0.15s",
                 }}
               >
                 {tab.label}
@@ -310,11 +309,11 @@ export default function AddKnowledgeSubpage() {
             <div
               style={{
                 color: "var(--adm-color-danger)",
-                fontSize: 13,
+                fontSize: FONT.sm,
                 marginBottom: 12,
                 padding: "8px 12px",
-                backgroundColor: "#fff0f0",
-                borderRadius: 6,
+                backgroundColor: APP.dangerLight,
+                borderRadius: RADIUS.sm,
               }}
             >
               {error}
@@ -332,16 +331,16 @@ export default function AddKnowledgeSubpage() {
                 maxLength={3000}
                 showCount
                 style={{
-                  "--font-size": "14px",
+                  "--font-size": FONT.main,
                   "--placeholder-color": APP.text4,
                   backgroundColor: APP.surface,
-                  borderRadius: 8,
+                  borderRadius: RADIUS.md,
                   padding: "12px",
                   border: `0.5px solid ${APP.border}`,
                 }}
               />
               {content.length >= 500 && (
-                <div style={{ fontSize: 12, color: APP.text4, marginTop: 6 }}>
+                <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 6 }}>
                   内容较长，保存时AI将自动整理
                 </div>
               )}
@@ -356,7 +355,7 @@ export default function AddKnowledgeSubpage() {
                   flex: 1,
                   backgroundColor: APP.surface,
                   border: `0.5px solid ${APP.border}`,
-                  borderRadius: 8,
+                  borderRadius: RADIUS.md,
                   padding: "10px 12px",
                 }}
               >
@@ -365,7 +364,7 @@ export default function AddKnowledgeSubpage() {
                   value={urlInput}
                   onChange={setUrlInput}
                   onEnterPress={handleFetchUrl}
-                  style={{ "--font-size": "14px" }}
+                  style={{ "--font-size": FONT.main }}
                 />
               </div>
               <Button
@@ -391,7 +390,7 @@ export default function AddKnowledgeSubpage() {
                 gap: 12,
                 padding: "40px 0",
                 color: APP.text4,
-                fontSize: 14,
+                fontSize: FONT.main,
               }}
             >
               {uploading ? (

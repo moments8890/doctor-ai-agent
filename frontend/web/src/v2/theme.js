@@ -62,21 +62,24 @@ export const RADIUS = {
 };
 
 // Font size CSS variable references (use in inline styles)
+// Hierarchy: xs < sm < base < md < lg < xl (clear visual steps)
 export const FONT = {
-  xs: "var(--adm-font-size-xs)",     // 10px base
-  sm: "var(--adm-font-size-sm)",     // 12px base
-  main: "var(--adm-font-size-main)", // 14px base
-  md: "var(--adm-font-size-md)",     // 15px base
-  lg: "var(--adm-font-size-lg)",     // 17px base
-  xl: "var(--adm-font-size-xl)",     // 20px base
+  xs: "var(--adm-font-size-xs)",     // 10px base — micro labels, badges
+  sm: "var(--adm-font-size-sm)",     // 12px base — captions, timestamps
+  base: "var(--adm-font-size-main)", // 14px base — body text
+  md: "var(--adm-font-size-md)",     // 16px base — emphasized body, list titles
+  lg: "var(--adm-font-size-lg)",     // 18px base — section headings
+  xl: "var(--adm-font-size-xl)",     // 22px base — page titles, hero text
+  // Aliases for backward compat (agents may have used "main")
+  main: "var(--adm-font-size-main)", // = base
 };
 
 // Category color palettes (knowledge, records, etc.)
 export const CATEGORY_COLORS = {
-  diagnosis: { bg: "#e7f8ee", text: "#07C160" },
-  medication: { bg: "#e8f0fe", text: "#1B6EF3" },
-  followup:   { bg: "#fff3e0", text: "#E67E22" },
-  custom:     { bg: "#f3f0ff", text: "#7C3AED" },
+  diagnosis:  { bg: APP.primaryLight,  text: APP.primary },
+  medication: { bg: "#e8f0fe",         text: "#1B6EF3" },  // blue — no APP token
+  followup:   { bg: "#fff3e0",         text: "#E67E22" },  // orange — no APP token
+  custom:     { bg: "#f3f0ff",         text: "#7C3AED" },  // purple — no APP token
 };
 
 // ── Font scaling ───────────────────────────────────────────────────
@@ -90,18 +93,18 @@ export function applyFontScale(tier) {
   const m = FONT_SCALES[tier] || 1.0;
   const r = document.documentElement.style;
 
-  // antd-mobile base typography
-  r.setProperty("--adm-font-size-main",  `${Math.round(14 * m)}px`);
-  r.setProperty("--adm-font-size-xs",    `${Math.round(10 * m)}px`);
-  r.setProperty("--adm-font-size-sm",    `${Math.round(12 * m)}px`);
-  r.setProperty("--adm-font-size-md",    `${Math.round(15 * m)}px`);
-  r.setProperty("--adm-font-size-lg",    `${Math.round(17 * m)}px`);
-  r.setProperty("--adm-font-size-xl",    `${Math.round(20 * m)}px`);
+  // antd-mobile base typography — clear visual steps between each tier
+  r.setProperty("--adm-font-size-xs",    `${Math.round(10 * m)}px`);  // micro
+  r.setProperty("--adm-font-size-sm",    `${Math.round(12 * m)}px`);  // caption
+  r.setProperty("--adm-font-size-main",  `${Math.round(14 * m)}px`);  // body (base)
+  r.setProperty("--adm-font-size-md",    `${Math.round(16 * m)}px`);  // emphasized
+  r.setProperty("--adm-font-size-lg",    `${Math.round(18 * m)}px`);  // heading
+  r.setProperty("--adm-font-size-xl",    `${Math.round(22 * m)}px`);  // title
 
   // Component-specific
-  r.setProperty("--adm-button-font-size",    `${Math.round(15 * m)}px`);
-  r.setProperty("--adm-navbar-font-size",    `${Math.round(17 * m)}px`);
-  r.setProperty("--adm-list-item-font-size", `${Math.round(15 * m)}px`);
+  r.setProperty("--adm-button-font-size",    `${Math.round(16 * m)}px`);
+  r.setProperty("--adm-navbar-font-size",    `${Math.round(18 * m)}px`);
+  r.setProperty("--adm-list-item-font-size", `${Math.round(16 * m)}px`);
   r.setProperty("--adm-input-font-size",     `${Math.round(14 * m)}px`);
   r.setProperty("--adm-tabs-font-size",      `${Math.round(14 * m)}px`);
 }

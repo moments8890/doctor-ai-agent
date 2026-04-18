@@ -7,7 +7,7 @@ import { NavBar, Button, Tag, SpinLoading, Dialog, ErrorBlock } from "antd-mobil
 import { useNavigate } from "react-router-dom";
 import { useKbPending, useAcceptKbPending, useRejectKbPending } from "../../../../lib/doctorQueries";
 import { dp } from "../../../../utils/doctorBasePath";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS } from "../../../theme";
 
 const CATEGORY_LABELS = {
   diagnosis: "诊断",
@@ -73,7 +73,7 @@ export default function KbPendingSubpage() {
 
               return (
                 <div key={item.id} style={{
-                  background: APP.surface, borderRadius: 8,
+                  background: APP.surface, borderRadius: RADIUS.md,
                   border: `0.5px solid ${APP.border}`, padding: 12,
                 }}>
                   {/* Category + confidence */}
@@ -93,7 +93,7 @@ export default function KbPendingSubpage() {
                       onClick={clickable ? () => openSource(link) : undefined}
                       style={{
                         fontSize: "var(--adm-font-size-sm)", margin: "0 0 10px",
-                        color: clickable ? "#07C160" : APP.text4,
+                        color: clickable ? APP.primary : APP.text4,
                         cursor: clickable ? "pointer" : "default",
                         textDecoration: clickable ? "underline" : "none",
                       }}

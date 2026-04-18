@@ -35,7 +35,7 @@ function FilterPills({ items, active, onChange }) {
           onClick={() => onChange(item.key)}
           style={{
             padding: "4px 12px",
-            borderRadius: 100,
+            borderRadius: RADIUS.pill,
             fontSize: FONT.sm,
             whiteSpace: "nowrap",
             cursor: "pointer",
@@ -60,7 +60,7 @@ function SectionHeader({ children }) {
     <div
       style={{
         padding: "8px 16px 4px",
-        fontSize: 12,
+        fontSize: FONT.sm,
         color: APP.text4,
         fontWeight: 600,
         background: APP.surfaceAlt,
@@ -123,7 +123,7 @@ function TaskItem({ task, onComplete, onUndo }) {
           <Tag
             color={isDone ? "success" : "warning"}
             fill="outline"
-            style={{ fontSize: 11 }}
+            style={{ fontSize: FONT.xs }}
           >
             {isDone ? "已完成" : "待完成"}
           </Tag>

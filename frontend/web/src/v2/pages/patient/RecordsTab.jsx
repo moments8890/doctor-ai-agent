@@ -106,7 +106,7 @@ function FilterPills({ items, active, onChange }) {
           onClick={() => onChange(item.key)}
           style={{
             padding: "4px 12px",
-            borderRadius: 100,
+            borderRadius: RADIUS.pill,
             fontSize: FONT.sm,
             whiteSpace: "nowrap",
             cursor: "pointer",
@@ -153,7 +153,7 @@ function TimelineView({ records, onTap }) {
                 bottom: 8,
                 width: 2,
                 background: APP.borderLight,
-                borderRadius: 1,
+                borderRadius: RADIUS.xs,
               }}
             />
             {group.items.map((rec, idx) => {

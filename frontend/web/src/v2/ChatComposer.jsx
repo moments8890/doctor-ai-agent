@@ -127,7 +127,7 @@ const styles = {
   chip: {
     display: "inline-block",
     padding: "4px 10px",
-    borderRadius: 14,
+    borderRadius: RADIUS.lg,
     fontSize: FONT.sm,
     cursor: "pointer",
     userSelect: "none",
@@ -147,7 +147,7 @@ const styles = {
   textAreaWrap: {
     flex: 1,
     background: APP.surfaceAlt,
-    borderRadius: 18,
+    borderRadius: RADIUS.pill,
     padding: "6px 12px",
     minHeight: 36,
     display: "flex",

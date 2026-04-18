@@ -30,8 +30,8 @@ const LAST_SEEN_CHAT_KEY = "patient_last_seen_chat";
 
 function QuickActions({ onNewInterview, onViewRecords }) {
   const items = [
-    { label: "新问诊", subtitle: "AI帮您整理病情", icon: <ContentOutline style={{ fontSize: 22, color: APP.primary }} />, onClick: onNewInterview },
-    { label: "我的病历", subtitle: "查看历史记录", icon: <FolderOutline style={{ fontSize: 22, color: APP.text3 }} />, onClick: onViewRecords },
+    { label: "新问诊", subtitle: "AI帮您整理病情", icon: <ContentOutline style={{ fontSize: FONT.xl, color: APP.primary }} />, onClick: onNewInterview },
+    { label: "我的病历", subtitle: "查看历史记录", icon: <FolderOutline style={{ fontSize: FONT.xl, color: APP.text3 }} />, onClick: onViewRecords },
   ];
   return (
     <div style={styles.quickRow}>
@@ -250,7 +250,7 @@ export default function ChatTab({
         {isUrgent && (
           <div style={styles.urgentBanner}>紧急情况，请立即就近就医</div>
         )}
-        <div style={{ fontSize: 11, color: APP.text4, paddingLeft: 44, marginTop: 2 }}>
+        <div style={{ fontSize: FONT.xs, color: APP.text4, paddingLeft: 44, marginTop: 2 }}>
           {doctorName ? `${doctorName}的AI助手` : "AI健康助手"}
         </div>
       </div>
@@ -297,7 +297,7 @@ const styles = {
   quickCard: {
     flex: 1,
     background: APP.surface,
-    borderRadius: 10,
+    borderRadius: RADIUS.md,
     padding: "10px 12px",
     display: "flex",
     alignItems: "center",
@@ -307,17 +307,17 @@ const styles = {
     userSelect: "none",
   },
   quickEmoji: {
-    fontSize: 22,
+    fontSize: FONT.xl,
     flexShrink: 0,
   },
   quickTitle: {
-    fontSize: 14,
+    fontSize: FONT.base,
     fontWeight: 600,
     color: APP.text1,
     lineHeight: 1.3,
   },
   quickSub: {
-    fontSize: 11,
+    fontSize: FONT.xs,
     color: APP.text4,
     marginTop: 2,
   },
@@ -344,7 +344,7 @@ const styles = {
     fontWeight: 600,
   },
   msgMeta: {
-    fontSize: 11,
+    fontSize: FONT.xs,
     color: APP.text4,
     marginTop: 3,
     paddingLeft: 2,

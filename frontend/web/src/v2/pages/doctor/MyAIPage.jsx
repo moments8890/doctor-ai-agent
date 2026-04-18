@@ -50,7 +50,7 @@ function CountPill({ value, active }) {
   return (
     <span
       style={{
-        fontSize: 14,
+        fontSize: FONT.main,
         fontWeight: 600,
         color: active ? APP.primary : APP.text4,
         minWidth: 20,

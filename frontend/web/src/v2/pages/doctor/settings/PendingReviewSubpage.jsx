@@ -8,7 +8,7 @@ import { useState } from "react";
 import { NavBar, Button, Tag, SpinLoading, ErrorBlock } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import { usePersonaPending, useAcceptPendingItem, useRejectPendingItem } from "../../../../lib/doctorQueries";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS } from "../../../theme";
 
 const FIELD_LABELS = {
   reply_style: "回复风格",
@@ -19,8 +19,8 @@ const FIELD_LABELS = {
 };
 
 const CONFIDENCE_COLORS = {
-  high: "#07C160",
-  medium: "#FFC300",
+  high: APP.primary,
+  medium: APP.warning,
   low: APP.text4,
 };
 
@@ -74,7 +74,7 @@ export default function PendingReviewSubpage() {
                   key={item.id}
                   style={{
                     background: APP.surface,
-                    borderRadius: 8,
+                    borderRadius: RADIUS.md,
                     border: `0.5px solid ${APP.border}`,
                     padding: 12,
                   }}

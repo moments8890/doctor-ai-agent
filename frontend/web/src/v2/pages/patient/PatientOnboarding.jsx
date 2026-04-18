@@ -69,12 +69,12 @@ export default function PatientOnboarding({ doctorName, doctorSpecialty, onDismi
           {doctorName ? doctorName[0] : "医"}
         </div>
 
-        <div style={{ fontSize: 18, fontWeight: 600, color: APP.white, marginBottom: 4 }}>
+        <div style={{ fontSize: FONT.lg, fontWeight: 600, color: APP.white, marginBottom: 4 }}>
           {doctorName ? `${doctorName}的AI健康助手` : "AI健康助手"}
         </div>
 
         {doctorSpecialty && (
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.8)" }}>
+          <div style={{ fontSize: FONT.base, color: "rgba(255,255,255,0.8)" }}>
             {doctorSpecialty}
           </div>
         )}

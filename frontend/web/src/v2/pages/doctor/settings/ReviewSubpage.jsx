@@ -10,7 +10,7 @@ import { useState } from "react";
 import { NavBar, Button, TextArea, Dialog } from "antd-mobile";
 import { CheckOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
-import { APP } from "../../../theme";
+import { APP, FONT, RADIUS } from "../../../theme";
 
 const SECTIONS = [
   { key: "differential", label: "鉴别诊断" },
@@ -38,9 +38,9 @@ function InlineAddForm({ onSubmit, onCancel }) {
         onChange={setContent}
         autoSize={{ minRows: 1, maxRows: 3 }}
         style={{
-          "--font-size": "14px",
+          "--font-size": FONT.main,
           backgroundColor: APP.surfaceAlt,
-          borderRadius: 6,
+          borderRadius: RADIUS.sm,
           padding: "8px 10px",
           border: `0.5px solid ${APP.border}`,
           marginBottom: 8,
@@ -52,9 +52,9 @@ function InlineAddForm({ onSubmit, onCancel }) {
         onChange={setDetail}
         autoSize={{ minRows: 1, maxRows: 3 }}
         style={{
-          "--font-size": "13px",
+          "--font-size": FONT.sm,
           backgroundColor: APP.surfaceAlt,
-          borderRadius: 6,
+          borderRadius: RADIUS.sm,
           padding: "8px 10px",
           border: `0.5px solid ${APP.border}`,
           marginBottom: 10,
@@ -66,7 +66,7 @@ function InlineAddForm({ onSubmit, onCancel }) {
         <span
           onClick={onCancel}
           style={{
-            fontSize: 14,
+            fontSize: FONT.main,
             color: APP.text4,
             cursor: "pointer",
             padding: "4px 0",
@@ -79,8 +79,8 @@ function InlineAddForm({ onSubmit, onCancel }) {
             if (content.trim()) onSubmit(content.trim(), detail.trim());
           }}
           style={{
-            fontSize: 14,
-            color: content.trim() ? "#07C160" : APP.text4,
+            fontSize: FONT.main,
+            color: content.trim() ? APP.primary : APP.text4,
             cursor: content.trim() ? "pointer" : "default",
             fontWeight: 500,
             padding: "4px 0",
@@ -120,7 +120,7 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
       >
         <span
           style={{
-            fontSize: 11,
+            fontSize: FONT.xs,
             fontWeight: 600,
             color: APP.text4,
             letterSpacing: 0.3,
@@ -131,8 +131,8 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
         <span
           onClick={() => setAdding((prev) => !prev)}
           style={{
-            fontSize: 11,
-            color: adding ? APP.text4 : "#07C160",
+            fontSize: FONT.xs,
+            color: adding ? APP.text4 : APP.primary,
             cursor: "pointer",
           }}
         >
@@ -202,7 +202,7 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                     flexShrink: 0,
                     marginTop: 2,
                     cursor: "pointer",
-                    backgroundColor: isConfirmed ? "#07C160" : "transparent",
+                    backgroundColor: isConfirmed ? APP.primary : "transparent",
                     border: isConfirmed
                       ? "none"
                       : `1.5px solid ${APP.border}`,
@@ -213,7 +213,7 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                 >
                   {isConfirmed && (
                     <CheckOutline
-                      style={{ color: "#fff", fontSize: 11, lineHeight: 1 }}
+                      style={{ color: APP.white, fontSize: FONT.xs, lineHeight: 1 }}
                     />
                   )}
                 </div>
@@ -235,9 +235,9 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                         onChange={setEditText}
                         autoSize={{ minRows: 1, maxRows: 3 }}
                         style={{
-                          "--font-size": "15px",
+                          "--font-size": FONT.md,
                           backgroundColor: APP.surfaceAlt,
-                          borderRadius: 6,
+                          borderRadius: RADIUS.sm,
                           padding: "6px 10px",
                           border: `0.5px solid ${APP.border}`,
                           marginBottom: 8,
@@ -249,9 +249,9 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                         onChange={setEditDetail}
                         autoSize={{ minRows: 2, maxRows: 6 }}
                         style={{
-                          "--font-size": "13px",
+                          "--font-size": FONT.sm,
                           backgroundColor: APP.surfaceAlt,
-                          borderRadius: 6,
+                          borderRadius: RADIUS.sm,
                           padding: "6px 10px",
                           border: `0.5px solid ${APP.border}`,
                           marginBottom: 8,
@@ -261,7 +261,7 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                         <span
                           onClick={() => setEditingId(null)}
                           style={{
-                            fontSize: 13,
+                            fontSize: FONT.sm,
                             color: APP.text4,
                             cursor: "pointer",
                           }}
@@ -277,8 +277,8 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                             setEditingId(null);
                           }}
                           style={{
-                            fontSize: 13,
-                            color: "#07C160",
+                            fontSize: FONT.base,
+                            color: APP.primary,
                             fontWeight: 500,
                             cursor: "pointer",
                           }}
@@ -291,7 +291,7 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                     <>
                       <div
                         style={{
-                          fontSize: 15,
+                          fontSize: FONT.md,
                           fontWeight: 500,
                           color: isRejected ? APP.text4 : APP.text1,
                         }}
@@ -300,7 +300,7 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                         {!isExpanded && !isConfirmed && !isRejected && (
                           <span
                             style={{
-                              fontSize: 11,
+                              fontSize: FONT.xs,
                               color: APP.text4,
                               marginLeft: 4,
                             }}
@@ -315,7 +315,7 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                           {s.detail && (
                             <p
                               style={{
-                                fontSize: 13,
+                                fontSize: FONT.base,
                                 color: APP.text3,
                                 lineHeight: 1.6,
                                 margin: "0 0 8px",
@@ -330,8 +330,8 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                                 <div
                                   key={rule.id}
                                   style={{
-                                    fontSize: 11,
-                                    color: "#FA5151",
+                                    fontSize: FONT.xs,
+                                    color: APP.danger,
                                   }}
                                 >
                                   引用: {rule.title}
@@ -342,8 +342,8 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                           {s.rule_cited && citedRules.length === 0 && (
                             <div
                               style={{
-                                fontSize: 11,
-                                color: "#FA5151",
+                                fontSize: FONT.xs,
+                                color: APP.danger,
                                 marginBottom: 8,
                               }}
                             >
@@ -365,8 +365,8 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                                   onDecide(s.id, "confirmed", {});
                                 }}
                                 style={{
-                                  fontSize: 13,
-                                  color: "#07C160",
+                                  fontSize: FONT.base,
+                                  color: APP.primary,
                                   fontWeight: 500,
                                   cursor: "pointer",
                                 }}
@@ -382,7 +382,7 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                                 setEditingId(s.id);
                               }}
                               style={{
-                                fontSize: 13,
+                                fontSize: FONT.base,
                                 color: APP.text4,
                                 cursor: "pointer",
                               }}
@@ -397,7 +397,7 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                                 });
                               }}
                               style={{
-                                fontSize: 13,
+                                fontSize: FONT.base,
                                 color: APP.text4,
                                 cursor: "pointer",
                               }}
@@ -504,7 +504,7 @@ export default function ReviewSubpage({
           >
             <span
               style={{
-                fontSize: 11,
+                fontSize: FONT.xs,
                 fontWeight: 600,
                 color: APP.text4,
                 letterSpacing: 0.3,

@@ -56,7 +56,7 @@ const TABS = [
 
 function TabPlaceholder({ name }) {
   return (
-    <div style={{ padding: 32, textAlign: "center", color: APP.text4, fontSize: 15 }}>
+    <div style={{ padding: 32, textAlign: "center", color: APP.text4, fontSize: FONT.md }}>
       {name} — 即将推出
     </div>
   );

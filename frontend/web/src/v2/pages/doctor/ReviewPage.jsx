@@ -79,7 +79,7 @@ function RecordSummaryCard({ record }) {
 
   return (
     <Card
-      style={{ margin: "8px 12px", borderRadius: 8 }}
+      style={{ margin: "8px 12px", borderRadius: RADIUS.md }}
       title={
         <div
           style={{
@@ -90,14 +90,14 @@ function RecordSummaryCard({ record }) {
           onClick={() => setExpanded((v) => !v)}
         >
           <div>
-            <span style={{ fontWeight: 600, fontSize: 15 }}>{patientName}</span>
+            <span style={{ fontWeight: 600, fontSize: FONT.md }}>{patientName}</span>
             {date && (
-              <span style={{ fontSize: 12, color: APP.text4, marginLeft: 8 }}>
+              <span style={{ fontSize: FONT.sm, color: APP.text4, marginLeft: 8 }}>
                 {date}
               </span>
             )}
           </div>
-          <span style={{ fontSize: 12, color: APP.text4 }}>
+          <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
             {expanded ? "收起 ▴" : "展开 ▾"}
           </span>
         </div>
@@ -106,7 +106,7 @@ function RecordSummaryCard({ record }) {
       {!expanded && (
         <div
           style={{
-            fontSize: 13,
+            fontSize: FONT.sm,
             color: APP.text3,
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -130,7 +130,7 @@ function RecordSummaryCard({ record }) {
             >
               <span
                 style={{
-                  fontSize: 12,
+                  fontSize: FONT.sm,
                   color: APP.text4,
                   fontWeight: 500,
                   flexShrink: 0,
@@ -141,7 +141,7 @@ function RecordSummaryCard({ record }) {
               </span>
               <span
                 style={{
-                  fontSize: 13,
+                  fontSize: FONT.sm,
                   color: APP.text2,
                   whiteSpace: "pre-wrap",
                   lineHeight: 1.6,
@@ -154,7 +154,7 @@ function RecordSummaryCard({ record }) {
         ) : record.content ? (
           <div
             style={{
-              fontSize: 13,
+              fontSize: FONT.sm,
               color: APP.text2,
               whiteSpace: "pre-wrap",
               lineHeight: 1.6,
@@ -183,21 +183,21 @@ function ProvenanceCard({ record }) {
   return (
     <Card
       title="病例输入来源"
-      style={{ margin: "8px 12px", borderRadius: 8 }}
+      style={{ margin: "8px 12px", borderRadius: RADIUS.md }}
     >
       <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 12, color: APP.text4, marginBottom: 2 }}>
+        <div style={{ fontSize: FONT.sm, color: APP.text4, marginBottom: 2 }}>
           来源
         </div>
-        <div style={{ fontSize: 13, color: APP.text2, lineHeight: 1.6 }}>
+        <div style={{ fontSize: FONT.sm, color: APP.text2, lineHeight: 1.6 }}>
           {sourceLabel(record.record_type)}
         </div>
       </div>
       <div style={{ borderTop: `0.5px solid ${APP.borderLight}`, paddingTop: 8 }}>
-        <div style={{ fontSize: 12, color: APP.text4, marginBottom: 2 }}>
+        <div style={{ fontSize: FONT.sm, color: APP.text4, marginBottom: 2 }}>
           关键信息
         </div>
-        <div style={{ fontSize: 13, color: APP.text2, lineHeight: 1.6 }}>
+        <div style={{ fontSize: FONT.sm, color: APP.text2, lineHeight: 1.6 }}>
           {summaryText}
         </div>
       </div>
@@ -209,7 +209,7 @@ function ProvenanceCard({ record }) {
 
 function LoadingCard() {
   return (
-    <Card style={{ margin: "8px 12px", borderRadius: 8 }}>
+    <Card style={{ margin: "8px 12px", borderRadius: RADIUS.md }}>
       <div
         style={{
           display: "flex",
@@ -219,15 +219,15 @@ function LoadingCard() {
         }}
       >
         <SpinLoading color="primary" style={{ "--size": "20px" }} />
-        <span style={{ fontSize: 14, color: APP.text3 }}>AI 正在分析...</span>
+        <span style={{ fontSize: FONT.main, color: APP.text3 }}>AI 正在分析...</span>
       </div>
       {[1, 2, 3].map((i) => (
         <div
           key={i}
           style={{
             height: 40,
-            borderRadius: 6,
-            backgroundColor: APP.borderLight,
+            borderRadius: RADIUS.sm,
+          backgroundColor: APP.borderLight,
             marginBottom: 8,
           }}
         />
@@ -284,19 +284,19 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
             value={editText}
             onChange={setEditText}
             autoSize={{ minRows: 1, maxRows: 3 }}
-            style={{ marginBottom: 8, fontSize: 14 }}
+            style={{ marginBottom: 8, fontSize: FONT.main }}
           />
           <TextArea
             placeholder="详细说明"
             value={editDetail}
             onChange={setEditDetail}
             autoSize={{ minRows: 2, maxRows: 6 }}
-            style={{ fontSize: 13 }}
+            style={{ fontSize: FONT.sm }}
           />
           <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
             <span
               style={{
-                fontSize: 13,
+                fontSize: FONT.sm,
                 color: APP.text4,
                 cursor: "pointer",
               }}
@@ -306,8 +306,8 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
             </span>
             <span
               style={{
-                fontSize: 13,
-                color: "#07C160",
+                fontSize: FONT.sm,
+                color: APP.primary,
                 fontWeight: 500,
                 cursor: "pointer",
               }}
@@ -332,7 +332,7 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
               alignItems: "center",
               justifyContent: "center",
               ...(isConfirmed
-                ? { backgroundColor: "#07C160" }
+                ? { backgroundColor: APP.primary }
                 : {
                     border: `1.5px solid ${APP.border}`,
                     backgroundColor: "transparent",
@@ -343,7 +343,7 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
             }
           >
             {isConfirmed && (
-              <CheckOutline style={{ color: "#fff", fontSize: 11 }} />
+              <CheckOutline style={{ color: APP.white, fontSize: FONT.xs }} />
             )}
           </div>
 
@@ -354,14 +354,14 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
           >
             <div
               style={{
-                fontSize: 15,
+                fontSize: FONT.md,
                 fontWeight: 500,
                 color: isRejected ? APP.text4 : APP.text1,
               }}
             >
               {s.edited_text || s.content}
               {!expanded && !isConfirmed && !isRejected && (
-                <span style={{ fontSize: 11, color: APP.text4, marginLeft: 4 }}>
+                <span style={{ fontSize: FONT.xs, color: APP.text4, marginLeft: 4 }}>
                   ▾
                 </span>
               )}
@@ -372,7 +372,7 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
                 {s.detail && (
                   <div
                     style={{
-                      fontSize: 13,
+                      fontSize: FONT.sm,
                       color: APP.text3,
                       lineHeight: 1.6,
                       marginBottom: 8,
@@ -387,8 +387,8 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
                       <div
                         key={rule.id}
                         style={{
-                          fontSize: 12,
-                          color: "#FA5151",
+                          fontSize: FONT.sm,
+                          color: APP.danger,
                         }}
                       >
                         引用: {rule.title}
@@ -399,8 +399,8 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
                 {s.rule_cited && citedRules.length === 0 && (
                   <div
                     style={{
-                      fontSize: 12,
-                      color: "#FA5151",
+                      fontSize: FONT.sm,
+                      color: APP.danger,
                       marginBottom: 8,
                     }}
                   >
@@ -418,8 +418,8 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
                   {!isConfirmed && (
                     <span
                       style={{
-                        fontSize: 13,
-                        color: "#07C160",
+                        fontSize: FONT.sm,
+                        color: APP.primary,
                         fontWeight: 500,
                         cursor: "pointer",
                       }}
@@ -433,7 +433,7 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
                   )}
                   <span
                     style={{
-                      fontSize: 13,
+                      fontSize: FONT.sm,
                       color: APP.text4,
                       cursor: "pointer",
                     }}
@@ -446,7 +446,7 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
                   </span>
                   <span
                     style={{
-                      fontSize: 13,
+                      fontSize: FONT.sm,
                       color: APP.text4,
                       cursor: "pointer",
                     }}
@@ -499,13 +499,13 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
           borderBottom: `0.5px solid ${APP.border}`,
         }}
       >
-        <span style={{ fontSize: 12, fontWeight: 600, color: APP.text4, letterSpacing: 0.3 }}>
+        <span style={{ fontSize: FONT.sm, fontWeight: 600, color: APP.text4, letterSpacing: 0.3 }}>
           {label}
         </span>
         <span
           style={{
-            fontSize: 12,
-            color: adding ? APP.text4 : "#07C160",
+            fontSize: FONT.sm,
+            color: adding ? APP.text4 : APP.primary,
             cursor: "pointer",
           }}
           onClick={() => setAdding((v) => !v)}
@@ -528,14 +528,14 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
             value={newContent}
             onChange={setNewContent}
             autoSize={{ minRows: 1, maxRows: 3 }}
-            style={{ marginBottom: 8, fontSize: 14 }}
+            style={{ marginBottom: 8, fontSize: FONT.main }}
           />
           <TextArea
             placeholder="详细说明（可选）"
             value={newDetail}
             onChange={setNewDetail}
             autoSize={{ minRows: 1, maxRows: 3 }}
-            style={{ fontSize: 13 }}
+            style={{ fontSize: FONT.sm }}
           />
           <div
             style={{
@@ -546,15 +546,15 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
             }}
           >
             <span
-              style={{ fontSize: 13, color: APP.text4, cursor: "pointer" }}
+              style={{ fontSize: FONT.sm, color: APP.text4, cursor: "pointer" }}
               onClick={() => setAdding(false)}
             >
               取消
             </span>
             <span
               style={{
-                fontSize: 13,
-                color: "#07C160",
+                fontSize: FONT.sm,
+                color: APP.primary,
                 fontWeight: 500,
                 cursor: newContent.trim() ? "pointer" : "default",
                 opacity: newContent.trim() ? 1 : 0.4,
@@ -829,11 +829,11 @@ export default function ReviewPage({ recordId }) {
       >
         {/* Source/flow banner for patient_preview */}
         {source === "patient_preview" && (
-          <Card style={{ margin: "8px 12px", borderRadius: 8 }}>
-            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>
+          <Card style={{ margin: "8px 12px", borderRadius: RADIUS.md }}>
+            <div style={{ fontWeight: 600, fontSize: FONT.md, marginBottom: 4 }}>
               患者预问诊已提交
             </div>
-            <div style={{ fontSize: 13, color: APP.text3, lineHeight: 1.6 }}>
+            <div style={{ fontSize: FONT.sm, color: APP.text3, lineHeight: 1.6 }}>
               该病例来自患者预问诊提交，审核完成后会生成随访任务。
               {reviewTaskId ? ` 当前审核任务 #${reviewTaskId}` : ""}
             </div>
@@ -853,9 +853,9 @@ export default function ReviewPage({ recordId }) {
 
         {/* Diagnosis failed — retry */}
         {!loading && !hasSuggestions && isDiagnosisFailed && (
-          <Card style={{ margin: "8px 12px", borderRadius: 8, textAlign: "center" }}>
+          <Card style={{ margin: "8px 12px", borderRadius: RADIUS.md, textAlign: "center" }}>
             <div
-              style={{ fontSize: 13, color: "#FA5151", marginBottom: 12 }}
+              style={{ fontSize: FONT.sm, color: APP.danger, marginBottom: 12 }}
             >
               AI 诊断超时，请重试
             </div>
@@ -872,8 +872,8 @@ export default function ReviewPage({ recordId }) {
 
         {/* Trigger button: no suggestions, not pending, not failed */}
         {!loading && !hasSuggestions && !isPendingReview && !isDiagnosisFailed && (
-          <Card style={{ margin: "8px 12px", borderRadius: 8, textAlign: "center" }}>
-            <div style={{ fontSize: 13, color: APP.text3, marginBottom: 12 }}>
+          <Card style={{ margin: "8px 12px", borderRadius: RADIUS.md, textAlign: "center" }}>
+            <div style={{ fontSize: FONT.sm, color: APP.text3, marginBottom: 12 }}>
               可生成 AI 诊断建议
             </div>
             <Button
@@ -900,7 +900,7 @@ export default function ReviewPage({ recordId }) {
           >
             <span
               style={{
-                fontSize: 12,
+                fontSize: FONT.sm,
                 fontWeight: 600,
                 color: APP.text4,
                 letterSpacing: 0.3,
@@ -964,15 +964,15 @@ export default function ReviewPage({ recordId }) {
             bottom: 80,
             left: 16,
             right: 16,
-            backgroundColor: "#333",
-            color: "#fff",
-            borderRadius: 8,
+            backgroundColor: APP.text2,
+            color: APP.white,
+            borderRadius: RADIUS.md,
             padding: "12px 16px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             zIndex: 1000,
-            fontSize: 13,
+            fontSize: FONT.sm,
           }}
         >
           <span style={{ flex: 1, marginRight: 12 }}>
@@ -987,7 +987,7 @@ export default function ReviewPage({ recordId }) {
             </span>
             <span
               style={{
-                color: "#95EC69",
+                color: APP.wechatGreen,
                 fontWeight: 500,
                 cursor: teachSaving ? "default" : "pointer",
                 opacity: teachSaving ? 0.5 : 1,

@@ -8,7 +8,7 @@
  */
 import { useState, useCallback } from "react";
 import {
-  CapsuleTabs,
+  JumboTabs,
   List,
   Button,
   SpinLoading,
@@ -75,8 +75,8 @@ function groupByDate(items) {
   });
 
   const groups = [];
-  if (buckets.overdue.length) groups.push({ label: "已逾期", color: "#FA5151", items: buckets.overdue });
-  if (buckets.today.length) groups.push({ label: "今天", color: "#07C160", items: buckets.today });
+  if (buckets.overdue.length) groups.push({ label: "已逾期", color: APP.danger, items: buckets.overdue });
+  if (buckets.today.length) groups.push({ label: "今天", color: APP.primary, items: buckets.today });
   if (buckets.tomorrow.length) groups.push({ label: "明天", color: APP.text3, items: buckets.tomorrow });
   if (buckets.thisWeek.length) groups.push({ label: "本周", color: APP.text4, items: buckets.thisWeek });
   if (buckets.later.length) groups.push({ label: "之后", color: APP.text4, items: buckets.later });
@@ -121,22 +121,22 @@ function CreateTaskPopup({ visible, onClose, doctorId, onCreated }) {
       bodyStyle={{ borderRadius: "16px 16px 0 0", padding: "20px 16px 32px" }}
     >
       <div style={{ marginBottom: 16 }}>
-        <span style={{ fontSize: 17, fontWeight: 600, color: APP.text1 }}>新建任务</span>
+        <span style={{ fontSize: FONT.lg, fontWeight: 600, color: APP.text1 }}>新建任务</span>
       </div>
 
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 13, color: APP.text4, marginBottom: 6 }}>任务标题</div>
+        <div style={{ fontSize: FONT.sm, color: APP.text4, marginBottom: 6 }}>任务标题</div>
         <Input
           value={title}
           onChange={setTitle}
           placeholder="例如：术后复查CT"
-          style={{ "--font-size": "15px" }}
+          style={{ "--font-size": FONT.md }}
         />
         <div style={{ height: 0.5, backgroundColor: APP.border, marginTop: 8 }} />
       </div>
 
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 13, color: APP.text4, marginBottom: 6 }}>截止日期（可选）</div>
+        <div style={{ fontSize: FONT.sm, color: APP.text4, marginBottom: 6 }}>截止日期（可选）</div>
         <input
           type="date"
           value={dueAt}
@@ -146,7 +146,7 @@ function CreateTaskPopup({ visible, onClose, doctorId, onCreated }) {
             padding: "10px 0",
             border: "none",
             borderBottom: `0.5px solid ${APP.border}`,
-            fontSize: 15,
+            fontSize: FONT.md,
             outline: "none",
             fontFamily: "inherit",
             backgroundColor: "transparent",
@@ -198,7 +198,7 @@ function PendingTaskItem({ item, isOverdue, onComplete }) {
             width: 24,
             height: 24,
             borderRadius: "50%",
-            border: `2px solid ${isOverdue ? "#FA5151" : APP.border}`,
+            border: `2px solid ${isOverdue ? APP.danger : APP.border}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -210,16 +210,16 @@ function PendingTaskItem({ item, isOverdue, onComplete }) {
       description={
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
           {subtitle && (
-            <span style={{ fontSize: 12, color: APP.text4, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: FONT.sm, color: APP.text4, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {subtitle}
             </span>
           )}
           {dueLabel && (
             <Tag
               color={isOverdue ? "danger" : "default"}
-              style={{ fontSize: 11, flexShrink: 0 }}
+              style={{ fontSize: FONT.xs, flexShrink: 0 }}
             >
-              <ClockCircleOutline style={{ fontSize: 11, marginRight: 2 }} />
+              <ClockCircleOutline style={{ fontSize: FONT.xs, marginRight: 2 }} />
               {dueLabel}
             </Tag>
           )}
@@ -227,7 +227,7 @@ function PendingTaskItem({ item, isOverdue, onComplete }) {
       }
       style={{ "--padding-left": "12px" }}
     >
-      <span style={{ fontSize: 15, color: isOverdue ? "#FA5151" : APP.text1, fontWeight: 500 }}>
+      <span style={{ fontSize: FONT.md, color: isOverdue ? APP.danger : APP.text1, fontWeight: 500 }}>
         {title}
       </span>
     </List.Item>
@@ -246,15 +246,15 @@ function CompletedTaskItem({ item, onUncomplete }) {
       prefix={
         <CheckCircleOutline
           onClick={(e) => { e.stopPropagation(); onUncomplete(item); }}
-          style={{ fontSize: 22, color: "#07C160", cursor: "pointer", flexShrink: 0 }}
+          style={{ fontSize: FONT.xl, color: APP.primary, cursor: "pointer", flexShrink: 0 }}
         />
       }
       extra={
-        <span style={{ fontSize: 12, color: APP.text4 }}>{item.time}</span>
+        <span style={{ fontSize: FONT.sm, color: APP.text4 }}>{item.time}</span>
       }
       style={{ "--padding-left": "12px" }}
     >
-      <span style={{ fontSize: 15, color: APP.text4, textDecoration: "line-through" }}>
+      <span style={{ fontSize: FONT.md, color: APP.text4, textDecoration: "line-through" }}>
         {label}
       </span>
     </List.Item>
@@ -426,12 +426,12 @@ export default function TaskPage({ doctorId }) {
           flexShrink: 0,
         }}
       >
-        <CapsuleTabs
+        <JumboTabs
           activeKey={activeTab}
           onChange={setActiveTab}
-          style={{ "--adm-color-primary": "#07C160" }}
+          style={{ "--adm-color-primary": "var(--adm-color-primary)" }}
         >
-          <CapsuleTabs.Tab
+          <JumboTabs.Tab
             title={
               <span>
                 待完成
@@ -439,8 +439,8 @@ export default function TaskPage({ doctorId }) {
                   <span
                     style={{
                       marginLeft: 4,
-                      fontSize: 11,
-                      color: activeTab === "pending" ? "#07C160" : APP.text4,
+                      fontSize: FONT.xs,
+                      color: activeTab === "pending" ? APP.primary : APP.text4,
                     }}
                   >
                     {allPendingItems.length}
@@ -450,7 +450,7 @@ export default function TaskPage({ doctorId }) {
             }
             key="pending"
           />
-          <CapsuleTabs.Tab
+          <JumboTabs.Tab
             title={
               <span>
                 已完成
@@ -458,8 +458,8 @@ export default function TaskPage({ doctorId }) {
                   <span
                     style={{
                       marginLeft: 4,
-                      fontSize: 11,
-                      color: activeTab === "completed" ? "#07C160" : APP.text4,
+                      fontSize: FONT.xs,
+                      color: activeTab === "completed" ? APP.primary : APP.text4,
                     }}
                   >
                     {completedItems.length}
@@ -469,7 +469,7 @@ export default function TaskPage({ doctorId }) {
             }
             key="completed"
           />
-        </CapsuleTabs>
+        </JumboTabs>
       </div>
 
       {/* Scrollable content */}
@@ -483,7 +483,7 @@ export default function TaskPage({ doctorId }) {
                 color="default"
                 size="middle"
                 onClick={() => setCreateOpen(true)}
-                style={{ borderRadius: 8, borderStyle: "dashed" }}
+                style={{ borderRadius: RADIUS.md, borderStyle: "dashed" }}
               >
                 <AddCircleOutline style={{ marginRight: 6, verticalAlign: "middle" }} />
                 新建任务
@@ -497,7 +497,7 @@ export default function TaskPage({ doctorId }) {
                   <div
                     style={{
                       padding: "4px 16px 6px",
-                      fontSize: 12,
+                      fontSize: FONT.sm,
                       fontWeight: 600,
                       color: group.color,
                     }}
