@@ -17,6 +17,12 @@ import PatientDetail from "./PatientDetail";
 import TaskPage from "./TaskPage";
 import ReviewQueuePage from "./ReviewQueuePage";
 import ReviewPage from "./ReviewPage";
+import SettingsPage from "./SettingsPage";
+import PersonaSubpage from "./settings/PersonaSubpage";
+import KnowledgeSubpage from "./settings/KnowledgeSubpage";
+import AddKnowledgeSubpage from "./settings/AddKnowledgeSubpage";
+import KnowledgeDetailSubpage from "./settings/KnowledgeDetailSubpage";
+import SettingsListSubpage from "./settings/SettingsListSubpage";
 import {
   MessageOutline,
   TeamOutline,
@@ -66,8 +72,9 @@ const TABS = [
 function detectSection(pathname) {
   // /doctor or /doctor/ → my-ai
   if (pathname === "/doctor" || pathname === "/doctor/") return "my-ai";
-  const segment = pathname.split("/")[2]; // e.g. "my-ai", "patients", "review", "tasks"
+  const segment = pathname.split("/")[2]; // e.g. "my-ai", "patients", "review", "tasks", "settings"
   if (TABS.some((t) => t.key === segment)) return segment;
+  if (segment === "settings") return "settings";
   return "my-ai";
 }
 
@@ -96,7 +103,7 @@ function SectionPlaceholder({ name }) {
 
 // ── Main shell ─────────────────────────────────────────────────────
 
-export default function DoctorPage({ doctorId }) {
+export default function DoctorPage({ doctorId, onLogout }) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -129,8 +136,24 @@ export default function DoctorPage({ doctorId }) {
     return null;
   })();
 
+  // Settings subpage detection
+  // /doctor/settings → SettingsPage list
+  // /doctor/settings/persona → PersonaSubpage
+  // /doctor/settings/knowledge → KnowledgeSubpage
+  // /doctor/settings/knowledge/add → AddKnowledgeSubpage
+  // /doctor/settings/knowledge/:id → KnowledgeDetailSubpage
+  // /doctor/settings/preferences → SettingsListSubpage
+  const settingsMatch = (() => {
+    const parts = location.pathname.split("/");
+    if (parts[2] !== "settings") return null;
+    const sub = parts[3]; // persona | knowledge | preferences | undefined
+    const sub2 = parts[4]; // add | :id | undefined
+    return { sub, sub2 };
+  })();
+  const settingsActive = !!settingsMatch;
+
   // Full-screen overlays hide NavBar/TabBar
-  const fullScreenActive = interviewActive || !!patientDetailMatch || !!reviewDetailMatch;
+  const fullScreenActive = interviewActive || !!patientDetailMatch || !!reviewDetailMatch || settingsActive;
 
   function handleTabChange(key) {
     const tab = TABS.find((t) => t.key === key);
@@ -195,6 +218,18 @@ export default function DoctorPage({ doctorId }) {
         ) : reviewDetailMatch ? (
           /* Full-screen review detail (no TabBar) */
           <ReviewPage recordId={reviewDetailMatch} />
+        ) : settingsActive ? (
+          /* Settings subpages — full-screen, hide TabBar */
+          (() => {
+            const { sub, sub2 } = settingsMatch;
+            if (sub === "persona") return <PersonaSubpage />;
+            if (sub === "knowledge" && sub2 === "add") return <AddKnowledgeSubpage />;
+            if (sub === "knowledge" && sub2) return <KnowledgeDetailSubpage />;
+            if (sub === "knowledge") return <KnowledgeSubpage />;
+            if (sub === "preferences") return <SettingsListSubpage onLogout={onLogout} />;
+            // /doctor/settings → main list
+            return <SettingsPage />;
+          })()
         ) : activeSection === "my-ai" ? (
           <MyAIPage doctorId={doctorId} />
         ) : activeSection === "patients" ? (
