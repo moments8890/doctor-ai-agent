@@ -36,10 +36,9 @@ import QrSubpage from "./settings/QrSubpage";
 import {
   TeamOutline,
   TeamFill,
-  CheckShieldOutline,
-  CheckShieldFill,
-  ClockCircleOutline,
-  ClockCircleFill,
+  MailOutline,
+  MailFill,
+  CalendarOutline,
   AddCircleOutline,
 } from "antd-mobile-icons";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
@@ -70,8 +69,8 @@ const TABS = [
   {
     key: "review",
     label: "审核",
-    icon: <CheckShieldOutline />,
-    activeIcon: <CheckShieldFill />,
+    icon: <MailOutline />,
+    activeIcon: <MailFill />,
     path: "/doctor/review",
     title: "审核",
     badgeKey: "review",
@@ -79,8 +78,8 @@ const TABS = [
   {
     key: "tasks",
     label: "随访",
-    icon: <ClockCircleOutline />,
-    activeIcon: <ClockCircleFill />,
+    icon: <CalendarOutline />,
+    activeIcon: <CalendarOutline />,
     path: "/doctor/tasks",
     title: "随访",
     badgeKey: "tasks",
