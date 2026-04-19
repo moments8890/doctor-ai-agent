@@ -3,14 +3,15 @@
  *
  * v2 PatientsPage — antd-mobile patient list with search + NL search + AI tags.
  */
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { List, SearchBar, Button, ErrorBlock, DotLoading } from "antd-mobile";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { List, SearchBar, Button, ErrorBlock, DotLoading, Popup } from "antd-mobile";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import { usePatients, useAIAttention } from "../../../lib/doctorQueries";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { relativeDate } from "../../../utils/time";
-import { APP, FONT, RADIUS } from "../../theme";
+import { APP, FONT, ICON, RADIUS } from "../../theme";
 import { pageContainer, scrollable } from "../../layouts";
 import { NameAvatar, LoadingCenter, EmptyState } from "../../components";
 
@@ -87,10 +88,32 @@ function UrgencyTag({ triage }) {
 
 export default function PatientsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { doctorId } = useDoctorStore();
   const api = useApi();
   const { data, isLoading, isError, refetch } = usePatients();
   const { data: attentionData } = useAIAttention();
+
+  // "新建病历" shortcut from MyAIPage arrives as ?action=new. Open the picker
+  // and clean the URL so back-navigation doesn't reopen it.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("action") === "new") {
+      setPickerOpen(true);
+      params.delete("action");
+      const qs = params.toString();
+      navigate(
+        `${location.pathname}${qs ? `?${qs}` : ""}`,
+        { replace: true }
+      );
+    }
+  }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function startInterview(patient) {
+    setPickerOpen(false);
+    navigate(patient ? `/doctor/patients/new?patient_id=${patient.id}` : "/doctor/patients/new");
+  }
 
   const patients = useMemo(() => {
     const items = Array.isArray(data) ? data : data?.items || [];
@@ -213,6 +236,87 @@ export default function PatientsPage() {
         </div>
       )}
 
+      {/* "新建病历" picker — triggered by ?action=new from MyAIPage */}
+      <Popup
+        visible={pickerOpen}
+        onMaskClick={() => setPickerOpen(false)}
+        onClose={() => setPickerOpen(false)}
+        bodyStyle={{
+          borderTopLeftRadius: RADIUS.lg,
+          borderTopRightRadius: RADIUS.lg,
+          maxHeight: "72vh",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div style={styles.pickerHeader}>选择患者</div>
+        <div style={styles.pickerBody}>
+          <div
+            role="button"
+            onClick={() => startInterview(null)}
+            style={styles.pickerNewRow}
+          >
+            <div style={styles.pickerNewIcon}>
+              <AddCircleOutlineIcon sx={{ fontSize: ICON.md, color: APP.primary }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: FONT.md, fontWeight: 500, color: APP.text1 }}>
+                新建患者
+              </div>
+              <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
+                在对话中输入患者信息
+              </div>
+            </div>
+          </div>
+          {patients.length > 0 && (
+            <List
+              style={{
+                "--border-top": "none",
+                "--border-bottom": "none",
+                "--border-inner": `0.5px solid ${APP.border}`,
+              }}
+            >
+              {patients.map((p) => {
+                const age = p.year_of_birth
+                  ? new Date().getFullYear() - p.year_of_birth
+                  : null;
+                const genderStr = p.gender
+                  ? { male: "男", female: "女" }[p.gender] || p.gender
+                  : null;
+                const sub = [genderStr, age ? `${age}岁` : null]
+                  .filter(Boolean)
+                  .join(" · ");
+                return (
+                  <List.Item
+                    key={p.id}
+                    prefix={<NameAvatar name={p.name} size={36} />}
+                    description={sub}
+                    onClick={() => startInterview(p)}
+                    arrow
+                  >
+                    <span style={{ fontSize: FONT.md, fontWeight: 500 }}>
+                      {p.name || "未命名"}
+                    </span>
+                  </List.Item>
+                );
+              })}
+            </List>
+          )}
+          {patients.length === 0 && (
+            <div
+              style={{
+                padding: "16px",
+                textAlign: "center",
+                fontSize: FONT.sm,
+                color: APP.text4,
+              }}
+            >
+              暂无患者记录
+            </div>
+          )}
+        </div>
+      </Popup>
+
       {/* Patient list */}
       <div style={scrollable}>
         {filtered.length === 0 && !isLoading && (
@@ -285,6 +389,36 @@ const styles = {
     color: APP.text4,
     background: APP.surfaceAlt,
     borderBottom: `0.5px solid ${APP.borderLight}`,
+    flexShrink: 0,
+  },
+  pickerHeader: {
+    padding: "14px 16px 10px",
+    fontSize: FONT.md,
+    fontWeight: 600,
+    color: APP.text1,
+    borderBottom: `0.5px solid ${APP.border}`,
+    flexShrink: 0,
+  },
+  pickerBody: {
+    overflowY: "auto",
+    paddingBottom: 8,
+  },
+  pickerNewRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "12px 16px",
+    cursor: "pointer",
+    borderBottom: `0.5px solid ${APP.border}`,
+  },
+  pickerNewIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: "50%",
+    background: APP.primaryLight,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     flexShrink: 0,
   },
 };

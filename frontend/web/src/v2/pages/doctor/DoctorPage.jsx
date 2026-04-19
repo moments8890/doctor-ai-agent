@@ -7,10 +7,11 @@
  *
  * InterviewPage overlay: rendered when path is /doctor/patients/new
  */
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { usePageStack } from "../../usePageStack";
 import { NavBar, SafeArea, TabBar, Button } from "antd-mobile";
+import { usePatients } from "../../../lib/doctorQueries";
 import InterviewPage from "./InterviewPage";
 import MyAIPage from "./MyAIPage";
 import PatientsPage from "./PatientsPage";
@@ -135,6 +136,19 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
   // Interview overlay — active when navigated to /doctor/patients/new
   const interviewActive = location.pathname.endsWith("/patients/new");
 
+  // Optional preselected patient passed via ?patient_id=<id> when the user
+  // picks an existing patient from the "新建病历" picker on MyAIPage.
+  const interviewPatientIdParam = new URLSearchParams(location.search).get("patient_id");
+  const { data: patientsForInterview } = usePatients();
+  const interviewPatientContext = useMemo(() => {
+    if (!interviewActive || !interviewPatientIdParam) return null;
+    const list = Array.isArray(patientsForInterview)
+      ? patientsForInterview
+      : patientsForInterview?.items || [];
+    const p = list.find((x) => String(x.id) === String(interviewPatientIdParam));
+    return p ? { id: p.id, name: p.name } : null;
+  }, [interviewActive, interviewPatientIdParam, patientsForInterview]);
+
   // Patient detail subpage — /doctor/patients/:id (any segment after /patients/ that isn't "new")
   const patientDetailMatch = (() => {
     const parts = location.pathname.split("/");
@@ -213,6 +227,7 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
       return (
         <InterviewPage
           doctorId={doctorId}
+          patientContext={interviewPatientContext}
           onComplete={() => navigate("/doctor/patients", { replace: true })}
           onCancel={() => navigate("/doctor/patients", { replace: true })}
         />
