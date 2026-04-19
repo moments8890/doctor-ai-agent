@@ -5,7 +5,7 @@
  * Full-screen subpage (hides TabBar) for reviewing a single AI diagnosis record.
  * No MUI, no src/components, no src/theme.js.
  */
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -24,6 +24,7 @@ import {
 } from "antd-mobile";
 import { MoreOutline } from "antd-mobile-icons";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
+import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { ActionFooter, SectionHeader } from "../../components";
 import { useTaskRecord, useSuggestions } from "../../../lib/doctorQueries";
 import { QK } from "../../../lib/queryKeys";
@@ -837,10 +838,14 @@ export default function ReviewPage({ recordId }) {
     navigate(`/doctor/settings/knowledge/${rule.id}`);
   }
 
+  // Keyboard-aware scroll — keeps add form visible when keyboard opens
+  const scrollBottomRef = useRef(null);
+  useScrollOnKeyboard(scrollBottomRef);
+
   // ── Render ───────────────────────────────────────────────────────
 
   return (
-    <div style={pageContainer}>
+    <div style={{ ...pageContainer, ...keyboardAwareStyle }}>
       <SafeArea position="top" />
 
       {/* NavBar */}
@@ -1041,12 +1046,18 @@ export default function ReviewPage({ recordId }) {
             </div>
           </div>
         )}
+        <div ref={scrollBottomRef} />
       </div>
 
 
       {/* Sticky bottom CTA */}
       {hasSuggestions && (
-        <ActionFooter style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
+        <ActionFooter style={{ position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "column", gap: 4 }}>
+          {!allDecided && (
+            <div style={{ fontSize: FONT.sm, color: APP.text4, textAlign: "center" }}>
+              还有 {undecidedCount} 项待处理
+            </div>
+          )}
           <Button
             block
             color="primary"
@@ -1059,18 +1070,6 @@ export default function ReviewPage({ recordId }) {
               ? "确认诊断"
               : `确认诊断（${decidedCount} / ${(suggestions || []).length}）`}
           </Button>
-          {!allDecided && (
-            <div
-              style={{
-                textAlign: "center",
-                fontSize: FONT.xs,
-                color: APP.text4,
-                marginTop: 4,
-              }}
-            >
-              还有 {undecidedCount} 项待处理
-            </div>
-          )}
         </ActionFooter>
       )}
 
