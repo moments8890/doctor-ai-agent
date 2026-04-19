@@ -54,6 +54,11 @@ async def main() -> None:
     parser.add_argument("--only-empty", action="store_true")
     args = parser.parse_args()
 
+    # Load runtime config (API keys, DB URL) into os.environ — mirrors backend startup.
+    from utils.runtime_config_validation import load_runtime_config_dict
+    from utils.runtime_config_apply import apply_runtime_config
+    await apply_runtime_config(await load_runtime_config_dict())
+
     async with AsyncSessionLocal() as session:
         patients = await _patients_with_records(
             session, args.doctor_id, args.only_empty
