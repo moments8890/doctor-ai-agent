@@ -10,9 +10,10 @@
  */
 import { useState } from "react";
 import { TextArea, SafeArea } from "antd-mobile";
+import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import { useVoiceInput } from "../hooks/useVoiceInput";
 import { isInMiniapp } from "../utils/miniappBridge";
-import { APP, FONT, RADIUS } from "./theme";
+import { APP, FONT, ICON, RADIUS } from "./theme";
 
 export default function ChatComposer({
   value = "",
@@ -97,7 +98,7 @@ export default function ChatComposer({
                 cursor: active ? "pointer" : "not-allowed",
               }}
             >
-              发送
+              <SendRoundedIcon sx={{ fontSize: ICON.sm }} />
             </div>
           );
         })()}
@@ -170,15 +171,12 @@ const styles = {
   },
   sendBtn: {
     flexShrink: 0,
-    minWidth: 58,
+    width: 44,
     height: 36,
-    padding: "0 14px",
     borderRadius: RADIUS.sm,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: FONT.md,
-    fontWeight: 500,
     userSelect: "none",
     transition: "background 120ms ease",
   },
