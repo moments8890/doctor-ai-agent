@@ -38,11 +38,12 @@ import {
   TeamFill,
   MailOutline,
   MailFill,
-  CalendarOutline,
   AddCircleOutline,
 } from "antd-mobile-icons";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import { APP, FONT } from "../../theme";
 import { useDoctorStore } from "../../../store/doctorStore";
 
@@ -78,8 +79,8 @@ const TABS = [
   {
     key: "tasks",
     label: "随访",
-    icon: <CalendarOutline />,
-    activeIcon: <CalendarOutline />,
+    icon: <CalendarMonthOutlinedIcon sx={{ fontSize: "inherit" }} />,
+    activeIcon: <CalendarMonthIcon sx={{ fontSize: "inherit" }} />,
     path: "/doctor/tasks",
     title: "随访",
     badgeKey: "tasks",
