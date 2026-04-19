@@ -168,17 +168,17 @@ export default function MyAIPage({ doctorId }) {
         {[
           {
             label: "新建病历",
-            icon: <EditNoteOutlinedIcon sx={{ fontSize: 26, color: APP.text2 }} />,
+            icon: <EditNoteOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />,
             onClick: () => navigate(`${dp("patients")}?action=new`),
           },
           {
             label: "预问诊码",
-            icon: <QrCodeScannerOutlinedIcon sx={{ fontSize: 26, color: APP.text2 }} />,
+            icon: <QrCodeScannerOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />,
             onClick: () => navigate(dp("settings/qr")),
           },
           {
             label: "知识库",
-            icon: <MenuBookOutlinedIcon sx={{ fontSize: 26, color: APP.text2 }} />,
+            icon: <MenuBookOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />,
             onClick: () => navigate(dp("settings/knowledge")),
           },
         ].map(({ label, icon, onClick: onTap }) => (

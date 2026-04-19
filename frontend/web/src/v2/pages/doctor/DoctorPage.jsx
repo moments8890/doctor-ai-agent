@@ -42,7 +42,7 @@ import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
 import MailIcon from "@mui/icons-material/Mail";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import { APP, FONT } from "../../theme";
+import { APP, FONT, ICON } from "../../theme";
 import { useDoctorStore } from "../../../store/doctorStore";
 
 // ── Tab config ─────────────────────────────────────────────────────
@@ -290,7 +290,7 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
                 onClick={() => navigate("/doctor/patients/new")}
                 aria-label="新建病历"
               >
-                <AddCircleOutline style={{ fontSize: 24 }} />
+                <AddCircleOutline style={{ fontSize: ICON.md }} />
               </Button>
             ) : baseSection === "tasks" ? (
               <Button
@@ -300,7 +300,7 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
                 onClick={() => navigate("/doctor/tasks?new=1", { replace: true })}
                 aria-label="新建任务"
               >
-                <AddCircleOutline style={{ fontSize: 24 }} />
+                <AddCircleOutline style={{ fontSize: ICON.md }} />
               </Button>
             ) : null
           }
