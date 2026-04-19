@@ -33,15 +33,13 @@ import PendingReviewSubpage from "./settings/PendingReviewSubpage";
 import PersonaOnboardingSubpage from "./settings/PersonaOnboardingSubpage";
 import TemplateSubpage from "./settings/TemplateSubpage";
 import QrSubpage from "./settings/QrSubpage";
-import {
-  TeamOutline,
-  TeamFill,
-  MailOutline,
-  MailFill,
-  AddCircleOutline,
-} from "antd-mobile-icons";
+import { AddCircleOutline } from "antd-mobile-icons";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
+import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
+import MailIcon from "@mui/icons-material/Mail";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import { APP, FONT } from "../../theme";
@@ -61,8 +59,8 @@ const TABS = [
   {
     key: "patients",
     label: "患者",
-    icon: <TeamOutline />,
-    activeIcon: <TeamFill />,
+    icon: <PeopleAltOutlinedIcon sx={{ fontSize: "inherit" }} />,
+    activeIcon: <PeopleAltIcon sx={{ fontSize: "inherit" }} />,
     path: "/doctor/patients",
     title: "患者",
     badgeKey: "patients",
@@ -70,8 +68,8 @@ const TABS = [
   {
     key: "review",
     label: "审核",
-    icon: <MailOutline />,
-    activeIcon: <MailFill />,
+    icon: <MailOutlinedIcon sx={{ fontSize: "inherit" }} />,
+    activeIcon: <MailIcon sx={{ fontSize: "inherit" }} />,
     path: "/doctor/review",
     title: "审核",
     badgeKey: "review",
