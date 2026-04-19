@@ -8,8 +8,11 @@
  */
 import { useState } from "react";
 import { Avatar, List, Grid, Space, Tag, Skeleton } from "antd-mobile";
-import { SetOutline, ContentOutline, FileOutline, ScanningOutline } from "antd-mobile-icons";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
+import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import {
@@ -156,7 +159,7 @@ export default function MyAIPage({ doctorId }) {
               onClick={() => navigate(dp("settings"))}
               style={{ padding: "8px", cursor: "pointer", borderRadius: RADIUS.md }}
             >
-              <SetOutline style={{ fontSize: ICON.sm, color: APP.text3 }} />
+              <SettingsOutlinedIcon sx={{ fontSize: ICON.sm, color: APP.text3 }} />
             </div>
           </div>
         </Grid.Item>
@@ -165,17 +168,17 @@ export default function MyAIPage({ doctorId }) {
         {[
           {
             label: "新建病历",
-            icon: <ContentOutline style={{ fontSize: 26, color: APP.text2 }} />,
+            icon: <EditNoteOutlinedIcon sx={{ fontSize: 26, color: APP.text2 }} />,
             onClick: () => navigate(`${dp("patients")}?action=new`),
           },
           {
             label: "预问诊码",
-            icon: <ScanningOutline style={{ fontSize: 26, color: APP.text2 }} />,
+            icon: <QrCodeScannerOutlinedIcon sx={{ fontSize: 26, color: APP.text2 }} />,
             onClick: () => navigate(dp("settings/qr")),
           },
           {
             label: "知识库",
-            icon: <FileOutline style={{ fontSize: 26, color: APP.text2 }} />,
+            icon: <MenuBookOutlinedIcon sx={{ fontSize: 26, color: APP.text2 }} />,
             onClick: () => navigate(dp("settings/knowledge")),
           },
         ].map(({ label, icon, onClick: onTap }) => (
