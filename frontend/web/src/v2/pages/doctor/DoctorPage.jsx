@@ -34,7 +34,6 @@ import PersonaOnboardingSubpage from "./settings/PersonaOnboardingSubpage";
 import TemplateSubpage from "./settings/TemplateSubpage";
 import QrSubpage from "./settings/QrSubpage";
 import {
-  AppOutline,
   TeamOutline,
   TeamFill,
   CheckShieldOutline,
@@ -43,7 +42,8 @@ import {
   ClockCircleFill,
   AddCircleOutline,
 } from "antd-mobile-icons";
-import AppFill from "../../components/AppFill";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import { APP, FONT } from "../../theme";
 import { useDoctorStore } from "../../../store/doctorStore";
 
@@ -53,8 +53,8 @@ const TABS = [
   {
     key: "my-ai",
     label: "我的AI",
-    icon: <AppOutline />,
-    activeIcon: <AppFill />,
+    icon: <AutoAwesomeOutlinedIcon sx={{ fontSize: "inherit" }} />,
+    activeIcon: <AutoAwesomeIcon sx={{ fontSize: "inherit" }} />,
     path: "/doctor/my-ai",
     title: "我的AI",
   },
