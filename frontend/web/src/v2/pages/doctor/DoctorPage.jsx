@@ -32,6 +32,7 @@ import ReviewSubpage from "./settings/ReviewSubpage";
 import PendingReviewSubpage from "./settings/PendingReviewSubpage";
 import PersonaOnboardingSubpage from "./settings/PersonaOnboardingSubpage";
 import TemplateSubpage from "./settings/TemplateSubpage";
+import QrSubpage from "./settings/QrSubpage";
 import {
   AppOutline,
   TeamOutline,
@@ -42,6 +43,7 @@ import {
   ClockCircleFill,
   AddCircleOutline,
 } from "antd-mobile-icons";
+import AppFill from "../../components/AppFill";
 import { APP, FONT } from "../../theme";
 import { useDoctorStore } from "../../../store/doctorStore";
 
@@ -52,7 +54,7 @@ const TABS = [
     key: "my-ai",
     label: "我的AI",
     icon: <AppOutline />,
-    activeIcon: <AppOutline />,
+    activeIcon: <AppFill />,
     path: "/doctor/my-ai",
     title: "我的AI",
   },
@@ -250,7 +252,7 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
       if (sub === "pending") return <PendingReviewSubpage />;
       if (sub === "persona") return <PersonaOnboardingSubpage />;
       if (sub === "template" || sub === "templates") return <TemplateSubpage />;
-      if (sub === "qr") return <div style={{ padding: 24 }}>QR Code — TODO</div>;
+      if (sub === "qr") return <QrSubpage />;
       return <SettingsPage />;
     }
     return null;
