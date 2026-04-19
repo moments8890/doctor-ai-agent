@@ -256,8 +256,8 @@ async def get_today_summary(
 
     # Check for empty states (no LLM call needed)
     if not facts:
-        from db.crud.knowledge import get_knowledge_items
-        kb = await get_knowledge_items(session, doctor_id)
+        from db.crud import list_doctor_knowledge_items
+        kb = await list_doctor_knowledge_items(session, doctor_id)
         kb_count = len(kb) if kb else 0
 
         patient_count = (await session.execute(
