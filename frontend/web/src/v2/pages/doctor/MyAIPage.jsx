@@ -8,7 +8,8 @@
  */
 import { useState } from "react";
 import { Avatar, List, Grid, Space, Tag, Skeleton } from "antd-mobile";
-import { SetOutline, ContentOutline, StarOutline, FileOutline, ScanningOutline } from "antd-mobile-icons";
+import { SetOutline, ContentOutline, FileOutline, ScanningOutline } from "antd-mobile-icons";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import {
@@ -321,7 +322,7 @@ export default function MyAIPage({ doctorId }) {
             <List
               header={
                 <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-                  <StarOutline style={{ fontSize: FONT.main, marginRight: "4px", color: APP.text3 }} />
+                  <AutoAwesomeOutlinedIcon sx={{ fontSize: FONT.main, marginRight: "4px", color: APP.text3 }} />
                   <span>今日摘要</span>
                   {summaryData.is_new === false && (
                     <span style={{ fontSize: FONT.xs, color: APP.text4, marginLeft: "4px" }}>
