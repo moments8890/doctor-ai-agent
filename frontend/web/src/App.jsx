@@ -2,10 +2,11 @@ import Box from "@mui/material/Box";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
+// v2 is the default. Set VITE_USE_V2=false to opt into the legacy MUI app.
 const V2App =
-  import.meta.env.VITE_USE_V2 === "true"
-    ? lazy(() => import("./v2/App"))
-    : null;
+  import.meta.env.VITE_USE_V2 === "false"
+    ? null
+    : lazy(() => import("./v2/App"));
 import { QueryClientProvider } from "@tanstack/react-query";
 import { onAuthExpired, setWebToken, fetchDraftSummary, getTasks } from "./api";
 import { queryClient } from "./lib/queryClient";
