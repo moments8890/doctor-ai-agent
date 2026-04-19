@@ -17,7 +17,7 @@ from db.engine import Base
 from db.models.base import _utcnow
 
 DEFAULT_PREFERENCES = {
-    "font_scale": "standard",
+    "font_scale": "large",
 }
 
 
