@@ -1,15 +1,38 @@
 /**
  * @route /doctor/settings/knowledge
  *
- * KnowledgeSubpage v2 — flat list of knowledge items.
+ * KnowledgeSubpage v2 — knowledge control center with 3 tabs:
+ *   总览 (summary) | 全部 (all rules) | 待整理 (needs attention)
+ *
  * antd-mobile only, no MUI.
  */
-import { useState } from "react";
-import { NavBar, List, SearchBar, SpinLoading, Tag, Button } from "antd-mobile";
-import { AddOutline, FileOutline } from "antd-mobile-icons";
-import { useNavigate } from "react-router-dom";
-import { useKnowledgeItems } from "../../../../lib/doctorQueries";
-import { APP, FONT, RADIUS, CATEGORY_COLORS as THEME_CATEGORY_COLORS } from "../../../theme";
+import { useMemo, useState } from "react";
+import {
+  NavBar,
+  List,
+  SearchBar,
+  Button,
+  Ellipsis,
+  Tag,
+  JumboTabs,
+  Grid,
+  Dialog,
+} from "antd-mobile";
+import { AddCircleOutline } from "antd-mobile-icons";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  useKnowledgeItems,
+  useKbPending,
+  useKnowledgeStats,
+  useAcceptKbPending,
+  useRejectKbPending,
+} from "../../../../lib/doctorQueries";
+import { dp } from "../../../../utils/doctorBasePath";
+import { APP, FONT, RADIUS } from "../../../theme";
+import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
+import { LoadingCenter, EmptyState } from "../../../components";
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 /** Extract a short display title from knowledge text */
 function extractShortTitle(text, maxLen = 24) {
@@ -30,43 +53,622 @@ function extractShortTitle(text, maxLen = 24) {
   return line;
 }
 
-const CATEGORY_COLORS = {
-  ...THEME_CATEGORY_COLORS,
-  persona: { bg: "#f5f0ff", text: "#9b59b6" },
-};
-
-function getCategoryStyle(category) {
-  const c = CATEGORY_COLORS[category];
-  if (c) return { bg: c.bg, color: c.text || c.color };
-  return { bg: APP.surfaceAlt, color: APP.text4 };
+/** Days since a date string */
+function daysSince(dateStr) {
+  if (!dateStr) return Infinity;
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
 }
 
-export default function KnowledgeSubpage() {
-  const navigate = useNavigate();
-  const { data: kData, isLoading: loading } = useKnowledgeItems();
-  const [search, setSearch] = useState("");
+// ── Sub-components ─────────────────────────────────────────────────────────
 
-  const rawItems = kData ? (Array.isArray(kData) ? kData : (kData.items || [])) : [];
-  const items = rawItems.filter((i) => i.category !== "persona");
-
-  const filtered = search.trim()
-    ? items.filter((item) => {
-        const q = search.trim();
-        const title = item.title || extractShortTitle(item.text || item.content || "");
-        return title.includes(q) || (item.text || "").includes(q) || (item.content || "").includes(q);
-      })
-    : items;
-
+/** Single stat cell for the summary strip */
+function StatCell({ value, label, highlight }) {
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
-        height: "100%",
-        backgroundColor: APP.surfaceAlt,
+        alignItems: "center",
+        padding: "12px 4px",
+      }}
+    >
+      <span
+        style={{
+          fontSize: FONT.lg,
+          fontWeight: 700,
+          color: highlight ? APP.primary : APP.text1,
+          lineHeight: 1.2,
+        }}
+      >
+        {value}
+      </span>
+      <span
+        style={{
+          fontSize: FONT.xs,
+          color: APP.text4,
+          marginTop: 2,
+        }}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/** Stats line below the chips */
+function StatsLine({ item, statsMap }) {
+  const stats = statsMap[item.id];
+  const sevenDayCount = stats?.total_count ?? 0;
+  const lastUsed = stats?.last_used;
+  const refCount = item.reference_count || 0;
+  const daysAgo = daysSince(item.created_at);
+
+  if (refCount === 0 && sevenDayCount === 0) {
+    const addedLabel = daysAgo === Infinity ? "刚刚添加" : `${daysAgo}天前添加`;
+    return (
+      <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
+        {addedLabel} · 尚未被引用
+      </span>
+    );
+  }
+
+  const parts = [];
+  if (sevenDayCount > 0) parts.push(`近7天 ${sevenDayCount}次`);
+  if (refCount > 0) parts.push(`总引用 ${refCount}`);
+
+  return (
+    <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
+      {parts.join(" · ")}
+    </span>
+  );
+}
+
+/** A rule row used in 全部 and 待整理 tabs */
+function RuleRow({ item, statsMap, badge, onClick }) {
+  const text = item.text || item.content || "";
+  const title =
+    item.title && item.title.length <= 30
+      ? item.title
+      : extractShortTitle(text, 30);
+
+  return (
+    <List.Item arrow onClick={onClick}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        <Ellipsis
+          direction="end"
+          rows={1}
+          content={title || "无标题"}
+          style={{ fontWeight: 500, fontSize: FONT.md, color: APP.text1 }}
+        />
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          {badge && (
+            <Tag
+              style={{
+                "--background-color": APP.warningLight,
+                "--text-color": APP.warning,
+                "--border-color": "transparent",
+                fontSize: FONT.xs,
+                borderRadius: RADIUS.xs,
+              }}
+            >
+              {badge}
+            </Tag>
+          )}
+        </div>
+        <StatsLine item={item} statsMap={statsMap} />
+      </div>
+    </List.Item>
+  );
+}
+
+/** Spotlight card: framed card with a title and a list inside */
+function SpotlightCard({ title, children, emptyText }) {
+  return (
+    <div
+      style={{
+        margin: "12px 12px 0",
+        borderRadius: RADIUS.lg,
+        border: `0.5px solid ${APP.border}`,
+        backgroundColor: APP.surface,
         overflow: "hidden",
       }}
     >
+      <div
+        style={{
+          padding: "10px 14px 6px",
+          fontSize: FONT.sm,
+          fontWeight: 600,
+          color: APP.text3,
+          borderBottom: `0.5px solid ${APP.borderLight}`,
+        }}
+      >
+        {title}
+      </div>
+      {children ?? (
+        <div
+          style={{
+            padding: "16px 14px",
+            fontSize: FONT.base,
+            color: APP.text4,
+            textAlign: "center",
+          }}
+        >
+          {emptyText}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Tab views ──────────────────────────────────────────────────────────────
+
+function OverviewTab({ items, statsMap, navigate }) {
+  // Top 3 by 7-day usage
+  const topRules = useMemo(() => {
+    return [...items]
+      .filter((it) => (statsMap[it.id]?.total_count ?? 0) > 0)
+      .sort((a, b) => (statsMap[b.id]?.total_count ?? 0) - (statsMap[a.id]?.total_count ?? 0))
+      .slice(0, 3);
+  }, [items, statsMap]);
+
+  // Least used / stale — low reference_count or long since last used
+  const staleRules = useMemo(() => {
+    return [...items]
+      .filter((it) => {
+        const st = statsMap[it.id];
+        const recentUse = st?.total_count ?? 0;
+        // No recent use at all
+        return recentUse === 0;
+      })
+      .sort((a, b) => (a.reference_count || 0) - (b.reference_count || 0))
+      .slice(0, 3);
+  }, [items, statsMap]);
+
+  function ruleItem(it, descText) {
+    const text = it.text || it.content || "";
+    const title = it.title && it.title.length <= 30 ? it.title : extractShortTitle(text, 30);
+    return (
+      <List.Item
+        key={it.id}
+        arrow
+        description={descText}
+        onClick={() => navigate(`/doctor/settings/knowledge/${it.id}`)}
+      >
+        <Ellipsis direction="end" rows={1} content={title || "无标题"} style={{ fontWeight: 500, fontSize: FONT.md }} />
+      </List.Item>
+    );
+  }
+
+  return (
+    <div style={{ paddingBottom: 32 }}>
+      <SpotlightCard title="AI 最近在用" emptyText="暂无近期引用记录">
+        {topRules.length > 0 && (
+          <List style={{ "--border-top": "none", "--border-bottom": "none" }}>
+            {topRules.map((it) => ruleItem(it, `近7天引用 ${statsMap[it.id]?.total_count ?? 0} 次`))}
+          </List>
+        )}
+      </SpotlightCard>
+
+      <SpotlightCard title="较少使用" emptyText="所有规则近期都有被引用">
+        {staleRules.length > 0 && (
+          <List style={{ "--border-top": "none", "--border-bottom": "none" }}>
+            {staleRules.map((it) => {
+              const ref = it.reference_count || 0;
+              const desc = ref > 0 ? `总引用 ${ref} · 近期未使用` : "尚未被引用";
+              return ruleItem(it, desc);
+            })}
+          </List>
+        )}
+      </SpotlightCard>
+    </div>
+  );
+}
+
+function AllRulesTab({ filtered, statsMap, items, navigate, search, setSearch }) {
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        title="暂无知识条目"
+        action="添加第一条规则"
+        onAction={() => navigate("/doctor/settings/knowledge/add")}
+      />
+    );
+  }
+
+  return (
+    <>
+      {/* Search lives inside 全部 — it only affects the rule list */}
+      <div
+        style={{
+          padding: "8px 12px",
+          backgroundColor: APP.surface,
+          borderBottom: `0.5px solid ${APP.border}`,
+        }}
+      >
+        <SearchBar
+          placeholder={`搜索知识规则 (共${items.length}条)`}
+          value={search}
+          onChange={setSearch}
+          onClear={() => setSearch("")}
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div
+          style={{
+            textAlign: "center",
+            paddingTop: 48,
+            color: APP.text4,
+            fontSize: FONT.base,
+          }}
+        >
+          未找到匹配内容
+        </div>
+      ) : (
+        <div style={{ paddingBottom: 32 }}>
+          <List>
+            {filtered.map((item) => (
+              <RuleRow
+                key={item.id}
+                item={item}
+                statsMap={statsMap}
+                onClick={() => navigate(`/doctor/settings/knowledge/${item.id}`)}
+              />
+            ))}
+          </List>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Pending-rule card pieces (used inside the 待整理 tab) ──────────────
+
+const PENDING_CATEGORY_LABELS = {
+  diagnosis: "诊断",
+  medication: "用药",
+  followup: "随访",
+  custom: "通用",
+};
+
+// Category chip palette — matches KnowledgeCard.
+const PENDING_CATEGORY_STYLES = {
+  diagnosis:  { bg: APP.primaryLight,  text: APP.primary },
+  medication: { bg: "#e8f0fe",         text: "#1B6EF3" },
+  followup:   { bg: "#fff3e0",         text: "#E67E22" },
+  custom:     { bg: "#f3f0ff",         text: "#7C3AED" },
+};
+
+const PENDING_CONFIDENCE_STYLES = {
+  high:   { color: APP.primary, label: "高置信" },
+  medium: { color: APP.warning, label: "中置信" },
+  low:    { color: APP.text4,   label: "低置信" },
+};
+
+const PENDING_CONFIDENCE_RANK = { high: 3, medium: 2, low: 1 };
+
+function PendingCategoryChip({ category }) {
+  const style = PENDING_CATEGORY_STYLES[category] || { bg: APP.surfaceAlt, text: APP.text3 };
+  const label = PENDING_CATEGORY_LABELS[category] || category || "规则";
+  return (
+    <span
+      style={{
+        fontSize: FONT.xs,
+        fontWeight: 500,
+        padding: "2px 8px",
+        borderRadius: RADIUS.xs,
+        backgroundColor: style.bg,
+        color: style.text,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function PendingConfidenceDot({ confidence }) {
+  const style = PENDING_CONFIDENCE_STYLES[confidence] || PENDING_CONFIDENCE_STYLES.low;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: FONT.xs,
+        color: APP.text4,
+      }}
+    >
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          backgroundColor: style.color,
+          flexShrink: 0,
+        }}
+      />
+      {style.label}
+    </span>
+  );
+}
+
+function PendingEvidenceBlock({ summary, link, onClick }) {
+  if (!summary) return null;
+  const clickable = !!(link && (link.record_id || link.patient_id));
+  const linkLabel = link?.entity_type === "diagnosis" ? "查看诊断 ›" : "查看回复 ›";
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        fontSize: FONT.sm,
+        color: APP.text3,
+        lineHeight: 1.5,
+        marginBottom: 12,
+        padding: "8px 10px",
+        background: APP.surfaceAlt,
+        borderRadius: RADIUS.sm,
+      }}
+    >
+      <span style={{ flex: 1, minWidth: 0 }}>{summary}</span>
+      {clickable && (
+        <span
+          onClick={onClick}
+          style={{
+            flexShrink: 0,
+            fontSize: FONT.xs,
+            color: APP.primary,
+            background: APP.primaryLight,
+            padding: "2px 8px",
+            borderRadius: RADIUS.xs,
+            cursor: "pointer",
+          }}
+        >
+          {linkLabel}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function PendingRuleCard({ item, isActing, accepting, rejecting, onAccept, onReject, onViewSource }) {
+  return (
+    <div
+      style={{
+        background: APP.surface,
+        borderRadius: RADIUS.md,
+        padding: "14px 14px 12px",
+        marginBottom: 12,
+        border: `0.5px solid ${APP.border}`,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <PendingCategoryChip category={item.category} />
+        <PendingConfidenceDot confidence={item.confidence} />
+      </div>
+      <div
+        style={{
+          fontSize: FONT.md,
+          color: APP.text1,
+          lineHeight: 1.55,
+          fontWeight: 500,
+          marginBottom: 8,
+        }}
+      >
+        {item.proposed_rule}
+      </div>
+      <PendingEvidenceBlock
+        summary={item.evidence_summary}
+        link={item.source_link}
+        onClick={onViewSource}
+      />
+      {/* Right-aligned action row — compact visual, 44px tap height via padding */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+          gap: 16,
+        }}
+      >
+        <span
+          onClick={isActing ? undefined : onReject}
+          style={{
+            fontSize: FONT.sm,
+            color: APP.text4,
+            cursor: isActing ? "not-allowed" : "pointer",
+            opacity: isActing ? 0.5 : 1,
+            padding: "10px 4px",  /* generous hit area, minimal visual weight */
+          }}
+        >
+          {rejecting ? "处理中…" : "排除"}
+        </span>
+        <button
+          onClick={onAccept}
+          disabled={isActing}
+          style={{
+            background: APP.primary,
+            color: APP.white,
+            border: "none",
+            borderRadius: RADIUS.sm,
+            fontSize: FONT.sm,
+            fontWeight: 500,
+            padding: "8px 20px",  /* compact pill, ~44px tap height */
+            cursor: isActing ? "not-allowed" : "pointer",
+            opacity: isActing ? 0.5 : 1,
+          }}
+        >
+          {accepting ? "处理中…" : "采纳"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PendingTab({ pendingItems, navigate }) {
+  const acceptMutation = useAcceptKbPending();
+  const rejectMutation = useRejectKbPending();
+  const [actingId, setActingId] = useState(null);
+
+  const sorted = useMemo(
+    () =>
+      [...pendingItems].sort(
+        (a, b) =>
+          (PENDING_CONFIDENCE_RANK[b.confidence] || 0) -
+          (PENDING_CONFIDENCE_RANK[a.confidence] || 0)
+      ),
+    [pendingItems]
+  );
+
+  if (pendingItems.length === 0) {
+    return (
+      <div
+        style={{
+          textAlign: "center",
+          paddingTop: 64,
+          color: APP.text4,
+          fontSize: FONT.base,
+        }}
+      >
+        暂无待采纳的规则
+      </div>
+    );
+  }
+
+  function openSource(link) {
+    if (!link) return;
+    if (link.entity_type === "diagnosis" && link.record_id) {
+      navigate(`${dp("review")}/${link.record_id}`);
+    } else if (link.entity_type === "draft_reply" && link.patient_id) {
+      const qs = new URLSearchParams({ view: "chat" });
+      if (link.draft_id) qs.set("highlight_draft_id", String(link.draft_id));
+      navigate(`${dp("patients")}/${link.patient_id}?${qs.toString()}`);
+    }
+  }
+
+  function handleReject(item) {
+    Dialog.confirm({
+      title: "确认排除这条规则？",
+      content: "排除后 90 天内不会再次提示相同模式。",
+      cancelText: "取消",
+      confirmText: "确认排除",
+      onConfirm: () => {
+        setActingId(item.id);
+        rejectMutation.mutate(item.id, { onSettled: () => setActingId(null) });
+      },
+    });
+  }
+
+  function handleAccept(item) {
+    setActingId(item.id);
+    acceptMutation.mutate(item.id, { onSettled: () => setActingId(null) });
+  }
+
+  const anyActing = actingId !== null;
+
+  return (
+    <>
+      <div
+        style={{
+          padding: "10px 16px",
+          fontSize: FONT.sm,
+          color: APP.text4,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        <span style={{ color: APP.text2, fontWeight: 500 }}>
+          {sorted.length} 条待处理
+        </span>
+        <span>· 按置信度排序</span>
+      </div>
+      <div style={{ padding: "0 12px 24px" }}>
+        {sorted.map((item) => (
+          <PendingRuleCard
+            key={item.id}
+            item={item}
+            isActing={anyActing}
+            accepting={actingId === item.id && acceptMutation.isPending}
+            rejecting={actingId === item.id && rejectMutation.isPending}
+            onAccept={() => handleAccept(item)}
+            onReject={() => handleReject(item)}
+            onViewSource={() => openSource(item.source_link)}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
+
+export default function KnowledgeSubpage() {
+  const navigate = useNavigate();
+  const { data: kData, isLoading: loadingItems } = useKnowledgeItems();
+  const { data: statsData } = useKnowledgeStats(7);
+  const { data: pendingData } = useKbPending();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get("q") || "";
+  function setSearch(q) {
+    const next = new URLSearchParams(searchParams);
+    if (q) { next.set("q", q); } else { next.delete("q"); }
+    setSearchParams(next, { replace: true });
+  }
+
+  // Tab state from URL: ?tab=overview (default) | ?tab=all | ?tab=pending
+  // If ?q= is present without an explicit ?tab=, auto-land on 全部 because
+  // that's the only tab where search applies.
+  const validTabs = new Set(["overview", "all", "pending"]);
+  const urlTab = searchParams.get("tab");
+  const activeTab = urlTab && validTabs.has(urlTab)
+    ? urlTab
+    : search ? "all" : "overview";
+
+  const rawItems = kData
+    ? Array.isArray(kData) ? kData : (kData.items || [])
+    : [];
+  const items = rawItems.filter((i) => i.category !== "persona");
+
+  // Build a lookup: knowledge_item_id → { total_count, last_used }
+  const statsMap = useMemo(() => {
+    const arr = statsData?.stats ?? (Array.isArray(statsData) ? statsData : []);
+    const map = {};
+    arr.forEach((s) => { map[s.knowledge_item_id] = s; });
+    return map;
+  }, [statsData]);
+
+  const pendingItems = pendingData?.items ?? [];
+  const pendingCount = pendingItems.length;
+
+  // Sorted by impact: 7-day usage desc, then lifetime reference_count desc
+  const sortedItems = useMemo(
+    () =>
+      [...items].sort((a, b) => {
+        const aCount = statsMap[a.id]?.total_count ?? 0;
+        const bCount = statsMap[b.id]?.total_count ?? 0;
+        if (bCount !== aCount) return bCount - aCount;
+        return (b.reference_count || 0) - (a.reference_count || 0);
+      }),
+    [items, statsMap]
+  );
+
+  const filtered = search.trim()
+    ? sortedItems.filter((item) => {
+        const q = search.trim();
+        const title = item.title || extractShortTitle(item.text || item.content || "");
+        return (
+          title.includes(q) ||
+          (item.text || "").includes(q) ||
+          (item.content || "").includes(q)
+        );
+      })
+    : sortedItems;
+
+
+  return (
+    <div style={pageContainer}>
       <NavBar
         onBack={() => navigate(-1)}
         right={
@@ -75,125 +677,101 @@ export default function KnowledgeSubpage() {
             color="primary"
             fill="none"
             onClick={() => navigate("/doctor/settings/knowledge/add")}
+            aria-label="添加知识规则"
           >
-            <AddOutline style={{ fontSize: 20 }} />
+            <AddCircleOutline style={{ fontSize: FONT.md }} />
           </Button>
         }
-        style={{
-          "--height": "44px",
-          "--border-bottom": `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-        }}
+        style={navBarStyle}
       >
-        我的方法
+        我的知识库
       </NavBar>
 
-      {/* Search bar */}
-      <div
-        style={{
-          padding: "8px 12px",
-          backgroundColor: APP.surface,
-          borderBottom: `0.5px solid ${APP.border}`,
-          flexShrink: 0,
-        }}
-      >
-        <SearchBar
-          placeholder={`搜索知识规则${items.length > 0 ? ` (共${items.length}条)` : ""}`}
-          value={search}
-          onChange={setSearch}
-        />
-      </div>
+      {/* Summary strip — always visible above tabs */}
+      {!loadingItems && items.length > 0 && (
+        <div
+          style={{
+            margin: "8px 12px",
+            borderRadius: RADIUS.lg,
+            border: `0.5px solid ${APP.border}`,
+            backgroundColor: APP.surface,
+            overflow: "hidden",
+            flexShrink: 0,
+          }}
+        >
+          <Grid columns={4} gap={0}>
+            <Grid.Item>
+              <StatCell value={items.length} label="总规则" />
+            </Grid.Item>
+            <Grid.Item>
+              <StatCell
+                value={Object.values(statsMap).reduce((s, st) => s + (st.total_count || 0), 0)}
+                label="近7天引用"
+                highlight
+              />
+            </Grid.Item>
+            <Grid.Item>
+              <StatCell
+                value={items.filter((it) => {
+                  if ((it.reference_count || 0) === 0) return false;
+                  const st = statsMap[it.id];
+                  return !st?.last_used || daysSince(st.last_used) > 30;
+                }).length}
+                label="30天未用"
+              />
+            </Grid.Item>
+            <Grid.Item>
+              <StatCell value={pendingCount} label="待整理" highlight={pendingCount > 0} />
+            </Grid.Item>
+          </Grid>
+        </div>
+      )}
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        {loading && (
-          <div style={{ display: "flex", justifyContent: "center", paddingTop: 48 }}>
-            <SpinLoading color="primary" />
-          </div>
-        )}
+      {loadingItems ? (
+        <LoadingCenter />
+      ) : (
+        <div style={scrollable}>
+          <JumboTabs activeKey={activeTab} onChange={(key) => {
+            const next = new URLSearchParams(searchParams);
+            if (key === "overview") { next.delete("tab"); } else { next.set("tab", key); }
+            setSearchParams(next, { replace: true });
+          }}>
+            <JumboTabs.Tab title="总览" key="overview" />
+            <JumboTabs.Tab
+              title={items.length > 0 ? `全部 (${items.length})` : "全部"}
+              key="all"
+            />
+            <JumboTabs.Tab
+              title={pendingCount > 0 ? `待整理 (${pendingCount})` : "待整理"}
+              key="pending"
+            />
+          </JumboTabs>
 
-        {!loading && items.length === 0 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              paddingTop: 64,
-              gap: 16,
-              color: APP.text4,
-              fontSize: FONT.md,
-            }}
-          >
-            <FileOutline style={{ fontSize: 36, color: APP.text4 }} />
-            <div>暂无知识条目</div>
-            <Button
-              color="primary"
-              size="small"
-              onClick={() => navigate("/doctor/settings/knowledge/add")}
-            >
-              添加第一条规则
-            </Button>
-          </div>
-        )}
-
-        {!loading && items.length > 0 && (
-          <List>
-            {filtered.map((item) => {
-              const text = item.text || item.content || "";
-              const title = item.title && item.title.length <= 25
-                ? item.title
-                : extractShortTitle(text);
-              const summary = item.summary || text.slice(0, 60);
-              const catStyle = getCategoryStyle(item.category);
-
-              return (
-                <List.Item
-                  key={item.id}
-                  arrow
-                  description={
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <span style={{ fontSize: FONT.base, color: APP.text3, lineHeight: 1.5 }}>
-                        {summary ? (summary.length > 60 ? summary.slice(0, 60) + "…" : summary) : ""}
-                      </span>
-                      {item.category && (
-                        <Tag
-                          style={{
-                            "--background-color": catStyle.bg,
-                            "--text-color": catStyle.color,
-                            "--border-color": catStyle.bg,
-                            alignSelf: "flex-start",
-                          }}
-                        >
-                          {item.category}
-                        </Tag>
-                      )}
-                    </div>
-                  }
-                  onClick={() => navigate(`/doctor/settings/knowledge/${item.id}`)}
-                >
-                  {title || "无标题"}
-                </List.Item>
-              );
-            })}
-          </List>
-        )}
-
-        {!loading && items.length > 0 && filtered.length === 0 && (
-          <div
-            style={{
-              textAlign: "center",
-              paddingTop: 48,
-              color: APP.text4,
-              fontSize: FONT.base,
-            }}
-          >
-            未找到匹配内容
-          </div>
-        )}
-
-        <div style={{ height: 32 }} />
-      </div>
+          {activeTab === "overview" && (
+            <OverviewTab
+              items={sortedItems}
+              statsMap={statsMap}
+              navigate={navigate}
+            />
+          )}
+          {activeTab === "all" && (
+            <AllRulesTab
+              filtered={filtered}
+              statsMap={statsMap}
+              items={items}
+              navigate={navigate}
+              search={search}
+              setSearch={setSearch}
+            />
+          )}
+          {activeTab === "pending" && (
+            <PendingTab
+              pendingItems={pendingItems}
+              navigate={navigate}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

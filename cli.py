@@ -378,7 +378,7 @@ def _write_uvicorn_plist(port: int) -> None:
     PLIST_UV.write_text(plist)
 
 
-def _write_frontend_plist(npm_bin: str, port: int) -> None:
+def _write_frontend_plist(npm_bin: str, port: int, *, use_v2: bool = False) -> None:
     LAUNCH_AGENTS_DIR.mkdir(parents=True, exist_ok=True)
     plist = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -390,7 +390,7 @@ def _write_frontend_plist(npm_bin: str, port: int) -> None:
   <array>
     <string>/bin/bash</string>
     <string>-lc</string>
-    <string>cd "{FRONTEND_DIR}" &amp;&amp; exec "{npm_bin}" run dev -- --host 127.0.0.1 --port {port}</string>
+    <string>cd "{FRONTEND_DIR}" &amp;&amp; {"VITE_USE_V2=true " if use_v2 else ""}exec "{npm_bin}" run dev -- --host 127.0.0.1 --port {port}</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
@@ -513,6 +513,7 @@ def cmd_start(args: argparse.Namespace) -> None:
     background = args.background
     tunnel = args.tunnel
     menu = args.menu
+    use_v2 = args.v2
 
     mode_label = "production" if is_prod else "development"
     env_name = "production" if is_prod else "development"
@@ -647,7 +648,7 @@ def cmd_start(args: argparse.Namespace) -> None:
             if not node_modules.exists():
                 info("Installing frontend deps...")
                 subprocess.run([npm_bin, "install"], cwd=str(FRONTEND_DIR), check=True)
-            _write_frontend_plist(npm_bin, FRONTEND_PORT)
+            _write_frontend_plist(npm_bin, FRONTEND_PORT, use_v2=use_v2)
             subprocess.run(["launchctl", "unload", str(PLIST_FE)],
                            capture_output=True)
             subprocess.run(["launchctl", "load", str(PLIST_FE)], check=True)
@@ -674,6 +675,9 @@ def cmd_start(args: argparse.Namespace) -> None:
 
     # --- Foreground mode ---
     fe_env = env.copy()
+    if use_v2:
+        fe_env["VITE_USE_V2"] = "true"
+        info("Frontend: antd-mobile v2 UI enabled")
     if want_frontend:
         node_modules = FRONTEND_DIR / "node_modules"
         if not node_modules.exists():
@@ -937,6 +941,8 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Skip Vite frontend dev server")
     p_start.add_argument("--background", action="store_true",
                          help="Run via macOS launchd (background mode)")
+    p_start.add_argument("--v2", action="store_true",
+                         help="Use antd-mobile v2 frontend (VITE_USE_V2=true)")
     p_start.add_argument("--tunnel", action="store_true",
                          help="Start Cloudflare quick tunnel")
     p_start.add_argument("--menu", action="store_true",

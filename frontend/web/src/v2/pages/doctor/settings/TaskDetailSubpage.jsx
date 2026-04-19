@@ -8,13 +8,15 @@
  * notes (inline editable), mark complete, delete.
  */
 import { useCallback, useEffect, useState } from "react";
-import { NavBar, SpinLoading, Button, Toast, Dialog } from "antd-mobile";
+import { NavBar, Button, Toast, Dialog, List } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../../theme";
+import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
+import { LoadingCenter, ActionFooter } from "../../../components";
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -36,43 +38,6 @@ function dueLabel(dueAt) {
   if (dDate.getTime() === tomorrow.getTime())
     return { text: `${dateStr} (明天)`, color: APP.warning };
   return { text: dateStr, color: APP.text3 };
-}
-
-// ── Detail field row ───────────────────────────────────────────────
-
-function DetailField({ label, children, color }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        gap: 12,
-        padding: "10px 16px",
-        borderBottom: `0.5px solid ${APP.borderLight}`,
-      }}
-    >
-      <span
-        style={{
-          fontSize: FONT.sm,
-          color: APP.text4,
-          flexShrink: 0,
-          minWidth: 40,
-          lineHeight: "22px",
-        }}
-      >
-        {label}
-      </span>
-      <div
-        style={{
-          fontSize: FONT.base,
-          color: color || APP.text2,
-          lineHeight: 1.6,
-          flex: 1,
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
 }
 
 // ── Source card ────────────────────────────────────────────────────
@@ -268,63 +233,18 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
 
   if (loading) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          height: "100%",
-          backgroundColor: APP.surfaceAlt,
-        }}
-      >
-        <NavBar
-          onBack={() => navigate(-1)}
-          style={{
-            "--height": "44px",
-            "--border-bottom": `0.5px solid ${APP.border}`,
-            backgroundColor: APP.surface,
-            flexShrink: 0,
-          }}
-        >
-          任务详情
-        </NavBar>
-        <div
-          style={{ display: "flex", justifyContent: "center", paddingTop: 48 }}
-        >
-          <SpinLoading color="primary" />
-        </div>
+      <div style={pageContainer}>
+        <NavBar onBack={() => navigate(-1)} style={navBarStyle}>任务详情</NavBar>
+        <LoadingCenter />
       </div>
     );
   }
 
   if (!task) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          height: "100%",
-          backgroundColor: APP.surfaceAlt,
-        }}
-      >
-        <NavBar
-          onBack={() => navigate(-1)}
-          style={{
-            "--height": "44px",
-            "--border-bottom": `0.5px solid ${APP.border}`,
-            backgroundColor: APP.surface,
-            flexShrink: 0,
-          }}
-        >
-          任务详情
-        </NavBar>
-        <div
-          style={{
-            paddingTop: 64,
-            textAlign: "center",
-            color: APP.text4,
-            fontSize: FONT.base,
-          }}
-        >
+      <div style={pageContainer}>
+        <NavBar onBack={() => navigate(-1)} style={navBarStyle}>任务详情</NavBar>
+        <div style={{ paddingTop: 64, textAlign: "center", color: APP.text4, fontSize: FONT.base }}>
           任务不存在
         </div>
       </div>
@@ -336,51 +256,16 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
   const isUrgent = due?.color === APP.danger;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        backgroundColor: APP.surfaceAlt,
-        overflow: "hidden",
-      }}
-    >
-      <NavBar
-        onBack={() => navigate(-1)}
-        style={{
-          "--height": "44px",
-          "--border-bottom": `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-        }}
-      >
+    <div style={pageContainer}>
+      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
         任务详情
       </NavBar>
 
-      <div style={{ flex: 1, overflowY: "auto", paddingBottom: 80 }}>
-        {/* Task header card */}
-        <div
-          style={{
-            marginTop: 8,
-            backgroundColor: APP.surface,
-            borderTop: `0.5px solid ${APP.border}`,
-            borderBottom: `0.5px solid ${APP.border}`,
-          }}
-        >
-          {/* Title row */}
-          <div
-            style={{
-              padding: "12px 16px",
-              borderBottom: `0.5px solid ${APP.borderLight}`,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
+      <div style={scrollable}>
+        {/* Task header */}
+        <List>
+          <List.Item
+            prefix={
               <div
                 style={{
                   width: 8,
@@ -390,17 +275,9 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
                   flexShrink: 0,
                 }}
               />
-              <span
-                style={{
-                  fontSize: FONT.md,
-                  fontWeight: 600,
-                  color: APP.text1,
-                  flex: 1,
-                }}
-              >
-                {task.title}
-              </span>
-              {isUrgent && (
+            }
+            extra={
+              isUrgent ? (
                 <span
                   style={{
                     fontSize: FONT.xs,
@@ -409,161 +286,65 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
                     color: APP.white,
                     borderRadius: RADIUS.xs,
                     padding: "2px 6px",
-                    lineHeight: 1.5,
                   }}
                 >
                   紧急
                 </span>
-              )}
-            </div>
-            {task.content && (
-              <div
-                style={{
-                  fontSize: FONT.base,
-                  color: APP.text3,
-                  marginTop: 4,
-                  marginLeft: 16,
-                  lineHeight: 1.5,
-                }}
-              >
-                {task.content}
-              </div>
-            )}
-          </div>
-
-          {/* Source card */}
-          <SourceCard task={task} navigate={navigate} />
-
-          {/* Patient */}
-          {task.patient_name && (
-            <DetailField label="患者">
-              <span
-                onClick={() =>
-                  task.patient_id &&
-                  navigate(`/doctor/patients/${task.patient_id}`)
-                }
-                style={{
-                  color: APP.primary,
-                  cursor: task.patient_id ? "pointer" : "default",
-                  fontSize: FONT.base,
-                }}
-              >
-                {task.patient_name} ›
-              </span>
-            </DetailField>
-          )}
-
-          {/* Due date */}
-          {due && (
-            <DetailField label="截止" color={due.color}>
-              {due.text}
-            </DetailField>
-          )}
-
-          {/* Action buttons */}
-          {!isCompleted && (
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                padding: "12px 16px",
-                borderTop: `0.5px solid ${APP.borderLight}`,
-              }}
-            >
-              {task.patient_id && (
-                <Button
-                  block
-                  fill="outline"
-                  onClick={() =>
-                    navigate(`/doctor/patients/${task.patient_id}`)
-                  }
-                >
-                  查看患者
-                </Button>
-              )}
-              <Button
-                block
-                color="primary"
-                loading={completing}
-                onClick={handleComplete}
-              >
-                标记完成
-              </Button>
-            </div>
-          )}
-
-          {isCompleted && (
-            <div
-              style={{
-                padding: "12px 16px",
-                borderTop: `0.5px solid ${APP.borderLight}`,
-                fontSize: FONT.base,
-                color: APP.primary,
-                fontWeight: 500,
-              }}
-            >
-              已完成 {task.completed_at ? task.completed_at.slice(0, 10) : ""}
-            </div>
-          )}
-        </div>
-
-        {/* Notes */}
-        <div
-          style={{
-            backgroundColor: APP.surface,
-            borderTop: `0.5px solid ${APP.border}`,
-            borderBottom: `0.5px solid ${APP.border}`,
-            marginTop: 8,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              padding: "10px 16px",
-              alignItems: "center",
-            }}
+              ) : undefined
+            }
+            description={task.content || undefined}
           >
-            <span
-              style={{
-                fontSize: FONT.sm,
-                color: APP.text4,
-                flexShrink: 0,
-                minWidth: 40,
-              }}
-            >
-              备注
-            </span>
-            <input
-              value={notes}
-              onChange={(e) => {
-                setNotes(e.target.value);
-                setNotesDirty(true);
-              }}
-              onBlur={handleSaveNotes}
-              placeholder="添加备注..."
-              style={{
-                flex: 1,
-                border: "none",
-                outline: "none",
-                padding: 0,
-                fontSize: FONT.base,
-                color: APP.text2,
-                fontFamily: "inherit",
-                backgroundColor: "transparent",
-              }}
-            />
-            {saving && (
-              <span style={{ fontSize: FONT.sm, color: APP.text4, flexShrink: 0 }}>
-                保存中
-              </span>
-            )}
-          </div>
-        </div>
+            <span style={{ fontWeight: 600, fontSize: FONT.md }}>{task.title}</span>
+          </List.Item>
+        </List>
 
-        {/* Delete */}
+        {/* Source card */}
+        <SourceCard task={task} navigate={navigate} />
+
+        {/* Detail fields */}
+        <List style={{ marginTop: 8 }}>
+          {task.patient_name && (
+            <List.Item
+              arrow={!!task.patient_id}
+              onClick={task.patient_id ? () => navigate(`/doctor/patients/${task.patient_id}`) : undefined}
+              extra={<span style={{ color: APP.primary }}>{task.patient_name}</span>}
+            >
+              患者
+            </List.Item>
+          )}
+          {due && (
+            <List.Item extra={<span style={{ color: due.color }}>{due.text}</span>}>
+              截止
+            </List.Item>
+          )}
+          <List.Item
+            extra={saving ? <span style={{ fontSize: FONT.sm, color: APP.text4 }}>保存中</span> : undefined}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: APP.text4, fontSize: FONT.sm, flexShrink: 0 }}>备注</span>
+              <input
+                value={notes}
+                onChange={(e) => { setNotes(e.target.value); setNotesDirty(true); }}
+                onBlur={handleSaveNotes}
+                placeholder="添加备注..."
+                style={{
+                  flex: 1, border: "none", outline: "none", padding: 0,
+                  fontSize: FONT.base, color: APP.text2, fontFamily: "inherit",
+                  backgroundColor: "transparent",
+                }}
+              />
+            </div>
+          </List.Item>
+          {isCompleted && (
+            <List.Item extra={<span style={{ color: APP.primary, fontWeight: 500 }}>已完成 {task.completed_at ? task.completed_at.slice(0, 10) : ""}</span>}>
+              状态
+            </List.Item>
+          )}
+        </List>
+
+        {/* Delete link */}
         {!isCompleted && (
-          <div style={{ padding: "16px" }}>
+          <div style={{ padding: 16 }}>
             <span
               onClick={confirmDelete}
               style={{ fontSize: FONT.base, color: APP.text4, cursor: "pointer" }}
@@ -573,6 +354,20 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
           </div>
         )}
       </div>
+
+      {/* Bottom action bar */}
+      {!isCompleted && (
+        <ActionFooter>
+          {task.patient_id && (
+            <Button block fill="outline" onClick={() => navigate(`/doctor/patients/${task.patient_id}`)}>
+              查看患者
+            </Button>
+          )}
+          <Button block color="primary" loading={completing} onClick={handleComplete}>
+            标记完成
+          </Button>
+        </ActionFooter>
+      )}
     </div>
   );
 }

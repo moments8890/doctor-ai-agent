@@ -71,6 +71,7 @@ async def start_interview(
                 else f"欢迎回来！我们继续为{doctor_name}医生整理您的病情信息。"
             ),
             "collected": active.collected,
+            "conversation": active.conversation or [],
             "progress": {"filled": count_filled(active.collected), "total": 7},
             "status": InterviewStatus.reviewing if ready_to_review else active.status,
             "ready_to_review": ready_to_review,

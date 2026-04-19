@@ -9,8 +9,7 @@
  * - SafeArea bottom padding for home bar
  */
 import { useState } from "react";
-import { TextArea, Button, SafeArea } from "antd-mobile";
-import { SendOutline } from "antd-mobile-icons";
+import { TextArea, SafeArea } from "antd-mobile";
 import { useVoiceInput } from "../hooks/useVoiceInput";
 import { isInMiniapp } from "../utils/miniappBridge";
 import { APP, FONT, RADIUS } from "./theme";
@@ -25,6 +24,10 @@ export default function ChatComposer({
   suggestions = [],
   selectedSuggestions = [],
   onToggleSuggestion,
+  // True when composer sits directly on the viewport bottom (e.g. InterviewPage
+  // full-screen). False when a TabBar below already handles the home-indicator
+  // inset — doubling up leaves dead space above the TabBar.
+  safeBottom = true,
 }) {
   const showMic = isInMiniapp();
 
@@ -44,39 +47,27 @@ export default function ChatComposer({
     onSend?.(trimmed);
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
+  // WeChat mobile convention: Enter inserts a newline. Sending requires
+  // tapping the send button. We intentionally do not intercept Enter here.
 
   return (
     <div style={styles.wrapper}>
       {/* Suggestion chips */}
       {suggestions.length > 0 && (
         <div style={styles.chips}>
-          {suggestions.map((s, i) => {
-            const active = selectedSuggestions.includes(s);
-            return (
-              <span
-                key={i}
-                style={{
-                  ...styles.chip,
-                  background: active ? APP.wechatGreen : APP.surfaceAlt,
-                  color: active ? APP.text1 : APP.text3,
-                  border: `1px solid ${active ? APP.wechatGreen : APP.border}`,
-                }}
-                onClick={() => onToggleSuggestion?.(s)}
-              >
-                {s}
-              </span>
-            );
-          })}
+          {suggestions.map((s, i) => (
+            <span
+              key={i}
+              style={styles.chip}
+              onClick={() => onToggleSuggestion?.(s)}
+            >
+              {s}
+            </span>
+          ))}
         </div>
       )}
 
-      {/* Input row */}
+      {/* Input row — WeChat-style: gray bar, white input, 发送 button appears when typing */}
       <div style={styles.inputRow}>
         {showMic && <div style={styles.micWrap}>{micButton}</div>}
 
@@ -84,39 +75,49 @@ export default function ChatComposer({
           <TextArea
             value={value}
             onChange={(v) => onChange?.(v)}
-            onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={isDisabled}
+            rows={1}
             autoSize={{ minRows: 1, maxRows: 4 }}
             style={styles.textarea}
           />
         </div>
 
-        <Button
-          onClick={handleSend}
-          disabled={isDisabled || !value?.trim()}
-          style={{
-            ...styles.sendBtn,
-            background: value?.trim() && !isDisabled ? APP.primary : APP.border,
-            color: value?.trim() && !isDisabled ? APP.white : APP.text4,
-          }}
-        >
-          <SendOutline fontSize={18} />
-        </Button>
+        {(() => {
+          const active = !!value?.trim() && !isDisabled;
+          return (
+            <div
+              role="button"
+              aria-label="发送"
+              onClick={active ? handleSend : undefined}
+              style={{
+                ...styles.sendBtn,
+                background: active ? APP.primary : APP.border,
+                color: active ? APP.white : APP.text4,
+                cursor: active ? "pointer" : "not-allowed",
+              }}
+            >
+              发送
+            </div>
+          );
+        })()}
       </div>
 
-      <SafeArea position="bottom" />
+      {safeBottom && <SafeArea position="bottom" />}
     </div>
   );
 }
 
+// WeChat input-bar palette: #EDEDED container, white input, 4px radius.
+// Using APP.surfaceAlt (#f7f7f7) for the bar — close enough to WeChat's
+// #EDEDED that it fits our palette without introducing a new token.
 const styles = {
   wrapper: {
-    background: APP.surface,
-    borderTop: `1px solid ${APP.border}`,
+    background: APP.surfaceAlt,
+    borderTop: `0.5px solid ${APP.border}`,
     paddingTop: 8,
-    paddingLeft: 12,
-    paddingRight: 12,
+    paddingLeft: 8,
+    paddingRight: 8,
   },
   chips: {
     display: "flex",
@@ -131,6 +132,9 @@ const styles = {
     fontSize: FONT.sm,
     cursor: "pointer",
     userSelect: "none",
+    background: APP.surface,
+    color: APP.text3,
+    border: `1px solid ${APP.border}`,
   },
   inputRow: {
     display: "flex",
@@ -146,33 +150,36 @@ const styles = {
   },
   textAreaWrap: {
     flex: 1,
-    background: APP.surfaceAlt,
-    borderRadius: RADIUS.pill,
-    padding: "6px 12px",
-    minHeight: 36,
+    background: APP.surface,
+    borderRadius: RADIUS.sm,
+    padding: "4px 10px",
     display: "flex",
     alignItems: "center",
+    border: `0.5px solid ${APP.border}`,
   },
   textarea: {
     "--font-size": FONT.md,
     "--color": APP.text1,
     "--placeholder-color": APP.text4,
+    "--min-height": "24px",
     background: "transparent",
     border: "none",
     outline: "none",
     width: "100%",
-    lineHeight: "1.5",
+    lineHeight: "1.4",
   },
   sendBtn: {
     flexShrink: 0,
-    width: 36,
+    minWidth: 58,
     height: 36,
-    borderRadius: RADIUS.circle,
-    border: "none",
+    padding: "0 14px",
+    borderRadius: RADIUS.sm,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: 0,
-    minWidth: 0,
+    fontSize: FONT.md,
+    fontWeight: 500,
+    userSelect: "none",
+    transition: "background 120ms ease",
   },
 };

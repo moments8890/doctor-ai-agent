@@ -14,15 +14,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Button,
+  CapsuleTabs,
   ErrorBlock,
   List,
-  NavBar,
-  SpinLoading,
   Tag,
 } from "antd-mobile";
-import { AddOutline, FileOutline } from "antd-mobile-icons";
+import { FileOutline } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
 import { APP, FONT, RADIUS } from "../../theme";
+import { LoadingCenter, EmptyState } from "../../components";
 
 // ---------------------------------------------------------------------------
 // Helpers (no MUI / theme.js deps)
@@ -81,45 +81,6 @@ function groupByMonth(records) {
     groups[groups.length - 1].items.push(rec);
   }
   return groups;
-}
-
-// ---------------------------------------------------------------------------
-// Filter pill row
-// ---------------------------------------------------------------------------
-
-function FilterPills({ items, active, onChange }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        padding: "8px 12px",
-        overflowX: "auto",
-        background: APP.surface,
-        borderBottom: `0.5px solid ${APP.border}`,
-        flexShrink: 0,
-      }}
-    >
-      {items.map((item) => (
-        <div
-          key={item.key}
-          onClick={() => onChange(item.key)}
-          style={{
-            padding: "4px 12px",
-            borderRadius: RADIUS.pill,
-            fontSize: FONT.sm,
-            whiteSpace: "nowrap",
-            cursor: "pointer",
-            background: active === item.key ? APP.primary : APP.borderLight,
-            color: active === item.key ? APP.white : APP.text3,
-            fontWeight: active === item.key ? 600 : 400,
-          }}
-        >
-          {item.label}
-        </div>
-      ))}
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -275,7 +236,7 @@ function TimelineView({ records, onTap }) {
 // RecordsTab
 // ---------------------------------------------------------------------------
 
-export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
+export default function RecordsTab({ token }) {
   const navigate = useNavigate();
   const { getPatientRecords } = usePatientApi();
 
@@ -310,19 +271,7 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
   }
 
   if (loading) {
-    return (
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 32,
-        }}
-      >
-        <SpinLoading color="primary" />
-      </div>
-    );
+    return <LoadingCenter />;
   }
 
   if (error) {
@@ -343,27 +292,6 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {/* New record button */}
-      <div
-        style={{
-          padding: "12px 16px",
-          background: APP.surface,
-          borderBottom: `0.5px solid ${APP.border}`,
-          flexShrink: 0,
-        }}
-      >
-        <Button
-          block
-          color="primary"
-          size="middle"
-          style={{ borderRadius: RADIUS.md }}
-          onClick={onNewRecord}
-        >
-          <AddOutline style={{ marginRight: 4 }} />
-          新建病历 — 开始AI预问诊
-        </Button>
-      </div>
-
       {/* Filter pills — only show when records exist */}
       {records.length > 0 && (
         <>
@@ -378,27 +306,48 @@ export default function RecordsTab({ token, onNewRecord, urlSubpage }) {
           >
             最近 · {records.length} 份病历
           </div>
-          <FilterPills
-            items={[
-              { key: "list", label: "病历" },
-              { key: "timeline", label: "时间线" },
-            ]}
-            active={recordView}
-            onChange={setRecordView}
-          />
-          <FilterPills
-            items={PATIENT_RECORD_TABS}
-            active={typeFilter}
-            onChange={setTypeFilter}
-          />
+          <div
+            style={{
+              background: APP.surface,
+              borderBottom: `0.5px solid ${APP.border}`,
+              flexShrink: 0,
+              padding: "4px 12px",
+            }}
+          >
+            <CapsuleTabs
+              activeKey={recordView}
+              onChange={setRecordView}
+              style={{ "--capsule-tab-font-size": FONT.sm }}
+            >
+              <CapsuleTabs.Tab title="病历" key="list" />
+              <CapsuleTabs.Tab title="时间线" key="timeline" />
+            </CapsuleTabs>
+          </div>
+          <div
+            style={{
+              background: APP.surface,
+              borderBottom: `0.5px solid ${APP.border}`,
+              flexShrink: 0,
+              padding: "4px 12px",
+            }}
+          >
+            <CapsuleTabs
+              activeKey={typeFilter}
+              onChange={setTypeFilter}
+              style={{ "--capsule-tab-font-size": FONT.sm }}
+            >
+              {PATIENT_RECORD_TABS.map((t) => (
+                <CapsuleTabs.Tab title={t.label} key={t.key} />
+              ))}
+            </CapsuleTabs>
+          </div>
         </>
       )}
 
       {/* Content */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {filteredRecords.length === 0 ? (
-          <ErrorBlock
-            status="empty"
+          <EmptyState
             title="暂无病历记录"
             description="点击上方「新建病历」开始预问诊"
           />

@@ -181,15 +181,12 @@ export default function ChatTab({
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Unread badge
+  // Mark messages as seen while the chat tab is mounted — prevents new incoming
+  // messages from inflating the badge for a user who is actively reading.
   useEffect(() => {
-    if (!onUnreadCountChange || messages.length === 0) return;
-    const lastSeen = parseInt(localStorage.getItem(LAST_SEEN_CHAT_KEY) || "0", 10);
-    const unread = messages.filter((m) => {
-      const t = new Date(m.created_at).getTime();
-      return t > lastSeen;
-    }).length;
-    onUnreadCountChange(unread);
+    if (messages.length === 0) return;
+    localStorage.setItem(LAST_SEEN_CHAT_KEY, String(Date.now()));
+    onUnreadCountChange?.(0);
   }, [messages, onUnreadCountChange]);
 
   async function handleSend(text) {
@@ -269,6 +266,10 @@ export default function ChatTab({
             <SpinLoading color={APP.primary} style={{ "--size": "20px" }} />
           </div>
         )}
+        {!sending && messages.length > 0 &&
+          (messages[messages.length - 1].source || (messages[messages.length - 1].role === "user" ? "patient" : "ai")) === "patient" && (
+            <div style={styles.awaitingHint}>医生已收到您的消息，会尽快回复您</div>
+        )}
         <div ref={chatEndRef} />
       </div>
 
@@ -281,6 +282,7 @@ export default function ChatTab({
         }}
         disabled={sending}
         placeholder="请输入…"
+        safeBottom={false}
       />
     </div>
   );
@@ -325,6 +327,12 @@ const styles = {
     flex: 1,
     overflowY: "auto",
     padding: "12px 0",
+  },
+  awaitingHint: {
+    textAlign: "center",
+    fontSize: FONT.xs,
+    color: APP.text4,
+    padding: "4px 16px 12px",
   },
   msgRow: {
     display: "flex",

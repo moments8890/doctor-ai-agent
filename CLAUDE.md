@@ -72,7 +72,47 @@
 
 These rules are enforced by `scripts/lint-ui.sh`. Run it before pushing.
 
-### Tokens — never hardcode
+### v2 tokens (antd-mobile app) — source of truth: `frontend/web/src/v2/theme.js`
+
+**Target audience**: 40+ users, WeChat-like ease of use. Sizes are a small
+bump over iOS/Android defaults, well short of elderly "care mode". Details
+and rationale live in the `theme.js` header comment.
+
+| What | Use | Never |
+|------|-----|-------|
+| Colors | `APP.*` from `v2/theme.js` | Hardcoded hex (`#07C160`, `#999`, etc.) |
+| Font sizes | `FONT.*` from `v2/theme.js` | Hardcoded px (`fontSize: 14`) |
+| Icon sizes | `ICON.*` from `v2/theme.js` | Hardcoded numbers (`fontSize: 24`) |
+| Border radius | `RADIUS.*` from `v2/theme.js` | Hardcoded px (`borderRadius: "8px"`) |
+
+**FONT scale** (base values at `standard` tier, all tier-scaled):
+- `xs` 11px — badges, micro meta
+- `sm` 13px — tab labels, captions, timestamps
+- `base` 15px — body text
+- `md` 17px — list-item titles, emphasized body (WeChat body standard)
+- `lg` 19px — section headings
+- `xl` 22px — page titles / hero
+
+**ICON scale** (base values at `standard` tier, all tier-scaled):
+- `xs` 16 → inline icons paired with text (timestamps w/ clock)
+- `sm` 20 → List.Item prefix, NavBar action
+- `md` 24 → primary action icon inside a row
+- `lg` 28 → bottom TabBar icons
+- `xl` 32 → hero / empty-state illustrations
+
+**Rules for future work**:
+1. Never hardcode font or icon sizes in JSX. Use `FONT.*` / `ICON.*`.
+2. antd-mobile components use their own numbered vars (`--adm-font-size-2`
+   for TabBar, `-9` for List.Item, etc.). `applyFontScale()` overrides the
+   full numbered scale so those components auto-scale. Don't reinvent.
+3. Tier scaling: `compact` 0.9× / `standard` 1.0× (default) / `large` 1.15× /
+   `extraLarge` 1.3×. Set via `useFontScaleStore`.
+4. For antd-mobile class rules without a CSS var (e.g. `.adm-tab-bar-item-icon`
+   size), add them to `injectComponentOverrides()` in `v2/theme.js` — never
+   inline-style into individual call sites.
+5. Touch targets ≥ 44×44 CSS px (iOS HIG).
+
+### v1 tokens (legacy MUI app) — source of truth: `src/theme.js`
 
 | What | Use | Never |
 |------|-----|-------|

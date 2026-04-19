@@ -6,43 +6,26 @@
  * No MUI, no src/components, no src/theme.js.
  */
 import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   JumboTabs,
   List,
-  SpinLoading,
   ErrorBlock,
   PullToRefresh,
-  Tag,
 } from "antd-mobile";
 import { useReviewQueue, useDrafts } from "../../../lib/doctorQueries";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { dp } from "../../../utils/doctorBasePath";
-import { APP, FONT, RADIUS } from "../../theme";
+import { APP, FONT } from "../../theme";
+import { pageContainer, scrollable } from "../../layouts";
+import { NameAvatar, LoadingCenter } from "../../components";
 
-// ── Helpers ────────────────────────────────────────────────────────
-
-function NameCircle({ name }) {
-  const ch = (name || "?")[0];
-  return (
-    <div
-      style={{
-        width: 36,
-        height: 36,
-        borderRadius: "50%",
-        background: APP.primary,
-        color: APP.white,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: FONT.md,
-        fontWeight: 600,
-        flexShrink: 0,
-      }}
-    >
-      {ch}
-    </div>
-  );
+// Tab title with an inline (N) count shown when count > 0.
+function TabTitleWithCount({ label, count }) {
+  if (count > 0) {
+    return <span>{label} ({count})</span>;
+  }
+  return <span>{label}</span>;
 }
 
 const SECTION_LABEL = {
@@ -54,7 +37,7 @@ const SECTION_LABEL = {
 // ── Pending item row ───────────────────────────────────────────────
 
 function PendingItem({ item, onNavigate }) {
-  const urgency = item.urgency === "urgent";
+
   const sectionLabel = SECTION_LABEL[item.section] || item.section || "";
   const sourceLabel =
     item.record_type === "interview_summary"
@@ -70,7 +53,7 @@ function PendingItem({ item, onNavigate }) {
 
   return (
     <List.Item
-      prefix={<NameCircle name={item.patient_name} />}
+      prefix={<NameAvatar name={item.patient_name} size={36} />}
       extra={
         <span style={{ fontSize: FONT.sm, color: APP.text4 }}>{item.time}</span>
       }
@@ -79,15 +62,6 @@ function PendingItem({ item, onNavigate }) {
       onClick={() => onNavigate(item)}
     >
       <span style={{ fontWeight: 500 }}>{item.patient_name}</span>
-      {urgency ? (
-        <Tag color="danger" style={{ marginLeft: 6, fontSize: FONT.xs }}>
-          紧急
-        </Tag>
-      ) : (
-        <Tag color="warning" style={{ marginLeft: 6, fontSize: FONT.xs }}>
-          待处理
-        </Tag>
-      )}
     </List.Item>
   );
 }
@@ -100,7 +74,7 @@ function DraftItem({ item, onNavigate }) {
 
   return (
     <List.Item
-      prefix={<NameCircle name={item.patient_name} />}
+      prefix={<NameAvatar name={item.patient_name} size={36} />}
       extra={
         <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
           {item.time || ""}
@@ -111,11 +85,6 @@ function DraftItem({ item, onNavigate }) {
       onClick={() => onNavigate(item)}
     >
       <span style={{ fontWeight: 500 }}>{item.patient_name}</span>
-      {item.badge === "urgent" && (
-        <Tag color="danger" style={{ marginLeft: 6, fontSize: FONT.xs }}>
-          紧急
-        </Tag>
-      )}
     </List.Item>
   );
 }
@@ -132,7 +101,7 @@ function CompletedItem({ item, onNavigate }) {
 
   return (
     <List.Item
-      prefix={<NameCircle name={item.patient_name} />}
+      prefix={<NameAvatar name={item.patient_name} size={36} />}
       extra={
         <span style={{ fontSize: FONT.sm, color: APP.text4 }}>{item.time}</span>
       }
@@ -179,19 +148,18 @@ export default function ReviewQueuePage() {
     (b.created_at || "").localeCompare(a.created_at || "")
   );
 
-  // Tab from URL
-  const params = new URLSearchParams(window.location.search);
-  const tabFromUrl = params.get("tab");
+  // Tab state from URL: ?tab=pending (default) | ?tab=replies | ?tab=completed
+  const [searchParams, setSearchParams] = useSearchParams();
   const validTabs = new Set(["pending", "replies", "completed"]);
-  const [activeTab, setActiveTab] = useState(
-    tabFromUrl && validTabs.has(tabFromUrl) ? tabFromUrl : "pending"
-  );
+  const urlTab = searchParams.get("tab");
+  const activeTab = urlTab && validTabs.has(urlTab) ? urlTab : "pending";
 
   function handleTabChange(key) {
-    setActiveTab(key);
-    const url = new URL(window.location.href);
-    url.searchParams.set("tab", key);
-    window.history.replaceState(null, "", url);
+    if (key === "pending") {
+      setSearchParams({}, { replace: true });
+    } else {
+      setSearchParams({ tab: key }, { replace: true });
+    }
   }
 
   function handleNavigatePending(item) {
@@ -222,15 +190,7 @@ export default function ReviewQueuePage() {
   const completedCount = completed.length;
 
   return (
-    <div
-      style={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: APP.surfaceAlt,
-        overflow: "hidden",
-      }}
-    >
+    <div style={pageContainer}>
       {/* Filter tabs */}
       <div
         style={{
@@ -241,41 +201,31 @@ export default function ReviewQueuePage() {
       >
         <JumboTabs activeKey={activeTab} onChange={handleTabChange}>
           <JumboTabs.Tab
-            title={`待审核${pendingCount > 0 ? ` ${pendingCount}` : ""}`}
+            title={<TabTitleWithCount label="待审核" count={pendingCount} />}
             key="pending"
           />
           <JumboTabs.Tab
-            title={`待回复${repliesCount > 0 ? ` ${repliesCount}` : ""}`}
+            title={<TabTitleWithCount label="待回复" count={repliesCount} />}
             key="replies"
           />
           <JumboTabs.Tab
-            title={`已完成${completedCount > 0 ? ` ${completedCount}` : ""}`}
+            title={<TabTitleWithCount label="已完成" count={completedCount} />}
             key="completed"
           />
         </JumboTabs>
       </div>
 
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={scrollable}>
         <PullToRefresh onRefresh={handleRefresh}>
           {/* Loading */}
-          {loading && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                paddingTop: 48,
-              }}
-            >
-              <SpinLoading color="primary" />
-            </div>
-          )}
+          {loading && <LoadingCenter />}
 
           {/* Pending tab */}
           {!loading && activeTab === "pending" && (
             <>
               {pending.length > 0 ? (
-                <List header="待审核">
+                <List>
                   {pending.map((item) => (
                     <PendingItem
                       key={item.id}
@@ -323,7 +273,7 @@ export default function ReviewQueuePage() {
           {!loading && activeTab === "completed" && (
             <>
               {completed.length > 0 ? (
-                <List header="已完成">
+                <List>
                   {completed.map((item) => (
                     <CompletedItem
                       key={item.id}

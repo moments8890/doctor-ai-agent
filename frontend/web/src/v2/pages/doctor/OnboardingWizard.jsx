@@ -10,7 +10,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { NavBar, Button, Result, Dialog, SafeArea, ProgressBar } from "antd-mobile";
+import { NavBar, Button, Result, Dialog, SafeArea, Steps } from "antd-mobile";
 import { CheckCircleFill, FileOutline, GlobalOutline, EditSOutline, CheckOutline } from "antd-mobile-icons";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
@@ -900,8 +900,6 @@ export default function OnboardingWizard() {
     }
   }
 
-  const progressPercent = Math.round((step / TOTAL_STEPS) * 100);
-
   return (
     <div
       style={{
@@ -928,7 +926,7 @@ export default function OnboardingWizard() {
         {STEP_TITLES[step] || "引导"}
       </NavBar>
 
-      {/* Progress bar */}
+      {/* Progress steps */}
       <div
         style={{
           padding: "8px 16px 6px",
@@ -937,25 +935,18 @@ export default function OnboardingWizard() {
           flexShrink: 0,
         }}
       >
-        <div
+        <Steps
+          current={step - 1}
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: 4,
-            fontSize: FONT.xs,
-            color: APP.text4,
+            "--title-font-size": FONT.xs,
+            "--description-font-size": FONT.xs,
+            "--icon-size": "22px",
           }}
         >
-          <span>步骤 {step}/{TOTAL_STEPS}</span>
-          <span>{STEP_TITLES[step]}</span>
-        </div>
-        <ProgressBar
-          percent={progressPercent}
-          style={{
-            "--fill-color": APP.primary,
-            "--track-color": APP.primaryLight,
-          }}
-        />
+          <Steps.Step title="添加规则" />
+          <Steps.Step title="看AI用它" />
+          <Steps.Step title="开始使用" />
+        </Steps>
       </div>
 
       {/* Scrollable content */}

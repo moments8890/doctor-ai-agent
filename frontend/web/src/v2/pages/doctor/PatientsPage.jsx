@@ -1,55 +1,46 @@
 /**
  * @route /doctor/patients
  *
- * v2 PatientsPage — antd-mobile patient list with search.
- * No MUI, no src/components, no src/theme.js.
+ * v2 PatientsPage — antd-mobile patient list with search + NL search + AI tags.
  */
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { List, SearchBar, Button, SpinLoading, ErrorBlock } from "antd-mobile";
-import { AddOutline } from "antd-mobile-icons";
-import { usePatients } from "../../../lib/doctorQueries";
+import { List, SearchBar, Button, ErrorBlock, DotLoading } from "antd-mobile";
+import { usePatients, useAIAttention } from "../../../lib/doctorQueries";
+import { useApi } from "../../../api/ApiContext";
+import { useDoctorStore } from "../../../store/doctorStore";
 import { relativeDate } from "../../../utils/time";
 import { APP, FONT, RADIUS } from "../../theme";
+import { pageContainer, scrollable } from "../../layouts";
+import { NameAvatar, LoadingCenter, EmptyState } from "../../components";
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-function patientSubtitle(patient) {
+// Detect queries that should go through the NL search backend rather than
+// being matched locally on the name field.
+function isNLQuery(q) {
+  return /[的得了这那哪]{1}|姓|阿姨|叔叔|奶奶|大爷|多岁|中年|老年|男性|女性|上周|本周|最近|昨天/.test(q);
+}
+
+function patientSubtitle(patient, aiTag) {
   const age = patient.year_of_birth
     ? new Date().getFullYear() - patient.year_of_birth
     : null;
   const genderStr = patient.gender
     ? { male: "男", female: "女" }[patient.gender] || patient.gender
     : null;
-  return [
+  const base = [
     genderStr,
     age ? `${age}岁` : null,
     patient.chief_complaint || patient.primary_category || `${patient.record_count || 0}份病历`,
   ]
     .filter(Boolean)
     .join(" · ");
-}
-
-function NameCircle({ name }) {
-  const ch = (name || "?")[0];
+  if (!aiTag) return base;
   return (
-    <div
-      style={{
-        width: 40,
-        height: 40,
-        borderRadius: "50%",
-        background: APP.primary,
-        color: APP.white,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: FONT.md,
-        fontWeight: 600,
-        flexShrink: 0,
-      }}
-    >
-      {ch}
-    </div>
+    <span>
+      {base} · <span style={{ color: APP.primary }}>AI: {aiTag}</span>
+    </span>
   );
 }
 
@@ -96,20 +87,71 @@ function UrgencyTag({ triage }) {
 
 export default function PatientsPage() {
   const navigate = useNavigate();
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
   const { data, isLoading, isError, refetch } = usePatients();
+  const { data: attentionData } = useAIAttention();
 
   const patients = useMemo(() => {
     const items = Array.isArray(data) ? data : data?.items || [];
     return items;
   }, [data]);
 
+  // AI attention → map of patientId → short tag string. Attention-tagged
+  // patients float to the top of the list so the doctor sees them first.
+  const aiTagMap = useMemo(() => {
+    const out = {};
+    const list = attentionData?.patients || [];
+    for (const p of list) {
+      if (p.patient_id) {
+        out[p.patient_id] = p.short_tag || p.reason?.slice(0, 12) || "关注";
+      }
+    }
+    return out;
+  }, [attentionData]);
+
   const [search, setSearch] = useState("");
+  const [nlResults, setNlResults] = useState(null);
+  const [nlLoading, setNlLoading] = useState(false);
+
+  function handleSearchChange(val) {
+    setSearch(val);
+    setNlResults(null);
+  }
+
+  // NL search fires on Enter / submit. Queries matching isNLQuery() go to the
+  // backend; plain-text queries keep using the local name filter.
+  async function handleSearchSubmit() {
+    const q = search.trim();
+    if (!q || !isNLQuery(q)) return;
+    setNlLoading(true);
+    try {
+      const d = await api.searchPatients(doctorId, q);
+      setNlResults(d?.items || []);
+    } catch {
+      setNlResults([]);
+    } finally {
+      setNlLoading(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim();
-    if (!q) return patients;
-    return patients.filter((p) => (p.name || "").includes(q));
-  }, [patients, search]);
+    const base = !q
+      ? patients
+      : nlResults !== null
+        ? nlResults
+        : patients.filter((p) => (p.name || "").includes(q));
+    // Sort: AI-attention patients first, then by most recent activity
+    return [...base].sort((a, b) => {
+      const aTagged = aiTagMap[a.id] ? 1 : 0;
+      const bTagged = aiTagMap[b.id] ? 1 : 0;
+      if (aTagged !== bTagged) return bTagged - aTagged;
+      const aDate = a.last_activity_at || a.created_at || "";
+      const bDate = b.last_activity_at || b.created_at || "";
+      return bDate.localeCompare(aDate);
+    });
+  }, [patients, search, nlResults, aiTagMap]);
 
   function handlePatientClick(patient) {
     navigate(`/doctor/patients/${patient.id}`);
@@ -119,17 +161,11 @@ export default function PatientsPage() {
     navigate("/doctor/patients/new");
   }
 
-  if (isLoading) {
-    return (
-      <div style={styles.center}>
-        <SpinLoading color="primary" style={{ "--size": "32px" }} />
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingCenter fullPage />;
 
   if (isError) {
     return (
-      <div style={styles.center}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
         <ErrorBlock
           status="default"
           title="加载失败"
@@ -143,40 +179,46 @@ export default function PatientsPage() {
     );
   }
 
+  const showNLHint = search.trim() && isNLQuery(search.trim()) && nlResults === null && !nlLoading;
+  const showNLActive = nlResults !== null && search.trim();
+
   return (
-    <div style={styles.page}>
+    <div style={pageContainer}>
       {/* Search bar */}
       <div style={styles.searchWrap}>
         <SearchBar
           placeholder={`搜索患者${patients.length > 0 ? `（共${patients.length}人）` : ""}`}
           value={search}
-          onChange={setSearch}
-          onClear={() => setSearch("")}
-          style={{
-            "--background": APP.surface,
-            flex: 1,
-          }}
+          onChange={handleSearchChange}
+          onSearch={handleSearchSubmit}
+          onClear={() => { setSearch(""); setNlResults(null); }}
+          style={{ flex: 1 }}
         />
-        <Button
-          color="primary"
-          size="small"
-          style={styles.newBtn}
-          onClick={handleNewInterview}
-        >
-          <AddOutline style={{ marginRight: 2 }} />
-          新建病历
-        </Button>
       </div>
 
+      {/* NL search hint / status strip */}
+      {showNLHint && (
+        <div style={styles.nlStrip}>
+          按回车用AI搜索：「{search.trim()}」
+        </div>
+      )}
+      {nlLoading && (
+        <div style={styles.nlStrip}>
+          AI 搜索中 <DotLoading color="primary" />
+        </div>
+      )}
+      {showNLActive && !nlLoading && (
+        <div style={styles.nlStrip}>
+          AI 搜索结果 · {nlResults.length} 位患者
+        </div>
+      )}
+
       {/* Patient list */}
-      <div style={styles.listWrap}>
+      <div style={scrollable}>
         {filtered.length === 0 && !isLoading && (
-          <ErrorBlock
-            status="empty"
-            title={search ? "无匹配患者" : "暂无患者"}
-            description={search ? "试试其他关键词" : "点击「新建病历」添加第一位患者"}
-            style={{ paddingTop: 40 }}
-          />
+          search
+            ? <EmptyState title="无匹配患者" description="试试其他关键词" />
+            : <EmptyState title="暂无患者" description="点击右上角 + 新建第一位患者" action="新建病历" onAction={handleNewInterview} />
         )}
 
         {filtered.length > 0 && (
@@ -195,11 +237,12 @@ export default function PatientsPage() {
                   patient.updated_at ||
                   patient.created_at
               );
+              const aiTag = aiTagMap[patient.id];
               return (
                 <List.Item
                   key={patient.id}
-                  prefix={<NameCircle name={patient.name} />}
-                  description={patientSubtitle(patient)}
+                  prefix={<NameAvatar name={patient.name} size={36} />}
+                  description={patientSubtitle(patient, aiTag)}
                   extra={
                     <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
                       {timeStr}
@@ -227,13 +270,6 @@ export default function PatientsPage() {
 // ── Styles ─────────────────────────────────────────────────────────
 
 const styles = {
-  page: {
-    display: "flex",
-    flexDirection: "column",
-    height: "100%",
-    background: APP.surfaceAlt,
-    overflow: "hidden",
-  },
   searchWrap: {
     display: "flex",
     alignItems: "center",
@@ -243,26 +279,12 @@ const styles = {
     borderBottom: `0.5px solid ${APP.border}`,
     flexShrink: 0,
   },
-  newBtn: {
-    flexShrink: 0,
-    "--background-color": APP.primary,
-    "--border-color": APP.primary,
-    "--text-color": APP.white,
-    borderRadius: RADIUS.md,
-    height: 32,
-    padding: "0 10px",
+  nlStrip: {
+    padding: "6px 16px",
     fontSize: FONT.sm,
-    display: "flex",
-    alignItems: "center",
-  },
-  listWrap: {
-    flex: 1,
-    overflowY: "auto",
-  },
-  center: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100%",
+    color: APP.text4,
+    background: APP.surfaceAlt,
+    borderBottom: `0.5px solid ${APP.borderLight}`,
+    flexShrink: 0,
   },
 };

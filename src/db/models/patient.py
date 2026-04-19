@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import ForeignKey, Index, Integer, String, DateTime, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, DateTime, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.engine import Base
 from db.models.base import _utcnow
@@ -24,6 +24,11 @@ class Patient(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     last_activity_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    # AI-generated 1-2 sentence patient summary. Regenerated after each new
+    # record lands for this patient. See src/domain/briefing/patient_summary.py
+    ai_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ai_summary_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    ai_summary_model: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     __table_args__ = (
         Index("ix_patients_doctor_created", "doctor_id", "created_at"),

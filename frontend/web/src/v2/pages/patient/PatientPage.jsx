@@ -1,79 +1,76 @@
 /**
+ * @route /patient, /patient/:tab, /patient/:tab/:subpage
+ *
  * PatientPage — patient portal shell (v2, antd-mobile).
  *
- * Ported from src/pages/patient/PatientPage.jsx.
- * Key behaviours preserved:
- *   - QR-code token absorption from URL params
- *   - Identity hydration from localStorage + API refresh
- *   - Onboarding check (once per patient_id)
- *   - URL-driven tab routing (/patient/:tab)
- *   - Full-screen InterviewPage at /patient/records/interview
- *   - Unread badge on 聊天 tab
- *   - SafeArea top + bottom
- *   - Redirect to /login when no token
+ * Mirrors DoctorPage structure:
+ *   - Top NavBar with tab title + optional right action
+ *   - Bottom TabBar with 4 tabs (chat / records / tasks / profile)
+ *   - Full-screen subpage overlays (hide NavBar + TabBar)
+ *   - Pathname-driven section detection (NOT useParams — wildcard route
+ *     would make useParams() return only "*")
  *
- * Tabs other than 聊天 render placeholder content — records, tasks, profile
- * are lower priority for v2.
+ * Identity (token + name + doctor_id) hydrated from localStorage; QR-code
+ * absorption preserved. Onboarding gate preserved.
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { TabBar, SafeArea, Badge } from "antd-mobile";
+import { useLocation, useNavigate } from "react-router-dom";
+import { NavBar, TabBar, SafeArea, Badge, Button } from "antd-mobile";
 import {
   MessageOutline,
+  MessageFill,
   FileOutline,
   UnorderedListOutline,
   UserOutline,
+  AddCircleOutline,
 } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
+import { APP, FONT, ICON } from "../../theme";
+import { pageContainer, navBarStyle } from "../../layouts";
 import ChatTab from "./ChatTab";
 import InterviewPage from "./InterviewPage";
 import PatientOnboarding, { isOnboardingDone, markOnboardingDone } from "./PatientOnboarding";
 import RecordsTab from "./RecordsTab";
 import TasksTab from "./TasksTab";
 import MyPage from "./MyPage";
-import { APP } from "../../theme";
+import PatientRecordDetailPage from "./PatientRecordDetailPage";
+import PatientTaskDetailPage from "./PatientTaskDetailPage";
+import PatientAboutSubpage from "./PatientAboutSubpage";
+import PatientPrivacySubpage from "./PatientPrivacySubpage";
+import {
+  detectSection,
+  detectRecordDetail,
+  detectTaskDetail,
+  detectProfileSubpage,
+} from "./pathname";
+
+// ── Storage keys ───────────────────────────────────────────────────
 
 const STORAGE_KEY = "patient_portal_token";
 const STORAGE_NAME_KEY = "patient_portal_name";
 const STORAGE_DOCTOR_KEY = "patient_portal_doctor_id";
 const STORAGE_DOCTOR_NAME_KEY = "patient_portal_doctor_name";
-const ONBOARDING_DONE_KEY_PREFIX = "patient_onboarding_done_";
 const LAST_SEEN_CHAT_KEY = "patient_last_seen_chat";
 const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
-// Tab config
+// ── Tab config ─────────────────────────────────────────────────────
+
 const TABS = [
-  { key: "chat",    label: "聊天",  icon: <MessageOutline />      },
-  { key: "records", label: "病历",  icon: <FileOutline />          },
-  { key: "tasks",   label: "任务",  icon: <UnorderedListOutline /> },
-  { key: "profile", label: "我的",  icon: <UserOutline />          },
+  { key: "chat",     label: "聊天", title: "聊天",   icon: <MessageOutline />,        activeIcon: <MessageFill />,        path: "/patient/chat" },
+  { key: "records",  label: "病历", title: "病历",   icon: <FileOutline />,           activeIcon: <FileOutline />,        path: "/patient/records" },
+  { key: "tasks",    label: "任务", title: "任务",   icon: <UnorderedListOutline />,  activeIcon: <UnorderedListOutline/>, path: "/patient/tasks" },
+  { key: "profile",  label: "我的", title: "我的",   icon: <UserOutline />,           activeIcon: <UserOutline />,        path: "/patient/profile" },
 ];
-
-// ---------------------------------------------------------------------------
-// Placeholder for unimplemented tabs
-// ---------------------------------------------------------------------------
-
-function TabPlaceholder({ name }) {
-  return (
-    <div style={{ padding: 32, textAlign: "center", color: APP.text4, fontSize: FONT.md }}>
-      {name} — 即将推出
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// PatientPage
-// ---------------------------------------------------------------------------
+// Note: File/UnorderedList/User have no Fill variant in antd-mobile-icons.
+// TabBar conveys active state via color; Outline stays visually.
 
 export default function PatientPage() {
   const api = usePatientApi();
-  const { tab: urlTab, subpage: urlSubpage } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
 
-  // ---------------------------------------------------------------------------
-  // QR code token absorption — runs once before state initialization
-  // ---------------------------------------------------------------------------
+  // ── QR code token absorption (must run before state init) ────────
   useState(() => {
     const params = new URLSearchParams(window.location.search);
     const qrToken = params.get("token");
@@ -89,26 +86,18 @@ export default function PatientPage() {
     }
   });
 
-  // ---------------------------------------------------------------------------
-  // Identity state — hydrated from localStorage
-  // ---------------------------------------------------------------------------
+  // ── Identity state ───────────────────────────────────────────────
   const [token, setToken] = useState(() => localStorage.getItem(STORAGE_KEY) || "");
-  const [patientName, setPatientName] = useState(
-    () => localStorage.getItem(STORAGE_NAME_KEY) || ""
-  );
-  const [doctorName, setDoctorName] = useState(
-    () => localStorage.getItem(STORAGE_DOCTOR_NAME_KEY) || ""
-  );
-  const [doctorId, setDoctorId] = useState(
-    () => localStorage.getItem(STORAGE_DOCTOR_KEY) || ""
-  );
+  const [patientName, setPatientName] = useState(() => localStorage.getItem(STORAGE_NAME_KEY) || "");
+  const [doctorName, setDoctorName] = useState(() => localStorage.getItem(STORAGE_DOCTOR_NAME_KEY) || "");
+  const [doctorId, setDoctorId] = useState(() => localStorage.getItem(STORAGE_DOCTOR_KEY) || "");
   const [unreadCount, setUnreadCount] = useState(0);
   const [onboardingDone, setOnboardingDone] = useState(() => {
     const pid = localStorage.getItem("patient_portal_patient_id");
     return isOnboardingDone(pid);
   });
 
-  // Mock mode: auto-set identity
+  // Mock mode
   useEffect(() => {
     if (api.isMock) {
       setToken("mock-patient-token");
@@ -118,7 +107,7 @@ export default function PatientPage() {
     }
   }, [api.isMock]);
 
-  // Real mode: refresh identity from API
+  // Real mode: refresh identity
   useEffect(() => {
     if (!token || api.isMock) return;
     api
@@ -127,18 +116,24 @@ export default function PatientPage() {
         if (data.patient_name) setPatientName(data.patient_name);
         setDoctorName(data.doctor_name || "");
         if (data.doctor_id) setDoctorId(data.doctor_id);
-        if (data.patient_id)
+        if (data.patient_id) {
           localStorage.setItem("patient_portal_patient_id", String(data.patient_id));
+        }
       })
       .catch(() => {});
   }, [token, api]);
 
-  // ---------------------------------------------------------------------------
-  // URL-driven tab + subpage
-  // ---------------------------------------------------------------------------
-  const tab = urlTab || "chat";
-  const inInterview = urlSubpage === "interview";
+  // ── Pathname-driven overlay/section detection ────────────────────
+  const section = detectSection(location.pathname);
+  const recordDetailId = detectRecordDetail(location.pathname);
+  const taskDetailId = detectTaskDetail(location.pathname);
+  const profileSubpage = detectProfileSubpage(location.pathname);
+  const inInterview = location.pathname === "/patient/records/interview";
 
+  const fullScreenActive =
+    inInterview || !!recordDetailId || !!taskDetailId || !!profileSubpage;
+
+  // ── Tab + navigation handlers ────────────────────────────────────
   const handleTabChange = useCallback(
     (key) => navigate(`/patient/${key}`),
     [navigate]
@@ -154,61 +149,92 @@ export default function PatientPage() {
     [navigate]
   );
 
-  // Clear unread badge when on chat tab
+  // Clear unread badge when visiting chat tab
   useEffect(() => {
-    if (tab === "chat") {
+    if (section === "chat" && !fullScreenActive) {
       localStorage.setItem(LAST_SEEN_CHAT_KEY, String(Date.now()));
       setUnreadCount(0);
     }
-  }, [tab]);
+  }, [section, fullScreenActive]);
 
-  // Onboarding dismiss handler — scoped to current patient_id
   const handleDismissOnboarding = useCallback(() => {
     const pid = localStorage.getItem("patient_portal_patient_id");
     markOnboardingDone(pid);
     setOnboardingDone(true);
   }, []);
 
-  // Logout helper
   const handleLogout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(STORAGE_NAME_KEY);
-    localStorage.removeItem(STORAGE_DOCTOR_KEY);
-    localStorage.removeItem(STORAGE_DOCTOR_NAME_KEY);
-    localStorage.removeItem(PATIENT_CHAT_STORAGE_KEY);
-    localStorage.removeItem("patient_portal_patient_id");
+    [
+      STORAGE_KEY,
+      STORAGE_NAME_KEY,
+      STORAGE_DOCTOR_KEY,
+      STORAGE_DOCTOR_NAME_KEY,
+      PATIENT_CHAT_STORAGE_KEY,
+      "patient_portal_patient_id",
+    ].forEach((k) => localStorage.removeItem(k));
     setToken("");
     setPatientName("");
     setDoctorName("");
     setDoctorId("");
   }, []);
 
-  // Auth guard
+  // ── Auth guard ────────────────────────────────────────────────────
   if (!token && !api.isMock) {
     window.location.href = "/login";
     return null;
   }
 
-  // ---------------------------------------------------------------------------
-  // Full-screen interview — no bottom tab bar
-  // ---------------------------------------------------------------------------
+  // ── Full-screen subpages ─────────────────────────────────────────
   if (inInterview) {
     return (
-      <div style={pageStyle}>
+      <div style={pageContainer}>
         <SafeArea position="top" />
         <InterviewPage token={token} onBack={exitInterview} />
       </div>
     );
   }
+  if (recordDetailId) {
+    return <PatientRecordDetailPage recordId={recordDetailId} token={token} />;
+  }
+  if (taskDetailId) {
+    return <PatientTaskDetailPage taskId={taskDetailId} token={token} />;
+  }
+  if (profileSubpage === "about") {
+    return <PatientAboutSubpage />;
+  }
+  if (profileSubpage === "privacy") {
+    return <PatientPrivacySubpage />;
+  }
 
-  // ---------------------------------------------------------------------------
-  // Main layout with TabBar
-  // ---------------------------------------------------------------------------
+  // ── Main shell ───────────────────────────────────────────────────
+  const activeTab = TABS.find((t) => t.key === section) || TABS[0];
+
   return (
-    <div style={pageStyle}>
+    <div style={pageContainer}>
       <SafeArea position="top" />
 
-      {/* Onboarding overlay — shown once per patient_id */}
+      {/* Top NavBar */}
+      <NavBar
+        backArrow={false}
+        right={
+          section === "records" ? (
+            <Button
+              fill="none"
+              color="primary"
+              size="small"
+              onClick={startInterview}
+              aria-label="新问诊"
+            >
+              <AddCircleOutline style={{ fontSize: ICON.md }} />
+            </Button>
+          ) : null
+        }
+        style={navBarStyle}
+      >
+        {activeTab.title}
+      </NavBar>
+
+      {/* Onboarding overlay */}
       {!onboardingDone && (
         <PatientOnboarding
           doctorName={doctorName}
@@ -218,7 +244,7 @@ export default function PatientPage() {
 
       {/* Active tab content */}
       <div style={contentStyle}>
-        {tab === "chat" && (
+        {section === "chat" && (
           <ChatTab
             token={token}
             doctorName={doctorName}
@@ -227,15 +253,11 @@ export default function PatientPage() {
             onUnreadCountChange={setUnreadCount}
           />
         )}
-        {tab === "records" && (
-          <RecordsTab
-            token={token}
-            onNewRecord={startInterview}
-            urlSubpage={urlSubpage}
-          />
+        {section === "records" && (
+          <RecordsTab token={token} />
         )}
-        {tab === "tasks" && <TasksTab token={token} />}
-        {tab === "profile" && (
+        {section === "tasks" && <TasksTab token={token} />}
+        {section === "profile" && (
           <MyPage
             patientName={patientName}
             doctorName={doctorName}
@@ -245,22 +267,27 @@ export default function PatientPage() {
         )}
       </div>
 
-      {/* Bottom tab bar */}
+      {/* Bottom TabBar */}
       <div style={tabBarWrap}>
-        <TabBar activeKey={tab} onChange={handleTabChange} safeArea>
+        <TabBar activeKey={section} onChange={handleTabChange} safeArea>
           {TABS.map((t) => (
             <TabBar.Item
               key={t.key}
               title={t.label}
-              icon={
-                t.key === "chat" && unreadCount > 0 ? (
-                  <Badge content={unreadCount} style={{ "--right": "-6px", "--top": "0" }}>
-                    {t.icon}
+              icon={(active) => {
+                // Only badge the chat tab, and only when the user is NOT already on it.
+                const showBadge =
+                  t.key === "chat" && unreadCount > 0 && section !== "chat";
+                const glyph = active ? t.activeIcon : t.icon;
+                return showBadge ? (
+                  <Badge
+                    content={unreadCount}
+                    style={{ "--right": "-10px", "--top": "-2px" }}
+                  >
+                    {glyph}
                   </Badge>
-                ) : (
-                  t.icon
-                )
-              }
+                ) : glyph;
+              }}
             />
           ))}
         </TabBar>
@@ -268,14 +295,6 @@ export default function PatientPage() {
     </div>
   );
 }
-
-const pageStyle = {
-  display: "flex",
-  flexDirection: "column",
-  height: "100%",
-  overflow: "hidden",
-  background: APP.surfaceAlt,
-};
 
 const contentStyle = {
   flex: 1,

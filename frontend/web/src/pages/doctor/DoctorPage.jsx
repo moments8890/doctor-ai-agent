@@ -48,7 +48,7 @@ import { useVoiceInput } from "../../hooks/useVoiceInput";
 import { isInMiniapp } from "../../utils/miniappBridge";
 import PersonaToast from "../../components/PersonaToast";
 import { useReleaseNotes } from "../../hooks/useReleaseNotes";
-import { KEYBOARD_AWARE_CONTAINER } from "../../hooks/useKeyboardSafeArea";
+import { KEYBOARD_AWARE_CONTAINER, useScrollOnKeyboard, useAutoGrow } from "../../hooks/useKeyboardSafeArea";
 import ReleaseNotesDialog from "../../components/ReleaseNotesDialog";
 import { getDoctorProfile, updateDoctorProfile } from "../../api";
 import { TYPE, ICON, COLOR, RADIUS } from "../../theme";
@@ -263,6 +263,8 @@ function PatientPreviewPage({ doctorId, previewId }) {
   const token = sessionConfig.token;
   const chatEndRef = useRef(null);
   const inputRef = useRef(null);
+  useScrollOnKeyboard(chatEndRef);
+  useAutoGrow(inputRef, input);
   const [voiceHint, setVoiceHint] = useState(false);
 
   const [sessionId, setSessionId] = useState("");
@@ -555,12 +557,13 @@ function PatientPreviewPage({ doctorId, previewId }) {
               </Box>
             ))}
             <Box
-              component="input"
+              component="textarea"
               ref={inputRef}
               value={input}
+              rows={1}
               onChange={(event) => { if (!voiceActive) setInput(event.target.value); }}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
+                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                   event.preventDefault();
                   handleSend();
                 }
@@ -576,6 +579,8 @@ function PatientPreviewPage({ doctorId, previewId }) {
                 fontFamily: "inherit",
                 bgcolor: "transparent",
                 p: 0.5,
+                resize: "none",
+                lineHeight: 1.7,
               }}
             />
           </Box>

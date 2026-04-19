@@ -441,6 +441,14 @@ export async function deletePatient(patientId, doctorId) {
   return request(`/api/manage/patients/${patientId}?${qs.toString()}`, { method: "DELETE" });
 }
 
+export async function refreshPatientAiSummary(patientId, doctorId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(
+    `/api/manage/patients/${patientId}/ai-summary/refresh?${qs.toString()}`,
+    { method: "POST" },
+  );
+}
+
 export async function getAdminTables({ doctorId, patientName, dateFrom, dateTo }) {
   const qs = new URLSearchParams();
   if (doctorId) qs.set("doctor_id", doctorId);

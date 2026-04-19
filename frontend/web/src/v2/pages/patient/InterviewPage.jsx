@@ -195,7 +195,14 @@ export default function InterviewPage({ token, onBack }) {
         setCollected(data.collected || {});
         setProgress(data.progress);
         setStatus(data.status);
-        setMessages([{ role: "assistant", content: data.reply }]);
+        // Hydrate from stored conversation when resuming, then append the
+        // welcome-back line. Fresh sessions have no prior conversation, so
+        // we just show the initial assistant greeting.
+        const history = Array.isArray(data.conversation) ? data.conversation : [];
+        const hydrated = history.length > 0
+          ? [...history, { role: "assistant", content: data.reply }]
+          : [{ role: "assistant", content: data.reply }];
+        setMessages(hydrated);
         if (data.ready_to_review || data.status === "reviewing") {
           setReviewReady(true);
           if (!reviewHintShown) {
@@ -215,20 +222,21 @@ export default function InterviewPage({ token, onBack }) {
   }, [messages]);
 
   function handleToggleSuggestion(text) {
-    setSelectedSuggestions((prev) =>
-      prev.includes(text) ? prev.filter((s) => s !== text) : [...prev, text]
-    );
+    // Tap a chip → fill input box (user can edit before sending)
+    setInput((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) return text;
+      // Append with separator if input already has content
+      return trimmed + "，" + text;
+    });
   }
 
   async function handleSend(typedText) {
-    const parts = [...selectedSuggestions];
-    if (typedText?.trim()) parts.push(typedText.trim());
-    const text = parts.join("，");
+    const text = typedText?.trim() || "";
     if (!text || sending || !canInput) return;
 
     setInput("");
     setSuggestions([]);
-    setSelectedSuggestions([]);
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setSending(true);
 
@@ -239,7 +247,6 @@ export default function InterviewPage({ token, onBack }) {
       setProgress(data.progress);
       setStatus(data.status);
       setSuggestions(data.suggestions || []);
-      setSelectedSuggestions([]);
       if (data.ready_to_review || data.status === "reviewing") {
         setReviewReady(true);
         if (!reviewHintShown) {

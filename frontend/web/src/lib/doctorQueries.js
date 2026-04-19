@@ -242,6 +242,28 @@ export function useKbHallucinations(days = 7) {
   });
 }
 
+export function useKnowledgeStats(days = 7) {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.knowledgeStats(doctorId, days),
+    queryFn:  () => api.fetchKnowledgeStats(doctorId, days),
+    enabled:  !!doctorId,
+    staleTime: 60_000,
+  });
+}
+
+export function useKnowledgeUsage(itemId) {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.knowledgeUsage(doctorId, itemId),
+    queryFn:  () => api.fetchKnowledgeUsageHistory(doctorId, itemId),
+    enabled:  !!doctorId && !!itemId,
+    staleTime: 60_000,
+  });
+}
+
 export function useAcceptKbPending() {
   const { doctorId } = useDoctorStore();
   const api = useApi();

@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>患者详情 — Proposed (总览/病历/聊天)</title>
+  <style>
+    :root {
+      --primary: #07C160;
+      --primary-light: #e7f8ee;
+      --warning: #FFC300;
+      --warning-light: #fff8e0;
+      --danger: #FA5151;
+      --accent: #576B95;
+      --text1: #1A1A1A;
+      --text2: #333;
+      --text3: #666;
+      --text4: #999;
+      --surface: #fff;
+      --surface-alt: #f7f7f7;
+      --border: #eee;
+      --border-light: #f0f0f0;
+      --font-sm: 13px;
+      --font-base: 15px;
+      --font-md: 17px;
+      --font-lg: 19px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+        "Helvetica Neue", Arial, sans-serif;
+      color: var(--text1);
+      background: #000;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap {
+      display: flex; gap: 32px; flex-wrap: wrap;
+      padding: 24px; justify-content: center;
+      background: #111; min-height: 100vh;
+    }
+    .label {
+      color: #888; font-size: 12px; text-align: center;
+      margin-top: 8px; letter-spacing: 0.5px;
+    }
+    .phone {
+      width: 390px; height: 800px;
+      background: var(--surface-alt);
+      border-radius: 36px; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      display: flex; flex-direction: column;
+      font-size: var(--font-base);
+    }
+
+    /* NavBar */
+    .navbar {
+      height: 44px; background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: center; padding: 0 8px;
+      flex-shrink: 0;
+    }
+    .nav-back, .nav-icon {
+      width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text2);
+    }
+    .nav-title { flex: 1; text-align: center; font-size: var(--font-md); font-weight: 600; }
+
+    /* Header strip */
+    .header-strip {
+      background: var(--surface);
+      padding: 10px 16px;
+      display: flex; align-items: center; gap: 8px;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .patient-name { font-size: var(--font-md); font-weight: 700; color: var(--text1); }
+    .patient-stat {
+      font-size: var(--font-sm); color: var(--text4);
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .new-visit { font-size: var(--font-sm); color: var(--primary); font-weight: 500; cursor: pointer; }
+
+    /* Tabs */
+    .tabs {
+      position: sticky; top: 0; z-index: 10;
+      background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      display: flex; flex-shrink: 0;
+    }
+    .tab {
+      flex: 1; padding: 12px 0;
+      text-align: center;
+      font-size: var(--font-md);
+      color: var(--text2);
+      position: relative;
+    }
+    .tab.active { color: var(--primary); font-weight: 600; }
+    .tab.active::after {
+      content: ""; position: absolute;
+      bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 28px; height: 3px;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+
+    .content { flex: 1; overflow-y: auto; }
+
+    /* ── 总览 tab: grouped cards (Knowledge pattern) ─ */
+    .section {
+      margin: 12px 12px 0;
+      background: var(--surface);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 0.5px solid var(--border);
+    }
+    .section-header {
+      padding: 10px 14px 6px;
+      font-size: var(--font-sm);
+      color: var(--text4);
+    }
+    .section .row {
+      padding: 12px 14px;
+      border-top: 0.5px solid var(--border);
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .section .row:first-of-type { border-top: none; }
+
+    /* Summary block */
+    .summary-card {
+      margin: 12px 12px 0;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 14px;
+      border: 0.5px solid var(--border);
+    }
+    .summary-label {
+      font-size: 12px; color: var(--primary); font-weight: 600;
+      letter-spacing: 0.5px; margin-bottom: 6px;
+    }
+    .summary-text {
+      font-size: var(--font-base); color: var(--text1); line-height: 1.6;
+    }
+
+    /* Attention row */
+    .attn-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      border-top: 0.5px solid var(--border);
+    }
+    .attn-row:first-of-type { border-top: none; }
+    .attn-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .attn-icon.warn { background: var(--warning-light); color: var(--warning); }
+    .attn-icon.chat { background: var(--primary-light); color: var(--primary); }
+    .attn-main { flex: 1; }
+    .attn-title { font-size: var(--font-md); font-weight: 500; }
+    .attn-sub { font-size: var(--font-sm); color: var(--text3); margin-top: 2px; }
+    .attn-num { font-size: var(--font-md); font-weight: 600; color: var(--primary); margin-right: 4px; }
+    .chev { color: #ccc; font-size: 18px; }
+
+    /* Clinical context */
+    .ctx-row {
+      display: flex; padding: 8px 14px;
+      border-top: 0.5px solid var(--border);
+      font-size: var(--font-sm);
+    }
+    .ctx-row:first-of-type { border-top: none; }
+    .ctx-label {
+      color: var(--text4); width: 64px; flex-shrink: 0;
+    }
+    .ctx-val { color: var(--text1); flex: 1; }
+    .ctx-val.warn { color: var(--danger); font-weight: 500; }
+
+    /* Record row (flat, used in 病历 tab and preview in 总览) */
+    .record {
+      background: var(--surface);
+      padding: 12px 14px;
+      display: flex; gap: 10px;
+      border-top: 0.5px solid var(--border);
+    }
+    .record:first-of-type { border-top: none; }
+    .record-tag {
+      font-size: 12px; font-weight: 500;
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      border-radius: 4px;
+      padding: 2px 6px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      height: 22px;
+      line-height: 16px;
+    }
+    .record-tag.lab { border-color: var(--accent); color: var(--accent); }
+    .record-main { flex: 1; min-width: 0; }
+    .record-title { font-size: var(--font-md); font-weight: 500; color: var(--text1); }
+    .record-sub {
+      font-size: var(--font-sm); color: var(--text3);
+      margin-top: 4px; overflow: hidden; text-overflow: ellipsis;
+      display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    }
+    .record-date {
+      font-size: var(--font-sm); color: var(--text4); flex-shrink: 0;
+    }
+
+    /* Footer "全部病历" link */
+    .see-all {
+      padding: 12px 14px;
+      text-align: center;
+      font-size: var(--font-sm);
+      color: var(--text4);
+      border-top: 0.5px solid var(--border);
+    }
+
+    /* Bottom padding */
+    .bottom-pad { height: 24px; }
+
+    /* Annotation tags */
+    .anno { position: relative; }
+    .anno::before {
+      content: attr(data-tag);
+      position: absolute; left: -12px; top: 6px;
+      transform: translateX(-100%);
+      background: #fffbdd; color: #8a6d00;
+      font-size: 11px; padding: 2px 6px; border-radius: 4px;
+      font-weight: 600; white-space: nowrap;
+    }
+
+    .note { max-width: 390px; color: #ccc; font-size: 13px; line-height: 1.6; }
+    .note h3 { color: #fff; margin-bottom: 8px; font-size: 15px; }
+    .note ul { margin-left: 16px; }
+    .note li { margin-bottom: 6px; }
+    .note .tag {
+      background: #fffbdd; color: #8a6d00;
+      font-size: 11px; padding: 1px 6px; border-radius: 4px;
+      font-weight: 600; margin-right: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div>
+      <div class="phone">
+        <!-- NavBar -->
+        <div class="navbar">
+          <div class="nav-back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </div>
+          <div class="nav-title">张秀兰</div>
+          <div class="nav-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Header strip -->
+        <div class="header-strip">
+          <span class="patient-name">张秀兰</span>
+          <span class="patient-stat">女 · 72岁 · 门诊3次 · 最近04-16</span>
+          <span class="new-visit">+ 新建门诊</span>
+        </div>
+
+        <!-- Content with sticky tabs -->
+        <div class="content">
+          <div class="tabs">
+            <div class="tab active">总览</div>
+            <div class="tab">病历</div>
+            <div class="tab">聊天 (2)</div>
+          </div>
+
+          <!-- ─────── 总览 tab content ─────── -->
+
+          <!-- 1. AI summary card -->
+          <div class="summary-card anno" data-tag="(A)">
+            <div class="summary-label">AI 摘要</div>
+            <div class="summary-text">
+              72岁女性，开颅术后第3周，头痛 VAS 5-6，伤口愈合良好。服用氨氯地平、阿司匹林；对青霉素过敏。近两日反馈头痛加重伴呕吐，需关注。
+            </div>
+          </div>
+
+          <!-- 2. Clinical context -->
+          <div class="section anno" data-tag="(B)">
+            <div class="section-header">临床资料</div>
+            <div class="ctx-row"><span class="ctx-label">诊断</span><span class="ctx-val">颅内动脉瘤夹闭术后</span></div>
+            <div class="ctx-row"><span class="ctx-label">用药</span><span class="ctx-val">氨氯地平 5mg · 阿司匹林 100mg</span></div>
+            <div class="ctx-row"><span class="ctx-label">过敏</span><span class="ctx-val warn">⚠ 青霉素过敏</span></div>
+            <div class="ctx-row"><span class="ctx-label">既往</span><span class="ctx-val">高血压 10 年 · 肾功能不全</span></div>
+          </div>
+
+          <!-- 3. 需要你处理 -->
+          <div class="section anno" data-tag="(C)">
+            <div class="section-header">需要你处理</div>
+            <div class="attn-row">
+              <div class="attn-icon warn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                  <path d="M14 2v6h6"/>
+                </svg>
+              </div>
+              <div class="attn-main">
+                <div class="attn-title">1 条病历待审核</div>
+                <div class="attn-sub">术后复查 · AI 已写诊断建议</div>
+              </div>
+              <span class="attn-num">1</span>
+              <span class="chev">›</span>
+            </div>
+            <div class="attn-row">
+              <div class="attn-icon chat">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+              </div>
+              <div class="attn-main">
+                <div class="attn-title">2 条消息待回复</div>
+                <div class="attn-sub">AI 已起草 · 待你确认</div>
+              </div>
+              <span class="attn-num">2</span>
+              <span class="chev">›</span>
+            </div>
+          </div>
+
+          <div class="bottom-pad"></div>
+        </div>
+      </div>
+      <div class="label">Proposed — 总览 / 病历 / 聊天</div>
+    </div>
+
+    <!-- Notes -->
+    <div class="note">
+      <h3>Tab structure</h3>
+      <ul>
+        <li><b>总览</b> (shown): curated dashboard — AI summary, clinical context, 需要处理, recent records preview</li>
+        <li><b>病历</b>: flat chronological list of all clinical records, with type sub-filter (门诊/检验/影像/问诊)</li>
+        <li><b>聊天 (N)</b>: full chat view inline; N = unread draft count</li>
+      </ul>
+      <h3 style="margin-top: 16px">总览 tab sections (yellow tags A–C)</h3>
+      <ul>
+        <li><span class="tag">A</span><b>AI 摘要</b>: 1-2 sentence LLM summary of what's going on.</li>
+        <li><span class="tag">B</span><b>临床资料</b>: diagnosis / meds / allergies (red) / past history. Not demographics.</li>
+        <li><span class="tag">C</span><b>需要你处理</b>: pending review + draft replies. Tap → go to review page or chat tab.</li>
+      </ul>
+      <p style="margin-top: 8px; color: #aaa">Recent records intentionally omitted — they live on the 病历 tab one tap away. 总览 stays tight and skimmable.</p>
+      <h3 style="margin-top: 16px">Why this is better than the flat-list version</h3>
+      <ul>
+        <li>Answers the doctor's actual question first: "what's going on with this patient?"</li>
+        <li>Clinical context (meds, allergies) is visible in 2 seconds — matches what real EMRs prioritize</li>
+        <li>Flat list is still one tap away for deep-diving</li>
+        <li>Mirrors the Knowledge subpage pattern — consistent IA across the app</li>
+      </ul>
+      <div style="margin-top: 16px; color: #888; font-size: 12px;">
+        Cards use the rounded-group treatment (like Knowledge), not flush rows.
+        That's appropriate here because each section has a different data shape.
+      </div>
+    </div>
+  </div>
+</body>
+</html>

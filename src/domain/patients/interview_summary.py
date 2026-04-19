@@ -298,4 +298,7 @@ async def _confirm_interview_inner(
     except Exception as e:
         log(f"[interview] doctor notification failed: {e}", level="warning")
 
-    return {"record_id": db_record.id, "review_id": task.id}
+    # review_id was from a review-task entity that no longer exists
+    # (see commit 4a2eba87). Kept in the response shape for backwards compat
+    # with DoctorPage code that reads submitted.review_id with falsy guards.
+    return {"record_id": db_record.id, "review_id": None}

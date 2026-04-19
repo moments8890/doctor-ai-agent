@@ -1,180 +1,152 @@
 /**
  * TasksTab — patient task list (v2, antd-mobile).
  *
- * Business logic ported from src/pages/patient/TasksTab.jsx.
- * Splits tasks into pending / completed with filter pills.
- * Supports mark-complete and undo.
+ * Matches doctor TaskPage UI: JumboTabs, date-grouped pending rows with
+ * circle-checkbox, completed rows with CheckCircleOutline, optimistic updates.
+ * Patient-specific: no create-task, no patient_name prefix, no followup merging.
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Button, Checkbox, ErrorBlock, List, SpinLoading, Tag } from "antd-mobile";
+import { useNavigate } from "react-router-dom";
+import { JumboTabs, List, Tag, ErrorBlock, Button } from "antd-mobile";
 import { CheckCircleOutline, ClockCircleOutline } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
-import { APP, FONT, RADIUS } from "../../theme";
+import { relativeFuture } from "../../../utils/time";
+import { APP, FONT } from "../../theme";
+import { pageContainer, scrollable } from "../../layouts";
+import { LoadingCenter, EmptyState, SectionHeader } from "../../components";
 
 // ---------------------------------------------------------------------------
-// Filter pill row (shared pattern with RecordsTab)
+// Date helpers
 // ---------------------------------------------------------------------------
 
-function FilterPills({ items, active, onChange }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        padding: "8px 12px",
-        overflowX: "auto",
-        background: APP.surface,
-        borderBottom: `0.5px solid ${APP.border}`,
-        flexShrink: 0,
-      }}
-    >
-      {items.map((item) => (
-        <div
-          key={item.key}
-          onClick={() => onChange(item.key)}
-          style={{
-            padding: "4px 12px",
-            borderRadius: RADIUS.pill,
-            fontSize: FONT.sm,
-            whiteSpace: "nowrap",
-            cursor: "pointer",
-            background: active === item.key ? APP.primary : APP.borderLight,
-            color: active === item.key ? APP.white : APP.text3,
-            fontWeight: active === item.key ? 600 : 400,
-          }}
-        >
-          {item.label}
-        </div>
-      ))}
-    </div>
-  );
+function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function normalizeDue(raw) {
+  if (!raw) return null;
+  if (!raw.includes("Z") && !raw.includes("+")) return raw + "Z";
+  return raw;
+}
+
+function groupByDate(items) {
+  const now = new Date();
+  const todayStr = localDateStr(now);
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = localDateStr(tomorrow);
+  const weekEnd = new Date(now);
+  weekEnd.setDate(weekEnd.getDate() + (7 - now.getDay()));
+  const weekEndStr = localDateStr(weekEnd);
+
+  const buckets = { overdue: [], today: [], tomorrow: [], thisWeek: [], later: [] };
+  items.forEach((item) => {
+    const dueRaw = item.due_at || "";
+    const normalized = normalizeDue(dueRaw);
+    const dueDate = normalized ? new Date(normalized) : null;
+    const dueDateStr = dueDate ? localDateStr(dueDate) : "";
+    if (!dueDate || dueDateStr < todayStr) buckets.overdue.push(item);
+    else if (dueDateStr === todayStr) buckets.today.push(item);
+    else if (dueDateStr === tomorrowStr) buckets.tomorrow.push(item);
+    else if (dueDateStr <= weekEndStr) buckets.thisWeek.push(item);
+    else buckets.later.push(item);
+  });
+
+  const groups = [];
+  if (buckets.overdue.length) groups.push({ label: "已逾期", color: APP.danger, items: buckets.overdue });
+  if (buckets.today.length) groups.push({ label: "今天", color: APP.primary, items: buckets.today });
+  if (buckets.tomorrow.length) groups.push({ label: "明天", color: APP.text3, items: buckets.tomorrow });
+  if (buckets.thisWeek.length) groups.push({ label: "本周", color: APP.text4, items: buckets.thisWeek });
+  if (buckets.later.length) groups.push({ label: "之后", color: APP.text4, items: buckets.later });
+  return groups;
 }
 
 // ---------------------------------------------------------------------------
-// Section header
+// Row components
 // ---------------------------------------------------------------------------
 
-function SectionHeader({ children }) {
-  return (
-    <div
-      style={{
-        padding: "8px 16px 4px",
-        fontSize: FONT.sm,
-        color: APP.text4,
-        fontWeight: 600,
-        background: APP.surfaceAlt,
-      }}
-    >
-      {children}
-    </div>
-  );
+function TabTitleWithCount({ label, count }) {
+  return count > 0 ? <span>{label} ({count})</span> : <span>{label}</span>;
 }
 
-// ---------------------------------------------------------------------------
-// Task item
-// ---------------------------------------------------------------------------
-
-function TaskItem({ task, onComplete, onUndo }) {
-  const isDone = task.status === "completed";
-
-  function formatDate(iso) {
-    if (!iso) return "";
-    try {
-      return new Date(iso).toLocaleDateString("zh-CN", {
-        month: "2-digit",
-        day: "2-digit",
-      });
-    } catch {
-      return "";
-    }
-  }
-
+function PendingRow({ item, isOverdue, onComplete, onTap }) {
+  const title = item.title || "任务";
+  const subtitle = item.content && item.content.trim() !== title.trim() ? item.content : null;
+  const dueLabel = item.due_at ? (relativeFuture(item.due_at) || "") : "";
   return (
     <List.Item
+      onClick={onTap}
       prefix={
-        isDone ? (
-          <CheckCircleOutline style={{ fontSize: 22, color: APP.primary }} />
-        ) : (
-          <ClockCircleOutline style={{ fontSize: 22, color: APP.warning }} />
-        )
-      }
-      title={
-        <span
+        <div
+          onClick={(e) => { e.stopPropagation(); onComplete(item); }}
           style={{
-            fontSize: FONT.md,
-            fontWeight: 500,
-            color: isDone ? APP.text4 : APP.text1,
-            textDecoration: isDone ? "line-through" : "none",
+            width: 24, height: 24, borderRadius: "50%",
+            border: `2px solid ${isOverdue ? APP.danger : APP.border}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", flexShrink: 0,
           }}
-        >
-          {task.title || task.content || "任务"}
-        </span>
+        />
       }
       description={
-        task.due_date ? (
-          <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
-            截止日期：{formatDate(task.due_date)}
-          </span>
-        ) : undefined
-      }
-      extra={
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-          <Tag
-            color={isDone ? "success" : "warning"}
-            fill="outline"
-            style={{ fontSize: FONT.xs }}
-          >
-            {isDone ? "已完成" : "待完成"}
-          </Tag>
-          {!isDone && onComplete && (
-            <Button
-              size="mini"
-              color="primary"
-              fill="outline"
-              onClick={(e) => {
-                e.stopPropagation();
-                onComplete(task.id);
-              }}
-            >
-              完成
-            </Button>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+          {subtitle && (
+            <span style={{ fontSize: FONT.sm, color: APP.text4, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {subtitle}
+            </span>
           )}
-          {isDone && onUndo && (
-            <Button
-              size="mini"
-              color="default"
-              fill="outline"
-              onClick={(e) => {
-                e.stopPropagation();
-                onUndo(task.id);
-              }}
-            >
-              撤销
-            </Button>
+          {dueLabel && (
+            <Tag color={isOverdue ? "danger" : "default"} style={{ fontSize: FONT.xs, flexShrink: 0 }}>
+              <ClockCircleOutline style={{ fontSize: FONT.xs, marginRight: 2 }} />
+              {dueLabel}
+            </Tag>
           )}
         </div>
       }
-    />
+      style={{ "--padding-left": "12px" }}
+    >
+      <span style={{ fontSize: FONT.md, color: isOverdue ? APP.danger : APP.text1, fontWeight: 500 }}>
+        {title}
+      </span>
+    </List.Item>
+  );
+}
+
+function CompletedRow({ item, onUncomplete, onTap }) {
+  const title = item.title || item.content || "任务";
+  const timeStr = item.completed_at ? new Date(item.completed_at).toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" }) : "";
+  return (
+    <List.Item
+      onClick={onTap}
+      prefix={
+        <CheckCircleOutline
+          onClick={(e) => { e.stopPropagation(); onUncomplete(item); }}
+          style={{ fontSize: FONT.xl, color: APP.primary, cursor: "pointer", flexShrink: 0 }}
+        />
+      }
+      extra={<span style={{ fontSize: FONT.sm, color: APP.text4 }}>{timeStr}</span>}
+      style={{ "--padding-left": "12px" }}
+    >
+      <span style={{ fontSize: FONT.md, color: APP.text4, textDecoration: "line-through" }}>
+        {title}
+      </span>
+    </List.Item>
   );
 }
 
 // ---------------------------------------------------------------------------
-// TasksTab
+// Main component
 // ---------------------------------------------------------------------------
 
-const FILTERS = [
-  { key: "all", label: "全部" },
-  { key: "pending", label: "待完成" },
-  { key: "done", label: "已完成" },
-];
-
 export default function TasksTab({ token }) {
+  const navigate = useNavigate();
   const { getPatientTasks, completePatientTask, uncompletePatientTask } = usePatientApi();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [filter, setFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("pending");
+  const [pendingOverride, setPendingOverride] = useState(null);
+  const [completedOverride, setCompletedOverride] = useState(null);
 
   const loadTasks = useCallback(() => {
     setLoading(true);
@@ -185,114 +157,110 @@ export default function TasksTab({ token }) {
       .finally(() => setLoading(false));
   }, [token, getPatientTasks]);
 
-  useEffect(() => {
-    loadTasks();
-  }, [loadTasks]);
+  useEffect(() => { loadTasks(); }, [loadTasks]);
 
-  async function handleComplete(taskId) {
+  // Derived lists with optimistic overrides
+  const rawPending = tasks.filter((t) => t.status !== "completed");
+  const rawCompleted = tasks.filter((t) => t.status === "completed");
+  const pending = pendingOverride !== null ? pendingOverride : rawPending;
+  const completed = completedOverride !== null ? completedOverride : rawCompleted;
+
+  const dateGroups = groupByDate(pending);
+
+  const handleTap = (item) => navigate(`/patient/tasks/${item.id}`);
+
+  const handleComplete = useCallback(async (item) => {
+    setPendingOverride((prev) => {
+      const cur = prev !== null ? prev : rawPending;
+      return cur.filter((t) => t.id !== item.id);
+    });
+    setCompletedOverride((prev) => {
+      const cur = prev !== null ? prev : rawCompleted;
+      return [{ ...item, status: "completed", completed_at: new Date().toISOString() }, ...cur];
+    });
     try {
-      await completePatientTask(token, taskId);
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, status: "completed" } : t))
-      );
-    } catch {}
-  }
+      await completePatientTask(token, item.id);
+    } catch {
+      setPendingOverride(null);
+      setCompletedOverride(null);
+    }
+  }, [token, completePatientTask, rawPending, rawCompleted]);
 
-  async function handleUndo(taskId) {
+  const handleUncomplete = useCallback(async (item) => {
+    setCompletedOverride((prev) => {
+      const cur = prev !== null ? prev : rawCompleted;
+      return cur.filter((t) => t.id !== item.id);
+    });
+    setPendingOverride((prev) => {
+      const cur = prev !== null ? prev : rawPending;
+      return [{ ...item, status: "pending", completed_at: null }, ...cur];
+    });
     try {
-      await uncompletePatientTask(token, taskId);
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === taskId ? { ...t, status: "pending", completed_at: null } : t
-        )
-      );
-    } catch {}
-  }
+      await uncompletePatientTask(token, item.id);
+    } catch {
+      setPendingOverride(null);
+      setCompletedOverride(null);
+    }
+  }, [token, uncompletePatientTask, rawPending, rawCompleted]);
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 32,
-        }}
-      >
-        <SpinLoading color="primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ padding: 16 }}>
-        <ErrorBlock status="default" title="加载失败" description="无法获取任务列表">
-          <Button color="primary" size="small" onClick={loadTasks}>
-            重试
-          </Button>
-        </ErrorBlock>
-      </div>
-    );
-  }
-
-  const pending = tasks.filter((t) => t.status === "pending");
-  const completed = tasks.filter((t) => t.status === "completed");
-
-  const filtered =
-    filter === "all"
-      ? tasks
-      : filter === "pending"
-      ? pending
-      : completed;
+  if (loading) return <LoadingCenter />;
+  if (error) return (
+    <div style={{ padding: 16 }}>
+      <ErrorBlock status="default" title="加载失败" description="无法获取任务列表">
+        <Button color="primary" size="small" onClick={loadTasks}>重试</Button>
+      </ErrorBlock>
+    </div>
+  );
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <FilterPills items={FILTERS} active={filter} onChange={setFilter} />
+    <div style={pageContainer}>
+      <div style={{ backgroundColor: APP.surface, borderBottom: `0.5px solid ${APP.border}`, flexShrink: 0 }}>
+        <JumboTabs activeKey={activeTab} onChange={setActiveTab}>
+          <JumboTabs.Tab title={<TabTitleWithCount label="待完成" count={pending.length} />} key="pending" />
+          <JumboTabs.Tab title={<TabTitleWithCount label="已完成" count={completed.length} />} key="completed" />
+        </JumboTabs>
+      </div>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        {filtered.length === 0 ? (
-          <ErrorBlock
-            status="empty"
-            title="暂无任务"
-            description="医生安排的复查、用药提醒将显示在这里"
-          />
-        ) : filter === "all" ? (
-          <>
-            {pending.length > 0 && (
-              <>
-                <SectionHeader>待完成 · {pending.length}</SectionHeader>
-                <List>
-                  {pending.map((t) => (
-                    <TaskItem key={t.id} task={t} onComplete={handleComplete} />
-                  ))}
-                </List>
-              </>
-            )}
-            {completed.length > 0 && (
-              <>
-                <SectionHeader>已完成 · {completed.length}</SectionHeader>
-                <List>
-                  {completed.map((t) => (
-                    <TaskItem key={t.id} task={t} onUndo={handleUndo} />
-                  ))}
-                </List>
-              </>
-            )}
-          </>
-        ) : (
-          <List>
-            {filtered.map((t) => (
-              <TaskItem
-                key={t.id}
-                task={t}
-                onComplete={filter === "pending" ? handleComplete : undefined}
-                onUndo={filter === "done" ? handleUndo : undefined}
-              />
-            ))}
-          </List>
+      <div style={scrollable}>
+        {activeTab === "pending" && (
+          dateGroups.length > 0 ? dateGroups.map((group) => (
+            <div key={group.label} style={{ marginTop: 12 }}>
+              <SectionHeader color={group.color}>{group.label}</SectionHeader>
+              <List>
+                {group.items.map((item) => (
+                  <PendingRow
+                    key={item.id}
+                    item={item}
+                    isOverdue={group.label === "已逾期"}
+                    onComplete={handleComplete}
+                    onTap={() => handleTap(item)}
+                  />
+                ))}
+              </List>
+            </div>
+          )) : (
+            <EmptyState title="暂无待处理任务" description="医生安排的复查、用药提醒会显示在这里" />
+          )
         )}
+        {activeTab === "completed" && (
+          completed.length > 0 ? (
+            <div style={{ marginTop: 12 }}>
+              <List>
+                {completed.map((item) => (
+                  <CompletedRow
+                    key={item.id}
+                    item={item}
+                    onUncomplete={handleUncomplete}
+                    onTap={() => handleTap(item)}
+                  />
+                ))}
+              </List>
+            </div>
+          ) : (
+            <EmptyState title="暂无已完成任务" description="完成的任务会出现在这里" />
+          )
+        )}
+        <div style={{ height: 24 }} />
       </div>
     </div>
   );

@@ -372,8 +372,8 @@ const popupStyles = {
   },
   saveBtn: {
     flex: 1,
-    "--background-color": APP.accent,
-    "--border-color": APP.accent,
+    "--background-color": APP.primary,
+    "--border-color": APP.primary,
     "--text-color": APP.white,
     height: 40,
     borderRadius: RADIUS.md,

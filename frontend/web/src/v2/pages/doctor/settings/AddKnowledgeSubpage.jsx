@@ -5,7 +5,7 @@
  * antd-mobile only, no MUI.
  */
 import { useState, useRef } from "react";
-import { NavBar, Button, TextArea, Input, Toast, SpinLoading, Dialog } from "antd-mobile";
+import { NavBar, Button, TextArea, Input, Toast, SpinLoading, Dialog, Tabs } from "antd-mobile";
 import { LinkOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,12 +13,9 @@ import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../../theme";
+import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
+import { ActionFooter } from "../../../components";
 
-const TABS = [
-  { key: "text", label: "手动输入" },
-  { key: "url",  label: "网页导入" },
-  { key: "file", label: "上传文件" },
-];
 
 export default function AddKnowledgeSubpage() {
   const navigate = useNavigate();
@@ -161,28 +158,15 @@ export default function AddKnowledgeSubpage() {
   // ── Preview modal ──
   if (previewOpen) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          height: "100%",
-          backgroundColor: APP.surfaceAlt,
-          overflow: "hidden",
-        }}
-      >
+      <div style={pageContainer}>
         <NavBar
           onBack={() => setPreviewOpen(false)}
-          style={{
-            "--height": "44px",
-            "--border-bottom": `0.5px solid ${APP.border}`,
-            backgroundColor: APP.surface,
-            flexShrink: 0,
-          }}
+          style={navBarStyle}
         >
           内容预览
         </NavBar>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+        <div style={{ ...scrollable, padding: "16px" }}>
           {sourceFilename && (
             <div style={{ fontSize: FONT.sm, color: APP.text4, marginBottom: 12, wordBreak: "break-all" }}>
               来源：{sourceFilename.length > 50 ? sourceFilename.slice(0, 50) + "…" : sourceFilename}
@@ -210,17 +194,7 @@ export default function AddKnowledgeSubpage() {
           </div>
         </div>
 
-        <div
-          style={{
-            padding: "12px 16px",
-            paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))",
-            backgroundColor: APP.surface,
-            borderTop: `0.5px solid ${APP.border}`,
-            display: "flex",
-            gap: 8,
-            flexShrink: 0,
-          }}
-        >
+        <ActionFooter>
           <Button fill="outline" block onClick={() => setPreviewOpen(false)}>
             取消
           </Button>
@@ -233,21 +207,13 @@ export default function AddKnowledgeSubpage() {
           >
             保存
           </Button>
-        </div>
+        </ActionFooter>
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        backgroundColor: APP.surfaceAlt,
-        overflow: "hidden",
-      }}
-    >
+    <div style={pageContainer}>
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -259,50 +225,30 @@ export default function AddKnowledgeSubpage() {
 
       <NavBar
         onBack={handleBack}
-        style={{
-          "--height": "44px",
-          "--border-bottom": `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-        }}
+        style={navBarStyle}
       >
         添加知识
       </NavBar>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={scrollable}>
         {/* Source tabs */}
-        <div
+        <Tabs
+          activeKey={sourceTab}
+          onChange={(key) => {
+            setSourceTab(key);
+            if (key === "file") fileInputRef.current?.click();
+          }}
           style={{
-            display: "flex",
+            "--active-line-color": APP.primary,
+            "--active-title-color": APP.primary,
+            "--title-font-size": FONT.main,
             backgroundColor: APP.surface,
-            borderBottom: `0.5px solid ${APP.border}`,
           }}
         >
-          {TABS.map((tab) => {
-            const active = sourceTab === tab.key;
-            return (
-              <div
-                key={tab.key}
-                onClick={() => {
-                  setSourceTab(tab.key);
-                  if (tab.key === "file") fileInputRef.current?.click();
-                }}
-                style={{
-                  flex: 1,
-                  textAlign: "center",
-                  padding: "10px 0",
-                  fontSize: FONT.main,
-                  fontWeight: active ? 600 : 400,
-                  color: active ? APP.primary : APP.text3,
-                  borderBottom: active ? `2px solid ${APP.primary}` : "2px solid transparent",
-                  cursor: "pointer",
-                }}
-              >
-                {tab.label}
-              </div>
-            );
-          })}
-        </div>
+          <Tabs.Tab title="手动输入" key="text" />
+          <Tabs.Tab title="网页导入" key="url" />
+          <Tabs.Tab title="上传文件" key="file" />
+        </Tabs>
 
         <div style={{ padding: "16px" }}>
           {error && (
@@ -415,15 +361,7 @@ export default function AddKnowledgeSubpage() {
 
       {/* Bottom action bar */}
       {(sourceTab === "text" || sourceTab === "url") && (
-        <div
-          style={{
-            padding: "12px 16px",
-            paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))",
-            backgroundColor: APP.surface,
-            borderTop: `0.5px solid ${APP.border}`,
-            flexShrink: 0,
-          }}
-        >
+        <ActionFooter>
           {sourceTab === "text" && (
             <Button
               color="primary"
@@ -448,7 +386,7 @@ export default function AddKnowledgeSubpage() {
               获取内容
             </Button>
           )}
-        </div>
+        </ActionFooter>
       )}
     </div>
   );

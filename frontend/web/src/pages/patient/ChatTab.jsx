@@ -36,7 +36,7 @@ import IconBadge from "../../components/IconBadge";
 import { TYPE, ICON, COLOR, RADIUS, BUBBLE_RADIUS } from "../../theme";
 import { LAST_SEEN_CHAT_KEY } from "./constants";
 import { RECORD_TYPE_BADGE } from "../../shared/badgeConfigs";
-import { KEYBOARD_AWARE_CONTAINER } from "../../hooks/useKeyboardSafeArea";
+import { KEYBOARD_AWARE_CONTAINER, useScrollOnKeyboard, useAutoGrow } from "../../hooks/useKeyboardSafeArea";
 
 const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
@@ -91,6 +91,8 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
   const inputRef = useRef(null);
   const [lastMsgId, setLastMsgId] = useState(null);
   const chatEndRef = useRef(null);
+  useScrollOnKeyboard(chatEndRef);
+  useAutoGrow(inputRef, input);
   const pollingRef = useRef(null);
   const visibleRef = useRef(true);
 
@@ -322,12 +324,19 @@ export default function ChatTab({ token, doctorName, onLogout, onNewInterview, o
 
       {/* Input */}
       <Box component="form" onSubmit={handleSend}
-        sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, pt: 1.5,
+        sx={{ display: "flex", alignItems: "flex-end", gap: 1, px: 2, pt: 1.5,
           pb: "calc(12px + var(--safe-bottom, 0px))",
           bgcolor: COLOR.surface, borderTop: `1px solid ${COLOR.border}`, flexShrink: 0 }}>
         <MiniVoiceMicHint inputRef={inputRef} showHint={voiceHint} onHint={() => { setVoiceHint(true); setTimeout(() => setVoiceHint(false), 5000); }} />
-        <TextField inputRef={inputRef} value={input} onChange={e => setInput(e.target.value)} placeholder="请输入…"
-          fullWidth size="small" sx={{ bgcolor: COLOR.white, borderRadius: 1 }} />
+        <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1.5, py: 0.5, minHeight: 36 }}>
+          <Box component="textarea" ref={inputRef} value={input} rows={1}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(e); } }}
+            placeholder="请输入…"
+            sx={{ width: "100%", border: "none", outline: "none", fontSize: TYPE.body.fontSize,
+              fontFamily: "inherit", bgcolor: "transparent", p: 0.5, resize: "none", lineHeight: 1.7 }}
+          />
+        </Box>
         <IconButton type="submit" disabled={!input.trim() || sending} sx={{ color: COLOR.primary, flexShrink: 0 }} aria-label="发送"><SendIcon /></IconButton>
       </Box>
     </Box>

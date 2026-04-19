@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 
 const SAFE_BOTTOM_DEFAULT = "max(env(safe-area-inset-bottom, 0px), 20px)";
 
@@ -48,6 +48,8 @@ export function useKeyboardSafeArea() {
         document.body.style.overflow = "";
       }
       keyboardOpen = open;
+      // Notify listeners (e.g. chat scroll-to-bottom) after the layout transition
+      setTimeout(() => window.dispatchEvent(new Event("keyboardresize")), 280);
     }
 
     // --- Global preventScroll focus interception ---
@@ -142,3 +144,37 @@ export const KEYBOARD_AWARE_CONTAINER = {
   overflow: "hidden",
   transition: "height 0.25s cubic-bezier(0.33,1,0.68,1)",
 };
+
+/**
+ * Scroll a ref into view when the keyboard opens/closes.
+ * Use in chat pages: useScrollOnKeyboard(bottomRef)
+ */
+export function useScrollOnKeyboard(ref) {
+  const scroll = useCallback(() => {
+    ref.current?.scrollIntoView({ behavior: "smooth" });
+  }, [ref]);
+
+  useEffect(() => {
+    window.addEventListener("keyboardresize", scroll);
+    return () => window.removeEventListener("keyboardresize", scroll);
+  }, [scroll]);
+}
+
+/**
+ * Auto-grow a textarea to fit its content, up to maxHeight (then scroll).
+ * WeChat-style: starts at 1 row, expands up to ~4 lines, scrolls beyond.
+ *
+ * Usage:
+ *   useAutoGrow(textareaRef, inputValue);
+ *   <textarea ref={textareaRef} rows={1} style={{ resize: "none" }} />
+ */
+export function useAutoGrow(ref, value, maxHeight = 120) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const next = Math.min(el.scrollHeight, maxHeight);
+    el.style.height = next + "px";
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [ref, value, maxHeight]);
+}

@@ -211,6 +211,45 @@ async def delete_patient_endpoint(
     return {"ok": True, "patient_id": patient_id}
 
 
+@router.post(
+    "/api/manage/patients/{patient_id}/ai-summary/refresh",
+    include_in_schema=True,
+)
+async def refresh_patient_ai_summary(
+    patient_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Regenerate the AI summary for one patient synchronously so the UI can
+    reflect the new summary on the next patient list refresh."""
+    from db.models.patient import Patient as _Patient
+    from domain.briefing.patient_summary import regenerate_patient_summary
+
+    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.patients.ai_summary.refresh")
+
+    # Ownership check — never regenerate a summary for a patient owned by a
+    # different doctor.
+    stmt = select(_Patient).where(
+        _Patient.id == patient_id, _Patient.doctor_id == doctor_id
+    )
+    res = await db.execute(stmt)
+    patient = res.scalar_one_or_none()
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    summary = await regenerate_patient_summary(patient_id=patient_id, db=db)
+    await db.commit()
+    await db.refresh(patient)
+    return {
+        "ok": True,
+        "patient_id": patient_id,
+        "ai_summary": patient.ai_summary,
+        "ai_summary_at": _fmt_ts(patient.ai_summary_at),
+    }
+
+
 # ── Assign / remove labels on patients ────────────────────────────────────────
 
 # ── Working context / clear context ───────────────────────────────────────────

@@ -34,6 +34,7 @@ import { TYPE, ICON, COLOR, RADIUS } from "../../../theme";
 import { dp } from "../../../utils/doctorBasePath";
 import HelpTip from "../../../components/HelpTip";
 import { PAGE_HELP } from "../constants";
+import { KEYBOARD_AWARE_CONTAINER, useScrollOnKeyboard, useAutoGrow } from "../../../hooks/useKeyboardSafeArea";
 
 /* ── helpers ── */
 
@@ -413,6 +414,8 @@ function BubbleChatView({
   const inputRef = useRef(null);
   const hasScrolledRef = useRef(false);
   const highlightRefs = useRef({});
+  useScrollOnKeyboard(bottomRef);
+  useAutoGrow(inputRef, replyText);
 
   // Parse ?highlight_draft_id=N on mount. Used to deep-link from knowledge
   // citation rows (KnowledgeDetailSubpage) → the specific reply.
@@ -519,7 +522,7 @@ function BubbleChatView({
 
   return (
     <>
-      <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <Box sx={KEYBOARD_AWARE_CONTAINER}>
         {/* Messages area */}
         <Box sx={{ flex: 1, overflowY: "auto", py: 2, display: "flex", flexDirection: "column", gap: 1.5, bgcolor: COLOR.surfaceAlt }}>
           {loading && (
@@ -637,13 +640,13 @@ function BubbleChatView({
                 sx={{ fontSize: TYPE.micro.fontSize, color: COLOR.text4, cursor: "pointer" }}>取消</Typography>
             </Box>
           )}
-          <Box sx={{ px: 1, py: 1, display: "flex", alignItems: "flex-end", gap: 0.5 }}>
-            <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1.5, py: 1, minHeight: 36, maxHeight: 120, overflowY: "auto" }}>
+          <Box sx={{ px: 1, pt: 1, pb: "calc(8px + var(--safe-bottom, 0px))", display: "flex", alignItems: "flex-end", gap: 0.5 }}>
+            <Box sx={{ flex: 1, bgcolor: COLOR.white, borderRadius: RADIUS.sm, px: 1.5, py: 1, minHeight: 36 }}>
               <Box component="textarea" ref={inputRef} value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 onKeyDown={handleReplyKeyDown}
                 disabled={sending}
-                rows={editingDraft ? 3 : 1}
+                rows={1}
                 placeholder={editingDraft ? "编辑回复内容..." : "直接回复患者..."}
                 sx={{ width: "100%", border: "none", outline: "none", fontSize: TYPE.body.fontSize, fontFamily: "inherit", bgcolor: "transparent", p: 0, resize: "none", lineHeight: 1.7 }}
               />

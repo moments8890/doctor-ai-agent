@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   NavBar,
   Button,
+  Checkbox,
   Dialog,
   Toast,
   SpinLoading,
@@ -18,8 +19,12 @@ import {
   Card,
   SafeArea,
   Tag,
+  Collapse,
+  ActionSheet,
 } from "antd-mobile";
-import { CheckOutline } from "antd-mobile-icons";
+import { MoreOutline } from "antd-mobile-icons";
+import { pageContainer, navBarStyle, scrollable } from "../../layouts";
+import { ActionFooter, SectionHeader } from "../../components";
 import { useTaskRecord, useSuggestions } from "../../../lib/doctorQueries";
 import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
@@ -66,106 +71,97 @@ function sourceLabel(recordType) {
 
 // ── Record summary card ────────────────────────────────────────────
 
+// Fields the doctor reads first to judge AI's suggestions. Everything else
+// (past history, family history, physical exam, etc.) hides behind 展开.
+const KEY_FIELDS = ["chief_complaint", "present_illness", "diagnosis", "treatment_plan"];
+
 function RecordSummaryCard({ record }) {
+  // Expanded by default — doctor needs full context to judge AI suggestions.
   const [expanded, setExpanded] = useState(true);
   if (!record) return null;
 
   const structured = record.structured || {};
-  const filledFields = SUMMARY_FIELD_ORDER.filter((k) => structured[k]);
-  const preview =
-    structured.chief_complaint || record.content || "(无记录)";
-  const patientName = record.patient_name || "";
-  const date = record.created_at ? record.created_at.slice(0, 10) : "";
+  const filledAll = SUMMARY_FIELD_ORDER.filter((k) => structured[k]);
+  const filledKey = KEY_FIELDS.filter((k) => structured[k]);
+  const hasMore = filledAll.length > filledKey.length;
+  const toRender = expanded ? filledAll : filledKey;
+
+  if (toRender.length === 0 && !record.content) return null;
 
   return (
-    <Card
-      style={{ margin: "8px 12px", borderRadius: RADIUS.md }}
-      title={
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-          onClick={() => setExpanded((v) => !v)}
-        >
-          <div>
-            <span style={{ fontWeight: 600, fontSize: FONT.md }}>{patientName}</span>
-            {date && (
-              <span style={{ fontSize: FONT.sm, color: APP.text4, marginLeft: 8 }}>
-                {date}
-              </span>
-            )}
-          </div>
-          <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
-            {expanded ? "收起 ▴" : "展开 ▾"}
-          </span>
-        </div>
-      }
+    <div
+      style={{
+        background: APP.surface,
+        border: `0.5px solid ${APP.border}`,
+        borderRadius: RADIUS.md,
+        padding: "12px 14px",
+        margin: "8px 12px",
+      }}
     >
-      {!expanded && (
+      {toRender.length > 0 ? (
+        toRender.map((key, i) => (
+          <div
+            key={key}
+            style={{
+              display: "flex",
+              gap: 10,
+              padding: "6px 0",
+              borderTop: i === 0 ? "none" : `0.5px solid ${APP.borderLight}`,
+            }}
+          >
+            <span
+              style={{
+                fontSize: FONT.sm,
+                color: APP.text4,
+                fontWeight: 500,
+                flexShrink: 0,
+                minWidth: 60,
+              }}
+            >
+              {STRUCTURED_FIELD_LABELS[key] || key}
+            </span>
+            <span
+              style={{
+                flex: 1,
+                fontSize: FONT.sm,
+                color: APP.text2,
+                whiteSpace: "pre-wrap",
+                lineHeight: 1.6,
+              }}
+            >
+              {structured[key]}
+            </span>
+          </div>
+        ))
+      ) : record.content ? (
         <div
           style={{
             fontSize: FONT.sm,
-            color: APP.text3,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            color: APP.text2,
+            whiteSpace: "pre-wrap",
+            lineHeight: 1.6,
           }}
         >
-          {preview}
+          {record.content}
+        </div>
+      ) : null}
+      {hasMore && (
+        <div
+          onClick={() => setExpanded((v) => !v)}
+          style={{
+            marginTop: 8,
+            paddingTop: 8,
+            borderTop: `0.5px solid ${APP.borderLight}`,
+            fontSize: FONT.sm,
+            color: APP.primary,
+            cursor: "pointer",
+            textAlign: "center",
+          }}
+        >
+          {expanded ? "收起" : `展开全部（${filledAll.length} 项）`}
         </div>
       )}
-      {expanded &&
-        (filledFields.length > 0 ? (
-          filledFields.map((key) => (
-            <div
-              key={key}
-              style={{
-                display: "flex",
-                gap: 8,
-                padding: "6px 0",
-                borderTop: `0.5px solid ${APP.borderLight}`,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: FONT.sm,
-                  color: APP.text4,
-                  fontWeight: 500,
-                  flexShrink: 0,
-                  minWidth: 56,
-                }}
-              >
-                {STRUCTURED_FIELD_LABELS[key] || key}
-              </span>
-              <span
-                style={{
-                  fontSize: FONT.sm,
-                  color: APP.text2,
-                  whiteSpace: "pre-wrap",
-                  lineHeight: 1.6,
-                }}
-              >
-                {structured[key]}
-              </span>
-            </div>
-          ))
-        ) : record.content ? (
-          <div
-            style={{
-              fontSize: FONT.sm,
-              color: APP.text2,
-              whiteSpace: "pre-wrap",
-              lineHeight: 1.6,
-              paddingTop: 6,
-              borderTop: `0.5px solid ${APP.borderLight}`,
-            }}
-          >
-            {record.content}
-          </div>
-        ) : null)}
-    </Card>
+    </div>
   );
 }
 
@@ -238,24 +234,35 @@ function LoadingCard() {
 
 // ── Checklist suggestion item ──────────────────────────────────────
 
-function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
-  const [expanded, setExpanded] = useState(false);
+/**
+ * Decision card for one AI suggestion. Three visual states:
+ *  - pending   → white card, title + body + optional citation chip + 修改/采纳
+ *  - accepted  → light-green fill, single line ✓ + title; tap to reopen
+ *  - editing   → inline textareas + 取消/保存
+ * No category tags, no urgency chip — all categorization dropped by design.
+ */
+function SuggestionCard({ suggestion, onDecide, knowledgeMap, onOpenCitation }) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState("");
   const [editDetail, setEditDetail] = useState("");
 
   const s = suggestion;
-  const isConfirmed = s.decision === "confirmed" || s.decision === "edited";
+  const isAccepted = s.decision === "confirmed" || s.decision === "edited";
   const isRejected = s.decision === "rejected";
+
+  // Resolve cited knowledge → human-readable name (not [KB-N])
   const citedRules = (s.cited_knowledge_ids || [])
     .map((id) => knowledgeMap[id])
     .filter(Boolean);
+  const primaryCitation = citedRules[0] || null;
+  const citationName = primaryCitation
+    ? (primaryCitation.title || primaryCitation.text?.slice(0, 16) || "已删除")
+    : null;
 
   function startEdit() {
     setEditText(s.edited_text || s.content || "");
     setEditDetail(s.detail || "");
     setEditing(true);
-    setExpanded(false);
   }
 
   function saveEdit() {
@@ -268,201 +275,239 @@ function SuggestionItem({ suggestion, onDecide, knowledgeMap }) {
     setEditing(false);
   }
 
+  // ── Rejected: muted single-line card, tap to restore ──────────────
+  if (isRejected && !editing) {
+    return (
+      <div
+        onClick={() => onDecide(s.id, "pending", {})}
+        style={{
+          background: APP.surfaceAlt,
+          borderRadius: RADIUS.md,
+          padding: "10px 14px",
+          margin: "0 12px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          cursor: "pointer",
+        }}
+      >
+        <span style={{ color: APP.text4, fontSize: FONT.sm, flexShrink: 0 }}>已移除</span>
+        <span
+          style={{
+            flex: 1,
+            fontSize: FONT.sm,
+            color: APP.text4,
+            textDecoration: "line-through",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {s.edited_text || s.content}
+        </span>
+        <span style={{ fontSize: FONT.sm, color: APP.primary }}>恢复</span>
+      </div>
+    );
+  }
+
+  // ── Accepted: single-line light-green card ────────────────────────
+  if (isAccepted && !editing) {
+    return (
+      <div
+        onClick={() => onDecide(s.id, "pending", {})}
+        style={{
+          background: APP.primaryLight,
+          borderRadius: RADIUS.md,
+          padding: "12px 14px",
+          margin: "0 12px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          cursor: "pointer",
+        }}
+      >
+        <span style={{ color: APP.primary, fontWeight: 600, fontSize: FONT.md, flexShrink: 0 }}>
+          ✓
+        </span>
+        <span style={{ flex: 1, fontSize: FONT.base, color: APP.text1, fontWeight: 500 }}>
+          {s.edited_text || s.content}
+        </span>
+      </div>
+    );
+  }
+
+  // ── Editing: inline textareas ─────────────────────────────────────
+  if (editing) {
+    return (
+      <div
+        style={{
+          background: APP.surface,
+          border: `0.5px solid ${APP.border}`,
+          borderRadius: RADIUS.md,
+          padding: 14,
+          margin: "0 12px 12px",
+        }}
+      >
+        <TextArea
+          placeholder="建议内容"
+          value={editText}
+          onChange={setEditText}
+          autoSize={{ minRows: 1, maxRows: 3 }}
+          style={{ marginBottom: 8, fontSize: FONT.md }}
+        />
+        <TextArea
+          placeholder="详细说明"
+          value={editDetail}
+          onChange={setEditDetail}
+          autoSize={{ minRows: 2, maxRows: 6 }}
+          style={{ fontSize: FONT.sm }}
+        />
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <button
+            onClick={() => setEditing(false)}
+            style={{
+              flex: 1, padding: "8px 0",
+              background: APP.surface,
+              border: `0.5px solid ${APP.border}`,
+              borderRadius: RADIUS.sm,
+              color: APP.text2,
+              fontSize: FONT.sm,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            取消
+          </button>
+          <button
+            onClick={saveEdit}
+            style={{
+              flex: 1, padding: "8px 0",
+              background: APP.primary,
+              border: "none",
+              borderRadius: RADIUS.sm,
+              color: APP.white,
+              fontSize: FONT.sm,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            保存
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Pending: title + body + citation + 修改/采纳 ───────────────────
   return (
     <div
       style={{
-        padding: "12px 16px",
-        borderBottom: `0.5px solid ${APP.borderLight}`,
-        backgroundColor: APP.surface,
-        opacity: isRejected ? 0.4 : 1,
+        background: APP.surface,
+        border: `0.5px solid ${APP.border}`,
+        borderRadius: RADIUS.md,
+        padding: 14,
+        margin: "0 12px 12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
       }}
     >
-      {editing ? (
-        <div>
-          <TextArea
-            placeholder="建议内容"
-            value={editText}
-            onChange={setEditText}
-            autoSize={{ minRows: 1, maxRows: 3 }}
-            style={{ marginBottom: 8, fontSize: FONT.main }}
-          />
-          <TextArea
-            placeholder="详细说明"
-            value={editDetail}
-            onChange={setEditDetail}
-            autoSize={{ minRows: 2, maxRows: 6 }}
-            style={{ fontSize: FONT.sm }}
-          />
-          <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
+      <div style={{ fontSize: FONT.md, color: APP.text1, fontWeight: 500, lineHeight: 1.4 }}>
+        {s.edited_text || s.content}
+      </div>
+      {s.detail && (
+        <div style={{ fontSize: FONT.sm, color: APP.text3, lineHeight: 1.55 }}>
+          {s.detail}
+          {citationName && (
             <span
-              style={{
-                fontSize: FONT.sm,
-                color: APP.text4,
-                cursor: "pointer",
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenCitation?.(primaryCitation);
               }}
-              onClick={() => setEditing(false)}
-            >
-              取消
-            </span>
-            <span
               style={{
-                fontSize: FONT.sm,
+                display: "inline-block",
                 color: APP.primary,
-                fontWeight: 500,
+                background: APP.primaryLight,
+                fontSize: FONT.xs,
+                padding: "2px 8px",
+                borderRadius: RADIUS.xs,
                 cursor: "pointer",
+                marginLeft: 6,
+                verticalAlign: "middle",
               }}
-              onClick={saveEdit}
             >
-              保存
+              依据：{citationName} ›
             </span>
-          </div>
-        </div>
-      ) : (
-        <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-          {/* Checkbox */}
-          <div
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: "50%",
-              flexShrink: 0,
-              marginTop: 2,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              ...(isConfirmed
-                ? { backgroundColor: APP.primary }
-                : {
-                    border: `1.5px solid ${APP.border}`,
-                    backgroundColor: "transparent",
-                  }),
-            }}
-            onClick={() =>
-              onDecide(s.id, isConfirmed ? "rejected" : "confirmed", {})
-            }
-          >
-            {isConfirmed && (
-              <CheckOutline style={{ color: APP.white, fontSize: FONT.xs }} />
-            )}
-          </div>
-
-          {/* Content */}
-          <div
-            style={{ flex: 1, minWidth: 0 }}
-            onClick={() => !editing && setExpanded((v) => !v)}
-          >
-            <div
-              style={{
-                fontSize: FONT.md,
-                fontWeight: 500,
-                color: isRejected ? APP.text4 : APP.text1,
-              }}
-            >
-              {s.edited_text || s.content}
-              {!expanded && !isConfirmed && !isRejected && (
-                <span style={{ fontSize: FONT.xs, color: APP.text4, marginLeft: 4 }}>
-                  ▾
-                </span>
-              )}
-            </div>
-
-            {expanded && (
-              <div style={{ marginTop: 8 }}>
-                {s.detail && (
-                  <div
-                    style={{
-                      fontSize: FONT.sm,
-                      color: APP.text3,
-                      lineHeight: 1.6,
-                      marginBottom: 8,
-                    }}
-                  >
-                    {s.detail}
-                  </div>
-                )}
-                {citedRules.length > 0 && (
-                  <div style={{ marginBottom: 8 }}>
-                    {citedRules.map((rule) => (
-                      <div
-                        key={rule.id}
-                        style={{
-                          fontSize: FONT.sm,
-                          color: APP.danger,
-                        }}
-                      >
-                        引用: {rule.title}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {s.rule_cited && citedRules.length === 0 && (
-                  <div
-                    style={{
-                      fontSize: FONT.sm,
-                      color: APP.danger,
-                      marginBottom: 8,
-                    }}
-                  >
-                    引用: {s.rule_cited}
-                  </div>
-                )}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 16,
-                    paddingTop: 8,
-                    borderTop: `0.5px solid ${APP.borderLight}`,
-                  }}
-                >
-                  {!isConfirmed && (
-                    <span
-                      style={{
-                        fontSize: FONT.sm,
-                        color: APP.primary,
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDecide(s.id, "confirmed", {});
-                      }}
-                    >
-                      确认
-                    </span>
-                  )}
-                  <span
-                    style={{
-                      fontSize: FONT.sm,
-                      color: APP.text4,
-                      cursor: "pointer",
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startEdit();
-                    }}
-                  >
-                    修改
-                  </span>
-                  <span
-                    style={{
-                      fontSize: FONT.sm,
-                      color: APP.text4,
-                      cursor: "pointer",
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDecide(s.id, "rejected", { reason: "removed" });
-                    }}
-                  >
-                    移除
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       )}
+      {!s.detail && citationName && (
+        <div>
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenCitation?.(primaryCitation);
+            }}
+            style={{
+              display: "inline-block",
+              color: APP.primary,
+              background: APP.primaryLight,
+              fontSize: FONT.xs,
+              padding: "2px 8px",
+              borderRadius: RADIUS.xs,
+              cursor: "pointer",
+            }}
+          >
+            依据：{citationName} ›
+          </span>
+        </div>
+      )}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+          gap: 16,
+        }}
+      >
+        <span
+          onClick={() => onDecide(s.id, "rejected", { reason: "removed" })}
+          style={{
+            fontSize: FONT.sm,
+            color: APP.text4,
+            cursor: "pointer",
+            padding: "10px 4px",
+          }}
+        >
+          移除
+        </span>
+        <span
+          onClick={startEdit}
+          style={{
+            fontSize: FONT.sm,
+            color: APP.text4,
+            cursor: "pointer",
+            padding: "10px 4px",
+          }}
+        >
+          修改
+        </span>
+        <button
+          onClick={() => onDecide(s.id, "confirmed", {})}
+          style={{
+            background: APP.primary,
+            border: "none",
+            borderRadius: RADIUS.sm,
+            color: APP.white,
+            fontSize: FONT.sm,
+            fontWeight: 500,
+            padding: "8px 20px",
+            cursor: "pointer",
+          }}
+        >
+          采纳
+        </button>
+      </div>
     </div>
   );
 }
@@ -488,31 +533,12 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
   return (
     <div style={{ marginBottom: 4 }}>
       {/* Section header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "8px 16px",
-          backgroundColor: APP.surfaceAlt,
-          borderTop: `0.5px solid ${APP.border}`,
-          borderBottom: `0.5px solid ${APP.border}`,
-        }}
+      <SectionHeader
+        action={adding ? "取消" : "+ 添加"}
+        onAction={() => setAdding((v) => !v)}
       >
-        <span style={{ fontSize: FONT.sm, fontWeight: 600, color: APP.text4, letterSpacing: 0.3 }}>
-          {label}
-        </span>
-        <span
-          style={{
-            fontSize: FONT.sm,
-            color: adding ? APP.text4 : APP.primary,
-            cursor: "pointer",
-          }}
-          onClick={() => setAdding((v) => !v)}
-        >
-          {adding ? "取消" : "+ 添加"}
-        </span>
-      </div>
+        {label}
+      </SectionHeader>
 
       {/* Add form */}
       {adding && (
@@ -780,53 +806,111 @@ export default function ReviewPage({ recordId }) {
     s.decision === "custom";
   const allDecided = hasSuggestions && (suggestions || []).every(isDecided);
   const undecidedCount = (suggestions || []).filter((s) => !isDecided(s)).length;
-
-  // Group suggestions by section
-  const grouped = {};
-  SECTIONS.forEach((s) => {
-    grouped[s.key] = [];
-  });
-  (suggestions || []).forEach((s) => {
-    if (grouped[s.section]) grouped[s.section].push(s);
-  });
+  const decidedCount = (suggestions || []).length - undecidedCount;
 
   const patientName = record?.patient_name || "诊断审核";
+
+  // Compact context stat line for the header strip
+  const contextBits = [
+    record?.chief_complaint,
+    record?.created_at
+      ? `${String(new Date(record.created_at).getMonth() + 1).padStart(2, "0")}-${String(new Date(record.created_at).getDate()).padStart(2, "0")}`
+      : null,
+  ].filter(Boolean);
+
+  const [addingCustom, setAddingCustom] = useState(false);
+  const [customText, setCustomText] = useState("");
+  const [customDetail, setCustomDetail] = useState("");
+
+  async function submitCustom() {
+    if (!customText.trim()) return;
+    // Default added suggestions to "treatment" section — categories aren't
+    // surfaced in the UI but the DB column is required.
+    await handleAdd("treatment", customText.trim(), customDetail.trim() || undefined);
+    setCustomText("");
+    setCustomDetail("");
+    setAddingCustom(false);
+  }
+
+  function handleOpenCitation(rule) {
+    if (!rule?.id) return;
+    navigate(`/doctor/settings/knowledge/${rule.id}`);
+  }
 
   // ── Render ───────────────────────────────────────────────────────
 
   return (
-    <div
-      style={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: APP.surfaceAlt,
-        overflow: "hidden",
-      }}
-    >
+    <div style={pageContainer}>
       <SafeArea position="top" />
 
       {/* NavBar */}
       <NavBar
         onBack={() => navigate(-1)}
-        style={{
-          "--height": "44px",
-          "--border-bottom": `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-        }}
+        style={navBarStyle}
       >
-        {patientName}
+        诊断审核
       </NavBar>
+
+      {/* Compact context strip — name · 主诉 · date */}
+      {record && (
+        <div
+          style={{
+            background: APP.surface,
+            padding: "10px 16px",
+            display: "flex",
+            alignItems: "baseline",
+            gap: 8,
+            borderBottom: `0.5px solid ${APP.border}`,
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1, flexShrink: 0 }}>
+            {patientName}
+          </span>
+          <span
+            style={{
+              flex: 1,
+              fontSize: FONT.sm,
+              color: APP.text3,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {contextBits.length > 0 ? `· ${contextBits.join(" · ")}` : ""}
+          </span>
+        </div>
+      )}
 
       {/* Scrollable content */}
       <div
         style={{
-          flex: 1,
-          overflowY: "auto",
+          ...scrollable,
           paddingBottom: hasSuggestions ? 96 : 24,
         }}
       >
+        {/* Record detail — the actual content doctor needs to judge AI */}
+        <RecordSummaryCard record={record} />
+
+        {/* Section header + progress (inside scroll so it doesn't pin) */}
+        {hasSuggestions && (
+          <div
+            style={{
+              padding: "14px 16px 8px",
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+            }}
+          >
+            <span style={{ fontSize: FONT.base, fontWeight: 600, color: APP.text2 }}>
+              AI 诊断建议
+            </span>
+            <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
+              {decidedCount} / {(suggestions || []).length} 已确认
+            </span>
+          </div>
+        )}
+
         {/* Source/flow banner for patient_preview */}
         {source === "patient_preview" && (
           <Card style={{ margin: "8px 12px", borderRadius: RADIUS.md }}>
@@ -840,12 +924,6 @@ export default function ReviewPage({ recordId }) {
           </Card>
         )}
 
-        {/* Provenance */}
-        <ProvenanceCard record={record} />
-
-        {/* Record summary */}
-        <RecordSummaryCard record={record} />
-
         {/* Loading / polling state */}
         {(loading || (!loading && !hasSuggestions && isPendingReview)) && (
           <LoadingCard />
@@ -854,17 +932,10 @@ export default function ReviewPage({ recordId }) {
         {/* Diagnosis failed — retry */}
         {!loading && !hasSuggestions && isDiagnosisFailed && (
           <Card style={{ margin: "8px 12px", borderRadius: RADIUS.md, textAlign: "center" }}>
-            <div
-              style={{ fontSize: FONT.sm, color: APP.danger, marginBottom: 12 }}
-            >
+            <div style={{ fontSize: FONT.sm, color: APP.danger, marginBottom: 12 }}>
               AI 诊断超时，请重试
             </div>
-            <Button
-              color="primary"
-              fill="none"
-              size="small"
-              onClick={handleTriggerDiagnosis}
-            >
+            <Button color="primary" fill="none" size="small" onClick={handleTriggerDiagnosis}>
               重新分析
             </Button>
           </Card>
@@ -876,71 +947,106 @@ export default function ReviewPage({ recordId }) {
             <div style={{ fontSize: FONT.sm, color: APP.text3, marginBottom: 12 }}>
               可生成 AI 诊断建议
             </div>
-            <Button
-              color="primary"
-              fill="none"
-              size="small"
-              onClick={handleTriggerDiagnosis}
-            >
+            <Button color="primary" fill="none" size="small" onClick={handleTriggerDiagnosis}>
               请 AI 分析此病历
             </Button>
           </Card>
         )}
 
-        {/* AI suggestions header */}
-        {hasSuggestions && (
+        {/* Flat suggestion list — no categories, no urgency */}
+        {hasSuggestions && (suggestions || []).map((s) => (
+          <SuggestionCard
+            key={s.id}
+            suggestion={s}
+            onDecide={handleDecide}
+            knowledgeMap={knowledgeMap}
+            onOpenCitation={handleOpenCitation}
+          />
+        ))}
+
+        {/* Inline "+ 添加我的建议" bottom of list — always visible */}
+        {hasSuggestions && !addingCustom && (
           <div
+            onClick={() => setAddingCustom(true)}
             style={{
-              padding: "8px 16px",
-              backgroundColor: APP.surfaceAlt,
-              borderTop: `0.5px solid ${APP.border}`,
-              borderBottom: `0.5px solid ${APP.border}`,
-              marginTop: 4,
+              margin: "0 12px 12px",
+              padding: "14px",
+              textAlign: "center",
+              border: `1px dashed ${APP.border}`,
+              borderRadius: RADIUS.md,
+              background: APP.surface,
+              color: APP.text3,
+              fontSize: FONT.sm,
+              cursor: "pointer",
             }}
           >
-            <span
-              style={{
-                fontSize: FONT.sm,
-                fontWeight: 600,
-                color: APP.text4,
-                letterSpacing: 0.3,
-              }}
-            >
-              AI 诊断建议
-            </span>
+            + 添加我的建议
           </div>
         )}
 
-        {/* Suggestion sections */}
-        {SECTIONS.map((sec) => (
-          <ChecklistSection
-            key={sec.key}
-            sectionKey={sec.key}
-            label={sec.label}
-            items={grouped[sec.key]}
-            onDecide={handleDecide}
-            onAdd={handleAdd}
-            knowledgeMap={knowledgeMap}
-          />
-        ))}
+        {/* Inline composer opens in place when doctor taps the button above */}
+        {addingCustom && (
+          <div
+            style={{
+              background: APP.surface,
+              border: `0.5px dashed ${APP.border}`,
+              borderRadius: RADIUS.md,
+              padding: 14,
+              margin: "0 12px 12px",
+            }}
+          >
+            <TextArea
+              placeholder="建议内容"
+              value={customText}
+              onChange={setCustomText}
+              autoSize={{ minRows: 1, maxRows: 3 }}
+              style={{ marginBottom: 8, fontSize: FONT.md }}
+            />
+            <TextArea
+              placeholder="详细说明（可选）"
+              value={customDetail}
+              onChange={setCustomDetail}
+              autoSize={{ minRows: 1, maxRows: 4 }}
+              style={{ fontSize: FONT.sm }}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button
+                onClick={() => { setAddingCustom(false); setCustomText(""); setCustomDetail(""); }}
+                style={{
+                  flex: 1, padding: "8px 0",
+                  background: APP.surface,
+                  border: `0.5px solid ${APP.border}`,
+                  borderRadius: RADIUS.sm,
+                  color: APP.text2, fontSize: FONT.sm, fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={submitCustom}
+                disabled={!customText.trim()}
+                style={{
+                  flex: 1, padding: "8px 0",
+                  background: APP.primary,
+                  border: "none",
+                  borderRadius: RADIUS.sm,
+                  color: APP.white, fontSize: FONT.sm, fontWeight: 500,
+                  cursor: customText.trim() ? "pointer" : "not-allowed",
+                  opacity: customText.trim() ? 1 : 0.5,
+                }}
+              >
+                添加
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Bottom action bar */}
+
+      {/* Sticky bottom CTA */}
       {hasSuggestions && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: "12px 16px",
-            paddingBottom:
-              "calc(12px + env(safe-area-inset-bottom, 0px))",
-            backgroundColor: APP.surface,
-            borderTop: `0.5px solid ${APP.border}`,
-            flexShrink: 0,
-          }}
-        >
+        <ActionFooter style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
           <Button
             block
             color="primary"
@@ -950,10 +1056,22 @@ export default function ReviewPage({ recordId }) {
             onClick={handleFinalize}
           >
             {allDecided
-              ? "完成审核"
-              : `还有 ${undecidedCount} 项未处理`}
+              ? "确认诊断"
+              : `确认诊断（${decidedCount} / ${(suggestions || []).length}）`}
           </Button>
-        </div>
+          {!allDecided && (
+            <div
+              style={{
+                textAlign: "center",
+                fontSize: FONT.xs,
+                color: APP.text4,
+                marginTop: 4,
+              }}
+            >
+              还有 {undecidedCount} 项待处理
+            </div>
+          )}
+        </ActionFooter>
       )}
 
       {/* Teach-AI snackbar — shown after an edit decision */}

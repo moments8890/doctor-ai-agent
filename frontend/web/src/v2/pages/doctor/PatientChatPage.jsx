@@ -12,14 +12,16 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { NavBar, SpinLoading, Button, Toast, Dialog } from "antd-mobile";
+import { NavBar, Button, Toast, Dialog } from "antd-mobile";
 import { LeftOutline } from "antd-mobile-icons";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { nowTs } from "../../../utils/time";
 import ChatComposer from "../../ChatComposer";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
-import { APP, FONT } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
+import { navBarStyle } from "../../layouts";
+import { LoadingCenter } from "../../components";
 
 // ── Message bubble ─────────────────────────────────────────────────
 
@@ -250,7 +252,7 @@ function EditingBanner({ onCancel }) {
 
 // ── Main component ─────────────────────────────────────────────────
 
-export default function PatientChatPage({ patientId: propPatientId }) {
+export default function PatientChatPage({ patientId: propPatientId, embedded = false }) {
   const params = useParams();
   const patientId = propPatientId || params.patientId;
   const navigate = useNavigate();
@@ -379,8 +381,7 @@ export default function PatientChatPage({ patientId: propPatientId }) {
   }
 
   function handleBack() {
-    // Return to patient detail (records page) — strip ?view=chat
-    navigate(`/doctor/patients/${patientId}`, { replace: true });
+    navigate(-1);
   }
 
   const patientName = patient?.name || "患者";
@@ -388,27 +389,20 @@ export default function PatientChatPage({ patientId: propPatientId }) {
   // ── Render ─────────────────────────────────────────────────────
   return (
     <div style={keyboardAwareStyle}>
-      {/* NavBar */}
-      <NavBar
-        backArrow={<LeftOutline />}
-        onBack={handleBack}
-        style={{
-          "--height": "44px",
-          "--border-bottom": `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-        }}
-      >
-        {patientName}
-      </NavBar>
+      {/* NavBar — hidden when embedded inside PatientDetail tabs */}
+      {!embedded && (
+        <NavBar
+          backArrow={<LeftOutline />}
+          onBack={handleBack}
+          style={navBarStyle}
+        >
+          {patientName}
+        </NavBar>
+      )}
 
       {/* Messages area */}
       <div style={msgAreaStyle}>
-        {loading && (
-          <div style={styles.center}>
-            <SpinLoading color="primary" style={{ "--size": "24px" }} />
-          </div>
-        )}
+        {loading && <LoadingCenter />}
 
         {!loading && messages.length === 0 && pendingDrafts.length === 0 && (
           <div style={styles.emptyHint}>暂无消息</div>
@@ -482,12 +476,6 @@ const msgAreaStyle = {
 };
 
 const styles = {
-  center: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "40px 0",
-  },
   emptyHint: {
     textAlign: "center",
     padding: "48px 16px",

@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>诊断审核 — Proposed</title>
+  <style>
+    :root {
+      --primary: #07C160;
+      --primary-light: #e7f8ee;
+      --warning: #FFC300;
+      --warning-light: #fff8e0;
+      --danger: #FA5151;
+      --accent: #576B95;
+      --text1: #1A1A1A;
+      --text2: #333;
+      --text3: #666;
+      --text4: #999;
+      --surface: #fff;
+      --surface-alt: #f7f7f7;
+      --border: #eee;
+      --border-light: #f0f0f0;
+      --font-xs: 11px;
+      --font-sm: 13px;
+      --font-base: 15px;
+      --font-md: 17px;
+      --font-lg: 19px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+        "Helvetica Neue", Arial, sans-serif;
+      color: var(--text1);
+      background: #000;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap {
+      display: flex; gap: 32px; flex-wrap: wrap;
+      padding: 24px; justify-content: center;
+      background: #111; min-height: 100vh;
+    }
+    .label {
+      color: #888; font-size: 12px; text-align: center;
+      margin-top: 8px; letter-spacing: 0.5px;
+    }
+    .phone {
+      width: 390px; min-height: 800px;
+      background: var(--surface-alt);
+      border-radius: 36px; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      display: flex; flex-direction: column;
+      font-size: var(--font-base);
+    }
+
+    /* NavBar */
+    .navbar {
+      height: 44px; background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: center; padding: 0 8px;
+      flex-shrink: 0;
+    }
+    .nav-back {
+      width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text2);
+    }
+    .nav-title { flex: 1; text-align: center; font-size: var(--font-md); font-weight: 600; }
+    .nav-right { width: 40px; }
+
+    /* Compact context strip */
+    .context {
+      background: var(--surface);
+      padding: 10px 16px;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .context-main {
+      flex: 1; min-width: 0;
+      display: flex; align-items: baseline; gap: 6px;
+      overflow: hidden;
+    }
+    .context-name {
+      font-size: var(--font-md); font-weight: 600;
+    }
+    .context-complaint {
+      font-size: var(--font-sm); color: var(--text3);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .context-date {
+      font-size: var(--font-xs); color: var(--text4); flex-shrink: 0;
+    }
+    .expand {
+      color: var(--text4); font-size: 14px;
+      padding: 4px; cursor: pointer;
+    }
+
+    /* Section header */
+    .section-head {
+      padding: 14px 16px 8px;
+      display: flex; align-items: baseline; justify-content: space-between;
+    }
+    .section-title {
+      font-size: var(--font-base);
+      font-weight: 600;
+      color: var(--text2);
+    }
+    .section-count {
+      font-size: var(--font-sm); color: var(--text4);
+    }
+
+    /* Content */
+    .content {
+      flex: 1; overflow-y: auto;
+      padding-bottom: 80px; /* room for sticky CTA */
+    }
+
+    /* Suggestion card */
+    .card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 14px;
+      margin: 0 12px 12px;
+      border: 0.5px solid var(--border);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .card.accepted {
+      background: var(--primary-light);
+      border-color: var(--primary);
+    }
+    .card-head {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .cat-tag {
+      font-size: var(--font-xs);
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+    .cat-tag.exam  { background: #e8f0fe; color: #1B6EF3; }
+    .cat-tag.plan  { background: #fff3e0; color: #E67E22; }
+    .cat-tag.fu    { background: #f3f0ff; color: #7C3AED; }
+
+    .cite {
+      font-size: var(--font-xs); color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 6px; border-radius: 4px;
+      cursor: pointer;
+    }
+    .urgent {
+      font-size: var(--font-xs); color: #fff;
+      background: var(--danger);
+      padding: 2px 6px; border-radius: 4px;
+      font-weight: 600;
+    }
+    .accepted-stamp {
+      margin-left: auto;
+      font-size: var(--font-xs); color: var(--primary); font-weight: 600;
+    }
+
+    .rule-title {
+      font-size: var(--font-md);
+      color: var(--text1);
+      line-height: 1.5;
+      font-weight: 500;
+    }
+    .rule-body {
+      font-size: var(--font-sm);
+      color: var(--text3);
+      line-height: 1.6;
+    }
+
+    .actions {
+      display: flex; gap: 8px;
+    }
+    .btn {
+      flex: 1;
+      padding: 8px 0;
+      text-align: center;
+      font-size: var(--font-sm);
+      font-weight: 500;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn.secondary {
+      color: var(--text2);
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+    }
+    .btn.primary {
+      color: #fff;
+      background: var(--primary);
+      border: none;
+    }
+    .btn.ghost {
+      color: var(--text4);
+      background: none;
+      border: none;
+      flex: 0 0 auto;
+      padding: 8px 12px;
+    }
+
+    .add-btn {
+      margin: 0 12px 16px;
+      padding: 12px;
+      text-align: center;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      font-size: var(--font-sm);
+      color: var(--text3);
+      background: var(--surface);
+      cursor: pointer;
+    }
+
+    /* Sticky bottom CTA */
+    .cta {
+      position: sticky; bottom: 0;
+      background: var(--surface);
+      border-top: 0.5px solid var(--border);
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+      flex-shrink: 0;
+    }
+    .cta-btn {
+      width: 100%;
+      padding: 12px 0;
+      text-align: center;
+      background: var(--primary);
+      color: #fff;
+      font-size: var(--font-md);
+      font-weight: 600;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+    }
+    .cta-btn.disabled {
+      background: #d7f2df;
+      cursor: not-allowed;
+    }
+    .cta-hint {
+      text-align: center;
+      font-size: var(--font-xs);
+      color: var(--text4);
+      margin-top: 4px;
+    }
+
+    /* Annotation */
+    .anno { position: relative; }
+    .anno::before {
+      content: attr(data-tag);
+      position: absolute; left: -12px; top: 6px;
+      transform: translateX(-100%);
+      background: #fffbdd; color: #8a6d00;
+      font-size: 11px; padding: 2px 6px; border-radius: 4px;
+      font-weight: 600; white-space: nowrap;
+    }
+
+    .note { max-width: 390px; color: #ccc; font-size: 13px; line-height: 1.6; }
+    .note h3 { color: #fff; margin-bottom: 8px; font-size: 15px; }
+    .note ul { margin-left: 16px; }
+    .note li { margin-bottom: 6px; }
+    .note .tag {
+      background: #fffbdd; color: #8a6d00;
+      font-size: 11px; padding: 1px 6px; border-radius: 4px;
+      font-weight: 600; margin-right: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div>
+      <div class="phone">
+        <!-- NavBar -->
+        <div class="navbar">
+          <div class="nav-back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </div>
+          <div class="nav-title">诊断审核</div>
+          <div class="nav-right"></div>
+        </div>
+
+        <!-- Compact context strip -->
+        <div class="context anno" data-tag="(1)">
+          <div class="context-main">
+            <span class="context-name">李四</span>
+            <span class="context-complaint">· 胃痛饭后加重</span>
+          </div>
+          <span class="context-date">04-18</span>
+          <span class="expand">▾</span>
+        </div>
+
+        <!-- Section header -->
+        <div class="section-head">
+          <span class="section-title">AI 诊断建议</span>
+          <span class="section-count anno" data-tag="(7)">0 / 3 已确认</span>
+        </div>
+
+        <div class="content">
+
+          <!-- Card 1: Diagnosis — expanded by default -->
+          <div class="card anno" data-tag="(2)">
+            <div class="card-head">
+              <span class="cat-tag">诊断</span>
+              <span class="cite">[KB-3]</span>
+            </div>
+            <div class="rule-title">消化性溃疡（可能）</div>
+            <div class="rule-body">
+              餐后加重的胃痛 · 符合溃疡的好发部位（胃窦）· 需结合幽门螺杆菌检测及胃镜确诊
+            </div>
+            <div class="actions anno" data-tag="(5)">
+              <button class="btn secondary">修改</button>
+              <button class="btn primary">采纳</button>
+            </div>
+          </div>
+
+          <!-- Card 2: Exam — already accepted state example -->
+          <div class="card accepted anno" data-tag="(6)">
+            <div class="card-head">
+              <span class="cat-tag exam">检查</span>
+              <span class="accepted-stamp">✓ 已采纳</span>
+            </div>
+            <div class="rule-title">胃镜检查 + 幽门螺杆菌检测（尿素呼气试验）</div>
+            <div class="rule-body">
+              胃镜可直接观察黏膜病变、溃疡是否穿孔；HP 阳性需根除治疗
+            </div>
+            <div class="actions">
+              <button class="btn ghost">取消采纳</button>
+              <button class="btn secondary">修改</button>
+            </div>
+          </div>
+
+          <!-- Card 3: Treatment plan -->
+          <div class="card">
+            <div class="card-head">
+              <span class="cat-tag plan">治疗</span>
+              <span class="cite">[KB-7]</span>
+            </div>
+            <div class="rule-title">PPI（奥美拉唑）抑酸 · 2 周后评估</div>
+            <div class="rule-body">
+              每日 20mg 晨起空腹服用 · 避免辛辣刺激 · 如 HP 阳性加四联疗法 10–14 天
+            </div>
+            <div class="actions">
+              <button class="btn secondary">修改</button>
+              <button class="btn primary">采纳</button>
+            </div>
+          </div>
+
+          <!-- Card 4: Followup -->
+          <div class="card">
+            <div class="card-head">
+              <span class="cat-tag fu">随访</span>
+            </div>
+            <div class="rule-title">2 周后门诊复诊 · 4 周后胃镜复查</div>
+            <div class="rule-body">
+              出现黑便 / 持续呕吐 / 剧烈腹痛 → 立即急诊
+            </div>
+            <div class="actions">
+              <button class="btn secondary">修改</button>
+              <button class="btn primary">采纳</button>
+            </div>
+          </div>
+
+          <!-- Add custom -->
+          <div class="add-btn anno" data-tag="(4)">
+            + 添加我的建议
+          </div>
+
+        </div>
+
+        <!-- Sticky CTA -->
+        <div class="cta anno" data-tag="(8)">
+          <button class="cta-btn disabled">确认诊断（1 / 3）</button>
+          <div class="cta-hint">还有 2 项待处理</div>
+        </div>
+      </div>
+      <div class="label">Proposed — decision-card list</div>
+    </div>
+
+    <!-- Notes -->
+    <div class="note">
+      <h3>What changed (yellow tags)</h3>
+      <ul>
+        <li><span class="tag">1</span><b>Compact context strip</b> — 李四 · 胃痛饭后加重 · 04-18, one line. Tap ▾ to expand full record. Replaces both old cards.</li>
+        <li><span class="tag">2</span><b>Suggestions expanded by default</b> — title + 2-line content always visible. No tap-to-expand dance.</li>
+        <li><span class="tag">3</span><b>Flattened categories</b> — 3 groups become inline tags (诊断 / 检查 / 治疗 / 随访) on each card. One unified list.</li>
+        <li><span class="tag">4</span><b>Single "+ 添加我的建议"</b> instead of 3 per-category buttons. Doctor's own additions are rare.</li>
+        <li><span class="tag">5</span><b>Inline actions per card</b> — 修改 (outline) + 采纳 (green). No ambiguous checkboxes.</li>
+        <li><span class="tag">6</span><b>Accepted state is visible</b> — card turns light-green with ✓ stamp. "取消采纳" + "修改" replace the action pair.</li>
+        <li><span class="tag">7</span><b>Progress indicator in header</b> — "0 / 3 已确认" tells the doctor where they are.</li>
+        <li><span class="tag">8</span><b>CTA labels the action</b> — "确认诊断 (1 / 3)" plus soft hint below, instead of passive "还有 3 项未处理".</li>
+      </ul>
+      <h3 style="margin-top: 16px">What's gone</h3>
+      <ul>
+        <li>"病例输入来源" card — folded into the context strip</li>
+        <li>The duplicated expanded visit block</li>
+        <li>Three sub-section headers + three "+ 添加" rows</li>
+        <li>Expand arrows on every suggestion</li>
+      </ul>
+      <h3 style="margin-top: 16px">Ordering</h3>
+      <ul>
+        <li><b>诊断</b> first — most critical decision</li>
+        <li><b>检查</b> next — supports or rules out the diagnosis</li>
+        <li><b>治疗</b> then <b>随访</b></li>
+      </ul>
+      <h3 style="margin-top: 16px">Danger-signal cases (not shown)</h3>
+      <ul>
+        <li>When urgency=urgent, card gets a red left border + "危险信号" chip in the head row</li>
+        <li>Urgent items float to top of the list regardless of category</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

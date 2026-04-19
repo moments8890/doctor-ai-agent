@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>我的AI — Proposed Redesign</title>
+  <style>
+    :root {
+      --primary: #07C160;
+      --primary-light: #e7f8ee;
+      --danger: #FA5151;
+      --text1: #1A1A1A;
+      --text2: #333;
+      --text3: #666;
+      --text4: #999;
+      --surface: #fff;
+      --surface-alt: #f7f7f7;
+      --border: #eee;
+      --border-light: #f0f0f0;
+
+      --font-sm: 13px;
+      --font-base: 15px;
+      --font-md: 17px;
+      --font-lg: 19px;
+      --font-xl: 22px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+        "Helvetica Neue", Arial, sans-serif;
+      color: var(--text1);
+      background: #000;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap {
+      display: flex; gap: 32px; flex-wrap: wrap;
+      padding: 24px; justify-content: center;
+      background: #111; min-height: 100vh;
+    }
+    .label {
+      color: #888; font-size: 12px; text-align: center;
+      margin-top: 8px; letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .phone {
+      width: 390px; height: 800px;
+      background: var(--surface-alt);
+      border-radius: 36px; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      display: flex; flex-direction: column;
+      font-size: var(--font-base);
+    }
+
+    /* ── Top NavBar ───────────────────────────────────────── */
+    .navbar {
+      height: 44px; background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--font-md); font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    /* ── Scrollable content ───────────────────────────────── */
+    .content {
+      flex: 1; overflow-y: auto;
+      display: flex; flex-direction: column;
+    }
+
+    /* ── Identity + Quick-tools Grid ───────────────────────── */
+    .id-tools {
+      background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+    }
+    .identity {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 0.5px solid var(--border-light);
+    }
+    .ai-avatar {
+      width: 40px; height: 40px; border-radius: 8px;
+      background: var(--primary); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 600; flex-shrink: 0;
+    }
+    .ai-name { flex: 1; font-size: var(--font-md); font-weight: 600; }
+    .gear {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text3);
+    }
+    .tools {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+    }
+    .tile {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 8px 0; gap: 2px; position: relative;
+    }
+    .tile svg { width: 26px; height: 26px; color: var(--text2); }
+    .tile-label { font-size: var(--font-sm); color: var(--text2); }
+    .tile-badge {
+      position: absolute; top: 2px; right: 22px;
+      min-width: 16px; height: 16px;
+      background: var(--danger); color: #fff;
+      font-size: 11px; font-weight: 600;
+      border-radius: 8px; padding: 0 4px;
+      line-height: 16px; text-align: center;
+    }
+
+    /* ── Section gutter ────────────────────────────────────── */
+    .gutter { height: 8px; background: var(--surface-alt); }
+
+    /* ── List (antd-mobile style) ─────────────────────────── */
+    .list {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .list-header {
+      font-size: var(--font-sm); color: var(--text4);
+      padding: 8px 12px;
+    }
+    .list-body {
+      background: var(--surface);
+    }
+    .list-item {
+      display: flex; align-items: center;
+      padding: 12px 16px;
+      border-top: 0.5px solid var(--border);
+    }
+    .list-item:first-child { border-top: none; }
+    .li-main { flex: 1; min-width: 0; }
+    .li-title {
+      font-size: var(--font-md); font-weight: 500; color: var(--text1);
+    }
+    .li-desc {
+      font-size: var(--font-sm); color: var(--text3);
+      margin-top: 2px;
+    }
+    .li-extra { margin-left: 12px; display: flex; align-items: center; gap: 8px; }
+    .arrow { color: #ccc; font-size: 18px; margin-left: 4px; }
+
+    /* ── Filled green pill (proposed CountPill) ────────────── */
+    .pill {
+      background: var(--primary); color: #fff;
+      font-size: var(--font-sm); font-weight: 600;
+      padding: 2px 8px; border-radius: 999px;
+      min-width: 22px; text-align: center;
+    }
+    .pill-ghost {
+      background: var(--primary-light); color: var(--primary);
+      font-size: var(--font-sm); font-weight: 500;
+      padding: 2px 8px; border-radius: 999px;
+    }
+
+    /* ── Today summary ─────────────────────────────────────── */
+    .summary-header {
+      display: flex; align-items: center; gap: 4px;
+      font-size: var(--font-sm); color: var(--text4);
+      padding: 8px 12px;
+    }
+    .summary-header .star { color: var(--text3); }
+    .summary-header .time { margin-left: auto; }
+    .chips {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      padding: 12px 16px 8px;
+    }
+    .chip {
+      background: var(--primary-light); color: var(--primary);
+      font-size: var(--font-sm);
+      padding: 3px 10px; border-radius: 4px;
+    }
+    .summary-text {
+      padding: 0 16px 14px;
+      color: var(--text2); line-height: 1.55;
+      font-size: var(--font-base);
+    }
+
+    /* ── Bottom TabBar ─────────────────────────────────────── */
+    .tabbar {
+      height: 56px;
+      background: var(--surface);
+      border-top: 0.5px solid var(--border);
+      display: flex; flex-shrink: 0;
+    }
+    .tab {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 2px;
+      color: var(--text3); font-size: 13px;
+    }
+    .tab svg { width: 28px; height: 28px; }
+    .tab.active { color: var(--primary); }
+
+    /* ── Annotation labels ─────────────────────────────────── */
+    .anno {
+      position: relative;
+    }
+    .anno::before {
+      content: attr(data-tag);
+      position: absolute; left: -12px; top: 6px;
+      transform: translateX(-100%);
+      background: #fffbdd; color: #8a6d00;
+      font-size: 11px; padding: 2px 6px; border-radius: 4px;
+      font-weight: 600; white-space: nowrap;
+    }
+
+    .note {
+      max-width: 390px;
+      color: #ccc; font-size: 13px; line-height: 1.6;
+    }
+    .note h3 { color: #fff; margin-bottom: 8px; font-size: 15px; }
+    .note li { margin-left: 16px; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- ═══════════ PROPOSED ═══════════ -->
+    <div>
+      <div class="phone">
+        <div class="navbar">我的AI</div>
+        <div class="content">
+
+          <!-- (7) green avatar · (1) single-row identity -->
+          <div class="id-tools">
+            <div class="identity">
+              <div class="ai-avatar">AI</div>
+              <div class="ai-name">test的助手</div>
+              <div class="gear">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     width="22" height="22"><circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                </svg>
+              </div>
+            </div>
+
+            <!-- (3) knowledge badge removed since kbPendingCount=0 in mockup -->
+            <div class="tools">
+              <div class="tile">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5V4.5A2.5 2.5 0 016.5 2z"/>
+                </svg>
+                <span class="tile-label">新建病历</span>
+              </div>
+              <div class="tile">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M7 12h10"/>
+                </svg>
+                <span class="tile-label">预问诊码</span>
+              </div>
+              <div class="tile">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                  <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                </svg>
+                <span class="tile-label">知识库</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- (6) grey gutter -->
+          <div class="gutter"></div>
+
+          <!-- (2) persona row inside 今日关注 -->
+          <div class="list">
+            <div class="list-header">今日关注</div>
+            <div class="list-body">
+              <div class="list-item anno" data-tag="(2) 新">
+                <div class="li-main">
+                  <div class="li-title">AI 风格</div>
+                  <div class="li-desc">已学 12 条规则 · 随诊提醒、用药禁忌…</div>
+                </div>
+                <div class="li-extra">
+                  <span class="arrow">›</span>
+                </div>
+              </div>
+              <div class="list-item anno" data-tag="(4) 新">
+                <div class="li-main">
+                  <div class="li-title">待审核诊断建议</div>
+                  <div class="li-desc">2 位患者待确认</div>
+                </div>
+                <div class="li-extra">
+                  <span class="pill">2</span>
+                  <span class="arrow">›</span>
+                </div>
+              </div>
+              <div class="list-item">
+                <div class="li-main">
+                  <div class="li-title">待采纳的规则</div>
+                  <div class="li-desc">从你的编辑中提取 3 条</div>
+                </div>
+                <div class="li-extra">
+                  <span class="pill">3</span>
+                  <span class="arrow">›</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gutter"></div>
+
+          <!-- (5) summary: chips above paragraph, softer label -->
+          <div class="list">
+            <div class="summary-header">
+              <span class="star">★</span>
+              <span style="color: var(--text3); font-weight: 600">今日摘要</span>
+              <span>· 较上次无新增</span>
+              <span class="time">12:55</span>
+            </div>
+            <div class="chips anno" data-tag="(5) 上移">
+              <span class="chip">张秀兰</span>
+              <span class="chip">王五</span>
+            </div>
+            <div class="summary-text">
+              张秀兰反馈头痛、呕吐和视力模糊，需结合术后头痛管理规则评估是否需要急诊。王五的高血压复查和药物调整需尽快处理，避免血压过高引发并发症。
+            </div>
+          </div>
+
+          <div style="flex: 1"></div>
+        </div>
+
+        <!-- Bottom TabBar -->
+        <div class="tabbar">
+          <div class="tab active">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M4 4h16v12H5.17L4 17.17V4zm0-2a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2H4z"/>
+            </svg>
+            <span>我的AI</span>
+          </div>
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+            <span>患者</span>
+          </div>
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+            <span>审核</span>
+          </div>
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 6v6l4 2"/>
+            </svg>
+            <span>随访</span>
+          </div>
+        </div>
+      </div>
+      <div class="label">Proposed (after 1–7)</div>
+    </div>
+
+    <!-- ═══════════ NOTES ═══════════ -->
+    <div class="note">
+      <h3>What changed</h3>
+      <ul>
+        <li><b>(1)</b> Identity row collapsed — one 44px line, name only, no persona subtitle</li>
+        <li><b>(2)</b> Persona now a first-class row inside 今日关注 ("AI 风格 · 已学 12 条")</li>
+        <li><b>(3)</b> 知识库 tile badge hidden — only shows when `kbPendingCount &gt; 0`</li>
+        <li><b>(4)</b> Count pills = filled green (WeChat red-dot style) — priority readable in 1 sec</li>
+        <li><b>(5)</b> Patient chips moved <i>above</i> the narrative paragraph; "暂无新变化" → "较上次无新增"</li>
+        <li><b>(6)</b> 8px grey gutters separate the three blocks (identity+tools / 今日关注 / 今日摘要)</li>
+        <li><b>(7)</b> AI avatar is WeChat green, not blue — primary color discipline</li>
+      </ul>
+      <div style="margin-top: 16px; color: #888; font-size: 12px;">
+        Yellow tags (1)–(7) mark the diff points.<br>
+        Counts are illustrative (persona rules = 12, pending review = 2, kb pending = 3).
+      </div>
+    </div>
+  </div>
+</body>
+</html>

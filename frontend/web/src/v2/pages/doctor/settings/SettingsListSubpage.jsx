@@ -5,12 +5,13 @@
  * antd-mobile only, no MUI.
  */
 import { useState } from "react";
-import { NavBar, List, Popup, Button, Toast, Dialog } from "antd-mobile";
+import { NavBar, List, Popup, Button, Toast, Dialog, Avatar } from "antd-mobile";
 import { CheckOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { useFontScaleStore, saveFontScaleToServer } from "../../../../store/fontScaleStore";
 import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../../theme";
+import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 
 const FONT_SCALE_LEVELS = [
   { key: "standard",   label: "标准",     size: 14 },
@@ -39,76 +40,59 @@ export default function SettingsListSubpage({ onLogout }) {
       confirmText: "退出",
       cancelText: "取消",
       onConfirm: () => {
-        if (onLogout) {
-          onLogout();
-        } else {
-          // Fallback: clear auth and redirect to login
-          localStorage.removeItem("doctorAuth");
-          window.location.href = "/login";
-        }
+        onLogout?.();
+        useDoctorStore.getState().clearAuth();
+        localStorage.removeItem("unified_auth_token");
+        localStorage.removeItem("unified_auth_role");
+        localStorage.removeItem("unified_auth_name");
+        localStorage.removeItem("unified_auth_doctor_id");
+        localStorage.removeItem("unified_auth_patient_id");
+        window.location.href = "/login";
       },
     });
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        backgroundColor: APP.surfaceAlt,
-        overflow: "hidden",
-      }}
-    >
+    <div style={pageContainer}>
       <NavBar
         onBack={() => navigate(-1)}
-        style={{
-          "--height": "44px",
-          "--border-bottom": `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-        }}
+        style={navBarStyle}
       >
         设置
       </NavBar>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={scrollable}>
         {/* Account info */}
-        <div
-          style={{
-            padding: "16px",
-            backgroundColor: APP.surface,
-            borderBottom: `0.5px solid ${APP.border}`,
-            marginBottom: 16,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: RADIUS.pill,
-              backgroundColor: APP.accent,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: APP.surface,
-              fontSize: FONT.lg,
-              fontWeight: 600,
-              flexShrink: 0,
-            }}
+        <List style={{ marginBottom: 16 }}>
+          <List.Item
+            prefix={
+              <Avatar
+                src=""
+                fallback={
+                  <div
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: "50%",
+                      backgroundColor: APP.primary,
+                      color: APP.surface,
+                      fontSize: FONT.lg,
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {(doctorName || "医").charAt(0).toUpperCase()}
+                  </div>
+                }
+                style={{ "--size": "48px", flexShrink: 0 }}
+              />
+            }
           >
-            {(doctorName || doctorId || "?").charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <div style={{ fontSize: FONT.lg, fontWeight: 600, color: APP.text1 }}>
-              {doctorName || doctorId}
-            </div>
-            <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>{doctorId}</div>
-          </div>
-        </div>
+            {doctorName || "医生"}
+          </List.Item>
+        </List>
 
         {/* General settings */}
         <List header="通用">
@@ -153,56 +137,42 @@ export default function SettingsListSubpage({ onLogout }) {
         position="bottom"
         bodyStyle={{ borderRadius: "12px 12px 0 0" }}
       >
-        <div
-          style={{
-            padding: "16px 0",
-            paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
-          }}
-        >
+        <div style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
           <div
             style={{
               textAlign: "center",
               fontSize: FONT.md,
               fontWeight: 600,
               color: APP.text1,
-              padding: "0 0 12px",
+              padding: "12px 0",
               borderBottom: `0.5px solid ${APP.border}`,
-              marginBottom: 4,
             }}
           >
             字体大小
           </div>
-          {FONT_SCALE_LEVELS.map((level) => {
-            const active = fontScale === level.key;
-            return (
-              <div
-                key={level.key}
-                onClick={() => handleSetFontScale(level.key)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "14px 20px",
-                  cursor: "pointer",
-                  borderBottom: `0.5px solid ${APP.borderLight}`,
-                  backgroundColor: active ? APP.primaryLight : "transparent",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: level.size,
-                    fontWeight: active ? 600 : 400,
-                    color: active ? APP.primary : APP.text1,
-                  }}
+          <List>
+            {FONT_SCALE_LEVELS.map((level) => {
+              const active = fontScale === level.key;
+              return (
+                <List.Item
+                  key={level.key}
+                  onClick={() => handleSetFontScale(level.key)}
+                  extra={active ? <CheckOutline style={{ color: APP.primary, fontSize: FONT.lg }} /> : null}
+                  style={{ "--background-color": active ? APP.primaryLight : "transparent" }}
                 >
-                  {level.label}
-                </span>
-                {active && (
-                  <CheckOutline style={{ color: APP.primary, fontSize: FONT.lg }} />
-                )}
-              </div>
-            );
-          })}
+                  <span
+                    style={{
+                      fontSize: level.size,
+                      fontWeight: active ? 600 : 400,
+                      color: active ? APP.primary : APP.text1,
+                    }}
+                  >
+                    {level.label}
+                  </span>
+                </List.Item>
+              );
+            })}
+          </List>
         </div>
       </Popup>
     </div>

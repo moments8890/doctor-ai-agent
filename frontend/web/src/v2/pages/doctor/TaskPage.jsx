@@ -6,13 +6,12 @@
  * Date-grouped pending items; optimistic complete/uncomplete toggle.
  * No MUI, no framer-motion.
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   JumboTabs,
   List,
   Button,
-  SpinLoading,
-  ErrorBlock,
   Tag,
   Popup,
   Input,
@@ -20,7 +19,6 @@ import {
 } from "antd-mobile";
 import {
   CheckCircleOutline,
-  AddCircleOutline,
   ClockCircleOutline,
 } from "antd-mobile-icons";
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,7 +26,17 @@ import { usePendingTasks, useCompletedTasks, useDraftSummary } from "../../../li
 import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
 import { relativeFuture } from "../../../utils/time";
-import { APP, FONT, RADIUS } from "../../theme";
+import { APP, FONT } from "../../theme";
+
+// Tab title with an inline (N) count shown when count > 0.
+function TabTitleWithCount({ label, count }) {
+  if (count > 0) {
+    return <span>{label} ({count})</span>;
+  }
+  return <span>{label}</span>;
+}
+import { pageContainer, scrollable } from "../../layouts";
+import { LoadingCenter, EmptyState, SectionHeader } from "../../components";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -182,15 +190,23 @@ function CreateTaskPopup({ visible, onClose, doctorId, onCreated }) {
 
 // ── Pending task row ───────────────────────────────────────────────────────────
 
-function PendingTaskItem({ item, isOverdue, onComplete }) {
+function PendingTaskItem({ item, isOverdue, onComplete, onNavigate }) {
   const title = item._isFollowup
     ? `${item.patient_name} · ${item.task}`
     : item.title || "任务";
-  const subtitle = item._isFollowup ? item.detail : item.content;
+  const rawSubtitle = item._isFollowup ? item.detail : item.content;
+  // Hide subtitle when it duplicates the title (common for general tasks where
+  // `content` gets defaulted to `title` server-side).
+  const subtitle =
+    rawSubtitle && rawSubtitle.trim() && rawSubtitle.trim() !== title.trim()
+      ? rawSubtitle
+      : null;
   const dueLabel = item.due_at ? (relativeFuture(item.due_at) || "") : "";
 
   return (
     <List.Item
+      clickable
+      onClick={() => onNavigate?.(item)}
       prefix={
         <div
           onClick={(e) => { e.stopPropagation(); onComplete(item); }}
@@ -207,23 +223,20 @@ function PendingTaskItem({ item, isOverdue, onComplete }) {
           }}
         />
       }
-      description={
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-          {subtitle && (
-            <span style={{ fontSize: FONT.sm, color: APP.text4, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {subtitle}
-            </span>
-          )}
-          {dueLabel && (
-            <Tag
-              color={isOverdue ? "danger" : "default"}
-              style={{ fontSize: FONT.xs, flexShrink: 0 }}
-            >
+      description={subtitle || undefined}
+      extra={
+        dueLabel ? (
+          isOverdue ? (
+            <Tag color="danger" style={{ fontSize: FONT.xs }}>
               <ClockCircleOutline style={{ fontSize: FONT.xs, marginRight: 2 }} />
               {dueLabel}
             </Tag>
-          )}
-        </div>
+          ) : (
+            <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
+              {dueLabel}
+            </span>
+          )
+        ) : null
       }
       style={{ "--padding-left": "12px" }}
     >
@@ -265,9 +278,31 @@ function CompletedTaskItem({ item, onUncomplete }) {
 
 export default function TaskPage({ doctorId }) {
   const api = useApi();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("pending");
   const [createOpen, setCreateOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Tab state from URL: ?tab=pending (default) | ?tab=completed
+  const urlTab = searchParams.get("tab");
+  const activeTab = urlTab === "completed" ? "completed" : "pending";
+
+  // Row tap: follow-up → patient detail, general → task detail subpage
+  const handleNavigate = useCallback((item) => {
+    if (item.patient_id) {
+      navigate(`/doctor/patients/${item.patient_id}`);
+    } else if (item.id) {
+      navigate(`/doctor/tasks/${item.id}`);
+    }
+  }, [navigate]);
+
+  // Open create popup when triggered via ?new=1 (from shared NavBar + button)
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setCreateOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Optimistic overrides
   const [pendingOverride, setPendingOverride] = useState(null);
@@ -393,117 +428,48 @@ export default function TaskPage({ doctorId }) {
   // ── Render ─────────────────────────────────────────────────────────
 
   if (loading) {
-    return (
-      <div
-        style={{
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <SpinLoading color="primary" style={{ "--size": "36px" }} />
-      </div>
-    );
+    return <LoadingCenter fullPage />;
   }
 
   return (
-    <div
-      style={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        backgroundColor: APP.surfaceAlt,
-        overflow: "hidden",
-      }}
-    >
+    <div style={pageContainer}>
       {/* Filter tabs */}
       <div
         style={{
           backgroundColor: APP.surface,
           borderBottom: `0.5px solid ${APP.border}`,
-          padding: "8px 16px 0",
           flexShrink: 0,
         }}
       >
-        <JumboTabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          style={{ "--adm-color-primary": "var(--adm-color-primary)" }}
-        >
+        <JumboTabs activeKey={activeTab} onChange={(key) => {
+          if (key === "pending") {
+            setSearchParams({}, { replace: true });
+          } else {
+            setSearchParams({ tab: key }, { replace: true });
+          }
+        }}>
           <JumboTabs.Tab
-            title={
-              <span>
-                待完成
-                {allPendingItems.length > 0 && (
-                  <span
-                    style={{
-                      marginLeft: 4,
-                      fontSize: FONT.xs,
-                      color: activeTab === "pending" ? APP.primary : APP.text4,
-                    }}
-                  >
-                    {allPendingItems.length}
-                  </span>
-                )}
-              </span>
-            }
+            title={<TabTitleWithCount label="待完成" count={allPendingItems.length} />}
             key="pending"
           />
           <JumboTabs.Tab
-            title={
-              <span>
-                已完成
-                {completedItems.length > 0 && (
-                  <span
-                    style={{
-                      marginLeft: 4,
-                      fontSize: FONT.xs,
-                      color: activeTab === "completed" ? APP.primary : APP.text4,
-                    }}
-                  >
-                    {completedItems.length}
-                  </span>
-                )}
-              </span>
-            }
+            title={<TabTitleWithCount label="已完成" count={completedItems.length} />}
             key="completed"
           />
         </JumboTabs>
       </div>
 
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
+      <div style={scrollable}>
         {activeTab === "pending" && (
           <>
-            {/* New task button */}
-            <div style={{ padding: "12px 16px 0" }}>
-              <Button
-                block
-                color="default"
-                size="middle"
-                onClick={() => setCreateOpen(true)}
-                style={{ borderRadius: RADIUS.md, borderStyle: "dashed" }}
-              >
-                <AddCircleOutline style={{ marginRight: 6, verticalAlign: "middle" }} />
-                新建任务
-              </Button>
-            </div>
-
             {/* Date-grouped task list */}
             {dateGroups.length > 0 ? (
-              dateGroups.map((group) => (
-                <div key={group.label} style={{ marginTop: 12 }}>
-                  <div
-                    style={{
-                      padding: "4px 16px 6px",
-                      fontSize: FONT.sm,
-                      fontWeight: 600,
-                      color: group.color,
-                    }}
-                  >
-                    {group.label}
-                  </div>
+              dateGroups.map((group, idx) => (
+                <div key={group.label}>
+                  {dateGroups.length > 1 && (
+                    <SectionHeader color={group.color}>{group.label}</SectionHeader>
+                  )}
                   <List>
                     {group.items.map((item) => (
                       <PendingTaskItem
@@ -511,17 +477,18 @@ export default function TaskPage({ doctorId }) {
                         item={item}
                         isOverdue={group.label === "已逾期"}
                         onComplete={handleComplete}
+                        onNavigate={handleNavigate}
                       />
                     ))}
                   </List>
                 </div>
               ))
             ) : (
-              <ErrorBlock
-                status="empty"
+              <EmptyState
                 title="暂无待处理任务"
-                description="患者随访和待办提醒会出现在这里"
-                style={{ marginTop: 48 }}
+                description="点击右上角 + 新建任务"
+                action="新建任务"
+                onAction={() => setCreateOpen(true)}
               />
             )}
           </>
@@ -542,11 +509,9 @@ export default function TaskPage({ doctorId }) {
                 </List>
               </div>
             ) : (
-              <ErrorBlock
-                status="empty"
+              <EmptyState
                 title="暂无已完成任务"
                 description="完成的任务和已发送消息会出现在这里"
-                style={{ marginTop: 48 }}
               />
             )}
           </>

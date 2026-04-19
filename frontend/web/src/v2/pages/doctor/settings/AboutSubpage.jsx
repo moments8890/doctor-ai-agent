@@ -7,33 +7,21 @@
 import { NavBar, List } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import { APP, FONT, RADIUS } from "../../../theme";
+import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 
 export default function AboutSubpage() {
   const navigate = useNavigate();
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        backgroundColor: APP.surfaceAlt,
-        overflow: "hidden",
-      }}
-    >
+    <div style={pageContainer}>
       <NavBar
         onBack={() => navigate(-1)}
-        style={{
-          "--height": "44px",
-          "--border-bottom": `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-        }}
+        style={navBarStyle}
       >
         关于
       </NavBar>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={scrollable}>
         {/* App icon + branding */}
         <div
           style={{
@@ -89,7 +77,7 @@ export default function AboutSubpage() {
           <List.Item extra="医生AI助手" arrow={false}>
             产品名称
           </List.Item>
-          <List.Item extra="Anthropic" arrow={false}>
+          <List.Item extra="腾讯 · 通义千问" arrow={false}>
             AI 提供商
           </List.Item>
         </List>

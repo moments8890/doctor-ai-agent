@@ -14,6 +14,8 @@ import {
   UserOutline,
 } from "antd-mobile-icons";
 import { APP, FONT, RADIUS, applyFontScale } from "../../theme";
+import { scrollable } from "../../layouts";
+import { NameAvatar } from "../../components";
 
 // ---------------------------------------------------------------------------
 // Font scale store (inline — no MUI / v1 store dependency)
@@ -35,69 +37,6 @@ const FONT_SCALE_OPTIONS = [
   { key: "large", label: "大" },
   { key: "extraLarge", label: "特大" },
 ];
-
-// ---------------------------------------------------------------------------
-// Account avatar card
-// ---------------------------------------------------------------------------
-
-function AccountCard({ name, subtitle, color }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        padding: "12px 16px",
-        background: APP.surface,
-        borderBottom: `0.5px solid ${APP.border}`,
-      }}
-    >
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: RADIUS.circle,
-          background: color || APP.primary,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          marginRight: 12,
-          flexShrink: 0,
-          color: APP.white,
-          fontSize: FONT.lg,
-          fontWeight: 700,
-        }}
-      >
-        {name ? name.slice(-1) : "?"}
-      </div>
-      <div>
-        <div style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1 }}>{name || "—"}</div>
-        {subtitle && (
-          <div style={{ fontSize: FONT.sm, color: APP.text3, marginTop: 2 }}>{subtitle}</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Section label
-// ---------------------------------------------------------------------------
-
-function SectionLabel({ children }) {
-  return (
-    <div
-      style={{
-        padding: "12px 16px 4px",
-        fontSize: FONT.sm,
-        color: APP.text4,
-        fontWeight: 600,
-        background: APP.surfaceAlt,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // MyPage
@@ -135,26 +74,31 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
     FONT_SCALE_OPTIONS.find((o) => o.key === fontScale)?.label || "标准";
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", background: APP.surfaceAlt }}>
+    <div style={scrollable}>
       {/* Patient info */}
-      <SectionLabel>我的信息</SectionLabel>
-      <AccountCard name={patientName || "患者"} subtitle="患者" color={APP.primary} />
+      <List header="我的信息">
+        <List.Item
+          prefix={<NameAvatar name={patientName || "患者"} size={44} color={APP.primary} charPosition="last" />}
+          description="患者"
+        >
+          {patientName || "患者"}
+        </List.Item>
+      </List>
 
       {/* Doctor info */}
       {doctorName && (
-        <>
-          <SectionLabel>我的医生</SectionLabel>
-          <AccountCard
-            name={doctorName}
-            subtitle={doctorSpecialty || ""}
-            color={APP.accent}
-          />
-        </>
+        <List header="我的医生">
+          <List.Item
+            prefix={<NameAvatar name={doctorName} size={44} color={APP.accent} charPosition="last" />}
+            description={doctorSpecialty || ""}
+          >
+            {doctorName}
+          </List.Item>
+        </List>
       )}
 
       {/* General settings */}
-      <SectionLabel>通用</SectionLabel>
-      <List>
+      <List header="通用">
         <List.Item
           prefix={<InformationCircleOutline style={{ fontSize: 20, color: APP.text4 }} />}
           extra={
@@ -199,8 +143,7 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
       </List>
 
       {/* Logout */}
-      <SectionLabel>账户操作</SectionLabel>
-      <List>
+      <List header="账户操作">
         <List.Item
           onClick={handleLogoutTap}
           style={{ color: APP.danger, textAlign: "center", cursor: "pointer" }}

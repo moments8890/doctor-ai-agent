@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>知识库 — 重设计 Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    max-width: 430px;
+    margin: 0 auto;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── NavBar ── */
+  .navbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; height: 44px; background: #fff;
+    border-bottom: 0.5px solid #e8e8e8; flex-shrink: 0;
+    font-size: 17px; font-weight: 600;
+  }
+  .navbar .back { font-size: 20px; color: #666; cursor: pointer; padding: 8px 8px 8px 0; }
+  .navbar .add { font-size: 24px; color: #07C160; cursor: pointer; padding: 8px 0 8px 8px; }
+
+  /* ── Search ── */
+  .search-wrap {
+    padding: 8px 12px; background: #fff;
+    border-bottom: 0.5px solid #e8e8e8; flex-shrink: 0;
+  }
+  .search-bar {
+    width: 100%; padding: 8px 12px; border: none; border-radius: 8px;
+    background: #f5f5f5; font-size: 14px; outline: none;
+    color: #1a1a1a;
+  }
+  .search-bar::placeholder { color: #999; }
+
+  /* ── Summary Strip ── */
+  .summary-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    background: #fff; border-bottom: 0.5px solid #e8e8e8;
+    padding: 12px 0; flex-shrink: 0;
+  }
+  .stat { text-align: center; }
+  .stat-value { font-size: 20px; font-weight: 700; color: #1a1a1a; }
+  .stat-value.green { color: #07C160; }
+  .stat-value.orange { color: #fa8c16; }
+  .stat-value.red { color: #ff4d4f; }
+  .stat-label { font-size: 11px; color: #999; margin-top: 2px; }
+
+  /* ── Segment Tabs ── */
+  .segment-tabs {
+    display: flex; gap: 0; background: #fff;
+    border-bottom: 0.5px solid #e8e8e8; flex-shrink: 0;
+    padding: 0 16px;
+  }
+  .seg-tab {
+    flex: 1; text-align: center; padding: 10px 0; font-size: 14px;
+    color: #666; cursor: pointer; position: relative; font-weight: 500;
+    transition: color 0.2s;
+  }
+  .seg-tab.active { color: #07C160; font-weight: 600; }
+  .seg-tab.active::after {
+    content: ''; position: absolute; bottom: 0; left: 30%; right: 30%;
+    height: 2px; background: #07C160; border-radius: 1px;
+  }
+  .seg-tab .badge {
+    display: inline-block; margin-left: 4px; padding: 0 5px;
+    font-size: 10px; line-height: 16px; border-radius: 8px;
+    background: #ff4d4f; color: #fff; font-weight: 600;
+    vertical-align: middle;
+  }
+
+  /* ── Scrollable content ── */
+  .content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ── Section ── */
+  .section-header {
+    padding: 8px 16px; font-size: 12px; font-weight: 600;
+    color: #999; background: #f5f5f5; letter-spacing: 0.3px;
+  }
+
+  /* ── Rule Row ── */
+  .rule-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 16px; background: #fff;
+    border-bottom: 0.5px solid #f0f0f0;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .rule-row:active { background: #f9f9f9; }
+
+  .rule-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0; margin-top: 2px;
+  }
+  .rule-icon.active { background: #e6f7ee; }
+  .rule-icon.stale { background: #fff7e6; }
+  .rule-icon.new { background: #e6f0ff; }
+
+  .rule-body { flex: 1; min-width: 0; }
+  .rule-title {
+    font-size: 15px; font-weight: 500; color: #1a1a1a;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .rule-meta {
+    display: flex; align-items: center; gap: 6px; margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    display: inline-block; padding: 1px 6px; border-radius: 4px;
+    font-size: 11px; font-weight: 500; line-height: 18px;
+  }
+  .chip.source { background: #f0f0f0; color: #666; }
+  .chip.category { background: #e6f7ee; color: #07C160; }
+  .chip.hot { background: #fff0f0; color: #ff4d4f; }
+  .chip.stale { background: #fff7e6; color: #fa8c16; }
+  .chip.new-badge { background: #e6f0ff; color: #1677ff; }
+
+  .rule-stats {
+    font-size: 12px; color: #999; margin-top: 3px;
+  }
+  .rule-stats .highlight { color: #07C160; font-weight: 500; }
+
+  .rule-arrow {
+    color: #ccc; font-size: 14px; flex-shrink: 0; margin-top: 12px;
+  }
+
+  /* ── Spotlight card ── */
+  .spotlight {
+    margin: 8px 12px; background: #fff; border-radius: 10px;
+    border: 0.5px solid #e8e8e8; overflow: hidden;
+  }
+  .spotlight-header {
+    padding: 10px 14px; font-size: 13px; font-weight: 600; color: #666;
+    border-bottom: 0.5px solid #f0f0f0; display: flex; align-items: center; gap: 6px;
+  }
+  .spotlight-header .dot { width: 6px; height: 6px; border-radius: 3px; }
+  .spotlight-header .dot.green { background: #07C160; }
+  .spotlight-header .dot.orange { background: #fa8c16; }
+  .spotlight .rule-row { border-bottom: 0.5px solid #f5f5f5; }
+  .spotlight .rule-row:last-child { border-bottom: none; }
+
+  /* ── Bottom spacer ── */
+  .bottom-spacer { height: 32px; }
+
+  /* ── Detail overlay (mock) ── */
+  .detail-overlay {
+    display: none; position: fixed; inset: 0; background: #fff; z-index: 100;
+    flex-direction: column; max-width: 430px; margin: 0 auto;
+  }
+  .detail-overlay.open { display: flex; }
+  .detail-content { flex: 1; overflow-y: auto; }
+  .detail-section { padding: 16px; border-bottom: 0.5px solid #f0f0f0; }
+  .detail-section-title { font-size: 12px; color: #999; font-weight: 600; margin-bottom: 8px; }
+  .detail-text { font-size: 14px; color: #333; line-height: 1.7; white-space: pre-wrap; }
+  .usage-bar { display: flex; gap: 16px; }
+  .usage-item { text-align: center; }
+  .usage-num { font-size: 22px; font-weight: 700; }
+  .usage-num.green { color: #07C160; }
+  .usage-num.red { color: #ff4d4f; }
+  .usage-label { font-size: 11px; color: #999; margin-top: 2px; }
+  .patient-chip {
+    display: inline-block; padding: 4px 10px; border-radius: 16px;
+    font-size: 13px; background: #f0faf5; color: #07C160;
+    margin: 3px 4px 3px 0; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ NavBar ═══ -->
+<div class="navbar">
+  <span class="back">‹</span>
+  <span>我的方法</span>
+  <span class="add" onclick="alert('添加规则')">+</span>
+</div>
+
+<!-- ═══ Search ═══ -->
+<div class="search-wrap">
+  <input class="search-bar" placeholder="搜索规则 (共 12 条)">
+</div>
+
+<!-- ═══ Segment Tabs ═══ -->
+<div class="segment-tabs">
+  <div class="seg-tab active" onclick="switchTab(this, 'tab-summary')">总览</div>
+  <div class="seg-tab" onclick="switchTab(this, 'tab-all')">全部 <span style="color:#999;font-weight:400">12</span></div>
+  <div class="seg-tab" onclick="switchTab(this, 'tab-pending')">待整理 <span class="badge">3</span></div>
+</div>
+
+<!-- ═══ Scrollable Content ═══ -->
+<div class="content">
+
+  <!-- ════ TAB: 总览 (Summary) ════ -->
+  <div id="tab-summary">
+
+    <!-- Summary Strip -->
+    <div class="summary-strip">
+      <div class="stat">
+        <div class="stat-value">12</div>
+        <div class="stat-label">总规则</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value green">8</div>
+        <div class="stat-label">近7天引用</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value orange">2</div>
+        <div class="stat-label">30天未用</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value red">1</div>
+        <div class="stat-label">待整理</div>
+      </div>
+    </div>
+
+    <!-- Spotlight: AI最近在用 -->
+    <div class="spotlight">
+      <div class="spotlight-header">
+        <span class="dot green"></span> AI 最近在用
+      </div>
+      <div class="rule-row" onclick="openDetail('cranial')">
+        <div class="rule-icon active">🧠</div>
+        <div class="rule-body">
+          <div class="rule-title">颅内动脉瘤夹闭术后首次 CTA 复查时间</div>
+          <div class="rule-meta">
+            <span class="chip source">手动</span>
+            <span class="chip category">诊断</span>
+          </div>
+          <div class="rule-stats">
+            近7天 <span class="highlight">4次</span> · 最近今天 · 总引用 12
+          </div>
+        </div>
+        <div class="rule-arrow">›</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-icon active">💊</div>
+        <div class="rule-body">
+          <div class="rule-title">ACEI 与 ARB 不可联用，已使用 ACEI 的患者禁 ARB</div>
+          <div class="rule-meta">
+            <span class="chip source">示教</span>
+            <span class="chip category">用药</span>
+          </div>
+          <div class="rule-stats">
+            近7天 <span class="highlight">3次</span> · 最近昨天 · 总引用 8
+          </div>
+        </div>
+        <div class="rule-arrow">›</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-icon active">📋</div>
+        <div class="rule-body">
+          <div class="rule-title">当患者血压超过180时，立即建议急诊</div>
+          <div class="rule-meta">
+            <span class="chip source">手动</span>
+            <span class="chip category">诊断</span>
+          </div>
+          <div class="rule-stats">
+            近7天 <span class="highlight">2次</span> · 最近3天前 · 总引用 5
+          </div>
+        </div>
+        <div class="rule-arrow">›</div>
+      </div>
+    </div>
+
+    <!-- Spotlight: 需要你看一下 -->
+    <div class="spotlight">
+      <div class="spotlight-header">
+        <span class="dot orange"></span> 需要你看一下
+      </div>
+      <div class="rule-row">
+        <div class="rule-icon stale">⏸</div>
+        <div class="rule-body">
+          <div class="rule-title">高血压头痛处理</div>
+          <div class="rule-meta">
+            <span class="chip stale">30天未用</span>
+            <span class="chip source">网址</span>
+          </div>
+          <div class="rule-stats">
+            最后引用 45天前 · 总引用 1
+          </div>
+        </div>
+        <div class="rule-arrow">›</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-icon stale">⚠️</div>
+        <div class="rule-body">
+          <div class="rule-title">开颅三药管理</div>
+          <div class="rule-meta">
+            <span class="chip hot">经常被改写</span>
+            <span class="chip source">文件</span>
+          </div>
+          <div class="rule-stats">
+            引用 6次 · 其中 4次被修改 · 建议更新
+          </div>
+        </div>
+        <div class="rule-arrow">›</div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-icon new">✨</div>
+        <div class="rule-body">
+          <div class="rule-title">术后随访 VAS 评分标准</div>
+          <div class="rule-meta">
+            <span class="chip new-badge">最近新增</span>
+            <span class="chip source">示教</span>
+          </div>
+          <div class="rule-stats">
+            3天前添加 · 尚未被引用
+          </div>
+        </div>
+        <div class="rule-arrow">›</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ TAB: 全部 (All rules) ════ -->
+  <div id="tab-all" style="display:none">
+
+    <div class="rule-row" onclick="openDetail('cranial')">
+      <div class="rule-icon active">🧠</div>
+      <div class="rule-body">
+        <div class="rule-title">颅内动脉瘤夹闭术后首次 CTA 复查时间</div>
+        <div class="rule-meta">
+          <span class="chip source">手动</span>
+          <span class="chip category">诊断</span>
+        </div>
+        <div class="rule-stats">近7天 <span class="highlight">4次</span> · 总引用 12</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="rule-row">
+      <div class="rule-icon active">💊</div>
+      <div class="rule-body">
+        <div class="rule-title">ACEI 与 ARB 不可联用</div>
+        <div class="rule-meta">
+          <span class="chip source">示教</span>
+          <span class="chip category">用药</span>
+        </div>
+        <div class="rule-stats">近7天 <span class="highlight">3次</span> · 总引用 8</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="rule-row">
+      <div class="rule-icon active">📋</div>
+      <div class="rule-body">
+        <div class="rule-title">当患者血压超过180时，立即建议急诊</div>
+        <div class="rule-meta">
+          <span class="chip source">手动</span>
+          <span class="chip category">诊断</span>
+        </div>
+        <div class="rule-stats">近7天 <span class="highlight">2次</span> · 总引用 5</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="rule-row">
+      <div class="rule-icon active">🔄</div>
+      <div class="rule-body">
+        <div class="rule-title">LVB术后护理与观察要点</div>
+        <div class="rule-meta">
+          <span class="chip source">文件</span>
+          <span class="chip category">随访</span>
+        </div>
+        <div class="rule-stats">近7天 <span class="highlight">1次</span> · 总引用 3</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="rule-row">
+      <div class="rule-icon" style="background:#f5f5f5">📄</div>
+      <div class="rule-body">
+        <div class="rule-title">术后随访 VAS 评分标准</div>
+        <div class="rule-meta">
+          <span class="chip new-badge">最近新增</span>
+          <span class="chip source">示教</span>
+        </div>
+        <div class="rule-stats">3天前添加 · 尚未被引用</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="rule-row">
+      <div class="rule-icon" style="background:#f5f5f5">📄</div>
+      <div class="rule-body">
+        <div class="rule-title" style="color:#999">高血压头痛处理</div>
+        <div class="rule-meta">
+          <span class="chip stale">30天未用</span>
+          <span class="chip source">网址</span>
+        </div>
+        <div class="rule-stats">最后引用 45天前 · 总引用 1</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="rule-row">
+      <div class="rule-icon" style="background:#f5f5f5">📄</div>
+      <div class="rule-body">
+        <div class="rule-title" style="color:#999">开颅三药管理</div>
+        <div class="rule-meta">
+          <span class="chip hot">经常被改写</span>
+          <span class="chip source">文件</span>
+        </div>
+        <div class="rule-stats">引用 6次 · 其中 4次被修改</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="rule-row">
+      <div class="rule-icon active">📋</div>
+      <div class="rule-body">
+        <div class="rule-title">术后头痛 VAS≥6 需复查 CT</div>
+        <div class="rule-meta">
+          <span class="chip source">手动</span>
+          <span class="chip category">诊断</span>
+        </div>
+        <div class="rule-stats">近7天 <span class="highlight">1次</span> · 总引用 4</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="rule-row">
+      <div class="rule-icon" style="background:#f5f5f5">📄</div>
+      <div class="rule-body">
+        <div class="rule-title">术后体温≥38.5 需排除感染</div>
+        <div class="rule-meta">
+          <span class="chip source">手动</span>
+          <span class="chip category">诊断</span>
+        </div>
+        <div class="rule-stats">总引用 2</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="rule-row">
+      <div class="rule-icon" style="background:#f5f5f5">📄</div>
+      <div class="rule-body">
+        <div class="rule-title">随访问诊必须包含用药依从性</div>
+        <div class="rule-meta">
+          <span class="chip source">手动</span>
+          <span class="chip category">随访</span>
+        </div>
+        <div class="rule-stats">总引用 3</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="rule-row">
+      <div class="rule-icon" style="background:#f5f5f5">📄</div>
+      <div class="rule-body">
+        <div class="rule-title">抗凝药物切换需住院观察 24h</div>
+        <div class="rule-meta">
+          <span class="chip source">网址</span>
+          <span class="chip category">用药</span>
+        </div>
+        <div class="rule-stats">总引用 1</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="rule-row">
+      <div class="rule-icon" style="background:#f5f5f5">📄</div>
+      <div class="rule-body">
+        <div class="rule-title">出院宣教必须覆盖危险信号识别</div>
+        <div class="rule-meta">
+          <span class="chip source">手动</span>
+          <span class="chip category">随访</span>
+        </div>
+        <div class="rule-stats">总引用 2</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+  </div>
+
+  <!-- ════ TAB: 待整理 (Pending) ════ -->
+  <div id="tab-pending" style="display:none">
+
+    <div class="section-header">30天未使用</div>
+    <div class="rule-row">
+      <div class="rule-icon stale">⏸</div>
+      <div class="rule-body">
+        <div class="rule-title">高血压头痛处理</div>
+        <div class="rule-meta">
+          <span class="chip stale">30天未用</span>
+          <span class="chip source">网址</span>
+        </div>
+        <div class="rule-stats">最后引用 45天前 · 总引用 1</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="section-header">经常被改写</div>
+    <div class="rule-row">
+      <div class="rule-icon stale">⚠️</div>
+      <div class="rule-body">
+        <div class="rule-title">开颅三药管理</div>
+        <div class="rule-meta">
+          <span class="chip hot">经常被改写</span>
+          <span class="chip source">文件</span>
+        </div>
+        <div class="rule-stats">引用 6次 · 其中 4次被修改 · 建议更新</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+
+    <div class="section-header">新增未验证</div>
+    <div class="rule-row">
+      <div class="rule-icon new">✨</div>
+      <div class="rule-body">
+        <div class="rule-title">术后随访 VAS 评分标准</div>
+        <div class="rule-meta">
+          <span class="chip new-badge">最近新增</span>
+          <span class="chip source">示教</span>
+        </div>
+        <div class="rule-stats">3天前添加 · 尚未被引用</div>
+      </div>
+      <div class="rule-arrow">›</div>
+    </div>
+  </div>
+
+  <div class="bottom-spacer"></div>
+</div>
+
+<!-- ═══ Detail Overlay (mock for cranial rule) ═══ -->
+<div class="detail-overlay" id="detailOverlay">
+  <div class="navbar">
+    <span class="back" onclick="closeDetail()">‹</span>
+    <span>规则详情</span>
+    <span style="width:32px"></span>
+  </div>
+  <div class="detail-content">
+    <!-- Usage stats -->
+    <div class="detail-section">
+      <div class="detail-section-title">AI 使用情况</div>
+      <div class="usage-bar">
+        <div class="usage-item">
+          <div class="usage-num green">12</div>
+          <div class="usage-label">总引用</div>
+        </div>
+        <div class="usage-item">
+          <div class="usage-num green">4</div>
+          <div class="usage-label">近7天</div>
+        </div>
+        <div class="usage-item">
+          <div class="usage-num green">10</div>
+          <div class="usage-label">被接受</div>
+        </div>
+        <div class="usage-item">
+          <div class="usage-num" style="color:#fa8c16">1</div>
+          <div class="usage-label">被修改</div>
+        </div>
+        <div class="usage-item">
+          <div class="usage-num red">1</div>
+          <div class="usage-label">被拒绝</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent patients -->
+    <div class="detail-section">
+      <div class="detail-section-title">最近引用于</div>
+      <div>
+        <span class="patient-chip">张三 · 今天</span>
+        <span class="patient-chip">李四 · 昨天</span>
+        <span class="patient-chip">王五 · 3天前</span>
+        <span class="patient-chip">赵六 · 5天前</span>
+      </div>
+    </div>
+
+    <!-- Rule content -->
+    <div class="detail-section">
+      <div class="detail-section-title">规则内容</div>
+      <div class="detail-text">颅内动脉瘤夹闭术后首次 CTA 复查时间为术后 2 周，之后分别在术后 3 个月、之后分别在 3 年、1 年和 1.5 年做复查。
+
+如果术后出现头痛加重或意识变化，立即安排 CT 排除再出血。</div>
+    </div>
+
+    <!-- Meta -->
+    <div class="detail-section">
+      <div class="detail-section-title">信息</div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; font-size:13px; color:#666">
+        <span>来源：<b>手动添加</b></span>
+        <span>分类：<b>诊断</b></span>
+        <span>创建：<b>3月12日</b></span>
+      </div>
+    </div>
+
+    <div style="padding:16px; display:flex; gap:8px">
+      <button style="flex:1; padding:10px; border:1px solid #e8e8e8; border-radius:8px; background:#fff; font-size:14px; color:#666; cursor:pointer">归档</button>
+      <button style="flex:2; padding:10px; border:none; border-radius:8px; background:#07C160; color:#fff; font-size:14px; font-weight:600; cursor:pointer">编辑规则</button>
+    </div>
+
+    <div class="bottom-spacer"></div>
+  </div>
+</div>
+
+<script>
+function switchTab(el, panelId) {
+  document.querySelectorAll('.seg-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('#tab-summary, #tab-all, #tab-pending').forEach(p => p.style.display = 'none');
+  document.getElementById(panelId).style.display = 'block';
+}
+function openDetail(id) {
+  document.getElementById('detailOverlay').classList.add('open');
+}
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('open');
+}
+</script>
+
+</body>
+</html>

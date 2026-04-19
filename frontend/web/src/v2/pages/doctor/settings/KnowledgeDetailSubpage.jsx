@@ -5,14 +5,17 @@
  * antd-mobile only, no MUI.
  */
 import { useCallback, useEffect, useState } from "react";
-import { NavBar, Button, TextArea, SpinLoading, Dialog, Toast, Tag } from "antd-mobile";
+import { NavBar, Button, TextArea, Dialog, Toast, Tag, Grid } from "antd-mobile";
 import { DeleteOutline } from "antd-mobile-icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
+import { useRuleHealth, useKnowledgeUsage } from "../../../../lib/doctorQueries";
 import { APP, FONT, RADIUS, CATEGORY_COLORS as THEME_CATEGORY_COLORS } from "../../../theme";
+import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
+import { LoadingCenter, ActionFooter } from "../../../components";
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -39,6 +42,9 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
   const api = useApi();
   const queryClient = useQueryClient();
   const { doctorId } = useDoctorStore();
+
+  const { data: ruleHealth } = useRuleHealth(itemId);
+  const { data: usageData } = useKnowledgeUsage(itemId);
 
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -117,15 +123,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
   // Edit mode
   if (editing) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          height: "100%",
-          backgroundColor: APP.surfaceAlt,
-          overflow: "hidden",
-        }}
-      >
+      <div style={pageContainer}>
         <NavBar
           onBack={() => setEditing(false)}
           right={
@@ -133,17 +131,12 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
               保存
             </Button>
           }
-          style={{
-            "--height": "44px",
-            "--border-bottom": `0.5px solid ${APP.border}`,
-            backgroundColor: APP.surface,
-            flexShrink: 0,
-          }}
+          style={navBarStyle}
         >
           编辑知识
         </NavBar>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+        <div style={{ ...scrollable, padding: "16px" }}>
           <TextArea
             value={editText}
             onChange={setEditText}
@@ -160,38 +153,20 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
           />
         </div>
 
-        <div
-          style={{
-            padding: "12px 16px",
-            paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))",
-            backgroundColor: APP.surface,
-            borderTop: `0.5px solid ${APP.border}`,
-            display: "flex",
-            gap: 8,
-            flexShrink: 0,
-          }}
-        >
+        <ActionFooter>
           <Button fill="outline" block onClick={() => setEditing(false)} disabled={saving}>
             取消
           </Button>
           <Button color="primary" block loading={saving} disabled={!editText.trim()} onClick={handleSaveEdit}>
             保存
           </Button>
-        </div>
+        </ActionFooter>
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        backgroundColor: APP.surfaceAlt,
-        overflow: "hidden",
-      }}
-    >
+    <div style={pageContainer}>
       <NavBar
         onBack={() => navigate(-1)}
         right={
@@ -207,22 +182,13 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
             </Button>
           ) : null
         }
-        style={{
-          "--height": "44px",
-          "--border-bottom": `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-        }}
+        style={navBarStyle}
       >
         知识详情
       </NavBar>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        {loading && (
-          <div style={{ display: "flex", justifyContent: "center", paddingTop: 48 }}>
-            <SpinLoading color="primary" />
-          </div>
-        )}
+      <div style={scrollable}>
+        {loading && <LoadingCenter />}
 
         {!loading && !item && (
           <div style={{ textAlign: "center", paddingTop: 64, color: APP.text4, fontSize: FONT.base }}>
@@ -232,6 +198,106 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
 
         {!loading && item && (
           <>
+            {/* AI 使用情况 card */}
+            <div
+              style={{
+                backgroundColor: APP.surface,
+                borderBottom: `0.5px solid ${APP.border}`,
+                padding: "16px 16px 12px",
+                marginBottom: 8,
+              }}
+            >
+              <div style={{ fontSize: FONT.sm, fontWeight: 600, color: APP.text3, marginBottom: 12 }}>
+                AI 使用情况
+              </div>
+
+              {/* Stats grid — 5 columns */}
+              <Grid columns={5} gap={0} style={{ marginBottom: 12 }}>
+                {[
+                  {
+                    label: "总引用",
+                    value: ruleHealth?.cited_count ?? "—",
+                    color: APP.text1,
+                  },
+                  {
+                    label: "近30天",
+                    value: ruleHealth?.last_30_days?.cited_count ?? "—",
+                    color: APP.text1,
+                  },
+                  {
+                    label: "被接受",
+                    value: ruleHealth?.accepted_count ?? "—",
+                    color: APP.success,
+                  },
+                  {
+                    label: "被修改",
+                    value: ruleHealth?.edited_count ?? "—",
+                    color: APP.warning,
+                  },
+                  {
+                    label: "被拒绝",
+                    value: ruleHealth?.rejected_count ?? "—",
+                    color: APP.danger,
+                  },
+                ].map(({ label, value, color }) => (
+                  <Grid.Item key={label}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                      <span style={{ fontSize: 22, fontWeight: 700, color, lineHeight: 1.2 }}>
+                        {value}
+                      </span>
+                      <span style={{ fontSize: FONT.xs, color: APP.text4 }}>{label}</span>
+                    </div>
+                  </Grid.Item>
+                ))}
+              </Grid>
+
+              {/* Recent patient chips */}
+              {(() => {
+                const recentUsage = usageData?.usage ?? [];
+                if (recentUsage.length === 0) {
+                  return (
+                    <div style={{ fontSize: FONT.sm, color: APP.text4 }}>暂无引用记录</div>
+                  );
+                }
+                return (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      overflowX: "auto",
+                      paddingBottom: 2,
+                      WebkitOverflowScrolling: "touch",
+                    }}
+                  >
+                    {recentUsage.slice(0, 5).map((usage, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => navigate(`/doctor/patients/${usage.patient_id}`)}
+                        style={{
+                          flexShrink: 0,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          padding: "4px 10px",
+                          borderRadius: RADIUS.pill,
+                          backgroundColor: APP.surfaceAlt,
+                          fontSize: FONT.sm,
+                          color: APP.text2,
+                          cursor: "pointer",
+                          border: `0.5px solid ${APP.border}`,
+                          minHeight: 28,
+                        }}
+                      >
+                        {usage.patient_name || "患者"}
+                        {usage.used_at
+                          ? ` · ${formatDate(usage.used_at)}`
+                          : ""}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* Content card */}
             <div
               style={{
@@ -307,17 +373,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
 
       {/* Bottom action bar */}
       {!loading && item && (
-        <div
-          style={{
-            padding: "12px 16px",
-            paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))",
-            backgroundColor: APP.surface,
-            borderTop: `0.5px solid ${APP.border}`,
-            display: "flex",
-            gap: 8,
-            flexShrink: 0,
-          }}
-        >
+        <ActionFooter>
           {item.category !== "persona" && (
             <Button
               fill="outline"
@@ -335,7 +391,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
           >
             编辑
           </Button>
-        </div>
+        </ActionFooter>
       )}
     </div>
   );

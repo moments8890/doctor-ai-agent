@@ -113,6 +113,8 @@ def _serialize_patient_item(p, count_map: dict, triage_map: Optional[dict] = Non
         "year_of_birth": p.year_of_birth, "created_at": _fmt_ts(p.created_at),
         "last_activity_at": _fmt_ts(getattr(p, "last_activity_at", None)),
         "record_count": int(count_map.get(p.id, 0)),
+        "ai_summary": getattr(p, "ai_summary", None),
+        "ai_summary_at": _fmt_ts(getattr(p, "ai_summary_at", None)),
     }
     if triage_map:
         d["latest_triage_category"] = triage_map.get(p.id)

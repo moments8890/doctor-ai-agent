@@ -32,6 +32,7 @@ import AppButton from "../../components/AppButton";
 import BarButton from "../../components/BarButton";
 import { TYPE, COLOR, RADIUS } from "../../theme";
 import { FIELD_LABELS, PAGE_LAYOUT } from "./constants";
+import { useScrollOnKeyboard, useAutoGrow } from "../../hooks/useKeyboardSafeArea";
 
 export default function InterviewPage({ token, onBack, onLogout, initialSuggestions }) {
   const { interviewStart, interviewTurn, interviewConfirm, interviewCancel } = usePatientApi();
@@ -58,7 +59,9 @@ export default function InterviewPage({ token, onBack, onLogout, initialSuggesti
   const [reviewHintShown, setReviewHintShown] = useState(false);
   const [voiceHint, setVoiceHint] = useState(false);
   const chatEndRef = useRef(null);
+  useScrollOnKeyboard(chatEndRef);
   const inputRef = useRef(null);
+  useAutoGrow(inputRef, input);
   const canSupplement = reviewReady && status !== "confirmed";
   const canInput = status === "interviewing" || canSupplement;
 
@@ -239,11 +242,13 @@ export default function InterviewPage({ token, onBack, onLogout, initialSuggesti
                 </Box>
               </Box>
             ))}
-            <Box component="input" ref={inputRef} value={input}
+            <Box component="textarea" ref={inputRef} value={input} rows={1}
               onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(e); } }}
               placeholder={selectedSuggestions.length > 0 ? "" : "请输入…"}
               sx={{ flex: 1, minWidth: 60, border: "none", outline: "none",
-                fontSize: TYPE.body.fontSize, fontFamily: "inherit", bgcolor: "transparent", p: 0.5 }}
+                fontSize: TYPE.body.fontSize, fontFamily: "inherit", bgcolor: "transparent", p: 0.5,
+                resize: "none", lineHeight: 1.7 }}
             />
           </Box>
           <IconButton type="submit" disabled={(!input.trim() && selectedSuggestions.length === 0) || sending}

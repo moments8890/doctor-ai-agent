@@ -5,12 +5,13 @@
  * antd-mobile only, no MUI.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { NavBar, Button, Dialog, SpinLoading, Toast } from "antd-mobile";
+import { NavBar, Button, Dialog, List, SpinLoading, Toast } from "antd-mobile";
 import { FileOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../../theme";
+import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 
 const STANDARD_TEMPLATE_FIELDS = [
   { key: "department", label: "科别", desc: "就诊科室名称" },
@@ -123,138 +124,80 @@ export default function TemplateSubpage() {
   }
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: APP.surfaceAlt, overflow: "hidden" }}>
+    <div style={pageContainer}>
       <NavBar
         onBack={() => navigate(-1)}
-        style={{
-          "--height": "44px",
-          "--border-bottom": `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-        }}
+        style={navBarStyle}
       >
         报告模板
       </NavBar>
 
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={scrollable}>
         {/* Section: 当前模板 */}
-        <div style={{ padding: "8px 16px 4px", fontSize: "var(--adm-font-size-xs)", color: APP.text4 }}>
-          当前模板
-        </div>
-
-        <div style={{ background: APP.surface, margin: "0 0 1px", padding: "14px 16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {/* Icon */}
-            <div style={{
-              width: 44, height: 44, borderRadius: RADIUS.sm,
-              background: APP.primaryLight,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0,
-            }}>
-              <FileOutline style={{ fontSize: 20, color: APP.primary }} />
-            </div>
-
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: "var(--adm-font-size-main)", fontWeight: 500, color: APP.text1 }}>
-                门诊病历报告模板
-              </div>
-              {loading ? (
-                <div style={{ fontSize: "var(--adm-font-size-sm)", color: APP.text4, marginTop: 2 }}>
-                  加载中…
-                </div>
-              ) : status?.has_template ? (
-                <div style={{ fontSize: "var(--adm-font-size-sm)", color: APP.text4, marginTop: 2 }}>
-                  已上传自定义模板（{status.char_count?.toLocaleString()} 字符）
-                </div>
-              ) : (
-                <div
-                  onClick={showDefaultPreview}
-                  style={{ fontSize: FONT.sm, color: APP.accent, marginTop: 2, cursor: "pointer" }}
-                >
-                  使用国家卫生部 2010 年标准格式 ›
-                </div>
-              )}
-            </div>
-
-            {status?.has_template && (
+        <List header="当前模板">
+          <List.Item
+            prefix={
               <div style={{
-                padding: "3px 8px",
-                borderRadius: RADIUS.sm,
+                width: 44, height: 44, borderRadius: RADIUS.sm,
                 background: APP.primaryLight,
-                fontSize: FONT.xs,
-                color: APP.primary,
-                fontWeight: 600,
-                flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                已自定义
+                <FileOutline style={{ fontSize: 20, color: APP.primary }} />
               </div>
-            )}
-          </div>
-        </div>
+            }
+            description={
+              loading ? "加载中…" : status?.has_template
+                ? `已上传自定义模板（${status.char_count?.toLocaleString()} 字符）`
+                : <span onClick={showDefaultPreview} style={{ color: APP.primary, cursor: "pointer" }}>使用国家卫生部 2010 年标准格式 ›</span>
+            }
+            extra={
+              status?.has_template ? (
+                <div style={{
+                  padding: "3px 8px",
+                  borderRadius: RADIUS.sm,
+                  background: APP.primaryLight,
+                  fontSize: FONT.xs,
+                  color: APP.primary,
+                  fontWeight: 600,
+                }}>
+                  已自定义
+                </div>
+              ) : null
+            }
+          >
+            门诊病历报告模板
+          </List.Item>
+        </List>
 
         {/* Section: 操作 */}
-        <div style={{ padding: "8px 16px 4px", fontSize: "var(--adm-font-size-xs)", color: APP.text4 }}>
-          操作
-        </div>
-
-        <div style={{ background: APP.surface }}>
+        <List header="操作">
           {/* Upload row */}
-          <div
+          <List.Item
+            arrow
+            prefix={uploading ? <SpinLoading color="primary" style={{ "--size": "18px" }} /> : null}
             onClick={() => !uploading && fileRef.current?.click()}
-            style={{
-              display: "flex", alignItems: "center",
-              padding: "14px 16px",
-              borderBottom: status?.has_template ? `0.5px solid ${APP.borderLight}` : "none",
-              cursor: uploading ? "default" : "pointer",
-            }}
+            style={{ "--title-font-size": "var(--adm-font-size-main)", color: uploading ? APP.text4 : APP.primary }}
           >
-            {uploading ? (
-              <SpinLoading color="primary" style={{ "--size": "18px", marginRight: 12 }} />
-            ) : (
-              <div style={{ width: 18, marginRight: 12 }} />
-            )}
-            <span style={{
-              flex: 1,
-              fontSize: "var(--adm-font-size-main)",
-              color: uploading ? APP.text4 : APP.primary,
-              fontWeight: 500,
-            }}>
+            <span style={{ color: uploading ? APP.text4 : APP.primary, fontWeight: 500 }}>
               {uploading ? "上传中…" : status?.has_template ? "替换模板文件" : "上传模板文件"}
             </span>
-            <span style={{ fontSize: FONT.sm, color: APP.text4 }}>›</span>
-          </div>
+          </List.Item>
 
           {/* Delete row */}
           {status?.has_template && (
-            <div
+            <List.Item
               onClick={!deleting ? confirmDelete : undefined}
-              style={{
-                display: "flex", alignItems: "center",
-                padding: "14px 16px",
-                cursor: deleting ? "default" : "pointer",
-              }}
+              prefix={deleting ? <SpinLoading color="danger" style={{ "--size": "18px" }} /> : null}
             >
-              {deleting ? (
-                <SpinLoading color="danger" style={{ "--size": "18px", marginRight: 12 }} />
-              ) : (
-                <div style={{ width: 18, marginRight: 12 }} />
-              )}
-              <span style={{
-                flex: 1,
-                fontSize: "var(--adm-font-size-main)",
-                color: deleting ? APP.text4 : APP.danger,
-              }}>
+              <span style={{ color: deleting ? APP.text4 : APP.danger }}>
                 {deleting ? "删除中…" : "删除模板，恢复默认"}
               </span>
-            </div>
+            </List.Item>
           )}
-        </div>
+        </List>
 
         {/* Hint */}
-        <div style={{ padding: "12px 16px", fontSize: "var(--adm-font-size-xs)", color: APP.text4, lineHeight: 1.8 }}>
-          支持格式：PDF、DOCX、DOC、TXT、JPG、PNG，最大 1 MB。{"\n"}
-          上传后，AI 生成门诊病历报告时将参照您的格式。
-        </div>
+        <List footer="支持格式：PDF、DOCX、DOC、TXT、JPG、PNG，最大 1 MB。上传后，AI 生成门诊病历报告时将参照您的格式。" />
 
         <input
           ref={fileRef}

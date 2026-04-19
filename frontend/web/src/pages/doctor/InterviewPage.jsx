@@ -10,7 +10,7 @@ import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import { useApi } from "../../api/ApiContext";
 import { useAppNavigate } from "../../hooks/useAppNavigate";
-import { KEYBOARD_AWARE_CONTAINER } from "../../hooks/useKeyboardSafeArea";
+import { KEYBOARD_AWARE_CONTAINER, useScrollOnKeyboard, useAutoGrow } from "../../hooks/useKeyboardSafeArea";
 import SubpageHeader from "../../components/SubpageHeader";
 import HelpTip from "../../components/HelpTip";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -108,6 +108,8 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
   const inputRef = useRef(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useScrollOnKeyboard(bottomRef);
+  useAutoGrow(inputRef, input);
   // Don't auto-focus on mobile — opening the keyboard pushes the viewport in web-view
 
   // Resume existing session from chat — load collected data and show progress
@@ -463,13 +465,13 @@ export default function InterviewPage({ doctorId, sessionId: resumeSessionId, pa
                 </Box>
               </Box>
             ))}
-            <Box component="input" ref={inputRef} value={input}
+            <Box component="textarea" ref={inputRef} value={input} rows={1}
               onChange={e => { if (!voiceActive) setInput(e.target.value); }}
               onKeyDown={handleKeyDown}
               disabled={loading || voiceActive}
               placeholder={selectedSuggestions.length > 0 ? "" : (voiceActive ? "正在识别…" : "输入患者信息...")}
               sx={{ flex: 1, minWidth: 60, border: "none", outline: "none", fontSize: TYPE.body.fontSize,
-                fontFamily: "inherit", bgcolor: "transparent", p: 0.5 }}
+                fontFamily: "inherit", bgcolor: "transparent", p: 0.5, resize: "none", lineHeight: 1.7 }}
             />
           </Box>
           {/* Action panel toggle */}

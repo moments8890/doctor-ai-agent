@@ -7,9 +7,10 @@
  *
  * InterviewPage overlay: rendered when path is /doctor/patients/new
  */
-import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { NavBar, SafeArea, TabBar } from "antd-mobile";
+import { useState, useCallback, useRef } from "react";
+import { useLocation, useNavigate, Navigate } from "react-router-dom";
+import { usePageStack } from "../../usePageStack";
+import { NavBar, SafeArea, TabBar, Button } from "antd-mobile";
 import InterviewPage from "./InterviewPage";
 import MyAIPage from "./MyAIPage";
 import PatientsPage from "./PatientsPage";
@@ -24,7 +25,6 @@ import KnowledgeSubpage from "./settings/KnowledgeSubpage";
 import AddKnowledgeSubpage from "./settings/AddKnowledgeSubpage";
 import KnowledgeDetailSubpage from "./settings/KnowledgeDetailSubpage";
 import SettingsListSubpage from "./settings/SettingsListSubpage";
-import KbPendingSubpage from "./settings/KbPendingSubpage";
 import TaskDetailSubpage from "./settings/TaskDetailSubpage";
 import AboutSubpage from "./settings/AboutSubpage";
 import TeachByExampleSubpage from "./settings/TeachByExampleSubpage";
@@ -33,12 +33,17 @@ import PendingReviewSubpage from "./settings/PendingReviewSubpage";
 import PersonaOnboardingSubpage from "./settings/PersonaOnboardingSubpage";
 import TemplateSubpage from "./settings/TemplateSubpage";
 import {
-  MessageOutline,
+  AppOutline,
   TeamOutline,
+  TeamFill,
   CheckShieldOutline,
-  FileOutline,
+  CheckShieldFill,
+  ClockCircleOutline,
+  ClockCircleFill,
+  AddCircleOutline,
 } from "antd-mobile-icons";
 import { APP, FONT } from "../../theme";
+import { useDoctorStore } from "../../../store/doctorStore";
 
 // ── Tab config ─────────────────────────────────────────────────────
 
@@ -46,7 +51,8 @@ const TABS = [
   {
     key: "my-ai",
     label: "我的AI",
-    icon: <MessageOutline />,
+    icon: <AppOutline />,
+    activeIcon: <AppOutline />,
     path: "/doctor/my-ai",
     title: "我的AI",
   },
@@ -54,6 +60,7 @@ const TABS = [
     key: "patients",
     label: "患者",
     icon: <TeamOutline />,
+    activeIcon: <TeamFill />,
     path: "/doctor/patients",
     title: "患者",
     badgeKey: "patients",
@@ -62,6 +69,7 @@ const TABS = [
     key: "review",
     label: "审核",
     icon: <CheckShieldOutline />,
+    activeIcon: <CheckShieldFill />,
     path: "/doctor/review",
     title: "审核",
     badgeKey: "review",
@@ -69,7 +77,8 @@ const TABS = [
   {
     key: "tasks",
     label: "随访",
-    icon: <FileOutline />,
+    icon: <ClockCircleOutline />,
+    activeIcon: <ClockCircleFill />,
     path: "/doctor/tasks",
     title: "随访",
     badgeKey: "tasks",
@@ -111,7 +120,9 @@ function SectionPlaceholder({ name }) {
 
 // ── Main shell ─────────────────────────────────────────────────────
 
-export default function DoctorPage({ doctorId, onLogout }) {
+export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
+  const { doctorId: storeDoctorId } = useDoctorStore();
+  const doctorId = propDoctorId || storeDoctorId;
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -170,25 +181,87 @@ export default function DoctorPage({ doctorId, onLogout }) {
   })();
   const settingsActive = !!settingsMatch;
 
-  // Full-screen overlays hide NavBar/TabBar
-  const fullScreenActive =
-    interviewActive ||
-    !!patientDetailMatch ||
-    !!reviewDetailMatch ||
-    !!taskDetailMatch ||
-    settingsActive;
+  // Derive a unique route key for overlay subpages (null = tab root, no overlay)
+  const overlayRouteKey = (() => {
+    if (interviewActive) return "interview";
+    if (patientDetailMatch) {
+      // Tab changes within patient detail use ?view= with replace — same overlay key
+      return `patient-${patientDetailMatch}`;
+    }
+    if (reviewDetailMatch) return `review-${reviewDetailMatch}`;
+    if (taskDetailMatch) return `task-${taskDetailMatch}`;
+    if (settingsActive) {
+      const { sub, sub2 } = settingsMatch;
+      return `settings-${sub || "main"}${sub2 ? `-${sub2}` : ""}`;
+    }
+    return null;
+  })();
+
+  // Freeze the base tab content when an overlay is active/animating.
+  // This prevents the tab underneath from switching (e.g., tasks → patients list)
+  // while the overlay page slides in on top.
+  const frozenSectionRef = useRef(activeSection);
+  if (!overlayRouteKey) {
+    frozenSectionRef.current = activeSection;
+  }
+  const baseSection = frozenSectionRef.current;
+
+  // Render function for page stack — creates content for a given route key.
+  // useCallback ensures stable reference so the stack doesn't re-render entries.
+  const renderContent = useCallback((key) => {
+    if (key === "interview") {
+      return (
+        <InterviewPage
+          doctorId={doctorId}
+          onComplete={() => navigate("/doctor/patients", { replace: true })}
+          onCancel={() => navigate("/doctor/patients", { replace: true })}
+        />
+      );
+    }
+    if (key.startsWith("patient-")) {
+      const id = key.replace("patient-", "");
+      return <PatientDetail patientId={id} />;
+    }
+    if (key.startsWith("review-")) {
+      return <ReviewPage recordId={key.replace("review-", "")} />;
+    }
+    if (key.startsWith("task-")) {
+      return <TaskDetailSubpage taskId={key.replace("task-", "")} />;
+    }
+    if (key.startsWith("settings-")) {
+      const parts = key.replace("settings-", "").split("-");
+      const sub = parts[0];
+      const sub2 = parts[1];
+      if (sub === "persona" && sub2 === "pending") return <PendingReviewSubpage />;
+      if (sub === "persona" && sub2 === "teach") return <TeachByExampleSubpage />;
+      if (sub === "persona" && sub2 === "onboarding") return <PersonaOnboardingSubpage />;
+      if (sub === "persona") return <PersonaSubpage />;
+      if (sub === "knowledge" && (sub2 === "add" || sub2 === "new")) return <AddKnowledgeSubpage />;
+      // Legacy redirect — pending rules now live inside the Knowledge tab (?tab=pending).
+      if (sub === "knowledge" && sub2 === "pending") {
+        return <Navigate to="/doctor/settings/knowledge?tab=pending" replace />;
+      }
+      if (sub === "knowledge" && sub2) return <KnowledgeDetailSubpage itemId={sub2} />;
+      if (sub === "knowledge") return <KnowledgeSubpage />;
+      if (sub === "preferences") return <SettingsListSubpage onLogout={onLogout} />;
+      if (sub === "about") return <AboutSubpage />;
+      if (sub === "teach") return <TeachByExampleSubpage />;
+      if (sub === "review") return <ReviewSubpage />;
+      if (sub === "pending") return <PendingReviewSubpage />;
+      if (sub === "persona") return <PersonaOnboardingSubpage />;
+      if (sub === "template" || sub === "templates") return <TemplateSubpage />;
+      if (sub === "qr") return <div style={{ padding: 24 }}>QR Code — TODO</div>;
+      return <SettingsPage />;
+    }
+    return null;
+  }, [doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Page stack — keeps previous pages mounted when navigating deeper
+  const { stackEntries } = usePageStack(overlayRouteKey, renderContent);
 
   function handleTabChange(key) {
     const tab = TABS.find((t) => t.key === key);
     if (tab) navigate(tab.path, { replace: true });
-  }
-
-  function handleInterviewComplete() {
-    navigate("/doctor/patients", { replace: true });
-  }
-
-  function handleInterviewCancel() {
-    navigate("/doctor/patients", { replace: true });
   }
 
   return (
@@ -205,114 +278,103 @@ export default function DoctorPage({ doctorId, onLogout }) {
       {/* Safe area top */}
       <SafeArea position="top" />
 
-      {/* Top NavBar — hidden when full-screen overlays are active */}
-      {!fullScreenActive && (
-        <NavBar
+      {/* Top NavBar — hidden when stack active to prevent flash-through */}
+      <NavBar
           backArrow={false}
+          right={
+            baseSection === "patients" ? (
+              <Button
+                fill="none"
+                color="primary"
+                size="small"
+                onClick={() => navigate("/doctor/patients/new")}
+                aria-label="新建病历"
+              >
+                <AddCircleOutline style={{ fontSize: 24 }} />
+              </Button>
+            ) : baseSection === "tasks" ? (
+              <Button
+                fill="none"
+                color="primary"
+                size="small"
+                onClick={() => navigate("/doctor/tasks?new=1", { replace: true })}
+                aria-label="新建任务"
+              >
+                <AddCircleOutline style={{ fontSize: 24 }} />
+              </Button>
+            ) : null
+          }
           style={{
             "--height": "44px",
             "--border-bottom": `0.5px solid ${APP.border}`,
             backgroundColor: APP.surface,
             flexShrink: 0,
+
           }}
         >
-          {activeTab.title}
+          {(TABS.find((t) => t.key === baseSection) || TABS[0]).title}
         </NavBar>
-      )}
 
       {/* Content area */}
       <div
         style={{
           flex: 1,
           overflow: "hidden",
-          position: "relative",
         }}
       >
-        {interviewActive ? (
-          /* Full-screen interview overlay (keyboard-aware, no TabBar) */
-          <InterviewPage
-            doctorId={doctorId}
-            onComplete={handleInterviewComplete}
-            onCancel={handleInterviewCancel}
-          />
-        ) : patientDetailMatch ? (
-          /* Full-screen patient detail or chat subpage (no TabBar) */
-          new URLSearchParams(location.search).get("view") === "chat" ? (
-            <PatientChatPage patientId={patientDetailMatch} />
-          ) : (
-            <PatientDetail patientId={patientDetailMatch} />
-          )
-        ) : reviewDetailMatch ? (
-          /* Full-screen review detail (no TabBar) */
-          <ReviewPage recordId={reviewDetailMatch} />
-        ) : taskDetailMatch ? (
-          /* Full-screen task detail (no TabBar) */
-          <TaskDetailSubpage taskId={taskDetailMatch} />
-        ) : settingsActive ? (
-          /* Settings subpages — full-screen, hide TabBar */
-          (() => {
-            const { sub, sub2 } = settingsMatch;
-            if (sub === "persona" && sub2 === "pending") return <PendingReviewSubpage />;
-            if (sub === "persona" && sub2 === "teach") return <TeachByExampleSubpage />;
-            if (sub === "persona" && sub2 === "onboarding") return <PersonaOnboardingSubpage />;
-            if (sub === "persona") return <PersonaSubpage />;
-            if (sub === "knowledge" && (sub2 === "add" || sub2 === "new")) return <AddKnowledgeSubpage />;
-            if (sub === "knowledge" && sub2 === "pending") return <KbPendingSubpage />;
-            if (sub === "knowledge" && sub2) return <KnowledgeDetailSubpage itemId={sub2} />;
-            if (sub === "knowledge") return <KnowledgeSubpage />;
-            if (sub === "preferences") return <SettingsListSubpage onLogout={onLogout} />;
-            if (sub === "about") return <AboutSubpage />;
-            if (sub === "teach") return <TeachByExampleSubpage />;
-            if (sub === "review") return <ReviewSubpage />;
-            if (sub === "pending-review") return <PendingReviewSubpage />;
-            if (sub === "persona-onboarding") return <PersonaOnboardingSubpage />;
-            if (sub === "template" || sub === "templates") return <TemplateSubpage />;
-            if (sub === "qr") return <div style={{ padding: 24 }}>QR Code — TODO</div>;
-            // /doctor/settings → main list
-            return <SettingsPage />;
-          })()
-        ) : activeSection === "my-ai" ? (
+        {/* Tab content — uses frozen section when overlay is active to prevent
+            the base tab from switching while a subpage slides in on top */}
+        {baseSection === "my-ai" ? (
           <MyAIPage doctorId={doctorId} />
-        ) : activeSection === "patients" ? (
+        ) : baseSection === "patients" ? (
           <PatientsPage />
-        ) : activeSection === "review" ? (
+        ) : baseSection === "review" ? (
           <ReviewQueuePage />
-        ) : activeSection === "tasks" ? (
+        ) : baseSection === "tasks" ? (
           <TaskPage doctorId={doctorId} />
         ) : (
           <SectionPlaceholder name={activeTab.title} />
         )}
       </div>
 
-      {/* Bottom TabBar + SafeArea — hidden when full-screen overlays are active */}
-      {!fullScreenActive && (
-        <div style={{ backgroundColor: APP.surface, flexShrink: 0 }}>
-          <TabBar
-            activeKey={activeSection}
-            onChange={handleTabChange}
-            style={{
-              borderTop: `0.5px solid ${APP.border}`,
-              "--adm-color-primary": "var(--adm-color-primary)",
-            }}
-          >
-            {TABS.map((tab) => {
-              const badgeCount = tab.badgeKey ? (badges[tab.badgeKey] || 0) : 0;
-              return (
-                <TabBar.Item
-                  key={tab.key}
-                  icon={tab.icon}
-                  title={tab.label}
-                  badge={badgeCount > 0 ? badgeCount : undefined}
-                />
-              );
-            })}
-          </TabBar>
-          <SafeArea position="bottom" />
+      {/* Page stack — positioned over the ENTIRE page (covers NavBar + TabBar) */}
+      {stackEntries.map((entry) => (
+        <div key={entry.key} style={entry.style}>
+          {entry.content}
         </div>
-      )}
+      ))}
 
-      {/* Safe area bottom for full-screen subpages */}
-      {fullScreenActive && <SafeArea position="bottom" />}
+      {/* Bottom TabBar — hidden when stack active */}
+      <div style={{ backgroundColor: APP.surface, flexShrink: 0 }} className="doctor-tabbar-wrap">
+        <style>{`
+          .doctor-tabbar-wrap .adm-tab-bar-item-active .adm-tab-bar-item-icon,
+          .doctor-tabbar-wrap .adm-tab-bar-item-active .adm-tab-bar-item-title {
+            color: ${APP.primary} !important;
+          }
+        `}</style>
+        <TabBar
+          safeArea
+          activeKey={baseSection}
+          onChange={handleTabChange}
+          style={{
+            borderTop: `0.5px solid ${APP.border}`,
+            "--adm-color-primary": APP.primary,
+          }}
+        >
+          {TABS.map((tab) => {
+            const badgeCount = tab.badgeKey ? (badges[tab.badgeKey] || 0) : 0;
+            const isActive = baseSection === tab.key;
+            return (
+              <TabBar.Item
+                key={tab.key}
+                icon={isActive ? tab.activeIcon : tab.icon}
+                title={tab.label}
+                badge={badgeCount > 0 ? badgeCount : undefined}
+              />
+            );
+          })}
+        </TabBar>
+      </div>
     </div>
   );
 }

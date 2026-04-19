@@ -3,8 +3,17 @@
  * Activated via VITE_USE_V2=true.
  */
 import { lazy, Suspense, useEffect, useState } from "react";
+import { createRoot } from "react-dom/client";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { ConfigProvider } from "antd-mobile";
+import { ConfigProvider, unstableSetRender } from "antd-mobile";
+
+// React 19 compatibility — antd-mobile v5 uses ReactDOM.render internally
+// for imperative APIs (Dialog.confirm, Toast.show). This shim uses createRoot.
+unstableSetRender((node, container) => {
+  const root = createRoot(container);
+  root.render(node);
+  return () => root.unmount();
+});
 import { QueryClientProvider } from "@tanstack/react-query";
 import {
   onAuthExpired,
@@ -112,13 +121,13 @@ export default function App() {
   // Init antd-mobile theme on mount
   useEffect(() => {
     const fontScale = useFontScaleStore.getState().fontScale;
-    initTheme(fontScale || "large");
+    initTheme(fontScale || "standard");
   }, []);
 
   // Apply font scale whenever it changes
   useEffect(() => {
     return useFontScaleStore.subscribe((state) => {
-      applyFontScale(state.fontScale || "large");
+      applyFontScale(state.fontScale || "standard");
     });
   }, []);
 
@@ -262,16 +271,19 @@ export default function App() {
                 </MobileFrame>
               }
             />
-            <Route
-              path="/patient/*"
-              element={
-                <MobileFrame>
-                  <PatientApiProvider>
-                    <PatientPage />
-                  </PatientApiProvider>
-                </MobileFrame>
-              }
-            />
+            {["", "/:tab", "/:tab/:subpage"].map((suffix) => (
+              <Route
+                key={`/patient${suffix}`}
+                path={`/patient${suffix}`}
+                element={
+                  <MobileFrame>
+                    <PatientApiProvider>
+                      <PatientPage />
+                    </PatientApiProvider>
+                  </MobileFrame>
+                }
+              />
+            ))}
             <Route
               path="/privacy"
               element={

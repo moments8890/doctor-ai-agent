@@ -17,4 +17,6 @@ export const QK = {
   kbHallucinations: (did, days) => ["doctor", did, "kb-hallucinations", days],
   ruleHealth:       (did, itemId) => ["doctor", did, "rule-health", itemId],
   todaySummary:   (did) => ["doctor", did, "todaySummary"],
+  knowledgeStats: (did, days) => ["doctor", did, "knowledgeStats", days],
+  knowledgeUsage: (did, itemId) => ["doctor", did, "knowledgeUsage", itemId],
 };

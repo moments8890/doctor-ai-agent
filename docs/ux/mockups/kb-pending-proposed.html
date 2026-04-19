@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>待采纳的临床规则 — Proposed</title>
+  <style>
+    :root {
+      --primary: #07C160;
+      --primary-light: #e7f8ee;
+      --warning: #FFC300;
+      --warning-light: #fff8e0;
+      --danger: #FA5151;
+      --accent: #576B95;
+      --text1: #1A1A1A;
+      --text2: #333;
+      --text3: #666;
+      --text4: #999;
+      --surface: #fff;
+      --surface-alt: #f7f7f7;
+      --border: #eee;
+      --border-light: #f0f0f0;
+      --font-xs: 11px;
+      --font-sm: 13px;
+      --font-base: 15px;
+      --font-md: 17px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+        "Helvetica Neue", Arial, sans-serif;
+      color: var(--text1);
+      background: #000;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap {
+      display: flex; gap: 32px; flex-wrap: wrap;
+      padding: 24px; justify-content: center;
+      background: #111; min-height: 100vh;
+    }
+    .label {
+      color: #888; font-size: 12px; text-align: center;
+      margin-top: 8px; letter-spacing: 0.5px;
+    }
+    .phone {
+      width: 390px; min-height: 800px;
+      background: var(--surface-alt);
+      border-radius: 36px; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      display: flex; flex-direction: column;
+      font-size: var(--font-base);
+    }
+
+    /* NavBar */
+    .navbar {
+      height: 44px; background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: center; padding: 0 8px;
+      flex-shrink: 0;
+    }
+    .nav-back {
+      width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text2);
+    }
+    .nav-title { flex: 1; text-align: center; font-size: var(--font-md); font-weight: 600; }
+    .nav-right { width: 40px; }
+
+    /* Sort bar */
+    .sort-bar {
+      padding: 10px 16px;
+      font-size: var(--font-sm);
+      color: var(--text4);
+      display: flex; align-items: center; gap: 6px;
+      background: var(--surface-alt);
+    }
+    .sort-bar .count { color: var(--text2); font-weight: 500; }
+
+    /* Content */
+    .content {
+      padding: 0 12px 24px;
+      flex: 1;
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 14px 14px 12px;
+      margin-bottom: 12px;
+      border: 0.5px solid var(--border);
+    }
+    .card-head {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 8px;
+    }
+    .chip {
+      font-size: var(--font-xs);
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 500;
+    }
+    .chip.medication { background: #e8f0fe; color: #1B6EF3; }
+    .chip.followup   { background: #fff3e0; color: #E67E22; }
+    .chip.custom     { background: #f3f0ff; color: #7C3AED; }
+
+    .conf {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: var(--font-xs);
+      color: var(--text4);
+    }
+    .conf-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .conf-dot.high   { background: var(--primary); }
+    .conf-dot.medium { background: var(--warning); }
+    .conf-dot.low    { background: #ccc; }
+
+    .rule {
+      font-size: var(--font-md);
+      color: var(--text1);
+      line-height: 1.55;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .evidence {
+      display: flex; align-items: center; gap: 6px;
+      font-size: var(--font-sm);
+      color: var(--text3);
+      line-height: 1.5;
+      margin-bottom: 12px;
+      padding: 8px 10px;
+      background: var(--surface-alt);
+      border-radius: 6px;
+    }
+    .evidence-link {
+      flex-shrink: 0;
+      font-size: var(--font-xs);
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: auto;
+      cursor: pointer;
+    }
+
+    .actions {
+      display: flex; gap: 8px;
+    }
+    .btn {
+      flex: 1;
+      padding: 9px 0;
+      text-align: center;
+      font-size: var(--font-base);
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .btn.secondary {
+      color: var(--text2);
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+    }
+    .btn.primary {
+      color: #fff;
+      background: var(--primary);
+    }
+
+    /* Annotation tags */
+    .anno { position: relative; }
+    .anno::before {
+      content: attr(data-tag);
+      position: absolute; left: -12px; top: 0;
+      transform: translateX(-100%);
+      background: #fffbdd; color: #8a6d00;
+      font-size: 11px; padding: 2px 6px; border-radius: 4px;
+      font-weight: 600; white-space: nowrap;
+    }
+
+    .note { max-width: 390px; color: #ccc; font-size: 13px; line-height: 1.6; }
+    .note h3 { color: #fff; margin-bottom: 8px; font-size: 15px; }
+    .note ul { margin-left: 16px; }
+    .note li { margin-bottom: 6px; }
+    .note .tag {
+      background: #fffbdd; color: #8a6d00;
+      font-size: 11px; padding: 1px 6px; border-radius: 4px;
+      font-weight: 600; margin-right: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div>
+      <div class="phone">
+        <!-- NavBar -->
+        <div class="navbar">
+          <div class="nav-back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </div>
+          <div class="nav-title">待采纳的规则</div>
+          <div class="nav-right"></div>
+        </div>
+
+        <!-- Sort / count bar -->
+        <div class="sort-bar anno" data-tag="(6)">
+          <span class="count">3 条待处理</span>
+          <span>· 按置信度排序</span>
+        </div>
+
+        <!-- Cards -->
+        <div class="content">
+
+          <!-- Card 1 — HIGH confidence, diagnosis -->
+          <div class="card anno" data-tag="(1)">
+            <div class="card-head">
+              <span class="chip">诊断</span>
+              <span class="conf anno" data-tag="(2)">
+                <span class="conf-dot high"></span>高置信
+              </span>
+            </div>
+            <div class="rule">
+              鞍区术后若有瘤者应在排除脑脊液漏之前不建议使用 NSAIDs（包括布洛芬），首选对乙酰氨基酚
+            </div>
+            <div class="evidence">
+              <span>你在张秀兰的诊断中修正过 3 次类似意见</span>
+              <span class="evidence-link anno" data-tag="(7)">查看诊断 ›</span>
+            </div>
+            <div class="actions anno" data-tag="(5)">
+              <button class="btn secondary">排除</button>
+              <button class="btn primary">采纳</button>
+            </div>
+          </div>
+
+          <!-- Card 2 — MEDIUM, medication -->
+          <div class="card">
+            <div class="card-head">
+              <span class="chip medication">用药</span>
+              <span class="conf">
+                <span class="conf-dot medium"></span>中置信
+              </span>
+            </div>
+            <div class="rule">
+              糖尿病患者合合并糖尿病患者慢 1–2 周，随严重压严格控制血糖至 7 mmol/L 以下
+            </div>
+            <div class="evidence">
+              <span>从 2 条近期回复中提取</span>
+              <span class="evidence-link">查看回复 ›</span>
+            </div>
+            <div class="actions">
+              <button class="btn secondary">排除</button>
+              <button class="btn primary">采纳</button>
+            </div>
+          </div>
+
+          <!-- Card 3 — MEDIUM, followup -->
+          <div class="card">
+            <div class="card-head">
+              <span class="chip followup">随访</span>
+              <span class="conf">
+                <span class="conf-dot medium"></span>中置信
+              </span>
+            </div>
+            <div class="rule">
+              服用氨氯地平的患者首次复查头痛或头晕加重时，警惕颅内动脉夹层；建议立即影像学检查
+            </div>
+            <div class="evidence">
+              <span>你在王五的诊断中修改过 1 次</span>
+              <span class="evidence-link">查看诊断 ›</span>
+            </div>
+            <div class="actions">
+              <button class="btn secondary">排除</button>
+              <button class="btn primary">采纳</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="label">Proposed — card-per-rule</div>
+    </div>
+
+    <!-- Notes -->
+    <div class="note">
+      <h3>What changed</h3>
+      <ul>
+        <li><span class="tag">1</span><b>Card per rule</b> — 12px grey gutter between. Each card is self-contained.</li>
+        <li><span class="tag">2</span><b>Confidence as a colored dot</b> + 2-char label (高/中/低) — no "置信度：medium" chip eating space.</li>
+        <li><span class="tag">3</span><b>Category chip uses category color</b> — 诊断 green, 用药 blue, 随访 orange, 通用 purple. Matches KnowledgeCard palette.</li>
+        <li><span class="tag">4</span><b>Evidence as a distinct block</b>, grey bg, with a green "查看诊断 ›" chip on the right when there's a source link.</li>
+        <li><span class="tag">5</span><b>Action row: 排除 left (grey outline) · 采纳 right (green)</b> — shorter labels, matches CLAUDE.md dialog convention.</li>
+        <li><span class="tag">6</span><b>Header bar</b> with count + sort hint ("按置信度排序"). High-confidence items rise to top so doctor handles obvious accepts first.</li>
+        <li><span class="tag">7</span><b>Evidence link is a chip</b>, not underlined text — matches app visual language.</li>
+      </ul>
+      <h3 style="margin-top: 16px">Why cards (not flat list)</h3>
+      <ul>
+        <li>Each item is a decision, not a row to scan — cards force the eye to process one at a time</li>
+        <li>Per-card buttons feel anchored, not floating</li>
+        <li>Content is variable-length — cards absorb short/long rules gracefully</li>
+        <li>Matches the Knowledge subpage pattern (知识库 uses cards)</li>
+      </ul>
+      <h3 style="margin-top: 16px">Optional (not in this pass)</h3>
+      <ul>
+        <li>Group cards by category with thin section labels</li>
+        <li>"全部采纳高置信度" bulk action at top — risky without user testing</li>
+        <li>Optimistic hide on 采纳 — card slides up + fades out before refetch</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

@@ -49,6 +49,18 @@ async def save_record(
             except Exception:
                 _log.warning("[save_record] failed to update last_activity_at | patient_id=%s", patient_id)
 
+        # Fire-and-forget AI summary regeneration (doesn't block record save).
+        # Runs in its own DB session so a slow LLM call doesn't hold this one.
+        if patient_id is not None:
+            try:
+                import asyncio
+                from domain.briefing.patient_summary_bg import (
+                    schedule_patient_summary_refresh,
+                )
+                asyncio.create_task(schedule_patient_summary_refresh(patient_id))
+            except Exception as e:  # noqa: BLE001
+                _log.warning("[save_record] failed to schedule ai_summary | %s", e)
+
         return db_record
 
 
