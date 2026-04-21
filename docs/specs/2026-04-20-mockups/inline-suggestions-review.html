@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>诊断审核 · 内联 AI 建议（对齐当前 UI）</title>
+  <style>
+    :root {
+      --surface: #ffffff;
+      --surface-alt: #f7f7f7;
+      --border: #eee;
+      --border-light: #f0f0f0;
+      --text-1: #1A1A1A;
+      --text-2: #333;
+      --text-3: #666;
+      --text-4: #999;
+      --primary: #07C160;
+      --primary-hover: #06ad56;
+      --primary-light: #e7f8ee;
+      --danger: #FA5151;
+      --warning: #FFC300;
+
+      --radius-xs: 4px;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+
+      --font-xs: 11px;
+      --font-sm: 13px;
+      --font-base: 15px;
+      --font-md: 17px;
+      --font-lg: 19px;
+
+      --font-family:
+        -apple-system, BlinkMacSystemFont, "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100%;
+      font-family: var(--font-family);
+      color: var(--text-1);
+      background: #f0f2f4;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body { padding: 24px; }
+    .page { max-width: 1400px; margin: 0 auto; }
+
+    .doc-head {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      margin-bottom: 20px;
+      max-width: 900px;
+    }
+
+    .doc-head .tag {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: var(--radius-xs);
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: var(--font-xs);
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .doc-head h1 {
+      font-size: var(--font-lg);
+      line-height: 1.3;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .doc-head p {
+      font-size: var(--font-sm);
+      line-height: 1.6;
+      color: var(--text-3);
+      max-width: 640px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 380px 380px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .phone-wrap { display: grid; gap: 8px; }
+
+    .phone-label {
+      font-size: var(--font-xs);
+      color: var(--text-3);
+      padding-left: 10px;
+      letter-spacing: 0.04em;
+    }
+
+    .phone {
+      width: 100%;
+      background: #eaedef;
+      border-radius: 36px;
+      border: 1px solid #d7dbde;
+      padding: 10px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    }
+
+    .screen {
+      height: 820px;
+      background: var(--surface-alt);
+      border-radius: 28px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .navbar {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .nav-back {
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: var(--text-2);
+      flex-shrink: 0;
+    }
+
+    .nav-title {
+      flex: 1;
+      text-align: center;
+      font-size: var(--font-md);
+      font-weight: 500;
+      color: var(--text-1);
+      padding-right: 32px;
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--surface-alt);
+    }
+
+    .banner {
+      background: var(--surface);
+      padding: 8px 14px;
+      margin: 6px 12px;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: var(--font-sm);
+      color: var(--text-3);
+      line-height: 1.5;
+    }
+
+    .banner b {
+      color: var(--text-1);
+      font-size: var(--font-base);
+      font-weight: 600;
+      display: block;
+      margin-bottom: 1px;
+    }
+
+    .list-header {
+      padding: 12px 16px 4px;
+      font-size: var(--font-xs);
+      color: var(--text-4);
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Summary card — label-left compact rows (matches RecordSummaryCard) ─ */
+    .summary-card {
+      background: var(--surface);
+      margin: 0 12px 6px;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+    }
+
+    .summary-row {
+      display: flex;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: var(--font-sm);
+      line-height: 1.55;
+    }
+
+    .summary-row + .summary-row {
+      border-top: 0.5px solid var(--border-light);
+    }
+
+    .summary-row .k {
+      min-width: 60px;
+      flex-shrink: 0;
+      color: var(--text-4);
+      font-weight: 500;
+    }
+
+    .summary-row .v {
+      flex: 1;
+      color: var(--text-2);
+      white-space: pre-wrap;
+    }
+
+    /* ── Field (AI-bearing) ─────────────────────────────────────────── */
+    .field {
+      background: var(--surface);
+      margin: 0 12px 6px;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .field-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px 4px;
+    }
+
+    .field-label {
+      font-size: var(--font-base);
+      font-weight: 600;
+      color: var(--text-1);
+    }
+
+    .field-meta {
+      font-size: var(--font-xs);
+      color: var(--text-4);
+    }
+
+    .textarea {
+      padding: 4px 14px 10px;
+      font-size: var(--font-sm);
+      line-height: 1.55;
+      color: var(--text-2);
+      min-height: 38px;
+      white-space: pre-wrap;
+    }
+
+    .textarea.empty {
+      color: var(--text-4);
+    }
+
+    .ai-row {
+      padding: 8px 14px 10px;
+      border-top: 0.5px solid var(--border-light);
+      background: var(--surface);
+    }
+
+    .ai-row + .ai-row {
+      border-top: 0.5px dashed var(--border);
+    }
+
+    .ai-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .ai-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    .ai-pill {
+      font-size: var(--font-xs);
+      color: var(--primary);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .ai-counter {
+      font-size: var(--font-xs);
+      color: var(--text-4);
+      margin-left: auto;
+    }
+
+    .ai-title {
+      font-size: var(--font-sm);
+      color: var(--text-2);
+      line-height: 1.55;
+      font-weight: 500;
+    }
+
+    .ai-detail {
+      font-size: var(--font-xs);
+      color: var(--text-4);
+      line-height: 1.55;
+      margin-top: 2px;
+    }
+
+    .ai-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .btn {
+      padding: 5px 14px;
+      border-radius: var(--radius-xs);
+      background: var(--primary);
+      color: #fff;
+      font-size: var(--font-sm);
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+
+    .btn.disabled {
+      background: var(--text-4);
+      cursor: not-allowed;
+    }
+
+    .ai-link {
+      font-size: var(--font-sm);
+      color: var(--primary);
+      font-weight: 500;
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .ai-link.muted { color: var(--text-3); }
+
+    .ai-accepted {
+      padding: 7px 14px;
+      border-top: 0.5px solid var(--border-light);
+      background: var(--primary-light);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: var(--font-sm);
+      line-height: 1.5;
+    }
+
+    .ai-accepted .check {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .ai-accepted .txt {
+      flex: 1;
+      color: var(--text-2);
+    }
+
+    .ai-accepted .txt b { color: var(--text-1); font-weight: 600; }
+
+    .ai-accepted .txt .edited-hint {
+      color: var(--text-4);
+      font-size: var(--font-xs);
+      font-weight: 400;
+      margin-left: 4px;
+    }
+
+    .ai-accepted .toggle {
+      font-size: var(--font-xs);
+      color: var(--text-4);
+      flex-shrink: 0;
+    }
+
+    .ai-empty {
+      padding: 7px 14px;
+      border-top: 0.5px solid var(--border-light);
+      background: var(--surface-alt);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: var(--font-sm);
+      color: var(--text-4);
+    }
+
+    .ai-empty .add-link {
+      margin-left: auto;
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    .custom-row {
+      display: flex;
+      gap: 8px;
+      margin: 6px 12px 12px;
+    }
+
+    .custom-btn {
+      flex: 1;
+      padding: 8px 6px;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: var(--font-sm);
+      color: var(--primary);
+      font-weight: 500;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .edit-textarea {
+      margin: 6px 14px 12px;
+      padding: 8px 10px;
+      font-size: var(--font-sm);
+      line-height: 1.55;
+      color: var(--text-1);
+      background: #fafefb;
+      border: 0.5px solid var(--primary);
+      border-radius: var(--radius-sm);
+      min-height: 48px;
+    }
+
+    .bottom-bar {
+      flex-shrink: 0;
+      padding: 10px 16px 14px;
+      background: var(--surface);
+      border-top: 0.5px solid var(--border);
+    }
+
+    .bottom-hint {
+      font-size: var(--font-xs);
+      color: var(--text-4);
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .bottom-btn {
+      width: 100%;
+      padding: 11px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: var(--font-base);
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .bottom-btn.disabled {
+      background: var(--text-4);
+      cursor: not-allowed;
+    }
+
+    .bottom-btn .pending {
+      font-size: var(--font-xs);
+      font-weight: 400;
+      opacity: 0.85;
+      margin-left: 6px;
+    }
+
+    .home-indicator {
+      width: 110px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.2);
+      margin: 6px auto 6px;
+    }
+
+    .note {
+      margin-top: 20px;
+      padding: 18px 20px;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      max-width: 1180px;
+    }
+
+    .note h3 {
+      font-size: var(--font-base);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .note ul { list-style: none; display: grid; gap: 6px; }
+
+    .note li {
+      font-size: var(--font-sm);
+      line-height: 1.55;
+      color: var(--text-3);
+      padding-left: 12px;
+      position: relative;
+    }
+
+    .note li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    .note li b { color: var(--text-1); font-weight: 600; }
+
+    @media (max-width: 1260px) { .layout { grid-template-columns: 380px 380px; } }
+    @media (max-width: 880px) {
+      body { padding: 14px; }
+      .layout { grid-template-columns: 1fr; }
+      .screen { height: auto; min-height: 760px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <div class="doc-head">
+      <div class="tag">V5 · 内联 AI 建议（诊断 1 · 治疗 1 · 检查 多）</div>
+      <h1>诊断和治疗各 1 条，检查建议多条——一个决策一条，一张清单多条</h1>
+      <p>
+        <b>诊断</b>是单一判断，<b>治疗方向</b>是单一方案——各自只展示 1 条 AI 建议，不给多余选项。
+        <b>检查建议</b>是一张清单，通常需要多项，所以展示 2–4 条，每条独立采纳。
+        视觉沿用当前 antd-mobile 样式：白底、0.5px 灰线、圆角 8px、WeChat 绿、FONT 13/15/17px。
+      </p>
+    </div>
+
+    <section class="layout">
+
+      <!-- ── Phone 1: default state ─────────────────────────── -->
+      <div class="phone-wrap">
+        <div class="phone-label">主流程 · 刚进入审核页</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="navbar">
+              <span class="nav-back">‹</span>
+              <div class="nav-title">诊断审核</div>
+            </div>
+
+            <div class="content">
+
+              <div class="banner">
+                <b>李某 · 男 · 54岁</b>
+                胸闷伴气短3天 · 既往 PCI 术后 5 年 · 04-20 09:12
+              </div>
+
+              <div class="list-header">病例摘要</div>
+
+              <div class="summary-card">
+                <div class="summary-row">
+                  <div class="k">主诉</div>
+                  <div class="v">胸闷伴气短3天，活动后加重。</div>
+                </div>
+                <div class="summary-row">
+                  <div class="k">现病史</div>
+                  <div class="v">3天前无明显诱因出现胸闷，活动时明显，休息可缓解。伴气短，无发热。</div>
+                </div>
+                <div class="summary-row">
+                  <div class="k">既往史</div>
+                  <div class="v">冠心病 PCI 术后 5 年；高血压 8 年。</div>
+                </div>
+                <div class="summary-row">
+                  <div class="k">查体</div>
+                  <div class="v">BP 158/92，HR 88，心音律齐，双肺呼吸音清。</div>
+                </div>
+              </div>
+
+              <div class="list-header">AI 建议 · 请逐项确认</div>
+
+              <!-- 诊断 — 单条 AI 建议，无换一条 -->
+              <div class="field">
+                <div class="field-label-row"><div class="field-label">诊断</div></div>
+                <div class="textarea">冠心病？心肌缺血待排。</div>
+                <div class="ai-row">
+                  <div class="ai-head">
+                    <span class="ai-dot"></span>
+                    <span class="ai-pill">AI 建议</span>
+                  </div>
+                  <div class="ai-title">不稳定型心绞痛（UA）</div>
+                  <div class="ai-detail">胸闷活动后加重 + 既往 PCI 史 · 需与心梗鉴别</div>
+                  <div class="ai-actions">
+                    <button class="btn">采纳</button>
+                    <button class="ai-link">修改</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 检查建议 — 单条展示 + 换一条循环 -->
+              <div class="field">
+                <div class="field-label-row">
+                  <div class="field-label">检查建议</div>
+                  <div class="field-meta">共 4 条</div>
+                </div>
+                <div class="ai-row">
+                  <div class="ai-head">
+                    <span class="ai-dot"></span>
+                    <span class="ai-pill">AI 建议</span>
+                    <span class="ai-counter">1 / 4</span>
+                  </div>
+                  <div class="ai-title">心电图 + 肌钙蛋白 + BNP</div>
+                  <div class="ai-detail">排除急性冠脉事件 · 作为初次评估</div>
+                  <div class="ai-actions">
+                    <button class="btn">采纳</button>
+                    <button class="ai-link">换一条</button>
+                    <button class="ai-link">修改</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 治疗方向 — 单条 AI 建议，无换一条 -->
+              <div class="field">
+                <div class="field-label-row"><div class="field-label">治疗方向</div></div>
+                <div class="textarea">继续阿司匹林、他汀。</div>
+                <div class="ai-row">
+                  <div class="ai-head">
+                    <span class="ai-dot"></span>
+                    <span class="ai-pill">AI 建议</span>
+                  </div>
+                  <div class="ai-title">加强双抗：氯吡格雷 75mg 联用 · 强化他汀</div>
+                  <div class="ai-detail">符合 UA 急性期管理 · 评估出血风险后启用</div>
+                  <div class="ai-actions">
+                    <button class="btn">采纳</button>
+                    <button class="ai-link">修改</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="custom-row">
+                <div class="custom-btn">+ 诊断</div>
+                <div class="custom-btn">+ 检查</div>
+                <div class="custom-btn">+ 治疗</div>
+              </div>
+
+            </div>
+
+            <div class="bottom-bar">
+              <div class="bottom-hint">未处理的建议在完成审核时将视为不采纳</div>
+              <button class="bottom-btn">完成审核<span class="pending">· 4 条未处理</span></button>
+            </div>
+
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Phone 2: mid-interaction ─────────────────────── -->
+      <div class="phone-wrap">
+        <div class="phone-label">交互中 · 部分采纳 / 部分拒绝</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="navbar">
+              <span class="nav-back">‹</span>
+              <div class="nav-title">诊断审核</div>
+            </div>
+
+            <div class="content">
+
+              <div class="banner">
+                <b>李某 · 男 · 54岁</b>
+                胸闷伴气短3天 · 既往 PCI 术后 5 年 · 04-20 09:12
+              </div>
+
+              <div class="list-header">AI 建议 · 请逐项确认</div>
+
+              <!-- 诊断 — 已采纳 -->
+              <div class="field">
+                <div class="field-label-row">
+                  <div class="field-label">诊断</div>
+                  <div class="field-meta">已处理</div>
+                </div>
+                <div class="textarea">不稳定型心绞痛（UA）。</div>
+                <div class="ai-accepted">
+                  <span class="check">✓</span>
+                  <span class="txt">已采纳 AI 建议：<b>不稳定型心绞痛（UA）</b></span>
+                  <span class="toggle">展开 ›</span>
+                </div>
+              </div>
+
+              <!-- 检查建议 — 一条已采纳，下一条自动出现 -->
+              <div class="field">
+                <div class="field-label-row">
+                  <div class="field-label">检查建议</div>
+                  <div class="field-meta">已采纳 1 条 · 还剩 3 条</div>
+                </div>
+                <div class="ai-accepted">
+                  <span class="check">✓</span>
+                  <span class="txt">已采纳：<b>心电图 + 肌钙蛋白 + BNP</b></span>
+                  <span class="toggle">展开 ›</span>
+                </div>
+                <div class="ai-row">
+                  <div class="ai-head">
+                    <span class="ai-dot"></span>
+                    <span class="ai-pill">AI 建议</span>
+                    <span class="ai-counter">2 / 4</span>
+                  </div>
+                  <div class="ai-title">急诊冠脉 CTA</div>
+                  <div class="ai-detail">肌钙蛋白升高或持续胸痛时升级 · 当日完成</div>
+                  <div class="ai-actions">
+                    <button class="btn">采纳</button>
+                    <button class="ai-link">换一条</button>
+                    <button class="ai-link">修改</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 治疗方向 — 已采纳且医生改过 -->
+              <div class="field">
+                <div class="field-label-row">
+                  <div class="field-label">治疗方向</div>
+                  <div class="field-meta">已处理</div>
+                </div>
+                <div class="textarea">继续阿司匹林、他汀，加氯吡格雷 75mg qd，他汀上调至 40mg。</div>
+                <div class="ai-accepted">
+                  <span class="check">✓</span>
+                  <span class="txt">
+                    已采纳 AI 建议
+                    <span class="edited-hint">· 医生已在基础上修改</span>
+                  </span>
+                  <span class="toggle">展开 ›</span>
+                </div>
+              </div>
+
+              <!-- 随访 — AI 无建议 -->
+              <div class="field">
+                <div class="field-label-row"><div class="field-label">随访</div></div>
+                <div class="textarea empty">（请填写）</div>
+                <div class="ai-empty">
+                  <span>暂无 AI 建议</span>
+                  <span class="add-link">手动填写 ›</span>
+                </div>
+              </div>
+
+              <div class="custom-row">
+                <div class="custom-btn">+ 诊断</div>
+                <div class="custom-btn">+ 检查</div>
+                <div class="custom-btn">+ 治疗</div>
+              </div>
+
+            </div>
+
+            <div class="bottom-bar">
+              <div class="bottom-hint">未处理的建议在完成审核时将视为不采纳</div>
+              <button class="bottom-btn">完成审核<span class="pending">· 1 条未处理</span></button>
+            </div>
+
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Phone 3: edit-in-place + edge cases ───────── -->
+      <div class="phone-wrap">
+        <div class="phone-label">边界态 · 修改中 / 检查全部采纳 / 空建议</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="navbar">
+              <span class="nav-back">‹</span>
+              <div class="nav-title">诊断审核</div>
+            </div>
+
+            <div class="content">
+
+              <div class="list-header">AI 建议 · 请逐项确认</div>
+
+              <!-- 诊断 — 编辑中 -->
+              <div class="field" style="border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary-light);">
+                <div class="field-label-row">
+                  <div class="field-label">诊断</div>
+                  <div class="field-meta" style="color: var(--primary);">编辑中</div>
+                </div>
+                <div class="edit-textarea">不稳定型心绞痛（UA），伴高血压未控制。</div>
+                <div class="ai-row" style="background: #fafefb;">
+                  <div class="ai-head">
+                    <span class="ai-pill" style="color: var(--text-3);">原文</span>
+                  </div>
+                  <div class="ai-title" style="color: var(--text-4); font-weight: 400;">
+                    "不稳定型心绞痛（UA）"
+                  </div>
+                  <div class="ai-actions">
+                    <button class="btn">保存</button>
+                    <button class="ai-link muted">取消</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 检查建议 — 循环到最后一条 -->
+              <div class="field">
+                <div class="field-label-row">
+                  <div class="field-label">检查建议</div>
+                  <div class="field-meta">已采纳 2 条 · 最后 1 条</div>
+                </div>
+                <div class="ai-accepted">
+                  <span class="check">✓</span>
+                  <span class="txt">已采纳：<b>心电图 + 肌钙蛋白 + BNP</b></span>
+                  <span class="toggle">展开 ›</span>
+                </div>
+                <div class="ai-accepted">
+                  <span class="check">✓</span>
+                  <span class="txt">已采纳：<b>急诊冠脉 CTA</b></span>
+                  <span class="toggle">展开 ›</span>
+                </div>
+                <div class="ai-row">
+                  <div class="ai-head">
+                    <span class="ai-dot"></span>
+                    <span class="ai-pill">AI 建议</span>
+                    <span class="ai-counter">4 / 4 · 最后一条</span>
+                  </div>
+                  <div class="ai-title">复查血脂全套</div>
+                  <div class="ai-detail">结合既往他汀使用史 · 评估达标情况</div>
+                  <div class="ai-actions">
+                    <button class="btn">采纳</button>
+                    <button class="ai-link disabled">已看完</button>
+                    <button class="ai-link">修改</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 治疗方向 — AI 无建议 -->
+              <div class="field">
+                <div class="field-label-row"><div class="field-label">治疗方向</div></div>
+                <div class="textarea empty">（请填写）</div>
+                <div class="ai-empty">
+                  <span>暂无 AI 建议</span>
+                  <span class="add-link">手动填写 ›</span>
+                </div>
+              </div>
+
+              <div class="custom-row">
+                <div class="custom-btn">+ 诊断</div>
+                <div class="custom-btn">+ 检查</div>
+                <div class="custom-btn">+ 治疗</div>
+              </div>
+
+            </div>
+
+            <div class="bottom-bar">
+              <div class="bottom-hint">请先保存当前编辑再完成审核</div>
+              <button class="bottom-btn disabled">完成审核</button>
+            </div>
+
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <div class="note">
+      <h3>设计说明（2026-04-20 修订：单决策 vs. 清单 + 紧凑样式）</h3>
+      <ul>
+        <li><b>病例摘要 · 单卡多行</b>：主诉 / 现病史 / 既往史 / 查体 合并到一张卡片里，label 左 60px 固定宽、value 右侧。与现有 <code>RecordSummaryCard</code>（<code>ReviewPage.jsx:79</code>）一致的视觉语法。</li>
+        <li><b>诊断 · 1 条</b>：单一判断——多个候选只增加噪音。按钮"采纳 / 修改"，无"换一条"。</li>
+        <li><b>治疗方向 · 1 条</b>：治疗方案是一条主线。按钮"采纳 / 修改"，无"换一条"。</li>
+        <li><b>检查建议 · 单条展示 + 换一条循环</b>：后端生成 2–4 条，UI 一次只露 1 条 AI 建议。采纳 → 该条收起为 ✓ 行，下一条自动出现；换一条 → 跳到下一条但不采纳；循环到最后时按钮变"已看完"。已采纳的 ✓ 行可叠加多条。</li>
+        <li><b>紧凑间距</b>：字段 margin 6px（不是 8px）、AI 行 padding 8/14/10（不是 10/14/12）、textarea min-height 38（不是 52）。整体垂直密度接近 antd-mobile List 的默认紧凑度。</li>
+        <li><b>Backend Phase 2 prompt trim</b>：`differential` → 1；`treatment` → 1；`workup` → 2–4。</li>
+        <li><b>采纳态</b>：浅绿色单行+✓。"医生已在基础上修改"附注表示字段文本已偏离原 AI 文本。</li>
+        <li><b>自定义按钮</b>：+诊断 / +检查 / +治疗。诊断/治疗直接替换 AI 建议；检查追加一条。</li>
+        <li><b>完成审核</b>：显示未处理数；编辑中时按钮禁用。</li>
+        <li><b>视觉 token</b>：颜色/圆角/边线/字号全部对齐 theme.js APP/FONT/RADIUS。</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>
