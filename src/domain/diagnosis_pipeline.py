@@ -30,6 +30,9 @@ from domain.diagnosis_models import (
     _VALID_URGENCY,
     _VALID_INTERVENTION,
     _MAX_ARRAY_ITEMS,
+    MAX_DIFFERENTIALS,
+    MAX_TREATMENT,
+    MAX_WORKUP,
 )
 
 # ---------------------------------------------------------------------------
@@ -229,9 +232,9 @@ def _validate_and_coerce_result(result: DiagnosisLLMResponse) -> Optional[Dict[s
     Returns validated dict or None if empty differentials.
     """
     with trace_block("llm", "diagnosis.validate_response"):
-        # Validate differentials
+        # Validate differentials — hard cap to MAX_DIFFERENTIALS (Phase 2b).
         differentials = []
-        for item in result.differentials[:_MAX_ARRAY_ITEMS]:
+        for item in result.differentials[:MAX_DIFFERENTIALS]:
             condition = item.condition.strip()
             if not condition:
                 continue
@@ -245,9 +248,9 @@ def _validate_and_coerce_result(result: DiagnosisLLMResponse) -> Optional[Dict[s
             log("[diagnosis] no valid differentials after validation", level="warning")
             return None
 
-        # Validate workup
+        # Validate workup — hard cap to MAX_WORKUP (Phase 2b).
         workup = []
-        for item in result.workup[:_MAX_ARRAY_ITEMS]:
+        for item in result.workup[:MAX_WORKUP]:
             test = item.test.strip()
             if not test:
                 continue
@@ -257,9 +260,9 @@ def _validate_and_coerce_result(result: DiagnosisLLMResponse) -> Optional[Dict[s
                 "urgency":      _coerce_urgency(item.urgency),
             })
 
-        # Validate treatment
+        # Validate treatment — hard cap to MAX_TREATMENT (Phase 2b).
         treatment = []
-        for item in result.treatment[:_MAX_ARRAY_ITEMS]:
+        for item in result.treatment[:MAX_TREATMENT]:
             drug_class = item.drug_class.strip()
             detail = item.detail.strip()
             if not drug_class and not detail:

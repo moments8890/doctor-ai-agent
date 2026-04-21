@@ -6,11 +6,11 @@ with custom entries before the record is finalized.
 """
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from channels.web.doctor_dashboard.deps import _resolve_ui_doctor_id
@@ -57,6 +57,18 @@ class AddSuggestionRequest(BaseModel):
 
 class FinalizeRequest(BaseModel):
     doctor_id: str
+    # Phase 1c — inline-suggestions v2 opts in per call.
+    # When True, any suggestion row still at decision IS NULL at finalize
+    # time is implicitly marked `rejected` (instead of raising 422). v1
+    # callers that omit this field keep the original block-on-undecided
+    # contract.
+    implicit_reject: bool = False
+    # Phase 1c — direct field edits from the inline editor. When a field
+    # is present (even empty string), it takes precedence over the
+    # suggestion-rebuild writeback for that field only. Accepted keys:
+    # "diagnosis" | "treatment_plan" | "orders_followup". Unknown keys
+    # are ignored silently. None = preserve legacy writeback behavior.
+    edited_record: Optional[Dict[str, str]] = None
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────
@@ -345,13 +357,31 @@ async def finalize_review(
     # Collect confirmed/edited/custom suggestions to write back
     rows = await get_suggestions_for_record(db, record_id)
 
-    # Gate: all suggestions must have a decision before finalizing
+    # Gate: all suggestions must have a decision before finalizing.
+    # When `implicit_reject=True` (inline-suggestions v2), flip any
+    # undecided rows to `rejected` at writeback time so the audit trail
+    # records that the doctor saw but declined them. v1 callers that
+    # omit the flag keep the original 422 behavior.
     undecided = [r for r in rows if r.decision is None]
     if undecided:
-        raise HTTPException(
-            status_code=422,
-            detail=f"还有 {len(undecided)} 条建议未处理，请先完成审核",
+        if not body.implicit_reject:
+            raise HTTPException(
+                status_code=422,
+                detail=f"还有 {len(undecided)} 条建议未处理，请先完成审核",
+            )
+        undecided_ids = [r.id for r in undecided]
+        await db.execute(
+            update(AISuggestion)
+            .where(AISuggestion.id.in_(undecided_ids))
+            .values(
+                decision=SuggestionDecision.rejected.value,
+                decided_at=func.now(),
+            )
         )
+        # Refresh local row decision values so the downstream filter sees
+        # them as rejected (they will be excluded from `accepted`).
+        for r in undecided:
+            r.decision = SuggestionDecision.rejected.value
 
     accepted = [
         r for r in rows
@@ -362,38 +392,56 @@ async def finalize_review(
         )
     ]
 
+    # Phase 1c — `edited_record` overrides: when the doctor has directly
+    # edited a record field inline, that text wins over the
+    # suggestion-rebuild writeback for that field only. Keys not in the
+    # dict fall back to legacy behavior. Unknown keys are ignored.
+    edits = body.edited_record or {}
+    override_diagnosis = "diagnosis" in edits
+    override_treatment = "treatment_plan" in edits
+    override_orders = "orders_followup" in edits
+
     # Build diagnosis text from confirmed differentials
-    diag_items = [r for r in accepted if r.section == SuggestionSection.differential.value]
-    if diag_items:
-        diag_lines = []
-        for i, r in enumerate(diag_items, 1):
-            label = r.edited_text if r.decision == SuggestionDecision.edited.value else r.content
-            detail = r.detail or ""
-            conf = f"（{r.confidence}）" if r.confidence else ""
-            diag_lines.append(f"{i}. {label}{conf}\n{detail}" if detail else f"{i}. {label}{conf}")
-        rec.diagnosis = "\n".join(diag_lines)
+    if override_diagnosis:
+        rec.diagnosis = edits["diagnosis"]
+    else:
+        diag_items = [r for r in accepted if r.section == SuggestionSection.differential.value]
+        if diag_items:
+            diag_lines = []
+            for i, r in enumerate(diag_items, 1):
+                label = r.edited_text if r.decision == SuggestionDecision.edited.value else r.content
+                detail = r.detail or ""
+                conf = f"（{r.confidence}）" if r.confidence else ""
+                diag_lines.append(f"{i}. {label}{conf}\n{detail}" if detail else f"{i}. {label}{conf}")
+            rec.diagnosis = "\n".join(diag_lines)
 
     # Build treatment plan from confirmed treatments
-    tx_items = [r for r in accepted if r.section == SuggestionSection.treatment.value]
-    if tx_items:
-        tx_lines = []
-        for i, r in enumerate(tx_items, 1):
-            label = r.edited_text if r.decision == SuggestionDecision.edited.value else r.content
-            detail = r.detail or ""
-            interv = f"[{r.intervention}]" if r.intervention else ""
-            tx_lines.append(f"{i}. {label} {interv}\n{detail}" if detail else f"{i}. {label} {interv}")
-        rec.treatment_plan = "\n".join(tx_lines)
+    if override_treatment:
+        rec.treatment_plan = edits["treatment_plan"]
+    else:
+        tx_items = [r for r in accepted if r.section == SuggestionSection.treatment.value]
+        if tx_items:
+            tx_lines = []
+            for i, r in enumerate(tx_items, 1):
+                label = r.edited_text if r.decision == SuggestionDecision.edited.value else r.content
+                detail = r.detail or ""
+                interv = f"[{r.intervention}]" if r.intervention else ""
+                tx_lines.append(f"{i}. {label} {interv}\n{detail}" if detail else f"{i}. {label} {interv}")
+            rec.treatment_plan = "\n".join(tx_lines)
 
     # Build orders/followup from confirmed workup
-    wu_items = [r for r in accepted if r.section == SuggestionSection.workup.value]
-    if wu_items:
-        wu_lines = []
-        for i, r in enumerate(wu_items, 1):
-            label = r.edited_text if r.decision == SuggestionDecision.edited.value else r.content
-            detail = r.detail or ""
-            urg = f"[{r.urgency}]" if r.urgency else ""
-            wu_lines.append(f"{i}. {label} {urg}\n{detail}" if detail else f"{i}. {label} {urg}")
-        rec.orders_followup = "\n".join(wu_lines)
+    if override_orders:
+        rec.orders_followup = edits["orders_followup"]
+    else:
+        wu_items = [r for r in accepted if r.section == SuggestionSection.workup.value]
+        if wu_items:
+            wu_lines = []
+            for i, r in enumerate(wu_items, 1):
+                label = r.edited_text if r.decision == SuggestionDecision.edited.value else r.content
+                detail = r.detail or ""
+                urg = f"[{r.urgency}]" if r.urgency else ""
+                wu_lines.append(f"{i}. {label} {urg}\n{detail}" if detail else f"{i}. {label} {urg}")
+            rec.orders_followup = "\n".join(wu_lines)
 
     rec.status = RecordStatus.completed.value
     n_accepted = len(accepted)
