@@ -17,7 +17,6 @@ import MyAIPage from "./MyAIPage";
 import PatientsPage from "./PatientsPage";
 import PatientDetail from "./PatientDetail";
 import PatientChatPage from "./PatientChatPage";
-import TaskPage from "./TaskPage";
 import ReviewQueuePage from "./ReviewQueuePage";
 import ReviewPage from "./ReviewPage";
 import SettingsPage from "./SettingsPage";
@@ -26,7 +25,6 @@ import KnowledgeSubpage from "./settings/KnowledgeSubpage";
 import AddKnowledgeSubpage from "./settings/AddKnowledgeSubpage";
 import KnowledgeDetailSubpage from "./settings/KnowledgeDetailSubpage";
 import SettingsListSubpage from "./settings/SettingsListSubpage";
-import TaskDetailSubpage from "./settings/TaskDetailSubpage";
 import AboutSubpage from "./settings/AboutSubpage";
 import TeachByExampleSubpage from "./settings/TeachByExampleSubpage";
 import ReviewSubpage from "./settings/ReviewSubpage";
@@ -41,8 +39,6 @@ import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
 import MailIcon from "@mui/icons-material/Mail";
-import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import { APP, FONT, ICON } from "../../theme";
 import { useDoctorStore } from "../../../store/doctorStore";
 
@@ -75,15 +71,6 @@ const TABS = [
     title: "审核",
     badgeKey: "review",
   },
-  {
-    key: "tasks",
-    label: "随访",
-    icon: <CalendarMonthOutlinedIcon sx={{ fontSize: "inherit" }} />,
-    activeIcon: <CalendarMonthIcon sx={{ fontSize: "inherit" }} />,
-    path: "/doctor/tasks",
-    title: "随访",
-    badgeKey: "tasks",
-  },
 ];
 
 // ── Section detection ──────────────────────────────────────────────
@@ -91,7 +78,7 @@ const TABS = [
 function detectSection(pathname) {
   // /doctor or /doctor/ → my-ai
   if (pathname === "/doctor" || pathname === "/doctor/") return "my-ai";
-  const segment = pathname.split("/")[2]; // e.g. "my-ai", "patients", "review", "tasks", "settings"
+  const segment = pathname.split("/")[2]; // e.g. "my-ai", "patients", "review", "settings"
   if (TABS.some((t) => t.key === segment)) return segment;
   if (segment === "settings") return "settings";
   return "my-ai";
@@ -131,7 +118,7 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
   const activeTab = TABS.find((t) => t.key === activeSection) || TABS[0];
 
   // Badge counts — placeholder zeros; real data wired in later
-  const [badges] = useState({ review: 0, tasks: 0, patients: 0 });
+  const [badges] = useState({ review: 0, patients: 0 });
 
   // Interview overlay — active when navigated to /doctor/patients/new
   const interviewActive = location.pathname.endsWith("/patients/new");
@@ -169,16 +156,6 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
     return null;
   })();
 
-  // Task detail subpage — /doctor/tasks/:taskId
-  const taskDetailMatch = (() => {
-    const parts = location.pathname.split("/");
-    // parts: ["", "doctor", "tasks", ":taskId"]
-    if (parts[2] === "tasks" && parts[3]) {
-      return parts[3];
-    }
-    return null;
-  })();
-
   // Settings subpage detection
   // /doctor/settings → SettingsPage list
   // /doctor/settings/persona → PersonaSubpage
@@ -203,7 +180,6 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
       return `patient-${patientDetailMatch}`;
     }
     if (reviewDetailMatch) return `review-${reviewDetailMatch}`;
-    if (taskDetailMatch) return `task-${taskDetailMatch}`;
     if (settingsActive) {
       const { sub, sub2 } = settingsMatch;
       return `settings-${sub || "main"}${sub2 ? `-${sub2}` : ""}`;
@@ -239,9 +215,6 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
     }
     if (key.startsWith("review-")) {
       return <ReviewPage recordId={key.replace("review-", "")} />;
-    }
-    if (key.startsWith("task-")) {
-      return <TaskDetailSubpage taskId={key.replace("task-", "")} />;
     }
     if (key.startsWith("settings-")) {
       const parts = key.replace("settings-", "").split("-");
@@ -307,16 +280,6 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
               >
                 <AddCircleOutline style={{ fontSize: ICON.md }} />
               </Button>
-            ) : baseSection === "tasks" ? (
-              <Button
-                fill="none"
-                color="primary"
-                size="small"
-                onClick={() => navigate("/doctor/tasks?new=1", { replace: true })}
-                aria-label="新建任务"
-              >
-                <AddCircleOutline style={{ fontSize: ICON.md }} />
-              </Button>
             ) : null
           }
           style={{
@@ -345,8 +308,6 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
           <PatientsPage />
         ) : baseSection === "review" ? (
           <ReviewQueuePage />
-        ) : baseSection === "tasks" ? (
-          <TaskPage doctorId={doctorId} />
         ) : (
           <SectionPlaceholder name={activeTab.title} />
         )}
