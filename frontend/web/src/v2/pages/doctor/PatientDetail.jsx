@@ -22,6 +22,7 @@ import {
   Popup,
   SpinLoading,
   Button,
+  Ellipsis,
 } from "antd-mobile";
 import { LeftOutline, MessageOutline, ContentOutline, MailOutline, MoreOutline, RedoOutline } from "antd-mobile-icons";
 import PatientChatPage from "./PatientChatPage";
@@ -33,6 +34,20 @@ import { useDoctorStore } from "../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { LoadingCenter } from "../../components";
+import { STRUCTURED_FIELD_LABELS } from "../../../pages/doctor/constants";
+
+// Fields to show inside an expanded record card, in reading order.
+const RECORD_DETAIL_FIELDS = [
+  "chief_complaint",
+  "present_illness",
+  "past_history",
+  "allergy_history",
+  "physical_exam",
+  "auxiliary_exam",
+  "diagnosis",
+  "treatment_plan",
+  "orders_followup",
+];
 
 // ── Record type label map ─────────────────────────────────────────────
 
@@ -222,9 +237,9 @@ function PatientProfile({ patient, records, onStartInterview }) {
               <span style={{ fontWeight: 700, fontSize: FONT.lg, color: APP.text1, flexShrink: 0 }}>
                 {patient.name || "患者"}
               </span>
-              <span style={{ fontSize: FONT.sm, color: APP.text4, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {summaryParts}
-              </span>
+              <div style={{ fontSize: FONT.sm, color: APP.text4, flex: 1, minWidth: 0 }}>
+                <Ellipsis direction="end" content={summaryParts} rows={1} />
+              </div>
               <span
                 onClick={(e) => { e.stopPropagation(); onStartInterview?.(); }}
                 style={{
@@ -398,22 +413,145 @@ function ChatNavCard({ messageCount, draftCount, onClick }) {
 
 // ── Record row ────────────────────────────────────────────────────────
 
-function RecordRow({ record, onClick }) {
+function RecordCard({ record, onViewFull }) {
   const dateStr = formatRecordDate(record.created_at || record.visit_date);
-  const complaint = record.chief_complaint || record.structured?.chief_complaint || record.summary || "";
-  const preview = complaint.length > 40 ? complaint.slice(0, 40) + "…" : complaint;
+  const complaint =
+    record.chief_complaint ||
+    record.structured?.chief_complaint ||
+    record.summary ||
+    "";
   const statusBadge = recordStatusBadge(record.status);
+  const structured = record.structured || {};
+  const filled = RECORD_DETAIL_FIELDS.filter((k) => structured[k]);
+  const hasBody = filled.length > 0 || record.content;
+
+  // No body → tap navigates straight to full detail (no empty expand)
+  if (!hasBody) {
+    return (
+      <div
+        onClick={() => onViewFull?.()}
+        style={{
+          background: APP.surface,
+          border: `0.5px solid ${APP.border}`,
+          borderRadius: RADIUS.md,
+          margin: "8px 12px",
+          padding: "12px 14px",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          cursor: "pointer",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: FONT.md, fontWeight: 500, color: APP.text1, marginBottom: 2 }}>
+            <Ellipsis direction="end" content={complaint || "（无主诉）"} rows={1} />
+          </div>
+          <div style={{ fontSize: FONT.sm, color: APP.text4 }}>{dateStr}</div>
+        </div>
+        {statusBadge}
+        <span style={{ fontSize: FONT.sm, color: APP.text4 }}>›</span>
+      </div>
+    );
+  }
 
   return (
-    <List.Item
-      description={dateStr}
-      extra={statusBadge}
-      arrow
-      onClick={onClick}
-      style={{ "--adm-font-size-main": FONT.main }}
+    <div
+      style={{
+        background: APP.surface,
+        border: `0.5px solid ${APP.border}`,
+        borderRadius: RADIUS.md,
+        margin: "8px 12px",
+        overflow: "hidden",
+      }}
     >
-      {preview || "（无主诉）"}
-    </List.Item>
+      <Collapse
+        defaultActiveKey={[String(record.id)]}
+        style={{ "--adm-color-background": APP.surface, background: APP.surface }}
+      >
+        <Collapse.Panel
+          key={String(record.id)}
+          title={
+            <div style={{ display: "flex", alignItems: "center", gap: 10, width: "100%" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: FONT.md, fontWeight: 500, color: APP.text1, marginBottom: 2 }}>
+                  <Ellipsis direction="end" content={complaint || "（无主诉）"} rows={1} />
+                </div>
+                <div style={{ fontSize: FONT.sm, color: APP.text4 }}>{dateStr}</div>
+              </div>
+              {statusBadge}
+            </div>
+          }
+        >
+          <div style={{ padding: "0 0 4px" }}>
+            {filled.map((k, i) => (
+              <div
+                key={k}
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  padding: "6px 0",
+                  borderTop: i === 0 ? "none" : `0.5px solid ${APP.borderLight}`,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: FONT.sm,
+                    color: APP.text4,
+                    fontWeight: 500,
+                    flexShrink: 0,
+                    minWidth: 60,
+                  }}
+                >
+                  {STRUCTURED_FIELD_LABELS[k] || k}
+                </span>
+                <span
+                  style={{
+                    flex: 1,
+                    fontSize: FONT.sm,
+                    color: APP.text2,
+                    whiteSpace: "pre-wrap",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {structured[k]}
+                </span>
+              </div>
+            ))}
+            {filled.length === 0 && record.content && (
+              <div
+                style={{
+                  fontSize: FONT.sm,
+                  color: APP.text2,
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                }}
+              >
+                {record.content}
+              </div>
+            )}
+            {onViewFull && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewFull();
+                }}
+                style={{
+                  marginTop: 8,
+                  paddingTop: 8,
+                  borderTop: `0.5px solid ${APP.borderLight}`,
+                  fontSize: FONT.sm,
+                  color: APP.primary,
+                  cursor: "pointer",
+                  textAlign: "center",
+                }}
+              >
+                查看完整详情 ›
+              </div>
+            )}
+          </div>
+        </Collapse.Panel>
+      </Collapse>
+    </div>
   );
 }
 
@@ -788,18 +926,16 @@ export default function PatientDetail({ patientId: propPatientId }) {
           <span style={{ fontSize: FONT.md, fontWeight: 700, color: APP.text1, flexShrink: 0 }}>
             {patient.name || "患者"}
           </span>
-          <span
+          <div
             style={{
               flex: 1,
               fontSize: FONT.sm,
               color: APP.text4,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              minWidth: 0,
             }}
           >
-            {statLine}
-          </span>
+            <Ellipsis direction="end" content={statLine} rows={1} />
+          </div>
           <span
             onClick={handleStartInterview}
             style={{
@@ -973,15 +1109,15 @@ export default function PatientDetail({ patientId: propPatientId }) {
                 暂无病历
               </div>
             ) : (
-              <List>
+              <div>
                 {records.map((record) => (
-                  <RecordRow
+                  <RecordCard
                     key={record.id}
                     record={record}
-                    onClick={() => goToRecord(record)}
+                    onViewFull={() => goToRecord(record)}
                   />
                 ))}
-              </List>
+              </div>
             )}
             <div style={{ height: 24 }} />
           </>

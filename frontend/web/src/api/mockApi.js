@@ -683,7 +683,7 @@ export async function triggerDiagnosis() {
   return { status: "pending" };
 }
 
-export async function finalizeReview(recordId) {
+export async function finalizeReview(recordId, _doctorId, _opts = {}) {
   const record = records.find((item) => Number(item.id) === Number(recordId));
   const patientId = record?.patient_id || 1;
   const patientName = patients.find((item) => Number(item.id) === Number(patientId))?.name || "患者";

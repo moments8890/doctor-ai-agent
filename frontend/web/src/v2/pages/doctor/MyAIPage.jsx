@@ -7,7 +7,7 @@
  * antd-mobile implementation — no MUI, no complex components.
  */
 import { useState } from "react";
-import { Avatar, List, Grid, Space, Tag, Skeleton } from "antd-mobile";
+import { Avatar, List, Grid, Space, Tag, Skeleton, Ellipsis } from "antd-mobile";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
@@ -145,14 +145,14 @@ export default function MyAIPage({ doctorId }) {
                   color: APP.text4,
                   marginTop: 2,
                   lineHeight: 1.4,
-                  overflow: "hidden",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
                   cursor: "pointer",
                 }}
               >
-                AI风格：{personaSummary || "设置你的AI风格"}
+                <Ellipsis
+                  direction="end"
+                  content={`AI风格：${personaSummary || "设置你的AI风格"}`}
+                  rows={2}
+                />
               </div>
             </div>
             <div
@@ -345,7 +345,7 @@ export default function MyAIPage({ doctorId }) {
             >
               <List.Item>
                 {/* Chips first — "who to act on" at a glance.
-                    Chip routing: task > diagnosis review > chat view > knowledge.
+                    Chip routing: diagnosis review > chat view > knowledge.
                     Dedupe by (patient_id, kind). */}
                 {summaryData.items?.length > 0 && (() => {
                   const seen = new Set();
@@ -356,7 +356,6 @@ export default function MyAIPage({ doctorId }) {
                     return true;
                   });
                   const routeFor = (item) => {
-                    if (item.task_id) return `${dp("tasks")}/${item.task_id}`;
                     if (item.record_id) return `${dp("review")}/${item.record_id}`;
                     if (
                       item.patient_id &&

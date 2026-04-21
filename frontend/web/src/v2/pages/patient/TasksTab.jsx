@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { JumboTabs, List, Tag, ErrorBlock, Button } from "antd-mobile";
+import { JumboTabs, List, Tag, ErrorBlock, Button, Ellipsis } from "antd-mobile";
 import { CheckCircleOutline, ClockCircleOutline } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
 import { relativeFuture } from "../../../utils/time";
@@ -91,9 +91,9 @@ function PendingRow({ item, isOverdue, onComplete, onTap }) {
       description={
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
           {subtitle && (
-            <span style={{ fontSize: FONT.sm, color: APP.text4, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {subtitle}
-            </span>
+            <div style={{ fontSize: FONT.sm, color: APP.text4, flex: 1, minWidth: 0 }}>
+              <Ellipsis direction="end" content={subtitle} rows={1} />
+            </div>
           )}
           {dueLabel && (
             <Tag color={isOverdue ? "danger" : "default"} style={{ fontSize: FONT.xs, flexShrink: 0 }}>

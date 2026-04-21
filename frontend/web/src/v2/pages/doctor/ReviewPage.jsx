@@ -21,6 +21,7 @@ import {
   Tag,
   Collapse,
   ActionSheet,
+  Ellipsis,
 } from "antd-mobile";
 import { MoreOutline } from "antd-mobile-icons";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
@@ -37,6 +38,7 @@ import {
   markOnboardingStep,
   ONBOARDING_STEP,
 } from "../../../pages/doctor/constants";
+import FieldWithAI from "./FieldWithAI";
 
 // ── NHC field order ────────────────────────────────────────────────
 const SUMMARY_FIELD_ORDER = [
@@ -293,19 +295,17 @@ function SuggestionCard({ suggestion, onDecide, knowledgeMap, onOpenCitation }) 
         }}
       >
         <span style={{ color: APP.text4, fontSize: FONT.sm, flexShrink: 0 }}>已移除</span>
-        <span
+        <div
           style={{
             flex: 1,
             fontSize: FONT.sm,
             color: APP.text4,
             textDecoration: "line-through",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            minWidth: 0,
           }}
         >
-          {s.edited_text || s.content}
-        </span>
+          <Ellipsis direction="end" content={s.edited_text || s.content} rows={1} />
+        </div>
         <span style={{ fontSize: FONT.sm, color: APP.primary }}>恢复</span>
       </div>
     );
@@ -609,6 +609,485 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
   );
 }
 
+// ── Inline review layout (feature-flagged V5) ──────────────────────
+
+/**
+ * InlineReviewLayout — V5 inline-per-field render path.
+ * Active only when INLINE_SUGGESTIONS_V2 flag is on AND suggestions exist.
+ *
+ * Responsibilities:
+ *  - Render patient banner + read-only summary card (main fields)
+ *  - Per-section FieldWithAI rows (诊断 / 检查建议 / 治疗方向)
+ *  - Per-section custom add buttons
+ *  - Bottom "完成审核 · N 条未处理" bar with implicit_reject finalize
+ *
+ * Does NOT own the suggestions list or decide handlers — those are passed
+ * down from the parent `ReviewPage`.
+ */
+function InlineReviewLayout({
+  record,
+  patientName,
+  contextBits,
+  suggestions,
+  knowledgeMap,
+  onDecide,
+  onAdd,
+  onFinalize,
+  onOpenCitation,
+  finalizing,
+  onBack,
+  teachEditId,
+  onTeachSkip,
+  onTeachSave,
+  teachSaving,
+}) {
+  const structured = record?.structured || {};
+
+  // Editable draft state for diagnosis + treatment_plan. Hydrated once.
+  const [diagnosisDraft, setDiagnosisDraft] = useState(
+    structured.diagnosis || ""
+  );
+  const [treatmentDraft, setTreatmentDraft] = useState(
+    structured.treatment_plan || ""
+  );
+  useEffect(() => {
+    if (structured.diagnosis && !diagnosisDraft) {
+      setDiagnosisDraft(structured.diagnosis);
+    }
+    if (structured.treatment_plan && !treatmentDraft) {
+      setTreatmentDraft(structured.treatment_plan);
+    }
+  }, [structured.diagnosis, structured.treatment_plan]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track whether any FieldWithAI is in inline edit mode → disables finalize
+  const [editingFields, setEditingFields] = useState({
+    differential: false,
+    workup: false,
+    treatment: false,
+  });
+  const anyFieldEditing = Object.values(editingFields).some(Boolean);
+
+  // Custom composer state: keyed by section
+  const [composerSection, setComposerSection] = useState(null);
+  const composerRef = useRef(null);
+  useEffect(() => {
+    if (composerSection && composerRef.current) {
+      // Small delay lets the composer mount + layout settle before scrolling.
+      const t = setTimeout(() => {
+        composerRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 50);
+      return () => clearTimeout(t);
+    }
+  }, [composerSection]);
+  const [composerText, setComposerText] = useState("");
+  const [composerDetail, setComposerDetail] = useState("");
+
+  const openComposer = (section) => {
+    setComposerSection(section);
+    setComposerText("");
+    setComposerDetail("");
+  };
+  const closeComposer = () => {
+    setComposerSection(null);
+    setComposerText("");
+    setComposerDetail("");
+  };
+  const submitComposer = async () => {
+    const trimmed = composerText.trim();
+    if (!trimmed) return;
+    await onAdd(
+      composerSection,
+      trimmed,
+      composerDetail.trim() || undefined
+    );
+    // For 诊断/治疗: custom-add also populates the editable field so it
+    // lands in the final record on 完成审核.
+    if (composerSection === "differential") setDiagnosisDraft(trimmed);
+    if (composerSection === "treatment") setTreatmentDraft(trimmed);
+    closeComposer();
+  };
+
+  // Section-split suggestions
+  const bySection = useMemo(() => {
+    const out = { differential: [], workup: [], treatment: [] };
+    (suggestions || []).forEach((s) => {
+      if (out[s.section]) out[s.section].push(s);
+    });
+    return out;
+  }, [suggestions]);
+
+  const undecidedCount = (suggestions || []).filter(
+    (s) => s.decision == null || s.decision === "pending"
+  ).length;
+
+  const handleFinalize = () => {
+    if (anyFieldEditing || finalizing) return;
+    onFinalize({
+      implicit_reject: true,
+      edited_record: {
+        diagnosis: diagnosisDraft || "",
+        treatment_plan: treatmentDraft || "",
+      },
+    });
+  };
+
+  // 病例摘要 fields — read-only in Phase 1a/1b
+  const SUMMARY_KEYS = ["chief_complaint", "present_illness", "past_history", "physical_exam"];
+  const summaryRows = SUMMARY_KEYS.filter((k) => structured[k]);
+
+  return (
+    <div style={{ ...pageContainer, ...keyboardAwareStyle }}>
+      <SafeArea position="top" />
+
+      <NavBar onBack={onBack} style={navBarStyle}>
+        诊断审核
+      </NavBar>
+
+      {/* Patient banner */}
+      {record && (
+        <div
+          style={{
+            background: APP.surface,
+            padding: "8px 14px",
+            margin: "6px 12px",
+            border: `0.5px solid ${APP.border}`,
+            borderRadius: RADIUS.md,
+            fontSize: FONT.sm,
+            color: APP.text3,
+            lineHeight: 1.5,
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              color: APP.text1,
+              fontSize: FONT.base,
+              fontWeight: 600,
+              marginBottom: 1,
+            }}
+          >
+            {patientName}
+          </div>
+          {contextBits.length > 0 && <div>{contextBits.join(" · ")}</div>}
+        </div>
+      )}
+
+      {/* Scrollable content */}
+      <div style={{ ...scrollable, paddingBottom: 96 }}>
+        {/* 病例摘要 — read-only summary card */}
+        {summaryRows.length > 0 && (
+          <>
+            <div
+              style={{
+                padding: "12px 16px 4px",
+                fontSize: FONT.xs,
+                color: APP.text4,
+                letterSpacing: "0.02em",
+              }}
+            >
+              病例摘要
+            </div>
+            <div
+              style={{
+                background: APP.surface,
+                margin: "0 12px 6px",
+                border: `0.5px solid ${APP.border}`,
+                borderRadius: RADIUS.md,
+                padding: "10px 14px",
+              }}
+            >
+              {summaryRows.map((key, i) => (
+                <div
+                  key={key}
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    padding: "6px 0",
+                    fontSize: FONT.sm,
+                    lineHeight: 1.55,
+                    borderTop: i === 0 ? "none" : `0.5px solid ${APP.borderLight}`,
+                  }}
+                >
+                  <span
+                    style={{
+                      minWidth: 60,
+                      flexShrink: 0,
+                      color: APP.text4,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {STRUCTURED_FIELD_LABELS[key] || key}
+                  </span>
+                  <span
+                    style={{
+                      flex: 1,
+                      color: APP.text2,
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {structured[key]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* AI 建议 list header */}
+        <div
+          style={{
+            padding: "12px 16px 4px",
+            fontSize: FONT.xs,
+            color: APP.text4,
+            letterSpacing: "0.02em",
+          }}
+        >
+          AI 建议 · 请逐项确认
+        </div>
+
+        <FieldWithAI
+          label="诊断"
+          sectionKey="differential"
+          allowCycle={false}
+          editableFieldValue={diagnosisDraft}
+          onEditableFieldChange={setDiagnosisDraft}
+          suggestions={bySection.differential}
+          knowledgeMap={knowledgeMap}
+          onDecide={onDecide}
+          onOpenCitation={onOpenCitation}
+          onEditingChange={(v) =>
+            setEditingFields((prev) => ({ ...prev, differential: v }))
+          }
+        />
+
+        <FieldWithAI
+          label="检查建议"
+          sectionKey="workup"
+          allowCycle={true}
+          editableFieldValue={null}
+          onEditableFieldChange={() => {}}
+          suggestions={bySection.workup}
+          knowledgeMap={knowledgeMap}
+          onDecide={onDecide}
+          onOpenCitation={onOpenCitation}
+          onEditingChange={(v) =>
+            setEditingFields((prev) => ({ ...prev, workup: v }))
+          }
+        />
+
+        <FieldWithAI
+          label="治疗方向"
+          sectionKey="treatment"
+          allowCycle={false}
+          editableFieldValue={treatmentDraft}
+          onEditableFieldChange={setTreatmentDraft}
+          suggestions={bySection.treatment}
+          knowledgeMap={knowledgeMap}
+          onDecide={onDecide}
+          onOpenCitation={onOpenCitation}
+          onEditingChange={(v) =>
+            setEditingFields((prev) => ({ ...prev, treatment: v }))
+          }
+        />
+
+        {/* Custom-add buttons */}
+        <div style={{ display: "flex", gap: 8, margin: "6px 12px 12px" }}>
+          {[
+            { section: "differential", label: "+ 诊断" },
+            { section: "workup", label: "+ 检查" },
+            { section: "treatment", label: "+ 治疗" },
+          ].map((btn) => (
+            <div
+              key={btn.section}
+              onClick={() => openComposer(btn.section)}
+              style={{
+                flex: 1,
+                padding: "8px 6px",
+                background: APP.surface,
+                border: `0.5px solid ${APP.border}`,
+                borderRadius: RADIUS.md,
+                fontSize: FONT.sm,
+                color: APP.primary,
+                fontWeight: 500,
+                textAlign: "center",
+                cursor: "pointer",
+              }}
+            >
+              {btn.label}
+            </div>
+          ))}
+        </div>
+
+        {/* Inline custom composer */}
+        {composerSection && (
+          <div
+            ref={composerRef}
+            style={{
+              background: APP.surface,
+              border: `0.5px dashed ${APP.border}`,
+              borderRadius: RADIUS.md,
+              padding: 14,
+              margin: "0 12px 12px",
+            }}
+          >
+            <div style={{ fontSize: FONT.sm, color: APP.text3, marginBottom: 8 }}>
+              新增自定义建议（
+              {composerSection === "differential"
+                ? "诊断"
+                : composerSection === "workup"
+                ? "检查"
+                : "治疗"}
+              ）
+            </div>
+            <TextArea
+              placeholder="建议内容"
+              value={composerText}
+              onChange={setComposerText}
+              autoSize={{ minRows: 1, maxRows: 3 }}
+              style={{ marginBottom: 8, fontSize: FONT.base }}
+            />
+            <TextArea
+              placeholder="详细说明（可选）"
+              value={composerDetail}
+              onChange={setComposerDetail}
+              autoSize={{ minRows: 1, maxRows: 4 }}
+              style={{ fontSize: FONT.sm }}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button
+                onClick={closeComposer}
+                style={{
+                  flex: 1,
+                  padding: "8px 0",
+                  background: APP.surface,
+                  border: `0.5px solid ${APP.border}`,
+                  borderRadius: RADIUS.sm,
+                  color: APP.text2,
+                  fontSize: FONT.sm,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={submitComposer}
+                disabled={!composerText.trim()}
+                style={{
+                  flex: 1,
+                  padding: "8px 0",
+                  background: APP.primary,
+                  border: "none",
+                  borderRadius: RADIUS.sm,
+                  color: APP.white,
+                  fontSize: FONT.sm,
+                  fontWeight: 500,
+                  cursor: composerText.trim() ? "pointer" : "not-allowed",
+                  opacity: composerText.trim() ? 1 : 0.5,
+                }}
+              >
+                添加
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom bar */}
+      <ActionFooter
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        <div
+          style={{
+            fontSize: FONT.xs,
+            color: APP.text4,
+            textAlign: "center",
+          }}
+        >
+          {anyFieldEditing
+            ? "请先保存当前编辑再完成审核"
+            : "未处理的建议在完成审核时将视为不采纳"}
+        </div>
+        <Button
+          block
+          color="primary"
+          size="large"
+          disabled={anyFieldEditing || finalizing}
+          loading={finalizing}
+          onClick={handleFinalize}
+        >
+          完成审核
+          {undecidedCount > 0 && (
+            <span
+              style={{
+                fontSize: FONT.xs,
+                fontWeight: 400,
+                opacity: 0.85,
+                marginLeft: 6,
+              }}
+            >
+              · {undecidedCount} 条未处理
+            </span>
+          )}
+        </Button>
+      </ActionFooter>
+
+      {/* Teach-AI snackbar */}
+      {teachEditId && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 80,
+            left: 16,
+            right: 16,
+            backgroundColor: APP.text2,
+            color: APP.white,
+            borderRadius: RADIUS.md,
+            padding: "12px 16px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            zIndex: 1000,
+            fontSize: FONT.sm,
+          }}
+        >
+          <span style={{ flex: 1, marginRight: 12 }}>
+            您的修改已记录。要将这条诊断修正保存为知识条目吗？
+          </span>
+          <div style={{ display: "flex", gap: 16, flexShrink: 0 }}>
+            <span style={{ opacity: 0.8, cursor: "pointer" }} onClick={onTeachSkip}>
+              跳过
+            </span>
+            <span
+              style={{
+                color: APP.wechatGreen,
+                fontWeight: 500,
+                cursor: teachSaving ? "default" : "pointer",
+                opacity: teachSaving ? 0.5 : 1,
+              }}
+              onClick={onTeachSave}
+            >
+              {teachSaving ? "保存中..." : "保存"}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <SafeArea position="bottom" />
+    </div>
+  );
+}
+
 // ── Main ───────────────────────────────────────────────────────────
 
 export default function ReviewPage({ recordId }) {
@@ -721,8 +1200,22 @@ export default function ReviewPage({ recordId }) {
         content,
         detail || undefined
       );
+      // Custom adds are the doctor's own input — no need for a second accept.
+      // Mark as decision=custom so the ✓ stack picks it up immediately.
+      await decideSuggestion(created.id, "custom", {});
       queryClient.invalidateQueries({ queryKey: QK.suggestions(recordId, doctorId) });
-      setSuggestions((prev) => [...(prev || []), created]);
+      setSuggestions((prev) => [
+        ...(prev || []),
+        {
+          id: created.id,
+          section,
+          content,
+          detail: detail || null,
+          is_custom: true,
+          decision: "custom",
+          cited_knowledge_ids: [],
+        },
+      ]);
     } catch {
       Toast.show({ content: "添加失败", position: "bottom" });
     }
@@ -740,11 +1233,11 @@ export default function ReviewPage({ recordId }) {
     }
   }
 
-  async function handleFinalize() {
+  async function handleFinalize(opts = {}) {
     if (finalizing) return;
     setFinalizing(true);
     try {
-      const data = await finalizeReview(recordId, doctorId);
+      const data = await finalizeReview(recordId, doctorId, opts);
       const followUpTaskIds = data?.follow_up_task_ids || [];
       const isPreviewOnboardingFlow = source === "patient_preview";
       if (isPreviewOnboardingFlow && followUpTaskIds.length > 0) {
@@ -842,7 +1335,30 @@ export default function ReviewPage({ recordId }) {
   const scrollBottomRef = useRef(null);
   useScrollOnKeyboard(scrollBottomRef);
 
-  // ── Render ───────────────────────────────────────────────────────
+  // ── Inline-per-field layout (V5) — default when suggestions exist ──
+  if (hasSuggestions) {
+    return (
+      <InlineReviewLayout
+        record={record}
+        patientName={patientName}
+        contextBits={contextBits}
+        suggestions={suggestions}
+        knowledgeMap={knowledgeMap}
+        onDecide={handleDecide}
+        onAdd={handleAdd}
+        onFinalize={handleFinalize}
+        onOpenCitation={handleOpenCitation}
+        finalizing={finalizing}
+        onBack={() => navigate(-1)}
+        teachEditId={teachEditId}
+        onTeachSkip={() => setTeachEditId(null)}
+        onTeachSave={handleTeachSave}
+        teachSaving={teachSaving}
+      />
+    );
+  }
+
+  // ── Render (flag-off: legacy flat card list) ─────────────────────
 
   return (
     <div style={{ ...pageContainer, ...keyboardAwareStyle }}>
@@ -872,18 +1388,20 @@ export default function ReviewPage({ recordId }) {
           <span style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1, flexShrink: 0 }}>
             {patientName}
           </span>
-          <span
+          <div
             style={{
               flex: 1,
               fontSize: FONT.sm,
               color: APP.text3,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              minWidth: 0,
             }}
           >
-            {contextBits.length > 0 ? `· ${contextBits.join(" · ")}` : ""}
-          </span>
+            <Ellipsis
+              direction="end"
+              content={contextBits.length > 0 ? `· ${contextBits.join(" · ")}` : ""}
+              rows={1}
+            />
+          </div>
         </div>
       )}
 

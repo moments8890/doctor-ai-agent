@@ -18,6 +18,7 @@ import {
   ErrorBlock,
   List,
   Tag,
+  Ellipsis,
 } from "antd-mobile";
 import { FileOutline } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
@@ -183,12 +184,9 @@ function TimelineView({ records, onTap }) {
                           color: APP.text1,
                           lineHeight: 1.4,
                           marginBottom: 4,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
                         }}
                       >
-                        {preview}
+                        <Ellipsis direction="end" content={preview} rows={1} />
                       </div>
                     )}
                     <div
@@ -199,19 +197,17 @@ function TimelineView({ records, onTap }) {
                       }}
                     >
                       {diagnosis ? (
-                        <span
+                        <div
                           style={{
                             fontSize: FONT.sm,
                             color: APP.text3,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
                             flex: 1,
                             marginRight: 8,
+                            minWidth: 0,
                           }}
                         >
-                          {diagnosis}
-                        </span>
+                          <Ellipsis direction="end" content={diagnosis} rows={1} />
+                        </div>
                       ) : (
                         <span />
                       )}

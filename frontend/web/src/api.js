@@ -1122,11 +1122,18 @@ export async function createRuleFromEdit(editId, doctorId) {
   });
 }
 
-export async function finalizeReview(recordId, doctorId) {
+export async function finalizeReview(recordId, doctorId, opts = {}) {
+  const body = { doctor_id: doctorId };
+  if (opts.implicit_reject === true) {
+    body.implicit_reject = true;
+  }
+  if (opts.edited_record && typeof opts.edited_record === "object") {
+    body.edited_record = opts.edited_record;
+  }
   return request(`/api/doctor/records/${recordId}/review/finalize`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ doctor_id: doctorId }),
+    body: JSON.stringify(body),
   });
 }
 

@@ -12,11 +12,12 @@ import {
   List,
   ErrorBlock,
   PullToRefresh,
+  Ellipsis,
 } from "antd-mobile";
 import { useReviewQueue, useDrafts } from "../../../lib/doctorQueries";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { dp } from "../../../utils/doctorBasePath";
-import { APP, FONT } from "../../theme";
+import { APP, FONT, RADIUS } from "../../theme";
 import { pageContainer, scrollable } from "../../layouts";
 import { NameAvatar, LoadingCenter } from "../../components";
 
@@ -34,10 +35,47 @@ const SECTION_LABEL = {
   treatment: "治疗方向",
 };
 
+// Small chip to distinguish diagnose vs reply rows in the unified queue.
+function KindTag({ kind }) {
+  const isReview = kind === "review";
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        marginRight: 6,
+        padding: "1px 6px",
+        borderRadius: RADIUS.xs,
+        fontSize: FONT.xs,
+        fontWeight: 500,
+        lineHeight: 1.5,
+        background: isReview ? APP.primaryLight : APP.accentLight,
+        color: isReview ? APP.primary : APP.accent,
+      }}
+    >
+      {isReview ? "诊断" : "回复"}
+    </span>
+  );
+}
+
+// Format ISO timestamp → "N 天前" / "刚刚" / "N 小时前" for the extra slot.
+function formatRelative(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const diffMs = Date.now() - d.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "刚刚";
+  if (mins < 60) return `${mins} 分钟前`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} 天前`;
+  return d.toLocaleDateString("zh-CN");
+}
+
 // ── Pending item row ───────────────────────────────────────────────
 
 function PendingItem({ item, onNavigate }) {
-
   const sectionLabel = SECTION_LABEL[item.section] || item.section || "";
   const sourceLabel =
     item.record_type === "interview_summary"
@@ -50,18 +88,23 @@ function PendingItem({ item, onNavigate }) {
     : [sourceLabel, sectionLabel && item.content ? `${sectionLabel}：${item.content}` : ""]
         .filter(Boolean)
         .join(" · ");
+  const time = item.time || formatRelative(item.created_at);
 
   return (
     <List.Item
       prefix={<NameAvatar name={item.patient_name} size={36} />}
-      extra={
-        <span style={{ fontSize: FONT.sm, color: APP.text4 }}>{item.time}</span>
-      }
-      description={subtitle}
+      extra={<span style={{ fontSize: FONT.sm, color: APP.text4 }}>{time}</span>}
+      description={<Ellipsis direction="end" content={subtitle} rows={1} />}
       arrow
       onClick={() => onNavigate(item)}
+      style={{ "--align-items": "center" }}
     >
-      <span style={{ fontWeight: 500 }}>{item.patient_name}</span>
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <KindTag kind="review" />
+        <span style={{ fontWeight: 500, fontSize: FONT.md }}>
+          {item.patient_name}
+        </span>
+      </div>
     </List.Item>
   );
 }
@@ -71,20 +114,24 @@ function PendingItem({ item, onNavigate }) {
 function DraftItem({ item, onNavigate }) {
   const statusLabel = item.type === "undrafted" ? "需手动回复" : "AI已起草";
   const snippet = item.patient_message || item.content || "";
+  const subtitle = snippet ? `"${snippet}" · ${statusLabel}` : statusLabel;
+  const time = item.time || formatRelative(item.created_at);
 
   return (
     <List.Item
       prefix={<NameAvatar name={item.patient_name} size={36} />}
-      extra={
-        <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
-          {item.time || ""}
-        </span>
-      }
-      description={`"${snippet.slice(0, 40)}" · ${statusLabel}`}
+      extra={<span style={{ fontSize: FONT.sm, color: APP.text4 }}>{time}</span>}
+      description={<Ellipsis direction="end" content={subtitle} rows={1} />}
       arrow
       onClick={() => onNavigate(item)}
+      style={{ "--align-items": "center" }}
     >
-      <span style={{ fontWeight: 500 }}>{item.patient_name}</span>
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <KindTag kind="reply" />
+        <span style={{ fontWeight: 500, fontSize: FONT.md }}>
+          {item.patient_name}
+        </span>
+      </div>
     </List.Item>
   );
 }
@@ -148,17 +195,40 @@ export default function ReviewQueuePage() {
     (b.created_at || "").localeCompare(a.created_at || "")
   );
 
-  // Tab state from URL: ?tab=pending (default) | ?tab=replies | ?tab=completed
+  // Tab state from URL: ?tab=pending (default) | ?tab=completed
+  // `replies` legacy value is remapped to `pending` since they share the tab.
   const [searchParams, setSearchParams] = useSearchParams();
-  const validTabs = new Set(["pending", "replies", "completed"]);
+  const validTabs = new Set(["pending", "completed"]);
   const urlTab = searchParams.get("tab");
-  const activeTab = urlTab && validTabs.has(urlTab) ? urlTab : "pending";
+  const activeTab =
+    urlTab === "replies"
+      ? "pending"
+      : urlTab && validTabs.has(urlTab)
+      ? urlTab
+      : "pending";
 
   function handleTabChange(key) {
     if (key === "pending") {
       setSearchParams({}, { replace: true });
     } else {
       setSearchParams({ tab: key }, { replace: true });
+    }
+  }
+
+  // Unified pending list — AI diagnosis reviews + patient reply drafts.
+  // Each item keeps its origin via `_kind` so the renderer + nav can branch.
+  const pendingUnified = [
+    ...pending.map((p) => ({ ...p, _kind: "review" })),
+    ...activeDrafts.map((d) => ({ ...d, _kind: "reply" })),
+  ].sort((a, b) =>
+    (b.created_at || "").localeCompare(a.created_at || "")
+  );
+
+  function handleNavigateUnified(item) {
+    if (item._kind === "reply") {
+      handleNavigateDraft(item);
+    } else {
+      handleNavigatePending(item);
     }
   }
 
@@ -185,8 +255,7 @@ export default function ReviewQueuePage() {
     await Promise.all([refetchQueue(), refetchDrafts()]);
   }, [refetchQueue, refetchDrafts]);
 
-  const pendingCount = pending.length;
-  const repliesCount = activeDrafts.length;
+  const pendingCount = pendingUnified.length;
   const completedCount = completed.length;
 
   return (
@@ -205,10 +274,6 @@ export default function ReviewQueuePage() {
             key="pending"
           />
           <JumboTabs.Tab
-            title={<TabTitleWithCount label="待回复" count={repliesCount} />}
-            key="replies"
-          />
-          <JumboTabs.Tab
             title={<TabTitleWithCount label="已完成" count={completedCount} />}
             key="completed"
           />
@@ -221,48 +286,32 @@ export default function ReviewQueuePage() {
           {/* Loading */}
           {loading && <LoadingCenter />}
 
-          {/* Pending tab */}
+          {/* Unified pending tab — diagnosis reviews + reply drafts */}
           {!loading && activeTab === "pending" && (
             <>
-              {pending.length > 0 ? (
+              {pendingUnified.length > 0 ? (
                 <List>
-                  {pending.map((item) => (
-                    <PendingItem
-                      key={item.id}
-                      item={item}
-                      onNavigate={handleNavigatePending}
-                    />
-                  ))}
+                  {pendingUnified.map((item) =>
+                    item._kind === "reply" ? (
+                      <DraftItem
+                        key={`reply-${item.id}`}
+                        item={item}
+                        onNavigate={handleNavigateUnified}
+                      />
+                    ) : (
+                      <PendingItem
+                        key={`review-${item.id}`}
+                        item={item}
+                        onNavigate={handleNavigateUnified}
+                      />
+                    )
+                  )}
                 </List>
               ) : (
                 <ErrorBlock
                   status="empty"
                   title="暂无待审核项"
-                  description="新的诊断建议会自动出现在这里"
-                  style={{ paddingTop: 48 }}
-                />
-              )}
-            </>
-          )}
-
-          {/* Replies tab */}
-          {!loading && activeTab === "replies" && (
-            <>
-              {activeDrafts.length > 0 ? (
-                <List header="患者消息 · 待回复">
-                  {activeDrafts.map((msg) => (
-                    <DraftItem
-                      key={msg.id}
-                      item={msg}
-                      onNavigate={handleNavigateDraft}
-                    />
-                  ))}
-                </List>
-              ) : (
-                <ErrorBlock
-                  status="empty"
-                  title="暂无待回复消息"
-                  description="患者消息会自动出现在这里"
+                  description="新的诊断建议和患者消息会自动出现在这里"
                   style={{ paddingTop: 48 }}
                 />
               )}
