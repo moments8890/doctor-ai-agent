@@ -3,117 +3,121 @@
 <head>
 <meta charset="utf-8">
 <link rel="stylesheet" href="wiki-common.css">
+<style>
+  .updated-stamp { text-align: right; color: #888; font-size: 0.75rem; margin-top: 0.5rem; }
+</style>
 </head>
 <body>
 <div class="page-wrap">
 
 <div class="breadcrumb">
-  <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">首页</a> › 患者体验 › 患者预问诊
+  <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">首页</a> › 患者体验 › 预问诊
 </div>
 
 <h1>患者预问诊</h1>
 
-<p class="hatnote">就诊前信息采集 — 患者扫码后由 AI 引导填写症状和病史，为您生成一份结构化病历草稿，不替代医生面诊。</p>
+<p class="hatnote">患者扫码，AI 用对话逐一采集病史，最后给您一份结构化病历草稿。整个过程患者 3–5 分钟，您 0 分钟。</p>
 
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>患者的体验</h2>
 
-<h2>患者的问诊体验</h2>
-
-<p>整个过程对患者来说非常简单，无需填写复杂表格：</p>
+<p>对患者来说非常简单，没有任何表格要填：</p>
 
 <div class="flow">
-  <div class="flow-step">患者扫您的二维码</div>
+  <div class="flow-step">扫您的二维码</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">AI 用自然语言一问一答引导</div>
+  <div class="flow-step">AI 一问一答引导</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">患者语音或文字回答</div>
+  <div class="flow-step">语音或文字回答</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">AI 自动整理信息</div>
+  <div class="flow-step">AI 整理信息</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">患者确认后提交</div>
+  <div class="flow-step">确认提交</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">您收到完整病历，可立即审核</div>
+  <div class="flow-step">您收到病历，可审核</div>
 </div>
 
 <div class="notice-box">
-  <b>您不需要教患者操作：</b>界面设计简洁直观，AI 全程引导，患者只需回答问题即可。语音输入让老年患者也能轻松使用。
+  <b>您不需要教患者：</b>界面设计简单直观，AI 全程引导，患者只要回答就行。支持语音，老年患者也能用。
 </div>
 
-
-<h2>AI 如何提问</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>AI 怎么问</h2>
 
 <h3>智能追问</h3>
-<p>AI 会根据患者描述的症状，自动提出有针对性的追问。例如患者说"头痛"，AI 会进一步询问疼痛的位置、持续时间、是否伴有恶心等，而不是让患者面对一张空表格。</p>
+<p>AI 会根据患者描述的症状自动追问。患者说"头痛"，AI 会进一步问疼痛位置、持续时间、是否伴恶心等，而不是扔一张空表格。</p>
 
 <h3>快速回复选项</h3>
-<p>每次 AI 提问后，屏幕下方会出现几个常见选项，患者可以直接点击，无需打字。例如询问"症状持续了多久？"时，会显示"1 天以内"、"2 到 3 天"、"超过一周"等选项。</p>
+<p>每次 AI 问题下方有几个常见选项可点击（如"1 天以内"/"2 到 3 天"/"超过一周"），患者可以点选也可以自己打字。</p>
 
 <h3>语音输入</h3>
-<p>患者可以用语音回答每个问题。AI 采用专为医疗场景优化的语音识别，能准确理解普通话医疗表述，识别结果会显示在输入框，患者可确认后发送。</p>
+<p>患者可以语音回答每个问题。AI 用腾讯医疗级 ASR（<code>16k_zh_medical</code>），能准确识别医疗术语，转文字后患者确认再发送。</p>
 
-<h3>中途可以暂停</h3>
-<p>患者关闭页面后再次打开，对话会从上次中断的地方继续，不需要重新开始。顶部进度条显示已填写的信息比例。</p>
+<h3>中途可暂停</h3>
+<p>关闭页面再打开时，对话从上次位置继续，不用重来。顶部进度条显示完成比例。</p>
 
-
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>您收到的病历</h2>
 
-<p>患者完成问诊后，您会收到一份包含以下信息的结构化病历：</p>
+<p>患者提交后，您的"审核"页面会出现一条新记录，包含 14 个标准字段：</p>
 
 <table>
-  <tr><th>信息类别</th><th>具体内容</th></tr>
-  <tr><td>主诉</td><td>患者的核心症状描述</td></tr>
-  <tr><td>现病史</td><td>症状发展经过、加重/缓解因素</td></tr>
-  <tr><td>既往史</td><td>过往病史、手术史</td></tr>
-  <tr><td>过敏史</td><td>药物或其他过敏信息</td></tr>
-  <tr><td>当前用药</td><td>正在服用的药物</td></tr>
-  <tr><td>家族史</td><td>相关家族病史</td></tr>
-  <tr><td>其他字段</td><td>个人史、婚育史、职业史等（共 14 个标准字段）</td></tr>
+  <tr><th>类别</th><th>字段</th></tr>
+  <tr><td>核心症状</td><td>主诉、现病史、症状加重/缓解因素</td></tr>
+  <tr><td>既往情况</td><td>既往史、过敏史、当前用药、手术史</td></tr>
+  <tr><td>家属与生活</td><td>家族史、个人史、婚育史、职业史</td></tr>
+  <tr><td>其他</td><td>辅助检查（自述）、备注、AI 初步分析</td></tr>
 </table>
 
-<p>这份病历会出现在您的审核队列中，等待您确认和定稿。</p>
+<p>这份病历直接进您的审核队列，可立即打开定稿。</p>
 
-
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>上传检查报告</h2>
 
-<p>问诊过程中，患者可以拍照上传纸质检查单或病历本，AI 会自动识别文字内容并填入对应字段。患者（或医生）仍可在提交前对每个字段进行修改。</p>
+<p>问诊过程中，患者可以拍照上传纸质检查单或病历本。AI 识别文字后填入对应字段，患者（或您）仍可在提交前修改。</p>
 
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>您也能用问诊模式</h2>
 
-<h2>医生也可以使用问诊模式</h2>
-
-<p>如果您在诊室想快速录入病历，也可以使用医生端的问诊功能，通过语音口述的方式让 AI 提取结构化字段。口述完成后，AI 会将内容整理为标准病历格式供您核对。</p>
+<p>诊室里想快速录入病历？在"患者"页面点右上角 + 图标，选"新问诊"，通过语音口述让 AI 提取结构化字段。口述完成后 AI 整理成标准格式，供您核对。</p>
 
 <div class="info-box">
-  <b>医生端与患者端的区别：</b>医生端支持全部 14 个标准字段，适合诊室内完整录入；患者端侧重 7 个核心症状字段，适合就诊前自助填写。
+  <b>医生端 vs 患者端的区别：</b>医生端支持全部 14 个字段，适合诊室完整录入；患者端主要覆盖 7 个核心症状字段，适合就诊前自助填写。
 </div>
 
-
-<h2>问诊完成后的自动流程</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>问诊完成后</h2>
 
 <div class="pipeline">
   <div class="pipeline-step">
     <div class="step-title">患者确认提交</div>
-    <div class="step-desc">患者确认信息无误后提交</div>
+    <div class="step-desc">患者点"完成"</div>
   </div>
   <div class="pipeline-arrow">→</div>
   <div class="pipeline-step">
     <div class="step-title">生成病历草稿</div>
-    <div class="step-desc">所有字段自动整理为标准病历</div>
+    <div class="step-desc">14 字段自动整理</div>
   </div>
   <div class="pipeline-arrow">→</div>
   <div class="pipeline-step">
     <div class="step-title">通知您审核</div>
-    <div class="step-desc">出现在您的审核队列，角标提示</div>
+    <div class="step-desc">"审核"页有新条目</div>
   </div>
   <div class="pipeline-arrow">→</div>
   <div class="pipeline-step">
-    <div class="step-title">您完成审核</div>
-    <div class="step-desc">确认定稿，AI 生成随访计划</div>
+    <div class="step-title">您定稿</div>
+    <div class="step-desc">归入"已完成"</div>
   </div>
 </div>
 
-
 <div class="categories">
-  分类: <a href="#">使用指南</a> <a href="#">患者预问诊</a>
+  相关页面:
+  <a href="wiki-review.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-review.html')}">审核中心</a>
+  &nbsp;<a href="wiki-patients.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-patients.html')}">患者管理</a>
+  &nbsp;<a href="wiki-patient-portal.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-patient-portal.html')}">患者端说明</a>
 </div>
+
+<div class="updated-stamp">最近更新：2026-04-22 · 版本 v2.1.0</div>
 
 </div>
 </body>

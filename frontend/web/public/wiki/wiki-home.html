@@ -4,205 +4,186 @@
 <meta charset="utf-8">
 <link rel="stylesheet" href="wiki-common.css">
 <style>
-  .hero { margin-bottom: 1.5rem; }
+  .hero { margin-bottom: 1.25rem; }
   .hero h1 { border: none; margin-bottom: 0.25rem; }
+  .hero .tagline { font-size: 0.95rem; color: #54595d; line-height: 1.65; }
 
-  .step-flow { display: flex; align-items: stretch; gap: 0; margin: 1rem 0; flex-wrap: wrap; }
-  .step-box { flex: 1; min-width: 100px; padding: 0.75rem; text-align: center; background: #e8f5e9; border: 1px solid #a5d6a7; }
-  .step-box:first-child { border-radius: 6px 0 0 6px; }
-  .step-box:last-child { border-radius: 0 6px 6px 0; }
-  .step-num { font-size: 0.7rem; color: #888; font-weight: bold; }
-  .step-title { font-size: 0.9rem; font-weight: 600; color: #0d5c2e; margin: 0.15rem 0; }
-  .step-who { font-size: 0.75rem; color: #666; }
-  .step-arrow { display: flex; align-items: center; font-size: 1.1rem; color: #4caf50; padding: 0 2px; }
+  /* 3-step flow */
+  .flow-3 { display: flex; gap: 0; margin: 1rem 0; flex-wrap: wrap; }
+  .flow-3 .step { flex: 1; min-width: 150px; padding: 0.85rem 1rem; background: #e8f5e9; border: 1px solid #a5d6a7; text-align: center; }
+  .flow-3 .step:first-child { border-radius: 6px 0 0 6px; }
+  .flow-3 .step:last-child { border-radius: 0 6px 6px 0; }
+  .flow-3 .step-num { font-size: 0.7rem; color: #888; font-weight: bold; letter-spacing: 1px; }
+  .flow-3 .step-title { font-size: 0.95rem; font-weight: 600; color: #0d5c2e; margin: 0.25rem 0 0.15rem; }
+  .flow-3 .step-who { font-size: 0.75rem; color: #666; }
+  .flow-3 .arrow { display: flex; align-items: center; color: #4caf50; padding: 0 4px; font-size: 1.2rem; }
 
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 0.75rem 0; }
-  @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
-  .col-card { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 0.75rem 1rem; }
-  .col-card h4 { font-size: 0.9rem; color: #0d5c2e; margin: 0 0 0.25rem; }
-  .col-card p, .col-card li { font-size: 0.85rem; color: #555; line-height: 1.6; }
-  .col-card ul { margin: 0.25rem 0 0 1rem; }
+  /* Feature cards */
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.9rem; margin: 0.75rem 0; }
+  .fcard { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 0.9rem 1rem; }
+  .fcard h4 { font-size: 0.95rem; color: #0d5c2e; margin: 0 0 0.35rem; }
+  .fcard p { font-size: 0.85rem; color: #555; line-height: 1.6; margin: 0; }
 
-  .safety-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 0.75rem 0; }
-  .safety-item { flex: 1; min-width: 140px; background: #fff3e0; border-left: 3px solid #ff9800; padding: 0.5rem 0.75rem; border-radius: 0 4px 4px 0; font-size: 0.85rem; color: #555; }
+  /* Safety bar */
+  .safety-bar { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.5rem; margin: 0.75rem 0; }
+  .safety-item { background: #fff3e0; border-left: 3px solid #ff9800; padding: 0.5rem 0.75rem; border-radius: 0 4px 4px 0; font-size: 0.85rem; color: #555; }
   .safety-item b { color: #e65100; }
 
-  .quick-links { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.5rem 0; }
-  .quick-link { display: inline-block; padding: 0.35rem 0.75rem; background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 4px; text-decoration: none; color: #0d5c2e; font-size: 0.8rem; font-weight: 500; }
+  /* Quick links */
+  .quick-links { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.5rem 0 1rem; }
+  .quick-link { display: inline-block; padding: 0.4rem 0.85rem; background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 4px; text-decoration: none; color: #0d5c2e; font-size: 0.82rem; font-weight: 500; }
   .quick-link:hover { background: #c8e6c9; }
+
+  /* Updated stamp */
+  .updated-stamp { text-align: right; color: #888; font-size: 0.75rem; margin-top: 0.5rem; }
 </style>
 </head>
 <body>
 <div class="page-wrap">
 
-<!-- ══════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <div class="hero">
   <h1>Doctor AI — 2 分钟了解全部</h1>
-  <p class="hatnote">专科医生的个人随访副驾。学习您的诊疗规则，辅助处理术后随访。不是 EMR，不自动执行，所有输出需您确认。</p>
+  <p class="tagline">专科医生的个人随访副驾。学习您的诊疗规则，帮您处理门诊和术后随访。<b>不是 EMR，不自动执行，所有输出由您最终决定。</b></p>
 </div>
 
-<!-- ── 一句话 ── -->
-<div class="warn-box">
-  <b>核心原则：</b>AI 永远不会自动联系患者或写入病历。每条建议、每条回复，都必须经过您的确认。
+<div class="notice-box">
+  <b>一个原则：</b>AI 永远不会替您联系患者或改写病历。每条建议、每句回复，都要由您点一下确认才会生效。
 </div>
 
-<!-- ══════════════════════════════════════════════════════════ -->
-<h2>完整工作流程（6 步闭环）</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>整条流程只有 3 步</h2>
 
-<div class="step-flow">
-  <div class="step-box">
-    <div class="step-num">1</div>
-    <div class="step-title">添加规则</div>
-    <div class="step-who">您</div>
+<div class="flow-3">
+  <div class="step">
+    <div class="step-num">第 1 步</div>
+    <div class="step-title">您教 AI 规则</div>
+    <div class="step-who">5 分钟</div>
   </div>
-  <div class="step-arrow">→</div>
-  <div class="step-box">
-    <div class="step-num">2</div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-num">第 2 步</div>
     <div class="step-title">患者扫码问诊</div>
-    <div class="step-who">患者 + AI</div>
+    <div class="step-who">患者 · 3 分钟</div>
   </div>
-  <div class="step-arrow">→</div>
-  <div class="step-box">
-    <div class="step-num">3</div>
-    <div class="step-title">审核诊断建议</div>
-    <div class="step-who">您</div>
-  </div>
-  <div class="step-arrow">→</div>
-  <div class="step-box">
-    <div class="step-num">4</div>
-    <div class="step-title">审核回复草稿</div>
-    <div class="step-who">您</div>
-  </div>
-  <div class="step-arrow">→</div>
-  <div class="step-box">
-    <div class="step-num">5</div>
-    <div class="step-title">自动生成随访</div>
-    <div class="step-who">AI</div>
-  </div>
-  <div class="step-arrow">→</div>
-  <div class="step-box">
-    <div class="step-num">6</div>
-    <div class="step-title">患者收到确认内容</div>
-    <div class="step-who">患者</div>
+  <div class="arrow">→</div>
+  <div class="step">
+    <div class="step-num">第 3 步</div>
+    <div class="step-title">您审核 AI 建议</div>
+    <div class="step-who">您 · 几十秒</div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════ -->
-<h2>六大功能一览</h2>
+<p style="color: #666; font-size: 0.9rem;">AI 在第 2 步读取您的规则，先帮您把病历和诊断草稿准备好；第 3 步您只需要在草稿上做微调，或逐条采纳 / 编辑 / 拒绝。</p>
 
-<div class="two-col">
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>您每天会用到的 3 个入口</h2>
 
-  <div class="col-card">
-    <h4>知识库 — 教 AI 您的规则</h4>
-    <ul>
-      <li>手动输入文字、上传文件（PDF/Word/图片）、粘贴网址</li>
-      <li>AI 在诊断和回复时自动引用您的规则，并标注来源</li>
-      <li>建议先添加 5-10 条您科室的核心规则</li>
-    </ul>
+<p style="color: #666; font-size: 0.9rem;">医生端只有底部 3 个标签，其它功能都藏在里面，不用记复杂的菜单。</p>
+
+<div class="feature-grid">
+  <div class="fcard">
+    <h4>我的 AI</h4>
+    <p>今日摘要、快捷入口、AI 反馈周报（这周您采纳了多少条、拒绝了多少条）。每天打开先看这里。</p>
   </div>
-
-  <div class="col-card">
-    <h4>患者预问诊 — AI 帮您采集病史</h4>
-    <ul>
-      <li>患者扫您的二维码，AI 用对话方式逐一询问</li>
-      <li>支持语音和文字输入，中途可暂停继续</li>
-      <li>完成后您收到结构化病历，直接审核</li>
-    </ul>
+  <div class="fcard">
+    <h4>患者</h4>
+    <p>全部患者一览，按紧急程度排序。支持姓名搜索和自然语言搜索（如"术后一周的老年女性"）。点进去看病历和聊天记录。</p>
   </div>
-
-  <div class="col-card">
-    <h4>审核中心 — 您的每日工作台</h4>
-    <ul>
-      <li><b>诊断审核：</b>AI 生成鉴别诊断、检查建议、治疗方向，逐条确认/编辑/拒绝</li>
-      <li><b>回复审核：</b>患者消息的 AI 草稿，审核后一键发送</li>
-      <li>每条建议标注引用了哪条您的规则</li>
-    </ul>
+  <div class="fcard">
+    <h4>审核</h4>
+    <p>AI 准备好的门诊记录和回复草稿等您过目。逐字段确认，每条建议都标注来自您哪条规则。</p>
   </div>
-
-  <div class="col-card">
-    <h4>随访任务 — 不遗漏任何跟进</h4>
-    <ul>
-      <li>诊断定稿后自动创建随访任务（如"2 周后复查"）</li>
-      <li>按到期时间排列，显示"明天""3 天后"等提示</li>
-      <li>手动创建提醒也可以</li>
-    </ul>
-  </div>
-
-  <div class="col-card">
-    <h4>患者管理 — 全景视图</h4>
-    <ul>
-      <li>搜索支持姓名和自然语言（"最近的高血压患者"）</li>
-      <li>红/黄/绿色点标记紧急程度，红色自动置顶</li>
-      <li>每位患者的病历、消息、任务一页可见</li>
-    </ul>
-  </div>
-
-  <div class="col-card">
-    <h4>患者端 — 扫码即用</h4>
-    <ul>
-      <li>患者扫二维码进入，无需下载 App</li>
-      <li>查看病历、接收您的消息、完成待办任务</li>
-      <li>微信小程序和手机浏览器均可使用</li>
-    </ul>
-  </div>
-
 </div>
 
-<!-- ══════════════════════════════════════════════════════════ -->
-<h2>安全边界</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>六件事 AI 替您做了</h2>
+
+<div class="feature-grid">
+  <div class="fcard">
+    <h4>记住您的规则</h4>
+    <p>手动输入、上传 PDF / Word / 图片，或粘贴网页链接。AI 在诊断和回复时自动引用这些规则并标注来源。</p>
+  </div>
+  <div class="fcard">
+    <h4>引导患者问诊</h4>
+    <p>患者扫您的二维码，AI 用对话逐一采集病史，支持语音。结果是一份结构化病历，直接进您的审核队列。</p>
+  </div>
+  <div class="fcard">
+    <h4>起草鉴别诊断</h4>
+    <p>基于问诊结果给出 2–5 个鉴别诊断、建议检查、治疗方向。每条都能逐条采纳或编辑，不强迫您全盘接受。</p>
+  </div>
+  <div class="fcard">
+    <h4>起草患者回复</h4>
+    <p>患者发来消息，AI 按您的规则和语气起草回复。您微调后发送，或原封不动一键发出。</p>
+  </div>
+  <div class="fcard">
+    <h4>从您的编辑中学习</h4>
+    <p>当您反复修改同一类建议，AI 会弹窗询问"是否保存为规则"。编辑越多，AI 越像您。</p>
+  </div>
+  <div class="fcard">
+    <h4>用反馈闭环改进</h4>
+    <p>您拒绝某条 AI 建议时可以顺手写原因。"我的 AI"页有周报：哪些位置 AI 出错最多，哪些规则被引用最多。</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>5 条安全边界</h2>
 
 <div class="safety-bar">
   <div class="safety-item"><b>不自动发送</b> — 每条回复需您确认</div>
-  <div class="safety-item"><b>不写入病历</b> — 建议仅供参考</div>
-  <div class="safety-item"><b>不对外共享</b> — 数据仅属于您</div>
+  <div class="safety-item"><b>不自动写病历</b> — 定稿由您点击</div>
   <div class="safety-item"><b>不替代诊断</b> — AI 辅助，您决策</div>
+  <div class="safety-item"><b>不共享数据</b> — 每位医生独立账号</div>
+  <div class="safety-item"><b>可随时导出</b> — 病历一键打包 PDF</div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>5 分钟上手</h2>
 
 <table>
   <tr><th>步骤</th><th>做什么</th><th>结果</th></tr>
-  <tr><td>1</td><td>登录，进入 设置 > 知识库，添加一条规则</td><td>AI 学会了您的第一条经验</td></tr>
-  <tr><td>2</td><td>进入 患者 页面，点右上角二维码图标，发给一位患者</td><td>患者扫码自动注册</td></tr>
-  <tr><td>3</td><td>让患者在小程序中完成预问诊</td><td>您的审核队列收到结构化病历</td></tr>
-  <tr><td>4</td><td>打开 审核 标签，审核 AI 的诊断建议</td><td>确认后自动生成随访任务</td></tr>
+  <tr><td>1</td><td>进入"我的 AI"→"知识库"→加号，输入一条您最常用的规则</td><td>AI 学会了您的第一条经验</td></tr>
+  <tr><td>2</td><td>进入"患者"页，点右上角二维码图标，把二维码发给一位患者</td><td>患者扫码后自动注册并绑定到您</td></tr>
+  <tr><td>3</td><td>让患者在小程序里完成一次 AI 引导问诊</td><td>您的"审核"页收到一份结构化病历</td></tr>
+  <tr><td>4</td><td>打开"审核"页，逐条采纳 / 编辑 / 拒绝 AI 建议，定稿</td><td>病历归档，流程闭环</td></tr>
 </table>
 
 <div class="info-box">
-  <b>建议：</b>前两周每天添加 3-5 条规则。遇到 AI 建议不对时，改它而不是拒绝 — 您的编辑是 AI 最好的学习材料。
+  <b>一条小建议：</b>前两周每天加 3–5 条规则。碰到 AI 出错时不要直接拒绝，<b>先编辑再拒绝</b> — 您的编辑是 AI 最好的学习材料。
 </div>
 
-<!-- ══════════════════════════════════════════════════════════ -->
-<h2>常见问题（简答）</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>常见疑问（30 秒速答）</h2>
 
 <table>
   <tr><th>问题</th><th>答案</th></tr>
-  <tr><td>AI 会自动发消息给患者吗？</td><td>不会。每条回复需您确认后才发送。</td></tr>
-  <tr><td>规则少会不会出错？</td><td>AI 仍可工作，但建议至少 5-10 条规则再正式使用。</td></tr>
-  <tr><td>患者不会用怎么办？</td><td>扫码后 AI 全程引导，支持语音，老年患者也能用。</td></tr>
-  <tr><td>数据安全吗？</td><td>数据仅存您的账号，不共享，可随时导出备份。</td></tr>
-  <tr><td>可以在手机上用吗？</td><td>可以。网页和微信小程序都支持。</td></tr>
+  <tr><td>AI 会自动发消息给患者吗？</td><td>不会。每条回复需您点击发送。</td></tr>
+  <tr><td>规则少 AI 会出错吗？</td><td>规则不足时 AI 只能给通用建议，建议先加 5–10 条再正式使用。</td></tr>
+  <tr><td>患者不会用怎么办？</td><td>扫码进入后 AI 全程引导，支持语音，老年患者也能用。</td></tr>
+  <tr><td>数据安全吗？</td><td>每位医生账号独立，数据不共享，可随时导出备份。</td></tr>
+  <tr><td>手机能用吗？</td><td>可以。微信小程序和手机浏览器都支持。</td></tr>
 </table>
 
-<!-- ══════════════════════════════════════════════════════════ -->
-<h2>详细了解</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>去哪里看更详细的说明</h2>
 
 <div class="quick-links">
-  <a class="quick-link" href="wiki-quickstart.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-quickstart.html')}">快速上手指南</a>
-  <a class="quick-link" href="wiki-knowledge.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-knowledge.html')}">知识库使用</a>
+  <a class="quick-link" href="wiki-quickstart.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-quickstart.html')}">快速上手</a>
+  <a class="quick-link" href="wiki-knowledge.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-knowledge.html')}">知识库</a>
   <a class="quick-link" href="wiki-review.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-review.html')}">审核中心</a>
   <a class="quick-link" href="wiki-patients.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-patients.html')}">患者管理</a>
-  <a class="quick-link" href="wiki-tasks.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-tasks.html')}">随访任务</a>
   <a class="quick-link" href="wiki-interview.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-interview.html')}">患者预问诊</a>
+  <a class="quick-link" href="wiki-settings.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-settings.html')}">设置</a>
   <a class="quick-link" href="wiki-ai.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-ai.html')}">AI 如何工作</a>
+  <a class="quick-link" href="wiki-kb-learning.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-kb-learning.html')}">AI 学习闭环</a>
   <a class="quick-link" href="wiki-faq.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-faq.html')}">完整 FAQ</a>
-  <a class="quick-link" href="wiki-whats-new.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-whats-new.html')}">更新计划</a>
+  <a class="quick-link" href="wiki-whats-new.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-whats-new.html')}">版本与路线图</a>
 </div>
 
 <div class="wiki-footer">
-  Doctor AI 帮助中心 &middot; 当前版本 v2.0.0 &middot; 当前重点科室：神经外科
+  Doctor AI 帮助中心 · 当前版本 <b>v2.1.0</b> · 当前重点科室：神经外科
 </div>
+<div class="updated-stamp">最近更新：2026-04-22</div>
 
 </div>
 </body>

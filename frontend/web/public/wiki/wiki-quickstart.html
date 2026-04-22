@@ -4,21 +4,22 @@
 <meta charset="utf-8">
 <link rel="stylesheet" href="wiki-common.css">
 <style>
-  .step-list { margin: 16px 0; }
-  .step-item { display: flex; gap: 16px; margin-bottom: 24px; align-items: flex-start; }
-  .step-num { width: 36px; height: 36px; background: #0d5c2e; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; flex-shrink: 0; margin-top: 2px; }
+  .step-list { margin: 1rem 0; }
+  .step-item { display: flex; gap: 1rem; margin-bottom: 1.25rem; align-items: flex-start; }
+  .step-num { width: 36px; height: 36px; background: #0d5c2e; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: bold; flex-shrink: 0; margin-top: 2px; }
   .step-body { flex: 1; }
-  .step-body h3 { font-size: 15px; color: #0d5c2e; margin: 0 0 6px; }
-  .step-body .how { font-size: 14px; color: #333; margin-bottom: 6px; line-height: 1.6; }
-  .step-body .why { font-size: 13px; color: #666; font-style: italic; }
-  .step-connector { width: 36px; border-left: 2px dashed #c8e6c9; height: 20px; margin-left: 17px; }
-  .done-box { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 20px 24px; margin: 24px 0; text-align: center; }
-  .done-box h3 { color: #0d5c2e; font-size: 17px; margin-bottom: 6px; }
-  .done-box p { color: #555; font-size: 13px; }
-  .tip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 12px 0; }
-  .tip-card { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 14px; }
-  .tip-card h4 { font-size: 13px; color: #0d5c2e; margin-bottom: 4px; }
-  .tip-card p { font-size: 12px; color: #666; }
+  .step-body h3 { font-size: 1.05rem; color: #0d5c2e; margin: 0 0 0.35rem; }
+  .step-body .how { font-size: 0.9rem; color: #333; margin-bottom: 0.35rem; line-height: 1.65; }
+  .step-body .why { font-size: 0.85rem; color: #666; font-style: italic; line-height: 1.6; }
+  .step-connector { width: 36px; border-left: 2px dashed #c8e6c9; height: 0.75rem; margin-left: 17px; }
+  .done-box { background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 1.25rem 1.5rem; margin: 1.25rem 0; text-align: center; }
+  .done-box h3 { color: #0d5c2e; font-size: 1.1rem; margin-bottom: 0.35rem; }
+  .done-box p { color: #555; font-size: 0.9rem; }
+  .tip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; margin: 0.75rem 0; }
+  .tip-card { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 0.8rem 0.9rem; }
+  .tip-card h4 { font-size: 0.9rem; color: #0d5c2e; margin-bottom: 0.3rem; }
+  .tip-card p { font-size: 0.82rem; color: #666; line-height: 1.55; }
+  .updated-stamp { text-align: right; color: #888; font-size: 0.75rem; margin-top: 0.5rem; }
 </style>
 </head>
 <body>
@@ -29,21 +30,21 @@
 </div>
 
 <h1>快速上手</h1>
-<p class="hatnote">按照以下 6 个步骤，5 分钟内完成初始配置，开始体验 AI 辅助门诊。</p>
+<p class="hatnote">5 分钟走完一次完整闭环：加规则 → 邀患者 → 问诊 → 审核 → 定稿。</p>
 
 <div class="info-box">
-  <b>准备好了吗？</b> 您只需要登录账号，花几分钟添加一条规则并邀请一位患者，就能看到完整的 AI 工作流程。
+  <b>准备工作：</b>登录账号，用您的手机号和密码。首次登录需要邀请码（从您的对接人处获取）。
 </div>
 
-<!-- ── Steps ── -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <div class="step-list">
 
   <div class="step-item">
     <div class="step-num">1</div>
     <div class="step-body">
-      <h3>登录您的账号</h3>
-      <p class="how">打开 Doctor AI 网页或微信小程序，用您注册时的手机号和密码登录。首次登录需要输入邀请码。</p>
-      <p class="why">登录后您会看到三个主要入口：患者（管理列表）、审核（待处理诊断和回复）、随访（任务追踪）。</p>
+      <h3>登录并看一眼主界面</h3>
+      <p class="how">打开 Doctor AI 网页版或微信小程序，底部有 3 个标签：<b>我的 AI</b>（今日摘要和快捷入口）、<b>患者</b>（全部患者一览）、<b>审核</b>（待处理的门诊和回复）。</p>
+      <p class="why">没有复杂菜单，所有功能都藏在这 3 个标签里。</p>
     </div>
   </div>
   <div class="step-connector"></div>
@@ -52,8 +53,8 @@
     <div class="step-num">2</div>
     <div class="step-body">
       <h3>添加第一条规则</h3>
-      <p class="how">进入"设置" > "我的知识库"，点击右上角的加号。选择文字输入，写下一条您常用的临床规则，例如："术后头痛患者，排除脑脊液漏前不建议使用 NSAIDs"，保存即可。</p>
-      <p class="why">AI 会在生成诊断和回复时自动引用这条规则，并在建议旁边标注"依据：您的规则"。</p>
+      <p class="how">进入"我的 AI"→"知识库"→右上角加号。选择"文字输入"，写一条您的临床规则，例如：<br><i>"颅脑术后头痛患者，排除脑脊液漏前不建议使用 NSAIDs（布洛芬、阿司匹林等），首选对乙酰氨基酚，不超过 3g/天。"</i></p>
+      <p class="why">AI 在生成诊断或回复时会主动引用这条规则，并在建议旁边标注 [KB-1] 让您看到依据。</p>
     </div>
   </div>
   <div class="step-connector"></div>
@@ -62,8 +63,8 @@
     <div class="step-num">3</div>
     <div class="step-body">
       <h3>邀请第一位患者</h3>
-      <p class="how">进入"患者"页面，点击右上角的二维码图标，将您的专属二维码发给患者（截图、打印均可）。患者用微信扫码，无需下载任何 App，直接在小程序中完成注册。</p>
-      <p class="why">患者扫码绑定后，自动出现在您的患者列表中，随时可以开始 预问诊。</p>
+      <p class="how">进入"患者"页，点击右上角的二维码图标。把您的专属二维码截图发给一位患者（或打印贴在诊室）。患者用微信扫码，无需下载任何 App，自动注册并绑定到您名下。</p>
+      <p class="why">扫码方式最省力：患者不填信息、不设密码、不下载。扫完就能开始问诊。</p>
     </div>
   </div>
   <div class="step-connector"></div>
@@ -71,9 +72,9 @@
   <div class="step-item">
     <div class="step-num">4</div>
     <div class="step-body">
-      <h3>体验 预问诊</h3>
-      <p class="how">让患者打开小程序，点击"开始问诊"，AI 会用对话方式询问主诉、症状、病史。整个过程大约 3-5 分钟，患者可以用语音或文字回答。</p>
-      <p class="why">问诊结束后，您的审核中心会收到一份结构化病历，包含主诉摘要、症状列表、AI 初步分析。</p>
+      <h3>让患者完成一次 AI 问诊</h3>
+      <p class="how">请患者在微信小程序中点"开始问诊"。AI 用对话方式逐一询问主诉、症状、病史，支持语音和文字，约 3–5 分钟。中途暂停后可继续。</p>
+      <p class="why">问诊完成后，您的"审核"页会收到一份结构化病历，14 个标准字段全部填好。</p>
     </div>
   </div>
   <div class="step-connector"></div>
@@ -81,59 +82,50 @@
   <div class="step-item">
     <div class="step-num">5</div>
     <div class="step-body">
-      <h3>审核 AI 建议</h3>
-      <p class="how">打开"审核"选项卡，进入刚刚完成问诊的患者记录。您会看到 AI 生成的鉴别诊断、建议检查项目和治疗方向。每一条建议旁边有确认、编辑、拒绝三个选项，逐项处理后点击"定稿"。</p>
-      <p class="why">AI 会标注每条建议引用了哪条您的规则，方便您判断是否合理。您的每次编辑都会帮助 AI 更准确地理解您的临床偏好。</p>
-    </div>
-  </div>
-  <div class="step-connector"></div>
-
-  <div class="step-item">
-    <div class="step-num">6</div>
-    <div class="step-body">
-      <h3>查看随访任务</h3>
-      <p class="how">定稿后，AI 会根据您的决策自动创建随访任务，例如"2 周后复查头颅 MRI"。在"随访"标签中，可以按日历或患者查看所有待跟进的任务。</p>
-      <p class="why">任务到期前会自动提醒您和患者，确保重要随访不被遗漏。</p>
+      <h3>在"审核"页完成定稿</h3>
+      <p class="how">打开"审核"标签，点击刚收到的门诊记录。每个字段下面都有 AI 草拟的建议 — 鉴别诊断、建议检查、治疗方向。每条建议可以 <b>采纳</b>、<b>编辑后采纳</b> 或 <b>拒绝</b>，拒绝时可以顺手写原因。全部处理完后点底部的"定稿"。</p>
+      <p class="why">每条建议都标注引用了您哪条规则。您的编辑会被 AI 记住，下次类似场景会自动调整措辞。</p>
     </div>
   </div>
 
 </div>
 
-<!-- ── Done ── -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <div class="done-box">
-  <h3>上手完成</h3>
-  <p>您已经走完了完整的 AI 辅助门诊流程。接下来可以继续添加更多规则，邀请更多患者，AI 会随着使用越来越贴合您的风格。</p>
+  <h3>闭环完成</h3>
+  <p>您已经走完了一次完整的 AI 辅助流程。接下来继续加规则、邀患者，AI 会越用越贴合您的风格。</p>
 </div>
 
-<!-- ── Tips ── -->
-<h2>接下来的建议</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>接下来该做什么</h2>
 
 <div class="tip-grid">
   <div class="tip-card">
-    <h4>多添加规则</h4>
-    <p>建议前两周每天添加 3-5 条规则。规则越具体，AI 的引用越精准。</p>
+    <h4>多加规则</h4>
+    <p>前两周每天加 3–5 条。规则越具体，引用越精准。</p>
   </div>
   <div class="tip-card">
-    <h4>上传指南文件</h4>
-    <p>有现成的诊疗指南或科室规范 PDF？直接上传，AI 会自动提取关键内容。</p>
+    <h4>上传现成指南</h4>
+    <p>有科室诊疗规范 PDF？直接上传，AI 自动提取关键内容。</p>
   </div>
   <div class="tip-card">
     <h4>多编辑少拒绝</h4>
-    <p>遇到不准确的建议，改它而不是直接拒绝 — 您的修改是 AI 最好的学习材料。</p>
+    <p>遇到不准的建议，改它而不是直接拒绝 — 您的编辑是 AI 最好的学习材料。</p>
   </div>
   <div class="tip-card">
-    <h4>设置个人简介</h4>
-    <p>在设置中填写您的科室、擅长方向，AI 的问诊风格会更符合您的专科需求。</p>
+    <h4>设置 AI 风格</h4>
+    <p>进"我的 AI"→"AI 助手风格"，填写您的科室和沟通偏好，AI 语气更贴近您。</p>
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>遇到问题？</h2>
-<p>查看 <a href="wiki-faq.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-faq.html')}">常见问题</a>，或联系客服获取帮助。</p>
+<p>查看 <a href="wiki-faq.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-faq.html')}">常见问题</a>，或在设置页面扫客服二维码联系我们。</p>
 
-<!-- ── Footer ── -->
 <div class="wiki-footer">
-  Doctor AI 帮助中心 &middot; <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">返回首页</a>
+  Doctor AI 帮助中心 · <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">返回首页</a>
 </div>
+<div class="updated-stamp">最近更新：2026-04-22</div>
 
 </div>
 </body>

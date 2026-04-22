@@ -3,118 +3,117 @@
 <head>
 <meta charset="utf-8">
 <link rel="stylesheet" href="wiki-common.css">
+<style>
+  .updated-stamp { text-align: right; color: #888; font-size: 0.75rem; margin-top: 0.5rem; }
+</style>
 </head>
 <body>
 <div class="page-wrap">
 
 <div class="breadcrumb">
-  <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">帮助中心</a> › 患者端说明
+  <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">首页</a> › 患者体验 › 患者端说明
 </div>
 
 <h1>患者端说明</h1>
 
-<p class="hatnote">这是您的患者在手机上看到的界面。本页帮助您了解患者的使用体验，以便向患者介绍如何使用。</p>
+<p class="hatnote">这是您的患者在手机上看到的界面。本页帮您了解患者的使用体验，以便向患者介绍。</p>
 
 <div class="notice-box">
-  <b>您不需要教患者操作：</b>界面简单直观，患者扫码即可开始。以下内容供您参考，了解患者看到什么。
+  <b>您不需要教患者操作：</b>界面极简，扫码即用。以下内容供您参考，让您知道患者会看到什么。
 </div>
 
-
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>患者如何进入</h2>
 
 <div class="section-grid">
   <div class="section-card">
-    <h3>扫您的二维码</h3>
-    <p>患者扫码后自动注册并与您的账号绑定，无需手动填写任何信息，立即进入主界面。这是推荐给患者的入口方式。</p>
+    <h3>扫您的二维码（推荐）</h3>
+    <p>患者扫码后自动注册并绑定到您的账号，无需填写任何信息，立即进入主界面。</p>
   </div>
   <div class="section-card">
     <h3>手机号登录</h3>
-    <p>已经注册过的患者可以用手机号直接登录，查看历史病历和消息记录。</p>
+    <p>已注册过的患者可以直接用手机号登录查看历史病历和消息。</p>
   </div>
 </div>
 
-
-<h2>患者看到的四个页面</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>患者看到的 4 个标签</h2>
 
 <h3>首页 — 与助手对话</h3>
 
-<p>这是患者的主界面，包含：</p>
+<p>这是患者的主界面：</p>
 
 <ul>
-  <li><b>快捷入口：</b>"新问诊"按钮直接发起一次 AI 引导问诊；"我的病历"快速跳转查看历史记录</li>
-  <li><b>消息列表：</b>患者只能看到您确认后发送的消息。AI 草稿不会直接对患者可见，必须经过您的审核。</li>
-  <li><b>语音输入：</b>患者可以按住麦克风图标语音发送消息，不需要打字</li>
-  <li><b>消息提醒：</b>收到您的回复时，标签栏会显示未读数量角标</li>
+  <li><b>快捷入口：</b>"新问诊"按钮开启一次 AI 引导问诊；"我的病历"直达历史记录</li>
+  <li><b>消息列表：</b>患者只能看到您确认后发送的消息 — AI 草稿不会直接对患者可见</li>
+  <li><b>语音输入：</b>按住麦克风语音发送，不用打字</li>
+  <li><b>消息提醒：</b>收到您的回复时，标签栏显示未读数量</li>
 </ul>
 
 <div class="flow">
-  <div class="flow-step">患者发送消息</div>
+  <div class="flow-step">患者发消息</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">AI 分析并起草回复</div>
+  <div class="flow-step">AI 起草回复</div>
   <div class="flow-arrow">→</div>
   <div class="flow-step">您审核后发送</div>
   <div class="flow-arrow">→</div>
   <div class="flow-step">患者收到您的回复</div>
 </div>
 
-
 <h3>病历 — 健康记录时间线</h3>
 
-<p>患者可以查看自己在您这里的所有就诊记录：</p>
-
 <ul>
-  <li>记录按时间倒序排列，以月份分组，清晰呈现就诊历史</li>
-  <li>每条记录标注类型（门诊、随访、检查等）</li>
-  <li>点击任意记录可查看完整内容</li>
-  <li>可按记录类型筛选，快速找到特定记录</li>
+  <li>按时间倒序、按月份分组的就诊记录</li>
+  <li>每条标注类型（门诊、随访、检查等）</li>
+  <li>点击查看完整内容</li>
+  <li>可按类型筛选</li>
 </ul>
 
+<h3>任务 — 患者的待办清单</h3>
 
-<h3>任务 — 待办清单</h3>
-
-<p>您为患者创建的随访任务和医嘱提醒，患者在这里看到并管理：</p>
+<p>您为患者创建的随访任务和医嘱提醒会在这里显示：</p>
 
 <ul>
-  <li>待办事项与已完成事项分区显示</li>
-  <li>患者点击复选框可将任务标记为完成</li>
-  <li>支持撤销误操作（标记完成后短暂显示"撤销"按钮）</li>
+  <li>待办与已完成分区</li>
+  <li>患者可勾选完成</li>
+  <li>支持撤销误操作（短暂显示"撤销"按钮）</li>
 </ul>
-
 
 <h3>我的 — 个人信息</h3>
 
-<p>患者可以在这里看到：</p>
-
 <ul>
-  <li>您的姓名和科室（显示"我的医生：[您的姓名]，[科室]"）</li>
-  <li>患者自己的基本信息（姓名、性别等）</li>
+  <li>您的姓名和科室（"我的医生：[您的姓名]，[科室]"）</li>
+  <li>患者自己的基本信息</li>
   <li>退出登录入口</li>
 </ul>
 
-
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>渠道支持</h2>
 
 <table>
   <tr><th>渠道</th><th>适合场景</th></tr>
-  <tr><td>微信小程序</td><td>患者通过微信扫码或搜索进入，体验最接近原生 App</td></tr>
-  <tr><td>手机浏览器</td><td>患者用浏览器打开链接，无需安装任何 App</td></tr>
+  <tr><td>微信小程序</td><td>在微信内扫码或搜索进入。体验最接近原生 App，支持微信消息提醒。</td></tr>
+  <tr><td>手机浏览器</td><td>打开链接即用，无需安装。适合非微信用户。</td></tr>
 </table>
 
-
-<h2>常见患者问题解答</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>常见患者疑问</h2>
 
 <table>
-  <tr><th>患者问题</th><th>答案</th></tr>
-  <tr><td>需要下载 App 吗？</td><td>不需要。扫码或打开链接即可，无需安装。</td></tr>
-  <tr><td>不会打字怎么办？</td><td>可以用语音输入，按住麦克风说话即可。</td></tr>
-  <tr><td>中途没填完怎么办？</td><td>下次打开会自动继续，不需要重新开始。</td></tr>
-  <tr><td>能看到自己的检查结果吗？</td><td>可以查看您录入并审核后的病历记录。</td></tr>
+  <tr><th>问题</th><th>答案</th></tr>
+  <tr><td>需要下载 App 吗？</td><td>不需要。扫码或打开链接即可。</td></tr>
+  <tr><td>不会打字怎么办？</td><td>按住麦克风说话即可。</td></tr>
+  <tr><td>中途没填完？</td><td>下次打开自动从上次继续。</td></tr>
+  <tr><td>能看到自己的检查结果吗？</td><td>可以 — 您审核后的病历记录对患者可见。</td></tr>
 </table>
 
-
 <div class="categories">
-  分类: <a href="#">使用指南</a> <a href="#">患者端</a>
+  相关页面:
+  <a href="wiki-interview.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-interview.html')}">患者预问诊</a>
+  &nbsp;<a href="wiki-patients.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-patients.html')}">患者管理</a>
 </div>
+
+<div class="updated-stamp">最近更新：2026-04-22 · 版本 v2.1.0</div>
 
 </div>
 </body>

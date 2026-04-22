@@ -45,45 +45,6 @@ function patientSubtitle(patient, aiTag) {
   );
 }
 
-function UrgencyTag({ triage }) {
-  if (!triage) return null;
-  if (triage === "urgent")
-    return (
-      <span
-        style={{
-          fontSize: FONT.xs,
-          fontWeight: 600,
-          padding: "1px 5px",
-          borderRadius: RADIUS.xs,
-          background: APP.danger,
-          color: APP.white,
-          marginLeft: 4,
-          flexShrink: 0,
-        }}
-      >
-        紧急
-      </span>
-    );
-  if (triage === "symptom_report" || triage === "side_effect")
-    return (
-      <span
-        style={{
-          fontSize: FONT.xs,
-          fontWeight: 600,
-          padding: "1px 5px",
-          borderRadius: RADIUS.xs,
-          background: APP.warning,
-          color: APP.white,
-          marginLeft: 4,
-          flexShrink: 0,
-        }}
-      >
-        待处理
-      </span>
-    );
-  return null;
-}
-
 // ── Main component ─────────────────────────────────────────────────
 
 export default function PatientsPage() {
@@ -334,8 +295,6 @@ export default function PatientsPage() {
             }}
           >
             {filtered.map((patient) => {
-              const triage =
-                patient.latest_triage_category || patient.triage_category;
               const timeStr = relativeDate(
                 patient.last_activity_at ||
                   patient.updated_at ||
@@ -355,12 +314,9 @@ export default function PatientsPage() {
                   onClick={() => handlePatientClick(patient)}
                   style={{ "--align-items": "center" }}
                 >
-                  <div style={{ display: "flex", alignItems: "center" }}>
-                    <span style={{ fontWeight: 500, fontSize: FONT.md }}>
-                      {patient.name || "未命名"}
-                    </span>
-                    <UrgencyTag triage={triage} />
-                  </div>
+                  <span style={{ fontWeight: 500, fontSize: FONT.md }}>
+                    {patient.name || "未命名"}
+                  </span>
                 </List.Item>
               );
             })}

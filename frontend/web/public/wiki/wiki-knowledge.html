@@ -4,17 +4,24 @@
 <meta charset="utf-8">
 <link rel="stylesheet" href="wiki-common.css">
 <style>
-  .add-method-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin: 16px 0; }
-  .add-method-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #fafafa; }
-  .add-method-card .method-tag { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 8px; }
-  .add-method-card h3 { font-size: 15px; color: #0d5c2e; margin: 0 0 8px; border: none; padding: 0; }
-  .add-method-card p { font-size: 13px; color: #555; }
-  .example-rule { background: #f8f9fa; border-left: 4px solid #4caf50; padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 12px 0; font-size: 13px; color: #333; line-height: 1.7; }
-  .example-rule .label { font-size: 11px; color: #888; font-weight: bold; margin-bottom: 4px; }
-  .manage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
-  .manage-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 14px; }
-  .manage-item h4 { font-size: 13px; color: #0d5c2e; margin-bottom: 4px; }
-  .manage-item p { font-size: 12px; color: #666; }
+  .add-method-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.9rem; margin: 0.75rem 0; }
+  .add-method-card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.1rem; background: #fafafa; }
+  .add-method-card .method-tag { font-size: 0.7rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 0.4rem; }
+  .add-method-card h3 { font-size: 0.95rem; color: #0d5c2e; margin: 0 0 0.4rem; border: none; padding: 0; }
+  .add-method-card p { font-size: 0.85rem; color: #555; line-height: 1.55; }
+  .example-rule {
+    background: #f8f9fa; border-left: 4px solid #4caf50;
+    padding: 0.75rem 1rem; border-radius: 0 6px 6px 0;
+    margin: 0.7rem 0; font-size: 0.85rem; color: #333; line-height: 1.65;
+  }
+  .example-rule .label { font-size: 0.7rem; color: #888; font-weight: bold; margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .example-rule.bad { border-left-color: #e57373; background: #fff5f5; }
+  .example-rule.bad .label { color: #c62828; }
+  .manage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.7rem; margin: 0.7rem 0; }
+  .manage-item { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 0.8rem 0.9rem; }
+  .manage-item h4 { font-size: 0.88rem; color: #0d5c2e; margin-bottom: 0.3rem; }
+  .manage-item p { font-size: 0.82rem; color: #666; line-height: 1.55; }
+  .updated-stamp { text-align: right; color: #888; font-size: 0.75rem; margin-top: 0.5rem; }
 </style>
 </head>
 <body>
@@ -29,126 +36,157 @@
 
 <table class="infobox">
   <tr><td colspan="2" class="infobox-title">知识库</td></tr>
-  <tr><th>添加方式</th><td>文字 / 文件 / 网址</td></tr>
+  <tr><th>入口</th><td>我的 AI → 知识库</td></tr>
+  <tr><th>添加方式</th><td>文字 / 文件 / 网址 / 拍照 / 语音</td></tr>
   <tr><th>支持格式</th><td>PDF、Word、图片、网页</td></tr>
   <tr><th>规则分类</th><td>通用 / 诊断 / 随访 / 用药</td></tr>
-  <tr><th>引用显示</th><td>AI 建议旁内联标注</td></tr>
+  <tr><th>引用显示</th><td>[KB-N] 内联标注，可点击看原文</td></tr>
 </table>
 
-<p>知识库是 Doctor AI 的核心。您在这里添加的每一条规则，AI 都会在生成诊断建议和患者回复时主动引用。它不是一个静态的文档库，而是 AI 的"思维方式" — 您的规则越多、越具体，AI 的行为就越符合您的临床风格。</p>
+<p>知识库是 AI 的"大脑"。您添加的每条规则，AI 在生成诊断和回复时都会主动读取、比对、引用。它不是一个静态文档库，而是 AI 模仿您诊疗风格的唯一方式。</p>
 
 <div class="notice-box">
-  <b>为什么要添加规则？</b> 没有规则的 AI 只能给出通用建议；有了您的规则，AI 会知道您的禁忌用药、习惯的检查顺序、对特定病情的处置偏好，生成的建议才真正有参考价值。
+  <b>为什么非加不可：</b>没有规则的 AI 只能给通用建议；有了您的规则，AI 知道您的禁忌用药、习惯检查顺序、对特定病情的处置偏好，生成的建议才真正有参考价值。
 </div>
 
 <div class="clear"></div>
 
-<!-- ── 3 ways ── -->
-<h2>三种添加方式</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>5 种添加方式</h2>
 
 <div class="add-method-grid">
   <div class="add-method-card">
-    <div class="method-tag">方式 1</div>
+    <div class="method-tag">方式 1 · 最快</div>
     <h3>直接输入文字</h3>
-    <p>最快的方式。直接写下一条规则，保存即可。适合随手记录诊疗心得、禁忌提醒、用药注意事项。</p>
-    <p style="margin-top:8px; font-size:12px; color:#888;">入口：设置 > 知识库 > 加号 > 文字输入</p>
+    <p>写一条规则，保存即可。适合随手记录诊疗心得、禁忌提醒、用药注意。</p>
   </div>
   <div class="add-method-card">
     <div class="method-tag">方式 2</div>
     <h3>上传文件</h3>
-    <p>支持 PDF、Word 文档、手机拍摄的纸质材料。AI 自动识别并提取关键内容，您确认后保存。</p>
-    <p style="margin-top:8px; font-size:12px; color:#888;">适合：科室诊疗指南、临床路径文件、教学材料</p>
+    <p>PDF、Word、手机拍摄的纸质材料都行。AI 自动识别并提取关键内容，您确认后保存。</p>
   </div>
   <div class="add-method-card">
     <div class="method-tag">方式 3</div>
     <h3>粘贴网址</h3>
-    <p>找到一篇有价值的临床指南网页，复制链接粘贴进来，AI 自动抓取并提取核心内容，无需手动整理。</p>
-    <p style="margin-top:8px; font-size:12px; color:#888;">适合：最新诊疗指南、学会推荐意见、文献摘要</p>
+    <p>找到一篇有价值的临床指南网页，复制链接贴进来，AI 自动抓取正文。</p>
+  </div>
+  <div class="add-method-card">
+    <div class="method-tag">方式 4</div>
+    <h3>拍照 / 相册</h3>
+    <p>把纸质笔记或书本内容拍进来，OCR 识别后自动结构化。</p>
+  </div>
+  <div class="add-method-card">
+    <div class="method-tag">方式 5 · 仅小程序</div>
+    <h3>语音添加</h3>
+    <p>长按麦克风说一段经验，腾讯医疗级 ASR 识别后 AI 自动归类。适合查房路上即兴记录。</p>
   </div>
 </div>
 
-<!-- ── Good rule tips ── -->
+<div class="info-box">
+  <b>还有一条隐藏路径：</b>在"审核"页面修改 AI 草稿时，如果您的修改是"事实性补充"，系统会弹窗问"是否保存为规则"。这条路径把您的日常编辑变成经验沉淀，不用额外花时间整理。详见 <a href="wiki-kb-learning.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-kb-learning.html')}">AI 学习闭环</a>。
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>怎样写一条好规则</h2>
 
-<p>规则越具体，AI 引用时越有价值。以下是几个原则：</p>
+<p>规则越具体，AI 引用时越有价值。一个好规则通常包含：</p>
 
 <ul>
-  <li><b>说清楚条件：</b>什么情况下适用，例如"术后患者"比"患者"更精确</li>
-  <li><b>包含决策点：</b>AI 需要的是判断逻辑，不只是结论</li>
-  <li><b>注明例外情况：</b>什么时候这条规则不适用</li>
+  <li><b>条件：</b>什么情况下适用 —"术后患者"比"患者"更精确</li>
+  <li><b>决策点：</b>AI 要学的是判断逻辑，不只是结论</li>
+  <li><b>例外：</b>什么时候这条规则不适用</li>
 </ul>
 
-<div class="example-rule">
-  <div class="label">示例规则（较差）</div>
+<div class="example-rule bad">
+  <div class="label">× 太笼统</div>
   头痛患者注意用药。
 </div>
 
 <div class="example-rule">
-  <div class="label">示例规则（推荐）</div>
-  颅脑术后头痛患者，在排除脑脊液漏之前，不建议使用 NSAIDs 类止痛药（如布洛芬、阿司匹林）。首选对乙酰氨基酚，剂量不超过 3g/天。如头痛伴体位相关性加重，应立即排查低颅压。
+  <div class="label">✓ 具体可用</div>
+  颅脑术后头痛患者，在排除脑脊液漏之前，不建议使用 NSAIDs 类止痛药（如布洛芬、阿司匹林）。首选对乙酰氨基酚，不超过 3g/天。如头痛伴体位相关性加重，立即排查低颅压。
 </div>
 
 <div class="info-box">
-  <b>上手建议：</b>第一周先添加 5-10 条您最常遇到的临床场景规则。不需要一次写完所有经验，遇到 AI 建议不对时，当场补充一条规则效果最好。
+  <b>上手建议：</b>第一周先加 5–10 条您最常遇到的场景规则。不需要一次写完所有经验 — 碰到 AI 答不好时<b>当场补一条</b>效果最好，因为规则会被立即用上。
 </div>
 
-<!-- ── How AI uses rules ── -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>AI 如何引用您的规则</h2>
 
-<p>每当 AI 生成诊断建议或患者回复时，它会在建议旁边标注引用了哪条规则。您可以点击引用标记，直接看到原文，无需离开当前页面。</p>
+<p>每条 AI 建议后面都有一个蓝色 <b style="background:#e3f2fd;color:#1565c0;padding:1px 6px;border-radius:3px;font-size:0.8rem;">[KB-N] 规则标题</b> 标签。点击能弹出原文，不用跳走查。</p>
 
 <div class="flow">
   <div class="flow-step">患者完成问诊</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">AI 读取您的规则</div>
+  <div class="flow-step">AI 读取全部规则</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">生成建议并标注引用</div>
+  <div class="flow-step">生成建议 + 标注引用</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">您在审核中看到规则来源</div>
+  <div class="flow-step">您在审核中看到来源</div>
 </div>
 
-<p>如果 AI 某条建议引用的规则不对，或者建议本身不准确，您可以直接编辑，并考虑在知识库中补充更精准的规则。</p>
+<p>如果引用的规则不对，或建议本身不准，直接在审核页面改掉就好。想让 AI 下次做得更好，就去知识库更新那条规则。</p>
 
-<!-- ── Managing rules ── -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>管理已有规则</h2>
 
 <div class="manage-grid">
   <div class="manage-item">
-    <h4>查看所有规则</h4>
-    <p>在知识库列表中，可按分类筛选，看到每条规则的标题和摘要。</p>
+    <h4>查看全部</h4>
+    <p>列表按分类筛选，能看到每条规则的标题和摘要。</p>
   </div>
   <div class="manage-item">
     <h4>编辑规则</h4>
-    <p>点击任意规则卡片，进入编辑界面，可修改内容或更改分类。</p>
+    <p>点击任意卡片进入详情，可修改内容或切换分类。</p>
   </div>
   <div class="manage-item">
     <h4>删除规则</h4>
-    <p>在规则编辑页面，点击删除。确认后该规则将不再被 AI 引用。</p>
+    <p>详情页有删除按钮。删除后 AI 不再引用该规则。</p>
   </div>
   <div class="manage-item">
-    <h4>查看引用频率</h4>
-    <p>每条规则会显示被 AI 引用的次数，帮助您判断哪些规则最有效。</p>
+    <h4>查看健康度</h4>
+    <p>每条规则显示近 30 天：被引用多少次、被采纳 / 编辑 / 拒绝的比例。</p>
   </div>
 </div>
 
-<!-- ── Categories ── -->
+<div class="info-box">
+  <b>规则健康度（v2.1 新增）：</b>在规则详情页，您能看到这条规则近期被 AI 引用后的去向 — 绿色是您采纳的比例、黄色是编辑后采纳、红色是拒绝。拒绝率过高说明规则本身可能需要调整措辞。
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>异常提醒</h2>
+
+<p>知识库顶部偶尔会出现两种 banner：</p>
+
+<ul>
+  <li><b style="color:#e65100;">橙色 — AI 引用了不存在的规则</b>（幻觉）：过去 7 天 AI 在输出中写了 [KB-X] 但找不到对应规则。通常是 prompt 或旧规则删除导致，点进去能看具体是哪些建议。</li>
+  <li><b style="color:#1565c0;">蓝色 — 有待审核的候选规则</b>：您在审核页面改 AI 草稿时，系统从您的编辑中提炼了候选规则，等您决定是否入库。</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>规则分类说明</h2>
 
 <table>
   <tr><th>分类</th><th>适合放什么</th></tr>
-  <tr><td>通用</td><td>一般临床注意事项、沟通原则、患者教育要点</td></tr>
-  <tr><td>诊断</td><td>鉴别诊断思路、危险信号识别、检查优先顺序</td></tr>
-  <tr><td>随访</td><td>术后复查时间点、随访频率要求、何时需要紧急回诊</td></tr>
-  <tr><td>用药</td><td>常用药物剂量范围、禁忌组合、特殊人群调整原则</td></tr>
+  <tr><td>通用</td><td>沟通原则、患者教育要点、一般临床注意</td></tr>
+  <tr><td>诊断</td><td>鉴别诊断思路、检查优先顺序、术后并发症识别</td></tr>
+  <tr><td>随访</td><td>术后复查时间点、随访频率、何时需紧急回诊</td></tr>
+  <tr><td>用药</td><td>常用药物剂量、禁忌组合、特殊人群调整</td></tr>
 </table>
 
 <div class="notice-box">
-  <b>分类不影响 AI 引用：</b>AI 在生成建议时会读取所有分类的规则，分类只是方便您自己管理查找。
+  <b>分类不影响 AI 引用：</b>AI 会读取所有分类的规则，分类只是方便您自己管理查找。
 </div>
 
 <div class="categories">
-  相关页面: <a href="wiki-review.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-review.html')}">审核中心</a> &nbsp; <a href="wiki-ai.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-ai.html')}">AI 如何工作</a>
+  相关页面:
+  <a href="wiki-review.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-review.html')}">审核中心</a>
+  &nbsp;<a href="wiki-ai.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-ai.html')}">AI 如何工作</a>
+  &nbsp;<a href="wiki-kb-learning.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-kb-learning.html')}">AI 学习闭环</a>
 </div>
+
+<div class="updated-stamp">最近更新：2026-04-22 · 版本 v2.1.0</div>
 
 </div>
 </body>

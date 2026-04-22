@@ -4,23 +4,12 @@
 <meta charset="utf-8">
 <link rel="stylesheet" href="wiki-common.css">
 <style>
-  .status-row { display: flex; gap: 12px; margin: 12px 0; flex-wrap: wrap; }
-  .status-dot { display: flex; align-items: center; gap: 10px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 18px; flex: 1; min-width: 140px; }
-  .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
-  .dot-red { background: #e53935; }
-  .dot-yellow { background: #f57c00; }
-  .dot-green { background: #43a047; }
-  .dot-text .label { font-size: 13px; font-weight: bold; color: #333; }
-  .dot-text .desc { font-size: 12px; color: #888; }
-  .add-patient-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 16px 0; }
-  .add-patient-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #fafafa; }
-  .add-patient-card .method-num { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 8px; }
-  .add-patient-card h3 { font-size: 15px; color: #0d5c2e; margin: 0 0 8px; border: none; padding: 0; }
-  .add-patient-card p { font-size: 13px; color: #555; }
-  .detail-tab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
-  .detail-tab { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 14px; }
-  .detail-tab h4 { font-size: 13px; color: #0d5c2e; margin-bottom: 6px; }
-  .detail-tab p { font-size: 12px; color: #666; }
+  .detail-tab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; margin: 0.75rem 0; }
+  .detail-tab { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 0.8rem 0.9rem; }
+  .detail-tab h4 { font-size: 0.88rem; color: #0d5c2e; margin-bottom: 0.3rem; }
+  .detail-tab p { font-size: 0.82rem; color: #666; line-height: 1.55; }
+
+  .updated-stamp { text-align: right; color: #888; font-size: 0.75rem; margin-top: 0.5rem; }
 </style>
 </head>
 <body>
@@ -31,139 +20,105 @@
 </div>
 
 <h1>患者管理</h1>
-<p class="hatnote">在一个页面查看所有患者，按优先级处理，随时与患者沟通。</p>
+<p class="hatnote">一个页面看全部患者，搜索支持姓名和自然语言，点进去看病历和聊天。</p>
 
 <table class="infobox">
   <tr><td colspan="2" class="infobox-title">患者管理</td></tr>
-  <tr><th>搜索方式</th><td>姓名搜索 / 自然语言</td></tr>
-  <tr><th>优先级显示</th><td>红 / 黄 / 绿 色点</td></tr>
-  <tr><th>患者入口</th><td>扫二维码 / AI 对话创建</td></tr>
+  <tr><th>入口</th><td>底部"患者"标签</td></tr>
+  <tr><th>搜索方式</th><td>姓名 / 手机号 / 自然语言</td></tr>
+  <tr><th>排序</th><td>最近活动时间倒序</td></tr>
+  <tr><th>添加患者</th><td>扫二维码（推荐）/ AI 对话</td></tr>
   <tr><th>数据导出</th><td>单患者 PDF / 全量 ZIP</td></tr>
 </table>
 
-<p>患者页面是您的患者全景视图。所有通过扫码注册的患者，以及您通过 AI 对话创建的患者，都会显示在这里。每位患者旁边有一个颜色标记，帮助您快速判断谁需要优先处理。</p>
+<p>"患者"页面是您所有患者的全景视图。扫码注册的、您手动添加的，都在这里。列表按最近活动时间倒序 — 最新有消息或有记录更新的患者排在最上面。</p>
 
 <div class="clear"></div>
 
-<!-- ── Search ── -->
-<h2>搜索患者</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>搜索：两种方式自动切换</h2>
 
-<p>搜索框支持两种方式，无需手动切换：</p>
+<p>搜索框兼容两种查询方式，无需手动切换模式：</p>
 
 <table>
-  <tr><th>输入内容</th><th>搜索方式</th><th>示例</th></tr>
+  <tr><th>输入</th><th>匹配方式</th><th>例子</th></tr>
   <tr><td>姓名或手机号</td><td>精确匹配</td><td>"张三"、"139..."</td></tr>
-  <tr><td>描述性语言</td><td>AI 语义理解</td><td>"最近复诊的高血压患者"、"术后一周的老年女性"</td></tr>
+  <tr><td>描述性语言</td><td>AI 语义理解</td><td>"最近复诊的高血压"、"术后一周的老年女性"</td></tr>
 </table>
 
-<p>当您输入描述性短语时，系统会自动识别并切换到智能搜索模式，用 AI 理解您的意图，从所有患者中筛选出匹配的结果。</p>
+<p>输入超过几个字的描述性短语时，系统自动切换到语义搜索，用 AI 理解意图后再筛选。</p>
 
-<!-- ── Color dots ── -->
-<h2>优先级色点</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>患者详情页的 4 个区域</h2>
 
-<p>每位患者名字旁边有一个小圆点，颜色来自该患者最近一条消息的紧急程度判断：</p>
-
-<div class="status-row">
-  <div class="status-dot">
-    <div class="dot dot-red"></div>
-    <div class="dot-text">
-      <div class="label">红色 — 紧急</div>
-      <div class="desc">需要立即关注，患者可能有新发症状或紧急情况</div>
-    </div>
-  </div>
-  <div class="status-dot">
-    <div class="dot dot-yellow"></div>
-    <div class="dot-text">
-      <div class="label">黄色 — 需关注</div>
-      <div class="desc">有待处理的问题，建议今天内回复</div>
-    </div>
-  </div>
-  <div class="status-dot">
-    <div class="dot dot-green"></div>
-    <div class="dot-text">
-      <div class="label">绿色 — 稳定</div>
-      <div class="desc">情况稳定，暂无需要立即处理的事项</div>
-    </div>
-  </div>
-</div>
-
-<div class="info-box">
-  <b>颜色由 AI 判断：</b>AI 在收到患者消息时会自动判断优先级，您可以在审核中对判断结果进行调整。列表默认按紧急程度排序，红色患者在最上方。
-</div>
-
-<!-- ── Patient detail ── -->
-<h2>患者详情</h2>
-
-<p>点击任意患者进入详情页，包含以下几个区域：</p>
+<p>点击任意患者进入详情。v2 的详情页采用"病历优先"布局 — 打开就看到最近的门诊和随访记录，聊天在子页面中打开。</p>
 
 <div class="detail-tab-grid">
   <div class="detail-tab">
-    <h4>基本信息</h4>
-    <p>姓名、性别、年龄、联系方式、备注。以及当前的优先级状态标签。</p>
+    <h4>1. 基本信息（顶部卡片）</h4>
+    <p>姓名、性别、年龄、联系方式、备注。</p>
   </div>
   <div class="detail-tab">
-    <h4>病历时间线</h4>
-    <p>该患者历次就诊和问诊记录，按时间倒序排列。点击每条记录查看详情，包括 AI 分析结果和您当时的审核决策。</p>
+    <h4>2. 病历时间线（主视图）</h4>
+    <p>按时间倒序列出所有门诊和问诊记录。点击展开看 AI 分析 + 您当时的审核决策。</p>
   </div>
   <div class="detail-tab">
-    <h4>聊天记录</h4>
-    <p>与患者的完整消息历史。您可以在这里直接发送消息，AI 会帮您起草回复供参考。</p>
+    <h4>3. 聊天（子页面）</h4>
+    <p>点击"聊天"进入消息视图，可直接发送、也能调 AI 起草回复。</p>
   </div>
   <div class="detail-tab">
-    <h4>导出 / 管理</h4>
-    <p>将该患者所有病历导出为 PDF，或在需要时删除患者（需二次确认）。</p>
+    <h4>4. 导出 / 管理（底部菜单）</h4>
+    <p>一键导出该患者所有病历为 PDF；如需删除患者，需二次确认。</p>
   </div>
 </div>
 
-<!-- ── Import records ── -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>导入外部病历</h2>
 
-<p>如果患者携带了其他医院的纸质或电子病历，可以直接拍照或上传，AI 会自动识别并填充到病历字段中：</p>
+<p>患者拿着外院纸质或电子病历来诊时，在该患者详情页拍照或上传文件，AI 会自动识别文字并填入标准字段。</p>
 
 <div class="flow">
-  <div class="flow-step">拍照 / 上传文件</div>
+  <div class="flow-step">拍照 / 上传</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">AI 自动识别</div>
+  <div class="flow-step">AI 识别</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">填充病历字段</div>
+  <div class="flow-step">预填病历字段</div>
   <div class="flow-arrow">→</div>
   <div class="flow-step">您确认保存</div>
 </div>
 
-<p>识别完成后，AI 会把内容预填到标准病历模板中，您只需检查并确认，无需手动录入。支持格式：PDF、图片（含手机拍摄）。</p>
+<p>支持格式：PDF、图片（含手机拍摄）。</p>
 
-<!-- ── Adding patients ── -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>添加新患者</h2>
 
-<div class="add-patient-grid">
-  <div class="add-patient-card">
-    <div class="method-num">方式 1（推荐）</div>
-    <h3>分享二维码</h3>
-    <p>在患者页面点击右上角的二维码图标，展示或打印您的专属二维码。患者用微信扫码，自动完成注册并绑定到您名下，无需下载任何 App。</p>
-    <p style="margin-top:8px; font-size:12px; color:#888;">适合：到诊患者当场扫码，或发给预约患者提前注册</p>
-  </div>
-</div>
+<h3>方式一：二维码（推荐）</h3>
+<p>在"患者"页右上角点二维码图标，展示或打印您的专属二维码。患者用微信扫码 — 不下载 App、不填信息 — 自动注册并绑定到您名下。</p>
 
 <div class="notice-box">
-  <b>推荐使用二维码：</b>扫码注册的患者可以直接在小程序中完成预问诊，整个流程不需要您手动操作。诊室门口或候诊区张贴二维码效果最好。
+  <b>推荐用二维码：</b>扫码的患者可以直接开始预问诊，全流程无需您手动录入。诊室门口或候诊区张贴效果最好。
 </div>
 
-<div class="info-box">
-  也可以在 AI 对话中描述患者信息快速建档（例如"帮我建一位患者，李某某，男，45 岁"），但推荐优先使用二维码方式。
-</div>
+<h3>方式二：AI 对话建档</h3>
+<p>在"我的 AI"页的对话框里描述患者（如"帮我建一位患者，李某某，男，45 岁"），AI 自动建档。适合电话联系的患者或特殊情况。</p>
 
-<!-- ── Export ── -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>导出患者数据</h2>
 
-<h3>单患者 PDF 导出</h3>
-<p>在患者详情页，点击导出按钮，可选择导出范围（所有病历 / 指定时间段）和内容类型，生成标准格式的 PDF 文件。</p>
+<h3>单患者 PDF</h3>
+<p>在患者详情页点击导出，可选导出范围（全部 / 指定时间段）和内容类型，生成标准 PDF。</p>
 
-<h3>全量导出</h3>
-<p>在"设置"页面中，可以一键导出您名下所有患者的完整数据，生成包含所有患者 PDF 的压缩包。适合定期备份或交接数据使用。</p>
+<h3>全量 ZIP</h3>
+<p>在"设置"→"数据导出"里一键打包所有患者的 PDF，适合定期备份或交接。后台处理，完成后下载。</p>
 
 <div class="categories">
-  相关页面: <a href="wiki-review.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-review.html')}">审核中心</a> &nbsp; <a href="wiki-tasks.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-tasks.html')}">随访任务</a> &nbsp; <a href="wiki-interview.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-interview.html')}">患者问诊</a>
+  相关页面:
+  <a href="wiki-review.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-review.html')}">审核中心</a>
+  &nbsp;<a href="wiki-interview.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-interview.html')}">患者预问诊</a>
+  &nbsp;<a href="wiki-patient-portal.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-patient-portal.html')}">患者端说明</a>
 </div>
+
+<div class="updated-stamp">最近更新：2026-04-22 · 版本 v2.1.0</div>
 
 </div>
 </body>

@@ -4,23 +4,61 @@
 <meta charset="utf-8">
 <link rel="stylesheet" href="wiki-common.css">
 <style>
-  .tab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin: 16px 0; }
-  .tab-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #fafafa; }
-  .tab-card .tab-label { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 6px; }
-  .tab-card h3 { font-size: 15px; color: #0d5c2e; margin: 0 0 8px; border: none; padding: 0; }
-  .tab-card p { font-size: 13px; color: #555; }
-  .action-row { display: flex; gap: 10px; margin: 12px 0; flex-wrap: wrap; }
-  .action-btn { border-radius: 6px; padding: 6px 16px; font-size: 13px; font-weight: bold; border: none; }
-  .action-btn.confirm { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
-  .action-btn.edit { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
-  .action-btn.reject { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
-  .action-btn.send { background: #2e7d32; color: #fff; }
-  .review-flow { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
-  .review-flow h4 { font-size: 13px; color: #0d5c2e; margin-bottom: 10px; }
-  .review-flow ol { margin-left: 20px; font-size: 13px; color: #444; line-height: 2; }
-  .suggestion-group { border: 1px solid #e0e0e0; border-radius: 6px; margin: 12px 0; overflow: hidden; }
-  .suggestion-group .group-header { background: #f4f4f4; padding: 8px 14px; font-size: 13px; font-weight: bold; color: #333; }
-  .suggestion-group .group-body { padding: 12px 14px; font-size: 13px; color: #555; }
+  .tab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.9rem; margin: 0.75rem 0; }
+  .tab-card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.1rem; background: #fafafa; }
+  .tab-card .tab-label { font-size: 0.7rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 0.3rem; }
+  .tab-card h3 { font-size: 0.95rem; color: #0d5c2e; margin: 0 0 0.4rem; border: none; padding: 0; }
+  .tab-card p { font-size: 0.85rem; color: #555; line-height: 1.6; }
+
+  /* Inline review mockup */
+  .mock-field {
+    border: 1px solid #e0e0e0; border-radius: 8px; background: #fff;
+    margin: 0.75rem 0; overflow: hidden; font-size: 0.85rem;
+  }
+  .mock-field .field-header {
+    background: #f4f4f4; padding: 0.5rem 0.9rem; font-weight: 600; color: #0d5c2e;
+    font-size: 0.85rem; border-bottom: 1px solid #e0e0e0;
+  }
+  .mock-field .field-body { padding: 0.6rem 0.9rem; color: #333; min-height: 2rem; }
+  .mock-field .accepted-row {
+    background: #e8f5e9; padding: 0.45rem 0.9rem; border-top: 0.5px solid #c8e6c9;
+    display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: #2e7d32;
+  }
+  .mock-field .accepted-row .check {
+    width: 16px; height: 16px; background: #4caf50; color: #fff; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; font-weight: 700; flex-shrink: 0;
+  }
+  .mock-field .pending-row {
+    background: #fff8e1; padding: 0.55rem 0.9rem; border-top: 0.5px solid #ffe082;
+    font-size: 0.82rem;
+  }
+  .mock-field .pending-row .ai-label {
+    display: inline-block; font-size: 0.7rem; background: #ff9800; color: #fff;
+    padding: 1px 6px; border-radius: 3px; font-weight: 600; margin-right: 0.4rem;
+    vertical-align: middle;
+  }
+  .mock-field .pending-row .suggestion-text { color: #333; }
+  .mock-field .pending-row .citation-chip {
+    display: inline-block; margin-left: 0.4rem; padding: 1px 6px;
+    background: #e3f2fd; color: #1565c0; border-radius: 3px;
+    font-size: 0.7rem; font-weight: 500; cursor: pointer;
+  }
+  .mock-field .action-buttons { margin-top: 0.4rem; display: flex; gap: 0.35rem; flex-wrap: wrap; }
+  .mock-btn {
+    border-radius: 4px; padding: 0.25rem 0.75rem; font-size: 0.78rem; font-weight: 600;
+    border: 1px solid; cursor: default;
+  }
+  .mock-btn.accept { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+  .mock-btn.edit { background: #fff; color: #e65100; border-color: #ffb74d; }
+  .mock-btn.cycle { background: #fff; color: #1565c0; border-color: #90caf9; }
+  .mock-btn.reject { background: #fff; color: #c62828; border-color: #ffcdd2; }
+
+  .review-flow { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 0.9rem 1.15rem; margin: 0.9rem 0; }
+  .review-flow h4 { font-size: 0.9rem; color: #0d5c2e; margin-bottom: 0.5rem; }
+  .review-flow ol { margin-left: 1.25rem; font-size: 0.88rem; color: #444; line-height: 1.9; }
+
+  .updated-stamp { text-align: right; color: #888; font-size: 0.75rem; margin-top: 0.5rem; }
 </style>
 </head>
 <body>
@@ -31,148 +69,165 @@
 </div>
 
 <h1>审核中心</h1>
-<p class="hatnote">您的每日工作台 — AI 已完成初步分析，等您最终确认。</p>
+<p class="hatnote">AI 已把病历和草稿准备好了，您逐条过目，采纳 / 编辑 / 拒绝。</p>
 
 <table class="infobox">
   <tr><td colspan="2" class="infobox-title">审核中心</td></tr>
   <tr><th>三个标签</th><td>门诊记录 / 待回复 / 已完成</td></tr>
-  <tr><th>操作方式</th><td>确认 / 编辑 / 拒绝</td></tr>
-  <tr><th>引用显示</th><td>点击即可查看规则原文</td></tr>
-  <tr><th>审核后</th><td>自动生成随访任务</td></tr>
+  <tr><th>操作单位</th><td>按字段，不是整条建议</td></tr>
+  <tr><th>引用显示</th><td>[KB-N] 点击看规则原文</td></tr>
+  <tr><th>反馈方式</th><td>拒绝时可写原因</td></tr>
 </table>
 
-<p>审核中心是医生日常工作的核心入口。每当患者完成问诊，或者患者发来消息，AI 都会先做初步处理，然后把结果送到这里等待您的确认。您是最终决策者，AI 只是帮您准备好素材。</p>
+<p>审核中心是医生日常的主要工作台。每当患者完成问诊或发来消息，AI 先做初步处理 — 读取您的规则 + 患者病历，生成草稿 — 然后送到这里等您确认。</p>
 
 <div class="notice-box">
-  <b>重要原则：</b>AI 的所有建议和草稿，在您审核确认之前，患者看不到任何内容。只有您点击"确认"或"发送"后，结果才会生效。
+  <b>一个硬规则：</b>在您点"采纳"或"发送"之前，患者看不到任何 AI 生成的内容。AI 草稿始终停留在您这一侧。
 </div>
 
 <div class="clear"></div>
 
-<!-- ── Three tabs ── -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>三个工作标签</h2>
 
 <div class="tab-grid">
   <div class="tab-card">
     <div class="tab-label">标签 1</div>
     <h3>门诊记录</h3>
-    <p>患者完成 预问诊后，这里会出现一条待审核记录。包含 AI 生成的鉴别诊断、建议检查项目和治疗方向，每条建议都注明了引用的规则来源。</p>
+    <p>患者完成预问诊后，结构化病历 + AI 初步诊断出现在这里。每条记录等您逐字段审核后"定稿"。</p>
   </div>
   <div class="tab-card">
     <div class="tab-label">标签 2</div>
     <h3>待回复</h3>
-    <p>患者发来消息后，AI 会根据您的规则起草回复，放在这里等您过目。您可以直接发送，也可以改完再发。</p>
+    <p>患者发来的消息和 AI 草拟的回复。您过目、微调、发送。</p>
   </div>
   <div class="tab-card">
     <div class="tab-label">标签 3</div>
     <h3>已完成</h3>
-    <p>所有您审核过的记录都归入这里，包括发出的回复和最终定稿的诊断。方便您回顾和查找历史。</p>
+    <p>已定稿的门诊和已发送的回复都归档在这里。方便回溯 AI 的建议和您当时的决策。</p>
   </div>
 </div>
 
-<!-- ── Diagnosis review ── -->
-<h2>如何审核门诊记录</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>门诊记录怎么审（v2 内联模式）</h2>
 
-<p>点击一条待审核的门诊记录，进入详情页，您会看到以下内容：</p>
+<p>从 v2.1 开始，诊断审核采用<b>按字段内联</b>的模式，而不是整张大表格。每个字段（诊断、检查、治疗方向）下面都有一个 AI 建议待采纳，您可以直接在字段里写自己的内容，也可以让 AI 的建议进入。</p>
 
-<p><b>顶部：</b>患者基本信息 + 本次主诉摘要 + 问诊过程回顾（可折叠）</p>
-
-<p><b>AI 建议分三组：</b></p>
-
-<div class="suggestion-group">
-  <div class="group-header">鉴别诊断</div>
-  <div class="group-body">AI 列出最可能的 2-5 个诊断，每个诊断带置信度说明（高 / 中 / 低）以及支持该诊断的症状依据，并标注引用了哪条您的规则。</div>
+<div class="mock-field">
+  <div class="field-header">鉴别诊断</div>
+  <div class="field-body" style="color: #888; font-style: italic;">（您可以直接在这里输入诊断，或采纳下方 AI 建议）</div>
+  <div class="accepted-row">
+    <span class="check">✓</span>
+    <span>已采纳：<b>颅内感染（低热 + 术后 7 天 + CRP 升高）</b></span>
+  </div>
+  <div class="pending-row">
+    <span class="ai-label">AI</span>
+    <span class="suggestion-text">脑脊液漏：术后头痛体位相关性加重</span>
+    <span class="citation-chip">[KB-3] 术后头痛规则</span>
+    <div class="action-buttons">
+      <button class="mock-btn accept">采纳</button>
+      <button class="mock-btn edit">编辑采纳</button>
+      <button class="mock-btn reject">拒绝</button>
+    </div>
+  </div>
 </div>
 
-<div class="suggestion-group">
-  <div class="group-header">建议检查</div>
-  <div class="group-body">列出建议做的检查项目，标注紧急程度（常规 / 紧急 / 急诊）和理由。</div>
-</div>
+<p style="font-size: 0.85rem; color: #666;">上图示意：绿色行是您已采纳的诊断，橙色行是 AI 的下一条建议在等您处理。</p>
 
-<div class="suggestion-group">
-  <div class="group-header">治疗方向</div>
-  <div class="group-body">提出初步治疗思路，注明干预类型（药物 / 手术 / 观察 / 转诊）。</div>
-</div>
+<h3>字段的三种情况</h3>
 
-<p style="margin-top:14px;"><b>对每一条建议，您有三种操作：</b></p>
+<table>
+  <tr><th>字段</th><th>逻辑</th></tr>
+  <tr><td><b>鉴别诊断</b></td><td>可编辑文本框 + 1 条 AI 建议</td></tr>
+  <tr><td><b>建议检查</b></td><td>可叠加多条 — 采纳一条后，AI 自动推下一条；若不喜欢，点 <b>换一条</b> 跳过</td></tr>
+  <tr><td><b>治疗方向</b></td><td>可编辑文本框 + 1 条 AI 建议</td></tr>
+</table>
 
-<div class="action-row">
-  <button class="action-btn confirm">确认</button>
-  <button class="action-btn edit">编辑后采纳</button>
-  <button class="action-btn reject">拒绝</button>
+<h3>对每条 AI 建议，您有四种操作</h3>
+
+<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.5rem 0;">
+  <button class="mock-btn accept">采纳</button>
+  <button class="mock-btn edit">编辑采纳</button>
+  <button class="mock-btn cycle">换一条（仅检查）</button>
+  <button class="mock-btn reject">拒绝</button>
 </div>
 
 <div class="info-box">
-  <b>查看规则来源：</b>建议旁边的蓝色标签是引用标记，点击即可弹出规则原文，无需跳转到知识库页面。如果 AI 引用的规则不对，可以直接在知识库中修正它。
+  <b>拒绝时的反馈：</b>点击"拒绝"会弹出一个简短的反馈面板，让您写一句"为什么不合适"。这个反馈会出现在"我的 AI"的周报里，帮您和我们看到 AI 在哪些场景判断偏差最大。可以直接关闭不填，不强制。
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>引用标注：一眼看到依据</h2>
+
+<p>每条 AI 建议后面的蓝色标签（如 <b style="background:#e3f2fd;color:#1565c0;padding:1px 6px;border-radius:3px;font-size:0.8rem;">[KB-3] 术后头痛规则</b>）是引用标记。点击会弹出规则原文，无需跳到知识库页面。</p>
+
+<p>如果 AI 引用了<b>不存在的规则</b>（幻觉），"我的 AI"→"知识库"页面会出现橙色 banner 提醒。这通常意味着 prompt 需要调整或规则表述不清晰。</p>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>完成一次诊断审核的步骤</h2>
+
 <div class="review-flow">
-  <h4>完成一次诊断审核的步骤</h4>
   <ol>
-    <li>打开门诊记录标签，点击待审核条目</li>
-    <li>阅读患者主诉和问诊摘要，了解背景</li>
-    <li>逐一处理鉴别诊断、检查建议、治疗方向</li>
-    <li>对不准确的建议：点击"编辑"修改，而不是直接拒绝</li>
-    <li>全部处理完后，点击页面底部的"定稿"</li>
-    <li>AI 自动根据您的决策，生成随访任务</li>
+    <li>打开"审核"→"门诊记录"，点击一条待审核条目</li>
+    <li>顶部看患者主诉和问诊摘要（可折叠），建立背景</li>
+    <li>逐字段处理：采纳、编辑采纳、换一条，或直接自己写</li>
+    <li>不准的建议，<b>先编辑再采纳</b>比直接拒绝对 AI 更有帮助</li>
+    <li>全部处理完，点底部"定稿"</li>
+    <li>记录归入"已完成"；您的编辑被 AI 记住（见 <a href="wiki-kb-learning.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-kb-learning.html')}">AI 学习闭环</a>）</li>
   </ol>
 </div>
 
-<!-- ── Reply review ── -->
-<h2>如何审核待回复消息</h2>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>待回复消息怎么审</h2>
 
-<p>患者发来消息后，AI 会判断优先级，并起草一份回复。整个流程如下：</p>
+<p>患者发来消息后，AI 先判断优先级，再按您的规则和语气起草回复。</p>
 
 <div class="flow">
   <div class="flow-step">患者发消息</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">AI 判断优先级</div>
-  <div class="flow-arrow">→</div>
   <div class="flow-step">AI 起草回复</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">您审核确认</div>
+  <div class="flow-step">您审核</div>
   <div class="flow-arrow">→</div>
-  <div class="flow-step">发送给患者</div>
+  <div class="flow-step">发送</div>
 </div>
 
-<p>在待回复列表中，每条记录会显示：</p>
+<p>在"待回复"标签中，每条记录显示：</p>
 <ul>
-  <li>患者原始消息全文</li>
-  <li>AI 起草的回复草稿（字数控制在合理范围内，语气参考您的设置）</li>
-  <li>引用的规则标注</li>
+  <li>患者原消息全文</li>
+  <li>AI 起草的回复草稿（引用的规则在文末标注）</li>
+  <li>两个操作：<b>直接发送</b> 或 <b>编辑后发送</b></li>
 </ul>
-
-<p>您有两个选择：</p>
-
-<div class="action-row">
-  <button class="action-btn send">直接发送</button>
-  <button class="action-btn edit">编辑后发送</button>
-</div>
 
 <div class="info-box">
-  <b>编辑技巧：</b>如果 AI 的回复基本正确但语气不对，直接在草稿上微调即可。如果同类问题 AI 总是回答得不好，在知识库中补充一条专门的回复规则，效果最好。
+  <b>编辑技巧：</b>基本正确但语气不对，就直接微调。同类问题 AI 总是答不好，就在知识库加一条专门针对这种场景的规则 — 下次会更准。
 </div>
 
-<!-- ── After review ── -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <h2>审核之后发生什么</h2>
 
-<p>门诊记录定稿后，AI 会自动：</p>
+<p><b>门诊定稿后：</b></p>
 <ul>
-  <li>将您确认或修改后的建议记录到该患者的病历中</li>
-  <li>根据治疗方案和检查建议，创建相应的随访任务（例如"2 周后复查"）</li>
-  <li>将该条记录移入"已完成"标签</li>
+  <li>您确认/修改后的内容写入该患者的病历</li>
+  <li>记录归入"已完成"标签</li>
+  <li>您对每条建议的 采纳 / 编辑 / 拒绝 都会成为规则健康数据的一部分（知识库详情页可见）</li>
 </ul>
 
-<p>消息回复发送后，AI 会自动：</p>
+<p><b>消息发出后：</b></p>
 <ul>
-  <li>将回复记录到患者聊天历史</li>
-  <li>将该条草稿移入"已完成"标签</li>
-  <li>如果患者消息涉及需要跟进的事项，提示您创建随访任务</li>
+  <li>回复写入患者聊天历史</li>
+  <li>草稿归入"已完成"标签</li>
+  <li>若 AI 判断该回复需要后续跟进，会提示您手动添加备注</li>
 </ul>
 
 <div class="categories">
-  相关页面: <a href="wiki-knowledge.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-knowledge.html')}">知识库</a> &nbsp; <a href="wiki-tasks.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-tasks.html')}">随访任务</a> &nbsp; <a href="wiki-patients.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-patients.html')}">患者管理</a>
+  相关页面:
+  <a href="wiki-knowledge.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-knowledge.html')}">知识库</a>
+  &nbsp;<a href="wiki-kb-learning.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-kb-learning.html')}">AI 学习闭环</a>
+  &nbsp;<a href="wiki-patients.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-patients.html')}">患者管理</a>
 </div>
+
+<div class="updated-stamp">最近更新：2026-04-22 · 版本 v2.1.0</div>
 
 </div>
 </body>

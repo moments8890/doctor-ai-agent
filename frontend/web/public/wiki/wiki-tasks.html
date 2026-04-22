@@ -3,88 +3,63 @@
 <head>
 <meta charset="utf-8">
 <link rel="stylesheet" href="wiki-common.css">
+<style>
+  .updated-stamp { text-align: right; color: #888; font-size: 0.75rem; margin-top: 0.5rem; }
+</style>
 </head>
 <body>
 <div class="page-wrap">
 
 <div class="breadcrumb">
-  <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">帮助中心</a> › 随访任务
+  <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">首页</a> › 随访任务（已合并）
 </div>
 
 <h1>随访任务</h1>
 
-<p class="hatnote">AI 帮您追踪每位患者的随访计划，到期提醒，不遗漏任何一位。</p>
+<p class="hatnote">v2.1 起，医生端不再有独立的"随访"标签。相关功能已合并到其他入口。</p>
 
-<div class="notice-box">
-  <b>核心设计：</b>患者问诊结束后，系统自动为您创建随访任务；您审核完病历后，下一步随访也自动进入日程。整个流程无需手动记录。
+<div class="warn-box">
+  <b>页面说明：</b>此前的"随访任务"标签已从医生端下线。患者端仍保留"任务"标签，用于患者查看和勾选医嘱提醒。
 </div>
 
-
-<h2>任务中心的四个视图</h2>
-
-<p>任务页面分为四个标签，每个标签对应一种工作场景：</p>
-
-<div class="section-grid">
-  <div class="section-card">
-    <h3>即将到期随访</h3>
-    <p>按到期时间排列的随访计划，显示"3 天后""明天"等提示，让您一眼知道哪位患者最紧迫。</p>
-  </div>
-  <div class="section-card">
-    <h3>待办提醒</h3>
-    <p>您自己创建的提醒事项，例如"提醒李女士复查"或"联系家属"。可以设置截止时间和备注。</p>
-  </div>
-  <div class="section-card">
-    <h3>最近已发送</h3>
-    <p>已完成的随访和已发送的消息历史，方便您回顾每位患者的沟通记录。</p>
-  </div>
-</div>
-
-
-<div class="info-box">
-  <b>患者消息回复：</b>患者发来的消息和 AI 草稿在 <a href="wiki-review.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-review.html')}">审核中心</a> 的"待回复"标签中处理。
-</div>
-
-
-<h2>创建随访任务</h2>
-
-<h3>方式一：手动创建</h3>
-<p>点击页面右上角的 <b>+ 新建</b>，填写以下信息：</p>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>原功能去哪儿了</h2>
 
 <table>
-  <tr><th>字段</th><th>说明</th></tr>
-  <tr><td>关联患者</td><td>从您的患者列表中选择</td></tr>
-  <tr><td>任务类型</td><td>随访 / 提醒 / 自定义</td></tr>
-  <tr><td>到期时间</td><td>选择具体日期和时间</td></tr>
-  <tr><td>备注</td><td>可选，填写注意事项</td></tr>
+  <tr><th>原"随访任务"功能</th><th>v2.1 新入口</th></tr>
+  <tr>
+    <td>查看患者的随访计划</td>
+    <td>进<b>患者详情页</b> → 病历时间线（包含随访条目）</td>
+  </tr>
+  <tr>
+    <td>手动创建随访提醒</td>
+    <td>进<b>患者详情页</b> → 聊天子页面 → 给患者发送医嘱消息</td>
+  </tr>
+  <tr>
+    <td>"已完成"随访回顾</td>
+    <td>进<b>审核</b>标签 → "已完成"</td>
+  </tr>
+  <tr>
+    <td>患者端任务勾选</td>
+    <td>患者端仍保留"任务"标签，详见 <a href="wiki-patient-portal.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-patient-portal.html')}">患者端说明</a></td>
+  </tr>
 </table>
 
-<h3>方式二：自动创建</h3>
-<p>以下操作会自动触发任务创建，无需您手动操作：</p>
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>为什么合并？</h2>
 
-<table>
-  <tr><th>触发时机</th><th>自动创建的任务</th></tr>
-  <tr><td>患者完成问诊</td><td>新病历待审核提醒，出现在您的审核队列</td></tr>
-  <tr><td>您完成病历审核</td><td>该患者的下次随访任务，出现在"即将到期随访"</td></tr>
-</table>
+<p>旧的"随访"标签功能与"审核"和"患者"高度重叠 — 大部分随访安排其实是在定稿时自然产生的，单独的任务列表反而制造了第四个需要打理的收件箱。v2.1 把相关入口下沉到患者和审核两处，让日常工作更集中。</p>
 
-
-<h2>任务详情与提醒设置</h2>
-
-<p>点击任意任务条目进入详情页，可以：</p>
-
-<ul>
-  <li>查看完整任务信息：关联患者、类型、到期时间、备注</li>
-  <li>开启提醒通知，并选择提前时间（当日 / 提前 1 天 / 提前 3 天）</li>
-  <li>将任务标记为完成</li>
-  <li>删除任务（操作前会弹出确认提示）</li>
-</ul>
-
-<p>完成操作后，页面会短暂显示操作结果提示，例如"已标记完成"。</p>
-
+<p>路线图中的 <b>主动随访触达</b> 会进一步由 AI 在到期时自动起草消息，放入"待回复"等您确认，详见 <a href="wiki-whats-new.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-whats-new.html')}">版本与路线图</a>。</p>
 
 <div class="categories">
-  分类: <a href="#">使用指南</a> <a href="#">随访管理</a>
+  相关页面:
+  <a href="wiki-patients.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-patients.html')}">患者管理</a>
+  &nbsp;<a href="wiki-review.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-review.html')}">审核中心</a>
+  &nbsp;<a href="wiki-whats-new.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-whats-new.html')}">版本与路线图</a>
 </div>
+
+<div class="updated-stamp">最近更新：2026-04-22 · 版本 v2.1.0</div>
 
 </div>
 </body>
