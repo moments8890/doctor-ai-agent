@@ -23,32 +23,56 @@ the Docker-default `.env` name — mirrors the `glitchtip.secrets`
 convention). Passed to compose via `docker compose --env-file
 dbgate.secrets ...`.
 
-**MySQL connectivity**: the backend MySQL is on the host at
-`127.0.0.1:3306`. DBGate runs in Docker and reaches the host via
-`host.docker.internal`, resolved through the `host-gateway` alias in
-`extra_hosts`. This works on Tencent's docker-ce 20.10+.
+**MySQL connectivity**: `doctor-ai-mysql` is a Docker container that
+port-forwards `127.0.0.1:3306` on the host (via docker-proxy). Other
+containers reaching `host.docker.internal:3306` hit the docker bridge
+gateway (`172.17.0.1`) where nothing listens — refused. We instead
+attach both DBGate and doctor-ai-mysql to a shared user-defined
+network (`dbgate_net`). This gives container-name DNS resolution, so
+DBGate connects at `doctor-ai-mysql:3306`. Attaching an existing
+running container to a second network via `docker network connect` is
+non-disruptive — backend stays up.
 
 ---
 
 ## One-time setup
 
-### 1. Create a dedicated MySQL user for DBGate
+### 1. Create shared docker network + attach doctor-ai-mysql
+
+DBGate reaches MySQL via a user-defined docker network. Attaching the
+running MySQL container to a second network is non-disruptive (doesn't
+restart it).
+
+```bash
+ssh tencent
+docker network create dbgate_net
+docker network connect dbgate_net doctor-ai-mysql
+# Verify — doctor-ai-mysql should show TWO networks now:
+docker inspect doctor-ai-mysql --format \
+  '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} IP={{$v.IPAddress}}{{println}}{{end}}'
+# Expect: bridge + dbgate_net
+```
+
+### 2. Create a dedicated MySQL user for DBGate
 
 Don't point DBGate at the app's write user. Make a scoped user so a
 stray UI click can't drop a table.
 
 ```bash
-ssh tencent
-# Log in to MySQL as a user that can GRANT (usually root).
-mysql -u root -p
+# Run the GRANT inside the doctor-ai-mysql container via root.
+# MYSQL_PWD avoids leaking the password into shell history or ps.
+MYSQL_PWD='<root-password-from-docker-inspect>' docker exec -i -e MYSQL_PWD \
+  doctor-ai-mysql mysql -u root <<'SQL'
+CREATE USER IF NOT EXISTS 'dbgate_reader'@'%' IDENTIFIED BY 'PASTE_STRONG_RANDOM_HERE';
+GRANT SELECT, SHOW VIEW, REFERENCES ON doctor_ai.* TO 'dbgate_reader'@'%';
+FLUSH PRIVILEGES;
+SQL
 ```
 
-```sql
--- Read-only (default, recommended). Covers schema + data + EXPLAIN.
-CREATE USER 'dbgate_reader'@'%' IDENTIFIED BY 'PASTE_STRONG_RANDOM_HERE';
-GRANT SELECT, SHOW VIEW, PROCESS, REFERENCES ON doctor_ai.* TO 'dbgate_reader'@'%';
-FLUSH PRIVILEGES;
-```
+**Note**: `PROCESS` is a global-only privilege in MySQL 8 — can't be
+mixed with DB-scoped GRANTs in one statement. Skipped here since DBGate
+doesn't need it. If you want `SHOW PROCESSLIST` in DBGate's UI, issue
+it separately: `GRANT PROCESS ON *.* TO 'dbgate_reader'@'%';`.
 
 If you later need write access from the UI (careful — full `DELETE`
 power via a web app is real risk), add:
@@ -58,13 +82,10 @@ GRANT INSERT, UPDATE, DELETE ON doctor_ai.* TO 'dbgate_reader'@'%';
 FLUSH PRIVILEGES;
 ```
 
-The `'%'` host is required because the connection arrives via
-`host-gateway` which is not `localhost` from MySQL's perspective.
-Bind-address in MySQL must allow it — the CVM's MySQL typically listens
-on `127.0.0.1` only, which blocks this. See "Known issues" at the
-bottom for the two fixes.
+The `'%'` host is required because connections arrive from the
+dbgate_net bridge IP, not localhost.
 
-### 2. Copy the compose file + create `dbgate.secrets`
+### 3. Copy the compose file + create `dbgate.secrets`
 
 ```bash
 ssh tencent
@@ -90,7 +111,7 @@ EOF
 chmod 600 dbgate.secrets
 ```
 
-### 3. Bring up the stack
+### 4. Bring up the stack
 
 ```bash
 docker compose --env-file dbgate.secrets up -d
@@ -100,7 +121,7 @@ docker compose logs -f dbgate | head -30
 # Expect: "app listening on port 3000" (or similar) — no stack trace.
 ```
 
-### 4. Verify the web UI responds locally
+### 5. Verify the web UI responds locally
 
 ```bash
 curl -fsS -u "admin:$(grep DBGATE_PASSWORD dbgate.secrets | cut -d= -f2-)" \
@@ -108,7 +129,7 @@ curl -fsS -u "admin:$(grep DBGATE_PASSWORD dbgate.secrets | cut -d= -f2-)" \
 # Should return HTML (not 401).
 ```
 
-### 5. Access the UI from your laptop via SSH tunnel
+### 6. Access the UI from your laptop via SSH tunnel
 
 On your **local machine**:
 ```bash
@@ -121,18 +142,18 @@ Open <http://localhost:8101> in your browser. Log in with
 preset `doctor-ai (prod)` connection in the left tree — click to
 expand, and schema browsing works immediately.
 
-### 6. Smoke-test the connection
+### 7. Smoke-test the connection
 
 In DBGate left tree: `doctor-ai (prod)` → `doctor_ai` → `Tables` →
 `medical_records` → right-click → "Open data". You should see rows.
 If it says "Access denied" or "Unknown database", check:
 
-1. MySQL bind-address allows non-loopback (see Known issues).
-2. `dbgate_reader` was granted on `doctor_ai.*` specifically, not
-   `some_other_db.*`.
-3. `host.docker.internal` resolves from inside the container:
-   `docker compose exec dbgate sh -c 'getent hosts host.docker.internal'`
-   should return the host IP (usually `172.17.0.1`).
+1. `dbgate_reader` was granted on `doctor_ai.*` specifically.
+2. DBGate container can see doctor-ai-mysql over the shared network:
+   `docker run --rm --network dbgate_net alpine nslookup doctor-ai-mysql`
+   should return the container IP.
+3. Both containers are attached to dbgate_net:
+   `docker network inspect dbgate_net` should list both.
 
 ---
 
@@ -249,36 +270,16 @@ No changes to app schema or data. Zero impact on the backend.
 
 ## Known issues
 
-### MySQL `bind-address` blocks docker-gateway connections
+### host.docker.internal doesn't work for dockerised MySQL
 
-Default Tencent CVM MySQL listens on `127.0.0.1` only. DBGate's
-connection arrives from the docker bridge (typically `172.17.0.1`
-from MySQL's POV) — blocked.
-
-**Option A (simplest, MySQL-in-Docker setups):** move MySQL into the
-same docker-compose as DBGate. They share a docker network and MySQL
-stays loopback-only from the host's POV.
-
-**Option B (host MySQL):** extend `bind-address` to also accept the
-docker bridge:
-
-```bash
-sudo vim /etc/mysql/mysql.conf.d/mysqld.cnf
-# Change: bind-address = 127.0.0.1
-# To:     bind-address = 127.0.0.1,172.17.0.1
-# (MySQL 8.0.13+ supports comma-separated. Older: use 0.0.0.0 AND
-#  firewall off port 3306 from the internet — CVM SG + ufw.)
-sudo systemctl restart mysql
-```
-
-Verify the firewall still blocks 3306 externally:
-
-```bash
-sudo ss -ltnp | grep 3306
-# Expect: 127.0.0.1:3306 AND 172.17.0.1:3306. Never 0.0.0.0:3306 publicly.
-ufw status                              # if ufw is enabled
-# CVM Security Group — confirm port 3306 ingress is denied from 0.0.0.0/0.
-```
+If you try to connect DBGate to `host.docker.internal:3306`, it fails
+with "Connection refused" even though DNS resolves. Reason:
+`doctor-ai-mysql` port-forwards `127.0.0.1:3306` on the host (via
+docker-proxy), but `host.docker.internal` inside a container routes to
+the bridge gateway (`172.17.0.1`), where docker-proxy isn't listening.
+Fix: use the shared user-defined network approach documented in step 1
+— it bypasses docker-proxy entirely and uses container-to-container
+networking, which is both more reliable and marginally faster.
 
 ### "Read-only mode" doesn't prevent schema DDL in DBGate UI
 

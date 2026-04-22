@@ -6,10 +6,19 @@
 # Service binds only to 127.0.0.1 — external access via SSH tunnel or
 # nginx proxy under a protected path (see runbook).
 #
-# Network shape: DBGate runs in Docker, the app's MySQL runs on the host
-# at 127.0.0.1:3306 (or inside its own container, also host-bound). We
-# reach it from inside the DBGate container via `host.docker.internal`,
-# wired through `extra_hosts: host-gateway` so it resolves on Linux.
+# Network shape: DBGate reaches the MySQL container via a user-defined
+# bridge network (`dbgate_net`) that both containers are attached to.
+# This is cleaner than host.docker.internal because:
+#   - MySQL in doctor-ai-mysql exposes port 3306 only on 127.0.0.1 of
+#     the host (via docker-proxy) — unreachable from other containers'
+#     bridge gateway (172.17.0.1).
+#   - User-defined networks give container-name DNS resolution, so we
+#     reach it cleanly at `doctor-ai-mysql:3306`.
+#   - `docker network connect` attaches doctor-ai-mysql to dbgate_net
+#     without restarting it — zero downtime for the backend.
+#
+# See runbook for the one-time `docker network create dbgate_net` +
+# `docker network connect dbgate_net doctor-ai-mysql` setup.
 #
 # Image prefix chosen for Tencent CVM (mainland China) — docker.io is
 # GFW-unreliable here. Third-party images via docker.1ms.run (same
@@ -29,38 +38,36 @@ services:
       PASSWORD: ${DBGATE_PASSWORD}
 
       # Subpath hosting. DBGate honours WEB_ROOT when serving under a
-      # reverse-proxy prefix. If you keep DBGate on SSH tunnel only
-      # (recommended until you need public access), leave this unset.
+      # reverse-proxy prefix. Leave unset for SSH-tunnel-only access.
       WEB_ROOT: ${DBGATE_WEB_ROOT:-}
 
-      # Preset the doctor-ai MySQL connection so it's ready at login.
-      # Credentials land in `docker inspect` output — use a dedicated
-      # MySQL user scoped to doctor_ai schema (runbook shows the GRANT).
+      # Preset doctor-ai MySQL connection. Credentials land in
+      # `docker inspect` output — use a scoped MySQL user (dbgate_reader
+      # with SELECT/SHOW VIEW/REFERENCES on doctor_ai.*; runbook).
       #
-      # Swap ENGINE_* to mariadb@dbgate-plugin-mysql if your MySQL is
-      # actually MariaDB.
+      # SERVER_doctorai resolves via dbgate_net DNS to the container.
       CONNECTIONS: doctorai
       LABEL_doctorai: doctor-ai (prod)
-      SERVER_doctorai: host.docker.internal
+      SERVER_doctorai: doctor-ai-mysql
       PORT_doctorai: "3306"
       USER_doctorai: ${DBGATE_MYSQL_USER}
       PASSWORD_doctorai: ${DBGATE_MYSQL_PASSWORD}
       ENGINE_doctorai: mysql@dbgate-plugin-mysql
       DATABASE_doctorai: ${DBGATE_MYSQL_DB:-doctor_ai}
-      # Read-only by default — flip to false if you need INSERT/UPDATE
-      # from the UI. Runbook explains the trade-off.
+      # Read-only by default. The real gate is the MySQL GRANT — this
+      # flag is UI affordance only.
       READ_ONLY_doctorai: ${DBGATE_READ_ONLY:-true}
 
-    # Required on Linux hosts so host.docker.internal resolves to the
-    # host's loopback. Works on docker-ce 20.10+.
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    networks:
+      - dbgate_net
 
     volumes:
       # Persists saved queries, chart definitions, UI preferences.
-      # Connection presets are baked from env above — this volume is
-      # only for user-saved artifacts.
       - dbgate_data:/root/.dbgate
+
+networks:
+  dbgate_net:
+    external: true
 
 volumes:
   dbgate_data:
