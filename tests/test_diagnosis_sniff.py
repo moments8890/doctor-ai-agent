@@ -136,7 +136,6 @@ SCENARIOS: List[Dict[str, Any]] = [
             "auxiliary_exam":  "MRI示右额叶占位，均匀强化，宽基底附着硬脑膜",
         },
         "expect_kb_citation": False,
-        "expect_red_flags":   False,  # not an absolute requirement — we don't assert
     },
     {
         "id": "info_insufficient",
@@ -145,10 +144,9 @@ SCENARIOS: List[Dict[str, Any]] = [
             "chief_complaint": "头痛",
         },
         "expect_kb_citation": False,
-        "expect_red_flags":   False,
     },
     {
-        "id": "red_flag_sah",
+        "id": "thunderclap_sah",
         "description": "Sudden thunderclap headache — possible SAH",
         "structured": {
             "chief_complaint": "突发剧烈头痛1小时",
@@ -157,7 +155,6 @@ SCENARIOS: List[Dict[str, Any]] = [
             "physical_exam":   "颈项强直（+），Kernig征（+）",
         },
         "expect_kb_citation": False,
-        "expect_red_flags":   True,
     },
     {
         "id": "kb_citation",
@@ -168,7 +165,6 @@ SCENARIOS: List[Dict[str, Any]] = [
             "past_history":    "高血压8年，吸烟20年",
         },
         "expect_kb_citation": True,
-        "expect_red_flags":   False,
     },
     {
         "id": "cardiovascular_cross_specialty",
@@ -180,7 +176,6 @@ SCENARIOS: List[Dict[str, Any]] = [
             "physical_exam":   "BP 160/95 mmHg，心率 82 次/分，双肺清",
         },
         "expect_kb_citation": False,
-        "expect_red_flags":   False,
     },
 ]
 
@@ -285,14 +280,12 @@ async def test_diagnosis_sniff(scenario: Dict[str, Any], doctor_with_kb):
     differentials = result["differentials"]
     workup = result["workup"]
     treatment = result["treatment"]
-    red_flags = result["red_flags"]
 
     # Surface counts on stdout — `-s -v` shows these so the operator can
     # eyeball cap behaviour without digging through logs.
     print(
         f"\n[{scenario['id']}] differentials={len(differentials)} "
-        f"workup={len(workup)} treatment={len(treatment)} "
-        f"red_flags={len(red_flags)}"
+        f"workup={len(workup)} treatment={len(treatment)}"
     )
 
     # ── Hard caps (Phase 2b) ──────────────────────────────────────────
@@ -332,12 +325,6 @@ async def test_diagnosis_sniff(scenario: Dict[str, Any], doctor_with_kb):
         )
 
     # ── Scenario-specific checks ──────────────────────────────────────
-    if scenario["expect_red_flags"]:
-        assert len(red_flags) > 0, (
-            f"[{scenario['id']}] red-flag scenario must surface red_flags; "
-            f"result: {result!r}"
-        )
-
     if scenario["expect_kb_citation"]:
         marker = f"[KB-{kb_id}]"
         all_details = " ".join(

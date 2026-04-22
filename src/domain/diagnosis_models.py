@@ -39,7 +39,6 @@ class DiagnosisLLMResponse(BaseModel):
     differentials: List[DiagnosisDifferential] = Field(default_factory=list)
     workup: List[DiagnosisWorkup] = Field(default_factory=list)
     treatment: List[DiagnosisTreatment] = Field(default_factory=list)
-    red_flags: List[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +60,6 @@ _MAX_ARRAY_ITEMS = 10
 # Per-section output caps (Phase 2b · 2026-04-20).
 # Doctor decision UX: 诊断/治疗 are singular decisions → 1 each.
 # 检查建议 is a list of orderable tests → up to 2.
-# red_flags remains unbounded within _MAX_ARRAY_ITEMS (safety-critical signals).
 MAX_DIFFERENTIALS = 1
 MAX_TREATMENT = 1
 MAX_WORKUP = 2

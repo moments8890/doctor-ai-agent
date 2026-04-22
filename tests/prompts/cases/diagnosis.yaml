@@ -1,9 +1,9 @@
 # Test cases for diagnosis.md
 # Prompt: clinical data → differential diagnosis JSON
-# Fields: differentials, workup, treatment, red_flags
+# Fields: differentials, workup, treatment
 # Note: diagnosis output is large — needs higher max_tokens than default
 
-- description: "diagnosis: red flags urgent — hypotension + chest pain triggers emergency"
+- description: "diagnosis: critical case — hypotension + chest pain triggers emergency workup"
   options:
     prompts: [diagnosis]
     provider:
@@ -17,11 +17,6 @@
       auxiliary_exam: "心电图：V1-V4 ST段抬高"
   assert:
     - type: is-json
-    - type: javascript
-      value: |
-        const obj = JSON.parse(output);
-        // red_flags must be non-empty for this critical case
-        return obj.red_flags && obj.red_flags.length > 0;
     - type: javascript
       value: |
         const obj = JSON.parse(output);
@@ -126,15 +121,10 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        // red_flags should be empty — not enough info to fabricate
-        return Array.isArray(obj.red_flags) && obj.red_flags.length === 0;
-    - type: javascript
-      value: |
-        const obj = JSON.parse(output);
         // treatment should be empty for insufficient data
         return Array.isArray(obj.treatment) && obj.treatment.length === 0;
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        // All 4 top-level keys must exist
-        return 'differentials' in obj && 'workup' in obj && 'treatment' in obj && 'red_flags' in obj;
+        // All 3 top-level keys must exist
+        return 'differentials' in obj && 'workup' in obj && 'treatment' in obj;

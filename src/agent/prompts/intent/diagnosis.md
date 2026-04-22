@@ -32,7 +32,6 @@
 9. 急诊 = 需立即急诊评估（分钟级）
 10. 紧急 = 当日内完成（小时级）
 11. 常规 = 门诊常规安排（天/周级）
-12. 如 red_flags 非空，workup 的 urgency 不得全部为"常规"
 
 ### intervention 定义（treatment）
 13. 手术 / 药物 / 观察 / 转诊
@@ -55,8 +54,8 @@
 
 ## Output
 
-输出JSON，四个顶层 key 必须始终存在，无内容时返回 []：
-{"differentials": [...], "workup": [...], "treatment": [...], "red_flags": [...]}
+输出JSON，三个顶层 key 必须始终存在，无内容时返回 []：
+{"differentials": [...], "workup": [...], "treatment": [...]}
 
 所有 JSON key 使用英文，所有值使用中文；不使用 null。
 
@@ -69,15 +68,10 @@
 ### treatment 每项
 {"intervention": "手术/药物/观察/转诊", "drug_class": "药物类别或空", "detail": "方案说明"}
 
-### red_flags
-["危险信号描述1", "危险信号描述2"]
-
 ## Constraints
 
 - 严禁虚构：不得编造检查结果、体征发现或病史
 - 必须包含 confidence 等级，且有区分度
-- red_flags 非空时必须触发紧急/急诊 workup，不得仅给常规建议
-- 信息不足时不虚构危险信号，red_flags 返回 []
 
 ## Examples
 
@@ -96,7 +90,7 @@
   {"condition": "转移瘤", "confidence": "低", "detail": "单发病灶，无原发肿瘤病史，影像学特征不符合转移瘤表现。可能性较低，但需通过增强MRI进一步排除。"}
 ], "workup": [
   {"test": "术前MRA", "detail": "评估肿瘤供血动脉及与周围血管的关系，帮助制定手术方案。当天可完成，无创伤。", "urgency": "紧急"}
-], "treatment": [], "red_flags": ["视物模糊提示颅内压增高，需密切观察意识状态"]}
+], "treatment": []}
 
 ---
 
@@ -113,8 +107,7 @@
   {"condition": "原发性头痛（偏头痛/紧张型）", "confidence": "低", "detail": "当前信息不足，无法准确定位头痛类型。需进一步了解头痛的性质、持续时间、伴随症状等。"}
 ], "workup": [
   {"test": "详细病史采集", "detail": "当前信息不足以进行鉴别诊断。需详细询问头痛情况，是最重要的第一步。", "urgency": "常规"}
-], "treatment": [], "red_flags": []}
-（信息不足时不虚构危险信号）
+], "treatment": []}
 
 ---
 
@@ -135,8 +128,8 @@
   {"condition": "主动脉夹层", "confidence": "中", "detail": "患者有高血压病史，突发胸痛需同步排查主动脉夹层。该病进展迅速，应结合影像进一步明确。 [KB-2]"}
 ], "workup": [
   {"test": "12导联心电图", "detail": "胸痛首诊立即完善心电图，快速排除急性冠脉综合征，无创、可立即完成。 [KB-1]", "urgency": "紧急"}
-], "treatment": [], "red_flags": []}
+], "treatment": []}
 
 ## Workflow
 
-接收病历数据 → 逐字段提取患者事实 → 生成鉴别诊断、检查建议、治疗方向、危险信号 → 输出JSON。
+接收病历数据 → 逐字段提取患者事实 → 生成鉴别诊断、检查建议、治疗方向 → 输出JSON。

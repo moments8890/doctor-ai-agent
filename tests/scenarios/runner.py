@@ -243,7 +243,6 @@ class ScenarioWorld:
         # Convenience fields for assertions
         result["_json"] = _json.dumps(result, ensure_ascii=False)
         result["_differentials_count"] = len(result.get("differentials", []))
-        result["_red_flags_count"] = len(result.get("red_flags", []))
         result["_workup_count"] = len(result.get("workup", []))
         # Top differential for quick assertions
         diffs = result.get("differentials", [])
@@ -276,7 +275,6 @@ class ScenarioWorld:
             "status": "generated",
             "text": result.text,
             "cited_knowledge_ids": result.cited_knowledge_ids,
-            "is_red_flag": result.is_red_flag,
             "char_count": len(result.text),
         }
 

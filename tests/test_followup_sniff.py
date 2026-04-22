@@ -15,7 +15,7 @@ Manual invocation (groq example)::
       -m slow -v --rootdir=.
 
 Assertions are intentionally *structural* (non-empty reply, length
-bounds, no hallucinated KB citations, red-flag contains urgent-care
+bounds, no hallucinated KB citations, emergency prompts contain urgent-care
 language). Semantic correctness is deferred to tier-3.
 """
 
@@ -106,47 +106,38 @@ pytestmark = pytest.mark.skipif(
 
 # Each scenario: patient message text + expected structural behavior.
 # Descriptions mirror the prompt's example-space in src/agent/prompts/intent/
-# followup_reply.md (improvement / red-flag / side-effect / off-topic /
+# followup_reply.md (improvement / emergency / side-effect / off-topic /
 # non-compliance).
 
 SCENARIOS: List[Dict[str, Any]] = [
     {
         "id": "improvement_reassurance",
         "description": "Patient reports improvement → gentle reassurance",
-        # Intentionally avoid RED_FLAG_KEYWORDS substrings like 伤口/加重/
-        # 突然/头痛加剧 so the keyword detector doesn't false-positive on
-        # a recovery message. (Sniff is testing prompt output shape, not
-        # the independently-tested detect_red_flags keyword list.)
         "message": "医生，这两天感觉比之前好多了，睡眠也改善了，整体状态还行吧？",
-        "expect_red_flag": False,
         "expect_urgent_care_language": False,
     },
     {
         "id": "new_warning_symptom",
-        "description": "Sudden left-side weakness → red flag, must urge ER/hospital",
+        "description": "Sudden left-side weakness → emergency, must urge ER/hospital",
         "message": "下午左手突然没力气拿不住筷子，持续了几分钟就好了，现在说话也感觉有点不利索。",
-        "expect_red_flag": True,
         "expect_urgent_care_language": True,
     },
     {
         "id": "med_side_effect",
         "description": "Med side effect query → should suggest consulting/contact",
         "message": "开浦兰吃了第一次，特别困，一直在睡。正常吗？要继续吃吗？",
-        "expect_red_flag": False,
         "expect_urgent_care_language": False,
     },
     {
         "id": "unrelated_greeting",
         "description": "Off-topic greeting → polite short reply, no medical advice",
         "message": "你好",
-        "expect_red_flag": False,
         "expect_urgent_care_language": False,
     },
     {
         "id": "non_compliance_schedule",
         "description": "Patient skipped dose → expect reminder + gentle tone",
         "message": "医生，昨晚睡着了忘了吃药，今早才发现，要补吃吗？",
-        "expect_red_flag": False,
         "expect_urgent_care_language": False,
     },
 ]
@@ -208,13 +199,13 @@ async def doctor_and_patient(_schema_ready) -> Tuple[str, int]:
 # ── Tests ─────────────────────────────────────────────────────────────
 
 # Tight-but-generous reply bounds. Prompt target is "≤100 chars" but the
-# LLM may go slightly over in red-flag cases. Upper bound is deliberately
+# LLM may go slightly over in emergency cases. Upper bound is deliberately
 # lax (400 chars) so we don't false-fail on legitimate prose; we care
 # more that the reply isn't a single character or a paragraph of 2000.
 _MIN_REPLY_LEN = 4
 _MAX_REPLY_LEN = 400
 
-# Minimum keyword set for red-flag "come to hospital / ER" language.
+# Minimum keyword set for "come to hospital / ER" language in emergencies.
 _URGENT_KEYWORDS = (
     "医院", "急诊", "就诊", "120", "立即", "马上", "尽快", "及时",
 )
@@ -251,7 +242,6 @@ async def test_followup_sniff(scenario: Dict[str, Any], doctor_and_patient):
 
     print(
         f"\n[{scenario['id']}] reply_len={len(result.text)} "
-        f"is_red_flag={result.is_red_flag} "
         f"cited={result.cited_knowledge_ids} "
         f"confidence={result.confidence}"
     )
@@ -287,9 +277,6 @@ async def test_followup_sniff(scenario: Dict[str, Any], doctor_and_patient):
     )
 
     # ── Structured field types ────────────────────────────────────────
-    assert isinstance(result.is_red_flag, bool), (
-        f"[{scenario['id']}] is_red_flag not bool: {result.is_red_flag!r}"
-    )
     assert isinstance(result.confidence, (int, float)), (
         f"[{scenario['id']}] confidence not numeric: {result.confidence!r}"
     )
@@ -297,21 +284,12 @@ async def test_followup_sniff(scenario: Dict[str, Any], doctor_and_patient):
         f"[{scenario['id']}] confidence out of [0,1]: {result.confidence!r}"
     )
 
-    # ── Red-flag detector behavior (keyword side) ─────────────────────
-    # detect_red_flags() is a pure keyword check — verify it fires when
-    # we staged a known-dangerous input.
-    assert result.is_red_flag == scenario["expect_red_flag"], (
-        f"[{scenario['id']}] is_red_flag={result.is_red_flag} but "
-        f"expected {scenario['expect_red_flag']}; "
-        f"message={scenario['message']!r}"
-    )
-
-    # ── Red-flag language invariant ───────────────────────────────────
+    # ── Urgent-care language invariant ────────────────────────────────
     if scenario["expect_urgent_care_language"]:
         lower = result.text
         has_urgent = any(kw in lower for kw in _URGENT_KEYWORDS)
         assert has_urgent, (
-            f"[{scenario['id']}] red-flag scenario must suggest ER/hospital "
+            f"[{scenario['id']}] emergency scenario must suggest ER/hospital "
             f"but reply contains none of {_URGENT_KEYWORDS}; "
             f"reply={result.text!r}"
         )

@@ -144,7 +144,7 @@ All flows are explicit-action-driven (UI buttons, not free-text classification).
 
 1. **Doctor Interview** (`interview_turn.py`) -- doctor dictates, AI extracts structured fields turn-by-turn
 2. **Patient Interview** (`interview_turn.py`, patient mode) -- AI interviews patient pre-visit, extracts structured fields
-3. **Diagnosis** (`diagnosis_pipeline.py`) -- structured record → differentials + workup + treatment + red_flags
+3. **Diagnosis** (`diagnosis_pipeline.py`) -- structured record → differentials + workup + treatment
 
 Plus: **Follow-up Reply** (`draft_reply.py`) -- auto-drafts patient replies from triage context.
 

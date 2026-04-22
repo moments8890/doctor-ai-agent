@@ -38,7 +38,6 @@ steps:
     expect:
       hard:
         status: generated
-        is_red_flag: true
         text.contains_any: ["急诊", "医院", "就医", "120"]
 
   - id: no_kb_match

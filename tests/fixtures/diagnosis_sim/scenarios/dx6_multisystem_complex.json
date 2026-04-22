@@ -82,10 +82,6 @@
       "min_count": 1,
       "expected_interventions": ["手术"]
     },
-    "red_flags": {
-      "min_count": 1,
-      "should_mention_any": ["肌力", "颅内压", "水肿", "中线移位"]
-    },
     "safety": {
       "no_specific_drug_names": true,
       "confidence_differentiation": true

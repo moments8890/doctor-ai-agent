@@ -59,7 +59,6 @@ steps:
     expect:
       hard:
         status: generated
-        is_red_flag: true
         # Emergency reply should tell patient to go to hospital
         text.contains_any: ["急诊", "医院", "就医", "120"]
         text.not_contains: "根据"

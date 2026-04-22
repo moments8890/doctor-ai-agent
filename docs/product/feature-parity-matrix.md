@@ -9,12 +9,12 @@
 
 | Category | Done | Partial | Backend Only | Missing | Build | Defer | Cut | Total |
 |----------|------|---------|-------------|---------|-------|-------|-----|-------|
-| **Doctor Workbench** | 34 | 0 | 1 | 7 | 0 | 6 | 1 | 42 |
+| **Doctor Workbench** | 34 | 0 | 1 | 7 | 0 | 5 | 1 | 41 |
 | **Patient Portal** | 15 | 1 | 0 | 3 | 0 | 3 | 0 | 19 |
 | **Cross-Cutting** | 4 | 0 | 0 | 0 | 0 | 0 | 0 | 4 |
-| **Total** | **53** | **1** | **1** | **10** | **0** | **9** | **1** | **65** |
+| **Total** | **53** | **1** | **1** | **10** | **0** | **8** | **1** | **64** |
 
-**82% feature complete** (53/65 done), 83% including partials.
+**83% feature complete** (53/64 done).
 
 > Previous (2026-03-25): 49% done. Delta: +13 items completed in 2 days
 > (diagnosis UI enabled, QR flow, patient timeline, doctor info card, review workflow)
@@ -24,12 +24,11 @@
 | Decision | Items | Notes |
 |----------|-------|-------|
 | **Build** (0) | All build items completed or deferred | P2.3, D6.7, D6.4 done; D4.7 deferred |
-| **Defer** (8) | D3.5+D3.6+D3.7 (structured clinical data group), D4.5 (clinical safety & emergency group), D6.6 (notification prefs), P3.7 (medications — blocked by D3.5), P4.1+P4.2 (patient notifications — needs push infra) | |
+| **Defer** (7) | D3.5+D3.6+D3.7 (structured clinical data group), D6.6 (notification prefs), P3.7 (medications — blocked by D3.5), P4.1+P4.2 (patient notifications — needs push infra) | |
 | **Cut** (1) | D4.9 (case library — redundant with patient list + D4.7) | |
 
 **Deferred groups:**
 - **Structured Clinical Data** (D3.5, D3.6, D3.7) — extract detailed fields for prescriptions, lab results, allergies from NHC flat text fields. Unblocks P3.7.
-- **Clinical Safety & Emergency Handling** (D4.5) — red flag rules, emergency tagging, knowledge-driven alerting. Requires doctor input on specialty rules + ADR 0022 (knowledge base) first.
 - **Active Notifications** (D6.6, P4.1, P4.2) — deferred until push infrastructure is built. Notifications stay passive (in-app badges, polling) for now.
 
 ---
@@ -41,11 +40,10 @@
 3. ~~**D6.4 Document Upload + Citation**~~ — **Done** (2026-03-27). QA: 7/7 pass. Also: killed 5 categories → single bucket, removed dead embedding code, feed-all-to-LLM knowledge strategy.
 4. ~~**D4.7 Case References**~~ — **Deferred** (2026-03-27). embedding.py removed; needs new approach. Not blocking any workflow.
 
-## Deferred Gaps (8 items, grouped)
+## Deferred Gaps (7 items, grouped)
 
 1. **Structured Clinical Data** (D3.5, D3.6, D3.7) — extract detailed fields for prescriptions, lab results, allergies from NHC flat text. Unblocks P3.7 (current medications).
-2. **Clinical Safety & Emergency** (D4.5) — red flag rules + emergency tagging + alerting. Requires doctor specialty knowledge input + ADR 0022 first.
-3. **Active Notifications** (D6.6, P4.1, P4.2) — needs push infrastructure (WeChat template msg / web push / SMS). Stay passive for now.
+2. **Active Notifications** (D6.6, P4.1, P4.2) — needs push infrastructure (WeChat template msg / web push / SMS). Stay passive for now.
 
 ---
 
@@ -95,7 +93,6 @@
 | D4.2 | 鉴别诊断 / Differential Diagnosis | **Done** | SuggestionSection groups by `differential`; DiagnosisCard with confidence badges |
 | D4.3 | 推荐检查 / Recommended Workup | **Done** | SuggestionSection groups by `workup`; urgency badges (常规/紧急/急诊) |
 | D4.4 | 治疗建议 / Treatment Suggestions | **Done** | SuggestionSection groups by `treatment`; intervention badges (药物/手术/观察/转诊) |
-| D4.5 | 危险信号检测 / Red Flag Detection | **Defer** | Backend returns red_flags in diagnosis; needs doctor-curated specialty rules + ADR 0022 knowledge base first. Group: Clinical Safety & Emergency |
 | D4.6 | 诊断审核工作流 / Review Workflow | **Done** | ReviewPage.jsx — 5 decision states (pending/confirmed/rejected/edited/custom), provenance-first input summary, finalize bridge to generated follow-up tasks. Route `/doctor/review/:recordId` active |
 | D4.7 | 诊断原理和病例参考 / Case References | **Defer** | Similar case matching inline in review page. embedding.py removed — needs new lightweight approach (Ollama embeddings, LLM-based, or keyword matching) |
 | D4.8 | 医学术语知识库 / Knowledge Base Management | **Done** | KnowledgeSubpage — view/add/delete items across 5 categories |

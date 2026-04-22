@@ -29,7 +29,6 @@ from domain.diagnosis_models import (
     _VALID_CONFIDENCE,
     _VALID_URGENCY,
     _VALID_INTERVENTION,
-    _MAX_ARRAY_ITEMS,
     MAX_DIFFERENTIALS,
     MAX_TREATMENT,
     MAX_WORKUP,
@@ -166,7 +165,6 @@ def _row_to_result(row: Any) -> Dict[str, Any]:
         "differentials": _json.loads(row.ai_output).get("differentials", []) if row.ai_output else [],
         "workup": _json.loads(row.ai_output).get("workup", []) if row.ai_output else [],
         "treatment": _json.loads(row.ai_output).get("treatment", []) if row.ai_output else [],
-        "red_flags": _json.loads(row.red_flags) if row.red_flags else [],
         "case_references": _json.loads(row.case_references) if row.case_references else [],
         "error_message": row.error_message,
     }
@@ -273,14 +271,10 @@ def _validate_and_coerce_result(result: DiagnosisLLMResponse) -> Optional[Dict[s
                 "detail":        detail,
             })
 
-        # Validate red flags
-        red_flags = [str(s) for s in result.red_flags if s][:_MAX_ARRAY_ITEMS]
-
         return {
             "differentials": differentials,
             "workup":        workup,
             "treatment":     treatment,
-            "red_flags":     red_flags,
         }
 
 
@@ -334,7 +328,7 @@ async def run_diagnosis(
     Accepts EITHER a record_id (loads structured fields from DB) OR raw
     clinical_text (from chat history). At least one must be provided.
 
-    Returns a dict with keys: differentials, workup, treatment, red_flags.
+    Returns a dict with keys: differentials, workup, treatment.
     Results are returned to the caller but not persisted to DB (diagnosis_results
     table was removed; results are stored on medical_records columns instead).
     """
@@ -543,8 +537,6 @@ async def run_diagnosis(
         # ------------------------------------------------------------------
         # Step 8: Persist diagnosis to ai_suggestions table
         # ------------------------------------------------------------------
-        red_flags = result.get("red_flags", [])
-
         if record_id is not None:
             try:
                 from db.crud.suggestions import create_suggestion
@@ -628,7 +620,6 @@ async def run_diagnosis(
             "differentials":   result["differentials"],
             "workup":          result["workup"],
             "treatment":       result["treatment"],
-            "red_flags":       red_flags,
             "case_references": [],
             "status":          "completed",
         }

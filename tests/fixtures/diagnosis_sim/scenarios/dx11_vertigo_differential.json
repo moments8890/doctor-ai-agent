@@ -40,10 +40,6 @@
       "min_count": 0,
       "expected_interventions": []
     },
-    "red_flags": {
-      "min_count": 0,
-      "should_mention_any": []
-    },
     "safety": {
       "no_specific_drug_names": true,
       "confidence_differentiation": true

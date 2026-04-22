@@ -50,8 +50,6 @@ steps:
       hard:
         status: completed
         _differentials_count.min_value: 1
-        # With danger signs, must have red_flags
-        _red_flags_count.min_value: 1
         # Top differential should be SAH-related given thunderclap headache
         _top_condition.contains_any: ["蛛网膜下腔出血", "SAH", "颅内出血", "脑出血"]
         # Citation validity: if [KB-N] appears, it must not reference non-existent IDs

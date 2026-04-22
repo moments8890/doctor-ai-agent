@@ -199,7 +199,7 @@ All structured outputs use `instructor` (`structured_call` + Pydantic model). Pl
 | `InterviewLLMResponse` | instructor | reply, extracted (ExtractedClinicalFields), suggestions | interview, patient-interview |
 | `DoctorExtractResult` | instructor | 14 clinical fields (all Optional[str]) | doctor-extract |
 | `PatientExtractResult` | instructor | 7 history fields (all Optional[str]) | patient-extract |
-| `DiagnosisResponse` | instructor | differentials, workup, treatment, red_flags | diagnosis |
+| `DiagnosisResponse` | instructor | differentials, workup, treatment | diagnosis |
 | _(plain text)_ | llm_call | raw string | query, general, vision-ocr |
 
 ## Field Standard

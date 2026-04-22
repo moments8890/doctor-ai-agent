@@ -13,21 +13,6 @@ class DraftReplyResult:
     text: str
     cited_knowledge_ids: List[int] = field(default_factory=list)
     confidence: float = 0.9
-    is_red_flag: bool = False
-
-
-RED_FLAG_KEYWORDS = [
-    "发热", "发烧", "头痛加剧", "头疼加重", "恶心", "呕吐",
-    "无力", "麻木", "感觉异常", "言语障碍", "说不出话",
-    "胸痛", "胸闷", "呼吸困难", "喘不上气",
-    "出血", "流血", "伤口", "红肿",
-    "加重", "恶化", "突然",
-]
-
-
-def detect_red_flags(message: str) -> bool:
-    """Check if patient message contains red-flag symptoms."""
-    return any(kw in message for kw in RED_FLAG_KEYWORDS)
 
 
 async def generate_draft_reply(
@@ -49,8 +34,6 @@ async def generate_draft_reply(
     from db.engine import AsyncSessionLocal
     from db.crud.doctor import list_doctor_knowledge_items
 
-    is_red_flag = detect_red_flags(patient_message_text)
-
     config = FOLLOWUP_REPLY_LAYERS
 
     # Look up patient name for the prompt
@@ -68,8 +51,6 @@ async def generate_draft_reply(
         pass
 
     user_message = f"患者姓名：{patient_name}\n患者消息：{patient_message_text}"
-    if is_red_flag:
-        user_message += "\n\n⚠️ 注意：患者消息中包含危险信号，请使用就医建议模板回复。"
 
     try:
         messages = await compose_messages(
@@ -93,7 +74,7 @@ async def generate_draft_reply(
 
         validation = validate_citations(citation_result.cited_ids, valid_kb_ids)
 
-        confidence = 0.7 if is_red_flag else 0.9
+        confidence = 0.9
 
         # Strip [KB-*] citation markers from user-facing text
         import re
@@ -112,7 +93,6 @@ async def generate_draft_reply(
             text=clean_response,
             cited_knowledge_ids=validation.valid_ids,
             confidence=confidence,
-            is_red_flag=is_red_flag,
         )
 
         # Persist draft FIRST so we have draft.id for citation logging (non-fatal)
