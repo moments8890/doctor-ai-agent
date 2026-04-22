@@ -67,6 +67,9 @@ class Doctor(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
     finished_onboarding: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=sa.text("0"))
+    preferred_template_id: Mapped[Optional[str]] = mapped_column(
+        String(64), nullable=True,
+    )
 
     __table_args__ = (
         Index("ix_doctors_phone", "phone"),
