@@ -73,3 +73,12 @@ scripts/.demo_state.json
 
 # Uploaded original files
 uploads/
+
+# Ephemeral session state (Claude Code / gstack / Codex)
+.claude/scheduled_tasks.lock
+.context/
+frontend/web/.context/
+
+# Local QA snapshot artifacts (screenshots, videos)
+docs/ux/screenshots/snap-*/
+test-results/
