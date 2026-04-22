@@ -6,7 +6,9 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Header, HTTPException, UploadFile, File, Form
 
 from infra.auth.rate_limit import enforce_doctor_rate_limit
-from domain.patients.interview_turn import FIELD_LABELS
+from domain.patients.interview_session import create_session, load_session, save_session
+from domain.patients.interview_turn import FIELD_LABELS, interview_turn
+from agent.tools.resolve import resolve
 from utils.log import log
 
 from .shared import (
@@ -62,6 +64,7 @@ async def interview_turn_endpoint(
     session_id: Optional[str] = Form(default=None),
     doctor_id: str = Form(default=""),
     patient_id: Optional[str] = Form(default=None),
+    template_id: Optional[str] = Form(default=None),
     file: Optional[UploadFile] = File(default=None),
     authorization: Optional[str] = Header(default=None),
 ):
@@ -77,16 +80,16 @@ async def interview_turn_endpoint(
     resolved_patient_id = int(patient_id) if patient_id and patient_id.isdigit() else None
 
     if not session_id:
-        return await _first_turn(resolved_doctor, merged_text, resolved_patient_id)
+        return await _first_turn(
+            resolved_doctor, merged_text, resolved_patient_id,
+            template_id=template_id,
+        )
     else:
         session = await _verify_session(session_id, resolved_doctor, candidate_doctor_id=doctor_id)
         return await _continue_turn(session, merged_text)
 
 
-async def _first_turn(doctor_id, text, pre_patient_id=None):
-    from agent.tools.resolve import resolve
-    from domain.patients.interview_session import create_session, save_session
-    from domain.patients.interview_turn import interview_turn
+async def _first_turn(doctor_id, text, pre_patient_id=None, *, template_id=None):
 
     # If patient pre-selected from frontend, look up name and seed collected
     initial_fields = None
@@ -107,6 +110,7 @@ async def _first_turn(doctor_id, text, pre_patient_id=None):
     session = await create_session(
         doctor_id, patient_id=pre_patient_id, mode="doctor",
         initial_fields=initial_fields,
+        template_id=template_id or "medical_general_v1",
     )
     response = await interview_turn(session.id, text)
 
@@ -122,7 +126,6 @@ async def _first_turn(doctor_id, text, pre_patient_id=None):
             if "patient_id" in resolved:
                 patient_id = resolved["patient_id"]
                 # Reload session to get latest state, then update patient_id
-                from domain.patients.interview_session import load_session
                 session = await load_session(session.id)
                 session.patient_id = patient_id
                 await save_session(session)
@@ -142,8 +145,6 @@ async def _first_turn(doctor_id, text, pre_patient_id=None):
 
 
 async def _continue_turn(session, text):
-    from domain.patients.interview_turn import interview_turn
-
     response = await interview_turn(session.id, text)
     progress_info = _compute_progress(response.collected)
 
@@ -174,7 +175,6 @@ async def update_interview_field(
 
     # Update the field
     session.collected[body.field] = body.value
-    from domain.patients.interview_session import save_session
     await save_session(session)
 
     # Return updated progress
@@ -209,7 +209,6 @@ async def carry_forward_confirm_endpoint(
         if matched is None:
             raise HTTPException(404, f"No carry-forward value found for '{body.field}'")
 
-        from domain.patients.interview_session import save_session
         session.collected[body.field] = matched["value"]
         await save_session(session)
         log(f"[carry-forward] confirmed {body.field}='{matched['value'][:30]}' session={body.session_id}")
