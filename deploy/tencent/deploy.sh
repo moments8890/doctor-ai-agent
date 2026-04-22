@@ -19,6 +19,14 @@ git reset --hard gitee/main
 # Python deps
 "$VENV/bin/pip" install -q -r requirements.txt
 
+# Alembic migrations (idempotent — no-op when DB already at head). Runs
+# after pip install so any new SQLAlchemy/driver deps are available.
+ENVIRONMENT=production PYTHONPATH="$APP_DIR/src" "$VENV/bin/alembic" upgrade head
+
+# Keep /home/ubuntu/deploy.sh in sync with the in-repo version so the
+# next webhook invocation picks up any edits to this script.
+cp "$APP_DIR/deploy/tencent/deploy.sh" /home/ubuntu/deploy.sh
+
 # Frontend build (package.json is in frontend/web/)
 cd "$APP_DIR/frontend/web"
 npm ci --silent
