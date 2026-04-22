@@ -119,6 +119,10 @@ def _init_sentry() -> None:
             traces_sample_rate=float(os.environ.get("SENTRY_TRACES_RATE", "0.1")),
             profiles_sample_rate=0.0,  # GlitchTip doesn't support profiles
             send_default_pii=False,     # strip cookies/IP, HIPAA-adjacent
+            # _experimental flag enables sentry_sdk.logger.* structured logs
+            # → GlitchTip Logs tab (separate from Issues). Required for the
+            # observability surface to show standalone trace/info/warn events.
+            _experiments={"enable_logs": True},
             integrations=[
                 FastApiIntegration(transaction_style="endpoint"),
                 StarletteIntegration(),
