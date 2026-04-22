@@ -2,6 +2,11 @@
 # Prompt: clinical data → differential diagnosis JSON
 # Fields: differentials, workup, treatment
 # Note: diagnosis output is large — needs higher max_tokens than default
+#
+# Product spec (see migration a7c4e9d1b3f2 and prompt Rule 1): the UI shows
+# exactly one differential per record. The prompt MUST output a single top
+# pick; every case below asserts `differentials.length === 1` to guard against
+# regressions where examples-vs-rule drift lets the LLM produce lists again.
 
 - description: "diagnosis: critical case — hypotension + chest pain triggers emergency workup"
   options:
@@ -20,15 +25,19 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
+        // Top-1 cap (see header comment).
+        return Array.isArray(obj.differentials) && obj.differentials.length === 1;
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
         const workup = obj.workup || [];
-        // workup must contain 紧急 or 急诊 urgency
         return workup.some(w => w.urgency === '急诊' || w.urgency === '紧急');
     - type: javascript
       value: |
         const obj = JSON.parse(output);
         const diffs = obj.differentials || [];
-        // Should include STEMI or acute MI as high confidence
-        return diffs.some(d => d.confidence === '高');
+        // The single differential should be high confidence — STEMI / ACS territory.
+        return diffs[0] && diffs[0].confidence === '高';
 
 - description: "diagnosis: drug class only — no specific drug names in treatment"
   options:
@@ -44,6 +53,10 @@
       auxiliary_exam: "胸片：右下肺斑片状阴影。血常规：WBC 12.5×10⁹/L，N 85%"
   assert:
     - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return Array.isArray(obj.differentials) && obj.differentials.length === 1;
     - type: javascript
       value: |
         const obj = JSON.parse(output);
@@ -82,6 +95,10 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
+        return Array.isArray(obj.differentials) && obj.differentials.length === 1;
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
         const diffs = obj.differentials || [];
         // Prod schema: each differential has a single `detail` field that
         // carries clinical reasoning + plain explanation together.
@@ -112,6 +129,10 @@
       past_history: ""
   assert:
     - type: is-json
+    - type: javascript
+      value: |
+        const obj = JSON.parse(output);
+        return Array.isArray(obj.differentials) && obj.differentials.length === 1;
     - type: javascript
       value: |
         const obj = JSON.parse(output);
