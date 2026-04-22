@@ -194,12 +194,15 @@ cd /home/ubuntu/glitchtip
 docker compose --env-file glitchtip.secrets up -d          # recreate containers with new env
 ```
 
-### Public access via nginx (optional, DO LATER)
+### Public access via nginx subpath (`/glitchtip/`)
 
-If you want the UI reachable without SSH tunnel, add this block to
-`/etc/nginx/sites-enabled/doctoragentai.cn` inside the `listen 443 ssl`
-server and reload nginx. **Only do this after you've secured login +
-rotated the SECRET_KEY + confirmed the only accounts are yours.**
+The GlitchTip SPA has `<base href="/"/>` baked into its prebuilt HTML,
+so a naive subpath proxy breaks static assets (browser loads them from
+root, 404s on our main frontend's dist). We use `sub_filter` to rewrite
+the base href + asset paths on the fly.
+
+Add to `/etc/nginx/sites-enabled/doctoragentai.cn` inside the
+`listen 443 ssl` server block, BEFORE the catch-all `location /`:
 
 ```nginx
 location /glitchtip/ {
@@ -208,13 +211,44 @@ location /glitchtip/ {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Prefix /glitchtip;
+    proxy_set_header Accept-Encoding "";   # required so sub_filter sees plain text
+    proxy_read_timeout 60s;
     proxy_pass http://127.0.0.1:8100/;
+    # Rewrite base href + asset URLs so SPA works under /glitchtip subpath
+    sub_filter_once off;
+    sub_filter_types text/html text/css application/javascript;
+    sub_filter "<base href=\"/\""  "<base href=\"/glitchtip/\"";
+    sub_filter "href=\"static/"    "href=\"/glitchtip/static/";
+    sub_filter "src=\"static/"     "src=\"/glitchtip/static/";
 }
 ```
 
-Then update `GLITCHTIP_DOMAIN=https://api.doctoragentai.cn/glitchtip`
-in `.env` + `docker compose --env-file glitchtip.secrets up -d` so GlitchTip generates correct
-absolute URLs in invite emails + DSN hostnames.
+`sudo nginx -t && sudo systemctl reload nginx`.
+
+Then flip `GLITCHTIP_DOMAIN` in `glitchtip.secrets`:
+```
+GLITCHTIP_DOMAIN=https://api.doctoragentai.cn/glitchtip
+```
+and `docker compose --env-file glitchtip.secrets up -d` so invite
+emails, DSN hostnames, and password-reset links use the public URL.
+
+#### Footgun — stale server blocks in sites-enabled/
+
+If `curl https://api.doctoragentai.cn/glitchtip/` returns the main
+frontend's HTML instead of GlitchTip, check `ls /etc/nginx/sites-enabled/`
+for stale backups (`.bak`, `.pre-*`, etc.). Nginx loads every file in
+sites-enabled/ and a later `server_name api.doctoragentai.cn` block
+can mask your canonical config with "conflicting server name" warnings.
+Move backups out of sites-enabled:
+
+```bash
+sudo mkdir -p /etc/nginx/sites-available/archive
+sudo mv /etc/nginx/sites-enabled/*.bak* \
+        /etc/nginx/sites-enabled/*.pre-* \
+        /etc/nginx/sites-available/archive/
+sudo nginx -t && sudo systemctl reload nginx
+```
 
 ---
 
