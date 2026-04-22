@@ -157,6 +157,39 @@ def _spawn(cmd: List[str], env: Optional[dict] = None,
     return proc
 
 
+def _detach_spawn(cmd: List[str], env: Optional[dict] = None,
+                  cwd: Optional[Path] = None, log_file: Optional[Path] = None,
+                  pid_label: Optional[str] = None) -> subprocess.Popen:
+    """Spawn a subprocess that survives the parent exiting (nohup/setsid style).
+
+    Uses start_new_session=True so SIGHUP to the terminal's process group
+    doesn't reach the child. Stdin is detached from /dev/null; stdout and
+    stderr go to the log file (or /dev/null if not given). The child is
+    NOT added to _children, so atexit/_kill_children leaves it alone.
+    """
+    kwargs: dict = {
+        "env": env or os.environ.copy(),
+        "start_new_session": True,
+        "stdin": subprocess.DEVNULL,
+        "close_fds": True,
+    }
+    if cwd:
+        kwargs["cwd"] = str(cwd)
+    if log_file:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        fh = open(log_file, "a")
+        kwargs["stdout"] = fh
+        kwargs["stderr"] = fh
+    else:
+        kwargs["stdout"] = subprocess.DEVNULL
+        kwargs["stderr"] = subprocess.DEVNULL
+    proc = subprocess.Popen(cmd, **kwargs)
+    if pid_label:
+        PID_DIR.mkdir(parents=True, exist_ok=True)
+        (PID_DIR / f"{pid_label}.pid").write_text(str(proc.pid))
+    return proc
+
+
 def _kill_port(port: int) -> None:
     """Kill any process listening on the given port."""
     if IS_MACOS:
@@ -183,16 +216,40 @@ def _kill_port(port: int) -> None:
 
 
 def _kill_pid_file(label: str) -> bool:
-    """Kill process from a pid file. Returns True if killed."""
+    """Kill process from a pid file. Returns True if a live process was killed.
+
+    Tries the process group first (handles detach-spawned children that set
+    their own session), falls back to the individual pid if the group kill
+    fails. Silently cleans up stale pid files where the process is gone.
+    """
     pid_file = PID_DIR / f"{label}.pid"
     if not pid_file.exists():
         return False
-    pid = pid_file.read_text().strip()
+    raw = pid_file.read_text().strip()
     pid_file.unlink(missing_ok=True)
-    if pid:
-        subprocess.run(["kill", pid], capture_output=True)
-        return True
-    return False
+    if not raw:
+        return False
+    try:
+        pid = int(raw)
+    except ValueError:
+        return False
+
+    killed = False
+    try:
+        os.killpg(pid, signal.SIGTERM)
+        killed = True
+    except ProcessLookupError:
+        pass  # group doesn't exist (or pid was never a group leader)
+    except PermissionError:
+        pass  # fall through to individual kill
+
+    if not killed:
+        try:
+            os.kill(pid, signal.SIGTERM)
+            killed = True
+        except ProcessLookupError:
+            pass
+    return killed
 
 
 def _wait_http(url: str, label: str, timeout: int = 20) -> bool:
@@ -343,6 +400,21 @@ def _start_tunnel(port: int) -> Optional[subprocess.Popen]:
 # ---------------------------------------------------------------------------
 # launchd helpers (macOS only)
 # ---------------------------------------------------------------------------
+
+def _sweep_legacy_launchd_agents() -> None:
+    """Unload + remove any legacy com.aiagent.* plists this script ever wrote.
+
+    Older versions of cli.py used launchd for --background. launchd agents run
+    under TCC sandboxing that can't reach /Volumes/ORICO where this repo lives,
+    so they crash-loop on every login. Clean them up when the user opts into
+    background mode so they stop contributing noise.
+    """
+    for plist_path in (PLIST_UV, PLIST_FE):
+        if plist_path.exists():
+            subprocess.run(["launchctl", "unload", str(plist_path)],
+                           capture_output=True)
+            plist_path.unlink(missing_ok=True)
+
 
 def _write_uvicorn_plist(port: int) -> None:
     LAUNCH_AGENTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -524,7 +596,7 @@ def cmd_start(args: argparse.Namespace) -> None:
     print(f"  Doctor AI Agent -- {mode_label} startup")
     if not is_prod:
         if background:
-            print("  Mode: background (launchd)")
+            print("  Mode: background (detached via setsid)")
         else:
             print(f"  Mode: foreground{reload_label}")
     else:
@@ -631,44 +703,72 @@ def cmd_start(args: argparse.Namespace) -> None:
         env["STRUCTURING_LLM"] = provider
         env["CONVERSATION_LLM"] = provider
 
-    # --- Background mode (macOS launchd) ---
+    # --- Background mode: nohup/setsid-style detach on every platform ---
+    #
+    # Previously this used macOS launchd, but launchd agents don't have the
+    # user shell's file-access permissions (TCC). Anything under /Volumes/
+    # fails with Operation not permitted on pyvenv.cfg. The detach path works
+    # everywhere because the setsid child inherits the spawning shell's
+    # permissions. launchd KeepAlive is not valuable enough to justify the
+    # platform surface area; if we want auto-restart later, we'd use a real
+    # supervisor (systemd on Linux, or a tiny watchdog here).
     if background:
-        if not IS_MACOS:
-            fail("--background (launchd) is only supported on macOS. Use systemd on Linux.")
-            sys.exit(1)
+        # Sweep any stale launchd agents from earlier versions of this script
+        # so they stop crash-looping on every login.
+        if IS_MACOS:
+            _sweep_legacy_launchd_agents()
 
-        _write_uvicorn_plist(port)
-        subprocess.run(["launchctl", "unload", str(PLIST_UV)],
-                       capture_output=True)
-        subprocess.run(["launchctl", "load", str(PLIST_UV)], check=True)
+        uv_log = LOG_DIR / "uvicorn.log"
+        uv_cmd = [
+            str(VENV_UVICORN), "main:app",
+            "--host", host,
+            "--port", str(port),
+        ]
+        if do_reload:
+            uv_cmd.append("--reload")
+        if workers > 1:
+            uv_cmd.extend(["--workers", str(workers)])
+        info(f"Detaching uvicorn on :{port} (log: {uv_log})")
+        _detach_spawn(uv_cmd, env=env, cwd=SRC_DIR,
+                      log_file=uv_log, pid_label="backend")
         _wait_http(f"http://127.0.0.1:{port}/", "uvicorn", timeout=20)
 
         if want_frontend:
             node_modules = FRONTEND_DIR / "node_modules"
             if not node_modules.exists():
                 info("Installing frontend deps...")
-                subprocess.run([npm_bin, "install"], cwd=str(FRONTEND_DIR), check=True)
-            _write_frontend_plist(npm_bin, FRONTEND_PORT, use_v2=use_v2)
-            subprocess.run(["launchctl", "unload", str(PLIST_FE)],
-                           capture_output=True)
-            subprocess.run(["launchctl", "load", str(PLIST_FE)], check=True)
+                subprocess.run([npm_bin, "install"], cwd=str(FRONTEND_DIR),
+                               env=env, check=True)
+            fe_env = env.copy()
+            if use_v2:
+                fe_env["VITE_USE_V2"] = "true"
+            if not do_reload:
+                fe_env["VITE_NO_HMR"] = "1"
+            info(f"Detaching frontend on :{FRONTEND_PORT} (log: {FRONTEND_LOG})")
+            _detach_spawn(
+                [npm_bin, "run", "dev", "--",
+                 "--host", host, "--port", str(FRONTEND_PORT)],
+                env=fe_env, cwd=FRONTEND_DIR,
+                log_file=FRONTEND_LOG, pid_label="frontend",
+            )
             _wait_http(f"http://127.0.0.1:{FRONTEND_PORT}/", "frontend", timeout=35)
 
-        # Prevent Mac sleep
-        subprocess.run(["pkill", "-f", "caffeinate.*cli"],
-                       capture_output=True)
-        _spawn(["caffeinate", "-i", "-w", str(os.getpid())],
-               pid_label="caffeinate")
-        ok("caffeinate active -- Mac will not sleep while running")
-
         if tunnel:
-            _start_tunnel(port)
+            tunnel_log = LOG_DIR / "tunnel.log"
+            if shutil.which("cloudflared"):
+                info(f"Detaching cloudflared tunnel (log: {tunnel_log})")
+                _detach_spawn(
+                    ["cloudflared", "tunnel", "--url", f"http://localhost:{port}"],
+                    log_file=tunnel_log, pid_label="tunnel",
+                )
+            else:
+                warn("cloudflared not found -- skipping tunnel")
         if menu:
             _do_menu(port)
 
         print()
         print("=" * 54)
-        ok("Running in background -- safe to close terminal")
+        ok("Running in background -- safe to close terminal / disconnect SSH")
         print("=" * 54)
         _print_urls(host, port, want_frontend, background=True)
         return
@@ -752,7 +852,7 @@ def _print_urls(host: str, port: int, want_frontend: bool,
     if want_frontend:
         print(f"  FE log     : tail -f {FRONTEND_LOG}")
     if background:
-        print(f"  API log    : tail -f {LOG_UV}")
+        print(f"  API log    : tail -f {LOG_DIR / 'uvicorn.log'}")
         print(f"  Stop       : ./cli.py stop")
     print("=" * 54)
     print()
@@ -940,7 +1040,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_start.add_argument("--no-frontend", action="store_true",
                          help="Skip Vite frontend dev server")
     p_start.add_argument("--background", action="store_true",
-                         help="Run via macOS launchd (background mode)")
+                         help="Detach from terminal (setsid + redirected stdio). "
+                              "Safe to close terminal or disconnect SSH.")
     p_start.add_argument("--v2", action="store_true",
                          help="Use antd-mobile v2 frontend (VITE_USE_V2=true)")
     p_start.add_argument("--tunnel", action="store_true",
