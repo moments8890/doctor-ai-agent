@@ -142,7 +142,7 @@ async def admin_overview(db: AsyncSession = Depends(get_db)) -> dict:
         )
     ).scalar() or 0
 
-    _completed_statuses = ("confirmed", "draft_created")
+    _completed_statuses = ("confirmed",)
     interviews_completed_cur = (
         await db.execute(
             apply_exclude_test_doctors(
