@@ -1,0 +1,41 @@
+# Adminer — browser-based DB admin UI (schema, data, query runner).
+#
+# Deploy runbook: ../adminer.md
+# Secrets: `dbgate.secrets` sibling file on server (gitignored). File
+# name kept as `dbgate.secrets` for historical continuity with the
+# nginx block at /dbgate/ — implementation under it is Adminer.
+#
+# Context on why Adminer, not DBGate: DBGate 6.7+ and 7.x moved to JWT
+# token auth that can't be satisfied by simple basic-auth credentials
+# or disabled via env var — always returns "missing authorization
+# header" for every request, including root UI. For a nginx-gated
+# deployment where auth lives outside the app, DBGate no longer fits.
+# Adminer returns a plain HTML login form, gets the MySQL credentials
+# each session, works cleanly behind nginx basic auth.
+#
+# Auth layers (defense in depth):
+#   1. nginx basic auth — /etc/nginx/.dbgate-htpasswd
+#   2. Adminer's built-in login form — MySQL creds per session
+#   3. MySQL GRANT on dbgate_reader — read-only on doctor_ai.*
+#
+# Registry mirror (China-friendly): docker.1ms.run, same namespace as
+# docker.io. Adminer's image on Docker Hub is in the `library/`
+# top-level namespace (official image).
+
+services:
+  adminer:
+    image: docker.1ms.run/library/adminer:4
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8101:8080"
+    environment:
+      # Pre-fills the "Server" field in the login form so the doctor
+      # doesn't have to remember the container name.
+      ADMINER_DEFAULT_SERVER: doctor-ai-mysql
+      ADMINER_DESIGN: pepa-linha
+    networks:
+      - dbgate_net
+
+networks:
+  dbgate_net:
+    external: true
