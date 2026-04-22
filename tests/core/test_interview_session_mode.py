@@ -28,6 +28,8 @@ async def test_create_session_defaults_to_patient_mode():
     assert session.mode == "patient"
 
 
-def test_interview_status_has_draft_created():
-    assert hasattr(InterviewStatus, "draft_created")
-    assert InterviewStatus.draft_created == "draft_created"
+def test_interview_status_does_not_have_draft_created():
+    """draft_created was retired by the c9f8d2e14a20 migration. The enum
+    must not re-expose it or stale callsites will silently insert a value
+    the DB no longer understands."""
+    assert not hasattr(InterviewStatus, "draft_created")
