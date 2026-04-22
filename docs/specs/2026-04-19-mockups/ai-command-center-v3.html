@@ -1,0 +1,1544 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>AI指挥台 V3 提案</title>
+  <style>
+    :root {
+      --bg: #f3f6f4;
+      --bg-deep: #e9f0eb;
+      --surface: rgba(255, 255, 255, 0.92);
+      --surface-strong: #ffffff;
+      --surface-soft: #f7faf8;
+      --text-1: #15201a;
+      --text-2: #2d3a31;
+      --text-3: #64736b;
+      --text-4: #8b9891;
+      --line: rgba(22, 36, 27, 0.08);
+      --line-strong: rgba(22, 36, 27, 0.12);
+      --ai: #0cbb6b;
+      --ai-deep: #099155;
+      --ai-soft: #e8fbf0;
+      --blue: #4f83ff;
+      --blue-soft: #edf3ff;
+      --amber: #f0a72f;
+      --amber-soft: #fff5de;
+      --red: #ef5d52;
+      --red-soft: #fff0ed;
+      --shadow: 0 24px 80px rgba(20, 36, 26, 0.12);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --radius-sm: 12px;
+      --font-display: "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
+      --font-text: "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      min-height: 100%;
+      font-family: var(--font-text);
+      color: var(--text-1);
+      background:
+        radial-gradient(circle at top left, rgba(12, 187, 107, 0.16), transparent 28%),
+        radial-gradient(circle at top right, rgba(79, 131, 255, 0.10), transparent 24%),
+        linear-gradient(180deg, #f7fbf8 0%, #eef4f0 100%);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      padding: 28px;
+    }
+
+    .page {
+      max-width: 1560px;
+      margin: 0 auto;
+    }
+
+    .hero-copy {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 20px;
+      margin-bottom: 28px;
+      align-items: start;
+    }
+
+    .hero-card {
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      backdrop-filter: blur(16px);
+      border-radius: 26px;
+      padding: 28px 30px;
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--ai-soft);
+      color: var(--ai-deep);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 38px;
+      line-height: 1.08;
+      letter-spacing: -0.03em;
+      margin-bottom: 10px;
+    }
+
+    .hero-card p {
+      font-size: 17px;
+      line-height: 1.7;
+      color: var(--text-3);
+      max-width: 760px;
+    }
+
+    .principles {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .principle {
+      border-radius: 18px;
+      background: rgba(247, 250, 248, 0.86);
+      border: 1px solid var(--line);
+      padding: 16px 16px 15px;
+    }
+
+    .principle b {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .principle span {
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text-3);
+    }
+
+    .summary-card {
+      background: linear-gradient(180deg, rgba(14, 30, 21, 0.92), rgba(24, 45, 34, 0.92));
+      color: #eff8f2;
+      border-radius: 26px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .summary-card h2 {
+      font-size: 18px;
+      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+
+    .summary-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .summary-item {
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.10);
+      font-size: 14px;
+      line-height: 1.6;
+      color: rgba(239, 248, 242, 0.78);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 460px 360px 360px 360px;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 22px;
+    }
+
+    .phone-wrap {
+      display: grid;
+      gap: 10px;
+    }
+
+    .phone-label {
+      font-size: 13px;
+      color: var(--text-4);
+      padding-left: 8px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .phone {
+      width: 100%;
+      background: linear-gradient(180deg, #fbfdfb 0%, #f3f7f4 100%);
+      border-radius: 38px;
+      border: 1px solid rgba(255, 255, 255, 0.84);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .screen {
+      height: 880px;
+      background:
+        radial-gradient(circle at top, rgba(12, 187, 107, 0.11), transparent 24%),
+        linear-gradient(180deg, #fbfefc 0%, #f3f7f4 100%);
+      border-radius: 28px;
+      border: 1px solid var(--line);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid rgba(22, 36, 27, 0.05);
+      backdrop-filter: blur(10px);
+      background: rgba(251, 254, 252, 0.78);
+    }
+
+    .topbar-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .topbar-sub {
+      font-size: 12px;
+      color: var(--text-4);
+      margin-top: 4px;
+    }
+
+    .right-button,
+    .ghost-button {
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid var(--line-strong);
+      background: rgba(255, 255, 255, 0.74);
+      color: var(--text-2);
+    }
+
+    .right-button.ai {
+      background: var(--ai-soft);
+      color: var(--ai-deep);
+      border-color: rgba(12, 187, 107, 0.16);
+    }
+
+    .back {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid var(--line);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: var(--text-2);
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    .content {
+      flex: 1;
+      overflow: auto;
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .content::-webkit-scrollbar {
+      display: none;
+    }
+
+    .briefing {
+      border-radius: 24px;
+      padding: 18px;
+      background: linear-gradient(180deg, rgba(236, 250, 242, 0.98), rgba(248, 252, 249, 0.98));
+      color: var(--text-1);
+      position: relative;
+      overflow: hidden;
+      min-height: 176px;
+      border: 1px solid rgba(12, 187, 107, 0.14);
+    }
+
+    .briefing::after {
+      content: "";
+      position: absolute;
+      right: -50px;
+      top: -40px;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(12, 187, 107, 0.10), rgba(12, 187, 107, 0));
+    }
+
+    .briefing-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .ai-id {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ai-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.26);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 24px;
+      backdrop-filter: blur(10px);
+    }
+
+    .briefing-title {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+    }
+
+    .briefing-caption {
+      margin-top: 6px;
+      font-size: 13px;
+      color: var(--text-3);
+      line-height: 1.55;
+    }
+
+    .status-pill {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid rgba(22, 36, 27, 0.08);
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      color: var(--text-3);
+    }
+
+    .briefing-body {
+      position: relative;
+      z-index: 1;
+    }
+
+    .briefing-body p {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text-2);
+      margin-bottom: 14px;
+    }
+
+    .briefing .assist-note {
+      margin-top: 12px;
+      color: var(--text-3);
+    }
+
+    .briefing-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stat {
+      padding: 12px 12px 10px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(22, 36, 27, 0.06);
+      backdrop-filter: blur(8px);
+    }
+
+    .stat b {
+      display: block;
+      font-size: 20px;
+      margin-bottom: 4px;
+      letter-spacing: -0.03em;
+      color: var(--text-1);
+    }
+
+    .stat span {
+      display: block;
+      font-size: 12px;
+      color: var(--text-4);
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .action-card {
+      border-radius: 18px;
+      padding: 16px 14px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid var(--line);
+      min-height: 112px;
+    }
+
+    .action-card.anchor {
+      grid-column: span 2;
+      min-height: 126px;
+      background: linear-gradient(180deg, rgba(236, 250, 242, 0.95), rgba(248, 252, 249, 0.98));
+      border-color: rgba(12, 187, 107, 0.14);
+    }
+
+    .anchor-top {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .anchor-top .copy {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .anchor-top .copy b {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .anchor-top .copy span {
+      display: block;
+      font-size: 12px;
+      color: var(--text-3);
+      line-height: 1.55;
+    }
+
+    .anchor-metrics {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 4px;
+    }
+
+    .anchor-metric b {
+      display: block;
+      font-size: 17px;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .anchor-metric span {
+      display: block;
+      font-size: 11px;
+      color: var(--text-4);
+    }
+
+    .action-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .action-icon.green {
+      background: var(--ai-soft);
+      color: var(--ai-deep);
+    }
+
+    .action-icon.blue {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .action-icon.amber {
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .action-card b {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+
+    .action-card span {
+      display: block;
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--text-3);
+    }
+
+    .section {
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.78);
+      border: 1px solid var(--line);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-title h3 {
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .count-pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .count-pill.red {
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .count-pill.amber {
+      background: var(--amber-soft);
+      color: #b97e12;
+    }
+
+    .section-link {
+      font-size: 13px;
+      color: var(--text-4);
+      font-weight: 600;
+    }
+
+    .work-card {
+      border-radius: 18px;
+      background: var(--surface-strong);
+      border: 1px solid var(--line);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .monitor-box {
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid var(--line);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .fact-item {
+      border-radius: 14px;
+      background: #fbfcfb;
+      border: 1px solid rgba(22, 36, 27, 0.05);
+      padding: 12px 13px;
+      display: grid;
+      gap: 5px;
+    }
+
+    .fact-item b {
+      display: block;
+      font-size: 14px;
+      line-height: 1.45;
+      color: var(--text-2);
+    }
+
+    .fact-item span {
+      display: block;
+      font-size: 12px;
+      color: var(--text-4);
+      line-height: 1.55;
+    }
+
+    .fact-item em {
+      display: block;
+      font-style: normal;
+      font-size: 11px;
+      color: var(--text-4);
+      line-height: 1.5;
+    }
+
+    .work-top {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .person {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #e7efe9 0%, #dfe8e2 100%);
+      color: var(--text-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .person b {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+
+    .meta {
+      font-size: 12px;
+      color: var(--text-4);
+      line-height: 1.45;
+    }
+
+    .mini-tag {
+      padding: 6px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .mini-tag.red {
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .mini-tag.amber {
+      background: var(--amber-soft);
+      color: #b97e12;
+    }
+
+    .mini-tag.blue {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .snippet,
+    .draft-box,
+    .review-box {
+      border-radius: 16px;
+      padding: 12px 13px;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .snippet {
+      background: #f5f8f6;
+      color: var(--text-3);
+      border: 1px solid rgba(22, 36, 27, 0.05);
+    }
+
+    .draft-box {
+      background: linear-gradient(180deg, #eefaf2 0%, #e7f8ee 100%);
+      color: #20543c;
+      border: 1px solid rgba(12, 187, 107, 0.14);
+    }
+
+    .review-box {
+      background: linear-gradient(180deg, #fff9ea 0%, #fff5de 100%);
+      color: #73531a;
+      border: 1px solid rgba(240, 167, 47, 0.16);
+    }
+
+    .actions-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .decision-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .decision-button {
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      border: none;
+      background: var(--ai);
+      color: #fff;
+    }
+
+    .decision-button.secondary {
+      background: #fff;
+      color: var(--text-2);
+      border: 1px solid var(--line-strong);
+    }
+
+    .decision-button.tertiary {
+      background: var(--surface-soft);
+      color: var(--text-3);
+      border: 1px solid rgba(22, 36, 27, 0.06);
+    }
+
+    .assist-note {
+      font-size: 12px;
+      color: var(--text-4);
+      line-height: 1.55;
+    }
+
+    .responsibility {
+      font-size: 11px;
+      color: var(--text-4);
+      line-height: 1.45;
+      border-top: 1px dashed rgba(22, 36, 27, 0.12);
+      padding-top: 8px;
+      margin-top: 2px;
+    }
+
+    .primary-link {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ai-deep);
+    }
+
+    .list-shell {
+      display: grid;
+      gap: 12px;
+    }
+
+    .search {
+      height: 48px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      font-size: 14px;
+      color: var(--text-4);
+    }
+
+    .patient-row,
+    .settings-row {
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid var(--line);
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .patient-left,
+    .settings-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .patient-copy b,
+    .settings-copy b {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 5px;
+    }
+
+    .patient-copy span,
+    .settings-copy span {
+      display: block;
+      font-size: 12px;
+      color: var(--text-3);
+      line-height: 1.5;
+    }
+
+    .patient-right {
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .patient-right .hint {
+      font-size: 11px;
+      color: var(--text-4);
+      margin-top: 4px;
+    }
+
+    .settings-group-title {
+      font-size: 12px;
+      color: var(--text-4);
+      letter-spacing: 0.04em;
+      margin: 6px 2px 0;
+      text-transform: uppercase;
+    }
+
+    .system-card {
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(236, 250, 242, 0.95), rgba(248, 252, 249, 0.98));
+      border: 1px solid rgba(12, 187, 107, 0.14);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .system-card b {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+
+    .system-card span {
+      display: block;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text-3);
+    }
+
+    .home-indicator {
+      width: 132px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(21, 32, 26, 0.12);
+      margin: 10px auto 8px;
+    }
+
+    .note-panel {
+      border-radius: 26px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      backdrop-filter: blur(12px);
+      padding: 22px 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .note-panel h3 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      letter-spacing: -0.02em;
+    }
+
+    .note-panel ul {
+      list-style: none;
+      display: grid;
+      gap: 10px;
+    }
+
+    .note-panel li {
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--text-3);
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .note-panel li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--ai);
+    }
+
+    @media (max-width: 1480px) {
+      .layout {
+        grid-template-columns: 460px 360px 360px;
+      }
+    }
+
+    @media (max-width: 1120px) {
+      body {
+        padding: 18px;
+      }
+
+      .hero-copy,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .screen {
+        height: auto;
+        min-height: 860px;
+      }
+
+      .action-row {
+        grid-template-columns: 1fr;
+      }
+
+      .action-card.anchor {
+        grid-column: span 1;
+      }
+      }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero-copy">
+          <div class="hero-card">
+        <div class="eyebrow">V3 提案 · 单一根页面 · AI优先</div>
+        <h1>把医生端从“多模块切换”改成一个真正的 AI 指挥台</h1>
+        <p>
+          这个方案去掉底部四个根标签，把医生每天打开后的第一眼，变成
+          “今天最重要的判断是什么，我能不能直接处理”。患者列表保留为首页强入口，
+          待回复和待审核保留为独立子页面，AI设置收口到右上角。
+        </p>
+        <div class="principles">
+          <div class="principle">
+            <b>AI 不再只是一个 tab</b>
+            <span>首页就是 AI 指挥台，强调“这套系统正在代你工作”。</span>
+          </div>
+          <div class="principle">
+            <b>减少模块感</b>
+            <span>去掉底部标签栏，只保留少数清晰入口，避免像旧式工具箱。</span>
+          </div>
+          <div class="principle">
+            <b>更现代但仍可信</b>
+            <span>提升层级、留白和重点卡片表达，不做夸张的消费级聊天产品风格。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <h2>本提案的关键变化</h2>
+        <div class="summary-list">
+          <div class="summary-item">
+            1. 根导航从 4 个 tab 收缩为 1 个首页。
+          </div>
+          <div class="summary-item">
+            2. `患者列表` 不再常驻导航条，而是首页一级动作。
+          </div>
+          <div class="summary-item">
+            3. 首页先给出少量可直接决策的工作卡，不再只做摘要预览。
+          </div>
+          <div class="summary-item">
+            4. `AI人设 / 知识库 / 模板 / 二维码` 收口到 `AI设置`。
+          </div>
+          <div class="summary-item">
+            5. `随访` 不再是根模块，而是通过 `连续异常` 与患者页承接长期义务。
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="stack">
+        <div class="phone-wrap">
+          <div class="phone-label">Root · AI指挥台</div>
+          <div class="phone">
+            <div class="screen">
+              <div class="topbar">
+                <div>
+                  <div class="topbar-title">AI指挥台</div>
+                  <div class="topbar-sub">今天先处理最关键的 3 件事</div>
+                </div>
+                <button class="right-button ai">AI设置</button>
+              </div>
+
+              <div class="content">
+                <section class="briefing">
+                  <div class="briefing-head">
+                    <div>
+                      <div class="briefing-title">今天需要处理 3 位患者</div>
+                      <div class="briefing-caption">1 位优先回复，1 位连续异常，1 条规则待确认</div>
+                    </div>
+                    <div class="status-pill">08:40 已整理今日工作</div>
+                  </div>
+
+                  <div class="briefing-body">
+                    <p>
+                      今早新增 7 条患者动态。系统已按你的处理顺序收成 3 个决策点：
+                      先处理术后风险回复，再确认 1 位长期异常患者的后续计划，最后确认 1 条可复用规则。
+                    </p>
+                    <div class="briefing-stats">
+                      <div class="stat">
+                        <b>1</b>
+                        <span>需优先</span>
+                      </div>
+                      <div class="stat">
+                        <b>1</b>
+                        <span>连续异常</span>
+                      </div>
+                      <div class="stat">
+                        <b>1</b>
+                        <span>待确认规则</span>
+                      </div>
+                    </div>
+                    <div class="assist-note">
+                      近 7 次回复里，你更常先说风险边界，再给处理建议。今天的草稿已按这个顺序生成。
+                    </div>
+                  </div>
+                </section>
+
+                <section class="section">
+                  <div class="section-header">
+                    <div class="section-title">
+                      <h3>需优先</h3>
+                      <span class="count-pill red">1 条</span>
+                    </div>
+                    <div class="section-link">进入待回复</div>
+                  </div>
+
+                  <article class="work-card">
+                    <div class="work-top">
+                      <div class="person">
+                        <div class="avatar">陈</div>
+                        <div>
+                          <b>陈梅</b>
+                          <div class="meta">术后第 7 天 · 患者今早主动咨询</div>
+                        </div>
+                      </div>
+                      <span class="mini-tag red">需尽快处理</span>
+                    </div>
+                    <div class="fact-item" style="background: #f7faf8;">
+                      <b>术后头痛较前加重并伴恶心 <span style="display:inline; color: var(--text-4); font-size:12px;">（建议今天内确认是否提前 CT）</span></b>
+                      <span>主句先说临床事实，括号里才是系统建议。</span>
+                    </div>
+                    <div class="snippet">“昨晚头痛比前几天重一些，还伴有一点恶心，要不要提前复查？”</div>
+                    <div class="draft-box">
+                      草稿重点：先确认是否出现呕吐、意识变化等警报症状，再给出提前复查 CT 与就诊时点建议。
+                    </div>
+                    <div class="decision-row">
+                      <button class="decision-button">确认并发送</button>
+                      <button class="decision-button secondary">调整方案</button>
+                      <button class="decision-button tertiary">查看患者</button>
+                    </div>
+                    <div class="responsibility">
+                      基于患者历史记录、术后天数与你近期回复方式整理 · 请结合临床判断
+                    </div>
+                  </article>
+                </section>
+
+                <section class="monitor-box">
+                  <div class="section-header">
+                    <div class="section-title">
+                      <h3>连续异常</h3>
+                      <span class="count-pill amber">1 位</span>
+                    </div>
+                    <div class="section-link">查看患者</div>
+                  </div>
+
+                  <div class="fact-item">
+                    <b>刘先生：近 7 次血压中 6 次 &gt; 140/90 <span style="display:inline; color: var(--text-4); font-size:12px;">（建议本周确认随访计划）</span></b>
+                    <span>高血压长期管理患者，14 天内未完成复诊确认。</span>
+                    <em>长期义务仍然可见，但首页直接给出下一步决定，不再先跳模块。</em>
+                  </div>
+                  <div class="decision-row">
+                    <button class="decision-button">确认随访计划</button>
+                    <button class="decision-button secondary">调整处理</button>
+                    <button class="decision-button tertiary">查看患者</button>
+                  </div>
+                </section>
+
+                <section class="section">
+                  <div class="section-header">
+                    <div class="section-title">
+                      <h3>待确认规则</h3>
+                      <span class="count-pill amber">1 条</span>
+                    </div>
+                    <div class="section-link">进入待审核</div>
+                  </div>
+
+                  <div class="system-card">
+                    <div>
+                      <b>新增判断规则：术后第 7 天头痛较前加重 + 恶心时，优先提醒排查警报症状</b>
+                      <span>这条规则来自你最近 3 次相似病例的处理方式。确认后，后续相似患者会优先按这个判断顺序起草。</span>
+                    </div>
+                    <div class="decision-row">
+                      <button class="decision-button">确认新规则</button>
+                      <button class="decision-button secondary">调整触发条件</button>
+                      <button class="decision-button tertiary">稍后处理</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="action-row">
+                  <div class="action-card anchor">
+                    <div class="anchor-top">
+                      <div class="copy">
+                        <b>患者列表</b>
+                        <span>进入全部患者、最近活跃患者，以及所有需要持续跟进的人群。它不再是根 tab，但仍是首页最强入口。</span>
+                      </div>
+                      <span class="mini-tag blue">主入口</span>
+                    </div>
+                    <div class="anchor-metrics">
+                      <div class="anchor-metric">
+                        <b>48</b>
+                        <span>全部患者</span>
+                      </div>
+                      <div class="anchor-metric">
+                        <b>4</b>
+                        <span>待处理</span>
+                      </div>
+                      <div class="anchor-metric">
+                        <b>3</b>
+                        <span>连续异常</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="action-card">
+                    <div class="action-icon blue">历</div>
+                    <b>新建病历</b>
+                    <span>快速发起新的采集与记录流程，不再绕到独立模块。</span>
+                  </div>
+                  <div class="action-card">
+                    <div class="action-icon amber">码</div>
+                    <b>预问诊码</b>
+                    <span>保留高频入口，但不再占据根导航位置。</span>
+                  </div>
+                </section>
+              </div>
+
+              <div class="home-indicator"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="note-panel">
+          <h3>首页设计意图</h3>
+          <ul>
+            <li>没有底部 tab，视觉重心不再被导航条占走。</li>
+            <li>顶部只保留轻 summary，不做强 AI 叙事，也不把首页做成 briefing-only。</li>
+            <li>第一屏直接给出要判断的卡片，医生打开后可以立刻做决定。</li>
+            <li>患者列表保留高权重，但从常驻模块改成首页底部强入口。</li>
+            <li>待回复与待审核继续存在，但承接完整队列，不强迫医生先点进去才能开始工作。</li>
+            <li>首页不放输入框，避免它误变成一个半成品聊天页。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="phone-wrap">
+          <div class="phone-label">Subpage · 待回复</div>
+          <div class="phone">
+            <div class="screen">
+              <div class="topbar">
+                <span class="back">‹</span>
+                <div>
+                  <div class="topbar-title">待回复</div>
+                  <div class="topbar-sub">AI 已草拟，等你确认或修改</div>
+                </div>
+                <button class="ghost-button">筛选</button>
+              </div>
+
+              <div class="content">
+                <section class="section">
+                  <div class="section-header">
+                    <div class="section-title">
+                      <h3>优先处理</h3>
+                      <span class="count-pill red">2 条</span>
+                    </div>
+                  </div>
+
+                  <article class="work-card">
+                    <div class="work-top">
+                      <div class="person">
+                        <div class="avatar">陈</div>
+                        <div>
+                          <b>陈梅</b>
+                          <div class="meta">术后第 7 天 · 头痛加重 · 患者主动咨询</div>
+                        </div>
+                      </div>
+                      <span class="mini-tag red">风险升高</span>
+                    </div>
+                    <div class="snippet">“昨晚头痛比前几天重，还恶心。”</div>
+                    <div class="draft-box">
+                      草稿重点：先判断是否存在警报症状，再给出提前 CT 的建议与就诊时间点。
+                    </div>
+                    <div class="fact-item" style="background: #f7faf8;">
+                      <b>术后头痛较前加重 <span style="display:inline; color: var(--text-4); font-size:12px;">（建议今天内确认是否提前 CT）</span></b>
+                      <span>按钮名字应该对应医疗决策，不只是编辑语言。</span>
+                    </div>
+                    <div class="decision-row">
+                      <button class="decision-button">确认并发送</button>
+                      <button class="decision-button secondary">调整方案</button>
+                      <button class="decision-button tertiary">查看完整对话</button>
+                    </div>
+                    <div class="responsibility">
+                      基于患者历史记录与你近期回复风格生成 · 请结合临床判断
+                    </div>
+                  </article>
+
+                  <article class="work-card">
+                    <div class="work-top">
+                      <div class="person">
+                        <div class="avatar">赵</div>
+                        <div>
+                          <b>赵晨</b>
+                          <div class="meta">复查后恢复咨询</div>
+                        </div>
+                      </div>
+                      <span class="mini-tag red">今天内</span>
+                    </div>
+                    <div class="snippet">“最近头晕轻了很多，还需要继续吃药吗？”</div>
+                    <div class="fact-item" style="background: #f7faf8;">
+                      <b>恢复期症状减轻 <span style="display:inline; color: var(--text-4); font-size:12px;">（可结合既往方案继续随访）</span></b>
+                      <span>可快速发送，但仍保留进入完整记录的路径。</span>
+                    </div>
+                    <div class="decision-row">
+                      <button class="decision-button">确认并发送</button>
+                      <button class="decision-button secondary">调整方案</button>
+                      <button class="decision-button tertiary">查看病历</button>
+                    </div>
+                    <div class="responsibility">
+                      基于既往病历与你的回复习惯生成 · 请结合临床判断
+                    </div>
+                  </article>
+                </section>
+
+                <section class="section">
+                  <div class="section-header">
+                    <div class="section-title">
+                      <h3>可快速发送</h3>
+                      <span class="count-pill blue">3 条</span>
+                    </div>
+                  </div>
+
+                  <article class="work-card">
+                    <div class="work-top">
+                      <div class="person">
+                        <div class="avatar">李</div>
+                        <div>
+                          <b>李伟</b>
+                          <div class="meta">影像已上传 · 11 分钟前</div>
+                        </div>
+                      </div>
+                      <span class="mini-tag blue">低风险</span>
+                    </div>
+                    <div class="draft-box">
+                      AI 已整理成可直接发送版本，并标出你常用的安抚式结尾。
+                    </div>
+                    <div class="decision-row">
+                      <button class="decision-button">确认并发送</button>
+                      <button class="decision-button secondary">微调语气</button>
+                      <button class="decision-button tertiary">查看草稿</button>
+                    </div>
+                    <div class="responsibility">
+                      基于患者近期消息与你常用表达生成 · 请结合临床判断
+                    </div>
+                  </article>
+                </section>
+              </div>
+
+              <div class="home-indicator"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="phone-wrap">
+          <div class="phone-label">Subpage · 待审核</div>
+          <div class="phone">
+            <div class="screen">
+              <div class="topbar">
+                <span class="back">‹</span>
+                <div>
+                  <div class="topbar-title">待审核</div>
+                  <div class="topbar-sub">AI 建议需要你的最终判断</div>
+                </div>
+                <button class="ghost-button">排序</button>
+              </div>
+
+              <div class="content">
+                <article class="work-card">
+                  <div class="work-top">
+                    <div class="person">
+                      <div class="avatar">王</div>
+                      <div>
+                        <b>王阿姨 · 复诊记录</b>
+                          <div class="meta">主诉：术后头痛断续加重 · 门诊记录生成后 6 分钟</div>
+                      </div>
+                    </div>
+                    <span class="mini-tag amber">引用 2 条规则</span>
+                  </div>
+                    <div class="review-box">
+                      AI 建议：优先排除术后出血相关危险变化，再根据时间窗判断是否需提前 CT 与线下复诊。
+                    </div>
+                    <div class="fact-item" style="background: #fffdfa;">
+                      <b>术后头痛断续加重 <span style="display:inline; color: var(--text-4); font-size:12px;">（建议优先排查危险变化）</span></b>
+                      <span>引用 2 条个人规则 · 审核动作应直接对应临床判断。</span>
+                    </div>
+                    <div class="decision-row">
+                      <button class="decision-button">确认建议</button>
+                      <button class="decision-button secondary">调整判断</button>
+                      <button class="decision-button tertiary">查看完整记录</button>
+                    </div>
+                    <div class="responsibility">
+                      基于门诊记录与你的个人规则生成 · 请结合临床判断
+                    </div>
+                  </article>
+
+                <article class="work-card">
+                  <div class="work-top">
+                    <div class="person">
+                      <div class="avatar">周</div>
+                      <div>
+                        <b>周先生 · 新导入病历</b>
+                        <div class="meta">导入后自动生成建议</div>
+                      </div>
+                    </div>
+                    <span class="mini-tag amber">需核对</span>
+                  </div>
+                    <div class="review-box">
+                      AI 建议：先补充近期服药依从性信息，再决定是否调整后续复查节奏。
+                    </div>
+                    <div class="fact-item" style="background: #fffdfa;">
+                      <b>信息尚不完整 <span style="display:inline; color: var(--text-4); font-size:12px;">（建议先补充再决定）</span></b>
+                      <span>不把“AI 推荐”直接等同于最终答案。</span>
+                    </div>
+                    <div class="decision-row">
+                      <button class="decision-button">确认建议</button>
+                      <button class="decision-button secondary">补充信息后再判</button>
+                      <button class="decision-button tertiary">查看详情</button>
+                    </div>
+                    <div class="responsibility">
+                      基于导入病历自动生成 · 请结合临床判断
+                    </div>
+                  </article>
+              </div>
+
+              <div class="home-indicator"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="phone-wrap">
+          <div class="phone-label">Subpage · 患者列表</div>
+          <div class="phone">
+            <div class="screen">
+              <div class="topbar">
+                <span class="back">‹</span>
+                <div>
+                  <div class="topbar-title">患者列表</div>
+                  <div class="topbar-sub">从首页进入，不再长期占据根导航</div>
+                </div>
+                <button class="ghost-button">新建</button>
+              </div>
+
+              <div class="content">
+                <div class="monitor-box">
+                  <div class="section-header">
+                    <div class="section-title">
+                      <h3>连续异常</h3>
+                      <span class="count-pill amber">2 位</span>
+                    </div>
+                    <div class="section-link">从患者视角进入</div>
+                  </div>
+
+                  <div class="fact-item">
+                    <b>陈阿姨：空腹血糖连续 2 次 &gt; 8.2 <span style="display:inline; color: var(--text-4); font-size:12px;">（本周建议复诊）</span></b>
+                    <em>这部分承接原先 `随访` 的长期义务，但不再单独挂成根导航。</em>
+                  </div>
+                </div>
+
+                <div class="search">搜索患者姓名 / 诊断 / 最近互动</div>
+
+                <div class="patient-row">
+                  <div class="patient-left">
+                    <div class="avatar">陈</div>
+                    <div class="patient-copy">
+                      <b>陈梅</b>
+                      <span>女 · 62岁 · 术后复查中</span>
+                    </div>
+                  </div>
+                  <div class="patient-right">
+                    <div class="mini-tag red">待回复</div>
+                    <div class="hint">AI 已草拟</div>
+                  </div>
+                </div>
+
+                <div class="patient-row">
+                  <div class="patient-left">
+                    <div class="avatar">王</div>
+                    <div class="patient-copy">
+                      <b>王阿姨</b>
+                      <span>女 · 58岁 · 最近新增门诊记录</span>
+                    </div>
+                  </div>
+                  <div class="patient-right">
+                    <div class="mini-tag amber">待审核</div>
+                    <div class="hint">引用 2 条个人规则</div>
+                  </div>
+                </div>
+
+                <div class="patient-row">
+                  <div class="patient-left">
+                    <div class="avatar">李</div>
+                    <div class="patient-copy">
+                      <b>李伟</b>
+                      <span>男 · 45岁 · 复查影像已上传</span>
+                    </div>
+                  </div>
+                  <div class="patient-right">
+                    <div class="mini-tag blue">AI已跟进</div>
+                    <div class="hint">可快速发送</div>
+                  </div>
+                </div>
+
+                <div class="patient-row">
+                  <div class="patient-left">
+                    <div class="avatar">赵</div>
+                    <div class="patient-copy">
+                      <b>赵晨</b>
+                      <span>男 · 39岁 · 术后 14 天</span>
+                    </div>
+                  </div>
+                  <div class="patient-right">
+                    <div class="mini-tag blue">稳定</div>
+                    <div class="hint">最近无异常</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="home-indicator"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="phone-wrap">
+          <div class="phone-label">Subpage · AI设置</div>
+          <div class="phone">
+            <div class="screen">
+              <div class="topbar">
+                <span class="back">‹</span>
+                <div>
+                  <div class="topbar-title">AI设置</div>
+                  <div class="topbar-sub">AI能力管理，而不是首页本体</div>
+                </div>
+                <span style="width:38px;"></span>
+              </div>
+
+              <div class="content list-shell">
+                <div class="system-card">
+                  <div>
+                    <b>AI 正在按你的方式处理患者</b>
+                    <span>本周已按你的规则与语气处理 6 位患者，并从近期审核中提炼出 2 条待确认新规则。</span>
+                  </div>
+                  <div class="decision-row">
+                    <button class="decision-button">查看待确认规则</button>
+                    <button class="decision-button secondary">进入知识库</button>
+                  </div>
+                </div>
+
+                <div class="settings-group-title">AI 能力</div>
+
+                <div class="settings-row">
+                  <div class="settings-left">
+                    <div class="action-icon green" style="margin:0;">人</div>
+                    <div class="settings-copy">
+                      <b>AI人设</b>
+                      <span>你的语气、结构、常用结尾与回避内容</span>
+                    </div>
+                  </div>
+                  <div class="primary-link">进入</div>
+                </div>
+
+                <div class="settings-row">
+                  <div class="settings-left">
+                    <div class="action-icon blue" style="margin:0;">知</div>
+                    <div class="settings-copy">
+                      <b>知识库</b>
+                      <span>规则、经验、教学素材与待采纳建议</span>
+                    </div>
+                  </div>
+                  <div class="primary-link">进入</div>
+                </div>
+
+                <div class="settings-row">
+                  <div class="settings-left">
+                    <div class="action-icon amber" style="margin:0;">模</div>
+                    <div class="settings-copy">
+                      <b>回复模板</b>
+                      <span>固定结构与常用表达，帮助 AI 保持一致</span>
+                    </div>
+                  </div>
+                  <div class="primary-link">进入</div>
+                </div>
+
+                <div class="settings-group-title">工具与通用</div>
+
+                <div class="settings-row">
+                  <div class="settings-left">
+                    <div class="action-icon green" style="margin:0;">码</div>
+                    <div class="settings-copy">
+                      <b>预问诊入口</b>
+                      <span>二维码、入口文案与患者使用方式</span>
+                    </div>
+                  </div>
+                  <div class="primary-link">进入</div>
+                </div>
+
+                <div class="settings-row">
+                  <div class="settings-left">
+                    <div class="action-icon blue" style="margin:0;">设</div>
+                    <div class="settings-copy">
+                      <b>通用设置</b>
+                      <span>字号、关于、退出登录</span>
+                    </div>
+                  </div>
+                  <div class="primary-link">进入</div>
+                </div>
+              </div>
+
+              <div class="home-indicator"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
