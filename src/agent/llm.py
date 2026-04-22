@@ -39,6 +39,23 @@ _LLM_LOG_MAX_BYTES = 10 * 1024 * 1024  # 10 MB per file
 _LLM_LOG_BACKUP_COUNT = 5
 
 
+def compute_prompt_hash(messages: List[Dict[str, Any]]) -> str:
+    """8-char MD5 of the system-message content.
+
+    Used both by _log_llm_call (for the llm.call event) and by
+    write-path callers that want to stash the same hash on the
+    persisted output row (ai_suggestions.prompt_hash,
+    message_drafts.prompt_hash). Keeping one formula means the
+    event and row trivially join.
+    """
+    import hashlib
+    system_content = next(
+        (m["content"] for m in messages if isinstance(m, dict) and m.get("role") == "system"),
+        "",
+    )
+    return hashlib.md5(system_content.encode()).hexdigest()[:8]
+
+
 def _rotate_if_needed(path: _Path) -> None:
     """Rotate log file by size or date. Keeps up to _LLM_LOG_BACKUP_COUNT backups."""
     if not path.exists():
@@ -76,10 +93,10 @@ def _log_llm_call(
     try:
         now = _dt.now(_tz.utc)
 
-        # Prompt version hash — correlate output quality with prompt changes
-        import hashlib as _hashlib
-        system_content = next((m["content"] for m in messages if isinstance(m, dict) and m.get("role") == "system"), "")
-        prompt_hash = _hashlib.md5(system_content.encode()).hexdigest()[:8]
+        # Prompt version hash — correlate output quality with prompt changes.
+        # Shared helper so write-path callers (diagnosis_pipeline, draft_reply)
+        # produce the same hash as this log entry.
+        prompt_hash = compute_prompt_hash(messages)
 
         # Build entry
         entry: Dict[str, Any] = {

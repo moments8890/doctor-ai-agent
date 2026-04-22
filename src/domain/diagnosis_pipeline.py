@@ -541,6 +541,11 @@ async def run_diagnosis(
             try:
                 from db.crud.suggestions import create_suggestion
                 from db.models.ai_suggestion import SuggestionSection
+                from agent.llm import compute_prompt_hash
+
+                # Hash of the composed system prompt — same formula as the
+                # llm.call event, so stored rows join to log entries by hash.
+                _prompt_hash = compute_prompt_hash(composed)
 
                 async with AsyncSessionLocal() as db:
                     from domain.knowledge.citation_parser import extract_citations as _extract_citations
@@ -560,6 +565,7 @@ async def run_diagnosis(
                             detail=_detail or None,
                             confidence=d.get("confidence") or None,
                             cited_knowledge_ids=_cited_json(f"{d['condition']} {_detail}"),
+                            prompt_hash=_prompt_hash,
                         )
                     for w in result["workup"]:
                         _detail = w.get("detail") or ""
@@ -572,6 +578,7 @@ async def run_diagnosis(
                             detail=_detail or None,
                             urgency=w.get("urgency") or None,
                             cited_knowledge_ids=_cited_json(f"{w['test']} {_detail}"),
+                            prompt_hash=_prompt_hash,
                         )
                     for t in result["treatment"]:
                         _detail = t.get("detail") or ""
@@ -584,6 +591,7 @@ async def run_diagnosis(
                             detail=_detail or None,
                             intervention=t.get("intervention") or None,
                             cited_knowledge_ids=_cited_json(f"{t['drug_class']} {_detail}"),
+                            prompt_hash=_prompt_hash,
                         )
                     log(f"{_tag} diagnosis persisted to ai_suggestions for record {record_id}")
             except Exception as persist_err:

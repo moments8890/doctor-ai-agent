@@ -60,6 +60,9 @@ async def generate_draft_reply(
             doctor_message=user_message,
         )
 
+        from agent.llm import compute_prompt_hash
+        _prompt_hash = compute_prompt_hash(messages)
+
         response = await llm_call(messages=messages, op_name="draft_reply")
         if not response:
             log("[draft_reply] LLM returned empty response", level="warning")
@@ -109,6 +112,7 @@ async def generate_draft_reply(
                     cited_knowledge_ids=json.dumps(result.cited_knowledge_ids),
                     confidence=result.confidence,
                     status=DraftStatus.generated.value,
+                    prompt_hash=_prompt_hash,
                 )
                 draft_session.add(draft)
                 await draft_session.flush()
