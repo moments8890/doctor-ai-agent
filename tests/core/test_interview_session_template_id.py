@@ -8,6 +8,7 @@ runs.
 """
 from __future__ import annotations
 
+import inspect
 import uuid
 
 import pytest
@@ -101,3 +102,18 @@ async def test_save_session_preserves_template_id():
     loaded = await load_session(session.id)
     assert loaded.template_id == "form_satisfaction_v1"
     assert loaded.turn_count == 3
+
+
+@pytest.mark.asyncio
+async def test_prompt_composer_accepts_template_id_kwarg():
+    """Passthrough only — Phase 0 doesn't wire template_id into prompt
+    selection yet, but the signature must accept it so Phase 1 can plumb
+    it without another churn."""
+    from agent.prompt_composer import (
+        compose_for_doctor_interview, compose_for_patient_interview,
+    )
+
+    for fn in (compose_for_doctor_interview, compose_for_patient_interview):
+        sig = inspect.signature(fn)
+        assert "template_id" in sig.parameters
+        assert sig.parameters["template_id"].default == "medical_general_v1"

@@ -203,6 +203,7 @@ async def compose_for_doctor_interview(
     history: Optional[List[Dict[str, str]]] = None,
     specialty: str = "neurology",
     extra_system: str = "",
+    template_id: str = "medical_general_v1",  # Accepted for Phase 1 plumbing; currently ignored.
 ) -> List[Dict[str, str]]:
     """Compose messages for the doctor interview flow."""
     return await compose_messages(
@@ -242,6 +243,7 @@ async def compose_for_patient_interview(
     doctor_message: str = "",
     history: Optional[List[Dict[str, str]]] = None,
     specialty: str = "neurology",
+    template_id: str = "medical_general_v1",  # Accepted for Phase 1 plumbing; currently ignored.
 ) -> List[Dict[str, str]]:
     """Compose messages for the patient interview flow."""
     return await compose_messages(
