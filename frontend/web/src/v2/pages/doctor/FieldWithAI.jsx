@@ -105,6 +105,7 @@ function AIPendingRow({
   cycleExhausted,
   knowledgeMap,
   onOpenCitation,
+  onOpenFeedback,
 }) {
   const s = suggestion;
   const citedRules = (s.cited_knowledge_ids || [])
@@ -249,6 +250,45 @@ function AIPendingRow({
         >
           修改
         </button>
+        {onOpenFeedback && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenFeedback(suggestion);
+            }}
+            title="反馈这条建议不合理"
+            aria-label="反馈"
+            style={{
+              marginLeft: "auto",
+              fontSize: FONT.sm,
+              color: APP.text4,
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontFamily: "inherit",
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 21V4h12l-2 4h6v8H8v5H4z" />
+            </svg>
+            反馈
+          </button>
+        )}
       </div>
     </div>
   );
@@ -340,6 +380,7 @@ export default function FieldWithAI({
   onDecide,
   onOpenCitation,
   onEditingChange,
+  onOpenFeedback,
 }) {
   const hasEditableField = editableFieldValue !== null && editableFieldValue !== undefined;
 
@@ -604,6 +645,12 @@ export default function FieldWithAI({
           onEdit={() => startEdit(currentPending)}
           knowledgeMap={knowledgeMap}
           onOpenCitation={onOpenCitation}
+          onOpenFeedback={
+            onOpenFeedback
+              ? () =>
+                  onOpenFeedback({ ...currentPending, section: sectionKey })
+              : undefined
+          }
         />
       ) : isEmpty ? (
         <div

@@ -15,7 +15,13 @@ from db.models.medical_record import MedicalRecord
 from db.models.patient_message import PatientMessage
 from db.models.interview_session import InterviewSessionDB, InterviewStatus
 from db.models.doctor_chat_log import DoctorChatLog, ChatRole
-from db.models.ai_suggestion import AISuggestion, SuggestionSection, SuggestionDecision
+from db.models.ai_suggestion import (
+    AISuggestion,
+    SuggestionSection,
+    SuggestionDecision,
+    FeedbackReasonTag,
+    FeedbackDoctorAction,
+)
 from db.models.knowledge_usage import KnowledgeUsageLog
 from db.models.doctor_edit import DoctorEdit
 from db.models.doctor_persona import DoctorPersona, EMPTY_PERSONA_FIELDS
@@ -40,6 +46,7 @@ __all__ = [
     "InterviewSessionDB", "InterviewStatus",
     "DoctorChatLog", "ChatRole",
     "AISuggestion", "SuggestionSection", "SuggestionDecision",
+    "FeedbackReasonTag", "FeedbackDoctorAction",
     "KnowledgeUsageLog",
     "DoctorEdit",
     "DoctorPersona", "EMPTY_PERSONA_FIELDS",

@@ -256,6 +256,12 @@ export async function addSuggestion(recordId, doctorId, section, content, detail
   return newSuggestion;
 }
 
+// AI feedback — mock mode is a no-op that mirrors the shape of the real
+// response so ApiContext consumers don't branch on mock vs real.
+export async function submitFeedback(_opts) {
+  return { id: Date.now(), created_at: new Date().toISOString() };
+}
+
 export async function addKnowledgeItem(doctorId, content) {
   const newItem = {
     id: Date.now(),

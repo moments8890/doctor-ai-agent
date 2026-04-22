@@ -1060,6 +1060,19 @@ export async function addSuggestion(recordId, doctorId, section, content, detail
   });
 }
 
+// AI feedback (F1 explicit flag). Accepts a single opts object whose keys
+// map 1:1 onto the POST body — see feedback_handlers.py for validation.
+// Note: `section` is derived server-side from the suggestion row, so do NOT
+// include it here — the Pydantic model will reject it as unknown.
+export async function submitFeedback(opts) {
+  const { section: _ignored, ...payload } = opts || {};
+  return request(`/api/doctor/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Knowledge stats, AI activity, drafts
 // ---------------------------------------------------------------------------

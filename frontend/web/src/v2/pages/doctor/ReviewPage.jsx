@@ -39,6 +39,7 @@ import {
   ONBOARDING_STEP,
 } from "../../../pages/doctor/constants";
 import FieldWithAI from "./FieldWithAI";
+import FeedbackSheet from "../../components/FeedbackSheet";
 
 // ── NHC field order ────────────────────────────────────────────────
 const SUMMARY_FIELD_ORDER = [
@@ -634,6 +635,7 @@ function InlineReviewLayout({
   onAdd,
   onFinalize,
   onOpenCitation,
+  onSubmitFeedback,
   finalizing,
   onBack,
   teachEditId,
@@ -641,6 +643,11 @@ function InlineReviewLayout({
   onTeachSave,
   teachSaving,
 }) {
+  // Which suggestion is currently being flagged. null → sheet closed.
+  // Object carries { id, content, detail, section, decision, ... } so the
+  // FeedbackSheet can render a preview and the submit handler can attribute
+  // the flag back to the right row.
+  const [feedbackFor, setFeedbackFor] = useState(null);
   const structured = record?.structured || {};
 
   // Editable draft state for diagnosis + treatment_plan. Hydrated once.
@@ -858,6 +865,7 @@ function InlineReviewLayout({
           knowledgeMap={knowledgeMap}
           onDecide={onDecide}
           onOpenCitation={onOpenCitation}
+          onOpenFeedback={setFeedbackFor}
           onEditingChange={(v) =>
             setEditingFields((prev) => ({ ...prev, differential: v }))
           }
@@ -873,6 +881,7 @@ function InlineReviewLayout({
           knowledgeMap={knowledgeMap}
           onDecide={onDecide}
           onOpenCitation={onOpenCitation}
+          onOpenFeedback={setFeedbackFor}
           onEditingChange={(v) =>
             setEditingFields((prev) => ({ ...prev, workup: v }))
           }
@@ -888,6 +897,7 @@ function InlineReviewLayout({
           knowledgeMap={knowledgeMap}
           onDecide={onDecide}
           onOpenCitation={onOpenCitation}
+          onOpenFeedback={setFeedbackFor}
           onEditingChange={(v) =>
             setEditingFields((prev) => ({ ...prev, treatment: v }))
           }
@@ -1084,6 +1094,32 @@ function InlineReviewLayout({
       )}
 
       <SafeArea position="bottom" />
+
+      {/* F1 feedback capture — bottom sheet rendered at the layout level so
+          any FieldWithAI row can open it via onOpenFeedback. */}
+      <FeedbackSheet
+        visible={!!feedbackFor}
+        suggestion={feedbackFor}
+        onCancel={() => setFeedbackFor(null)}
+        onSubmit={async (reasonTag, reasonText) => {
+          if (!feedbackFor || !onSubmitFeedback) {
+            setFeedbackFor(null);
+            return;
+          }
+          try {
+            await onSubmitFeedback({
+              suggestion: feedbackFor,
+              reasonTag,
+              reasonText,
+            });
+            setFeedbackFor(null);
+          } catch (err) {
+            // Re-throw so FeedbackSheet surfaces its own Toast and keeps
+            // the sheet open for retry.
+            throw err;
+          }
+        }}
+      />
     </div>
   );
 }
@@ -1101,6 +1137,7 @@ export default function ReviewPage({ recordId }) {
     finalizeReview,
     getTaskRecord,
     getKnowledgeBatch,
+    submitFeedback,
   } = api;
   const { doctorId } = useDoctorStore();
   const queryClient = useQueryClient();
@@ -1268,6 +1305,20 @@ export default function ReviewPage({ recordId }) {
     }
   }
 
+  async function handleSubmitFeedback({ suggestion, reasonTag, reasonText }) {
+    if (!submitFeedback || !suggestion) {
+      throw new Error("submitFeedback unavailable");
+    }
+    return submitFeedback({
+      suggestion_id: suggestion.id,
+      record_id: Number(recordId),
+      doctor_id: doctorId,
+      reason_tag: reasonTag,
+      reason_text: reasonText || undefined,
+      doctor_action: suggestion.decision || "pending",
+    });
+  }
+
   async function handleTeachSave() {
     if (!teachEditId || teachSaving) return;
     setTeachSaving(true);
@@ -1348,6 +1399,7 @@ export default function ReviewPage({ recordId }) {
         onAdd={handleAdd}
         onFinalize={handleFinalize}
         onOpenCitation={handleOpenCitation}
+        onSubmitFeedback={handleSubmitFeedback}
         finalizing={finalizing}
         onBack={() => navigate(-1)}
         teachEditId={teachEditId}
