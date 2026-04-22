@@ -44,6 +44,8 @@ class MessageDraft(Base):
     ai_disclosure: Mapped[str] = mapped_column(
         String(100), nullable=False, default="AI辅助生成，经医生审核",
     )
+    # Hash of the composed system prompt. See AISuggestion.prompt_hash.
+    prompt_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
     seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)

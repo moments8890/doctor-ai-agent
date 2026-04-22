@@ -76,6 +76,11 @@ class AISuggestion(Base):
 
     cited_knowledge_ids: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Hash of the composed system prompt that generated this suggestion.
+    # Same value as `llm.call` event's prompt_hash — lets us correlate
+    # stored outputs to prompt versions for quality-loop analysis.
+    prompt_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
     is_custom: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
     seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
