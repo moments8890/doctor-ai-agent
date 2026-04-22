@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="wiki-common.css">
+<!-- GitHub-style markdown for rendered docs -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.5.1/github-markdown-light.css">
+<style>
+  .specs-wrap { display: flex; gap: 1.25rem; align-items: flex-start; }
+  .specs-list {
+    flex: 0 0 280px; position: sticky; top: 1rem;
+    max-height: calc(100vh - 2rem); overflow-y: auto;
+    background: #fafafa; border: 1px solid #e0e0e0; border-radius: 8px;
+    padding: 0.75rem 0.5rem;
+  }
+  .specs-list h3 { font-size: 0.8rem; color: #888; margin: 0 0 0.35rem 0.5rem; text-transform: uppercase; letter-spacing: 1px; }
+  .specs-list a {
+    display: block; padding: 0.5rem 0.6rem; margin: 1px 0;
+    color: #333; text-decoration: none; font-size: 0.82rem;
+    border-radius: 4px; line-height: 1.35;
+  }
+  .specs-list a .d { font-size: 0.7rem; color: #888; display: block; }
+  .specs-list a:hover { background: #e8f5e9; color: #0d5c2e; }
+  .specs-list a.active { background: #0d5c2e; color: #fff; }
+  .specs-list a.active .d { color: #c8e6c9; }
+
+  .spec-viewer { flex: 1; min-width: 0; }
+
+  /* github-markdown-css renders inside .markdown-body — let it own layout */
+  .markdown-body { box-sizing: border-box; padding: 1rem 1.5rem; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; }
+  .markdown-body pre { background: #f6f8fa; }
+  .markdown-body h1:first-child { margin-top: 0; }
+
+  /* Mermaid diagrams — centered, padded, with a subtle card so they stand out. */
+  .markdown-body .mermaid {
+    background: #fafbfc; border: 1px solid #e0e0e0; border-radius: 6px;
+    padding: 0.75rem; margin: 1rem 0; text-align: center; overflow-x: auto;
+  }
+  .markdown-body .mermaid svg { max-width: 100%; height: auto; }
+
+  .spec-meta {
+    background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px;
+    padding: 0.5rem 0.8rem; margin-bottom: 0.75rem;
+    font-size: 0.8rem; color: #666;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;
+  }
+  .spec-meta code { font-size: 0.78rem; }
+  .spec-meta a { color: #0d5c2e; }
+
+  .empty {
+    text-align: center; padding: 3rem 1rem; color: #888;
+    background: #fafafa; border: 1px dashed #ddd; border-radius: 8px;
+  }
+  .empty h2 { color: #555; border: none; margin-bottom: 0.35rem; }
+
+  .err-box {
+    background: #ffebee; border-left: 4px solid #f44336;
+    padding: 0.75rem 1rem; border-radius: 0 6px 6px 0; margin: 0.75rem 0;
+    font-size: 0.9rem;
+  }
+
+  .updated-stamp { text-align: right; color: #888; font-size: 0.75rem; margin-top: 0.5rem; }
+
+  @media (max-width: 860px) {
+    .specs-wrap { flex-direction: column; }
+    .specs-list { position: static; flex: none; width: 100%; max-height: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap" style="max-width: none; margin: 0;">
+
+<div class="breadcrumb">
+  <a href="wiki-home.html" onclick="if(window.parent&&window.parent.loadPage){event.preventDefault();window.parent.loadPage('wiki-home.html')}">首页</a> › 设计文档
+</div>
+
+<h1>设计文档（Design Specs）</h1>
+<p class="hatnote">内部架构决策与实现设计。由 <code>docs/superpowers/specs/</code> 目录直接映射，无需额外发布流程。</p>
+
+<div class="info-box">
+  <b>更新方式：</b>在 <code>docs/superpowers/specs/</code> 添加新的 <code>YYYY-MM-DD-&lt;topic&gt;-design.md</code> 后，运行 <code>frontend/web/scripts/refresh-specs-index.py</code> 重新生成索引。
+</div>
+
+<div class="specs-wrap">
+  <aside class="specs-list" id="specs-list">
+    <h3>目录</h3>
+    <div id="list-body">正在加载...</div>
+  </aside>
+  <section class="spec-viewer" id="viewer">
+    <div class="empty" id="empty-state">
+      <h2>选择一份设计文档</h2>
+      <p>从左侧目录点击任意条目开始阅读。</p>
+    </div>
+  </section>
+</div>
+
+<div class="updated-stamp">数据源：<code>docs/superpowers/specs/</code></div>
+
+</div>
+
+<!-- Markdown + mermaid rendering -->
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+(function () {
+  const INDEX_URL = "/specs-index.json";
+  const listBody = document.getElementById("list-body");
+  const viewer = document.getElementById("viewer");
+  const emptyState = document.getElementById("empty-state");
+
+  // Route ```mermaid fences into <div class="mermaid"> so mermaid.run can
+  // pick them up. Pass everything else through marked's default renderer.
+  const renderer = new marked.Renderer();
+  const originalCodeRenderer = renderer.code.bind(renderer);
+  renderer.code = (code, lang) => {
+    if (lang === "mermaid") {
+      // Escape < and & so LLM-generated diagrams with &/<ends don't bleed HTML.
+      const safe = String(code).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+      return `<div class="mermaid">${safe}</div>`;
+    }
+    return originalCodeRenderer(code, lang);
+  };
+  marked.setOptions({ breaks: false, gfm: true, renderer });
+
+  if (window.mermaid) {
+    mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose" });
+  }
+
+  function getDocParam() {
+    const p = new URLSearchParams(window.location.search);
+    return p.get("doc");
+  }
+
+  function setDocParam(doc) {
+    const url = new URL(window.location);
+    if (doc) url.searchParams.set("doc", doc);
+    else url.searchParams.delete("doc");
+    history.pushState({ doc }, "", url);
+  }
+
+  async function loadIndex() {
+    try {
+      const res = await fetch(INDEX_URL, { cache: "no-cache" });
+      if (!res.ok) throw new Error(`index fetch ${res.status}`);
+      const entries = await res.json();
+      renderList(entries);
+      const initial = getDocParam();
+      if (initial) loadDoc(initial);
+    } catch (e) {
+      listBody.innerHTML = `<div class="err-box">无法加载索引：${e.message}。请确认已运行 <code>refresh-specs-index.py</code>。</div>`;
+    }
+  }
+
+  function renderList(entries) {
+    if (!entries.length) {
+      listBody.innerHTML = `<div style="padding: 1rem; color: #888; font-size: 0.85rem;">目录为空。</div>`;
+      return;
+    }
+    // Newest first
+    const sorted = [...entries].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    listBody.innerHTML = sorted.map(e => `
+      <a href="?doc=${encodeURIComponent(e.file)}" data-file="${e.file}">
+        <span class="d">${e.date || ""}</span>
+        ${e.title}
+      </a>
+    `).join("");
+    listBody.querySelectorAll("a").forEach(a => {
+      a.addEventListener("click", ev => {
+        ev.preventDefault();
+        const file = a.dataset.file;
+        setDocParam(file);
+        loadDoc(file);
+      });
+    });
+  }
+
+  async function loadDoc(file) {
+    // Update active state
+    document.querySelectorAll("#list-body a").forEach(a => {
+      a.classList.toggle("active", a.dataset.file === file);
+    });
+
+    try {
+      const res = await fetch(`/specs/${encodeURIComponent(file)}`, { cache: "no-cache" });
+      if (!res.ok) throw new Error(`fetch ${res.status}`);
+      const md = await res.text();
+      const html = marked.parse(md);
+      viewer.innerHTML = `
+        <div class="spec-meta">
+          <span><code>${file}</code></span>
+          <span><a href="/specs/${encodeURIComponent(file)}" target="_blank">查看原始 Markdown ↗</a></span>
+        </div>
+        <article class="markdown-body">${html}</article>
+      `;
+      await renderMermaidIn(viewer);
+      viewer.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) {
+      viewer.innerHTML = `<div class="err-box">无法加载 <code>${file}</code>：${e.message}</div>`;
+    }
+  }
+
+  async function renderMermaidIn(root) {
+    if (!window.mermaid) return;
+    const nodes = root.querySelectorAll(".mermaid");
+    if (!nodes.length) return;
+    try {
+      await mermaid.run({ nodes });
+    } catch (e) {
+      console.error("mermaid render failed:", e);
+    }
+  }
+
+  window.addEventListener("popstate", ev => {
+    const doc = ev.state?.doc || getDocParam();
+    if (doc) loadDoc(doc);
+    else viewer.innerHTML = emptyState.outerHTML;
+  });
+
+  loadIndex();
+})();
+</script>
+
+</body>
+</html>

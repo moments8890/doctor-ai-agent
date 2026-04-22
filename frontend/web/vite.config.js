@@ -16,6 +16,10 @@ export default defineConfig({
     port: 5173,
     allowedHosts: "all",
     hmr: hmrDisabled ? false : true,
+    fs: {
+      // Allow serving files from the repo root so public/specs symlink → docs/ works.
+      allow: [".", "../.."],
+    },
     proxy: {
       "/api": {
         target: "http://127.0.0.1:8000",

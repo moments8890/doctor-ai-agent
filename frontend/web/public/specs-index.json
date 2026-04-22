@@ -1,0 +1,52 @@
+[
+  {
+    "file": "2026-04-10-ai-persona-redesign.md",
+    "date": "2026-04-10",
+    "title": "ai persona redesign"
+  },
+  {
+    "file": "2026-04-11-db-migration-baseline-design.md",
+    "date": "2026-04-11",
+    "title": "db migration baseline"
+  },
+  {
+    "file": "2026-04-11-patient-app-mvp-design.md",
+    "date": "2026-04-11",
+    "title": "patient app mvp"
+  },
+  {
+    "file": "2026-04-15-release-notes-onboarding-design.md",
+    "date": "2026-04-15",
+    "title": "release notes onboarding"
+  },
+  {
+    "file": "2026-04-16-fact-branch-routing-design.md",
+    "date": "2026-04-16",
+    "title": "fact branch routing"
+  },
+  {
+    "file": "2026-04-16-inline-voice-recording-design.md",
+    "date": "2026-04-16",
+    "title": "inline voice recording"
+  },
+  {
+    "file": "2026-04-16-voice-to-rule-design.md",
+    "date": "2026-04-16",
+    "title": "voice to rule"
+  },
+  {
+    "file": "2026-04-18-antd-mobile-rewrite-design.md",
+    "date": "2026-04-18",
+    "title": "antd mobile rewrite"
+  },
+  {
+    "file": "2026-04-18-patient-pages-design-parity-design.md",
+    "date": "2026-04-18",
+    "title": "patient pages design parity"
+  },
+  {
+    "file": "2026-04-22-interview-pipeline-extensibility-design.md",
+    "date": "2026-04-22",
+    "title": "interview pipeline extensibility"
+  }
+]
