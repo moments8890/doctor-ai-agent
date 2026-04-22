@@ -119,7 +119,33 @@ sudo systemctl restart doctor-ai-backend
 ```
 
 Backend logs will show `[Sentry] initialized` on startup when the DSN
-is loaded.
+is loaded (check `/home/ubuntu/doctor-ai-agent/logs/app.log`, not
+journalctl — app logs are structured JSON in that file).
+
+### 7a. Release attribution (`GIT_COMMIT` env)
+
+`deploy.sh` writes `/etc/systemd/system/doctor-ai-backend.service.d/release.conf`
+on every webhook deploy, setting `Environment=GIT_COMMIT=<sha>` so
+`_init_sentry()` tags each event with `release=<sha>`. GlitchTip groups
+issues by release → regression attribution across deploys.
+
+**Bootstrap note**: the first deploy after adding the release.conf
+logic to deploy.sh may NOT create the file — `git reset --hard` during
+deploy.sh execution updates the file on disk, but bash continues reading
+the prior version it had buffered. Workaround (one-time):
+
+```bash
+ssh tencent
+cd /home/ubuntu/doctor-ai-agent
+GIT_COMMIT=$(git rev-parse HEAD)
+sudo tee /etc/systemd/system/doctor-ai-backend.service.d/release.conf >/dev/null <<EOF
+[Service]
+Environment=GIT_COMMIT=${GIT_COMMIT}
+EOF
+sudo systemctl daemon-reload && sudo systemctl restart doctor-ai-backend
+```
+
+Subsequent deploys refresh the file cleanly.
 
 ### 8. Send a test exception
 
