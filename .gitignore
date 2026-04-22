@@ -82,3 +82,7 @@ frontend/web/.context/
 # Local QA snapshot artifacts (screenshots, videos)
 docs/ux/screenshots/snap-*/
 test-results/
+
+# GlitchTip secrets (per-host, never committed)
+deploy/tencent/glitchtip/glitchtip.secrets
+deploy/tencent/glitchtip/postgres_data/

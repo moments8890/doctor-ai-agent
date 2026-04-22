@@ -1,0 +1,74 @@
+# GlitchTip — self-hosted Sentry-compatible error tracking.
+#
+# Deploy runbook: ../glitchtip.md
+# Secrets: `.env` sibling file (gitignored), populated from the runbook.
+#
+# Services bind only to 127.0.0.1 — external access via SSH tunnel or
+# nginx proxy under a protected path (see runbook).
+
+# Image prefixes chosen for Tencent CVM (mainland China) — docker.io is
+# GFW-unreliable here. Official images come via Tencent's library mirror;
+# third-party images via docker.1ms.run (same namespaces as docker.io).
+services:
+  postgres:
+    image: mirror.ccs.tencentyun.com/library/postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: glitchtip
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitchtip"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: mirror.ccs.tencentyun.com/library/redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    image: docker.1ms.run/glitchtip/glitchtip:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      # Bound to localhost only — see runbook for SSH-tunnel / nginx access.
+      - "127.0.0.1:8100:8080"
+    environment: &glitchtip_env
+      DATABASE_URL: postgres://glitchtip:${POSTGRES_PASSWORD}@postgres:5432/glitchtip
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY}
+      PORT: "8080"
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://127.0.0.1:8100}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL:-glitchtip@localhost}
+      # consolemail prints password-reset / invite emails to worker logs.
+      # Swap to real SMTP via `EMAIL_URL=smtp+tls://user:pass@host:587` later.
+      EMAIL_URL: ${GLITCHTIP_EMAIL_URL:-consolemail://}
+      # true for first-boot so you can create the initial organization.
+      # Set to false after you've onboarded the team.
+      ENABLE_ORGANIZATION_CREATION: ${GLITCHTIP_ENABLE_ORG_CREATION:-true}
+
+  worker:
+    image: docker.1ms.run/glitchtip/glitchtip:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: ./bin/run-celery-with-beat.sh
+    environment: *glitchtip_env
+
+volumes:
+  postgres_data:
