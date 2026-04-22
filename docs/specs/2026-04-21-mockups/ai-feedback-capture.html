@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 反馈采集 · F1–F3 视觉</title>
+  <style>
+    :root {
+      --surface: #ffffff;
+      --surface-alt: #f7f7f7;
+      --border: #eee;
+      --border-light: #f0f0f0;
+      --text-1: #1A1A1A;
+      --text-2: #333;
+      --text-3: #666;
+      --text-4: #999;
+      --primary: #07C160;
+      --primary-light: #e7f8ee;
+      --accent: #576B95;
+      --accent-light: #eef1f6;
+      --danger: #FA5151;
+      --danger-light: #fff0f0;
+      --warning: #f0a72f;
+      --warning-light: #fff5de;
+      --radius-xs: 4px;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --font-xs: 11px;
+      --font-sm: 13px;
+      --font-base: 15px;
+      --font-md: 17px;
+      --font-lg: 19px;
+      --font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: var(--font-family);
+      color: var(--text-1);
+      background: #f0f2f4;
+      -webkit-font-smoothing: antialiased;
+    }
+    body { padding: 24px; }
+    .page { max-width: 1400px; margin: 0 auto; }
+
+    .doc-head {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      margin-bottom: 20px;
+      max-width: 900px;
+    }
+    .doc-head .tag {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: var(--radius-xs);
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: var(--font-xs);
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .doc-head h1 {
+      font-size: var(--font-lg);
+      line-height: 1.3;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .doc-head p {
+      font-size: var(--font-sm);
+      line-height: 1.6;
+      color: var(--text-3);
+      max-width: 640px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 380px 380px;
+      gap: 18px;
+      align-items: start;
+    }
+    .phone-wrap { display: grid; gap: 8px; }
+    .phone-label {
+      font-size: var(--font-xs);
+      color: var(--text-3);
+      padding-left: 10px;
+      letter-spacing: 0.04em;
+    }
+    .phone {
+      background: #eaedef;
+      border-radius: 36px;
+      border: 1px solid #d7dbde;
+      padding: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .screen {
+      height: 820px;
+      background: var(--surface-alt);
+      border-radius: 28px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* NavBar */
+    .navbar {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      flex-shrink: 0;
+    }
+    .nav-back {
+      width: 32px; height: 32px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 20px; color: var(--text-2);
+    }
+    .nav-title {
+      flex: 1; text-align: center;
+      font-size: var(--font-md); font-weight: 500; color: var(--text-1);
+      padding-right: 32px;
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--surface-alt);
+    }
+    .list-header {
+      padding: 12px 16px 4px;
+      font-size: var(--font-xs);
+      color: var(--text-4);
+      letter-spacing: 0.02em;
+    }
+
+    /* Field card */
+    .field {
+      background: var(--surface);
+      margin: 0 12px 6px;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .field-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px 4px;
+    }
+    .field-label {
+      font-size: var(--font-base);
+      font-weight: 600;
+      color: var(--text-1);
+    }
+    .field-meta {
+      font-size: var(--font-xs);
+      color: var(--text-4);
+    }
+
+    /* AI row */
+    .ai-row {
+      padding: 8px 14px 10px;
+      border-top: 0.5px solid var(--border-light);
+      background: var(--surface);
+    }
+    .ai-head {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .ai-title {
+      flex: 1;
+      font-size: var(--font-sm);
+      color: var(--text-1);
+      font-weight: 600;
+      line-height: 1.45;
+    }
+    .ai-counter {
+      font-size: var(--font-xs);
+      color: var(--text-4);
+    }
+    .ai-detail {
+      font-size: var(--font-xs);
+      color: var(--text-4);
+      line-height: 1.55;
+      margin-top: 2px;
+    }
+    .ai-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-top: 8px;
+    }
+    .btn {
+      padding: 5px 14px;
+      border-radius: var(--radius-xs);
+      background: var(--primary);
+      color: #fff;
+      font-size: var(--font-sm);
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+    }
+    .ai-link {
+      font-size: var(--font-sm);
+      color: var(--primary);
+      font-weight: 500;
+      background: none; border: none; padding: 0;
+      cursor: pointer;
+    }
+
+    /* NEW — flag button */
+    .ai-flag {
+      font-size: var(--font-sm);
+      color: var(--text-4);
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .ai-flag svg {
+      width: 14px; height: 14px;
+      stroke: var(--text-4);
+      fill: none;
+      stroke-width: 1.6;
+    }
+    .ai-flag.flagged {
+      color: var(--warning);
+    }
+    .ai-flag.flagged svg {
+      stroke: var(--warning);
+      fill: var(--warning-light);
+    }
+
+    /* Accepted row */
+    .ai-accepted {
+      padding: 7px 14px;
+      border-top: 0.5px solid var(--border-light);
+      background: var(--primary-light);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: var(--font-sm);
+      line-height: 1.5;
+    }
+    .ai-accepted .check {
+      width: 16px; height: 16px;
+      flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .ai-accepted .txt {
+      flex: 1;
+      color: var(--text-2);
+    }
+    .ai-accepted .txt b { color: var(--text-1); font-weight: 600; }
+    .ai-accepted .toggle {
+      font-size: var(--font-xs);
+      color: var(--text-4);
+    }
+
+    /* Bottom sheet (feedback) */
+    .sheet-scrim {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+    .sheet {
+      background: var(--surface);
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      padding: 20px 18px 14px;
+      max-height: 85%;
+    }
+    .sheet-handle {
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      margin: 0 auto 14px;
+    }
+    .sheet-title {
+      font-size: var(--font-md);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .sheet-sub {
+      font-size: var(--font-sm);
+      color: var(--text-3);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .sheet-suggestion {
+      padding: 10px 12px;
+      background: var(--surface-alt);
+      border-radius: var(--radius-md);
+      font-size: var(--font-sm);
+      color: var(--text-2);
+      margin-bottom: 18px;
+      border-left: 3px solid var(--warning);
+    }
+    .sheet-suggestion b { color: var(--text-1); }
+
+    .reason-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 8px;
+      font-size: var(--font-sm);
+      cursor: pointer;
+    }
+    .reason-row.selected {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+    .radio {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      flex-shrink: 0;
+      position: relative;
+    }
+    .reason-row.selected .radio {
+      border-color: var(--primary);
+    }
+    .reason-row.selected .radio::after {
+      content: "";
+      position: absolute;
+      inset: 3px;
+      background: var(--primary);
+      border-radius: 50%;
+    }
+
+    .sheet-textarea {
+      width: 100%;
+      min-height: 64px;
+      padding: 10px 12px;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: var(--font-sm);
+      color: var(--text-1);
+      margin: 6px 0 8px;
+      font-family: inherit;
+      resize: none;
+    }
+    .sheet-hint {
+      font-size: var(--font-xs);
+      color: var(--text-4);
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+    .sheet-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .sheet-btn {
+      flex: 1;
+      padding: 11px;
+      border-radius: var(--radius-md);
+      font-size: var(--font-base);
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+    }
+    .sheet-btn.primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    .sheet-btn.cancel {
+      background: var(--surface-alt);
+      color: var(--text-2);
+    }
+
+    /* MyAIPage digest card */
+    .myai-section {
+      background: var(--surface);
+      border-top: 0.5px solid var(--border);
+      border-bottom: 0.5px solid var(--border);
+      margin-top: 8px;
+    }
+    .myai-section-header {
+      padding: 12px 16px 6px;
+      font-size: var(--font-xs);
+      color: var(--text-4);
+      letter-spacing: 0.02em;
+    }
+    .digest-card {
+      padding: 14px 16px;
+    }
+    .digest-title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .digest-title {
+      font-size: var(--font-md);
+      font-weight: 600;
+      color: var(--text-1);
+    }
+    .digest-range {
+      font-size: var(--font-xs);
+      color: var(--text-4);
+    }
+    .digest-stats {
+      display: flex;
+      gap: 20px;
+      padding: 6px 0 10px;
+      border-bottom: 0.5px solid var(--border-light);
+    }
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .stat-num {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-1);
+      line-height: 1.1;
+    }
+    .stat-num.warning { color: var(--warning); }
+    .stat-label {
+      font-size: var(--font-xs);
+      color: var(--text-4);
+    }
+    .digest-breakdown {
+      padding-top: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .breakdown-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: var(--font-sm);
+      color: var(--text-2);
+    }
+    .breakdown-row .bar {
+      flex: 1;
+      height: 4px;
+      background: var(--border-light);
+      border-radius: 2px;
+      margin: 0 10px;
+      overflow: hidden;
+      position: relative;
+    }
+    .breakdown-row .bar-fill {
+      position: absolute;
+      left: 0;
+      top: 0; bottom: 0;
+      background: var(--warning);
+      border-radius: 2px;
+    }
+    .breakdown-row .count {
+      color: var(--text-4);
+      font-size: var(--font-xs);
+      min-width: 36px;
+      text-align: right;
+    }
+
+    /* Flagged list rows */
+    .flagged-item {
+      padding: 12px 16px;
+      border-top: 0.5px solid var(--border-light);
+      display: grid;
+      gap: 4px;
+    }
+    .flagged-item-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: var(--font-xs);
+      color: var(--text-4);
+    }
+    .flagged-kind {
+      padding: 1px 6px;
+      border-radius: var(--radius-xs);
+      background: var(--warning-light);
+      color: var(--warning);
+      font-weight: 500;
+    }
+    .flagged-content {
+      font-size: var(--font-sm);
+      color: var(--text-1);
+      line-height: 1.5;
+    }
+    .flagged-reason {
+      font-size: var(--font-xs);
+      color: var(--text-3);
+    }
+
+    .home-indicator {
+      width: 110px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.2);
+      margin: 6px auto;
+    }
+
+    .note {
+      margin-top: 20px;
+      padding: 18px 20px;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      max-width: 1180px;
+    }
+    .note h3 {
+      font-size: var(--font-base);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .note ul { list-style: none; display: grid; gap: 6px; }
+    .note li {
+      font-size: var(--font-sm);
+      line-height: 1.55;
+      color: var(--text-3);
+      padding-left: 12px;
+      position: relative;
+    }
+    .note li::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 8px;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+    .note li b { color: var(--text-1); font-weight: 600; }
+
+    @media (max-width: 1260px) { .layout { grid-template-columns: 380px 380px; } }
+    @media (max-width: 880px) {
+      body { padding: 14px; }
+      .layout { grid-template-columns: 1fr; }
+      .screen { height: auto; min-height: 760px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <div class="doc-head">
+      <div class="tag">F1–F3 · 医生反馈采集（显性 + 隐性）</div>
+      <h1>AI 建议旁的 ⚠️ 一键反馈 + 每周"你的 AI 表现"摘要</h1>
+      <p>
+        显性反馈：每条 AI 建议旁加一个低调的 ⚠️ 按钮，医生点开选原因（诊断错误 / 证据不足 / 不符合临床经验 / 其他），
+        可选文字补充。隐性日志：后台记录 采纳 / 修改 / 换一条 / 完成审核 的真实行为——这才是对"医生实际怎么判断"的最真实信号。
+        每周在"我的 AI"页给出一张摘要卡，让医生感受到 flag 有人看、有回应。
+      </p>
+    </div>
+
+    <section class="layout">
+
+      <!-- Phone 1: Flag button in review flow -->
+      <div class="phone-wrap">
+        <div class="phone-label">F1 · 审核页 · ⚠️ 按钮常驻（默认灰色低调）</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="navbar">
+              <span class="nav-back">‹</span>
+              <div class="nav-title">诊断审核</div>
+            </div>
+            <div class="content">
+              <div class="list-header">AI 建议 · 请逐项确认</div>
+
+              <!-- Diagnosis — pending with flag -->
+              <div class="field">
+                <div class="field-label-row"><div class="field-label">诊断</div></div>
+                <div class="ai-row">
+                  <div class="ai-head">
+                    <span class="ai-title">不稳定型心绞痛（UA）</span>
+                  </div>
+                  <div class="ai-detail">胸闷活动后加重 + 既往 PCI 史 · 需与心梗鉴别</div>
+                  <div class="ai-actions">
+                    <button class="btn">采纳</button>
+                    <button class="ai-link">修改</button>
+                    <button class="ai-flag" title="反馈这条建议不合理">
+                      <svg viewBox="0 0 24 24">
+                        <path d="M4 21V4h12l-2 4h6v8H8v5H4z"/>
+                      </svg>
+                      反馈
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Workup — pending with flag -->
+              <div class="field">
+                <div class="field-label-row">
+                  <div class="field-label">检查建议</div>
+                  <div class="field-meta">共 4 条</div>
+                </div>
+                <div class="ai-row">
+                  <div class="ai-head">
+                    <span class="ai-title">头颅 CT</span>
+                    <span class="ai-counter">1 / 4</span>
+                  </div>
+                  <div class="ai-detail">排除急性颅内事件 · 作为初次评估</div>
+                  <div class="ai-actions">
+                    <button class="btn">采纳</button>
+                    <button class="ai-link">换一条</button>
+                    <button class="ai-link">修改</button>
+                    <button class="ai-flag flagged" title="已反馈">
+                      <svg viewBox="0 0 24 24">
+                        <path d="M4 21V4h12l-2 4h6v8H8v5H4z"/>
+                      </svg>
+                      已反馈
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Treatment — accepted, flag still available -->
+              <div class="field">
+                <div class="field-label-row">
+                  <div class="field-label">治疗方向</div>
+                  <div class="field-meta">已处理</div>
+                </div>
+                <div class="ai-accepted">
+                  <span class="check">✓</span>
+                  <span class="txt">
+                    已采纳 AI 建议：<b>双抗强化 · 他汀剂量上调</b>
+                  </span>
+                  <button class="ai-flag" style="background:none;font-size:var(--font-xs);">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M4 21V4h12l-2 4h6v8H8v5H4z"/>
+                    </svg>
+                  </button>
+                  <span class="toggle">›</span>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phone 2: Feedback sheet open -->
+      <div class="phone-wrap">
+        <div class="phone-label">F1 · 反馈抽屉（底部滑起）</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="navbar">
+              <span class="nav-back">‹</span>
+              <div class="nav-title">诊断审核</div>
+            </div>
+            <div class="content" style="filter: blur(0.5px); opacity: 0.5;">
+              <div class="list-header">AI 建议 · 请逐项确认</div>
+              <div class="field">
+                <div class="field-label-row"><div class="field-label">诊断</div></div>
+                <div class="ai-row">
+                  <div class="ai-head"><span class="ai-title">不稳定型心绞痛（UA）</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bottom sheet overlay -->
+            <div class="sheet-scrim">
+              <div class="sheet">
+                <div class="sheet-handle"></div>
+                <div class="sheet-title">反馈这条 AI 建议</div>
+                <div class="sheet-sub">你的反馈会帮助改进 AI 的推理质量。</div>
+                <div class="sheet-suggestion">
+                  <b>不稳定型心绞痛（UA）</b><br>
+                  <span style="color:var(--text-4);font-size:var(--font-xs);">胸闷活动后加重 + 既往 PCI 史 · 需与心梗鉴别</span>
+                </div>
+
+                <div class="reason-row">
+                  <span class="radio"></span>
+                  <span>诊断错误</span>
+                </div>
+                <div class="reason-row selected">
+                  <span class="radio"></span>
+                  <span>证据不足</span>
+                </div>
+                <div class="reason-row">
+                  <span class="radio"></span>
+                  <span>不符合我的临床经验</span>
+                </div>
+                <div class="reason-row">
+                  <span class="radio"></span>
+                  <span>其他</span>
+                </div>
+
+                <textarea class="sheet-textarea" placeholder="补充说明（可选）">病人同时有胸壁压痛，首先考虑非心源性胸痛，UA 可能性偏低</textarea>
+                <div class="sheet-hint">请不要输入患者姓名或身份证号 — 只描述 AI 建议本身的问题。</div>
+
+                <div class="sheet-actions">
+                  <button class="sheet-btn cancel">取消</button>
+                  <button class="sheet-btn primary">提交</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phone 3: MyAIPage digest -->
+      <div class="phone-wrap">
+        <div class="phone-label">F3 · 我的 AI · 本周表现摘要</div>
+        <div class="phone">
+          <div class="screen">
+            <div class="navbar">
+              <div class="nav-title">我的 AI</div>
+            </div>
+            <div class="content">
+
+              <!-- existing cards faded -->
+              <div style="padding: 10px 16px 6px; background: var(--surface); opacity: 0.5; font-size: var(--font-sm); color: var(--text-4);">
+                [张医生的助手 / AI风格 / 新建病历 / 预问诊码 / 知识库]
+              </div>
+
+              <div class="myai-section">
+                <div class="myai-section-header">本周 AI 表现</div>
+                <div class="digest-card">
+                  <div class="digest-title-row">
+                    <div class="digest-title">你的 AI 表现</div>
+                    <div class="digest-range">近 7 天</div>
+                  </div>
+
+                  <div class="digest-stats">
+                    <div class="stat">
+                      <span class="stat-num">142</span>
+                      <span class="stat-label">AI 建议展示</span>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-num">89</span>
+                      <span class="stat-label">你已采纳</span>
+                    </div>
+                    <div class="stat">
+                      <span class="stat-num warning">7</span>
+                      <span class="stat-label">你反馈不合理</span>
+                    </div>
+                  </div>
+
+                  <div class="digest-breakdown">
+                    <div class="breakdown-row">
+                      <span>检查建议</span>
+                      <span class="bar"><span class="bar-fill" style="width:60%"></span></span>
+                      <span class="count">4 / 7</span>
+                    </div>
+                    <div class="breakdown-row">
+                      <span>诊断</span>
+                      <span class="bar"><span class="bar-fill" style="width:30%"></span></span>
+                      <span class="count">2 / 7</span>
+                    </div>
+                    <div class="breakdown-row">
+                      <span>治疗方向</span>
+                      <span class="bar"><span class="bar-fill" style="width:14%"></span></span>
+                      <span class="count">1 / 7</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="myai-section">
+                <div class="myai-section-header">最近反馈 · 展开查看</div>
+
+                <div class="flagged-item">
+                  <div class="flagged-item-head">
+                    <span class="flagged-kind">检查</span>
+                    <span>陈梅 · 2 天前</span>
+                  </div>
+                  <div class="flagged-content">头颅 CT（排除急性颅内事件）</div>
+                  <div class="flagged-reason">证据不足 · "患者无神经系统症状，CT 优先级低"</div>
+                </div>
+
+                <div class="flagged-item">
+                  <div class="flagged-item-head">
+                    <span class="flagged-kind">诊断</span>
+                    <span>李伟 · 3 天前</span>
+                  </div>
+                  <div class="flagged-content">不稳定型心绞痛（UA）</div>
+                  <div class="flagged-reason">证据不足 · "胸壁压痛 · 非心源性可能性更高"</div>
+                </div>
+
+                <div class="flagged-item">
+                  <div class="flagged-item-head">
+                    <span class="flagged-kind">治疗</span>
+                    <span>王阿姨 · 5 天前</span>
+                  </div>
+                  <div class="flagged-content">加强双抗 · 氯吡格雷 75mg 联用</div>
+                  <div class="flagged-reason">不符合我的临床经验 · "该患者出血风险高"</div>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <div class="note">
+      <h3>设计说明</h3>
+      <ul>
+        <li><b>⚠️ 按钮低调常驻</b>：灰色图标，不抢视觉焦点。已反馈后变金色（warning）+ 文字"已反馈"。可在 pending 和 accepted 行都点——临床判断有时在采纳后才浮现。</li>
+        <li><b>抽屉 = 10 秒以内提交</b>：4 个原因 radio + 可选文字。默认不选，不强推。默认 radio 如果可能直接预选"证据不足"（最常见原因）降到 3 次点击。</li>
+        <li><b>敏感信息提示</b>：明写"不要输入患者姓名或身份证号"，因为 reason_text 会被后端存、被你审计。防社会工程的最小成本。</li>
+        <li><b>后台隐性日志</b>（F2，不在视觉里）：每次 suggestion_shown / accepted / edited / cycled / finalized 都记一条 event。50-200 条/病历/次。真实信号比 flag 更丰富。</li>
+        <li><b>F3 摘要卡位置</b>：我的 AI 页，放在 identity 下方、其他 list 之前。第一个数字是"展示"、"采纳"，最后用 warning 色标出"反馈不合理"。</li>
+        <li><b>反馈 breakdown 条形图</b>：按 section 展示分布。让医生一眼看到"检查建议 flag 率最高"——可能是这个维度的 prompt 需要优化。</li>
+        <li><b>闭环信号</b>：最近反馈列表让医生感受到"有记录"。F4 会把 flagged 病例自动推进 sniff test fixture；届时摘要卡下可加一行"已加入 AI 训练集 3 条"。</li>
+        <li><b>数据存储</b>：ai_feedback 表（显性）+ ai_behavior_event 表（隐性，90 天保留）。与 ai_suggestions 外键关联。prompt_version（SHA of diagnosis.md）用于回归归因。</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>
