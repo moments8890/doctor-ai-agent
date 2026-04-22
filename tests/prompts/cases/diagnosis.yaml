@@ -65,7 +65,7 @@
         if (drugItems.length === 0) return true;
         return drugItems.every(d => d.drug_class && d.drug_class.length > 0);
 
-- description: "diagnosis: dual audience — both reasoning and patient_note present"
+- description: "diagnosis: detail field carries both clinical reasoning and explanation"
   options:
     prompts: [diagnosis]
     provider:
@@ -83,20 +83,20 @@
       value: |
         const obj = JSON.parse(output);
         const diffs = obj.differentials || [];
-        // Every differential should have a clinical rationale + patient_note
-        // (field name may be reasoning or doctor_brief — instructor normalizes in production)
+        // Prod schema: each differential has a single `detail` field that
+        // carries clinical reasoning + plain explanation together.
         return diffs.length > 0 && diffs.every(d =>
-          ((d.reasoning || d.doctor_brief) && (d.reasoning || d.doctor_brief).length > 0) &&
-          (d.patient_note && d.patient_note.length > 0)
+          typeof d.detail === 'string' && d.detail.length >= 20
         );
     - type: javascript
       value: |
         const obj = JSON.parse(output);
         const diffs = obj.differentials || [];
-        // patient_note should use layperson language (no medical abbreviations)
+        // detail must include a [KB-N] citation if the source prompt says so,
+        // OR describe reasoning tied to the clinical findings (MRI/占位/强化).
         return diffs.every(d => {
-          const pn = d.patient_note || '';
-          return !pn.includes('MRA') && !pn.includes('CT增强');
+          const txt = d.detail || '';
+          return /\[KB-\d+\]/.test(txt) || /(MRI|占位|强化|附着|硬脑膜|额叶)/.test(txt);
         });
 
 - description: "diagnosis: insufficient data — low confidence, no fabrication"

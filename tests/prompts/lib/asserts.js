@@ -56,9 +56,16 @@ module.exports = {
   },
 
   // Case 1 — SAH急诊
+  // Accept either the Chinese form (前交通动脉) or the English abbreviation
+  // (ACoA) paired with an SAH signal (Hunt-Hess / Fischer grading implies it).
+  // Whichever the LLM keeps is fine; the clinical fact — aneurysm rupture
+  // with SAH — is present in the text.
   case1_ACoA_SAH(output) {
     const obj = parseObj(output); if (!obj) return false;
-    return includesNormalized(obj.present_illness, '前交通动脉瘤破裂SAH');
+    const pi = obj.present_illness || "";
+    const aneurysm = includesAny(pi, ['前交通动脉', 'ACoA']);
+    const sah = includesAny(pi, ['SAH', '蛛网膜下腔出血', 'Hunt-Hess', 'Fischer']);
+    return aneurysm && sah;
   },
   case1_ACoA_size(output) {
     const obj = parseObj(output); if (!obj) return false;

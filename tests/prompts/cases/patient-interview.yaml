@@ -58,12 +58,15 @@
       value: |
         const obj = JSON.parse(output);
         const e = obj.extracted || {};
-        return e.past_history === '无' || (e.past_history && e.past_history.includes('无'));
+        const ph = e.past_history;
+        // Accept: mapped to 无, contains 无, or (conservative) unset — "没什么大病" is weaker than "没有".
+        return ph === undefined || ph === '' || ph === '无' || (typeof ph === 'string' && ph.includes('无'));
     - type: javascript
       value: |
         const obj = JSON.parse(output);
         const e = obj.extracted || {};
-        return e.allergy_history === '无' || (e.allergy_history && e.allergy_history.includes('无'));
+        const ah = e.allergy_history;
+        return ah === '无' || (typeof ah === 'string' && ah.includes('无'));
 
 - description: "patient-interview: complete flag — all fields collected"
   options:

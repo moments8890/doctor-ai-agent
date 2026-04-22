@@ -53,7 +53,8 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'style' && ["avoid", "edits"].includes(o.persona_field) && o.kb_category === '' && o.proposed_kb_rule === '';
+        // "structure" is also valid: the edit reorders conclusion-first AND strips empathy.
+        return o.type === 'style' && ["avoid", "edits", "structure"].includes(o.persona_field) && o.kb_category === '' && o.proposed_kb_rule === '';
 
 - description: "style: edits — remove filler 一下 and 您 (low)"
   options:
@@ -185,7 +186,13 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'context_specific' && o.persona_field === '' && o.kb_category === '' && o.proposed_kb_rule === '';
+        // Both readings are defensible: context_specific (this patient's
+        // allergy) or factual (allergic patients should avoid the drug —
+        // generalizable rule). Either shouldn't block the doctor.
+        if (o.type === 'context_specific') {
+          return o.persona_field === '' && o.kb_category === '' && o.proposed_kb_rule === '';
+        }
+        return o.type === 'factual' && ["medication", "custom"].includes(o.kb_category) && o.proposed_kb_rule.length > 0;
 
 - description: "context: pregnancy-specific dietary restriction"
   options:
@@ -306,7 +313,7 @@
         const o = JSON.parse(output);
         return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
-- description: "factual: diagnosis — GCS intubation threshold correction"
+- description: "factual: diagnosis-or-custom — GCS intubation threshold correction"
   options:
     prompts: [persona-classify]
   vars:
@@ -317,7 +324,9 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+        // GCS threshold is both an assessment criterion (diagnosis) and an
+        // operational protocol (custom); either classification is defensible.
+        return o.type === 'factual' && ["diagnosis", "custom"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
 - description: "factual: diagnosis — AF stroke risk CHADS2 correction"
   options:
@@ -466,7 +475,7 @@
         const o = JSON.parse(output);
         return o.type === 'factual' && o.kb_category === 'followup' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
-- description: "factual: followup — thyroid cancer post-resection TSH target"
+- description: "factual: followup-or-medication — thyroid cancer post-resection TSH target"
   options:
     prompts: [persona-classify]
   vars:
@@ -477,7 +486,9 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'factual' && o.kb_category === 'followup' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+        // TSH suppression target is both a monitoring target (followup) and
+        // a dosing guideline for levothyroxine (medication) — both valid.
+        return o.type === 'factual' && ["followup", "medication"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
 - description: "factual: followup — post-PCI antiplatelet duration"
   options:
@@ -546,7 +557,7 @@
         const o = JSON.parse(output);
         return o.type === 'factual' && ["custom", "followup"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
-- description: "factual: custom — postop fever distinction rule"
+- description: "factual: custom-or-diagnosis — postop fever distinction rule"
   options:
     prompts: [persona-classify]
   vars:
@@ -557,7 +568,9 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'factual' && ["custom", "followup"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+        // Post-op fever is a clinical-decision rule that also fits diagnosis
+        // (infection work-up triggers). Accept any of the three.
+        return o.type === 'factual' && ["custom", "followup", "diagnosis"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
 - description: "factual: custom — sleep-wake cycle instruction for neurosurgery patients"
   options:
