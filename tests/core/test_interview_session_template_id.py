@@ -1,10 +1,25 @@
-"""Template id threading: Doctor.preferred_template_id + InterviewSession CRUD."""
+"""Template id threading: Doctor.preferred_template_id + InterviewSession CRUD.
+
+The first two tests (Task 3) run against the `db_session` in-memory fixture.
+The next three (Task 5) exercise the CRUD helpers which are hardwired to the
+real AsyncSessionLocal — those are integration-style tests that touch the
+dev DB. Each Task 5 test uses UUID-suffixed IDs to stay idempotent across
+runs.
+"""
 from __future__ import annotations
+
+import uuid
 
 import pytest
 from sqlalchemy import select
 
+from db.engine import AsyncSessionLocal
 from db.models.doctor import Doctor
+from domain.patients.interview_session import (
+    create_session,
+    load_session,
+    save_session,
+)
 
 
 @pytest.mark.asyncio
@@ -33,3 +48,56 @@ async def test_doctor_preferred_template_id_can_be_set(db_session):
         select(Doctor).where(Doctor.doctor_id == "test_pref_set")
     )).scalar_one()
     assert row.preferred_template_id == "medical_general_v1"
+
+
+@pytest.mark.asyncio
+async def test_create_session_defaults_template_id_to_medical_general_v1():
+    doc_id = f"doc_ct_{uuid.uuid4().hex[:8]}"
+    async with AsyncSessionLocal() as db:
+        db.add(Doctor(doctor_id=doc_id))
+        await db.commit()
+
+    session = await create_session(doctor_id=doc_id, patient_id=None)
+    assert session.template_id == "medical_general_v1"
+
+    loaded = await load_session(session.id)
+    assert loaded is not None
+    assert loaded.template_id == "medical_general_v1"
+
+
+@pytest.mark.asyncio
+async def test_create_session_accepts_explicit_template_id():
+    doc_id = f"doc_ex_{uuid.uuid4().hex[:8]}"
+    async with AsyncSessionLocal() as db:
+        db.add(Doctor(doctor_id=doc_id))
+        await db.commit()
+
+    session = await create_session(
+        doctor_id=doc_id,
+        patient_id=None,
+        template_id="form_satisfaction_v1",
+    )
+    assert session.template_id == "form_satisfaction_v1"
+
+    loaded = await load_session(session.id)
+    assert loaded.template_id == "form_satisfaction_v1"
+
+
+@pytest.mark.asyncio
+async def test_save_session_preserves_template_id():
+    doc_id = f"doc_sv_{uuid.uuid4().hex[:8]}"
+    async with AsyncSessionLocal() as db:
+        db.add(Doctor(doctor_id=doc_id))
+        await db.commit()
+
+    session = await create_session(
+        doctor_id=doc_id,
+        patient_id=None,
+        template_id="form_satisfaction_v1",
+    )
+    session.turn_count = 3
+    await save_session(session)
+
+    loaded = await load_session(session.id)
+    assert loaded.template_id == "form_satisfaction_v1"
+    assert loaded.turn_count == 3

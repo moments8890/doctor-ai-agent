@@ -19,6 +19,7 @@ class InterviewSession:
     patient_id: Optional[int]
     mode: str = "patient"
     status: str = InterviewStatus.interviewing
+    template_id: str = "medical_general_v1"
     collected: Dict[str, str] = field(default_factory=dict)
     conversation: List[Dict[str, Any]] = field(default_factory=list)
     turn_count: int = 0
@@ -29,6 +30,7 @@ async def create_session(
     patient_id: Optional[int],
     mode: str = "patient",
     initial_fields: Optional[Dict[str, str]] = None,
+    template_id: str = "medical_general_v1",
 ) -> InterviewSession:
     """Create a new interview session in the DB.
 
@@ -76,6 +78,7 @@ async def create_session(
             patient_id=patient_id,
             status=InterviewStatus.interviewing,
             mode=mode,
+            template_id=template_id,
             collected=json.dumps(collected, ensure_ascii=False),
             conversation=json.dumps(conversation, ensure_ascii=False),
             turn_count=0,
@@ -92,6 +95,7 @@ async def create_session(
         doctor_id=doctor_id,
         patient_id=patient_id,
         mode=mode,
+        template_id=template_id,
         collected=collected,
         conversation=conversation,
     )
@@ -116,6 +120,7 @@ async def load_session(session_id: str) -> Optional[InterviewSession]:
             patient_id=row.patient_id,
             mode=row.mode,
             status=row.status,
+            template_id=row.template_id,
             collected=json.loads(row.collected or "{}"),
             conversation=json.loads(row.conversation or "[]"),
             turn_count=row.turn_count,
@@ -138,6 +143,7 @@ async def save_session(session: InterviewSession) -> None:
 
         row.status = session.status
         row.mode = session.mode
+        row.template_id = session.template_id
         row.patient_id = session.patient_id
         row.collected = json.dumps(session.collected, ensure_ascii=False)
         row.conversation = json.dumps(session.conversation, ensure_ascii=False)
@@ -169,6 +175,7 @@ async def get_active_session(patient_id: int, doctor_id: str) -> Optional[Interv
             patient_id=row.patient_id,
             mode=row.mode,
             status=row.status,
+            template_id=row.template_id,
             collected=json.loads(row.collected or "{}"),
             conversation=json.loads(row.conversation or "[]"),
             turn_count=row.turn_count,
