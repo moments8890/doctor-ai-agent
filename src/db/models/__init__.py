@@ -29,6 +29,7 @@ from db.models.persona_pending import PersonaPendingItem
 from db.models.kb_pending import KbPendingItem
 from db.models.message_draft import MessageDraft, DraftStatus
 from db.models.user_preferences import UserPreferences, DEFAULT_PREFERENCES
+from db.models.form_response import FormResponseDB
 
 __all__ = [
     "_utcnow",
@@ -54,4 +55,5 @@ __all__ = [
     "KbPendingItem",
     "MessageDraft", "DraftStatus",
     "UserPreferences", "DEFAULT_PREFERENCES",
+    "FormResponseDB",
 ]
