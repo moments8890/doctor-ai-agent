@@ -16,6 +16,17 @@ cd "$APP_DIR"
 git fetch gitee
 git reset --hard gitee/main
 
+# Pin current SHA as a systemd env var so Sentry/GlitchTip `release` tag
+# attributes events to the exact deployed commit. Enables regression
+# attribution when comparing error rates across deploys.
+GIT_COMMIT=$(git rev-parse HEAD)
+sudo mkdir -p /etc/systemd/system/doctor-ai-backend.service.d
+sudo tee /etc/systemd/system/doctor-ai-backend.service.d/release.conf >/dev/null <<EOF
+[Service]
+Environment=GIT_COMMIT=${GIT_COMMIT}
+EOF
+sudo systemctl daemon-reload
+
 # Python deps
 "$VENV/bin/pip" install -q -r requirements.txt
 

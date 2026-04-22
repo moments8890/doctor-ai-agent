@@ -89,20 +89,77 @@ async def _startup_recovery(startup_log: logging.Logger) -> None:
 
 
 def _init_sentry() -> None:
-    """Initialize Sentry error tracking. No-op if SENTRY_DSN is not set."""
+    """Initialize Sentry/GlitchTip error tracking. No-op if SENTRY_DSN is not set.
+
+    Integrations:
+    - FastApiIntegration: route-pattern transaction names (e.g.
+      /doctor/review/{record_id} instead of /doctor/review/123).
+    - StarletteIntegration: HTTP middleware + request breadcrumbs.
+    - SqlalchemyIntegration: DB query spans on traces (slow N+1s surface).
+    - LoggingIntegration: log.error() → event, log.info()/warning() →
+      breadcrumbs attached to the next event.
+
+    Release tag uses GIT_COMMIT env var (set by deploy.sh) so regressions
+    can be attributed to a specific deploy.
+    """
     dsn = os.environ.get("SENTRY_DSN", "")
     if not dsn:
         return
     try:
         import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.starlette import StarletteIntegration
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+        from sentry_sdk.integrations.logging import LoggingIntegration
+
         sentry_sdk.init(
             dsn=dsn,
-            traces_sample_rate=float(os.environ.get("SENTRY_TRACES_RATE", "0.1")),
             environment=os.environ.get("ENVIRONMENT", "development"),
+            release=os.environ.get("GIT_COMMIT", "unknown"),
+            traces_sample_rate=float(os.environ.get("SENTRY_TRACES_RATE", "0.1")),
+            profiles_sample_rate=0.0,  # GlitchTip doesn't support profiles
+            send_default_pii=False,     # strip cookies/IP, HIPAA-adjacent
+            integrations=[
+                FastApiIntegration(transaction_style="endpoint"),
+                StarletteIntegration(),
+                SqlalchemyIntegration(),
+                LoggingIntegration(
+                    level=logging.INFO,
+                    event_level=logging.ERROR,
+                ),
+            ],
         )
-        logging.getLogger("startup").info("[Sentry] initialized (dsn=%s...)", dsn[:20])
+        logging.getLogger("startup").info(
+            "[Sentry] initialized (dsn=%s..., release=%s)",
+            dsn[:20],
+            os.environ.get("GIT_COMMIT", "unknown")[:8],
+        )
     except ImportError:
         logging.getLogger("startup").warning("[Sentry] sentry-sdk not installed, skipping")
+
+
+def _install_sentry_user_middleware(app) -> None:
+    """Attach per-request context to Sentry events: doctor_id + role.
+
+    Runs after auth middleware has populated request.state. No-op if
+    Sentry isn't initialized.
+    """
+    try:
+        import sentry_sdk
+    except ImportError:
+        return
+
+    @app.middleware("http")
+    async def _sentry_user(request, call_next):
+        # Extract doctor_id from state (populated by auth middleware) or query
+        doctor_id = (
+            getattr(request.state, "doctor_id", None)
+            or request.query_params.get("doctor_id")
+        )
+        if doctor_id:
+            sentry_sdk.set_user({"id": doctor_id})
+        sentry_sdk.set_tag("route_path", str(request.url.path))
+        return await call_next(request)
 
 
 @asynccontextmanager
@@ -159,6 +216,7 @@ def create_app() -> FastAPI:
     setup_cors(_app)
     setup_exception_handlers(_app)
     setup_middleware(_app)
+    _install_sentry_user_middleware(_app)
     include_routers(_app)
     register_health_and_utility_routes(
         _app,
