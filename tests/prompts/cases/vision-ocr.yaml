@@ -13,14 +13,14 @@
       3. 阿托伐他汀20mg qn
       4. 二甲双胍0.5g tid
   assert:
-    - type: contains
-      value: "阿司匹林100mg"
-    - type: contains
-      value: "氨氯地平5mg"
-    - type: contains
-      value: "阿托伐他汀20mg"
-    - type: contains
-      value: "二甲双胍0.5g"
+    # OCR output may preserve source whitespace between drug name and
+    # dosage (e.g. "阿司匹林      100mg" from a table layout). Collapse
+    # whitespace before matching — the clinical fact is the drug+dose
+    # pair, not the spacing between them.
+    - type: javascript
+      value: |
+        const o = output.replace(/\s+/g, '');
+        return ['阿司匹林100mg', '氨氯地平5mg', '阿托伐他汀20mg', '二甲双胍0.5g'].every(d => o.includes(d));
     - type: contains
       value: "qd"
     - type: contains

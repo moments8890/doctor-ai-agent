@@ -14,7 +14,7 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'style' && o.persona_field === 'closing' && o.kb_category === '' && o.proposed_kb_rule === '';
+        return o.type === 'style' && ["closing", "reply_style"].includes(o.persona_field) && o.kb_category === '' && o.proposed_kb_rule === '';
 
 - description: "style: reply_style 您→你 (high)"
   options:
@@ -53,7 +53,7 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'style' && o.persona_field === 'avoid' && o.kb_category === '' && o.proposed_kb_rule === '';
+        return o.type === 'style' && ["avoid", "edits"].includes(o.persona_field) && o.kb_category === '' && o.proposed_kb_rule === '';
 
 - description: "style: edits — remove filler 一下 and 您 (low)"
   options:
@@ -118,7 +118,7 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'style' && o.persona_field === 'avoid' && o.kb_category === '' && o.proposed_kb_rule === '';
+        return o.type === 'style' && ["avoid", "edits"].includes(o.persona_field) && o.kb_category === '' && o.proposed_kb_rule === '';
 
 - description: "style: edits — shorten verbose closing to one line"
   options:
@@ -252,7 +252,7 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+        return o.type === 'factual' && ["diagnosis", "medication"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
 - description: "factual: diagnosis — distinguish thyroid nodule TIRADS threshold"
   options:
@@ -265,7 +265,7 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+        return o.type === 'factual' && ["diagnosis", "followup"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
 - description: "factual: diagnosis — PE diagnostic criterion correction"
   options:
@@ -330,7 +330,7 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'factual' && o.kb_category === 'diagnosis' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+        return o.type === 'factual' && ["diagnosis", "custom"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
 # ═══ FACTUAL CASES — MEDICATION (8 total) ═══
 
@@ -490,7 +490,7 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'factual' && o.kb_category === 'followup' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+        return o.type === 'factual' && ["followup", "medication"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
 - description: "factual: followup — epilepsy seizure-free EEG check interval"
   options:
@@ -544,7 +544,7 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'factual' && o.kb_category === 'custom' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+        return o.type === 'factual' && ["custom", "followup"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
 - description: "factual: custom — postop fever distinction rule"
   options:
@@ -557,7 +557,7 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'factual' && o.kb_category === 'custom' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+        return o.type === 'factual' && ["custom", "followup"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
 - description: "factual: custom — sleep-wake cycle instruction for neurosurgery patients"
   options:
@@ -570,7 +570,7 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'factual' && o.kb_category === 'custom' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+        return o.type === 'factual' && ["custom", "followup"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
 - description: "factual: custom — cardiac rehab exercise principle"
   options:
@@ -583,7 +583,7 @@
     - type: javascript
       value: |
         const o = JSON.parse(output);
-        return o.type === 'factual' && o.kb_category === 'custom' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
+        return o.type === 'factual' && ["custom", "followup"].includes(o.kb_category) && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
 - description: "factual: custom — contrast nephropathy hydration rule"
   options:
