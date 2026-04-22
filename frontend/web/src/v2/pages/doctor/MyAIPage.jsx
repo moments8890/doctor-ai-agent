@@ -21,10 +21,31 @@ import {
   useTodaySummary,
   useKbPending,
   useKnowledgeItems,
+  useFeedbackDigest,
 } from "../../../lib/doctorQueries";
 import { dp } from "../../../utils/doctorBasePath";
+import { relativeTime } from "../../../utils/time";
 import { APP, FONT, RADIUS, ICON } from "../../theme";
 import { pageContainer, scrollable } from "../../layouts";
+
+// ── F3 digest helpers ─────────────────────────────────────────────────────
+
+// Section id (server enum) → Chinese label for the breakdown bars and the
+// small "flagged_kind" chip in the recent-feedback list. Kept as a local
+// constant because these labels are UX copy, not domain truth.
+const SECTION_LABELS = {
+  differential: "诊断",
+  workup: "检查",
+  treatment: "治疗",
+};
+
+// Section display order for the breakdown rows. Mockup phone 3 leads with
+// 检查 (usually the hottest section for flags), but we lock the order to
+// match the server's _DIGEST_SECTIONS tuple so the card is stable regardless
+// of who flagged what.
+const SECTION_ORDER = ["differential", "workup", "treatment"];
+
+const FLAGGED_RECENT_LIMIT = 10;
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -72,6 +93,7 @@ export default function MyAIPage({ doctorId }) {
     useTodaySummary();
   const { data: kbPendingData } = useKbPending();
   const { data: knowledgeData } = useKnowledgeItems();
+  const { data: digestData } = useFeedbackDigest(7);
 
   const loading = qLoading || pLoading;
   const reviewQueue = reviewQueueData || { pending: [], completed: [] };
@@ -201,6 +223,186 @@ export default function MyAIPage({ doctorId }) {
           </Grid.Item>
         ))}
       </Grid>
+
+      {/* ── 2a. Weekly AI performance digest (F3 feedback loop) ─────
+          Shown between the identity Grid and today's triage block so the
+          doctor sees their flag impact alongside their identity, not
+          buried below the queue. Hidden when there's literally nothing
+          to report (no suggestions ever shown) — new doctors see the
+          activation card instead. */}
+      {digestData && digestData.total_shown > 0 && (
+        <>
+          <div style={{ height: 8, backgroundColor: APP.surfaceAlt }} />
+          <List header="本周 AI 表现">
+            <List.Item>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  marginBottom: 10,
+                }}
+              >
+                <div style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1 }}>
+                  你的 AI 表现
+                </div>
+                <div style={{ fontSize: FONT.xs, color: APP.text4 }}>近 7 天</div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 20,
+                  padding: "6px 0 10px",
+                  borderBottom: `0.5px solid ${APP.borderLight}`,
+                }}
+              >
+                {[
+                  { num: digestData.total_shown, label: "AI 建议展示", warning: false },
+                  { num: digestData.total_accepted, label: "你已采纳", warning: false },
+                  { num: digestData.total_flagged, label: "你反馈不合理", warning: true },
+                ].map(({ num, label, warning }) => (
+                  <div key={label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <span
+                      style={{
+                        fontSize: 24,
+                        fontWeight: 600,
+                        lineHeight: 1.1,
+                        color: warning ? APP.warning : APP.text1,
+                      }}
+                    >
+                      {num}
+                    </span>
+                    <span style={{ fontSize: FONT.xs, color: APP.text4 }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Breakdown — all 3 sections render even at zero when any
+                  flag exists; pure-zero state short-circuits to placeholder */}
+              {digestData.total_flagged === 0 ? (
+                <div
+                  style={{
+                    padding: "12px 0 4px",
+                    fontSize: FONT.sm,
+                    color: APP.text4,
+                    textAlign: "center",
+                  }}
+                >
+                  本周暂无反馈
+                </div>
+              ) : (
+                <div style={{ paddingTop: 10, display: "grid", gap: 8 }}>
+                  {(() => {
+                    const counts = SECTION_ORDER.map(
+                      (s) => (digestData.by_section || {})[s] || 0
+                    );
+                    const maxCount = Math.max(1, ...counts);
+                    return SECTION_ORDER.map((section, idx) => {
+                      const count = counts[idx];
+                      const pct = (count / maxCount) * 100;
+                      return (
+                        <div
+                          key={section}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            fontSize: FONT.sm,
+                            color: APP.text2,
+                          }}
+                        >
+                          <span style={{ minWidth: 48 }}>{SECTION_LABELS[section]}</span>
+                          <span
+                            style={{
+                              flex: 1,
+                              height: 4,
+                              backgroundColor: APP.borderLight,
+                              borderRadius: 2,
+                              margin: "0 10px",
+                              overflow: "hidden",
+                              position: "relative",
+                            }}
+                          >
+                            <span
+                              style={{
+                                position: "absolute",
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: `${pct}%`,
+                                backgroundColor: APP.warning,
+                                borderRadius: 2,
+                              }}
+                            />
+                          </span>
+                          <span
+                            style={{
+                              color: APP.text4,
+                              fontSize: FONT.xs,
+                              minWidth: 44,
+                              textAlign: "right",
+                            }}
+                          >
+                            {count} / {digestData.total_flagged}
+                          </span>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
+            </List.Item>
+          </List>
+
+          {/* Recent-feedback list — only render when there's at least one
+              flag. Shows up to FLAGGED_RECENT_LIMIT rows (server also caps). */}
+          {digestData.recent && digestData.recent.length > 0 && (
+            <List header="最近反馈">
+              {digestData.recent.slice(0, FLAGGED_RECENT_LIMIT).map((r) => (
+                <List.Item key={r.id}>
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontSize: FONT.xs,
+                        color: APP.text4,
+                      }}
+                    >
+                      <span
+                        style={{
+                          padding: "1px 6px",
+                          borderRadius: RADIUS.xs,
+                          backgroundColor: APP.warningLight,
+                          color: APP.warning,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {SECTION_LABELS[r.section] || r.section}
+                      </span>
+                      <span>
+                        {[r.patient_name, relativeTime(r.feedback_created_at)]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: FONT.sm, color: APP.text1, lineHeight: 1.5 }}>
+                      <Ellipsis direction="end" content={r.content || ""} rows={1} />
+                    </div>
+                    {r.feedback_note && (
+                      <div style={{ fontSize: FONT.xs, color: APP.text3 }}>
+                        <Ellipsis direction="end" content={r.feedback_note} rows={1} />
+                      </div>
+                    )}
+                  </div>
+                </List.Item>
+              ))}
+            </List>
+          )}
+        </>
+      )}
 
       {/* ── 2b. New-doctor guided activation OR triage block ─────── */}
       {knowledgeCount === 0 ? (

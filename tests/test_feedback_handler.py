@@ -1,16 +1,19 @@
-"""Integration tests for POST /api/doctor/feedback.
+"""Integration tests for POST /api/doctor/feedback + GET digest.
 
-Phase F1 of docs/specs/2026-04-21-ai-feedback-capture-plan.md — explicit
-flag capture. Reworked per Codex: feedback is now 3 nullable columns on
-``ai_suggestions`` (feedback_tag, feedback_note, feedback_created_at), not
-a separate table. Tests assert the columns get populated on the target row.
+Phase F1/F3 of docs/specs/2026-04-21-ai-feedback-capture-plan.md — explicit
+flag capture plus doctor-facing weekly digest. Reworked per Codex: feedback
+is now 3 nullable columns on ``ai_suggestions`` (feedback_tag, feedback_note,
+feedback_created_at), not a separate table. Tests assert the columns get
+populated on the target row, and that the digest aggregates match.
 
 Covers: happy path, enum validation (reason_tag), silent truncation of
-reason_text beyond 1000 chars, and 404 for unknown suggestion_id.
+reason_text beyond 1000 chars, 404 for unknown suggestion_id, empty digest,
+and a seeded-digest happy path.
 """
 from __future__ import annotations
 
 import os
+from datetime import datetime
 
 import httpx
 import pytest
@@ -24,6 +27,7 @@ import db.models  # noqa: F401 — register all ORM models before create_all
 from db.engine import Base, get_db
 from db.models.ai_suggestion import AISuggestion, SuggestionSection
 from db.models.doctor import Doctor
+from db.models.patient import Patient
 from db.models.records import MedicalRecordDB, RecordStatus
 from channels.web.doctor_dashboard.feedback_handlers import router as _feedback_router
 
@@ -202,3 +206,126 @@ async def test_unknown_suggestion_id_returns_404(async_client, db_session):
     )
     assert resp.status_code == 404, resp.text
     assert "99999999" in resp.json()["detail"] or "not found" in resp.json()["detail"]
+
+
+# ── F3 · digest tests ─────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_digest_empty(async_client, db_session):
+    """Fresh doctor with no AI suggestions → all zeroes + empty recent list."""
+    # Seed the doctor row so _resolve_ui_doctor_id doesn't blow up, but emit
+    # no suggestions.
+    existing = (await db_session.execute(
+        select(Doctor).where(Doctor.doctor_id == TEST_DOCTOR_ID)
+    )).scalar_one_or_none()
+    if existing is None:
+        db_session.add(Doctor(doctor_id=TEST_DOCTOR_ID, name="Feedback Test Doc"))
+        await db_session.commit()
+
+    resp = await async_client.get(
+        f"/api/doctor/feedback/digest?doctor_id={TEST_DOCTOR_ID}&days=7"
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["days"] == 7
+    assert body["total_shown"] == 0
+    assert body["total_accepted"] == 0
+    assert body["total_flagged"] == 0
+    # All three sections present, all zero — frontend relies on this shape.
+    assert body["by_section"] == {
+        "differential": 0,
+        "workup": 0,
+        "treatment": 0,
+    }
+    assert body["recent"] == []
+
+
+@pytest.mark.asyncio
+async def test_digest_happy_path(async_client, db_session):
+    """Seed 3 suggestions + 1 flag; digest aggregates match + recent[0] matches."""
+    # Seed doctor + a named patient + a record so we can assert patient_name
+    # flows through the LEFT JOIN.
+    existing = (await db_session.execute(
+        select(Doctor).where(Doctor.doctor_id == TEST_DOCTOR_ID)
+    )).scalar_one_or_none()
+    if existing is None:
+        db_session.add(Doctor(doctor_id=TEST_DOCTOR_ID, name="Feedback Test Doc"))
+        await db_session.flush()
+
+    patient = Patient(doctor_id=TEST_DOCTOR_ID, name="陈梅")
+    db_session.add(patient)
+    await db_session.flush()
+
+    rec = MedicalRecordDB(
+        doctor_id=TEST_DOCTOR_ID,
+        patient_id=patient.id,
+        record_type="visit",
+        status=RecordStatus.pending_review.value,
+        content="chief complaint stub",
+    )
+    db_session.add(rec)
+    await db_session.flush()
+
+    # Three suggestions: one confirmed (accepted), one edited (accepted),
+    # one pending (unresolved). We'll flag the workup one.
+    s_diff = AISuggestion(
+        record_id=rec.id,
+        doctor_id=TEST_DOCTOR_ID,
+        section=SuggestionSection.differential.value,
+        content="不稳定型心绞痛",
+        decision="confirmed",
+    )
+    s_workup = AISuggestion(
+        record_id=rec.id,
+        doctor_id=TEST_DOCTOR_ID,
+        section=SuggestionSection.workup.value,
+        content="头颅 CT",
+        decision="edited",
+    )
+    s_tx = AISuggestion(
+        record_id=rec.id,
+        doctor_id=TEST_DOCTOR_ID,
+        section=SuggestionSection.treatment.value,
+        content="双抗强化",
+        decision=None,
+    )
+    db_session.add_all([s_diff, s_workup, s_tx])
+    await db_session.commit()
+
+    # Flag s_workup via the real POST endpoint so we exercise the full path
+    # and get feedback_created_at set server-side.
+    flag_resp = await async_client.post(
+        "/api/doctor/feedback",
+        json={
+            "suggestion_id": s_workup.id,
+            "record_id": rec.id,
+            "doctor_id": TEST_DOCTOR_ID,
+            "reason_tag": "insufficient_evidence",
+            "reason_text": "患者无神经系统症状，CT 优先级低",
+        },
+    )
+    assert flag_resp.status_code == 200, flag_resp.text
+
+    resp = await async_client.get(
+        f"/api/doctor/feedback/digest?doctor_id={TEST_DOCTOR_ID}&days=7"
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+
+    assert body["total_shown"] == 3
+    assert body["total_accepted"] == 2  # confirmed + edited
+    assert body["total_flagged"] == 1
+    assert body["by_section"]["workup"] == 1
+    assert body["by_section"]["differential"] == 0
+    assert body["by_section"]["treatment"] == 0
+
+    assert len(body["recent"]) == 1
+    first = body["recent"][0]
+    assert first["id"] == s_workup.id
+    assert first["section"] == "workup"
+    assert first["content"] == "头颅 CT"
+    assert first["feedback_tag"] == "insufficient_evidence"
+    assert first["feedback_note"] == "患者无神经系统症状，CT 优先级低"
+    assert first["feedback_created_at"] is not None
+    assert first["patient_name"] == "陈梅"

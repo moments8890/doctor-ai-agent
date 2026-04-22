@@ -289,6 +289,18 @@ export function useRejectKbPending() {
   });
 }
 
+export function useFeedbackDigest(days = 7) {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.feedbackDigest(doctorId, days),
+    queryFn:  () => api.fetchFeedbackDigest(doctorId, days),
+    staleTime: STALE.queue,
+    refetchInterval: POLL,
+    enabled:  !!doctorId,
+  });
+}
+
 export function useSuggestions(recordId) {
   const { doctorId } = useDoctorStore();
   const api = useApi();

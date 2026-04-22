@@ -19,4 +19,5 @@ export const QK = {
   todaySummary:   (did) => ["doctor", did, "todaySummary"],
   knowledgeStats: (did, days) => ["doctor", did, "knowledgeStats", days],
   knowledgeUsage: (did, itemId) => ["doctor", did, "knowledgeUsage", itemId],
+  feedbackDigest: (did, days) => ["doctor", did, "feedbackDigest", days],
 };

@@ -1073,6 +1073,14 @@ export async function submitFeedback(opts) {
   });
 }
 
+// F3 digest — weekly AI performance summary for the MyAIPage card.
+// Returns { days, total_shown, total_accepted, total_flagged, by_section,
+// recent[] } — server caps days at 90.
+export async function fetchFeedbackDigest(doctorId, days = 7) {
+  const qs = new URLSearchParams({ doctor_id: doctorId, days: String(days) });
+  return request(`/api/doctor/feedback/digest?${qs.toString()}`);
+}
+
 // ---------------------------------------------------------------------------
 // Knowledge stats, AI activity, drafts
 // ---------------------------------------------------------------------------

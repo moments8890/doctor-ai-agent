@@ -262,6 +262,19 @@ export async function submitFeedback(_opts) {
   return { id: Date.now(), created_at: new Date().toISOString() };
 }
 
+// F3 digest — mock returns an empty-but-shaped payload so the MyAIPage
+// card renders its "暂无反馈" state without branching on mock vs real.
+export async function fetchFeedbackDigest(_doctorId, days = 7) {
+  return {
+    days,
+    total_shown: 0,
+    total_accepted: 0,
+    total_flagged: 0,
+    by_section: { differential: 0, workup: 0, treatment: 0 },
+    recent: [],
+  };
+}
+
 export async function addKnowledgeItem(doctorId, content) {
   const newItem = {
     id: Date.now(),
