@@ -42,9 +42,7 @@
 
       return (obj.chief_complaint && obj.chief_complaint.includes("体检发现颅内动脉瘤1周"));'
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("右侧颈内动脉后交通段动脉瘤，6mm×5mm"));'
+    value: file://lib/asserts.js:case0_aneurysm_size
   - type: javascript
     value: 'const obj = JSON.parse(output);
 
@@ -111,18 +109,11 @@
 
       return (obj.auxiliary_exam && obj.auxiliary_exam.includes("Fischer 3")) || (obj.diagnosis && obj.diagnosis.includes("Fischer 3")) || (obj.present_illness && obj.present_illness.includes("Fischer 3"));'
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("前交通动脉瘤破裂 SAH"));'
+    value: file://lib/asserts.js:case1_ACoA_SAH
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("ACoA动脉瘤 5mm×4mm 瘤颈2.5mm"));'
+    value: file://lib/asserts.js:case1_ACoA_size
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.physical_exam && obj.physical_exam.includes("GCS E2V2M5=9")) || (obj.present_illness && obj.present_illness.includes("GCS E2V2M5=9")) || (obj.specialist_exam && obj.specialist_exam.includes("GCS
-      E2V2M5=9"));'
+    value: file://lib/asserts.js:case1_GCS
 - description: 'realistic: OCR粘贴 — 外院转诊信噪声提取'
   vars:
     name: 李秀英
@@ -236,29 +227,19 @@
   assert:
   - type: is-json
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.chief_complaint && obj.chief_complaint.includes("反复头晕伴右侧肢体麻木2月余 加重3天"));'
+    value: file://lib/asserts.js:case2_chief_complaint
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("左侧颈内动脉C6段重度狭窄 85%"));'
+    value: file://lib/asserts.js:case2_ICA_stenosis
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("伴溃疡斑块形成"));'
+    value: file://lib/asserts.js:case2_ulcerated_plaque
   - type: javascript
     value: 'const obj = JSON.parse(output);
 
       return (obj.present_illness && obj.present_illness.includes("右手精细动作困难"));'
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("右下肢行走拖曳"));'
+    value: file://lib/asserts.js:case2_gait
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("曾考虑颈椎病 牵引理疗无效"));'
+    value: file://lib/asserts.js:case2_neck_traction
 - description: 'realistic: 多轮口述 — 三轮信息合并'
   vars:
     name: 王建军
@@ -311,17 +292,11 @@
 
       return (obj.present_illness && obj.present_illness.includes("Spetzler-Martin III级"));'
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("左侧额顶叶AVM"));'
+    value: file://lib/asserts.js:case3_AVM_location
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("1周前头痛加重 持续性"));'
+    value: file://lib/asserts.js:case3_headache_worsening
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("伴视物模糊"));'
+    value: file://lib/asserts.js:case3_blurred_vision
 - description: 'realistic: 中英混合 — 双语脑血管病例'
   vars:
     name: 赵明华
@@ -424,14 +399,9 @@
   assert:
   - type: is-json
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.auxiliary_exam && obj.auxiliary_exam.includes("动脉瘤栓塞术后3月复查")) || (obj.chief_complaint && obj.chief_complaint.includes("动脉瘤栓塞术后3月复查")) || (obj.orders_followup && obj.orders_followup.includes("动脉瘤栓塞术后3月复查"))
-      || (obj.present_illness && obj.present_illness.includes("动脉瘤栓塞术后3月复查")) || (obj.treatment_plan && obj.treatment_plan.includes("动脉瘤栓塞术后3月复查"));'
+    value: file://lib/asserts.js:case5_followup_3m
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("3月前左侧后交通动脉瘤破裂SAH"));'
+    value: file://lib/asserts.js:case5_sah_history
   - type: javascript
     value: 'const obj = JSON.parse(output);
 
@@ -441,9 +411,7 @@
 
       return (obj.present_illness && obj.present_illness.includes("术后恢复良好"));'
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("否认头痛"));'
+    value: file://lib/asserts.js:case5_denies_headache
   - type: javascript
     value: 'const obj = JSON.parse(output);
 
@@ -508,31 +476,19 @@
   assert:
   - type: is-json
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.auxiliary_exam && obj.auxiliary_exam.includes("颈内动脉支架术后6月复查")) || (obj.chief_complaint && obj.chief_complaint.includes("颈内动脉支架术后6月复查")) || (obj.orders_followup && obj.orders_followup.includes("颈内动脉支架术后6月复查"))
-      || (obj.present_illness && obj.present_illness.includes("颈内动脉支架术后6月复查")) || (obj.treatment_plan && obj.treatment_plan.includes("颈内动脉支架术后6月复查"));'
+    value: file://lib/asserts.js:case6_followup_6m
   - type: javascript
     value: 'const obj = JSON.parse(output);
 
       return (obj.present_illness && obj.present_illness.includes("Wallstent 7mm×40mm"));'
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("残余狭窄<20% TIMI 3"));'
+    value: file://lib/asserts.js:case6_residual_stenosis
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("双抗3月后停波立维改单抗"));'
+    value: file://lib/asserts.js:case6_antiplatelet_change
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.present_illness && obj.present_illness.includes("无头晕头痛 无肢体无力麻木"));'
+    value: file://lib/asserts.js:case6_asymptomatic
   - type: javascript
-    value: 'const obj = JSON.parse(output);
-
-      return (obj.past_history && obj.past_history.includes("BP 130/78mmHg（本次）")) || (obj.physical_exam && obj.physical_exam.includes("BP 130/78mmHg（本次）")) || (obj.present_illness && obj.present_illness.includes("BP
-      130/78mmHg（本次）"));'
+    value: file://lib/asserts.js:case6_current_bp
 - description: 'realistic: Compound create-save: STEMI emergency intake'
   vars:
     name: 赵强
