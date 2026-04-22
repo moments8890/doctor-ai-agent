@@ -52,6 +52,7 @@ register_sender(_send_customer_service_msg)
 
 from app_middleware import setup_cors, setup_exception_handlers, setup_middleware
 from app_routes import include_routers, register_health_and_utility_routes
+from infra.observability.request_context import install_request_context_middleware
 
 
 # ---------------------------------------------------------------------------
@@ -221,6 +222,13 @@ def create_app() -> FastAPI:
     setup_exception_handlers(_app)
     setup_middleware(_app)
     _install_sentry_user_middleware(_app)
+    # NOTE on ordering: Starlette executes middleware in
+    # reverse-registration order (last added = outermost). We want the
+    # request_id tag set BEFORE the Sentry user middleware runs so that
+    # any event captured during auth has the id attached, so the
+    # request_context middleware is registered LAST here — making it
+    # the outermost wrapper that runs first at request time.
+    install_request_context_middleware(_app)
     include_routers(_app)
     register_health_and_utility_routes(
         _app,

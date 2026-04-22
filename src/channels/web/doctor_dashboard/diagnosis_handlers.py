@@ -30,6 +30,7 @@ from db.models.ai_suggestion import AISuggestion, SuggestionDecision, Suggestion
 from db.models.records import MedicalRecordDB, RecordStatus
 from domain.knowledge.teaching import log_doctor_edit, should_prompt_teaching
 from domain.tasks.from_record import generate_tasks_from_record
+from infra.observability.events import log_event
 from utils.log import log, safe_create_task
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
@@ -280,6 +281,16 @@ async def decide_suggestion(
     if teach_prompt and edit_id is not None:
         result["teach_prompt"] = True
         result["edit_id"] = edit_id
+
+    log_event(
+        "suggestion.decided",
+        suggestion_id=updated.id,
+        record_id=updated.record_id,
+        doctor_id=updated.doctor_id,
+        decision=updated.decision,
+        edited=bool(body.edited_text),
+        section=updated.section,
+    )
     return result
 
 
@@ -317,6 +328,13 @@ async def add_custom_suggestion(
         is_custom=True,
     )
 
+    log_event(
+        "suggestion.custom_added",
+        suggestion_id=row.id,
+        record_id=record_id,
+        doctor_id=resolved,
+        section=section_enum.value,
+    )
     return {"status": "ok", "id": row.id}
 
 
@@ -336,6 +354,8 @@ async def finalize_review(
     fields (diagnosis, treatment_plan, orders_followup) so they appear in
     the patient-facing record view.
     """
+    import time as _time
+    _finalize_t0 = _time.monotonic()
     resolved = _resolve_ui_doctor_id(body.doctor_id, authorization)
     await _get_record_or_404(db, record_id, resolved)
 
@@ -503,6 +523,21 @@ async def finalize_review(
         log(f"[diagnosis] follow-up task generation failed for record {record_id}: {exc}", level="warning")
 
     log(f"[diagnosis] record {record_id} finalized by {resolved} — wrote {n_accepted} accepted items to record")
+
+    edited_count = sum(
+        1 for r in accepted if r.decision == SuggestionDecision.edited.value
+    )
+    log_event(
+        "record.finalized",
+        record_id=record_id,
+        doctor_id=resolved,
+        accepted_count=n_accepted,
+        edited_count=edited_count,
+        undecided_count=len(undecided),
+        implicit_reject=bool(body.implicit_reject),
+        follow_up_task_count=len(follow_up_task_ids),
+        duration_ms=int((_time.monotonic() - _finalize_t0) * 1000),
+    )
     return {
         "status": "completed",
         "record_id": record_id,

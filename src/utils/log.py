@@ -19,6 +19,10 @@ _ctx_doctor_id: ContextVar[str] = ContextVar("doctor_id", default="")
 _ctx_trace_id: ContextVar[str] = ContextVar("trace_id", default="")
 _ctx_intent: ContextVar[str] = ContextVar("intent", default="")
 _ctx_layers: ContextVar[str] = ContextVar("layers", default="")
+# request_id — short correlation id set by RequestContextMiddleware per
+# HTTP request. Distinct from trace_id (which predates this and is used
+# for internal span tracing); both are kept so we can bridge old logs.
+_ctx_request_id: ContextVar[str] = ContextVar("request_id", default="")
 
 
 def bind_log_context(
@@ -55,12 +59,15 @@ def _inject_context_vars(
     doc = _ctx_doctor_id.get("")
     tid = _ctx_trace_id.get("")
     intent = _ctx_intent.get("")
+    rid = _ctx_request_id.get("")
     if doc:
         event_dict.setdefault("doctor_id", doc)
     if tid:
         event_dict.setdefault("trace_id", tid)
     if intent:
         event_dict.setdefault("intent", intent)
+    if rid:
+        event_dict.setdefault("request_id", rid)
     return event_dict
 
 

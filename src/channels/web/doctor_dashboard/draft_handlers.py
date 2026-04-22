@@ -29,6 +29,7 @@ from domain.knowledge.teaching import (
     should_prompt_teaching,
 )
 from infra.auth.rate_limit import enforce_doctor_rate_limit
+from infra.observability.events import log_event
 from utils.log import log
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
@@ -376,6 +377,15 @@ async def send_draft(
         ai_disclosure=disclosure,
     )
 
+    log_event(
+        "draft.sent",
+        draft_id=draft_id,
+        doctor_id=resolved,
+        patient_id=patient_id,
+        confidence=draft.confidence,
+        status=draft.status,
+        message_id=msg_id,
+    )
     return {"status": "ok", "message_id": msg_id}
 
 

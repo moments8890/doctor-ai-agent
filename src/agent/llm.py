@@ -104,11 +104,15 @@ def _log_llm_call(
 
         # Correlation: trace_id from HTTP middleware (observability ContextVar)
         from infra.observability.observability import get_current_trace_id
-        # doctor_id and intent from log ContextVars (set by chat handlers)
-        from utils.log import _ctx_doctor_id, _ctx_intent, _ctx_layers
+        # doctor_id / intent / request_id from log ContextVars.
+        # request_id is bound by RequestContextMiddleware on every HTTP
+        # request — joins this JSONL record to access logs and Sentry
+        # Issues tagged with the same id.
+        from utils.log import _ctx_doctor_id, _ctx_intent, _ctx_layers, _ctx_request_id
         entry["trace_id"] = get_current_trace_id() or ""
         entry["doctor_id"] = _ctx_doctor_id.get("")
         entry["intent"] = _ctx_intent.get("")
+        entry["request_id"] = _ctx_request_id.get("")
         layers = _ctx_layers.get("")
         if layers:
             entry["layers"] = layers
@@ -133,6 +137,31 @@ def _log_llm_call(
         _rotate_if_needed(_LLM_LOG_FILE)
         with open(_LLM_LOG_FILE, "a", encoding="utf-8") as f:
             f.write(_json.dumps(entry, ensure_ascii=False) + "\n")
+
+        # Also emit a compact Sentry Logs event so LLM calls land in the
+        # GlitchTip Logs tab alongside HTTP events with the same
+        # request_id. Only fires when _experiments.enable_logs=True on
+        # sentry_sdk.init. Wrapped defensively — logger is still an
+        # experimental API and may rename between sentry-sdk versions.
+        try:
+            from sentry_sdk import logger as _sentry_log
+            tokens = entry.get("tokens") or {}
+            _sentry_log.info(
+                "llm.call",
+                op=op_name,
+                model=model,
+                status=entry["status"],
+                duration_ms=duration_ms or 0,
+                tokens_in=int(tokens.get("prompt", 0)),
+                tokens_out=int(tokens.get("completion", 0)),
+                tokens_total=int(tokens.get("total", 0)),
+                request_id=entry.get("request_id", ""),
+                doctor_id=entry.get("doctor_id", ""),
+                trace_id=entry.get("trace_id", ""),
+                intent=entry.get("intent", ""),
+            )
+        except Exception:
+            pass  # observability must not break the LLM call path
 
     except Exception:
         pass  # never break the LLM call path

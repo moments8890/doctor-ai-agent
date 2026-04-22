@@ -48,6 +48,69 @@ def setup_cors(app: FastAPI) -> None:
     )
 
 
+_EXC_BODY_MAX_BYTES = 2 * 1024  # 2 KB — Sentry context attachment cap
+# Content-types where attaching the raw body is pointless (binary /
+# huge) and actively harmful (PDF uploads, image data, audio clips).
+_EXC_BODY_SKIP_PREFIXES = (
+    "multipart/",
+    "application/octet-stream",
+    "application/pdf",
+    "image/",
+    "audio/",
+    "video/",
+)
+
+
+async def _capture_request_body_for_sentry(request: Request) -> None:
+    """Attach truncated request body to Sentry scope.
+
+    Idempotent — reads ``request.body()`` once (Starlette caches the
+    result internally on the ASGI receive channel), so subsequent
+    handler code still gets the body. Binary / multipart payloads are
+    skipped with a placeholder marker instead of being serialized.
+
+    Never raises — observability must not break the error path.
+    """
+    try:
+        import sentry_sdk
+    except ImportError:
+        return
+
+    content_type = (request.headers.get("content-type") or "").lower()
+    if any(content_type.startswith(p) for p in _EXC_BODY_SKIP_PREFIXES):
+        sentry_sdk.set_context(
+            "request_body",
+            {"note": "<binary, skipped>", "content_type": content_type},
+        )
+        return
+
+    try:
+        raw = await request.body()
+    except Exception:
+        # Body may already be consumed (e.g. streaming upload) or the
+        # ASGI receive channel may be closed. Don't let this abort the
+        # handler chain.
+        return
+
+    if not raw:
+        return
+
+    truncated = raw[:_EXC_BODY_MAX_BYTES]
+    try:
+        text = truncated.decode("utf-8", errors="replace")
+    except Exception:
+        text = repr(truncated)
+    sentry_sdk.set_context(
+        "request_body",
+        {
+            "text": text,
+            "truncated": len(raw) > _EXC_BODY_MAX_BYTES,
+            "total_bytes": len(raw),
+            "content_type": content_type,
+        },
+    )
+
+
 def setup_exception_handlers(app: FastAPI) -> None:
     """Register DomainError and catch-all exception handlers."""
 
@@ -68,6 +131,10 @@ def setup_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def _handle_unexpected_error(request: Request, exc: Exception):
+        # Attach request body to Sentry context BEFORE logging.exception
+        # — the LoggingIntegration turns log.exception into a Sentry
+        # event, so the context has to be on the scope first.
+        await _capture_request_body_for_sentry(request)
         logging.getLogger("app").exception(
             "[UnhandledError] path=%s err=%s", request.url.path, exc
         )

@@ -34,6 +34,7 @@ from db.models.ai_suggestion import (
 from db.models.patient import Patient
 from db.models.records import MedicalRecordDB
 from infra.auth.rate_limit import enforce_doctor_rate_limit
+from infra.observability.events import log_event
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
 
@@ -143,6 +144,15 @@ async def submit_feedback(
     await db.commit()
     await db.refresh(row)
 
+    log_event(
+        "feedback.flagged",
+        suggestion_id=row.id,
+        record_id=body.record_id,
+        doctor_id=resolved,
+        reason_tag=reason_enum.value,
+        note_len=len(note_value) if note_value else 0,
+        section=row.section,
+    )
     return {
         "id": row.id,
         "created_at": (
