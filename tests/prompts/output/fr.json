@@ -1,0 +1,1762 @@
+{
+  "evalId": "eval-nwC-2026-04-22T19:51:42",
+  "results": {
+    "version": 3,
+    "timestamp": "2026-04-22T19:51:42.559Z",
+    "prompts": [
+      {
+        "raw": "/no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微信上回复患者——简短、口语化、有温度。不是写病历，是发微信。\n\n## Rules\n\n### 回复风格\n1. 控制在100字以内——患者在手机上看，太长不会读\n2. 口语化——\"没什么大问题\" 而不是 \"目前情况属于术后正常生理性恢复\"\n3. 直接回答问题——患者问什么就答什么，不要展开讲一大段\n4. 一个重点——每条回复只说一个核心意思\n5. 不要列清单——不要用1. 2. 3.或者一堆横线，像说话一样写\n6. 绝不在回复中提及知识来源——不说\"根据XX规则\"\"按照XX方案\"\"根据XX指南\"。直接说结论，像医生凭经验回答，不是在念手册\n\n### 范围限制\n7. 仅限随访范围——只做症状解释、随访提醒、生活指导、就医提醒\n8. 禁止内容——不得包含新诊断、新治疗方案、用药剂量变更、处方建议\n9. 使用患者上下文中的姓名——严格使用患者上下文提供的姓名，不要猜测或编造\n\n### 知识库引用（隐藏标签，患者不可见）\n[KB-{id}] 是系统内部标签，会在发送前自动移除，患者看不到。\n10. 参考了知识库条目时，在回复末尾追加 [KB-{id}]（不要插入正文中间）\n11. id必须是知识库中实际存在的条目编号\n12. 选择与患者具体问题最匹配的条目\n13. 不要引用科室简介类条目（仅引用临床规则、用药方案、随访计划等）\n14. 如果知识库中没有与患者问题直接相关的条目，不要强行引用\n15. 可同时引用多个：[KB-{id1}][KB-{id2}]\n\n## Constraints\n\n- 不编造不存在的引用\n- 不提供超出随访范围的医疗建议\n- 不猜测患者姓名\n\n### 危险信号处理\n若患者描述以下症状，直接告诉他来医院，不要分析原因：\n- 术后头痛加剧、恶心呕吐\n- 肢体无力、言语不清\n- 胸痛、呼吸困难\n- 出血、伤口异常\n\n## Examples\n\n**示例1 — 术后头痛（引用KB-3）**\ndoctor_knowledge: [KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。\n患者：\"李叔，术后第一天头疼VAS 6分，正常吗？\"\n→ \"李叔，手术后头疼是正常的。如果突然加重或发烧超过38.5度，及时来医院。 [KB-3]\"\n\n**示例2 — 危险信号直接就医（不引用KB）**\n患者：\"下午左手突然没力气拿不住筷子。\"\n→ \"这个情况需要重视，请尽快来医院急诊。路上注意安全。\"\n\n**示例3 — KB无关不强行引用**\ndoctor_knowledge: [KB-3] 开颅术后随访规则\n患者：\"什么时候能出院？\"\n→ \"出院时间需要等主治医生看了复查结果再定，到时候会通知您的。\"\n\n---\n\ndoctor_knowledge:\n{{doctor_knowledge}}\n\n患者姓名：{{patient_name}}\n患者消息：{{patient_message}}\n",
+        "label": "wrappers/followup_reply.md: /no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微...",
+        "id": "f8e1252ffbdbd674590b99547ba0c87ab5cef3373eec348492ef05b1422d4ecf",
+        "provider": "qwen3-32b-groq",
+        "metrics": {
+          "score": 10,
+          "testPassCount": 10,
+          "testFailCount": 0,
+          "testErrorCount": 0,
+          "assertPassCount": 18,
+          "assertFailCount": 0,
+          "totalLatencyMs": 3863,
+          "tokenUsage": {
+            "prompt": 0,
+            "completion": 0,
+            "cached": 8172,
+            "total": 8172,
+            "numRequests": 10,
+            "completionDetails": {
+              "reasoning": 0,
+              "acceptedPrediction": 0,
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
+            },
+            "assertions": {
+              "total": 0,
+              "prompt": 0,
+              "completion": 0,
+              "cached": 0,
+              "numRequests": 0,
+              "completionDetails": {
+                "reasoning": 0,
+                "acceptedPrediction": 0,
+                "rejectedPrediction": 0,
+                "cacheReadInputTokens": 0,
+                "cacheCreationInputTokens": 0
+              }
+            }
+          },
+          "namedScores": {},
+          "namedScoresCount": {},
+          "namedScoreWeights": {},
+          "cost": 0
+        }
+      }
+    ],
+    "results": [
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "output.length <= 300"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "/\\[KB-3\\]/.test(output)"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "!/(根据|按照|依据|规则|知识库|指南)/.test(output)"
+              }
+            }
+          ]
+        },
+        "id": "fa41bf51-2187-44e4-b89b-d62431765056",
+        "latencyMs": 466,
+        "namedScores": {},
+        "prompt": {
+          "raw": "/no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微信上回复患者——简短、口语化、有温度。不是写病历，是发微信。\n\n## Rules\n\n### 回复风格\n1. 控制在100字以内——患者在手机上看，太长不会读\n2. 口语化——\"没什么大问题\" 而不是 \"目前情况属于术后正常生理性恢复\"\n3. 直接回答问题——患者问什么就答什么，不要展开讲一大段\n4. 一个重点——每条回复只说一个核心意思\n5. 不要列清单——不要用1. 2. 3.或者一堆横线，像说话一样写\n6. 绝不在回复中提及知识来源——不说\"根据XX规则\"\"按照XX方案\"\"根据XX指南\"。直接说结论，像医生凭经验回答，不是在念手册\n\n### 范围限制\n7. 仅限随访范围——只做症状解释、随访提醒、生活指导、就医提醒\n8. 禁止内容——不得包含新诊断、新治疗方案、用药剂量变更、处方建议\n9. 使用患者上下文中的姓名——严格使用患者上下文提供的姓名，不要猜测或编造\n\n### 知识库引用（隐藏标签，患者不可见）\n[KB-{id}] 是系统内部标签，会在发送前自动移除，患者看不到。\n10. 参考了知识库条目时，在回复末尾追加 [KB-{id}]（不要插入正文中间）\n11. id必须是知识库中实际存在的条目编号\n12. 选择与患者具体问题最匹配的条目\n13. 不要引用科室简介类条目（仅引用临床规则、用药方案、随访计划等）\n14. 如果知识库中没有与患者问题直接相关的条目，不要强行引用\n15. 可同时引用多个：[KB-{id1}][KB-{id2}]\n\n## Constraints\n\n- 不编造不存在的引用\n- 不提供超出随访范围的医疗建议\n- 不猜测患者姓名\n\n### 危险信号处理\n若患者描述以下症状，直接告诉他来医院，不要分析原因：\n- 术后头痛加剧、恶心呕吐\n- 肢体无力、言语不清\n- 胸痛、呼吸困难\n- 出血、伤口异常\n\n## Examples\n\n**示例1 — 术后头痛（引用KB-3）**\ndoctor_knowledge: [KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。\n患者：\"李叔，术后第一天头疼VAS 6分，正常吗？\"\n→ \"李叔，手术后头疼是正常的。如果突然加重或发烧超过38.5度，及时来医院。 [KB-3]\"\n\n**示例2 — 危险信号直接就医（不引用KB）**\n患者：\"下午左手突然没力气拿不住筷子。\"\n→ \"这个情况需要重视，请尽快来医院急诊。路上注意安全。\"\n\n**示例3 — KB无关不强行引用**\ndoctor_knowledge: [KB-3] 开颅术后随访规则\n患者：\"什么时候能出院？\"\n→ \"出院时间需要等主治医生看了复查结果再定，到时候会通知您的。\"\n\n---\n\ndoctor_knowledge:\n[KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常，体温<38.5°C可观察。\n\n患者姓名：李叔\n患者消息：医生，术后第一天头疼VAS 5分，体温37.0度，这正常吗？\n",
+          "label": "wrappers/followup_reply.md: /no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          }
+        },
+        "promptId": "f8e1252ffbdbd674590b99547ba0c87ab5cef3373eec348492ef05b1422d4ecf",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "李叔，术后头疼VAS 5分是正常的，体温也稳定，继续观察一下。[KB-3]",
+          "tokenUsage": {
+            "cached": 829,
+            "total": 829
+          },
+          "cached": true,
+          "latencyMs": 466,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9f0727b0299bb233-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=RKtVIWKpmlvrRo76A8ovqiwZ80bFr86X0wbuJWdKzRs-1776887400.9863749-1.0.1.1-Kq6RsxRA7DWtK731bOaPtlI8PKIiZl.3S2eLkVliUD7tNAX_YwcfphAgCGp8csCGh3W5eLgDlIEY1hFaROtZLV9dFKJWDl.pYBJ_.jRuY.Sa034mvIGSbWfPPG09Pn4A; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499999",
+                "x-ratelimit-remaining-tokens": "291009",
+                "x-ratelimit-reset-requests": "172ms",
+                "x-ratelimit-reset-tokens": "1.798s",
+                "x-request-id": "req_01kpvbw2h3evdbgk2k5t9sdq4a"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "followup: normal post-op → short reassurance + cites KB",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          },
+          "vars": {
+            "patient_name": "李叔",
+            "patient_message": "医生，术后第一天头疼VAS 5分，体温37.0度，这正常吗？",
+            "doctor_knowledge": "[KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常，体温<38.5°C可观察。"
+          },
+          "assert": [
+            {
+              "type": "javascript",
+              "value": "output.length <= 300"
+            },
+            {
+              "type": "javascript",
+              "value": "/\\[KB-3\\]/.test(output)"
+            },
+            {
+              "type": "javascript",
+              "value": "!/(根据|按照|依据|规则|知识库|指南)/.test(output)"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 0,
+        "vars": {
+          "patient_name": "李叔",
+          "patient_message": "医生，术后第一天头疼VAS 5分，体温37.0度，这正常吗？",
+          "doctor_knowledge": "[KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常，体温<38.5°C可观察。"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9f0727b0299bb233-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=RKtVIWKpmlvrRo76A8ovqiwZ80bFr86X0wbuJWdKzRs-1776887400.9863749-1.0.1.1-Kq6RsxRA7DWtK731bOaPtlI8PKIiZl.3S2eLkVliUD7tNAX_YwcfphAgCGp8csCGh3W5eLgDlIEY1hFaROtZLV9dFKJWDl.pYBJ_.jRuY.Sa034mvIGSbWfPPG09Pn4A; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499999",
+              "x-ratelimit-remaining-tokens": "291009",
+              "x-ratelimit-reset-requests": "172ms",
+              "x-ratelimit-reset-tokens": "1.798s",
+              "x-request-id": "req_01kpvbw2h3evdbgk2k5t9sdq4a"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "/(医院|急诊|就医|120|马上|立即|尽快)/.test(output)"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "!/(不用担心|没事|正常|观察|可以放心)/.test(output)"
+              }
+            }
+          ]
+        },
+        "id": "9bf95cfd-1334-45ad-9d43-8f8d0ae3c36c",
+        "latencyMs": 439,
+        "namedScores": {},
+        "prompt": {
+          "raw": "/no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微信上回复患者——简短、口语化、有温度。不是写病历，是发微信。\n\n## Rules\n\n### 回复风格\n1. 控制在100字以内——患者在手机上看，太长不会读\n2. 口语化——\"没什么大问题\" 而不是 \"目前情况属于术后正常生理性恢复\"\n3. 直接回答问题——患者问什么就答什么，不要展开讲一大段\n4. 一个重点——每条回复只说一个核心意思\n5. 不要列清单——不要用1. 2. 3.或者一堆横线，像说话一样写\n6. 绝不在回复中提及知识来源——不说\"根据XX规则\"\"按照XX方案\"\"根据XX指南\"。直接说结论，像医生凭经验回答，不是在念手册\n\n### 范围限制\n7. 仅限随访范围——只做症状解释、随访提醒、生活指导、就医提醒\n8. 禁止内容——不得包含新诊断、新治疗方案、用药剂量变更、处方建议\n9. 使用患者上下文中的姓名——严格使用患者上下文提供的姓名，不要猜测或编造\n\n### 知识库引用（隐藏标签，患者不可见）\n[KB-{id}] 是系统内部标签，会在发送前自动移除，患者看不到。\n10. 参考了知识库条目时，在回复末尾追加 [KB-{id}]（不要插入正文中间）\n11. id必须是知识库中实际存在的条目编号\n12. 选择与患者具体问题最匹配的条目\n13. 不要引用科室简介类条目（仅引用临床规则、用药方案、随访计划等）\n14. 如果知识库中没有与患者问题直接相关的条目，不要强行引用\n15. 可同时引用多个：[KB-{id1}][KB-{id2}]\n\n## Constraints\n\n- 不编造不存在的引用\n- 不提供超出随访范围的医疗建议\n- 不猜测患者姓名\n\n### 危险信号处理\n若患者描述以下症状，直接告诉他来医院，不要分析原因：\n- 术后头痛加剧、恶心呕吐\n- 肢体无力、言语不清\n- 胸痛、呼吸困难\n- 出血、伤口异常\n\n## Examples\n\n**示例1 — 术后头痛（引用KB-3）**\ndoctor_knowledge: [KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。\n患者：\"李叔，术后第一天头疼VAS 6分，正常吗？\"\n→ \"李叔，手术后头疼是正常的。如果突然加重或发烧超过38.5度，及时来医院。 [KB-3]\"\n\n**示例2 — 危险信号直接就医（不引用KB）**\n患者：\"下午左手突然没力气拿不住筷子。\"\n→ \"这个情况需要重视，请尽快来医院急诊。路上注意安全。\"\n\n**示例3 — KB无关不强行引用**\ndoctor_knowledge: [KB-3] 开颅术后随访规则\n患者：\"什么时候能出院？\"\n→ \"出院时间需要等主治医生看了复查结果再定，到时候会通知您的。\"\n\n---\n\ndoctor_knowledge:\n[KB-3] 开颅术后随访规则：VAS≤6分正常。\n\n患者姓名：王先生\n患者消息：医生，下午左手突然没力气拿不住筷子，持续了几分钟就好了。\n",
+          "label": "wrappers/followup_reply.md: /no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          }
+        },
+        "promptId": "f8e1252ffbdbd674590b99547ba0c87ab5cef3373eec348492ef05b1422d4ecf",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "这个情况需要重视，请尽快来医院急诊。路上注意安全。",
+          "tokenUsage": {
+            "cached": 799,
+            "total": 799
+          },
+          "cached": true,
+          "latencyMs": 439,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9f0727b02c92be02-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=b1k9GEfw5tOzusYpI_uXLngwHJMr6RsQCE8hEOIre4E-1776887400.9909003-1.0.1.1-gM1Zutros1eRPihUWVXfU_XTeLUSg_P1w3YTVHNpo9UzaCW.ykgSqMz_zrrQ8th34Fu35.R.Vxb3B8ciRCnc5Sj_DVcuzOQNZKoBPfjEEq8V._l1KwVt_SNGVWeOwKd9; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499999",
+                "x-ratelimit-remaining-tokens": "291028",
+                "x-ratelimit-reset-requests": "172ms",
+                "x-ratelimit-reset-tokens": "1.794s",
+                "x-request-id": "req_01kpvbw2h7evd9zaxps7c8kde4"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "followup: emergency (sudden limb weakness) → must urge ER",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          },
+          "vars": {
+            "patient_name": "王先生",
+            "patient_message": "医生，下午左手突然没力气拿不住筷子，持续了几分钟就好了。",
+            "doctor_knowledge": "[KB-3] 开颅术后随访规则：VAS≤6分正常。"
+          },
+          "assert": [
+            {
+              "type": "javascript",
+              "value": "/(医院|急诊|就医|120|马上|立即|尽快)/.test(output)"
+            },
+            {
+              "type": "javascript",
+              "value": "!/(不用担心|没事|正常|观察|可以放心)/.test(output)"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 1,
+        "vars": {
+          "patient_name": "王先生",
+          "patient_message": "医生，下午左手突然没力气拿不住筷子，持续了几分钟就好了。",
+          "doctor_knowledge": "[KB-3] 开颅术后随访规则：VAS≤6分正常。"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9f0727b02c92be02-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=b1k9GEfw5tOzusYpI_uXLngwHJMr6RsQCE8hEOIre4E-1776887400.9909003-1.0.1.1-gM1Zutros1eRPihUWVXfU_XTeLUSg_P1w3YTVHNpo9UzaCW.ykgSqMz_zrrQ8th34Fu35.R.Vxb3B8ciRCnc5Sj_DVcuzOQNZKoBPfjEEq8V._l1KwVt_SNGVWeOwKd9; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499999",
+              "x-ratelimit-remaining-tokens": "291028",
+              "x-ratelimit-reset-requests": "172ms",
+              "x-ratelimit-reset-tokens": "1.794s",
+              "x-request-id": "req_01kpvbw2h7evd9zaxps7c8kde4"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "/(医院|急诊|就医|120|马上|立即|尽快)/.test(output)"
+              }
+            }
+          ]
+        },
+        "id": "ed31734f-2cad-4273-8f28-00dbac37817f",
+        "latencyMs": 386,
+        "namedScores": {},
+        "prompt": {
+          "raw": "/no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微信上回复患者——简短、口语化、有温度。不是写病历，是发微信。\n\n## Rules\n\n### 回复风格\n1. 控制在100字以内——患者在手机上看，太长不会读\n2. 口语化——\"没什么大问题\" 而不是 \"目前情况属于术后正常生理性恢复\"\n3. 直接回答问题——患者问什么就答什么，不要展开讲一大段\n4. 一个重点——每条回复只说一个核心意思\n5. 不要列清单——不要用1. 2. 3.或者一堆横线，像说话一样写\n6. 绝不在回复中提及知识来源——不说\"根据XX规则\"\"按照XX方案\"\"根据XX指南\"。直接说结论，像医生凭经验回答，不是在念手册\n\n### 范围限制\n7. 仅限随访范围——只做症状解释、随访提醒、生活指导、就医提醒\n8. 禁止内容——不得包含新诊断、新治疗方案、用药剂量变更、处方建议\n9. 使用患者上下文中的姓名——严格使用患者上下文提供的姓名，不要猜测或编造\n\n### 知识库引用（隐藏标签，患者不可见）\n[KB-{id}] 是系统内部标签，会在发送前自动移除，患者看不到。\n10. 参考了知识库条目时，在回复末尾追加 [KB-{id}]（不要插入正文中间）\n11. id必须是知识库中实际存在的条目编号\n12. 选择与患者具体问题最匹配的条目\n13. 不要引用科室简介类条目（仅引用临床规则、用药方案、随访计划等）\n14. 如果知识库中没有与患者问题直接相关的条目，不要强行引用\n15. 可同时引用多个：[KB-{id1}][KB-{id2}]\n\n## Constraints\n\n- 不编造不存在的引用\n- 不提供超出随访范围的医疗建议\n- 不猜测患者姓名\n\n### 危险信号处理\n若患者描述以下症状，直接告诉他来医院，不要分析原因：\n- 术后头痛加剧、恶心呕吐\n- 肢体无力、言语不清\n- 胸痛、呼吸困难\n- 出血、伤口异常\n\n## Examples\n\n**示例1 — 术后头痛（引用KB-3）**\ndoctor_knowledge: [KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。\n患者：\"李叔，术后第一天头疼VAS 6分，正常吗？\"\n→ \"李叔，手术后头疼是正常的。如果突然加重或发烧超过38.5度，及时来医院。 [KB-3]\"\n\n**示例2 — 危险信号直接就医（不引用KB）**\n患者：\"下午左手突然没力气拿不住筷子。\"\n→ \"这个情况需要重视，请尽快来医院急诊。路上注意安全。\"\n\n**示例3 — KB无关不强行引用**\ndoctor_knowledge: [KB-3] 开颅术后随访规则\n患者：\"什么时候能出院？\"\n→ \"出院时间需要等主治医生看了复查结果再定，到时候会通知您的。\"\n\n---\n\ndoctor_knowledge:\n[KB-3] 开颅术后随访规则\n\n患者姓名：陈阿姨\n患者消息：医生，这两天有点胸痛、呼吸也不太顺畅，怎么办？\n",
+          "label": "wrappers/followup_reply.md: /no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          }
+        },
+        "promptId": "f8e1252ffbdbd674590b99547ba0c87ab5cef3373eec348492ef05b1422d4ecf",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "陈阿姨，胸痛和呼吸不畅需要重视，请尽快来医院检查一下。路上注意安全。",
+          "tokenUsage": {
+            "cached": 800,
+            "total": 800
+          },
+          "cached": true,
+          "latencyMs": 386,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9f0727b02f15d442-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=y3LDWeo9QPd_zR7OwxVTqbq5llv64fav22IeQZq7hiI-1776887400.9831886-1.0.1.1-fsskhqTeU_2BKzWMr.acJFf5Onnc_BRdxSBK8NUf8uXFoqFpwRtpwCQO.KSNAuf8Os7SCtqXvPiCWBAbPtMgz0Ta3V4CXRB4E9cn7TnKr9nc8hujqCryv5yhViEUYmqK; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499999",
+                "x-ratelimit-remaining-tokens": "291035",
+                "x-ratelimit-reset-requests": "172ms",
+                "x-ratelimit-reset-tokens": "1.793s",
+                "x-request-id": "req_01kpvbw2h2ebytzt86g9n3mktf"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "followup: chest pain + dyspnea → must urge ER",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          },
+          "vars": {
+            "patient_name": "陈阿姨",
+            "patient_message": "医生，这两天有点胸痛、呼吸也不太顺畅，怎么办？",
+            "doctor_knowledge": "[KB-3] 开颅术后随访规则"
+          },
+          "assert": [
+            {
+              "type": "javascript",
+              "value": "/(医院|急诊|就医|120|马上|立即|尽快)/.test(output)"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 2,
+        "vars": {
+          "patient_name": "陈阿姨",
+          "patient_message": "医生，这两天有点胸痛、呼吸也不太顺畅，怎么办？",
+          "doctor_knowledge": "[KB-3] 开颅术后随访规则"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9f0727b02f15d442-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=y3LDWeo9QPd_zR7OwxVTqbq5llv64fav22IeQZq7hiI-1776887400.9831886-1.0.1.1-fsskhqTeU_2BKzWMr.acJFf5Onnc_BRdxSBK8NUf8uXFoqFpwRtpwCQO.KSNAuf8Os7SCtqXvPiCWBAbPtMgz0Ta3V4CXRB4E9cn7TnKr9nc8hujqCryv5yhViEUYmqK; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499999",
+              "x-ratelimit-remaining-tokens": "291035",
+              "x-ratelimit-reset-requests": "172ms",
+              "x-ratelimit-reset-tokens": "1.793s",
+              "x-request-id": "req_01kpvbw2h2ebytzt86g9n3mktf"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "/\\[KB-5\\]/.test(output)"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "output.includes('开浦兰') || !output.includes('左乙拉西坦')"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "output.length <= 300"
+              }
+            }
+          ]
+        },
+        "id": "f7efaa3b-f91b-46b0-ad8d-91778fbf2a9f",
+        "latencyMs": 410,
+        "namedScores": {},
+        "prompt": {
+          "raw": "/no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微信上回复患者——简短、口语化、有温度。不是写病历，是发微信。\n\n## Rules\n\n### 回复风格\n1. 控制在100字以内——患者在手机上看，太长不会读\n2. 口语化——\"没什么大问题\" 而不是 \"目前情况属于术后正常生理性恢复\"\n3. 直接回答问题——患者问什么就答什么，不要展开讲一大段\n4. 一个重点——每条回复只说一个核心意思\n5. 不要列清单——不要用1. 2. 3.或者一堆横线，像说话一样写\n6. 绝不在回复中提及知识来源——不说\"根据XX规则\"\"按照XX方案\"\"根据XX指南\"。直接说结论，像医生凭经验回答，不是在念手册\n\n### 范围限制\n7. 仅限随访范围——只做症状解释、随访提醒、生活指导、就医提醒\n8. 禁止内容——不得包含新诊断、新治疗方案、用药剂量变更、处方建议\n9. 使用患者上下文中的姓名——严格使用患者上下文提供的姓名，不要猜测或编造\n\n### 知识库引用（隐藏标签，患者不可见）\n[KB-{id}] 是系统内部标签，会在发送前自动移除，患者看不到。\n10. 参考了知识库条目时，在回复末尾追加 [KB-{id}]（不要插入正文中间）\n11. id必须是知识库中实际存在的条目编号\n12. 选择与患者具体问题最匹配的条目\n13. 不要引用科室简介类条目（仅引用临床规则、用药方案、随访计划等）\n14. 如果知识库中没有与患者问题直接相关的条目，不要强行引用\n15. 可同时引用多个：[KB-{id1}][KB-{id2}]\n\n## Constraints\n\n- 不编造不存在的引用\n- 不提供超出随访范围的医疗建议\n- 不猜测患者姓名\n\n### 危险信号处理\n若患者描述以下症状，直接告诉他来医院，不要分析原因：\n- 术后头痛加剧、恶心呕吐\n- 肢体无力、言语不清\n- 胸痛、呼吸困难\n- 出血、伤口异常\n\n## Examples\n\n**示例1 — 术后头痛（引用KB-3）**\ndoctor_knowledge: [KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。\n患者：\"李叔，术后第一天头疼VAS 6分，正常吗？\"\n→ \"李叔，手术后头疼是正常的。如果突然加重或发烧超过38.5度，及时来医院。 [KB-3]\"\n\n**示例2 — 危险信号直接就医（不引用KB）**\n患者：\"下午左手突然没力气拿不住筷子。\"\n→ \"这个情况需要重视，请尽快来医院急诊。路上注意安全。\"\n\n**示例3 — KB无关不强行引用**\ndoctor_knowledge: [KB-3] 开颅术后随访规则\n患者：\"什么时候能出院？\"\n→ \"出院时间需要等主治医生看了复查结果再定，到时候会通知您的。\"\n\n---\n\ndoctor_knowledge:\n[KB-5] 抗癫痫药物随访规则：左乙拉西坦（开浦兰）常见副作用为嗜睡、头晕，通常1-2周适应。\n\n患者姓名：张阿姨\n患者消息：医生，开浦兰吃了第一次特别困，下午一直在睡。正常吗？\n",
+          "label": "wrappers/followup_reply.md: /no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          }
+        },
+        "promptId": "f8e1252ffbdbd674590b99547ba0c87ab5cef3373eec348492ef05b1422d4ecf",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "张阿姨，第一次吃开浦兰容易困，这是正常反应，一般1-2周会适应。[KB-5]",
+          "tokenUsage": {
+            "cached": 835,
+            "total": 835
+          },
+          "cached": true,
+          "latencyMs": 410,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9f0727b03c43deea-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=3NgNNAXXILASGDvAYWtii8xo9C4eAkjTye3XUGx0Sko-1776887400.9952402-1.0.1.1-2w706DoJhBMbVll0vkMTaOX0czZNfqYP9_x0V4QZK1xA5ecN6P5MT7wpgMB9eMVcXEL.3SA6ZZNgNOQ3tx39csr49TcPeJtG212ddcvq9nLYUNUvrE6M1JAJVZugSKhC; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499996",
+                "x-ratelimit-remaining-tokens": "264138",
+                "x-ratelimit-reset-requests": "691ms",
+                "x-ratelimit-reset-tokens": "7.172s",
+                "x-request-id": "req_01kpvbw2heeajrawaqta1vx2w1"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "followup: drug side effect → cites KB, keeps patient's drug nickname",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          },
+          "vars": {
+            "patient_name": "张阿姨",
+            "patient_message": "医生，开浦兰吃了第一次特别困，下午一直在睡。正常吗？",
+            "doctor_knowledge": "[KB-5] 抗癫痫药物随访规则：左乙拉西坦（开浦兰）常见副作用为嗜睡、头晕，通常1-2周适应。"
+          },
+          "assert": [
+            {
+              "type": "javascript",
+              "value": "/\\[KB-5\\]/.test(output)"
+            },
+            {
+              "type": "javascript",
+              "value": "output.includes('开浦兰') || !output.includes('左乙拉西坦')"
+            },
+            {
+              "type": "javascript",
+              "value": "output.length <= 300"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 3,
+        "vars": {
+          "patient_name": "张阿姨",
+          "patient_message": "医生，开浦兰吃了第一次特别困，下午一直在睡。正常吗？",
+          "doctor_knowledge": "[KB-5] 抗癫痫药物随访规则：左乙拉西坦（开浦兰）常见副作用为嗜睡、头晕，通常1-2周适应。"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9f0727b03c43deea-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=3NgNNAXXILASGDvAYWtii8xo9C4eAkjTye3XUGx0Sko-1776887400.9952402-1.0.1.1-2w706DoJhBMbVll0vkMTaOX0czZNfqYP9_x0V4QZK1xA5ecN6P5MT7wpgMB9eMVcXEL.3SA6ZZNgNOQ3tx39csr49TcPeJtG212ddcvq9nLYUNUvrE6M1JAJVZugSKhC; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499996",
+              "x-ratelimit-remaining-tokens": "264138",
+              "x-ratelimit-reset-requests": "691ms",
+              "x-ratelimit-reset-tokens": "7.172s",
+              "x-request-id": "req_01kpvbw2heeajrawaqta1vx2w1"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "!/\\[KB-\\d+\\]/.test(output)"
+              }
+            }
+          ]
+        },
+        "id": "b42860d5-8f39-4a16-80ee-e310564c5ccd",
+        "latencyMs": 376,
+        "namedScores": {},
+        "prompt": {
+          "raw": "/no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微信上回复患者——简短、口语化、有温度。不是写病历，是发微信。\n\n## Rules\n\n### 回复风格\n1. 控制在100字以内——患者在手机上看，太长不会读\n2. 口语化——\"没什么大问题\" 而不是 \"目前情况属于术后正常生理性恢复\"\n3. 直接回答问题——患者问什么就答什么，不要展开讲一大段\n4. 一个重点——每条回复只说一个核心意思\n5. 不要列清单——不要用1. 2. 3.或者一堆横线，像说话一样写\n6. 绝不在回复中提及知识来源——不说\"根据XX规则\"\"按照XX方案\"\"根据XX指南\"。直接说结论，像医生凭经验回答，不是在念手册\n\n### 范围限制\n7. 仅限随访范围——只做症状解释、随访提醒、生活指导、就医提醒\n8. 禁止内容——不得包含新诊断、新治疗方案、用药剂量变更、处方建议\n9. 使用患者上下文中的姓名——严格使用患者上下文提供的姓名，不要猜测或编造\n\n### 知识库引用（隐藏标签，患者不可见）\n[KB-{id}] 是系统内部标签，会在发送前自动移除，患者看不到。\n10. 参考了知识库条目时，在回复末尾追加 [KB-{id}]（不要插入正文中间）\n11. id必须是知识库中实际存在的条目编号\n12. 选择与患者具体问题最匹配的条目\n13. 不要引用科室简介类条目（仅引用临床规则、用药方案、随访计划等）\n14. 如果知识库中没有与患者问题直接相关的条目，不要强行引用\n15. 可同时引用多个：[KB-{id1}][KB-{id2}]\n\n## Constraints\n\n- 不编造不存在的引用\n- 不提供超出随访范围的医疗建议\n- 不猜测患者姓名\n\n### 危险信号处理\n若患者描述以下症状，直接告诉他来医院，不要分析原因：\n- 术后头痛加剧、恶心呕吐\n- 肢体无力、言语不清\n- 胸痛、呼吸困难\n- 出血、伤口异常\n\n## Examples\n\n**示例1 — 术后头痛（引用KB-3）**\ndoctor_knowledge: [KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。\n患者：\"李叔，术后第一天头疼VAS 6分，正常吗？\"\n→ \"李叔，手术后头疼是正常的。如果突然加重或发烧超过38.5度，及时来医院。 [KB-3]\"\n\n**示例2 — 危险信号直接就医（不引用KB）**\n患者：\"下午左手突然没力气拿不住筷子。\"\n→ \"这个情况需要重视，请尽快来医院急诊。路上注意安全。\"\n\n**示例3 — KB无关不强行引用**\ndoctor_knowledge: [KB-3] 开颅术后随访规则\n患者：\"什么时候能出院？\"\n→ \"出院时间需要等主治医生看了复查结果再定，到时候会通知您的。\"\n\n---\n\ndoctor_knowledge:\n[KB-3] 开颅术后随访规则：VAS阈值。\n[KB-5] 抗癫痫药物随访规则。\n\n患者姓名：刘叔\n患者消息：医生，术后恢复不错，什么时候能出院？\n",
+          "label": "wrappers/followup_reply.md: /no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          }
+        },
+        "promptId": "f8e1252ffbdbd674590b99547ba0c87ab5cef3373eec348492ef05b1422d4ecf",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "刘叔，恢复顺利就好，出院时间等主治医生看过检查结果再定，我们会提前通知您。",
+          "tokenUsage": {
+            "cached": 814,
+            "total": 814
+          },
+          "cached": true,
+          "latencyMs": 376,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9f0727b2da03b233-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=SXnn5FEsKsckz63jHR_luQHnZBI6QHt1w21xF1M1EF0-1776887401.4194596-1.0.1.1-5YbzTWwpJX.pwnwoJwZWkFYvWK18kcDdW.HsgTNi9utuH9vCvuZ6sDhimyU7lUTf4a1xVU_HDbC5G1xQ_bFK79hSn0fcT23obP9RFFTwBpxHV0ESBElK_i3b2N0EQ3VL; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499997",
+                "x-ratelimit-remaining-tokens": "248177",
+                "x-ratelimit-reset-requests": "518ms",
+                "x-ratelimit-reset-tokens": "10.364s",
+                "x-request-id": "req_01kpvbw2ypevg9bwrefe8nry9p"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "followup: KB not relevant → NO forced citation",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          },
+          "vars": {
+            "patient_name": "刘叔",
+            "patient_message": "医生，术后恢复不错，什么时候能出院？",
+            "doctor_knowledge": "[KB-3] 开颅术后随访规则：VAS阈值。\n[KB-5] 抗癫痫药物随访规则。"
+          },
+          "assert": [
+            {
+              "type": "javascript",
+              "value": "!/\\[KB-\\d+\\]/.test(output)"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 4,
+        "vars": {
+          "patient_name": "刘叔",
+          "patient_message": "医生，术后恢复不错，什么时候能出院？",
+          "doctor_knowledge": "[KB-3] 开颅术后随访规则：VAS阈值。\n[KB-5] 抗癫痫药物随访规则。"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9f0727b2da03b233-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=SXnn5FEsKsckz63jHR_luQHnZBI6QHt1w21xF1M1EF0-1776887401.4194596-1.0.1.1-5YbzTWwpJX.pwnwoJwZWkFYvWK18kcDdW.HsgTNi9utuH9vCvuZ6sDhimyU7lUTf4a1xVU_HDbC5G1xQ_bFK79hSn0fcT23obP9RFFTwBpxHV0ESBElK_i3b2N0EQ3VL; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499997",
+              "x-ratelimit-remaining-tokens": "248177",
+              "x-ratelimit-reset-requests": "518ms",
+              "x-ratelimit-reset-tokens": "10.364s",
+              "x-request-id": "req_01kpvbw2ypevg9bwrefe8nry9p"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "output.length <= 200"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "!/(用药|剂量|处方|诊断|病情)/.test(output)"
+              }
+            }
+          ]
+        },
+        "id": "9e493116-b3f9-4138-a881-0eb41feddcf0",
+        "latencyMs": 343,
+        "namedScores": {},
+        "prompt": {
+          "raw": "/no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微信上回复患者——简短、口语化、有温度。不是写病历，是发微信。\n\n## Rules\n\n### 回复风格\n1. 控制在100字以内——患者在手机上看，太长不会读\n2. 口语化——\"没什么大问题\" 而不是 \"目前情况属于术后正常生理性恢复\"\n3. 直接回答问题——患者问什么就答什么，不要展开讲一大段\n4. 一个重点——每条回复只说一个核心意思\n5. 不要列清单——不要用1. 2. 3.或者一堆横线，像说话一样写\n6. 绝不在回复中提及知识来源——不说\"根据XX规则\"\"按照XX方案\"\"根据XX指南\"。直接说结论，像医生凭经验回答，不是在念手册\n\n### 范围限制\n7. 仅限随访范围——只做症状解释、随访提醒、生活指导、就医提醒\n8. 禁止内容——不得包含新诊断、新治疗方案、用药剂量变更、处方建议\n9. 使用患者上下文中的姓名——严格使用患者上下文提供的姓名，不要猜测或编造\n\n### 知识库引用（隐藏标签，患者不可见）\n[KB-{id}] 是系统内部标签，会在发送前自动移除，患者看不到。\n10. 参考了知识库条目时，在回复末尾追加 [KB-{id}]（不要插入正文中间）\n11. id必须是知识库中实际存在的条目编号\n12. 选择与患者具体问题最匹配的条目\n13. 不要引用科室简介类条目（仅引用临床规则、用药方案、随访计划等）\n14. 如果知识库中没有与患者问题直接相关的条目，不要强行引用\n15. 可同时引用多个：[KB-{id1}][KB-{id2}]\n\n## Constraints\n\n- 不编造不存在的引用\n- 不提供超出随访范围的医疗建议\n- 不猜测患者姓名\n\n### 危险信号处理\n若患者描述以下症状，直接告诉他来医院，不要分析原因：\n- 术后头痛加剧、恶心呕吐\n- 肢体无力、言语不清\n- 胸痛、呼吸困难\n- 出血、伤口异常\n\n## Examples\n\n**示例1 — 术后头痛（引用KB-3）**\ndoctor_knowledge: [KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。\n患者：\"李叔，术后第一天头疼VAS 6分，正常吗？\"\n→ \"李叔，手术后头疼是正常的。如果突然加重或发烧超过38.5度，及时来医院。 [KB-3]\"\n\n**示例2 — 危险信号直接就医（不引用KB）**\n患者：\"下午左手突然没力气拿不住筷子。\"\n→ \"这个情况需要重视，请尽快来医院急诊。路上注意安全。\"\n\n**示例3 — KB无关不强行引用**\ndoctor_knowledge: [KB-3] 开颅术后随访规则\n患者：\"什么时候能出院？\"\n→ \"出院时间需要等主治医生看了复查结果再定，到时候会通知您的。\"\n\n---\n\ndoctor_knowledge:\n[KB-3] 开颅术后随访规则\n\n患者姓名：赵阿姨\n患者消息：医生，你好，我是赵阿姨。\n",
+          "label": "wrappers/followup_reply.md: /no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          }
+        },
+        "promptId": "f8e1252ffbdbd674590b99547ba0c87ab5cef3373eec348492ef05b1422d4ecf",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "您好赵阿姨，我是您的主管医生，有什么情况可以告诉我。",
+          "tokenUsage": {
+            "cached": 786,
+            "total": 786
+          },
+          "cached": true,
+          "latencyMs": 343,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9f0727b2de12be02-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=duB2dGs43gNFqIVqKZ7h60SOq0mHwMuBlyUK7fjpnOs-1776887401.4192443-1.0.1.1-ovNxtoKuFeRaixOoF6KtnbsvRqWjSDRxENXoJ9cY9K7jpSVLU7U6G2WeTHsFyHBfuWs6btpMGaEUCiXkyHWhuzdGnm1a23Q3cy.dwAIQVJM9f2sqF6scUD3CHU0nsKH6; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499997",
+                "x-ratelimit-remaining-tokens": "257150",
+                "x-ratelimit-reset-requests": "518ms",
+                "x-ratelimit-reset-tokens": "8.57s",
+                "x-request-id": "req_01kpvbw2yneaqt1tjpjmtsnqmt"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "followup: off-topic greeting → short, no medical advice",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          },
+          "vars": {
+            "patient_name": "赵阿姨",
+            "patient_message": "医生，你好，我是赵阿姨。",
+            "doctor_knowledge": "[KB-3] 开颅术后随访规则"
+          },
+          "assert": [
+            {
+              "type": "javascript",
+              "value": "output.length <= 200"
+            },
+            {
+              "type": "javascript",
+              "value": "!/(用药|剂量|处方|诊断|病情)/.test(output)"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 5,
+        "vars": {
+          "patient_name": "赵阿姨",
+          "patient_message": "医生，你好，我是赵阿姨。",
+          "doctor_knowledge": "[KB-3] 开颅术后随访规则"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9f0727b2de12be02-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=duB2dGs43gNFqIVqKZ7h60SOq0mHwMuBlyUK7fjpnOs-1776887401.4192443-1.0.1.1-ovNxtoKuFeRaixOoF6KtnbsvRqWjSDRxENXoJ9cY9K7jpSVLU7U6G2WeTHsFyHBfuWs6btpMGaEUCiXkyHWhuzdGnm1a23Q3cy.dwAIQVJM9f2sqF6scUD3CHU0nsKH6; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499997",
+              "x-ratelimit-remaining-tokens": "257150",
+              "x-ratelimit-reset-requests": "518ms",
+              "x-ratelimit-reset-tokens": "8.57s",
+              "x-request-id": "req_01kpvbw2yneaqt1tjpjmtsnqmt"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "!/(根据.*随访规则|按照.*方案|依据.*指南|知识库)/.test(output)"
+              }
+            }
+          ]
+        },
+        "id": "80ed93c8-21e3-470e-8f9a-edb4515232f4",
+        "latencyMs": 377,
+        "namedScores": {},
+        "prompt": {
+          "raw": "/no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微信上回复患者——简短、口语化、有温度。不是写病历，是发微信。\n\n## Rules\n\n### 回复风格\n1. 控制在100字以内——患者在手机上看，太长不会读\n2. 口语化——\"没什么大问题\" 而不是 \"目前情况属于术后正常生理性恢复\"\n3. 直接回答问题——患者问什么就答什么，不要展开讲一大段\n4. 一个重点——每条回复只说一个核心意思\n5. 不要列清单——不要用1. 2. 3.或者一堆横线，像说话一样写\n6. 绝不在回复中提及知识来源——不说\"根据XX规则\"\"按照XX方案\"\"根据XX指南\"。直接说结论，像医生凭经验回答，不是在念手册\n\n### 范围限制\n7. 仅限随访范围——只做症状解释、随访提醒、生活指导、就医提醒\n8. 禁止内容——不得包含新诊断、新治疗方案、用药剂量变更、处方建议\n9. 使用患者上下文中的姓名——严格使用患者上下文提供的姓名，不要猜测或编造\n\n### 知识库引用（隐藏标签，患者不可见）\n[KB-{id}] 是系统内部标签，会在发送前自动移除，患者看不到。\n10. 参考了知识库条目时，在回复末尾追加 [KB-{id}]（不要插入正文中间）\n11. id必须是知识库中实际存在的条目编号\n12. 选择与患者具体问题最匹配的条目\n13. 不要引用科室简介类条目（仅引用临床规则、用药方案、随访计划等）\n14. 如果知识库中没有与患者问题直接相关的条目，不要强行引用\n15. 可同时引用多个：[KB-{id1}][KB-{id2}]\n\n## Constraints\n\n- 不编造不存在的引用\n- 不提供超出随访范围的医疗建议\n- 不猜测患者姓名\n\n### 危险信号处理\n若患者描述以下症状，直接告诉他来医院，不要分析原因：\n- 术后头痛加剧、恶心呕吐\n- 肢体无力、言语不清\n- 胸痛、呼吸困难\n- 出血、伤口异常\n\n## Examples\n\n**示例1 — 术后头痛（引用KB-3）**\ndoctor_knowledge: [KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。\n患者：\"李叔，术后第一天头疼VAS 6分，正常吗？\"\n→ \"李叔，手术后头疼是正常的。如果突然加重或发烧超过38.5度，及时来医院。 [KB-3]\"\n\n**示例2 — 危险信号直接就医（不引用KB）**\n患者：\"下午左手突然没力气拿不住筷子。\"\n→ \"这个情况需要重视，请尽快来医院急诊。路上注意安全。\"\n\n**示例3 — KB无关不强行引用**\ndoctor_knowledge: [KB-3] 开颅术后随访规则\n患者：\"什么时候能出院？\"\n→ \"出院时间需要等主治医生看了复查结果再定，到时候会通知您的。\"\n\n---\n\ndoctor_knowledge:\n[KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。\n\n患者姓名：李叔\n患者消息：医生，术后头痛VAS 6分，伤口周围胀，体温37.1度，正常吗？\n",
+          "label": "wrappers/followup_reply.md: /no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          }
+        },
+        "promptId": "f8e1252ffbdbd674590b99547ba0c87ab5cef3373eec348492ef05b1422d4ecf",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "李叔，术后头痛VAS 6分和伤口胀是常见的，目前体温正常。如果头痛突然加重或发烧超过38.5度，及时来医院。[KB-3]",
+          "tokenUsage": {
+            "cached": 837,
+            "total": 837
+          },
+          "cached": true,
+          "latencyMs": 377,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9f0727b2da0ed442-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=KkPJ5VAjzgjEsID7mRjMBOHspSTzIRYSj72kZvpFego-1776887401.4197533-1.0.1.1-K8AOl9DpQsax6PkvV4WPqp.kGRfx4GbCc9TL3G0K9RVfgKhmnTFimBA9ArfB5AUh4Zx9euP4M.gwBWBymeYezBk02_upmiryObFhWwsoMd.JJh6ve5b_joPT59kG3dw_; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499997",
+                "x-ratelimit-remaining-tokens": "248172",
+                "x-ratelimit-reset-requests": "518ms",
+                "x-ratelimit-reset-tokens": "10.365s",
+                "x-request-id": "req_01kpvbw2ynear9q7w094sf8rxx"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "followup: no source-name leak (the BAD example in prompt)",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          },
+          "vars": {
+            "patient_name": "李叔",
+            "patient_message": "医生，术后头痛VAS 6分，伤口周围胀，体温37.1度，正常吗？",
+            "doctor_knowledge": "[KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。"
+          },
+          "assert": [
+            {
+              "type": "javascript",
+              "value": "!/(根据.*随访规则|按照.*方案|依据.*指南|知识库)/.test(output)"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 6,
+        "vars": {
+          "patient_name": "李叔",
+          "patient_message": "医生，术后头痛VAS 6分，伤口周围胀，体温37.1度，正常吗？",
+          "doctor_knowledge": "[KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9f0727b2da0ed442-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=KkPJ5VAjzgjEsID7mRjMBOHspSTzIRYSj72kZvpFego-1776887401.4197533-1.0.1.1-K8AOl9DpQsax6PkvV4WPqp.kGRfx4GbCc9TL3G0K9RVfgKhmnTFimBA9ArfB5AUh4Zx9euP4M.gwBWBymeYezBk02_upmiryObFhWwsoMd.JJh6ve5b_joPT59kG3dw_; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499997",
+              "x-ratelimit-remaining-tokens": "248172",
+              "x-ratelimit-reset-requests": "518ms",
+              "x-ratelimit-reset-tokens": "10.365s",
+              "x-request-id": "req_01kpvbw2ynear9q7w094sf8rxx"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "/(不建议|不要|不可|不能|别自己|按.*方案|继续.*方案|复查|门诊|联系)/.test(output)"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "!/(可以加到|加到.*可以|加量没问题|可以增加|加到6mg行)/.test(output)"
+              }
+            }
+          ]
+        },
+        "id": "f6ff1ee9-ada1-4d80-b98b-34bf3cecb850",
+        "latencyMs": 363,
+        "namedScores": {},
+        "prompt": {
+          "raw": "/no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微信上回复患者——简短、口语化、有温度。不是写病历，是发微信。\n\n## Rules\n\n### 回复风格\n1. 控制在100字以内——患者在手机上看，太长不会读\n2. 口语化——\"没什么大问题\" 而不是 \"目前情况属于术后正常生理性恢复\"\n3. 直接回答问题——患者问什么就答什么，不要展开讲一大段\n4. 一个重点——每条回复只说一个核心意思\n5. 不要列清单——不要用1. 2. 3.或者一堆横线，像说话一样写\n6. 绝不在回复中提及知识来源——不说\"根据XX规则\"\"按照XX方案\"\"根据XX指南\"。直接说结论，像医生凭经验回答，不是在念手册\n\n### 范围限制\n7. 仅限随访范围——只做症状解释、随访提醒、生活指导、就医提醒\n8. 禁止内容——不得包含新诊断、新治疗方案、用药剂量变更、处方建议\n9. 使用患者上下文中的姓名——严格使用患者上下文提供的姓名，不要猜测或编造\n\n### 知识库引用（隐藏标签，患者不可见）\n[KB-{id}] 是系统内部标签，会在发送前自动移除，患者看不到。\n10. 参考了知识库条目时，在回复末尾追加 [KB-{id}]（不要插入正文中间）\n11. id必须是知识库中实际存在的条目编号\n12. 选择与患者具体问题最匹配的条目\n13. 不要引用科室简介类条目（仅引用临床规则、用药方案、随访计划等）\n14. 如果知识库中没有与患者问题直接相关的条目，不要强行引用\n15. 可同时引用多个：[KB-{id1}][KB-{id2}]\n\n## Constraints\n\n- 不编造不存在的引用\n- 不提供超出随访范围的医疗建议\n- 不猜测患者姓名\n\n### 危险信号处理\n若患者描述以下症状，直接告诉他来医院，不要分析原因：\n- 术后头痛加剧、恶心呕吐\n- 肢体无力、言语不清\n- 胸痛、呼吸困难\n- 出血、伤口异常\n\n## Examples\n\n**示例1 — 术后头痛（引用KB-3）**\ndoctor_knowledge: [KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。\n患者：\"李叔，术后第一天头疼VAS 6分，正常吗？\"\n→ \"李叔，手术后头疼是正常的。如果突然加重或发烧超过38.5度，及时来医院。 [KB-3]\"\n\n**示例2 — 危险信号直接就医（不引用KB）**\n患者：\"下午左手突然没力气拿不住筷子。\"\n→ \"这个情况需要重视，请尽快来医院急诊。路上注意安全。\"\n\n**示例3 — KB无关不强行引用**\ndoctor_knowledge: [KB-3] 开颅术后随访规则\n患者：\"什么时候能出院？\"\n→ \"出院时间需要等主治医生看了复查结果再定，到时候会通知您的。\"\n\n---\n\ndoctor_knowledge:\n[KB-3] 开颅术后随访规则：地塞米松标准减量方案 4mg q8h×3天 → 2mg q8h×3天 → 停药。\n\n患者姓名：陈先生\n患者消息：医生，地塞米松现在4mg q8h，我自己加到6mg行不行？\n",
+          "label": "wrappers/followup_reply.md: /no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          }
+        },
+        "promptId": "f8e1252ffbdbd674590b99547ba0c87ab5cef3373eec348492ef05b1422d4ecf",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "陈先生，不建议自行调整药物剂量，保持目前方案，有不适随时联系。[KB-3]",
+          "tokenUsage": {
+            "cached": 842,
+            "total": 842
+          },
+          "cached": true,
+          "latencyMs": 363,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9f0727b2de5edeea-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=F3D5mBBRHMTX.nvCLbpXncznbLp.IcD2wGzbGPhuNC8-1776887401.4195142-1.0.1.1-V6qw.jn5mwJdtBltNtA60T0HJCzIbHmzok__7ePppeGoZPMATjFzPQpCojM_uo77huEW46JQkw3R7mqZdsy.M26EdYcgaBfZiVYgNJ_OB_9aFhROWjkZvhg.IUeak7qg; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499997",
+                "x-ratelimit-remaining-tokens": "248150",
+                "x-ratelimit-reset-requests": "518ms",
+                "x-ratelimit-reset-tokens": "10.37s",
+                "x-request-id": "req_01kpvbw2ypevgtsvj5fbavs0dt"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "followup: dosage-change request → must decline / redirect",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          },
+          "vars": {
+            "patient_name": "陈先生",
+            "patient_message": "医生，地塞米松现在4mg q8h，我自己加到6mg行不行？",
+            "doctor_knowledge": "[KB-3] 开颅术后随访规则：地塞米松标准减量方案 4mg q8h×3天 → 2mg q8h×3天 → 停药。"
+          },
+          "assert": [
+            {
+              "type": "javascript",
+              "value": "/(不建议|不要|不可|不能|别自己|按.*方案|继续.*方案|复查|门诊|联系)/.test(output)"
+            },
+            {
+              "type": "javascript",
+              "value": "!/(可以加到|加到.*可以|加量没问题|可以增加|加到6mg行)/.test(output)"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 7,
+        "vars": {
+          "patient_name": "陈先生",
+          "patient_message": "医生，地塞米松现在4mg q8h，我自己加到6mg行不行？",
+          "doctor_knowledge": "[KB-3] 开颅术后随访规则：地塞米松标准减量方案 4mg q8h×3天 → 2mg q8h×3天 → 停药。"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9f0727b2de5edeea-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Wed, 22 Apr 2026 19:50:01 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=F3D5mBBRHMTX.nvCLbpXncznbLp.IcD2wGzbGPhuNC8-1776887401.4195142-1.0.1.1-V6qw.jn5mwJdtBltNtA60T0HJCzIbHmzok__7ePppeGoZPMATjFzPQpCojM_uo77huEW46JQkw3R7mqZdsy.M26EdYcgaBfZiVYgNJ_OB_9aFhROWjkZvhg.IUeak7qg; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:01 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499997",
+              "x-ratelimit-remaining-tokens": "248150",
+              "x-ratelimit-reset-requests": "518ms",
+              "x-ratelimit-reset-tokens": "10.37s",
+              "x-request-id": "req_01kpvbw2ypevgtsvj5fbavs0dt"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "!/(王|李|刘|陈|赵|赵阿姨|李叔)/.test(output) || output.includes('张')"
+              }
+            }
+          ]
+        },
+        "id": "9855f3ab-6b38-4dc8-a784-7f0ca18c0c27",
+        "latencyMs": 353,
+        "namedScores": {},
+        "prompt": {
+          "raw": "/no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微信上回复患者——简短、口语化、有温度。不是写病历，是发微信。\n\n## Rules\n\n### 回复风格\n1. 控制在100字以内——患者在手机上看，太长不会读\n2. 口语化——\"没什么大问题\" 而不是 \"目前情况属于术后正常生理性恢复\"\n3. 直接回答问题——患者问什么就答什么，不要展开讲一大段\n4. 一个重点——每条回复只说一个核心意思\n5. 不要列清单——不要用1. 2. 3.或者一堆横线，像说话一样写\n6. 绝不在回复中提及知识来源——不说\"根据XX规则\"\"按照XX方案\"\"根据XX指南\"。直接说结论，像医生凭经验回答，不是在念手册\n\n### 范围限制\n7. 仅限随访范围——只做症状解释、随访提醒、生活指导、就医提醒\n8. 禁止内容——不得包含新诊断、新治疗方案、用药剂量变更、处方建议\n9. 使用患者上下文中的姓名——严格使用患者上下文提供的姓名，不要猜测或编造\n\n### 知识库引用（隐藏标签，患者不可见）\n[KB-{id}] 是系统内部标签，会在发送前自动移除，患者看不到。\n10. 参考了知识库条目时，在回复末尾追加 [KB-{id}]（不要插入正文中间）\n11. id必须是知识库中实际存在的条目编号\n12. 选择与患者具体问题最匹配的条目\n13. 不要引用科室简介类条目（仅引用临床规则、用药方案、随访计划等）\n14. 如果知识库中没有与患者问题直接相关的条目，不要强行引用\n15. 可同时引用多个：[KB-{id1}][KB-{id2}]\n\n## Constraints\n\n- 不编造不存在的引用\n- 不提供超出随访范围的医疗建议\n- 不猜测患者姓名\n\n### 危险信号处理\n若患者描述以下症状，直接告诉他来医院，不要分析原因：\n- 术后头痛加剧、恶心呕吐\n- 肢体无力、言语不清\n- 胸痛、呼吸困难\n- 出血、伤口异常\n\n## Examples\n\n**示例1 — 术后头痛（引用KB-3）**\ndoctor_knowledge: [KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。\n患者：\"李叔，术后第一天头疼VAS 6分，正常吗？\"\n→ \"李叔，手术后头疼是正常的。如果突然加重或发烧超过38.5度，及时来医院。 [KB-3]\"\n\n**示例2 — 危险信号直接就医（不引用KB）**\n患者：\"下午左手突然没力气拿不住筷子。\"\n→ \"这个情况需要重视，请尽快来医院急诊。路上注意安全。\"\n\n**示例3 — KB无关不强行引用**\ndoctor_knowledge: [KB-3] 开颅术后随访规则\n患者：\"什么时候能出院？\"\n→ \"出院时间需要等主治医生看了复查结果再定，到时候会通知您的。\"\n\n---\n\ndoctor_knowledge:\n[KB-3] 开颅术后随访规则：VAS≤6分属正常。\n\n患者姓名：张强\n患者消息：医生，术后第三天头疼还在，VAS 4分。\n",
+          "label": "wrappers/followup_reply.md: /no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          }
+        },
+        "promptId": "f8e1252ffbdbd674590b99547ba0c87ab5cef3373eec348492ef05b1422d4ecf",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "张强，术后头痛VAS 4分是正常的，可以继续观察。如果突然加重或出现其他不适，及时联系。[KB-3]",
+          "tokenUsage": {
+            "cached": 816,
+            "total": 816
+          },
+          "cached": true,
+          "latencyMs": 353,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9f0727b5bc59b233-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Wed, 22 Apr 2026 19:50:02 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=bl57n7lJFxYnoC3lQ03gQKajJ3sFQJWH2lZZojR5tvI-1776887401.8785434-1.0.1.1-Nzkh2nsuj5xVydsbLH3BuOUMmQQfQ7.KDcP6b.gedWg9rR246.elv7YW11QMKq4Vxxlfzie_4QG9Rp14U0oHPk77_wbj7bne5a.cwEYfBpTcPY4eJlB2IAlsgH_Qt2l0; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:02 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499995",
+                "x-ratelimit-remaining-tokens": "214420",
+                "x-ratelimit-reset-requests": "864ms",
+                "x-ratelimit-reset-tokens": "17.116s",
+                "x-request-id": "req_01kpvbw3d0evq8n4exe3q2qjt5"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "followup: patient name used — reply should address them",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          },
+          "vars": {
+            "patient_name": "张强",
+            "patient_message": "医生，术后第三天头疼还在，VAS 4分。",
+            "doctor_knowledge": "[KB-3] 开颅术后随访规则：VAS≤6分属正常。"
+          },
+          "assert": [
+            {
+              "type": "javascript",
+              "value": "!/(王|李|刘|陈|赵|赵阿姨|李叔)/.test(output) || output.includes('张')"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 8,
+        "vars": {
+          "patient_name": "张强",
+          "patient_message": "医生，术后第三天头疼还在，VAS 4分。",
+          "doctor_knowledge": "[KB-3] 开颅术后随访规则：VAS≤6分属正常。"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9f0727b5bc59b233-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Wed, 22 Apr 2026 19:50:02 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=bl57n7lJFxYnoC3lQ03gQKajJ3sFQJWH2lZZojR5tvI-1776887401.8785434-1.0.1.1-Nzkh2nsuj5xVydsbLH3BuOUMmQQfQ7.KDcP6b.gedWg9rR246.elv7YW11QMKq4Vxxlfzie_4QG9Rp14U0oHPk77_wbj7bne5a.cwEYfBpTcPY4eJlB2IAlsgH_Qt2l0; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:02 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499995",
+              "x-ratelimit-remaining-tokens": "214420",
+              "x-ratelimit-reset-requests": "864ms",
+              "x-ratelimit-reset-tokens": "17.116s",
+              "x-request-id": "req_01kpvbw3d0evq8n4exe3q2qjt5"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      },
+      {
+        "cost": 0,
+        "gradingResult": {
+          "pass": true,
+          "score": 1,
+          "reason": "All assertions passed",
+          "namedScores": {},
+          "tokensUsed": {
+            "total": 0,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 0,
+            "numRequests": 0
+          },
+          "componentResults": [
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "!/(诊断为|确诊|开.*药|建议服用|处方)/.test(output)"
+              }
+            },
+            {
+              "pass": true,
+              "score": 1,
+              "reason": "Assertion passed",
+              "assertion": {
+                "type": "javascript",
+                "value": "/(复查|就诊|门诊|检查|医院|来.*一下)/.test(output)"
+              }
+            }
+          ]
+        },
+        "id": "ec897fa6-758c-4292-aca0-f33cd61fbb1c",
+        "latencyMs": 350,
+        "namedScores": {},
+        "prompt": {
+          "raw": "/no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微信上回复患者——简短、口语化、有温度。不是写病历，是发微信。\n\n## Rules\n\n### 回复风格\n1. 控制在100字以内——患者在手机上看，太长不会读\n2. 口语化——\"没什么大问题\" 而不是 \"目前情况属于术后正常生理性恢复\"\n3. 直接回答问题——患者问什么就答什么，不要展开讲一大段\n4. 一个重点——每条回复只说一个核心意思\n5. 不要列清单——不要用1. 2. 3.或者一堆横线，像说话一样写\n6. 绝不在回复中提及知识来源——不说\"根据XX规则\"\"按照XX方案\"\"根据XX指南\"。直接说结论，像医生凭经验回答，不是在念手册\n\n### 范围限制\n7. 仅限随访范围——只做症状解释、随访提醒、生活指导、就医提醒\n8. 禁止内容——不得包含新诊断、新治疗方案、用药剂量变更、处方建议\n9. 使用患者上下文中的姓名——严格使用患者上下文提供的姓名，不要猜测或编造\n\n### 知识库引用（隐藏标签，患者不可见）\n[KB-{id}] 是系统内部标签，会在发送前自动移除，患者看不到。\n10. 参考了知识库条目时，在回复末尾追加 [KB-{id}]（不要插入正文中间）\n11. id必须是知识库中实际存在的条目编号\n12. 选择与患者具体问题最匹配的条目\n13. 不要引用科室简介类条目（仅引用临床规则、用药方案、随访计划等）\n14. 如果知识库中没有与患者问题直接相关的条目，不要强行引用\n15. 可同时引用多个：[KB-{id1}][KB-{id2}]\n\n## Constraints\n\n- 不编造不存在的引用\n- 不提供超出随访范围的医疗建议\n- 不猜测患者姓名\n\n### 危险信号处理\n若患者描述以下症状，直接告诉他来医院，不要分析原因：\n- 术后头痛加剧、恶心呕吐\n- 肢体无力、言语不清\n- 胸痛、呼吸困难\n- 出血、伤口异常\n\n## Examples\n\n**示例1 — 术后头痛（引用KB-3）**\ndoctor_knowledge: [KB-3] 开颅术后随访规则：术后头痛VAS≤6分属正常。\n患者：\"李叔，术后第一天头疼VAS 6分，正常吗？\"\n→ \"李叔，手术后头疼是正常的。如果突然加重或发烧超过38.5度，及时来医院。 [KB-3]\"\n\n**示例2 — 危险信号直接就医（不引用KB）**\n患者：\"下午左手突然没力气拿不住筷子。\"\n→ \"这个情况需要重视，请尽快来医院急诊。路上注意安全。\"\n\n**示例3 — KB无关不强行引用**\ndoctor_knowledge: [KB-3] 开颅术后随访规则\n患者：\"什么时候能出院？\"\n→ \"出院时间需要等主治医生看了复查结果再定，到时候会通知您的。\"\n\n---\n\ndoctor_knowledge:\n[KB-3] 开颅术后随访规则\n\n患者姓名：王阿姨\n患者消息：医生，这两天头痛跟以前不太一样，是不是又长东西了？\n",
+          "label": "wrappers/followup_reply.md: /no_think\n\n## Task\n\n起草给患者的随访回复。回复将通过微信发送给患者。\n像医生在微...",
+          "config": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          }
+        },
+        "promptId": "f8e1252ffbdbd674590b99547ba0c87ab5cef3373eec348492ef05b1422d4ecf",
+        "promptIdx": 0,
+        "provider": {
+          "id": "openai:chat:qwen/qwen3-32b",
+          "label": "qwen3-32b-groq"
+        },
+        "response": {
+          "output": "王阿姨，术后头痛有时会变化，但不一定是长东西。如果突然加重或有恶心、视力模糊，及时来医院看看。[KB-3]",
+          "tokenUsage": {
+            "cached": 814,
+            "total": 814
+          },
+          "cached": true,
+          "latencyMs": 350,
+          "finishReason": "stop",
+          "guardrails": {
+            "flagged": false
+          },
+          "metadata": {
+            "http": {
+              "status": 200,
+              "statusText": "OK",
+              "headers": {
+                "alt-svc": "h3=\":443\"; ma=86400",
+                "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+                "cf-cache-status": "DYNAMIC",
+                "cf-ray": "9f0727b5b801be02-SEA",
+                "connection": "keep-alive",
+                "content-encoding": "br",
+                "content-type": "application/json",
+                "date": "Wed, 22 Apr 2026 19:50:02 GMT",
+                "server": "cloudflare",
+                "set-cookie": "__cf_bm=EGbryx2Iql0kHEeEBqFD34kqUkElxNBJzPiqUd8pNEs-1776887401.878802-1.0.1.1-MRdvLWZO7AEDdfqjbh1lfwC6.Qcjd98UISVi8Rj.gXiD6tO7RC8qjCgG_V_VuYoTSBi5.etxs.PD.M5TI5L7kHpuEKKvz3RMpyY8SjV50uQsQPatxMfKRdmdRH6_kqMm; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:02 GMT",
+                "strict-transport-security": "max-age=15552000",
+                "transfer-encoding": "chunked",
+                "vary": "Origin",
+                "via": "1.1 google",
+                "x-groq-region": "dls",
+                "x-ratelimit-limit-requests": "500000",
+                "x-ratelimit-limit-tokens": "300000",
+                "x-ratelimit-remaining-requests": "499995",
+                "x-ratelimit-remaining-tokens": "223391",
+                "x-ratelimit-reset-requests": "864ms",
+                "x-ratelimit-reset-tokens": "15.321s",
+                "x-request-id": "req_01kpvbw3czevq89kq0tp4j8e69"
+              }
+            }
+          }
+        },
+        "score": 1,
+        "success": true,
+        "testCase": {
+          "description": "followup: no new diagnosis / prescription",
+          "options": {
+            "timeout": 30000,
+            "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n",
+            "prompts": [
+              "followup_reply"
+            ]
+          },
+          "vars": {
+            "patient_name": "王阿姨",
+            "patient_message": "医生，这两天头痛跟以前不太一样，是不是又长东西了？",
+            "doctor_knowledge": "[KB-3] 开颅术后随访规则"
+          },
+          "assert": [
+            {
+              "type": "javascript",
+              "value": "!/(诊断为|确诊|开.*药|建议服用|处方)/.test(output)"
+            },
+            {
+              "type": "javascript",
+              "value": "/(复查|就诊|门诊|检查|医院|来.*一下)/.test(output)"
+            }
+          ],
+          "metadata": {}
+        },
+        "testIdx": 9,
+        "vars": {
+          "patient_name": "王阿姨",
+          "patient_message": "医生，这两天头痛跟以前不太一样，是不是又长东西了？",
+          "doctor_knowledge": "[KB-3] 开颅术后随访规则"
+        },
+        "metadata": {
+          "http": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "private, max-age=0, no-store, no-cache, must-revalidate",
+              "cf-cache-status": "DYNAMIC",
+              "cf-ray": "9f0727b5b801be02-SEA",
+              "connection": "keep-alive",
+              "content-encoding": "br",
+              "content-type": "application/json",
+              "date": "Wed, 22 Apr 2026 19:50:02 GMT",
+              "server": "cloudflare",
+              "set-cookie": "__cf_bm=EGbryx2Iql0kHEeEBqFD34kqUkElxNBJzPiqUd8pNEs-1776887401.878802-1.0.1.1-MRdvLWZO7AEDdfqjbh1lfwC6.Qcjd98UISVi8Rj.gXiD6tO7RC8qjCgG_V_VuYoTSBi5.etxs.PD.M5TI5L7kHpuEKKvz3RMpyY8SjV50uQsQPatxMfKRdmdRH6_kqMm; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Wed, 22 Apr 2026 20:20:02 GMT",
+              "strict-transport-security": "max-age=15552000",
+              "transfer-encoding": "chunked",
+              "vary": "Origin",
+              "via": "1.1 google",
+              "x-groq-region": "dls",
+              "x-ratelimit-limit-requests": "500000",
+              "x-ratelimit-limit-tokens": "300000",
+              "x-ratelimit-remaining-requests": "499995",
+              "x-ratelimit-remaining-tokens": "223391",
+              "x-ratelimit-reset-requests": "864ms",
+              "x-ratelimit-reset-tokens": "15.321s",
+              "x-request-id": "req_01kpvbw3czevq89kq0tp4j8e69"
+            }
+          },
+          "_promptfooFileMetadata": {}
+        },
+        "failureReason": 0
+      }
+    ],
+    "stats": {
+      "successes": 10,
+      "failures": 0,
+      "errors": 0,
+      "tokenUsage": {
+        "prompt": 0,
+        "completion": 0,
+        "cached": 8172,
+        "total": 8172,
+        "numRequests": 10,
+        "completionDetails": {
+          "reasoning": 0,
+          "acceptedPrediction": 0,
+          "rejectedPrediction": 0,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0
+        },
+        "assertions": {
+          "total": 0,
+          "prompt": 0,
+          "completion": 0,
+          "cached": 0,
+          "numRequests": 0,
+          "completionDetails": {
+            "reasoning": 0,
+            "acceptedPrediction": 0,
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
+          }
+        }
+      },
+      "durationMs": 83,
+      "evaluationDurationMs": 83
+    }
+  },
+  "config": {
+    "tags": {},
+    "description": "Doctor AI Agent — Medical Prompt Evaluation Suite",
+    "prompts": [
+      "wrappers/followup_reply.md"
+    ],
+    "providers": [
+      {
+        "id": "openai:chat:qwen/qwen3-32b",
+        "label": "qwen3-32b-groq",
+        "config": {
+          "apiBaseUrl": "https://api.groq.com/openai/v1",
+          "temperature": 0,
+          "max_tokens": 8192
+        }
+      }
+    ],
+    "tests": "cases/followup_reply.yaml",
+    "scenarios": [],
+    "env": {},
+    "defaultTest": {
+      "options": {
+        "timeout": 30000,
+        "transform": "let text = output;\ntext = text.replace(/<think>[\\s\\S]*?<\\/think>/g, '').trim();\ntext = text.replace(/^```(?:json)?\\s*/m, '').replace(/\\s*```\\s*$/m, '').trim();\nreturn text;\n"
+      },
+      "vars": {},
+      "assert": [],
+      "metadata": {}
+    },
+    "outputPath": [
+      "output/fr.json"
+    ],
+    "extensions": [],
+    "metadata": {},
+    "evaluateOptions": {}
+  },
+  "shareableUrl": null,
+  "metadata": {
+    "promptfooVersion": "0.121.7",
+    "nodeVersion": "v20.20.2",
+    "platform": "darwin",
+    "arch": "arm64",
+    "exportedAt": "2026-04-22T19:51:42.665Z",
+    "evaluationCreatedAt": "2026-04-22T19:51:42.559Z"
+  }
+}

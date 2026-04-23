@@ -1,32 +1,34 @@
 {
-  "evalId": "eval-98Y-2026-03-28T18:44:35",
+  "evalId": "eval-Ert-2026-04-22T23:26:00",
   "results": {
     "version": 3,
-    "timestamp": "2026-03-28T18:44:35.785Z",
+    "timestamp": "2026-04-22T23:26:00.880Z",
     "prompts": [
       {
-        "raw": "# Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别\n\n1. **informational** — 一般性信息问题：关于治疗计划的疑问、用药时间/方式、预约安排、检查结果解读等非紧急问题\n2. **symptom_report** — 症状报告：患者描述新出现的症状、原有症状加重、身体不适等\n3. **side_effect** — 药物副作用：患者报告用药后出现的不良反应、副作用\n4. **general_question** — 无法明确分类的一般问题：当消息内容模糊或混合多种类型时使用此类别\n5. **urgent** — 紧急情况：胸痛、呼吸困难、大出血、意识障碍、严重过敏反应、自伤/自杀倾向、术后突发剧烈头痛伴呕吐、术后血压突然升高、术后新发意识改变或肢体无力等需要立即就医的情况\n\n## 分类规则\n\n- 如果消息同时包含信息性问题和临床内容（症状/副作用），分类为**更临床的类别**\n- 如果无法确定分类，默认使用 **general_question**（宁可升级处理，不可遗漏临床信息）\n- confidence 取值 0.0-1.0，反映你对分类的确信程度\n- 术后患者出现新发神经功能缺损（肢体无力、言语不清、意识改变）或突发剧烈头痛/呕吐/血压骤升，一律分类为 **urgent**\n\n## 输出格式\n\n严格输出 JSON，不要输出任何其他内容：\n{\"category\": \"<类别>\", \"confidence\": <0.0-1.0>}\n\n## Constraints\n\n- 不要编造分类依据\n- 不要对患者消息进行回复，只做分类\n- 只输出JSON，不要输出解释\n\n## 示例\n\n患者：\"我的药什么时候吃？饭前还是饭后？\"\n→ category: informational, confidence: 0.95\n（纯信息性问题，无临床内容）\n\n患者：\"医生，我今天开始咳嗽了，有黄痰\"\n→ category: symptom_report, confidence: 0.9\n（新出现的症状描述）\n\n患者：\"吃了降压药以后一直头晕，是不是副作用？\"\n→ category: side_effect, confidence: 0.85\n（用药后不良反应）\n\n患者：\"胸口突然很痛，喘不上来气\"\n→ category: urgent, confidence: 0.95\n（胸痛+呼吸困难，需立即就医）\n\n患者：\"我想问个问题但不知道怎么说\"\n→ category: general_question, confidence: 0.8\n（内容模糊，无法明确分类，安全默认）\n\n患者：\"想问一下药怎么吃，另外最近有点咳嗽\"\n→ category: symptom_report, confidence: 0.75\n（混合信息性问题和症状，分类为更临床的类别）\n\n患者：\"医生！头痛越来越厉害了，刚才还吐了两次，血压量了170/100\"\n→ category: urgent, confidence: 0.95\n（术后头痛加重+呕吐+血压升高，需警惕再出血/血管痉挛）\n\n## 患者上下文\n\n{{patient_context}}\n\n---\n\n患者消息：{{message}}\n",
-        "label": "wrappers/triage-classify.md: # Role: 患者消息分类系统\n\n你的任务是将患者发来的消息分类到以下类别之一。\n\n## 分类类别...",
-        "id": "c3084ca557f1f851b10870e92589d881eb1cc0a54cfb2a8c501ee1ed51bf9547",
+        "raw": "## Task\n\n分析医生对AI草稿的修改，判断修改类型（风格偏好 / 事实纠正 / 场景特定），并归类到对应的个性化字段；若为事实纠正，额外输出可复用的临床规则与分类。\n\n## Input\n\n<original_text>\n{{original}}\n</original_text>\n\n<edited_text>\n{{edited}}\n</edited_text>\n\n## Rules\n\n### 类型判断（按此顺序检查）\n1. **factual** — 医生纠正了医学事实（药名、剂量、检查项目、诊断、治疗方案）。输出 kb_category + proposed_kb_rule\n2. **context_specific** — 修改仅适用于该特定患者的情况（如针对某患者的特殊叮嘱、个体化用药调整）\n3. **style** — 医生改变了语气、称呼、结构、删除/增加了某类内容。输出 persona_field\n\n### 字段归类（仅 type=style 时必填）\n4. **reply_style** — 语气/称呼/正式程度的变化\n5. **closing** — 结尾用语/随访叮嘱的改变\n6. **structure** — 内容组织方式的改变\n7. **avoid** — 删除某类内容\n8. **edits** — 语言修辞习惯\n9. type=factual 或 type=context_specific 时，persona_field 填 \"\"\n\n### KB 分类（仅 type=factual 时必填）\n10. **diagnosis** — 诊断逻辑、鉴别要点、红旗识别\n11. **medication** — 药物选择、剂量、禁忌\n12. **followup** — 随访时间、复查频率、监测指标\n13. **custom** — 不在上面三类中的临床规则\n14. type 非 factual 时，kb_category 填 \"\" 且 proposed_kb_rule 填 \"\"\n\n### proposed_kb_rule 要求（type=factual 时）\n15. 必须是去情境化的通用规则（不带患者姓名、日期、具体病情细节）\n16. 长度 ≤ 300 字符，中文\n17. 完整自包含（读者不需要看 original/edited 就能理解）\n18. 不得包含 PII（姓名、手机号、身份证号、住院号、具体日期）\n\n### confidence 定义\n19. **high** — 修改模式非常明确：删除整段、系统性改变称呼、统一缩短所有句子\n20. **medium** — 有一定规律但不完全确定\n21. **low** — 修改很小或意图模糊\n\n### summary 要求\n22. summary 必须是结构性描述，描述修改**模式**而非具体内容\n23. summary 中不得包含患者姓名、日期、具体病情等个人信息\n\n## Output\n\n输出 JSON，不要输出其他内容：\n\n```\n{\"type\": \"style|factual|context_specific\", \"persona_field\": \"reply_style|closing|structure|avoid|edits|\", \"summary\": \"一句话结构性描述\", \"confidence\": \"low|medium|high\", \"kb_category\": \"diagnosis|medication|followup|custom|\", \"proposed_kb_rule\": \"去情境化临床规则或空字符串\"}\n```\n\n- 所有 JSON key 使用英文\n- 不使用 null — 空值用 \"\"\n- proposed_kb_rule 为 \"\" 时，kb_category 也必须为 \"\"\n\n## Constraints\n\n- 只输出 JSON，不要解释推理过程\n- type 只能是 style / factual / context_specific 三选一\n- persona_field 只能是 reply_style / closing / structure / avoid / edits / \"\"\n- kb_category 只能是 diagnosis / medication / followup / custom / \"\"\n- confidence 只能是 low / medium / high 三选一\n- 不得在 summary / proposed_kb_rule 中泄露患者个人信息\n\n## Examples\n\n**示例1：风格修改 — 删除结尾祝福语（高置信度）**\n\n<original_text>\n张阿姨您好，您的血压控制得不错，继续目前的用药方案即可。建议每周测量血压2-3次并记录。祝您身体健康，早日康复！\n</original_text>\n\n<edited_text>\n张阿姨你好，血压还行，继续吃药就好。每周量2-3次血压记录下。\n</edited_text>\n\n→ {\"type\": \"style\", \"persona_field\": \"closing\", \"summary\": \"删除结尾祝福语，整体语气改为口语化简短风格\", \"confidence\": \"high\", \"kb_category\": \"\", \"proposed_kb_rule\": \"\"}\n\n**示例2：事实纠正 — 修改药物名称**\n\n<original_text>\n建议继续服用氨氯地平控制血压，同时注意低盐饮食。\n</original_text>\n\n<edited_text>\n建议继续服用硝苯地平控制血压，同时注意低盐饮食。\n</edited_text>\n\n→ {\"type\": \"factual\", \"persona_field\": \"\", \"summary\": \"纠正了降压药名称（氨氯地平→硝苯地平）\", \"confidence\": \"high\", \"kb_category\": \"medication\", \"proposed_kb_rule\": \"对本医生而言，该类高血压患者首选硝苯地平而非氨氯地平控制血压\"}\n\n**示例3：场景特定 — 针对特定患者的调整**\n\n<original_text>\n术后请注意伤口护理，按时换药，有异常及时就诊。\n</original_text>\n\n<edited_text>\n术后请注意伤口护理，按时换药，有异常及时就诊。因为您有糖尿病，伤口愈合可能较慢，请特别注意血糖控制。\n</edited_text>\n\n→ {\"type\": \"context_specific\", \"persona_field\": \"\", \"summary\": \"针对患者合并症添加了个体化叮嘱\", \"confidence\": \"high\", \"kb_category\": \"\", \"proposed_kb_rule\": \"\"}\n\n**示例4：风格修改 — 调整回复结构（中等置信度）**\n\n<original_text>\n您的检查结果显示甲状腺功能正常，TSH和T3T4均在正常范围内。甲状腺超声也未见明显异常。综合来看，目前不需要特殊处理，建议半年后复查。\n</original_text>\n\n<edited_text>\n结论：甲状腺没问题，半年后复查。\n\n检查结果：TSH、T3T4正常，超声未见异常。\n</edited_text>\n\n→ {\"type\": \"style\", \"persona_field\": \"structure\", \"summary\": \"将回复改为结论前置的结构，先给结论再列支持数据\", \"confidence\": \"medium\", \"kb_category\": \"\", \"proposed_kb_rule\": \"\"}\n\n**示例5：微小修改 — 意图模糊（低置信度）**\n\n<original_text>\n建议您近期复查一下血常规。\n</original_text>\n\n<edited_text>\n建议近期复查血常规。\n</edited_text>\n\n→ {\"type\": \"style\", \"persona_field\": \"edits\", \"summary\": \"删除了冗余的'您'和'一下'\", \"confidence\": \"low\", \"kb_category\": \"\", \"proposed_kb_rule\": \"\"}\n\n**示例6：事实纠正 — 诊断条件修正**\n\n<original_text>\n颅脑术后头痛患者可以使用布洛芬止痛。\n</original_text>\n\n<edited_text>\n颅脑术后头痛患者在排除脑脊液漏之前不建议使用NSAIDs，首选对乙酰氨基酚。\n</edited_text>\n\n→ {\"type\": \"factual\", \"persona_field\": \"\", \"summary\": \"修正了颅脑术后头痛的止痛药选择\", \"confidence\": \"high\", \"kb_category\": \"diagnosis\", \"proposed_kb_rule\": \"颅脑术后头痛患者在排除脑脊液漏之前不建议使用 NSAIDs（包括布洛芬），首选对乙酰氨基酚\"}\n\n**示例7：事实纠正 — 随访时间调整**\n\n<original_text>\n颅内动脉瘤夹闭术后3个月复查CTA即可。\n</original_text>\n\n<edited_text>\n颅内动脉瘤夹闭术后2周首次复查CTA，之后3个月、1年各复查一次。\n</edited_text>\n\n→ {\"type\": \"factual\", \"persona_field\": \"\", \"summary\": \"修正了动脉瘤夹闭术后的复查时点\", \"confidence\": \"high\", \"kb_category\": \"followup\", \"proposed_kb_rule\": \"颅内动脉瘤夹闭术后首次 CTA 复查时间为术后 2 周，而非 3 个月；之后分别在 3 个月、1 年复查\"}\n\n**示例8：事实纠正 — 药物联用禁忌**\n\n<original_text>\n血压仍偏高，可以加用ARB类药物联合治疗。\n</original_text>\n\n<edited_text>\n患者已在用ACEI，不要联用ARB，可换为钙通道阻滞剂。\n</edited_text>\n\n→ {\"type\": \"factual\", \"persona_field\": \"\", \"summary\": \"纠正了 ACEI 与 ARB 的联用建议\", \"confidence\": \"high\", \"kb_category\": \"medication\", \"proposed_kb_rule\": \"ACEI 与 ARB 不可联用；已使用 ACEI 的患者血压控制不佳时，优先加用钙通道阻滞剂\"}\n\n**示例9：事实纠正 — 通用临床规则**\n\n<original_text>\n糖尿病患者伤口一般一周愈合。\n</original_text>\n\n<edited_text>\n糖尿病患者伤口愈合较慢，需要额外 1-2 周观察，并严格控制血糖在 7 mmol/L 以下。\n</edited_text>\n\n→ {\"type\": \"factual\", \"persona_field\": \"\", \"summary\": \"修正了糖尿病患者伤口愈合预估\", \"confidence\": \"high\", \"kb_category\": \"custom\", \"proposed_kb_rule\": \"糖尿病患者伤口愈合较非糖尿病患者慢 1-2 周，期间需严格控制血糖在 7 mmol/L 以下\"}\n",
+        "label": "wrappers/persona-classify.md: ## Task\n\n分析医生对AI草稿的修改，判断修改类型（风格偏好 / 事实纠正 / 场景特定），并...",
+        "id": "892f3034536db83444bdaf5be59f5c6f86eadaa8ede3fd03db0ffd683ef6fe74",
         "provider": "qwen3-32b-groq",
         "metrics": {
-          "score": 15,
-          "testPassCount": 15,
+          "score": 45,
+          "testPassCount": 45,
           "testFailCount": 0,
           "testErrorCount": 0,
-          "assertPassCount": 34,
+          "assertPassCount": 90,
           "assertFailCount": 0,
-          "totalLatencyMs": 11159,
+          "totalLatencyMs": 65613,
           "tokenUsage": {
-            "prompt": 10643,
-            "completion": 4310,
-            "cached": 0,
-            "total": 14953,
-            "numRequests": 15,
+            "prompt": 0,
+            "completion": 0,
+            "cached": 118604,
+            "total": 118604,
+            "numRequests": 45,
             "completionDetails": {
               "reasoning": 0,
               "acceptedPrediction": 0,
-              "rejectedPrediction": 0
+              "rejectedPrediction": 0,
+              "cacheReadInputTokens": 0,
+              "cacheCreationInputTokens": 0
             },
             "assertions": {
               "total": 0,
@@ -37,31 +39,36 @@
               "completionDetails": {
                 "reasoning": 0,
                 "acceptedPrediction": 0,
-                "rejectedPrediction": 0
+                "rejectedPrediction": 0,
+                "cacheReadInputTokens": 0,
+                "cacheCreationInputTokens": 0
               }
             }
           },
           "namedScores": {},
           "namedScoresCount": {},
+          "namedScoreWeights": {},
           "cost": 0
         }
       }
     ],
     "results": [],
     "stats": {
-      "successes": 15,
+      "successes": 45,
       "failures": 0,
       "errors": 0,
       "tokenUsage": {
-        "prompt": 10643,
-        "completion": 4310,
-        "cached": 0,
-        "total": 14953,
-        "numRequests": 15,
+        "prompt": 0,
+        "completion": 0,
+        "cached": 118604,
+        "total": 118604,
+        "numRequests": 45,
         "completionDetails": {
           "reasoning": 0,
           "acceptedPrediction": 0,
-          "rejectedPrediction": 0
+          "rejectedPrediction": 0,
+          "cacheReadInputTokens": 0,
+          "cacheCreationInputTokens": 0
         },
         "assertions": {
           "total": 0,
@@ -72,19 +79,21 @@
           "completionDetails": {
             "reasoning": 0,
             "acceptedPrediction": 0,
-            "rejectedPrediction": 0
+            "rejectedPrediction": 0,
+            "cacheReadInputTokens": 0,
+            "cacheCreationInputTokens": 0
           }
         }
       },
-      "durationMs": 3405,
-      "evaluationDurationMs": 3405
+      "durationMs": 160,
+      "evaluationDurationMs": 160
     }
   },
   "config": {
     "tags": {},
     "description": "Doctor AI Agent — Medical Prompt Evaluation Suite",
     "prompts": [
-      "wrappers/triage-classify.md"
+      "wrappers/persona-classify.md"
     ],
     "providers": [
       {
@@ -97,7 +106,7 @@
         }
       }
     ],
-    "tests": "cases/triage-classify.yaml",
+    "tests": "cases/persona-classify.yaml",
     "scenarios": [],
     "env": {},
     "defaultTest": {
@@ -118,11 +127,11 @@
   },
   "shareableUrl": null,
   "metadata": {
-    "promptfooVersion": "0.121.3",
-    "nodeVersion": "v23.11.0",
+    "promptfooVersion": "0.121.7",
+    "nodeVersion": "v20.20.2",
     "platform": "darwin",
     "arch": "arm64",
-    "exportedAt": "2026-03-28T18:44:39.198Z",
-    "evaluationCreatedAt": "2026-03-28T18:44:35.785Z"
+    "exportedAt": "2026-04-22T23:26:01.064Z",
+    "evaluationCreatedAt": "2026-04-22T23:26:00.880Z"
   }
 }
