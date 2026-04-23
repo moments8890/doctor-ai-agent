@@ -66,12 +66,16 @@ class FormSatisfactionExtractor:
 
     async def prompt_partial(
         self,
-        collected: dict[str, str],
-        history: list[dict[str, Any]],
+        session_state: "SessionState",
+        completeness_state: "CompletenessState",
         phase: Phase,
         mode: Mode,
-        **_unused: Any,
     ) -> list[dict[str, str]]:
+        """Return a two-message prompt: a system message describing the survey,
+        and a user message listing the current state + next question.
+        """
+        collected = session_state.collected
+
         system_lines = [
             "你是满意度调查助手，帮助医院收集患者就诊反馈。",
             "请用友好、简短的中文提问。每次只问1-2个问题。",
@@ -106,6 +110,18 @@ class FormSatisfactionExtractor:
             {"role": "system", "content": "\n".join(system_lines)},
             {"role": "user", "content": "\n".join(user_lines)},
         ]
+
+    def extract_metadata(
+        self, extracted: dict[str, str],
+    ) -> dict[str, str]:
+        """Form templates don't have template-specific metadata fields."""
+        return {}
+
+    def post_process_reply(
+        self, reply: str, collected: dict[str, str], mode: Mode,
+    ) -> str:
+        """Form templates don't need reply softening."""
+        return reply
 
     def merge(
         self, collected: dict[str, str], extracted: dict[str, str],

@@ -52,10 +52,31 @@ def test_next_phase_returns_single_phase(extractor):
 
 @pytest.mark.asyncio
 async def test_prompt_partial_returns_messages(extractor):
+    """Form templates produce a simple structured survey prompt directly,
+    without going through prompt_composer (no doctor persona / KB needed)."""
+    session = SessionState(
+        id="s", doctor_id="d", patient_id=1, mode="patient",
+        status="interviewing", template_id="form_satisfaction_v1",
+        collected={}, conversation=[], turn_count=0,
+    )
+    state = extractor.completeness({}, "patient")
+
     result = await extractor.prompt_partial(
-        collected={}, history=[], phase="default", mode="patient",
+        session_state=session,
+        completeness_state=state,
+        phase="default",
+        mode="patient",
     )
     assert isinstance(result, list)
     assert len(result) >= 1
     joined = "\n".join(m.get("content", "") for m in result)
     assert "满意" in joined
+
+
+def test_extract_metadata_returns_empty(extractor):
+    assert extractor.extract_metadata({"overall_rating": "满意"}) == {}
+
+
+def test_post_process_reply_returns_unchanged(extractor):
+    out = extractor.post_process_reply("Thanks for feedback!", {}, "patient")
+    assert out == "Thanks for feedback!"
