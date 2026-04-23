@@ -23,9 +23,10 @@ Page({
       }
     }
 
-    // Show the web /login page inside a WebView.
+    // Show the web /login page inside a WebView. Cache-buster: X5 ignores
+    // Cache-Control on HTML; timestamp forces a fresh fetch each session.
     const webBase = app.globalData.apiBase;
-    this.setData({ url: webBase + "/login", loading: false });
+    this.setData({ url: webBase + "/login?_t=" + Date.now(), loading: false });
   },
 
   // Called by the web /login page after a successful doctor login.

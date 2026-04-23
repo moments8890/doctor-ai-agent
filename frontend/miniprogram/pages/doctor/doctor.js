@@ -38,6 +38,10 @@ Page({
       "token="     + encodeURIComponent(token),
       "doctor_id=" + encodeURIComponent(doctorId),
       "name="      + encodeURIComponent(doctorName),
+      // Cache-buster: WeChat's X5 webview ignores Cache-Control on HTML, so
+      // a stable URL caches the pre-deploy index.html pointing at dead asset
+      // hashes. Timestamp makes every session's URL unique.
+      "_t="        + Date.now(),
     ].join("&");
 
     this.setData({ url: webBase + "/doctor?" + qs });
