@@ -39,6 +39,8 @@ import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
 import MailIcon from "@mui/icons-material/Mail";
+import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
+import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import { APP, FONT, ICON } from "../../theme";
 import { useDoctorStore } from "../../../store/doctorStore";
 
@@ -275,11 +277,48 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
                 fill="none"
                 color="primary"
                 size="small"
-                onClick={() => navigate("/doctor/patients/new")}
+                onClick={() => navigate("/doctor/patients?action=new")}
                 aria-label="新建病历"
               >
                 <AddCircleOutline style={{ fontSize: ICON.md }} />
               </Button>
+            ) : baseSection === "my-ai" ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div
+                  aria-label="搜索"
+                  style={{
+                    padding: 8,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <SearchOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
+                </div>
+                <div
+                  aria-label="通知"
+                  style={{
+                    padding: 8,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    position: "relative",
+                  }}
+                >
+                  <NotificationsNoneOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 7,
+                      right: 7,
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      backgroundColor: APP.danger,
+                    }}
+                  />
+                </div>
+              </div>
             ) : null
           }
           style={{
