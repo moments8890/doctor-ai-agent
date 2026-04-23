@@ -25,18 +25,12 @@ def test_fields_returns_medical_fields_list(extractor):
     assert extractor.fields() is MEDICAL_FIELDS
 
 
-def test_merge_delegates_to_completeness_merge_extracted(extractor):
-    # merge_extracted mutates in-place; the delegating wrapper returns the
-    # same dict after mutation.
-    with patch(
-        "domain.interview.templates.medical_general._merge_extracted",
-    ) as mock_merge:
-        collected = {"chief_complaint": "头痛"}
-        extracted = {"present_illness": "3天"}
-        result = extractor.merge(collected, extracted)
-
-    mock_merge.assert_called_once_with(collected, extracted)
-    assert result is collected  # returns same dict (mutated)
+def test_merge_inline_appendable_vs_overwrite(extractor):
+    """Phase 2: merge is inline, no longer delegates."""
+    collected = {"chief_complaint": "头痛"}
+    extractor.merge(collected, {"chief_complaint": "发热", "present_illness": "3天"})
+    assert collected["chief_complaint"] == "发热"
+    assert "3天" in collected["present_illness"]
 
 
 def test_completeness_delegates_to_get_completeness_state(extractor):

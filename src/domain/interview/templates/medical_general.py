@@ -117,7 +117,6 @@ MEDICAL_FIELDS: list[FieldSpec] = _build_medical_fields()
 
 from domain.patients.completeness import (
     get_completeness_state as _get_completeness_state,
-    merge_extracted as _merge_extracted,
 )
 from agent.prompt_composer import (
     compose_for_doctor_interview as _compose_for_doctor_interview,
@@ -152,7 +151,31 @@ class GeneralMedicalExtractor:
     def merge(
         self, collected: dict[str, str], extracted: dict[str, str],
     ) -> dict[str, str]:
-        _merge_extracted(collected, extracted)
+        """Merge LLM-extracted fields into collected using FieldSpec.appendable.
+
+        Inlined from completeness.merge_extracted (Phase 2). Dedup rule:
+        on appendable fields, if the new value is a substring of existing
+        text, skip it. Non-appendable fields always overwrite.
+        """
+        _fields_by_name = {f.name: f for f in self.fields()}
+        for name, value in extracted.items():
+            spec = _fields_by_name.get(name)
+            if spec is None:
+                continue
+            if not value:
+                continue
+            value = value.strip()
+            if not value:
+                continue
+            if spec.appendable:
+                existing = collected.get(name, "")
+                if existing and value in existing:
+                    continue
+                collected[name] = (
+                    f"{existing}；{value}".strip("；") if existing else value
+                )
+            else:
+                collected[name] = value
         return collected
 
     def completeness(
