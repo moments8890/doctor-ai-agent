@@ -84,18 +84,26 @@ class SessionState(BaseModel):
 # ---- protocols --------------------------------------------------------------
 
 class FieldExtractor(Protocol):
-    """Per-template. Schema, prompt, merge, and completeness semantics.
+    """Per-template. Schema, prompt, merge, completeness, metadata, post-process.
     Schema lives in fields(); everything else is behavior on top of it."""
 
     def fields(self) -> list[FieldSpec]: ...
 
     async def prompt_partial(
         self,
-        collected: dict[str, str],
-        history: list[dict[str, Any]],
+        session_state: "SessionState",
+        completeness_state: "CompletenessState",
         phase: Phase,
         mode: Mode,
     ) -> list[dict[str, str]]:
+        """Build the messages list for the LLM turn call.
+
+        Gets structured state (session + completeness) and is responsible for
+        all template-specific prompt shape: patient context text, conversation
+        history window, missing-field hints, etc. Form templates produce a
+        simple survey prompt; medical templates produce the current flat-text
+        context block.
+        """
         ...
 
     def merge(
@@ -107,8 +115,29 @@ class FieldExtractor(Protocol):
     ) -> CompletenessState: ...
 
     def next_phase(
-        self, session: SessionState, phases: list[Phase],
+        self, session: "SessionState", phases: list[Phase],
     ) -> Phase: ...
+
+    def extract_metadata(
+        self, extracted: dict[str, str],
+    ) -> dict[str, str]:
+        """Pop template-specific metadata out of the raw LLM extraction.
+
+        Medical templates return patient_name/gender/age; form templates
+        return {}. The engine writes returned values as underscore-prefixed
+        keys into session.collected.
+        """
+        ...
+
+    def post_process_reply(
+        self, reply: str, collected: dict[str, str], mode: Mode,
+    ) -> str:
+        """Apply template-specific reply polishing.
+
+        Medical templates apply the softening guard (rewrite blocking
+        language when can_complete=True). Form templates return unchanged.
+        """
+        ...
 
 
 class BatchExtractor(Protocol):
