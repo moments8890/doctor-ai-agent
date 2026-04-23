@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from domain.interview.protocols import Template
 from domain.interview.templates.medical_general import GeneralMedicalTemplate
+from domain.interview.templates.form_satisfaction import FormSatisfactionTemplate
 
 
 class UnknownTemplate(KeyError):
@@ -11,6 +12,7 @@ class UnknownTemplate(KeyError):
 
 TEMPLATES: dict[str, Template] = {
     "medical_general_v1": GeneralMedicalTemplate(),
+    "form_satisfaction_v1": FormSatisfactionTemplate(),
 }
 
 

@@ -60,6 +60,6 @@ def test_doctor_hooks_include_only_followup_tasks():
     assert NotifyDoctorHook not in hook_types
 
 
-def test_registry_is_dict_of_exactly_one_template_phase1():
-    """Phase 1 ships with exactly one template. Phase 3 adds form_satisfaction_v1."""
-    assert set(TEMPLATES.keys()) == {"medical_general_v1"}
+def test_registry_contains_medical_and_form_templates():
+    """Phase 3 added form_satisfaction_v1 alongside medical_general_v1."""
+    assert set(TEMPLATES.keys()) == {"medical_general_v1", "form_satisfaction_v1"}

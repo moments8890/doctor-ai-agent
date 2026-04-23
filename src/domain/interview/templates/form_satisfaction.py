@@ -151,3 +151,34 @@ class FormSatisfactionExtractor:
         self, session: SessionState, phases: list[Phase],
     ) -> Phase:
         return phases[0]
+
+
+# ---- template binding ------------------------------------------------------
+
+from dataclasses import dataclass, field
+
+from domain.interview.protocols import (
+    BatchExtractor, EngineConfig, FieldExtractor, PostConfirmHook, Template,
+    Writer,
+)
+from domain.interview.writers import FormResponseWriter
+
+
+@dataclass
+class FormSatisfactionTemplate:
+    """form_satisfaction_v1 — patient satisfaction survey."""
+    id: str = "form_satisfaction_v1"
+    kind: str = "form"
+    display_name: str = "患者满意度调查"
+    requires_doctor_review: bool = False
+    supported_modes: tuple[Mode, ...] = ("patient",)
+    extractor: FieldExtractor = field(default_factory=FormSatisfactionExtractor)
+    batch_extractor: BatchExtractor | None = None
+    writer: Writer = field(default_factory=FormResponseWriter)
+    post_confirm_hooks: dict[Mode, list[PostConfirmHook]] = field(
+        default_factory=lambda: {"patient": []}
+    )
+    config: EngineConfig = field(default_factory=lambda: EngineConfig(
+        max_turns=10,
+        phases={"patient": ["default"]},
+    ))
