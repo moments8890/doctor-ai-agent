@@ -62,9 +62,19 @@ export function usePageStack(routeKey, renderContent) {
         setTopAnim("idle");
       } else {
         setTopAnim("entering");
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => setTopAnim("idle"));
-        });
+        // Chained rAF triggers the slide-in smoothly. On iOS Safari, chained
+        // rAF can be dropped when layout changes between them, leaving topAnim
+        // stuck at "entering" and the page stuck off-screen at
+        // translate3d(100%,0,0) → blank page. setTimeout fallback guarantees
+        // topAnim flips to "idle" even if rAF never fires.
+        let fired = false;
+        const flip = () => {
+          if (fired) return;
+          fired = true;
+          setTopAnim("idle");
+        };
+        requestAnimationFrame(() => requestAnimationFrame(flip));
+        setTimeout(flip, 50);
       }
     } else if (!routeKey && prev) {
       // Subpage → tab: pop everything
@@ -131,9 +141,15 @@ export function usePageStack(routeKey, renderContent) {
           setTopAnim("idle");
         } else {
           setTopAnim("entering");
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => setTopAnim("idle"));
-          });
+          // setTimeout fallback — see note in the first-push branch above.
+          let fired = false;
+          const flip = () => {
+            if (fired) return;
+            fired = true;
+            setTopAnim("idle");
+          };
+          requestAnimationFrame(() => requestAnimationFrame(flip));
+          setTimeout(flip, 50);
         }
       }
     }
