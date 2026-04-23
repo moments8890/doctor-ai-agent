@@ -1,14 +1,17 @@
-"""Template registry. Populated by templates/medical_general.py + future variants."""
+"""Template registry. Populated on import."""
 from __future__ import annotations
 
 from domain.interview.protocols import Template
+from domain.interview.templates.medical_general import GeneralMedicalTemplate
 
 
 class UnknownTemplate(KeyError):
     """Raised when a session references a template id not in TEMPLATES."""
 
 
-TEMPLATES: dict[str, Template] = {}
+TEMPLATES: dict[str, Template] = {
+    "medical_general_v1": GeneralMedicalTemplate(),
+}
 
 
 def get_template(template_id: str) -> Template:

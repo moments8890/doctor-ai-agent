@@ -311,3 +311,43 @@ class MedicalRecordWriter:
                 detail=resolved.get("message", "Patient creation failed"),
             )
         return resolved["patient_id"]
+
+
+# ---- template binding -------------------------------------------------------
+
+from dataclasses import dataclass, field
+
+from domain.interview.hooks.medical import (
+    GenerateFollowupTasksHook, NotifyDoctorHook, TriggerDiagnosisPipelineHook,
+)
+
+
+@dataclass
+class GeneralMedicalTemplate:
+    """medical_general_v1. Binds all the medical-specific components."""
+    id: str = "medical_general_v1"
+    kind: str = "medical"
+    display_name: str = "通用医学问诊"
+    requires_doctor_review: bool = True
+    supported_modes: tuple[Mode, ...] = ("patient", "doctor")
+    extractor: FieldExtractor = field(default_factory=GeneralMedicalExtractor)
+    batch_extractor: BatchExtractor | None = field(default_factory=MedicalBatchExtractor)
+    writer: Writer = field(default_factory=MedicalRecordWriter)
+    post_confirm_hooks: dict[Mode, list[PostConfirmHook]] = field(
+        default_factory=lambda: {
+            "patient": [
+                TriggerDiagnosisPipelineHook(),
+                NotifyDoctorHook(),
+            ],
+            # §8 open question — doctor-mode is deliberately NOT firing
+            # diagnosis in Phase 1 because that matches today's confirm.py.
+            # Phase 4 revisits.
+            "doctor": [
+                GenerateFollowupTasksHook(),
+            ],
+        }
+    )
+    config: EngineConfig = field(default_factory=lambda: EngineConfig(
+        max_turns=30,
+        phases={"patient": ["default"], "doctor": ["default"]},
+    ))
