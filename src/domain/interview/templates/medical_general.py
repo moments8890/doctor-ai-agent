@@ -128,17 +128,30 @@ class GeneralMedicalExtractor:
         history: list[dict[str, Any]],
         phase: Phase,
         mode: Mode,
+        *,
+        doctor_id: str = "",
+        patient_context: str = "",
+        doctor_message: str = "",
     ) -> list[dict[str, str]]:
-        """Forward to the existing prompt composer. Phase 2 will absorb the
-        intent-layer prompt loading into the extractor; Phase 1 preserves
-        the current composition exactly."""
+        """Compose the intent-layer prompt via prompt_composer.
+
+        Phase 2: accepts explicit doctor_id/patient_context/doctor_message.
+        """
         if mode == "doctor":
-            return await _compose_for_doctor_interview(**_composer_kwargs(
-                collected, history, phase, mode,
-            ))
-        return await _compose_for_patient_interview(**_composer_kwargs(
-            collected, history, phase, mode,
-        ))
+            return await _compose_for_doctor_interview(
+                doctor_id=doctor_id,
+                patient_context=patient_context,
+                doctor_message=doctor_message,
+                history=history,
+                template_id="medical_general_v1",
+            )
+        return await _compose_for_patient_interview(
+            doctor_id=doctor_id,
+            patient_context=patient_context,
+            doctor_message=doctor_message,
+            history=history,
+            template_id="medical_general_v1",
+        )
 
     def merge(
         self, collected: dict[str, str], extracted: dict[str, str],
@@ -217,25 +230,6 @@ class GeneralMedicalExtractor:
         # Phase 1: template declares a single phase. This returns it.
         # Phase 3+ may introduce real branching; keep the protocol ready for that.
         return phases[0]
-
-
-def _composer_kwargs(
-    collected: dict[str, str],
-    history: list[dict[str, Any]],
-    phase: Phase,
-    mode: Mode,
-) -> dict[str, Any]:
-    """Minimal kwargs the composer needs. The engine passes the full
-    context via SessionState at call time (Task 10); this helper is the
-    current no-op stub used during unit-level tests where Task 10 hasn't
-    wired the real kwargs yet."""
-    return {
-        "doctor_id": "",
-        "patient_context": "",
-        "doctor_message": "",
-        "history": history,
-        "template_id": "medical_general_v1",
-    }
 
 
 # ---- batch extractor -------------------------------------------------------

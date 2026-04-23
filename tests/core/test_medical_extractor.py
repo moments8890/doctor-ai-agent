@@ -52,9 +52,6 @@ def test_next_phase_returns_single_default_phase_for_now(extractor):
 
 @pytest.mark.asyncio
 async def test_prompt_partial_is_awaitable_and_returns_messages(extractor):
-    """prompt_partial must produce the messages list that prompt_composer
-    would have produced. Phase 1 forwards to the composer directly so the
-    output is byte-identical."""
     with patch(
         "domain.interview.templates.medical_general._compose_for_patient_interview",
         new=AsyncMock(return_value=[{"role": "system", "content": "..."}]),
@@ -64,8 +61,15 @@ async def test_prompt_partial_is_awaitable_and_returns_messages(extractor):
             history=[{"role": "user", "content": "头痛三天"}],
             phase="default",
             mode="patient",
+            doctor_id="doc_1",
+            patient_context="患者：张三，男，45岁",
+            doctor_message="头痛三天",
         )
-    assert mock_compose.called
+    mock_compose.assert_called_once()
+    _, kwargs = mock_compose.call_args
+    assert kwargs["doctor_id"] == "doc_1"
+    assert kwargs["patient_context"] == "患者：张三，男，45岁"
+    assert kwargs["doctor_message"] == "头痛三天"
     assert isinstance(result, list)
 
 
@@ -81,6 +85,7 @@ async def test_prompt_partial_routes_doctor_mode_to_doctor_composer(extractor):
     ) as mock_pat:
         await extractor.prompt_partial(
             collected={}, history=[], phase="default", mode="doctor",
+            doctor_id="doc_1", patient_context="", doctor_message="",
         )
     mock_doc.assert_called_once()
     mock_pat.assert_not_called()
