@@ -32,12 +32,15 @@ def test_string_field_nullable_when_not_required():
     assert obj.chief_complaint is None
 
 
-def test_required_field_rejects_missing():
+def test_all_fields_are_optional_regardless_of_tier():
+    """Per-turn LLM response schema treats ALL fields as Optional — tier is
+    about final-state completeness, not per-call contract."""
     Model = build_response_schema([
         _spec(name="chief_complaint", type="string", tier="required"),
     ])
-    with pytest.raises(ValidationError):
-        Model()  # missing required field
+    # Missing required-tier field is OK in a per-turn response
+    obj = Model()
+    assert obj.chief_complaint is None
 
 
 def test_enum_field_rejects_out_of_vocabulary():
