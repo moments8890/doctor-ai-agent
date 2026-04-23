@@ -184,8 +184,7 @@ export default function PersonaSubpage() {
                     key={t.id}
                     onClick={() => setSelectedTemplate(t)}
                     style={{
-                      border: `0.5px solid ${APP.border}`,
-                      borderRadius: RADIUS.md,
+                      borderRadius: RADIUS.lg,
                       padding: "12px 14px",
                       cursor: "pointer",
                       background: APP.surface,
@@ -376,9 +375,8 @@ export default function PersonaSubpage() {
                       key={sec.title}
                       style={{
                         backgroundColor: APP.surface,
-                        borderRadius: RADIUS.md,
+                        borderRadius: RADIUS.lg,
                         padding: "12px 16px",
-                        border: `0.5px solid ${APP.border}`,
                       }}
                     >
                       <div style={{
@@ -403,9 +401,8 @@ export default function PersonaSubpage() {
               <div
                 style={{
                   backgroundColor: APP.surface,
-                  borderRadius: RADIUS.md,
+                  borderRadius: RADIUS.lg,
                   padding: "16px",
-                  border: `0.5px solid ${APP.border}`,
                   fontSize: FONT.main,
                   color: APP.text1,
                   lineHeight: 1.8,

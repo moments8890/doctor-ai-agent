@@ -1,34 +1,85 @@
 /**
  * @route /doctor/settings/about
  *
- * AboutSubpage v2 — static about page.
- * antd-mobile only, no MUI.
+ * AboutSubpage v2 — static about page. Card-based layout.
  */
-import { NavBar, List } from "antd-mobile";
+import { NavBar } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import { APP, FONT, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
+
+function SectionHeader({ title }) {
+  return (
+    <div
+      style={{
+        padding: "0 20px",
+        margin: "16px 0 8px",
+        fontSize: FONT.base,
+        color: APP.text3,
+        fontWeight: 500,
+      }}
+    >
+      {title}
+    </div>
+  );
+}
+
+function Card({ children }) {
+  return (
+    <div
+      style={{
+        background: APP.surface,
+        margin: "0 12px",
+        borderRadius: RADIUS.lg,
+        overflow: "hidden",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function InfoRow({ label, value, isFirst }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "14px 16px",
+        borderTop: isFirst ? "none" : `0.5px solid ${APP.borderLight}`,
+      }}
+    >
+      <span style={{ fontSize: FONT.base, color: APP.text1, fontWeight: 500 }}>
+        {label}
+      </span>
+      <span style={{ fontSize: FONT.base, color: APP.text3 }}>
+        {value}
+      </span>
+    </div>
+  );
+}
 
 export default function AboutSubpage() {
   const navigate = useNavigate();
 
   return (
     <div style={pageContainer}>
-      <NavBar
-        onBack={() => navigate(-1)}
-        style={navBarStyle}
-      >
+      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
         关于
       </NavBar>
 
-      <div style={scrollable}>
-        {/* App icon + branding */}
+      <div style={{ ...scrollable, paddingBottom: 24 }}>
+        {/* App icon + branding card */}
         <div
           style={{
+            background: APP.surface,
+            margin: "12px 12px 0",
+            borderRadius: RADIUS.lg,
+            padding: "32px 24px 28px",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            padding: "40px 24px 32px",
             textAlign: "center",
           }}
         >
@@ -49,19 +100,17 @@ export default function AboutSubpage() {
           >
             医
           </div>
-          <div
-            style={{ fontSize: FONT.xl, fontWeight: 700, color: APP.text1, marginBottom: 6 }}
-          >
+          <div style={{ fontSize: FONT.xl, fontWeight: 700, color: APP.text1, marginBottom: 6 }}>
             AI 医疗助手
           </div>
-          <div style={{ fontSize: FONT.sm, color: APP.text4, marginBottom: 20 }}>
+          <div style={{ fontSize: FONT.sm, color: APP.text4, marginBottom: 16 }}>
             版本 1.0.0
           </div>
           <div
             style={{
-              fontSize: FONT.main,
+              fontSize: FONT.base,
               color: APP.text3,
-              lineHeight: 1.8,
+              lineHeight: 1.7,
               maxWidth: 300,
             }}
           >
@@ -69,20 +118,13 @@ export default function AboutSubpage() {
           </div>
         </div>
 
-        {/* App info list */}
-        <List header="应用信息">
-          <List.Item extra="1.0.0" arrow={false}>
-            版本号
-          </List.Item>
-          <List.Item extra="医生AI助手" arrow={false}>
-            产品名称
-          </List.Item>
-          <List.Item extra="腾讯 · 通义千问" arrow={false}>
-            AI 提供商
-          </List.Item>
-        </List>
-
-        <div style={{ height: 48 }} />
+        {/* App info */}
+        <SectionHeader title="应用信息" />
+        <Card>
+          <InfoRow label="版本号" value="1.0.0" isFirst />
+          <InfoRow label="产品名称" value="医生AI助手" />
+          <InfoRow label="AI 提供商" value="腾讯 · 通义千问" />
+        </Card>
       </div>
     </div>
   );

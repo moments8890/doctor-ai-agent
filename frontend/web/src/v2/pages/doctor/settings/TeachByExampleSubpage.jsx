@@ -101,9 +101,8 @@ export default function TeachByExampleSubpage() {
             "--font-size": FONT.main,
             "--placeholder-color": APP.text4,
             backgroundColor: APP.surface,
-            borderRadius: RADIUS.md,
+            borderRadius: RADIUS.lg,
             padding: "12px",
-            border: `0.5px solid ${APP.border}`,
             marginBottom: 16,
           }}
         />
@@ -166,9 +165,8 @@ export default function TeachByExampleSubpage() {
                         gap: 10,
                         alignItems: "flex-start",
                         backgroundColor: APP.surface,
-                        borderRadius: RADIUS.md,
-                        padding: "10px 14px",
-                        border: `0.5px solid ${APP.border}`,
+                        borderRadius: RADIUS.lg,
+                        padding: "12px 14px",
                       }}
                     >
                       <span

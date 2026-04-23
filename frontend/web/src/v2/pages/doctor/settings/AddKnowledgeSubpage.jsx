@@ -184,9 +184,8 @@ export default function AddKnowledgeSubpage() {
             style={{
               "--font-size": FONT.main,
               backgroundColor: APP.surface,
-              borderRadius: RADIUS.md,
+              borderRadius: RADIUS.lg,
               padding: "12px",
-              border: `0.5px solid ${APP.border}`,
             }}
           />
           <div style={{ fontSize: FONT.sm, color: APP.text4, textAlign: "right", marginTop: 4 }}>
@@ -280,9 +279,8 @@ export default function AddKnowledgeSubpage() {
                   "--font-size": FONT.main,
                   "--placeholder-color": APP.text4,
                   backgroundColor: APP.surface,
-                  borderRadius: RADIUS.md,
+                  borderRadius: RADIUS.lg,
                   padding: "12px",
-                  border: `0.5px solid ${APP.border}`,
                 }}
               />
               {content.length >= 500 && (
@@ -300,8 +298,7 @@ export default function AddKnowledgeSubpage() {
                 style={{
                   flex: 1,
                   backgroundColor: APP.surface,
-                  border: `0.5px solid ${APP.border}`,
-                  borderRadius: RADIUS.md,
+                  borderRadius: RADIUS.lg,
                   padding: "10px 12px",
                 }}
               >

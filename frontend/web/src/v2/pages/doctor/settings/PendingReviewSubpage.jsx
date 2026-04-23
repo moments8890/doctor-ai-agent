@@ -74,9 +74,8 @@ export default function PendingReviewSubpage() {
                   key={item.id}
                   style={{
                     background: APP.surface,
-                    borderRadius: RADIUS.md,
-                    border: `0.5px solid ${APP.border}`,
-                    padding: 12,
+                    borderRadius: RADIUS.lg,
+                    padding: 14,
                   }}
                 >
                   {/* Field + confidence */}

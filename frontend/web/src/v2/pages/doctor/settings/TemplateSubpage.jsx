@@ -2,15 +2,17 @@
  * @route /doctor/settings/templates
  *
  * TemplateSubpage v2 — report template management.
- * antd-mobile only, no MUI.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { NavBar, Button, Dialog, List, SpinLoading, Toast } from "antd-mobile";
+import { NavBar, Button, Dialog, SpinLoading, Toast } from "antd-mobile";
 import { FileOutline } from "antd-mobile-icons";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
-import { APP, FONT, RADIUS } from "../../../theme";
+import { APP, FONT, RADIUS, ICON } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 
 const STANDARD_TEMPLATE_FIELDS = [
@@ -29,6 +31,82 @@ const STANDARD_TEMPLATE_FIELDS = [
   { key: "treatment_plan", label: "治疗方案", desc: "药物治疗、手术方案、康复计划等" },
   { key: "orders_followup", label: "医嘱及随访", desc: "出院/门诊医嘱、复查安排、注意事项" },
 ];
+
+function SectionHeader({ title }) {
+  return (
+    <div
+      style={{
+        padding: "0 20px",
+        margin: "16px 0 8px",
+        fontSize: FONT.base,
+        color: APP.text3,
+        fontWeight: 500,
+      }}
+    >
+      {title}
+    </div>
+  );
+}
+
+function Card({ children }) {
+  return (
+    <div
+      style={{
+        background: APP.surface,
+        margin: "0 12px",
+        borderRadius: RADIUS.lg,
+        overflow: "hidden",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Row({ Icon, iconColor, iconBg, title, subtitle, onClick, extra, isFirst, disabled }) {
+  return (
+    <div
+      onClick={!disabled && onClick ? onClick : undefined}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "14px 16px",
+        cursor: !disabled && onClick ? "pointer" : "default",
+        borderTop: isFirst ? "none" : `0.5px solid ${APP.borderLight}`,
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      {Icon && (
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: RADIUS.md,
+            background: iconBg,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Icon sx={{ fontSize: ICON.sm, color: iconColor }} />
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: FONT.base, fontWeight: 600, color: APP.text1 }}>
+          {title}
+        </div>
+        {subtitle && (
+          <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
+            {subtitle}
+          </div>
+        )}
+      </div>
+      {extra}
+    </div>
+  );
+}
 
 function useTemplateState(doctorId) {
   const { getTemplateStatus, uploadTemplate, deleteTemplate } = useApi();
@@ -90,7 +168,7 @@ export default function TemplateSubpage() {
       title: "门诊病历标准格式",
       content: (
         <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
-          <div style={{ fontSize: "var(--adm-font-size-xs)", color: APP.text4, marginBottom: 8 }}>
+          <div style={{ fontSize: FONT.xs, color: APP.text4, marginBottom: 8 }}>
             卫医政发〔2010〕11号《病历书写基本规范》
           </div>
           {STANDARD_TEMPLATE_FIELDS.map((f, i) => (
@@ -98,10 +176,10 @@ export default function TemplateSubpage() {
               padding: "8px 0",
               borderTop: i > 0 ? `0.5px solid ${APP.borderLight}` : "none",
             }}>
-              <div style={{ fontSize: "var(--adm-font-size-main)", color: APP.text1, fontWeight: 500 }}>
+              <div style={{ fontSize: FONT.base, color: APP.text1, fontWeight: 500 }}>
                 {i + 1}. {f.label}
               </div>
-              <div style={{ fontSize: "var(--adm-font-size-xs)", color: APP.text4, marginTop: 2 }}>
+              <div style={{ fontSize: FONT.xs, color: APP.text4, marginTop: 2 }}>
                 {f.desc}
               </div>
             </div>
@@ -123,35 +201,32 @@ export default function TemplateSubpage() {
     });
   }
 
+  const customized = !!status?.has_template;
+
   return (
     <div style={pageContainer}>
-      <NavBar
-        onBack={() => navigate(-1)}
-        style={navBarStyle}
-      >
+      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
         报告模板
       </NavBar>
 
-      <div style={scrollable}>
-        {/* Section: 当前模板 */}
-        <List header="当前模板">
-          <List.Item
-            prefix={
-              <div style={{
-                width: 44, height: 44, borderRadius: RADIUS.sm,
-                background: APP.primaryLight,
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <FileOutline style={{ fontSize: 20, color: APP.primary }} />
-              </div>
-            }
-            description={
-              loading ? "加载中…" : status?.has_template
+      <div style={{ ...scrollable, paddingTop: 4, paddingBottom: 24 }}>
+        {/* Current template */}
+        <SectionHeader title="当前模板" />
+        <Card>
+          <Row
+            Icon={FileOutline}
+            iconColor={APP.primary}
+            iconBg={APP.primaryLight}
+            title="门诊病历报告模板"
+            subtitle={
+              loading ? "加载中…" : customized
                 ? `已上传自定义模板（${status.char_count?.toLocaleString()} 字符）`
-                : <span onClick={showDefaultPreview} style={{ color: APP.primary, cursor: "pointer" }}>使用国家卫生部 2010 年标准格式 ›</span>
+                : "使用国家卫生部 2010 年标准格式"
             }
+            onClick={!customized ? showDefaultPreview : undefined}
+            isFirst
             extra={
-              status?.has_template ? (
+              customized ? (
                 <div style={{
                   padding: "3px 8px",
                   borderRadius: RADIUS.sm,
@@ -162,42 +237,52 @@ export default function TemplateSubpage() {
                 }}>
                   已自定义
                 </div>
-              ) : null
+              ) : (
+                !loading && <ChevronRightIcon sx={{ fontSize: ICON.sm, color: APP.text4 }} />
+              )
             }
-          >
-            门诊病历报告模板
-          </List.Item>
-        </List>
+          />
+        </Card>
 
-        {/* Section: 操作 */}
-        <List header="操作">
-          {/* Upload row */}
-          <List.Item
-            arrow
-            prefix={uploading ? <SpinLoading color="primary" style={{ "--size": "18px" }} /> : null}
+        {/* Actions */}
+        <SectionHeader title="操作" />
+        <Card>
+          <Row
+            Icon={UploadFileOutlinedIcon}
+            iconColor={APP.primary}
+            iconBg={APP.primaryLight}
+            title={uploading ? "上传中…" : customized ? "替换模板文件" : "上传模板文件"}
+            subtitle="PDF / DOCX / DOC / TXT / JPG / PNG，最大 1 MB"
             onClick={() => !uploading && fileRef.current?.click()}
-            style={{ "--title-font-size": "var(--adm-font-size-main)", color: uploading ? APP.text4 : APP.primary }}
-          >
-            <span style={{ color: uploading ? APP.text4 : APP.primary, fontWeight: 500 }}>
-              {uploading ? "上传中…" : status?.has_template ? "替换模板文件" : "上传模板文件"}
-            </span>
-          </List.Item>
-
-          {/* Delete row */}
-          {status?.has_template && (
-            <List.Item
+            isFirst
+            disabled={uploading}
+            extra={uploading ? <SpinLoading color="primary" style={{ "--size": "18px" }} /> : null}
+          />
+          {customized && (
+            <Row
+              Icon={DeleteOutlineIcon}
+              iconColor={APP.danger}
+              iconBg={APP.dangerLight}
+              title={deleting ? "删除中…" : "删除模板，恢复默认"}
+              subtitle="删除后使用卫生部标准格式"
               onClick={!deleting ? confirmDelete : undefined}
-              prefix={deleting ? <SpinLoading color="danger" style={{ "--size": "18px" }} /> : null}
-            >
-              <span style={{ color: deleting ? APP.text4 : APP.danger }}>
-                {deleting ? "删除中…" : "删除模板，恢复默认"}
-              </span>
-            </List.Item>
+              disabled={deleting}
+              extra={deleting ? <SpinLoading color="danger" style={{ "--size": "18px" }} /> : null}
+            />
           )}
-        </List>
+        </Card>
 
-        {/* Hint */}
-        <List footer="支持格式：PDF、DOCX、DOC、TXT、JPG、PNG，最大 1 MB。上传后，AI 生成门诊病历报告时将参照您的格式。" />
+        {/* Footer hint */}
+        <div
+          style={{
+            padding: "12px 20px 0",
+            fontSize: FONT.sm,
+            color: APP.text4,
+            lineHeight: 1.6,
+          }}
+        >
+          上传后，AI 生成门诊病历报告时将参照您的格式。
+        </div>
 
         <input
           ref={fileRef}
@@ -206,8 +291,6 @@ export default function TemplateSubpage() {
           accept=".pdf,.docx,.doc,.txt,image/jpeg,image/png,image/webp"
           onChange={handleUpload}
         />
-
-        <div style={{ height: 32 }} />
       </div>
     </div>
   );

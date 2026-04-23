@@ -168,7 +168,6 @@ function SpotlightCard({ title, children, emptyText }) {
       style={{
         margin: "12px 12px 0",
         borderRadius: RADIUS.lg,
-        border: `0.5px solid ${APP.border}`,
         backgroundColor: APP.surface,
         overflow: "hidden",
       }}
@@ -437,10 +436,9 @@ function PendingRuleCard({ item, isActing, accepting, rejecting, onAccept, onRej
     <div
       style={{
         background: APP.surface,
-        borderRadius: RADIUS.md,
+        borderRadius: RADIUS.lg,
         padding: "14px 14px 12px",
         marginBottom: 12,
-        border: `0.5px solid ${APP.border}`,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -693,7 +691,6 @@ export default function KnowledgeSubpage() {
           style={{
             margin: "8px 12px",
             borderRadius: RADIUS.lg,
-            border: `0.5px solid ${APP.border}`,
             backgroundColor: APP.surface,
             overflow: "hidden",
             flexShrink: 0,

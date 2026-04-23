@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
+import { recordView } from "../../../../hooks/useLastViewed";
 import { useRuleHealth, useKnowledgeUsage } from "../../../../lib/doctorQueries";
 import { APP, FONT, RADIUS, CATEGORY_COLORS as THEME_CATEGORY_COLORS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
@@ -68,7 +69,21 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
     };
 
     fetchItem()
-      .then((result) => setItem(result))
+      .then((result) => {
+        setItem(result);
+        if (result) {
+          const raw = result.text || result.content || "";
+          const firstLine = raw.split("\n")[0] || "";
+          const title = (result.title || firstLine || "知识条目").slice(0, 40);
+          recordView({
+            type: "knowledge",
+            id: result.id,
+            title,
+            category: result.category || null,
+            updatedAt: result.updated_at || result.created_at || null,
+          });
+        }
+      })
       .catch(() => setItem(null))
       .finally(() => setLoading(false));
   }, [doctorId, itemId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -202,12 +217,12 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
             <div
               style={{
                 backgroundColor: APP.surface,
-                borderBottom: `0.5px solid ${APP.border}`,
-                padding: "16px 16px 12px",
-                marginBottom: 8,
+                margin: "12px 12px 0",
+                borderRadius: RADIUS.lg,
+                padding: "16px 16px 14px",
               }}
             >
-              <div style={{ fontSize: FONT.sm, fontWeight: 600, color: APP.text3, marginBottom: 12 }}>
+              <div style={{ fontSize: FONT.base, fontWeight: 600, color: APP.text1, marginBottom: 12 }}>
                 AI 使用情况
               </div>
 
@@ -302,7 +317,8 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
             <div
               style={{
                 backgroundColor: APP.surface,
-                borderBottom: `0.5px solid ${APP.border}`,
+                margin: "12px 12px 0",
+                borderRadius: RADIUS.lg,
                 padding: "16px",
               }}
             >

@@ -246,11 +246,10 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
 
         {/* Patient message */}
         <div style={{
-          background: APP.surfaceAlt,
-          borderRadius: RADIUS.md,
-          padding: "12px",
+          background: APP.surface,
+          borderRadius: RADIUS.lg,
+          padding: "14px 16px",
           marginBottom: 20,
-          border: `0.5px solid ${APP.border}`,
           fontSize: FONT.base,
           color: APP.text2,
           lineHeight: 1.65,
@@ -271,9 +270,9 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
                 key={opt.id}
                 onClick={() => handlePick(currentScenario.id, opt.id)}
                 style={{
-                  padding: "12px",
-                  borderRadius: RADIUS.md,
-                  border: `1.5px solid ${isSelected ? APP.primary : APP.border}`,
+                  padding: "14px 16px",
+                  borderRadius: RADIUS.lg,
+                  border: isSelected ? `1.5px solid ${APP.primary}` : "1.5px solid transparent",
                   background: isSelected ? APP.primaryLight : APP.surface,
                   cursor: "pointer",
                   fontSize: FONT.base,
