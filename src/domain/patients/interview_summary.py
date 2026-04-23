@@ -210,95 +210,21 @@ async def confirm_interview(
     collected: Dict[str, str],
     conversation: Optional[list] = None,
 ) -> Dict[str, int]:
-    """Finalize interview: batch-extract from transcript → save record → create review task. Returns {record_id, review_id}."""
-    from domain.patients.interview_turn import get_session_lock, release_session_lock
+    """Patient-side confirm. Phase 1: delegates to InterviewEngine.confirm.
 
-    async with get_session_lock(session_id):
-        try:
-            return await _confirm_interview_inner(
-                session_id=session_id,
-                doctor_id=doctor_id,
-                patient_id=patient_id,
-                patient_name=patient_name,
-                collected=collected,
-                conversation=conversation,
-            )
-        finally:
-            release_session_lock(session_id)
+    Preserves the return shape expected by patient_interview_routes.py.
+    The engine handles batch re-extract, record persist, diagnosis trigger,
+    doctor notification, session mark-confirmed, and lock release internally.
+    """
+    # Import inside function body to avoid circular imports (same pattern as Task 11).
+    from domain.interview.engine import InterviewEngine
 
-
-async def _confirm_interview_inner(
-    session_id: str,
-    doctor_id: str,
-    patient_id: int,
-    patient_name: str,
-    collected: Dict[str, str],
-    conversation: Optional[list] = None,
-) -> Dict[str, int]:
-    """Inner implementation of confirm_interview — always called under the session lock."""
-    from db.crud.patient import get_patient_for_doctor
-    from db.crud.records import save_record
-    from db.engine import AsyncSessionLocal
-
-    # Batch-extract all fields from the full transcript in one pass
-    if conversation:
-        # Load patient info for the extraction prompt
-        async with AsyncSessionLocal() as db:
-            patient = await get_patient_for_doctor(db, doctor_id, patient_id)
-
-        if patient:
-            now = datetime.now()
-            age = now.year - patient.year_of_birth if patient.year_of_birth else "未知"
-            patient_info = {
-                "name": patient.name,
-                "gender": patient.gender or "未知",
-                "age": age,
-            }
-        else:
-            patient_info = {"name": patient_name, "gender": "未知", "age": "未知"}
-
-        collected = await batch_extract_from_transcript(
-            conversation, patient_info, mode="patient",
-        )
-
-    record = build_medical_record(collected)
-
-    async with AsyncSessionLocal() as db:
-        from db.models.records import RecordStatus
-        db_record = await save_record(
-            db, doctor_id, record, patient_id,
-            status=RecordStatus.pending_review.value,
-            commit=True,
-        )
-
-        # Review notification handled by 审核 tab — no task created.
-        await db.commit()
-
-    log(f"[interview] confirmed session={session_id} record={db_record.id}")
-
-    # Auto-trigger diagnosis pipeline (fire-and-forget)
-    try:
-        from domain.diagnosis import run_diagnosis
-        from utils.log import safe_create_task
-        safe_create_task(
-            run_diagnosis(doctor_id=doctor_id, record_id=db_record.id),
-            name=f"diagnosis-{db_record.id}",
-        )
-        log(f"[interview] diagnosis triggered for record={db_record.id}")
-    except Exception as e:
-        log(f"[interview] diagnosis trigger failed: {e}", level="warning")
-
-    # Notify doctor (best-effort, don't block on failure)
-    try:
-        from domain.tasks.notifications import send_doctor_notification
-        await send_doctor_notification(
-            doctor_id,
-            f"患者【{patient_name}】已完成预问诊，请查看待审核记录。",
-        )
-    except Exception as e:
-        log(f"[interview] doctor notification failed: {e}", level="warning")
-
+    engine = InterviewEngine()
+    ref = await engine.confirm(
+        session_id=session_id,
+        override_patient_name=patient_name or None,
+    )
     # review_id was from a review-task entity that no longer exists
-    # (see commit 4a2eba87). Kept in the response shape for backwards compat
+    # (commit 4a2eba87). Kept in the response shape for backwards compat
     # with DoctorPage code that reads submitted.review_id with falsy guards.
-    return {"record_id": db_record.id, "review_id": None}
+    return {"record_id": ref.id, "review_id": None}
