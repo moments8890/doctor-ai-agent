@@ -213,3 +213,101 @@ class MedicalBatchExtractor:
         return await _batch_extract_from_transcript(
             conversation, context, mode=mode,
         )
+
+
+# ---- writer -----------------------------------------------------------------
+
+from fastapi import HTTPException
+
+from agent.tools.resolve import resolve as _resolve_patient
+from channels.web.doctor_interview.shared import _build_clinical_text
+from db.crud.doctor import _ensure_doctor_exists
+from db.engine import AsyncSessionLocal
+from db.models.records import MedicalRecordDB, RecordStatus
+
+
+class MedicalRecordWriter:
+    """Phase 1 writer. Persists the confirmed interview to medical_records.
+
+    Absorbs deferred patient creation from confirm.py:72-101. Does NOT fire
+    diagnosis / notifications / task generation — those are separate hooks.
+    """
+
+    async def persist(
+        self, session: SessionState, collected: dict[str, str],
+    ) -> PersistRef:
+        patient_id = await self._ensure_patient(session, collected)
+
+        clinical_text = _build_clinical_text(collected)
+        has_diagnosis = bool(collected.get("diagnosis", "").strip())
+        has_treatment = bool(collected.get("treatment_plan", "").strip())
+        has_followup = bool(collected.get("orders_followup", "").strip())
+        status = (
+            RecordStatus.completed.value
+            if (has_diagnosis and has_treatment and has_followup)
+            else RecordStatus.pending_review.value
+        )
+
+        async with AsyncSessionLocal() as db:
+            await _ensure_doctor_exists(db, session.doctor_id)
+            record = MedicalRecordDB(
+                doctor_id=session.doctor_id,
+                patient_id=patient_id,
+                record_type="interview_summary",
+                status=status,
+                content=clinical_text,
+                chief_complaint=collected.get("chief_complaint"),
+                present_illness=collected.get("present_illness"),
+                past_history=collected.get("past_history"),
+                allergy_history=collected.get("allergy_history"),
+                personal_history=collected.get("personal_history"),
+                marital_reproductive=collected.get("marital_reproductive"),
+                family_history=collected.get("family_history"),
+                physical_exam=collected.get("physical_exam"),
+                specialist_exam=collected.get("specialist_exam"),
+                auxiliary_exam=collected.get("auxiliary_exam"),
+                diagnosis=collected.get("diagnosis"),
+                treatment_plan=collected.get("treatment_plan"),
+                orders_followup=collected.get("orders_followup"),
+            )
+            db.add(record)
+            await db.commit()
+            record_id = record.id
+
+        return PersistRef(kind="medical_record", id=record_id)
+
+    async def _ensure_patient(
+        self, session: SessionState, collected: dict[str, str],
+    ) -> int:
+        """If session.patient_id is set, return it. Otherwise resolve from
+        collected["_patient_name"] and create the patient row. Mirrors the
+        confirm.py:72-101 behavior byte-for-byte."""
+        if session.patient_id is not None:
+            return session.patient_id
+
+        name = (collected.get("_patient_name") or "").strip()
+        if not name:
+            raise HTTPException(
+                status_code=422,
+                detail="无法确认：未检测到患者姓名，请在对话中提供",
+            )
+
+        gender = collected.get("_patient_gender")
+        age_str = collected.get("_patient_age")
+        age: int | None = None
+        if age_str:
+            try:
+                age = int(age_str.rstrip("岁"))
+            except (ValueError, AttributeError):
+                pass
+
+        resolved = await _resolve_patient(
+            name, session.doctor_id, auto_create=True,
+            gender=gender, age=age,
+        )
+        if "status" in resolved:
+            raise HTTPException(
+                status_code=422,
+                detail=resolved.get("message", "Patient creation failed"),
+            )
+        return resolved["patient_id"]
