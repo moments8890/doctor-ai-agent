@@ -15,11 +15,12 @@
 
 ### 摘要原则
 1. 只使用 today_facts 中提供的事实，不编造任何信息
-2. summary 是主要输出，应该是一段完整的自然语言（2-4句话），像助手在跟医生说话
-3. summary 应跨越数据维度，发现关联（如：任务+知识库、消息+病历）
-4. 不重复统计数字（前端已有待处理数、完成数等）
-5. 具体到患者姓名和原因，不说"有N个待处理"
-6. items 是结构化元数据（用于跳转），不会直接展示给用户
+2. summary_short 是 banner 预览，不超过 30 字、一句话、像标题 — 用于一眼扫到今日重点
+3. summary 是详情展开后的完整内容，2-3 句话、自然语言、像助手在跟医生说话
+4. summary 应跨越数据维度，发现关联（如：任务+知识库、消息+病历）
+5. 不重复统计数字（前端已有待处理数、完成数等）
+6. 具体到患者姓名和原因，不说"有N个待处理"
+7. items 是结构化元数据（用于跳转），不会直接展示给用户
 
 ### 知识库关联
 6. 当事实与知识库条目相关时，在 detail 末尾追加 [KB-{id}] 引用标签
@@ -35,6 +36,7 @@
 
 ```json
 {
+  "summary_short": "张三术后第3天该复查",
   "summary": "一句话总结今日状态",
   "items": [
     {
@@ -55,7 +57,7 @@
 - 不提供诊断或治疗建议（这是摘要，不是临床决策）
 - fact_ids 必须对应 today_facts 中实际存在的条目
 - knowledge_ids 必须对应 doctor_knowledge 中实际存在的 KB 编号
-- 如果 today_facts 为空或无有意义关联，返回 {"summary":"今日暂无需要关注的事项","items":[]}
+- 如果 today_facts 为空或无有意义关联，返回 {"summary_short":"今日暂无需处理事项","summary":"今日暂无需要关注的事项","items":[]}
 
 ## Examples
 
@@ -75,6 +77,7 @@ doctor_knowledge:
 →
 ```json
 {
+  "summary_short": "张三术后第3天该复查",
   "summary": "张三术后第3天了，按你的随访规则今天应该复查伤口和神经功能。建议优先安排。",
   "items": [{
     "kind": "followup_due",
@@ -105,6 +108,7 @@ doctor_knowledge:
 →
 ```json
 {
+  "summary_short": "张三复查 + 李某开浦兰反馈待回",
   "summary": "张三术后第3天，按你的随访规则今天该复查了。另外李某反馈服用开浦兰后嗜睡，属于正常适应期反应，可能需要你回复安抚一下。",
   "items": [
     {"kind": "followup_due", "priority": "high", "title": "张三术后复查", "detail": "", "fact_ids": ["task_12", "record_45"], "knowledge_ids": [3]},
@@ -132,6 +136,7 @@ doctor_knowledge:
 →
 ```json
 {
+  "summary_short": "3例头痛病例，知识库待补充",
   "summary": "近期连续接诊了3例头痛患者（王某、赵某、钱某），但你的知识库里还没有头痛处理方案。添加后AI能帮你更好地处理这类病例。",
   "items": [{
     "kind": "knowledge_gap",
@@ -151,6 +156,7 @@ today_facts: []
 →
 ```json
 {
+  "summary_short": "今日暂无需处理事项",
   "summary": "今日暂无需要关注的事项",
   "items": []
 }

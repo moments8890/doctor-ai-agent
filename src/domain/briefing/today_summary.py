@@ -53,6 +53,7 @@ class TodaySummaryItem(BaseModel):
 class TodaySummaryResponse(BaseModel):
     section_title: str = "今日摘要"
     mode: Literal["llm", "fallback", "empty"]
+    summary_short: Optional[str] = None  # banner preview (≤30 chars); None on legacy cache rows
     summary: str
     items: List[TodaySummaryItem] = Field(default_factory=list)
     generated_at: str
@@ -76,6 +77,7 @@ class LLMSummaryItem(BaseModel):
 
 
 class LLMSummaryResponse(BaseModel):
+    summary_short: str = ""
     summary: str
     items: List[LLMSummaryItem] = Field(default_factory=list)
 
@@ -267,15 +269,19 @@ async def get_today_summary(
         if patient_count == 0 and kb_count == 0:
             reason = "no_data"
             summary = "添加患者和知识后，这里会显示今日工作摘要"
+            summary_short = "开始添加数据"
         elif kb_count == 0:
             reason = "no_knowledge"
             summary = "添加知识规则后，AI 能为你发现更多关联"
+            summary_short = "先教 AI 一条规则"
         else:
             reason = "quiet_day"
             summary = "今日暂无需要特别关注的事项"
+            summary_short = "今日暂无待办"
 
         resp = TodaySummaryResponse(
             mode="empty",
+            summary_short=summary_short,
             summary=summary,
             generated_at=now.isoformat(),
             expires_at=(now + timedelta(days=1)).isoformat(),
@@ -295,6 +301,7 @@ async def get_today_summary(
         log(f"[today_summary] LLM failed: {exc}", level="warning")
         resp = TodaySummaryResponse(
             mode="fallback",
+            summary_short="摘要生成中",
             summary="摘要生成中，请稍后刷新",
             generated_at=now.isoformat(),
             expires_at=(now + timedelta(minutes=5)).isoformat(),
@@ -373,10 +380,16 @@ async def _generate_via_llm(
 
     # Strip [KB-N] citations from user-facing summary text
     clean_summary = re.sub(r"\s*\[KB-\d+\]", "", llm_result.summary)
+    clean_summary_short = re.sub(r"\s*\[KB-\d+\]", "", llm_result.summary_short or "").strip()
+    # Fallback: if LLM omitted summary_short, derive from the first 30 chars
+    # of the full summary so the banner still has something short to show.
+    if not clean_summary_short:
+        clean_summary_short = clean_summary[:30]
 
     expires = now + timedelta(minutes=CACHE_TTL_MINUTES)
     return TodaySummaryResponse(
         mode="llm",
+        summary_short=clean_summary_short,
         summary=clean_summary,
         items=validated_items,
         generated_at=now.isoformat(),
