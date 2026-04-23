@@ -111,3 +111,84 @@ def _build_medical_fields() -> list[FieldSpec]:
 
 
 MEDICAL_FIELDS: list[FieldSpec] = _build_medical_fields()
+
+
+# ---- extractor -------------------------------------------------------------
+
+from domain.patients.completeness import (
+    get_completeness_state as _get_completeness_state,
+    merge_extracted as _merge_extracted,
+)
+from agent.prompt_composer import (
+    compose_for_doctor_interview as _compose_for_doctor_interview,
+    compose_for_patient_interview as _compose_for_patient_interview,
+)
+
+
+class GeneralMedicalExtractor:
+    """Phase 1 thin-stub FieldExtractor. Every method forwards to legacy code."""
+
+    def fields(self) -> list[FieldSpec]:
+        return MEDICAL_FIELDS
+
+    async def prompt_partial(
+        self,
+        collected: dict[str, str],
+        history: list[dict[str, Any]],
+        phase: Phase,
+        mode: Mode,
+    ) -> list[dict[str, str]]:
+        """Forward to the existing prompt composer. Phase 2 will absorb the
+        intent-layer prompt loading into the extractor; Phase 1 preserves
+        the current composition exactly."""
+        if mode == "doctor":
+            return await _compose_for_doctor_interview(**_composer_kwargs(
+                collected, history, phase, mode,
+            ))
+        return await _compose_for_patient_interview(**_composer_kwargs(
+            collected, history, phase, mode,
+        ))
+
+    def merge(
+        self, collected: dict[str, str], extracted: dict[str, str],
+    ) -> dict[str, str]:
+        _merge_extracted(collected, extracted)
+        return collected
+
+    def completeness(
+        self, collected: dict[str, str], mode: Mode,
+    ) -> CompletenessState:
+        raw = _get_completeness_state(collected, mode=mode)
+        return CompletenessState(
+            can_complete=raw["can_complete"],
+            required_missing=raw["required_missing"],
+            recommended_missing=raw["recommended_missing"],
+            optional_missing=raw["optional_missing"],
+            next_focus=raw["next_focus"],
+        )
+
+    def next_phase(
+        self, session: SessionState, phases: list[Phase],
+    ) -> Phase:
+        # Phase 1: template declares a single phase. This returns it.
+        # Phase 3+ may introduce real branching; keep the protocol ready for that.
+        return phases[0]
+
+
+def _composer_kwargs(
+    collected: dict[str, str],
+    history: list[dict[str, Any]],
+    phase: Phase,
+    mode: Mode,
+) -> dict[str, Any]:
+    """Minimal kwargs the composer needs. The engine passes the full
+    context via SessionState at call time (Task 10); this helper is the
+    current no-op stub used during unit-level tests where Task 10 hasn't
+    wired the real kwargs yet."""
+    return {
+        "doctor_id": "",
+        "patient_context": "",
+        "doctor_message": "",
+        "history": history,
+        "template_id": "medical_general_v1",
+    }
