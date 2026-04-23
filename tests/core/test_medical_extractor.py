@@ -33,25 +33,10 @@ def test_merge_inline_appendable_vs_overwrite(extractor):
     assert "3天" in collected["present_illness"]
 
 
-def test_completeness_delegates_to_get_completeness_state(extractor):
-    fake_state = {
-        "can_complete": True,
-        "required_missing": [],
-        "recommended_missing": ["past_history"],
-        "optional_missing": [],
-        "next_focus": "past_history",
-    }
-    with patch(
-        "domain.interview.templates.medical_general._get_completeness_state",
-        return_value=fake_state,
-    ) as mock_get:
-        state = extractor.completeness({"chief_complaint": "x"}, "patient")
-
-    mock_get.assert_called_once_with({"chief_complaint": "x"}, mode="patient")
-    assert isinstance(state, CompletenessState)
+def test_completeness_returns_completeness_state_directly(extractor):
+    """Phase 2: completeness is inline; returns CompletenessState from FieldSpec tiers."""
+    state = extractor.completeness({"chief_complaint": "x", "present_illness": "y"}, "doctor")
     assert state.can_complete is True
-    assert state.next_focus == "past_history"
-    assert state.recommended_missing == ["past_history"]
 
 
 def test_next_phase_returns_single_default_phase_for_now(extractor):

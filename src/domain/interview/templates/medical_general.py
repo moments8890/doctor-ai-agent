@@ -115,9 +115,6 @@ MEDICAL_FIELDS: list[FieldSpec] = _build_medical_fields()
 
 # ---- extractor -------------------------------------------------------------
 
-from domain.patients.completeness import (
-    get_completeness_state as _get_completeness_state,
-)
 from agent.prompt_composer import (
     compose_for_doctor_interview as _compose_for_doctor_interview,
     compose_for_patient_interview as _compose_for_patient_interview,
@@ -181,13 +178,42 @@ class GeneralMedicalExtractor:
     def completeness(
         self, collected: dict[str, str], mode: Mode,
     ) -> CompletenessState:
-        raw = _get_completeness_state(collected, mode=mode)
+        """Tier-based completeness. Uses FieldSpec.tier; patient mode filters
+        to the subjective-field subset.
+
+        Inlined from completeness.get_completeness_state (Phase 2).
+        """
+        specs = self.fields()
+
+        _PATIENT_FIELDS = {
+            "chief_complaint", "present_illness", "past_history",
+            "allergy_history", "family_history", "personal_history",
+            "marital_reproductive",
+        }
+
+        if mode == "patient":
+            specs = [s for s in specs if s.name in _PATIENT_FIELDS]
+
+        required = [s.name for s in specs if s.tier == "required"]
+        recommended = [s.name for s in specs if s.tier == "recommended"]
+        optional = [s.name for s in specs if s.tier == "optional"]
+
+        required_missing = [f for f in required if not collected.get(f)]
+        recommended_missing = [f for f in recommended if not collected.get(f)]
+        optional_missing = [f for f in optional if not collected.get(f)]
+
+        next_focus: str | None = None
+        if recommended_missing:
+            next_focus = recommended_missing[0]
+        elif optional_missing:
+            next_focus = optional_missing[0]
+
         return CompletenessState(
-            can_complete=raw["can_complete"],
-            required_missing=raw["required_missing"],
-            recommended_missing=raw["recommended_missing"],
-            optional_missing=raw["optional_missing"],
-            next_focus=raw["next_focus"],
+            can_complete=len(required_missing) == 0,
+            required_missing=required_missing,
+            recommended_missing=recommended_missing,
+            optional_missing=optional_missing,
+            next_focus=next_focus,
         )
 
     def next_phase(
