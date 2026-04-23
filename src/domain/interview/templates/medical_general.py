@@ -192,3 +192,24 @@ def _composer_kwargs(
         "history": history,
         "template_id": "medical_general_v1",
     }
+
+
+# ---- batch extractor -------------------------------------------------------
+
+from domain.patients.interview_summary import (
+    batch_extract_from_transcript as _batch_extract_from_transcript,
+)
+
+
+class MedicalBatchExtractor:
+    """Phase 1 stub. Forwards to the existing batch_extract_from_transcript."""
+
+    async def extract(
+        self,
+        conversation: list[dict[str, Any]],
+        context: dict[str, Any],
+        mode: Mode,
+    ) -> dict[str, str] | None:
+        return await _batch_extract_from_transcript(
+            conversation, context, mode=mode,
+        )
