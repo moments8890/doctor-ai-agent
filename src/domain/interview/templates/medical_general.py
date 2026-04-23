@@ -1,7 +1,10 @@
-"""GeneralMedicalTemplate — Phase 1 thin-stub implementation.
+"""GeneralMedicalTemplate — Phase 2.5 implementation.
 
-Every method delegates to pre-Phase-1 codepaths. Phase 2 inlines the logic
-here and deletes the legacy sources. Phase 1 keeps the legacy sources live.
+Phase 2.5: GeneralMedicalExtractor now owns the full medical prompt context
+building (prompt_partial), metadata extraction (extract_metadata), and reply
+softening (post_process_reply). The legacy _call_interview_llm in
+interview_turn.py is the behavior reference — byte-identical context output is
+the preservation bar.
 """
 from __future__ import annotations
 
@@ -10,6 +13,10 @@ from typing import Any
 from domain.interview.protocols import (
     BatchExtractor, CompletenessState, EngineConfig, FieldExtractor, FieldSpec,
     Mode, Phase, PersistRef, PostConfirmHook, SessionState, Template, Writer,
+)
+from domain.patients.interview_context import (
+    _load_patient_info,
+    _load_previous_history,
 )
 
 # ---- field specs — canonical source of medical-interview schema ------------
@@ -124,34 +131,170 @@ class GeneralMedicalExtractor:
 
     async def prompt_partial(
         self,
-        collected: dict[str, str],
-        history: list[dict[str, Any]],
+        session_state: SessionState,
+        completeness_state: CompletenessState,
         phase: Phase,
         mode: Mode,
-        *,
-        doctor_id: str = "",
-        patient_context: str = "",
-        doctor_message: str = "",
     ) -> list[dict[str, str]]:
-        """Compose the intent-layer prompt via prompt_composer.
+        """Build the medical interview LLM message list.
 
-        Phase 2: accepts explicit doctor_id/patient_context/doctor_message.
+        Phase 2.5: absorbs the patient_context + history-window logic that
+        previously lived in _call_interview_llm. The engine passes structured
+        state; this method produces the messages list.
         """
+        import json
+
+        collected = session_state.collected
+        conversation = session_state.conversation
+        state = completeness_state
+
+        # Field metadata for hints (from template's own FieldSpec list)
+        fields_by_name = {f.name: f for f in self.fields()}
+
+        # Fetch patient info + previous history (medical-specific)
+        patient_info = await _load_patient_info(session_state.patient_id)
+        previous_history = await _load_previous_history(
+            session_state.patient_id, session_state.doctor_id,
+        )
+
+        # Clean collected (drop underscore-prefixed metadata)
+        clean_collected = {k: v for k, v in collected.items() if not k.startswith("_")}
+        can_str = "是" if state.can_complete else "否"
+
+        # "待补充" with inline hints (top 3 recommended/optional fields)
+        guide_parts = []
+        for fk in (list(state.recommended_missing) + list(state.optional_missing))[:3]:
+            spec = fields_by_name.get(fk)
+            label = (spec.label if spec else fk) or fk
+            if spec and (spec.description or spec.example):
+                hint = spec.description or ""
+                example = spec.example or ""
+                if hint and example:
+                    guide_parts.append(f'{label}({hint},如"{example}")')
+                elif hint:
+                    guide_parts.append(f'{label}({hint})')
+                else:
+                    guide_parts.append(label)
+            else:
+                guide_parts.append(label)
+
+        # Required missing (only when can_complete is False)
+        req_parts = []
+        if not state.can_complete:
+            for fk in state.required_missing:
+                spec = fields_by_name.get(fk)
+                label = (spec.label if spec else fk) or fk
+                if spec and (spec.description or spec.example):
+                    hint = spec.description or ""
+                    example = spec.example or ""
+                    if hint and example:
+                        req_parts.append(f'{label}({hint},如"{example}")')
+                    elif hint:
+                        req_parts.append(f'{label}({hint})')
+                    else:
+                        req_parts.append(label)
+                else:
+                    req_parts.append(label)
+
+        context_lines = [
+            f"患者：{patient_info['name']}，{patient_info['gender']}，{patient_info['age']}岁",
+            f"已收集：{json.dumps(clean_collected, ensure_ascii=False)}",
+            f"可完成：{can_str}",
+        ]
+        if req_parts:
+            context_lines.append(f"必填缺：{'｜'.join(req_parts)}")
+        if guide_parts:
+            context_lines.append(f"待补充：{'｜'.join(guide_parts)}")
+        if previous_history:
+            prev = previous_history.replace("\n", " ").strip()
+            if len(prev) > 100:
+                prev = prev[:100] + "..."
+            context_lines.append(f"上次：{prev}")
+
+        # Conversation history window (last 6 turns); summarize early user turns
+        _HISTORY_WINDOW = 6
+        if len(conversation) > _HISTORY_WINDOW:
+            early_turns = conversation[:-_HISTORY_WINDOW]
+            early_summary_parts = []
+            for t in early_turns:
+                role_label = "患者" if t.get("role") == "user" else "助手"
+                content = t.get("content", "").strip()
+                if content and role_label == "患者":
+                    early_summary_parts.append(content[:80])
+            if early_summary_parts:
+                context_lines.append(f"早期对话摘要：{'；'.join(early_summary_parts)}")
+
+        patient_context = "\n".join(context_lines)
+
+        history = [
+            {"role": turn.get("role", "user"), "content": turn.get("content", "")}
+            for turn in conversation[-_HISTORY_WINDOW:]
+        ]
+
+        # Separate the latest user message from history (goes to doctor_message slot)
+        latest_msg = ""
+        prior_history = history
+        if history and history[-1].get("role") == "user":
+            latest_msg = history[-1]["content"]
+            prior_history = history[:-1]
+
         if mode == "doctor":
             return await _compose_for_doctor_interview(
-                doctor_id=doctor_id,
+                doctor_id=session_state.doctor_id,
                 patient_context=patient_context,
-                doctor_message=doctor_message,
-                history=history,
+                doctor_message=latest_msg,
+                history=prior_history,
                 template_id="medical_general_v1",
             )
         return await _compose_for_patient_interview(
-            doctor_id=doctor_id,
+            doctor_id=session_state.doctor_id,
             patient_context=patient_context,
-            doctor_message=doctor_message,
-            history=history,
+            doctor_message=latest_msg,
+            history=prior_history,
             template_id="medical_general_v1",
         )
+
+    def extract_metadata(
+        self, extracted: dict[str, str],
+    ) -> dict[str, str]:
+        """Pop patient metadata out of the raw LLM extraction dict.
+
+        Medical templates surface patient_name/gender/age at the turn level;
+        engine stores them as underscore-prefixed keys in session.collected.
+        """
+        out = {}
+        for key in ("patient_name", "patient_gender", "patient_age"):
+            value = extracted.get(key)
+            if isinstance(value, str):
+                value = value.strip()
+            if value:
+                out[key] = value
+        return out
+
+    def post_process_reply(
+        self, reply: str, collected: dict[str, str], mode: Mode,
+    ) -> str:
+        """Soften blocking language when all required fields are set.
+
+        If can_complete=True (required fields filled), rewrite phrases like
+        "还需要补充X" → "如方便可再补充" and strip "必须..." / "还缺...".
+        Preserves the current interview_turn.py:317-325 behavior.
+        """
+        import re
+        state = self.completeness(collected, mode)
+        if not state.can_complete:
+            return reply
+
+        # Only soften if reply contains blocking language
+        if not any(kw in reply for kw in ("还需要", "必须", "还缺")):
+            return reply
+
+        out = re.sub(r"还需要补充.+?[。；]?", "如方便可再补充", reply)
+        out = re.sub(r"必须.+?[。；]?", "", out)
+        out = re.sub(r"还缺.+?[。；]?", "", out)
+        if not out.strip():
+            out = "已记录。现在可以点击「完成」生成病历。"
+        return out
 
     def merge(
         self, collected: dict[str, str], extracted: dict[str, str],
