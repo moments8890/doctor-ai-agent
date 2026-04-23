@@ -112,6 +112,54 @@ and rationale live in the `theme.js` header comment.
    inline-style into individual call sites.
 5. Touch targets ≥ 44×44 CSS px (iOS HIG).
 
+### v2 card pattern (primary layout language for all new v2 pages)
+
+The doctor-facing v2 pages settled on a single consistent language. New pages
+and subpages MUST follow it; retrofits should use it too.
+
+**Page container**
+- `pageContainer` has `backgroundColor: APP.surfaceAlt` (#f7f7f7).
+- Sections are white cards (`APP.surface`) floating on the gray bg.
+
+**Card**
+- `borderRadius: RADIUS.lg` (12px) — never `RADIUS.md` on outer cards.
+- `margin: "8px 12px"` (or `"12px 12px 0"` when stacked with section headers).
+- No hard `border: 0.5px solid ${APP.border}` — color contrast against gray bg
+  does the separation. Borders inside a card (e.g. row dividers) use
+  `APP.borderLight` at `0.5px`.
+
+**Section header** (above the card, not inside)
+- Small icon + short label outside the card. Examples: `MyAIPage`
+  `SectionHeader`, `SettingsPage` `SectionHeader`.
+- Optional trailing action chip (`全部事项 >`, `查看更多 >`).
+
+**Row inside a card**
+- Tinted circular icon (36px, `RADIUS.md`) on the left — green for AI/primary,
+  blue `APP.accent` for system/general, red for danger.
+- Title `FONT.base` bold text1, optional subtitle `FONT.sm` text4 below.
+- Trailing: chevron / toggle / count badge / date.
+- Row padding: `10–14px vertical`, `14–16px horizontal`.
+- `alignItems: "center"` so icon centers with title+subtitle block.
+- Dividers between rows: `0.5px solid ${APP.borderLight}` (skip on first row).
+
+**Icons**
+- Always `ICON.*` tokens (`xs 16 / sm 20 / md 24 / lg 28 / xl 32`) — never
+  hardcoded `fontSize: 18` / `20` etc. on MUI icons.
+- Prefer outlined MUI variants (`*Outlined`) over filled for row icons.
+- Sparkle/decorative hero icons are the only exception where a literal
+  fontSize is acceptable (illustration, not UI icon).
+
+**Text overflow defense**
+- Any user-visible dynamic text wraps in `<Ellipsis rows={N}>` — never
+  `.slice(0, N)` as a truncation fallback (no `…` indicator, cuts mid-char).
+- Long titles on hero cards use `rows={1}` or `rows={2}`.
+
+**Reference implementations**
+- `MyAIPage.jsx` — hero banner + quick actions + 今日关注 + 最近使用.
+- `PatientsPage.jsx` — three collapsible sections with 共 N 人 footer.
+- `SettingsPage.jsx` — profile card + two icon-tinted sections + logout.
+- `PatientDetail.jsx` 总览 tab — AI 摘要 + 临床资料 + CalloutCards.
+
 ### v1 tokens (legacy MUI app) — source of truth: `src/theme.js`
 
 | What | Use | Never |

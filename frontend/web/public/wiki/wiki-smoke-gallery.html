@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v2 Redesign Smoke Gallery — Doctor AI</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f6f6f6; color: #202122;
+    font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+    font-size: 14px; min-height: 100vh;
+  }
+  .topbar {
+    background: linear-gradient(180deg, #0d5c2e 0%, #0a4a24 100%);
+    border-bottom: 3px solid #4caf50;
+    display: flex; align-items: center;
+    padding: 12px 16px; color: #fff;
+  }
+  .topbar a { color: #8bc34a; text-decoration: none; font-size: 13px; margin-right: 16px; }
+  .topbar a:hover { color: #fff; }
+  .topbar h1 { font-size: 16px; font-weight: bold; letter-spacing: 0.5px; }
+
+  main { max-width: 1400px; margin: 0 auto; padding: 24px 16px 48px; }
+
+  .intro {
+    background: #fff; border: 1px solid #ddd; border-radius: 6px;
+    padding: 16px 20px; margin-bottom: 24px; font-size: 13px; color: #555;
+    line-height: 1.7;
+  }
+  .intro code { background: #f0f0f0; padding: 1px 6px; border-radius: 3px; font-size: 12px; color: #333; }
+  .intro strong { color: #2e7d32; }
+
+  h2.group {
+    font-size: 14px; font-weight: bold; color: #555;
+    margin: 24px 0 12px; padding: 0 4px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .shot {
+    background: #fff; border: 1px solid #ddd; border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    display: flex; flex-direction: column;
+  }
+  .shot:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: #bbb; }
+  .shot a { display: block; }
+  .shot img { width: 100%; height: auto; display: block; border-bottom: 1px solid #eee; background: #fafafa; }
+  .shot-meta { padding: 10px 14px; }
+  .shot-title { font-size: 13px; font-weight: 600; color: #202122; margin-bottom: 2px; }
+  .shot-status { font-size: 11px; color: #777; }
+  .shot-status.ok { color: #2e7d32; }
+  .shot-status.warn { color: #c68400; }
+  .shot-status.bad { color: #c62828; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="wiki.html">← 返回 Wiki 首页</a>
+  <h1>v2 Redesign Smoke Gallery</h1>
+</div>
+
+<main>
+  <div class="intro">
+    Captured <strong>2026-04-23</strong> after the card-pattern rollout.
+    Viewport: iPhone-14 (390×844), device scale factor 2.
+    Source script: <code>frontend/web/tests/smoke-redesign.mjs</code> — 20 screenshots across every redesigned and niche subpage.
+    Click any thumbnail for full-res.
+  </div>
+
+  <h2 class="group">Main tabs</h2>
+  <div class="gallery">
+    <div class="shot"><a href="smoke-shots/01-my-ai-tab.png" target="_blank"><img src="smoke-shots/01-my-ai-tab.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">01 — 我的AI tab</div><div class="shot-status ok">✓ Hero + quick actions + 今日关注</div></div></div>
+    <div class="shot"><a href="smoke-shots/02-summary-popup.png" target="_blank"><img src="smoke-shots/02-summary-popup.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">02 — AI summary popup (attempted)</div><div class="shot-status warn">⚠ Click didn't trigger in smoke — retest in browser</div></div></div>
+    <div class="shot"><a href="smoke-shots/03-patients-tab.png" target="_blank"><img src="smoke-shots/03-patients-tab.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">03 — 患者 tab</div><div class="shot-status ok">✓ 3 sections, 待处理 badge, collapse chevrons</div></div></div>
+    <div class="shot"><a href="smoke-shots/06-review-tab.png" target="_blank"><img src="smoke-shots/06-review-tab.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">06 — 审核 tab (待审核)</div><div class="shot-status ok">✓ Card-wrapped list, 诊断/回复 tags</div></div></div>
+    <div class="shot"><a href="smoke-shots/06b-review-completed.png" target="_blank"><img src="smoke-shots/06b-review-completed.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">06b — 审核 tab (已完成)</div><div class="shot-status ok">✓ Completed items rendered</div></div></div>
+  </div>
+
+  <h2 class="group">Patient detail</h2>
+  <div class="gallery">
+    <div class="shot"><a href="smoke-shots/04-patient-detail-overview.png" target="_blank"><img src="smoke-shots/04-patient-detail-overview.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">04 — 总览</div><div class="shot-status ok">✓ Gradient AI summary, tinted 临床资料 rows</div></div></div>
+    <div class="shot"><a href="smoke-shots/05-patient-detail-records.png" target="_blank"><img src="smoke-shots/05-patient-detail-records.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">05 — 病历</div><div class="shot-status ok">✓ Record card, 共 N 条 footer</div></div></div>
+    <div class="shot"><a href="smoke-shots/05b-patient-detail-chat.png" target="_blank"><img src="smoke-shots/05b-patient-detail-chat.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">05b — 聊天</div><div class="shot-status ok">✓ Draft bubble, AI 起草回复 CTA</div></div></div>
+  </div>
+
+  <h2 class="group">Settings (Tier A + B)</h2>
+  <div class="gallery">
+    <div class="shot"><a href="smoke-shots/07-settings.png" target="_blank"><img src="smoke-shots/07-settings.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">07 — 设置</div><div class="shot-status ok">✓ Matches mockup 1:1</div></div></div>
+    <div class="shot"><a href="smoke-shots/08-persona.png" target="_blank"><img src="smoke-shots/08-persona.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">08 — AI 人设</div><div class="shot-status ok">✓ Borderless section cards</div></div></div>
+    <div class="shot"><a href="smoke-shots/09-knowledge.png" target="_blank"><img src="smoke-shots/09-knowledge.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">09 — 知识库</div><div class="shot-status ok">✓ Stats grid + spotlight cards</div></div></div>
+    <div class="shot"><a href="smoke-shots/10-template.png" target="_blank"><img src="smoke-shots/10-template.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">10 — 回复模板</div><div class="shot-status ok">✓ Full rewrite, tinted-icon rows</div></div></div>
+    <div class="shot"><a href="smoke-shots/11-about.png" target="_blank"><img src="smoke-shots/11-about.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">11 — 关于</div><div class="shot-status ok">✓ Hero icon + info rows</div></div></div>
+  </div>
+
+  <h2 class="group">Niche subpages</h2>
+  <div class="gallery">
+    <div class="shot"><a href="smoke-shots/12-knowledge-add.png" target="_blank"><img src="smoke-shots/12-knowledge-add.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">12 — 添加知识</div><div class="shot-status ok">✓ Textarea borderless, tabs on top</div></div></div>
+    <div class="shot"><a href="smoke-shots/13-knowledge-detail.png" target="_blank"><img src="smoke-shots/13-knowledge-detail.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">13 — 知识详情</div><div class="shot-status ok">✓ Stats card + content card float on gray bg</div></div></div>
+    <div class="shot"><a href="smoke-shots/14-teach-by-example.png" target="_blank"><img src="smoke-shots/14-teach-by-example.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">14 — 教 AI 新偏好</div><div class="shot-status ok">✓ Borderless textarea, lg radius</div></div></div>
+    <div class="shot"><a href="smoke-shots/15-persona-onboarding.png" target="_blank"><img src="smoke-shots/15-persona-onboarding.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">15 — Persona onboarding</div><div class="shot-status ok">✓ Option cards updated to lg radius</div></div></div>
+    <div class="shot"><a href="smoke-shots/16-pending-review.png" target="_blank"><img src="smoke-shots/16-pending-review.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">16 — Pending review</div><div class="shot-status ok">✓ Empty state — no pending items for test doctor</div></div></div>
+    <div class="shot"><a href="smoke-shots/17-review-subpage.png" target="_blank"><img src="smoke-shots/17-review-subpage.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">17 — 诊断审核 (ReviewSubpage)</div><div class="shot-status warn">⚠ Renders blank — not in redesign sweep, may need attention</div></div></div>
+    <div class="shot"><a href="smoke-shots/18-preferences.png" target="_blank"><img src="smoke-shots/18-preferences.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">18 — 偏好设置 (SettingsListSubpage)</div><div class="shot-status warn">⚠ Still uses legacy flush-list styling — not migrated yet</div></div></div>
+    <div class="shot"><a href="smoke-shots/19-qr.png" target="_blank"><img src="smoke-shots/19-qr.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">19 — 预问诊码</div><div class="shot-status ok">✓ QR code + doctor name</div></div></div>
+  </div>
+</main>
+
+</body>
+</html>
