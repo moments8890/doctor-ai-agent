@@ -25,9 +25,18 @@ from domain.patients.interview_session import (
     save_session,
 )
 from domain.patients.interview_summary import confirm_interview
-from domain.patients.interview_turn import interview_turn
+from domain.interview.engine import InterviewEngine
 
 router = APIRouter(prefix="/api/patient/interview", tags=["patient-interview"])
+
+_ENGINE: InterviewEngine | None = None
+
+
+def _get_engine() -> InterviewEngine:
+    global _ENGINE
+    if _ENGINE is None:
+        _ENGINE = InterviewEngine()
+    return _ENGINE
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
@@ -110,10 +119,33 @@ async def turn(
     if session.patient_id != patient.id:
         raise HTTPException(403, "无权操作")
 
-    # Phase 2.5 deferral: patient /turn still calls interview_turn() directly.
-    # InterviewEngine.next_turn currently forwards to interview_turn, so routing
-    # here would double the call. Phase 2.5 inlines the loop into the engine.
-    response = await interview_turn(body.session_id, body.text.strip())
+    # Phase 2.5: routed through InterviewEngine.next_turn (engine owns the turn loop).
+    from domain.patients.interview_models import InterviewResponse, _build_progress
+
+    result = await _get_engine().next_turn(body.session_id, body.text.strip())
+    reloaded = await load_session(body.session_id)
+
+    if reloaded is None:
+        response = InterviewResponse(
+            reply=result.reply, collected={},
+            progress={"filled": 0, "total": 0}, status="error",
+            missing=list(result.state.required_missing + result.state.recommended_missing),
+            suggestions=list(result.suggestions),
+            ready_to_review=result.state.can_complete,
+        )
+    else:
+        response = InterviewResponse(
+            reply=result.reply,
+            collected=reloaded.collected,
+            progress=_build_progress(reloaded.collected, reloaded.mode),
+            status=reloaded.status,
+            missing=list(result.state.required_missing + result.state.recommended_missing),
+            suggestions=list(result.suggestions),
+            ready_to_review=result.state.can_complete,
+            patient_name=result.metadata.get("patient_name"),
+            patient_gender=result.metadata.get("patient_gender"),
+            patient_age=result.metadata.get("patient_age"),
+        )
 
     if response.status == "error":
         raise HTTPException(404, response.reply)

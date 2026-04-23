@@ -64,6 +64,7 @@ async def test_turn_rejects_wrong_patient():
 async def test_turn_allows_owner():
     """The session owner can successfully send a turn."""
     from channels.web.patient_interview_routes import turn, InterviewTurnRequest
+    from domain.interview.protocols import CompletenessState, TurnResult
 
     patient_id = 42
     session_id = "session-uuid-xyz"
@@ -72,13 +73,20 @@ async def test_turn_allows_owner():
     owner = _make_patient(patient_id)
     owner_session = _make_session(session_id, patient_id)
 
-    # Minimal mock for interview_turn response
-    mock_response = MagicMock()
-    mock_response.status = "interviewing"
-    mock_response.reply = "请描述一下头痛的情况"
-    mock_response.collected = {}
-    mock_response.progress = {"filled": 0, "total": 7}
-    mock_response.missing = ["present_illness"]
+    # TurnResult returned by engine.next_turn
+    mock_state = CompletenessState(
+        can_complete=False, required_missing=["present_illness"],
+        recommended_missing=[], optional_missing=[], next_focus=None,
+    )
+    mock_turn_result = TurnResult(
+        reply="请描述一下头痛的情况",
+        suggestions=[],
+        state=mock_state,
+        metadata={},
+    )
+
+    mock_engine = MagicMock()
+    mock_engine.next_turn = AsyncMock(return_value=mock_turn_result)
 
     with patch(
         "channels.web.patient_interview_routes._authenticate_patient",
@@ -89,9 +97,8 @@ async def test_turn_allows_owner():
         new_callable=AsyncMock,
         return_value=owner_session,
     ), patch(
-        "channels.web.patient_interview_routes.interview_turn",
-        new_callable=AsyncMock,
-        return_value=mock_response,
+        "channels.web.patient_interview_routes._get_engine",
+        return_value=mock_engine,
     ):
         result = await turn(body, authorization="fake-token")
 

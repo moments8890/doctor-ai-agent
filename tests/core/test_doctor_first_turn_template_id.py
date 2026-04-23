@@ -35,7 +35,7 @@ async def test_first_turn_passes_template_id_to_create_session():
                new=AsyncMock(return_value=fake_session)) as mock_create, \
          patch("channels.web.doctor_interview.turn.save_session",
                new=AsyncMock()), \
-         patch("channels.web.doctor_interview.turn.interview_turn",
+         patch("channels.web.doctor_interview.turn._call_engine_turn",
                new=AsyncMock(return_value=_make_fake_response())), \
          patch("channels.web.doctor_interview.turn.resolve",
                new=AsyncMock(return_value={})):
@@ -53,7 +53,7 @@ async def test_first_turn_defaults_template_id_when_none():
                new=AsyncMock(return_value=fake_session)) as mock_create, \
          patch("channels.web.doctor_interview.turn.save_session",
                new=AsyncMock()), \
-         patch("channels.web.doctor_interview.turn.interview_turn",
+         patch("channels.web.doctor_interview.turn._call_engine_turn",
                new=AsyncMock(return_value=_make_fake_response())), \
          patch("channels.web.doctor_interview.turn.resolve",
                new=AsyncMock(return_value={})):

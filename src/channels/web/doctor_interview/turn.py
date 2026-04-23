@@ -7,8 +7,9 @@ from fastapi import APIRouter, Header, HTTPException, UploadFile, File, Form
 
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from domain.patients.interview_session import create_session, load_session, save_session
-from domain.patients.interview_turn import FIELD_LABELS, interview_turn
+from domain.patients.interview_turn import FIELD_LABELS
 from agent.tools.resolve import resolve
+from domain.interview.engine import InterviewEngine
 from utils.log import log
 
 from .shared import (
@@ -25,6 +26,51 @@ from .shared import (
 )
 
 router = APIRouter()
+
+_ENGINE: InterviewEngine | None = None
+
+
+def _get_engine() -> InterviewEngine:
+    global _ENGINE
+    if _ENGINE is None:
+        _ENGINE = InterviewEngine()
+    return _ENGINE
+
+
+async def _call_engine_turn(session_id: str, user_input: str):
+    """Call engine.next_turn, reload the session, and rebuild an InterviewResponse.
+
+    Phase 2.5: the engine owns the turn loop. The endpoint's only job is
+    translating between HTTP shape and TurnResult + session state.
+    """
+    from domain.patients.interview_models import InterviewResponse, _build_progress
+
+    result = await _get_engine().next_turn(session_id, user_input)
+    reloaded = await load_session(session_id)
+
+    if reloaded is None:
+        return InterviewResponse(
+            reply=result.reply,
+            collected={},
+            progress={"filled": 0, "total": 0},
+            status="error",
+            missing=list(result.state.required_missing + result.state.recommended_missing),
+            suggestions=list(result.suggestions),
+            ready_to_review=result.state.can_complete,
+        )
+
+    return InterviewResponse(
+        reply=result.reply,
+        collected=reloaded.collected,
+        progress=_build_progress(reloaded.collected, reloaded.mode),
+        status=reloaded.status,
+        missing=list(result.state.required_missing + result.state.recommended_missing),
+        suggestions=list(result.suggestions),
+        ready_to_review=result.state.can_complete,
+        patient_name=result.metadata.get("patient_name"),
+        patient_gender=result.metadata.get("patient_gender"),
+        patient_age=result.metadata.get("patient_age"),
+    )
 
 
 # ── GET /session/{session_id} ────────────────────────────────────
@@ -112,11 +158,8 @@ async def _first_turn(doctor_id, text, pre_patient_id=None, *, template_id=None)
         initial_fields=initial_fields,
         template_id=template_id or "medical_general_v1",
     )
-    # Phase 2.5 deferral: /turn endpoints still call interview_turn() directly.
-    # InterviewEngine.next_turn currently forwards to interview_turn, so routing
-    # /turn through the engine would double the call without structural benefit.
-    # Phase 2.5 inlines the turn loop into engine.next_turn and flips /turn then.
-    response = await interview_turn(session.id, text)
+    # Phase 2.5: routed through InterviewEngine.next_turn (engine owns the turn loop).
+    response = await _call_engine_turn(session.id, text)
 
     # Try to resolve patient from LLM-extracted name (only when no pre-selected patient)
     patient_id = pre_patient_id
@@ -149,7 +192,8 @@ async def _first_turn(doctor_id, text, pre_patient_id=None, *, template_id=None)
 
 
 async def _continue_turn(session, text):
-    response = await interview_turn(session.id, text)
+    # Phase 2.5: routed through InterviewEngine.next_turn (engine owns the turn loop).
+    response = await _call_engine_turn(session.id, text)
     progress_info = _compute_progress(response.collected)
 
     return DoctorInterviewResponse(
