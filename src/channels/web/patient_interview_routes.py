@@ -110,6 +110,9 @@ async def turn(
     if session.patient_id != patient.id:
         raise HTTPException(403, "无权操作")
 
+    # Phase 2.5 deferral: patient /turn still calls interview_turn() directly.
+    # InterviewEngine.next_turn currently forwards to interview_turn, so routing
+    # here would double the call. Phase 2.5 inlines the loop into the engine.
     response = await interview_turn(body.session_id, body.text.strip())
 
     if response.status == "error":

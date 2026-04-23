@@ -112,6 +112,10 @@ async def _first_turn(doctor_id, text, pre_patient_id=None, *, template_id=None)
         initial_fields=initial_fields,
         template_id=template_id or "medical_general_v1",
     )
+    # Phase 2.5 deferral: /turn endpoints still call interview_turn() directly.
+    # InterviewEngine.next_turn currently forwards to interview_turn, so routing
+    # /turn through the engine would double the call without structural benefit.
+    # Phase 2.5 inlines the turn loop into engine.next_turn and flips /turn then.
     response = await interview_turn(session.id, text)
 
     # Try to resolve patient from LLM-extracted name (only when no pre-selected patient)
