@@ -10,8 +10,10 @@ from domain.interview.templates.medical_general import MedicalBatchExtractor
 
 @pytest.mark.asyncio
 async def test_extract_delegates_with_patient_info_rename():
+    # Phase 2: import is now lazy (inside extract()) to avoid circular import;
+    # patch the function at its source module rather than via the old alias.
     with patch(
-        "domain.interview.templates.medical_general._batch_extract_from_transcript",
+        "domain.patients.interview_summary.batch_extract_from_transcript",
         new=AsyncMock(return_value={"chief_complaint": "头痛"}),
     ) as mock_batch:
         be = MedicalBatchExtractor()
@@ -32,7 +34,7 @@ async def test_extract_delegates_with_patient_info_rename():
 @pytest.mark.asyncio
 async def test_extract_propagates_none_on_empty_result():
     with patch(
-        "domain.interview.templates.medical_general._batch_extract_from_transcript",
+        "domain.patients.interview_summary.batch_extract_from_transcript",
         new=AsyncMock(return_value=None),
     ):
         be = MedicalBatchExtractor()

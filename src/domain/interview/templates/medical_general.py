@@ -14,9 +14,25 @@ from domain.interview.protocols import (
 
 # ---- field specs ------------------------------------------------------------
 
-from domain.patients.completeness import APPENDABLE, REQUIRED
+# Inline the legacy constants here to avoid a circular import when
+# completeness.py becomes a shim that imports from this module (Phase 2).
+# These values are the canonical source; completeness.py derives from them.
+_REQUIRED = frozenset({"chief_complaint", "present_illness"})
+_APPENDABLE = frozenset({
+    "present_illness", "past_history", "allergy_history",
+    "family_history", "personal_history", "marital_reproductive",
+    "physical_exam", "specialist_exam", "auxiliary_exam",
+    "treatment_plan", "orders_followup",
+})
+_DOCTOR_RECOMMENDED = frozenset({
+    "past_history", "allergy_history", "family_history", "personal_history",
+    "physical_exam", "diagnosis", "treatment_plan",
+})
+_CARRY_FORWARD_FIELDS_SET = frozenset({
+    "past_history", "allergy_history", "family_history", "personal_history",
+})
+
 from domain.patients.interview_models import FIELD_LABELS, FIELD_META
-from channels.web.doctor_interview.shared import _CARRY_FORWARD_FIELDS
 
 
 def _build_medical_fields() -> list[FieldSpec]:
@@ -35,7 +51,11 @@ def _build_medical_fields() -> list[FieldSpec]:
     - carry_forward_modes = frozenset({"doctor"}) if name in _CARRY_FORWARD_FIELDS
                             else frozenset()
     """
-    from domain.patients.completeness import DOCTOR_RECOMMENDED
+    REQUIRED = _REQUIRED
+    APPENDABLE = _APPENDABLE
+    DOCTOR_RECOMMENDED = _DOCTOR_RECOMMENDED
+    _CARRY_FORWARD_FIELDS = _CARRY_FORWARD_FIELDS_SET
+
     from domain.patients.interview_models import ExtractedClinicalFields
 
     # Build the set of non-patient pydantic fields that have no FIELD_LABELS entry
@@ -245,10 +265,6 @@ def _composer_kwargs(
 
 # ---- batch extractor -------------------------------------------------------
 
-from domain.patients.interview_summary import (
-    batch_extract_from_transcript as _batch_extract_from_transcript,
-)
-
 
 class MedicalBatchExtractor:
     """Phase 1 stub. Forwards to the existing batch_extract_from_transcript."""
@@ -259,6 +275,11 @@ class MedicalBatchExtractor:
         context: dict[str, Any],
         mode: Mode,
     ) -> dict[str, str] | None:
+        # Lazy import to avoid circular dependency:
+        # completeness (shim) → medical_general → interview_summary → completeness
+        from domain.patients.interview_summary import (
+            batch_extract_from_transcript as _batch_extract_from_transcript,
+        )
         return await _batch_extract_from_transcript(
             conversation, context, mode=mode,
         )
@@ -269,7 +290,6 @@ class MedicalBatchExtractor:
 from fastapi import HTTPException
 
 from agent.tools.resolve import resolve as _resolve_patient
-from channels.web.doctor_interview.shared import _build_clinical_text
 from db.crud.doctor import _ensure_doctor_exists
 from db.engine import AsyncSessionLocal
 from db.models.records import MedicalRecordDB, RecordStatus
@@ -285,6 +305,10 @@ class MedicalRecordWriter:
     async def persist(
         self, session: SessionState, collected: dict[str, str],
     ) -> PersistRef:
+        # Lazy import to avoid circular dependency:
+        # completeness (shim) → medical_general → shared → interview_turn → completeness
+        from channels.web.doctor_interview.shared import _build_clinical_text
+
         patient_id = await self._ensure_patient(session, collected)
 
         clinical_text = _build_clinical_text(collected)
