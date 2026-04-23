@@ -26,7 +26,7 @@ import {
 import { MoreOutline } from "antd-mobile-icons";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
-import { ActionFooter, SectionHeader } from "../../components";
+import { ActionFooter, SectionHeader, CitationPopup } from "../../components";
 import { useTaskRecord, useSuggestions } from "../../../lib/doctorQueries";
 import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
@@ -1377,36 +1377,60 @@ export default function ReviewPage({ recordId }) {
     setAddingCustom(false);
   }
 
+  // Citation preview — open the bottom-sheet popup instead of navigating away
+  // so the doctor keeps their review context. Popup rendered at the root
+  // (see end of this component).
+  const [citationPopupRule, setCitationPopupRule] = useState(null);
   function handleOpenCitation(rule) {
     if (!rule?.id) return;
-    navigate(`/doctor/settings/knowledge/${rule.id}`);
+    // Rule objects passed in here are the entries from knowledgeMap, which
+    // the shared CitationPopup consumes directly ({ title, text, category }).
+    setCitationPopupRule(rule);
   }
 
   // Keyboard-aware scroll — keeps add form visible when keyboard opens
   const scrollBottomRef = useRef(null);
   useScrollOnKeyboard(scrollBottomRef);
 
+  // Shared citation preview — rendered on both layout paths so the bottom-sheet
+  // popup is always available when a 依据 pill is tapped.
+  const citationPopupNode = (
+    <CitationPopup
+      visible={citationPopupRule != null}
+      item={citationPopupRule}
+      onClose={() => setCitationPopupRule(null)}
+      onOpenDetail={() => {
+        const id = citationPopupRule?.id;
+        setCitationPopupRule(null);
+        if (id != null) navigate(`/doctor/settings/knowledge/${id}`);
+      }}
+    />
+  );
+
   // ── Inline-per-field layout (V5) — default when suggestions exist ──
   if (hasSuggestions) {
     return (
-      <InlineReviewLayout
-        record={record}
-        patientName={patientName}
-        contextBits={contextBits}
-        suggestions={suggestions}
-        knowledgeMap={knowledgeMap}
-        onDecide={handleDecide}
-        onAdd={handleAdd}
-        onFinalize={handleFinalize}
-        onOpenCitation={handleOpenCitation}
-        onSubmitFeedback={handleSubmitFeedback}
-        finalizing={finalizing}
-        onBack={() => navigate(-1)}
-        teachEditId={teachEditId}
-        onTeachSkip={() => setTeachEditId(null)}
-        onTeachSave={handleTeachSave}
-        teachSaving={teachSaving}
-      />
+      <>
+        <InlineReviewLayout
+          record={record}
+          patientName={patientName}
+          contextBits={contextBits}
+          suggestions={suggestions}
+          knowledgeMap={knowledgeMap}
+          onDecide={handleDecide}
+          onAdd={handleAdd}
+          onFinalize={handleFinalize}
+          onOpenCitation={handleOpenCitation}
+          onSubmitFeedback={handleSubmitFeedback}
+          finalizing={finalizing}
+          onBack={() => navigate(-1)}
+          teachEditId={teachEditId}
+          onTeachSkip={() => setTeachEditId(null)}
+          onTeachSave={handleTeachSave}
+          teachSaving={teachSaving}
+        />
+        {citationPopupNode}
+      </>
     );
   }
 
@@ -1688,6 +1712,7 @@ export default function ReviewPage({ recordId }) {
       )}
 
       <SafeArea position="bottom" />
+      {citationPopupNode}
     </div>
   );
 }

@@ -3,3 +3,4 @@ export { default as LoadingCenter } from "./LoadingCenter";
 export { default as EmptyState } from "./EmptyState";
 export { default as ActionFooter } from "./ActionFooter";
 export { default as SectionHeader } from "./SectionHeader";
+export { default as CitationPopup, CategoryPill, buildKnowledgeMap } from "./CitationPopup";

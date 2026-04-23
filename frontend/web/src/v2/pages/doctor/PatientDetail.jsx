@@ -25,15 +25,26 @@ import {
   Ellipsis,
 } from "antd-mobile";
 import { LeftOutline, MessageOutline, ContentOutline, MailOutline, MoreOutline, RedoOutline } from "antd-mobile-icons";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutlined";
+import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
+import EventNoteOutlinedIcon from "@mui/icons-material/EventNoteOutlined";
+import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
+import BoltOutlinedIcon from "@mui/icons-material/BoltOutlined";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import PatientChatPage from "./PatientChatPage";
 import { QRCodeSVG } from "qrcode.react";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
-import { APP, FONT, RADIUS } from "../../theme";
+import { recordView } from "../../../hooks/useLastViewed";
+import { formatAge } from "../../../utils/time";
+import { APP, FONT, RADIUS, ICON } from "../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
-import { LoadingCenter } from "../../components";
+import { LoadingCenter, NameAvatar } from "../../components";
 import { STRUCTURED_FIELD_LABELS } from "../../../pages/doctor/constants";
 
 // Fields to show inside an expanded record card, in reading order.
@@ -73,10 +84,10 @@ const TAB_CHAT = "chat";
 
 // Keys in record.structured that we surface in the Overview clinical card.
 const CLINICAL_FIELDS = [
-  { key: "diagnosis",       label: "诊断" },
-  { key: "treatment_plan",  label: "用药" },
-  { key: "allergy_history", label: "过敏", danger: true },
-  { key: "past_history",    label: "既往" },
+  { key: "diagnosis",       label: "诊断", Icon: MedicalServicesOutlinedIcon },
+  { key: "treatment_plan",  label: "用药", Icon: MedicationOutlinedIcon },
+  { key: "allergy_history", label: "过敏", danger: true, Icon: WarningAmberOutlinedIcon },
+  { key: "past_history",    label: "既往", Icon: EventNoteOutlinedIcon },
 ];
 
 // ── Record status color ───────────────────────────────────────────────
@@ -181,175 +192,79 @@ function formatSummaryAge(ts) {
 
 // ── Patient profile helpers ───────────────────────────────────────────
 
-function maskPhone(phone) {
-  if (!phone || phone.length < 7) return phone || "—";
-  return phone.slice(0, 3) + "****" + phone.slice(-4);
-}
+// ── Attention callouts ────────────────────────────────────────────────
+// Two independent cards — one amber for pending AI suggestions, one green for
+// drafts waiting confirmation. Each renders only when its count is > 0.
 
-// ── Profile section ───────────────────────────────────────────────────
-
-function PatientProfile({ patient, records, onStartInterview }) {
-  const age = patient.year_of_birth
-    ? new Date().getFullYear() - patient.year_of_birth
-    : null;
-  const genderStr = patient.gender
-    ? { male: "男", female: "女" }[patient.gender] || patient.gender
-    : null;
-
-  const medical = ["visit", "dictation", "import", "surgery", "referral"];
-  let visitCount = 0;
-  for (const r of records) {
-    if (medical.includes(r.record_type)) visitCount++;
-  }
-
-  // Recency: last activity or most recent record date, formatted as MM-DD
-  const recencyDate = (() => {
-    const raw = patient.last_activity_at || records[0]?.created_at;
-    if (!raw) return null;
-    const d = new Date(raw);
-    if (isNaN(d.getTime())) return null;
-    return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  })();
-
-  const summaryParts = [
-    genderStr,
-    age ? `${age}岁` : null,
-    `门诊${visitCount}次`,
-    recencyDate ? `最近${recencyDate}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
+function CalloutCard({ Icon, iconColor, iconBg, tint, title, description, onClick }) {
   return (
     <div
+      onClick={onClick}
       style={{
-        padding: "12px 16px",
-        background: APP.surface,
-        borderBottom: `0.5px solid ${APP.border}`,
+        margin: "8px 12px 0",
+        background: tint,
+        borderRadius: RADIUS.lg,
+        padding: "12px 14px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        cursor: "pointer",
       }}
     >
-      {/* Compact row always visible */}
-      <Collapse>
-        <Collapse.Panel
-          key="profile"
-          title={
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8, width: "100%" }}>
-              <span style={{ fontWeight: 700, fontSize: FONT.lg, color: APP.text1, flexShrink: 0 }}>
-                {patient.name || "患者"}
-              </span>
-              <div style={{ fontSize: FONT.sm, color: APP.text4, flex: 1, minWidth: 0 }}>
-                <Ellipsis direction="end" content={summaryParts} rows={1} />
-              </div>
-              <span
-                onClick={(e) => { e.stopPropagation(); onStartInterview?.(); }}
-                style={{
-                  fontSize: FONT.sm,
-                  color: APP.primary,
-                  fontWeight: 500,
-                  flexShrink: 0,
-                  cursor: "pointer",
-                  marginRight: 8,
-                }}
-              >
-                新建门诊
-              </span>
-            </div>
-          }
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "8px 16px",
-              padding: "4px 0 8px",
-            }}
-          >
-            <ProfileRow label="性别" value={genderStr || "—"} />
-            <ProfileRow label="年龄" value={age ? `${age}岁` : "—"} />
-            <ProfileRow label="出生年份" value={patient.year_of_birth ? `${patient.year_of_birth}年` : "—"} />
-            <ProfileRow label="手机" value={maskPhone(patient.phone)} />
-          </div>
-        </Collapse.Panel>
-      </Collapse>
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: RADIUS.md,
+          background: iconBg,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <Icon sx={{ fontSize: ICON.sm, color: iconColor }} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1 }}>
+          {title}
+        </div>
+        <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
+          {description}
+        </div>
+      </div>
+      <ChevronRightIcon sx={{ fontSize: ICON.sm, color: APP.text4, flexShrink: 0 }} />
     </div>
   );
 }
-
-function ProfileRow({ label, value }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <span style={{ fontSize: FONT.xs, color: APP.text4 }}>{label}</span>
-      <span style={{ fontSize: FONT.main, color: APP.text2 }}>{value}</span>
-    </div>
-  );
-}
-
-// ── Attention card ────────────────────────────────────────────────────
 
 function AttentionCard({ pendingReviewCount, draftCount, onPendingClick, onDraftClick }) {
   if (!pendingReviewCount && !draftCount) return null;
-
   return (
-    <List
-      header={
-        <span style={{ fontSize: FONT.xs, fontWeight: 600, color: APP.warning }}>
-          ⚡ 需要你处理
-        </span>
-      }
-      style={{ "--border-top": "none", marginBottom: 8 }}
-    >
+    <>
       {pendingReviewCount > 0 && (
-        <List.Item
-          prefix={
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: RADIUS.sm,
-                background: APP.warningLight,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <ContentOutline style={{ fontSize: FONT.md, color: APP.warning }} />
-            </div>
-          }
-          description="点击查看并确认"
-          arrow
+        <CalloutCard
+          Icon={BoltOutlinedIcon}
+          iconColor={APP.warning}
+          iconBg={APP.surface}
+          tint={APP.warningLight}
+          title="需要你处理"
+          description="请尽快查看并确认AI建议"
           onClick={onPendingClick}
-          style={{ "--adm-font-size-main": FONT.main }}
-        >
-          <span style={{ fontWeight: 500 }}>{pendingReviewCount} 条病历待审核</span>
-        </List.Item>
+        />
       )}
-
       {draftCount > 0 && (
-        <List.Item
-          prefix={
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: RADIUS.sm,
-                background: APP.primaryLight,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <MailOutline style={{ fontSize: FONT.md, color: APP.primary }} />
-            </div>
-          }
+        <CalloutCard
+          Icon={MailOutlineIcon}
+          iconColor={APP.primary}
+          iconBg={APP.surface}
+          tint={APP.primaryLight}
+          title={`${draftCount} 条消息待回复`}
           description="AI已起草 · 待你确认"
-          arrow
           onClick={onDraftClick}
-          style={{ "--adm-font-size-main": FONT.main }}
-        >
-          <span style={{ fontWeight: 500 }}>{draftCount} 条消息待回复</span>
-        </List.Item>
+        />
       )}
-    </List>
+    </>
   );
 }
 
@@ -432,8 +347,7 @@ function RecordCard({ record, onViewFull }) {
         onClick={() => onViewFull?.()}
         style={{
           background: APP.surface,
-          border: `0.5px solid ${APP.border}`,
-          borderRadius: RADIUS.md,
+          borderRadius: RADIUS.lg,
           margin: "8px 12px",
           padding: "12px 14px",
           display: "flex",
@@ -458,8 +372,7 @@ function RecordCard({ record, onViewFull }) {
     <div
       style={{
         background: APP.surface,
-        border: `0.5px solid ${APP.border}`,
-        borderRadius: RADIUS.md,
+        borderRadius: RADIUS.lg,
         margin: "8px 12px",
         overflow: "hidden",
       }}
@@ -597,7 +510,18 @@ export default function PatientDetail({ patientId: propPatientId }) {
       .then((data) => {
         const items = Array.isArray(data) ? data : data?.items || [];
         const found = items.find((p) => String(p.id) === String(patientId));
-        setPatient(found || { id: patientId, name: "患者" });
+        const resolved = found || { id: patientId, name: "患者" };
+        setPatient(resolved);
+        if (found) {
+          recordView({
+            type: "patient",
+            id: found.id,
+            name: found.name || "未命名",
+            gender: found.gender || null,
+            yearOfBirth: found.year_of_birth || null,
+            lastVisitAt: found.last_activity_at || found.created_at || null,
+          });
+        }
       })
       .catch(() => setPatient({ id: patientId, name: "患者" }));
   }, [patientId, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -719,9 +643,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
   const hasAttention = pendingReviewCount > 0 || draftCount > 0;
 
   // Compact stat line under the name in the header strip
-  const age = patient?.year_of_birth
-    ? new Date().getFullYear() - patient.year_of_birth
-    : null;
+  const ageStr = formatAge(patient?.year_of_birth);
   const genderStr = patient?.gender
     ? { male: "男", female: "女" }[patient.gender] || patient.gender
     : null;
@@ -736,7 +658,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
   })();
   const statLine = [
     genderStr,
-    age ? `${age}岁` : null,
+    ageStr,
     `门诊${visitCount}次`,
     recencyDate ? `最近${recencyDate}` : null,
   ].filter(Boolean).join(" · ");
@@ -910,7 +832,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
         </div>
       </Popup>
 
-      {/* Header strip — one-line name + stat + 新建门诊 CTA */}
+      {/* Header strip — flat strip, avatar + (name over vitals) + CTA */}
       {patient && (
         <div
           style={{
@@ -918,23 +840,37 @@ export default function PatientDetail({ patientId: propPatientId }) {
             padding: "10px 16px",
             display: "flex",
             alignItems: "center",
-            gap: 8,
+            gap: 12,
             borderBottom: `0.5px solid ${APP.border}`,
             flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: FONT.md, fontWeight: 700, color: APP.text1, flexShrink: 0 }}>
-            {patient.name || "患者"}
-          </span>
-          <div
-            style={{
-              flex: 1,
-              fontSize: FONT.sm,
-              color: APP.text4,
-              minWidth: 0,
-            }}
-          >
-            <Ellipsis direction="end" content={statLine} rows={1} />
+          <NameAvatar name={patient.name} size={44} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: FONT.md,
+                fontWeight: 700,
+                color: APP.text1,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {patient.name || "患者"}
+            </div>
+            {statLine && (
+              <div
+                style={{
+                  marginTop: 2,
+                  fontSize: FONT.sm,
+                  color: APP.text4,
+                  lineHeight: 1.5,
+                }}
+              >
+                {statLine}
+              </div>
+            )}
           </div>
           <span
             onClick={handleStartInterview}
@@ -984,23 +920,22 @@ export default function PatientDetail({ patientId: propPatientId }) {
         {/* ── 总览 tab ── */}
         {!loading && !error && activeTab === TAB_OVERVIEW && (
           <>
-            {/* AI summary */}
+            {/* AI 摘要 — white outer card wrapping a bordered inner box */}
             <div
               style={{
-                margin: "12px 12px 0",
+                margin: "8px 12px 0",
                 background: APP.surface,
-                border: `0.5px solid ${APP.border}`,
-                borderRadius: RADIUS.md,
-                padding: 14,
+                borderRadius: RADIUS.lg,
+                padding: "12px 14px",
               }}
             >
               <div style={{
-                display: "flex", alignItems: "center",
-                marginBottom: 6,
+                display: "flex", alignItems: "center", gap: 6,
+                marginBottom: 8,
               }}>
+                <AutoAwesomeOutlinedIcon sx={{ fontSize: ICON.sm, color: APP.primary }} />
                 <span style={{
-                  fontSize: FONT.xs, fontWeight: 600, color: APP.primary,
-                  letterSpacing: 0.5,
+                  fontSize: FONT.md, fontWeight: 600, color: APP.primary,
                 }}>
                   AI 摘要
                 </span>
@@ -1029,65 +964,104 @@ export default function PatientDetail({ patientId: propPatientId }) {
                     : <RedoOutline style={{ fontSize: 14 }} />}
                 </span>
               </div>
-              <div style={{ fontSize: FONT.base, color: APP.text1, lineHeight: 1.6 }}>
+              <div
+                style={{
+                  background: `linear-gradient(135deg, ${APP.primaryLight} 0%, #d4f5e0 100%)`,
+                  borderRadius: RADIUS.md,
+                  padding: "10px 14px",
+                  fontSize: FONT.base,
+                  color: APP.text1,
+                  lineHeight: 1.65,
+                }}
+              >
                 {aiSummary || "暂无摘要"}
               </div>
             </div>
 
-            {/* Clinical context */}
+            {/* Clinical context — outer card with nested bordered inner card */}
             {hasClinical && (
               <div
                 style={{
-                  margin: "12px 12px 0",
+                  margin: "8px 12px 0",
                   background: APP.surface,
-                  border: `0.5px solid ${APP.border}`,
-                  borderRadius: RADIUS.md,
-                  overflow: "hidden",
+                  borderRadius: RADIUS.lg,
+                  padding: "12px 12px 12px",
                 }}
               >
                 <div style={{
-                  padding: "10px 14px 6px", fontSize: FONT.sm, color: APP.text4,
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "0 2px 8px",
                 }}>
-                  临床资料
+                  <ArticleOutlinedIcon sx={{ fontSize: ICON.sm, color: APP.primary }} />
+                  <span style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1 }}>
+                    临床资料
+                  </span>
                 </div>
-                {CLINICAL_FIELDS.filter((f) => clinical[f.key]).map((f, i, arr) => (
-                  <div
-                    key={f.key}
-                    style={{
-                      display: "flex",
-                      padding: "8px 14px",
-                      borderTop: i === 0 ? "none" : `0.5px solid ${APP.border}`,
-                      fontSize: FONT.sm,
-                    }}
-                  >
-                    <span style={{ color: APP.text4, width: 56, flexShrink: 0 }}>
-                      {f.label}
-                    </span>
-                    <span
-                      style={{
-                        flex: 1,
-                        color: f.danger ? APP.danger : APP.text1,
-                        fontWeight: f.danger ? 500 : 400,
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {f.danger ? `⚠ ${clinical[f.key]}` : clinical[f.key]}
-                    </span>
-                  </div>
-                ))}
+                <div
+                  style={{
+                    border: `0.5px solid ${APP.border}`,
+                    borderRadius: RADIUS.md,
+                    overflow: "hidden",
+                  }}
+                >
+                  {CLINICAL_FIELDS.filter((f) => clinical[f.key]).map((f, i) => {
+                    const iconColor = f.danger ? APP.danger : APP.primary;
+                    const iconBg = f.danger ? APP.dangerLight : APP.primaryLight;
+                    return (
+                      <div
+                        key={f.key}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "10px 12px",
+                          borderTop: i === 0 ? "none" : `0.5px solid ${APP.borderLight}`,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: RADIUS.md,
+                            background: iconBg,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <f.Icon sx={{ fontSize: ICON.sm, color: iconColor }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: FONT.base, fontWeight: 600, color: APP.text1 }}>
+                            {f.label}
+                          </div>
+                          <div
+                            style={{
+                              marginTop: 2,
+                              fontSize: FONT.sm,
+                              color: f.danger ? APP.danger : APP.text2,
+                              lineHeight: 1.55,
+                            }}
+                          >
+                            {clinical[f.key]}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            {/* Attention */}
+            {/* Attention callouts — each renders its own spacing */}
             {hasAttention && (
-              <div style={{ marginTop: 12 }}>
-                <AttentionCard
-                  pendingReviewCount={pendingReviewCount}
-                  draftCount={draftCount}
-                  onPendingClick={goToPendingReview}
-                  onDraftClick={goToChat}
-                />
-              </div>
+              <AttentionCard
+                pendingReviewCount={pendingReviewCount}
+                draftCount={draftCount}
+                onPendingClick={goToPendingReview}
+                onDraftClick={goToChat}
+              />
             )}
 
             <div style={{ height: 24 }} />
@@ -1109,7 +1083,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
                 暂无病历
               </div>
             ) : (
-              <div>
+              <div style={{ paddingTop: 4 }}>
                 {records.map((record) => (
                   <RecordCard
                     key={record.id}
@@ -1117,6 +1091,16 @@ export default function PatientDetail({ patientId: propPatientId }) {
                     onViewFull={() => goToRecord(record)}
                   />
                 ))}
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "16px 16px 8px",
+                    fontSize: FONT.sm,
+                    color: APP.text4,
+                  }}
+                >
+                  共 {records.length} 条病历
+                </div>
               </div>
             )}
             <div style={{ height: 24 }} />

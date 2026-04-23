@@ -430,7 +430,6 @@ export default function InterviewPage({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
-  const [selectedSuggestions, setSelectedSuggestions] = useState([]);
   const [carryForward, setCarryForward] = useState([]);
   const [importItems, setImportItems] = useState(() => {
     if (!prePopulated || Object.keys(prePopulated).length === 0) return [];
@@ -515,13 +514,6 @@ export default function InterviewPage({
       }
     })();
   }, [resumeSessionId, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Suggestion chips ───────────────────────────────────────────
-  function handleToggleSuggestion(text) {
-    setSelectedSuggestions((prev) =>
-      prev.includes(text) ? prev.filter((s) => s !== text) : [...prev, text]
-    );
-  }
 
   // ── Carry-forward handlers ─────────────────────────────────────
   async function handleCarryForwardConfirm(field) {
@@ -619,25 +611,21 @@ export default function InterviewPage({
 
   // ── Send message ───────────────────────────────────────────────
   async function handleSend(text) {
-    const parts = [...selectedSuggestions];
-    const trimmed = text?.trim() || input.trim();
-    if (trimmed) parts.push(trimmed);
-    const combined = parts.join("，");
-    if (!combined || loading) return;
+    const trimmed = (text?.trim() || input.trim());
+    if (!trimmed || loading) return;
 
     setMessages((prev) => [
       ...prev,
-      { role: "user", content: combined, ts: nowTs() },
+      { role: "user", content: trimmed, ts: nowTs() },
     ]);
     setInput("");
     setSuggestions([]);
-    setSelectedSuggestions([]);
     setLoading(true);
     setError(null);
 
     try {
       const formData = new FormData();
-      formData.append("text", combined);
+      formData.append("text", trimmed);
       formData.append("doctor_id", doctorId);
       if (session.sessionId) formData.append("session_id", session.sessionId);
       if (session.patientId)
@@ -662,7 +650,6 @@ export default function InterviewPage({
         { role: "assistant", content: data.reply, ts: nowTs() },
       ]);
       setSuggestions(data.suggestions || []);
-      setSelectedSuggestions([]);
     } catch (err) {
       setError(err.message);
       setMessages((prev) => [
@@ -936,8 +923,6 @@ export default function InterviewPage({
           placeholder="输入患者信息..."
           doctorId={doctorId}
           suggestions={suggestions}
-          selectedSuggestions={selectedSuggestions}
-          onToggleSuggestion={handleToggleSuggestion}
         />
       )}
 

@@ -16,12 +16,13 @@ import { NavBar, Button, Toast, Dialog } from "antd-mobile";
 import { LeftOutline } from "antd-mobile-icons";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
+import { useKnowledgeItems } from "../../../lib/doctorQueries";
 import { nowTs } from "../../../utils/time";
 import ChatComposer from "../../ChatComposer";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { APP, FONT, RADIUS } from "../../theme";
 import { navBarStyle } from "../../layouts";
-import { LoadingCenter } from "../../components";
+import { LoadingCenter, CitationPopup, buildKnowledgeMap } from "../../components";
 
 // ── Message bubble ─────────────────────────────────────────────────
 
@@ -119,8 +120,92 @@ function MessageBubble({ msg, patientName }) {
 }
 
 // ── AI Draft card (inline after patient message) ────────────────────
+// Renders the 依据 / 风险 / 规则 triplet below the draft text when any of those
+// fields are present on the draft. 依据 is populated from cited_knowledge_ids
+// (resolved via `knowledgeMap`). 风险 / 规则 are future backend fields — when
+// they arrive on the draft object they render automatically.
 
-function AIDraftCard({ draft, onEdit, onSend }) {
+function DraftTriplet({ draft, knowledgeMap, onCitationClick }) {
+  const citedIds = Array.isArray(draft.cited_knowledge_ids)
+    ? draft.cited_knowledge_ids
+    : [];
+  const citations = citedIds
+    .map((id) => {
+      const entry = knowledgeMap[id];
+      if (!entry) return null;
+      return { id, title: entry.title || entry.shortTitle || `KB-${id}` };
+    })
+    .filter(Boolean);
+
+  const risk = draft.risk || draft.risk_note || "";
+  const rules = Array.isArray(draft.triggered_rules) ? draft.triggered_rules : [];
+
+  const hasAny = citations.length > 0 || risk || rules.length > 0;
+  if (!hasAny) return null;
+
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        paddingTop: 10,
+        borderTop: `0.5px solid #07C16020`,
+        display: "grid",
+        gap: 4,
+      }}
+    >
+      {citations.length > 0 && (
+        <div style={rowStyle}>
+          <span style={labelStyle}>依据</span>
+          <div style={{ flex: 1, minWidth: 0, display: "grid", gap: 2 }}>
+            {citations.map(({ id, title }) => (
+              <div
+                key={id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCitationClick?.(id);
+                }}
+                style={{
+                  color: APP.primary,
+                  cursor: "pointer",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {title}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {risk && (
+        <div style={rowStyle}>
+          <span style={{ ...labelStyle, color: APP.danger }}>风险</span>
+          <span style={bodyStyle}>{risk}</span>
+        </div>
+      )}
+      {rules.length > 0 && (
+        <div style={rowStyle}>
+          <span style={labelStyle}>规则</span>
+          <span style={bodyStyle}>{rules.join(" · ")}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const rowStyle = { display: "flex", gap: 6, fontSize: FONT.xs, lineHeight: 1.55 };
+const labelStyle = {
+  display: "inline-block",
+  minWidth: 28,
+  fontWeight: 600,
+  color: APP.text4,
+  letterSpacing: 0.5,
+  flexShrink: 0,
+};
+const bodyStyle = { color: APP.text3, flex: 1, minWidth: 0 };
+
+function AIDraftCard({ draft, onEdit, onSend, knowledgeMap, onCitationClick }) {
   const text = draft.draft_text || draft.content || "";
   if (!text) return null;
 
@@ -185,6 +270,11 @@ function AIDraftCard({ draft, onEdit, onSend }) {
         >
           {text}
         </div>
+        <DraftTriplet
+          draft={draft}
+          knowledgeMap={knowledgeMap}
+          onCitationClick={onCitationClick}
+        />
         <div
           style={{
             display: "flex",
@@ -273,6 +363,17 @@ export default function PatientChatPage({ patientId: propPatientId, embedded = f
   const [sending, setSending] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [editingDraft, setEditingDraft] = useState(null);
+
+  // Knowledge titles for the draft 依据 row — resolved from cited_knowledge_ids.
+  // Uses the shared query cache so switching patients doesn't refetch.
+  const { data: knowledgeData } = useKnowledgeItems();
+  const knowledgeMap = buildKnowledgeMap(knowledgeData);
+
+  // Citation popup — each 依据 row in the draft bubble is its own clickable
+  // entry; tapping opens a bottom-sheet preview of that rule.
+  const [citationPopupId, setCitationPopupId] = useState(null);
+  const handleCitationClick = (kbId) => setCitationPopupId(kbId);
+  const popupItem = citationPopupId != null ? knowledgeMap[citationPopupId] : null;
 
   const bottomRef = useRef(null);
   const hasScrolledRef = useRef(false);
@@ -418,6 +519,8 @@ export default function PatientChatPage({ patientId: propPatientId, embedded = f
                   draft={inlineDraft}
                   onEdit={handleEditDraft}
                   onSend={handleDraftSend}
+                  knowledgeMap={knowledgeMap}
+                  onCitationClick={handleCitationClick}
                 />
               )}
             </div>
@@ -433,6 +536,7 @@ export default function PatientChatPage({ patientId: propPatientId, embedded = f
               draft={draft}
               onEdit={handleEditDraft}
               onSend={handleDraftSend}
+              knowledgeMap={knowledgeMap}
             />
           ))}
 
@@ -457,6 +561,18 @@ export default function PatientChatPage({ patientId: propPatientId, embedded = f
         disabled={sending}
         placeholder={editingDraft ? "编辑回复内容..." : "直接回复患者..."}
         doctorId={doctorId}
+      />
+
+      {/* Citation preview popup — one rule at a time */}
+      <CitationPopup
+        visible={citationPopupId != null}
+        item={popupItem}
+        onClose={() => setCitationPopupId(null)}
+        onOpenDetail={() => {
+          const id = citationPopupId;
+          setCitationPopupId(null);
+          if (id != null) navigate(`/doctor/settings/knowledge/${id}`);
+        }}
       />
     </div>
   );

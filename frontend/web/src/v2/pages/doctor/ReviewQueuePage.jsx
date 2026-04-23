@@ -3,9 +3,8 @@
  *
  * v2 ReviewQueuePage — antd-mobile rewrite.
  * Shows pending diagnosis reviews, pending reply drafts, and completed items.
- * No MUI, no src/components, no src/theme.js.
  */
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   JumboTabs,
@@ -73,7 +72,23 @@ function formatRelative(iso) {
   return d.toLocaleDateString("zh-CN");
 }
 
-// ── Pending item row ───────────────────────────────────────────────
+// Rounded white card wrapper — consistent with MyAIPage / PatientsPage pattern.
+function Card({ children }) {
+  return (
+    <div
+      style={{
+        background: APP.surface,
+        margin: "12px 12px 0",
+        borderRadius: RADIUS.lg,
+        overflow: "hidden",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ── Pending item row (AI diagnosis review) ────────────────────────
 
 function PendingItem({ item, onNavigate }) {
   const sectionLabel = SECTION_LABEL[item.section] || item.section || "";
@@ -216,7 +231,6 @@ export default function ReviewQueuePage() {
   }
 
   // Unified pending list — AI diagnosis reviews + patient reply drafts.
-  // Each item keeps its origin via `_kind` so the renderer + nav can branch.
   const pendingUnified = [
     ...pending.map((p) => ({ ...p, _kind: "review" })),
     ...activeDrafts.map((d) => ({ ...d, _kind: "reply" })),
@@ -260,7 +274,7 @@ export default function ReviewQueuePage() {
 
   return (
     <div style={pageContainer}>
-      {/* Filter tabs */}
+      {/* Filter tabs — flat strip on white */}
       <div
         style={{
           backgroundColor: APP.surface,
@@ -280,33 +294,52 @@ export default function ReviewQueuePage() {
         </JumboTabs>
       </div>
 
-      {/* Scrollable content */}
+      {/* Scrollable content — page bg is gray (pageContainer), list sits in a white card */}
       <div style={scrollable}>
         <PullToRefresh onRefresh={handleRefresh}>
-          {/* Loading */}
           {loading && <LoadingCenter />}
 
           {/* Unified pending tab — diagnosis reviews + reply drafts */}
           {!loading && activeTab === "pending" && (
             <>
               {pendingUnified.length > 0 ? (
-                <List>
-                  {pendingUnified.map((item) =>
-                    item._kind === "reply" ? (
-                      <DraftItem
-                        key={`reply-${item.id}`}
-                        item={item}
-                        onNavigate={handleNavigateUnified}
-                      />
-                    ) : (
-                      <PendingItem
-                        key={`review-${item.id}`}
-                        item={item}
-                        onNavigate={handleNavigateUnified}
-                      />
-                    )
-                  )}
-                </List>
+                <>
+                  <Card>
+                    <List
+                      style={{
+                        "--border-top": "none",
+                        "--border-bottom": "none",
+                        "--border-inner": `0.5px solid ${APP.borderLight}`,
+                      }}
+                    >
+                      {pendingUnified.map((item) =>
+                        item._kind === "reply" ? (
+                          <DraftItem
+                            key={`reply-${item.id}`}
+                            item={item}
+                            onNavigate={handleNavigateUnified}
+                          />
+                        ) : (
+                          <PendingItem
+                            key={`review-${item.id}`}
+                            item={item}
+                            onNavigate={handleNavigateUnified}
+                          />
+                        )
+                      )}
+                    </List>
+                  </Card>
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "24px 16px 8px",
+                      fontSize: FONT.sm,
+                      color: APP.text4,
+                    }}
+                  >
+                    共 {pendingCount} 条
+                  </div>
+                </>
               ) : (
                 <ErrorBlock
                   status="empty"
@@ -322,15 +355,35 @@ export default function ReviewQueuePage() {
           {!loading && activeTab === "completed" && (
             <>
               {completed.length > 0 ? (
-                <List>
-                  {completed.map((item) => (
-                    <CompletedItem
-                      key={item.id}
-                      item={item}
-                      onNavigate={handleNavigateCompleted}
-                    />
-                  ))}
-                </List>
+                <>
+                  <Card>
+                    <List
+                      style={{
+                        "--border-top": "none",
+                        "--border-bottom": "none",
+                        "--border-inner": `0.5px solid ${APP.borderLight}`,
+                      }}
+                    >
+                      {completed.map((item) => (
+                        <CompletedItem
+                          key={item.id}
+                          item={item}
+                          onNavigate={handleNavigateCompleted}
+                        />
+                      ))}
+                    </List>
+                  </Card>
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "24px 16px 8px",
+                      fontSize: FONT.sm,
+                      color: APP.text4,
+                    }}
+                  >
+                    共 {completedCount} 条
+                  </div>
+                </>
               ) : (
                 <ErrorBlock
                   status="empty"
@@ -345,12 +398,12 @@ export default function ReviewQueuePage() {
           <div
             style={{
               textAlign: "center",
-              padding: "16px 0",
+              padding: "8px 0 24px",
               fontSize: FONT.xs,
               color: APP.text4,
             }}
           >
-            AI建议仅供参考，请结合临床判断
+            AI 建议仅供参考，请结合临床判断
           </div>
         </PullToRefresh>
       </div>

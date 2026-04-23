@@ -1,57 +1,43 @@
 /**
  * @route /doctor/my-ai
  *
- * MyAIPage — "我的AI" tab. AI identity dashboard showing the doctor's AI
- * status, knowledge rules, quick actions, and recent AI activity.
- *
- * antd-mobile implementation — no MUI, no complex components.
+ * MyAIPage — "我的AI" tab. Card-based dashboard: identity, AI summary hero,
+ * quick actions, today's triage, and recently viewed items.
  */
 import { useState } from "react";
-import { Avatar, List, Grid, Space, Tag, Skeleton, Ellipsis } from "antd-mobile";
-import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
+import { Avatar, Skeleton, Ellipsis, ActionSheet, Popup } from "antd-mobile";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
+import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
+import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import PushPinIcon from "@mui/icons-material/PushPin";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
+import { useLastViewed } from "../../../hooks/useLastViewed";
 import {
   useReviewQueue,
   usePersona,
   useTodaySummary,
   useKbPending,
   useKnowledgeItems,
-  useFeedbackDigest,
 } from "../../../lib/doctorQueries";
 import { dp } from "../../../utils/doctorBasePath";
-import { relativeTime } from "../../../utils/time";
-import { APP, FONT, RADIUS, ICON } from "../../theme";
+import { formatAge } from "../../../utils/time";
+import { APP, FONT, RADIUS, ICON, CATEGORY_COLORS } from "../../theme";
 import { pageContainer, scrollable } from "../../layouts";
-
-// ── F3 digest helpers ─────────────────────────────────────────────────────
-
-// Section id (server enum) → Chinese label for the breakdown bars and the
-// small "flagged_kind" chip in the recent-feedback list. Kept as a local
-// constant because these labels are UX copy, not domain truth.
-const SECTION_LABELS = {
-  differential: "诊断",
-  workup: "检查",
-  treatment: "治疗",
-};
-
-// Section display order for the breakdown rows. Mockup phone 3 leads with
-// 检查 (usually the hottest section for flags), but we lock the order to
-// match the server's _DIGEST_SECTIONS tuple so the card is stable regardless
-// of who flagged what.
-const SECTION_ORDER = ["differential", "workup", "treatment"];
-
-const FLAGGED_RECENT_LIMIT = 10;
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function AIAvatar({ size = 44 }) {
-  // antd-mobile `Avatar` only renders an `<img>` from `src`. Text avatars
-  // have to ride in via the `fallback` prop, which renders when src is empty.
+function AIAvatar({ size = 52 }) {
   return (
     <Avatar
       src=""
@@ -60,14 +46,15 @@ function AIAvatar({ size = 44 }) {
           style={{
             width: size,
             height: size,
-            borderRadius: 8,
+            borderRadius: RADIUS.md,
             backgroundColor: APP.primary,
             color: APP.surface,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: size * 0.45,
+            fontSize: size * 0.38,
             fontWeight: 600,
+            letterSpacing: 0.5,
             lineHeight: 1,
           }}
         >
@@ -79,37 +66,381 @@ function AIAvatar({ size = 44 }) {
   );
 }
 
+function Card({ children, style, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        backgroundColor: APP.surface,
+        borderRadius: RADIUS.lg,
+        margin: "0 16px 12px",
+        overflow: "hidden",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+function SectionHeader({ title, actionLabel, onAction }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        justifyContent: "space-between",
+        padding: "0 16px",
+        marginBottom: 8,
+      }}
+    >
+      <span style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1 }}>
+        {title}
+      </span>
+      {actionLabel && (
+        <span
+          onClick={onAction}
+          style={{
+            fontSize: FONT.sm,
+            color: APP.text4,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          {actionLabel}
+          <ChevronRightIcon sx={{ fontSize: ICON.xs, color: APP.text4 }} />
+        </span>
+      )}
+    </div>
+  );
+}
+
+// Tinted circular icon badge used in the triage and 最近使用 rows.
+// `Icon` is a component reference (e.g. PersonOutlineIcon) and is rendered
+// via JSX so React owns the render cycle — never call it as a plain function.
+function TintedIcon({ Icon, bg, color, size = 40 }) {
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: RADIUS.circle,
+        backgroundColor: bg,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <Icon sx={{ fontSize: ICON.md, color }} />
+    </div>
+  );
+}
+
+// Hero banner — green gradient card with the title + short AI summary.
+// Tap anywhere on the card to open the full narrative in a bottom-sheet popup.
+function HeroBanner({ title, summaryShort, summaryFull, loading, onClick }) {
+  const hasDetail = !!(summaryFull && summaryFull.trim() && summaryFull !== summaryShort);
+  return (
+    <div
+      onClick={hasDetail ? onClick : undefined}
+      style={{
+        margin: "0 16px 12px",
+        borderRadius: RADIUS.lg,
+        padding: "18px 18px 20px",
+        background: `linear-gradient(135deg, ${APP.primaryLight} 0%, #d4f5e0 100%)`,
+        position: "relative",
+        overflow: "hidden",
+        cursor: hasDetail ? "pointer" : "default",
+      }}
+    >
+      <div style={{ position: "relative", zIndex: 1, paddingRight: 92 }}>
+        <div
+          style={{
+            fontSize: FONT.lg,
+            fontWeight: 600,
+            color: APP.primary,
+            marginBottom: 6,
+            lineHeight: 1.3,
+          }}
+        >
+          <Ellipsis direction="end" content={title} rows={1} />
+        </div>
+        {loading ? (
+          <Skeleton.Paragraph lineCount={2} animated />
+        ) : (
+          <div
+            style={{
+              fontSize: FONT.sm,
+              color: APP.text2,
+              lineHeight: 1.55,
+            }}
+          >
+            <Ellipsis direction="end" content={summaryShort} rows={2} />
+          </div>
+        )}
+      </div>
+
+      {/* Illustration cluster — clipboard + sparkles, anchored top-right */}
+      <div
+        style={{
+          position: "absolute",
+          top: 18,
+          right: 14,
+          width: 80,
+          height: 80,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: 0.95,
+        }}
+      >
+        <AutoAwesomeIcon
+          sx={{
+            position: "absolute",
+            top: 4,
+            right: 6,
+            fontSize: 14,
+            color: APP.primary,
+            opacity: 0.7,
+          }}
+        />
+        <AutoAwesomeIcon
+          sx={{
+            position: "absolute",
+            bottom: 6,
+            left: 2,
+            fontSize: 10,
+            color: APP.primary,
+            opacity: 0.5,
+          }}
+        />
+        <AssignmentTurnedInOutlinedIcon
+          sx={{ fontSize: 56, color: APP.primary }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Popup card — shows the full narrative summary when the banner is tapped.
+function SummaryDetailSheet({ visible, onClose, summary, generatedAt }) {
+  const timeStr = generatedAt
+    ? new Date(generatedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
+    : "";
+  return (
+    <Popup
+      visible={visible}
+      onMaskClick={onClose}
+      onClose={onClose}
+      bodyStyle={{
+        borderTopLeftRadius: RADIUS.lg,
+        borderTopRightRadius: RADIUS.lg,
+        padding: "18px 20px 24px",
+        maxHeight: "60vh",
+        overflowY: "auto",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 12,
+        }}
+      >
+        <div style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1 }}>
+          今日摘要
+        </div>
+        {timeStr && (
+          <div style={{ fontSize: FONT.xs, color: APP.text4 }}>生成于 {timeStr}</div>
+        )}
+      </div>
+      <div style={{ fontSize: FONT.base, color: APP.text2, lineHeight: 1.65 }}>
+        {summary}
+      </div>
+    </Popup>
+  );
+}
+
+// Icon + label for a knowledge category in 最近使用.
+function knowledgeIcon(category) {
+  if (category === "medication") return MedicationOutlinedIcon;
+  if (category === "followup") return EventOutlinedIcon;
+  if (category === "diagnosis") return ArticleOutlinedIcon;
+  return FolderOutlinedIcon;
+}
+
+// Absolute YYYY-MM-DD — matches the mockup's "就诊时间：2023-12-01" format.
+function ymd(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Single row of the 最近使用 card. Patients render as "name | 男 | 45岁"
+// with 就诊时间 subtitle; knowledge renders as title + 更新于 subtitle.
+function LastViewedRow({ item, isFirst, onClick, onPin, onRemove }) {
+  const isKnowledge = item.type === "knowledge";
+  const Icon = isKnowledge ? knowledgeIcon(item.category) : PersonOutlineIcon;
+  const isPinned = !!item.pinnedAt;
+
+  function handleMoreClick(e) {
+    e.stopPropagation();
+    const handler = ActionSheet.show({
+      actions: [
+        {
+          key: "pin",
+          text: isPinned ? "取消置顶" : "置顶",
+          onClick: () => {
+            onPin?.();
+            handler.close();
+          },
+        },
+        {
+          key: "remove",
+          text: "从最近使用中移除",
+          danger: true,
+          onClick: () => {
+            onRemove?.();
+            handler.close();
+          },
+        },
+      ],
+      cancelText: "取消",
+      onClose: () => {},
+    });
+  }
+  const iconBg = isKnowledge ? "#fff3e0" : APP.accentLight;
+  const iconColor = isKnowledge ? "#E67E22" : APP.accent;
+  const tag = isKnowledge ? "知识库" : "病历";
+  const tagBg = isKnowledge ? APP.primaryLight : APP.accentLight;
+  const tagColor = isKnowledge ? APP.primary : APP.accent;
+
+  let titleText;
+  let subtitleText;
+  if (isKnowledge) {
+    titleText = item.title || "知识条目";
+    subtitleText = `更新于 ${ymd(item.updatedAt) || ymd(item.viewedAt)}`;
+  } else {
+    const genderStr = item.gender
+      ? { male: "男", female: "女" }[item.gender] || item.gender
+      : null;
+    titleText = [item.name || "患者", genderStr, formatAge(item.yearOfBirth)]
+      .filter(Boolean)
+      .join(" | ");
+    subtitleText = `就诊时间：${ymd(item.lastVisitAt) || ymd(item.viewedAt)}`;
+  }
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "14px 16px",
+        cursor: "pointer",
+        borderTop: isFirst ? "none" : `0.5px solid ${APP.borderLight}`,
+      }}
+    >
+      <TintedIcon Icon={Icon} bg={iconBg} color={iconColor} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: FONT.md,
+            fontWeight: 500,
+            color: APP.text1,
+          }}
+        >
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              minWidth: 0,
+            }}
+          >
+            {titleText}
+          </span>
+          <span
+            style={{
+              fontSize: FONT.xs,
+              padding: "1px 6px",
+              borderRadius: RADIUS.xs,
+              backgroundColor: tagBg,
+              color: tagColor,
+              fontWeight: 500,
+              flexShrink: 0,
+            }}
+          >
+            {tag}
+          </span>
+          {isPinned && (
+            <PushPinIcon
+              aria-label="已置顶"
+              sx={{
+                fontSize: ICON.xs,
+                color: APP.primary,
+                transform: "rotate(30deg)",
+                flexShrink: 0,
+              }}
+            />
+          )}
+        </div>
+        <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
+          {subtitleText}
+        </div>
+      </div>
+      <div
+        onClick={handleMoreClick}
+        aria-label="更多"
+        style={{
+          padding: 6,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <MoreHorizIcon sx={{ fontSize: ICON.sm, color: APP.text4 }} />
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ────────────────────────────────────────────────────────────────
 
 export default function MyAIPage({ doctorId }) {
   const navigate = useAppNavigate();
   const { doctorName } = useDoctorStore();
 
-  // React Query-backed data fetching (shared cache — no redundant requests on tab switch)
   const { data: reviewQueueData, isLoading: qLoading } = useReviewQueue();
   const { data: personaData, isLoading: pLoading } = usePersona();
-  const { data: summaryData, isLoading: sLoading, isError: sError } =
-    useTodaySummary();
+  const { data: summaryData, isLoading: sLoading } = useTodaySummary();
   const { data: kbPendingData } = useKbPending();
   const { data: knowledgeData } = useKnowledgeItems();
-  const { data: digestData } = useFeedbackDigest(7);
+  const { items: lastViewed, pin: pinLastViewed, remove: removeLastViewed } = useLastViewed(3);
 
-  const loading = qLoading || pLoading;
   const reviewQueue = reviewQueueData || { pending: [], completed: [] };
 
-  // Derived values — triage counts drive the main action block
   const displayName = doctorName || "医生";
-  const pendingReview = loading ? 0 : (reviewQueue?.pending || []).length;
+  const pendingReview = qLoading ? 0 : (reviewQueue?.pending || []).length;
   const kbPendingCount = kbPendingData?.count || 0;
-  const knowledgeListRaw = Array.isArray(knowledgeData)
+  const knowledgeList = Array.isArray(knowledgeData)
     ? knowledgeData
     : knowledgeData?.items || [];
-  const knowledgeCount = knowledgeListRaw.filter(
+  const knowledgeCount = knowledgeList.filter(
     (k) => k.category !== "persona"
   ).length;
 
-  // Persona summary — single line for the bar
   const personaSummary = (() => {
     if (pLoading) return null;
     const summary = personaData?.summary_text || "";
@@ -121,7 +452,6 @@ export default function MyAIPage({ doctorId }) {
         ? rules.slice(0, 3).map((r) => r.text).join(" · ")
         : "";
     }
-    // Extract first few keywords from markdown sections
     const items = summary
       .split(/[·\n###]/)
       .map((s) => s.trim())
@@ -129,32 +459,83 @@ export default function MyAIPage({ doctorId }) {
     return items.slice(0, 4).join(" · ");
   })();
 
+  const [summaryDetailOpen, setSummaryDetailOpen] = useState(false);
+
+  // Hero summary — short preview on the banner; tap the banner to open the detail popup.
+  // `<Ellipsis rows={2}>` below handles per-device overflow, so we never need to
+  // char-slice here. Prefer LLM summary_short; fall back to full summary (Ellipsis
+  // truncates with "…"); final fallback is the static tagline when no data at all.
+  const heroSummaryFull = (summaryData?.summary || "").replace(/\s*\[KB-\d+\]/g, "").trim();
+  const heroSummaryShort =
+    (summaryData?.summary_short || "").replace(/\s*\[KB-\d+\]/g, "").trim() ||
+    heroSummaryFull ||
+    "基于您的知识库，提供专业的医疗决策支持";
+
+  // 今日关注 rows — stable structure; counts drive the "extra" badge.
+  const triageRows = [
+    {
+      key: "review",
+      label: "待审核诊断建议",
+      description: pendingReview > 0 ? `${pendingReview} 位患者待确认` : "暂无待审核建议",
+      count: pendingReview,
+      icon: PersonOutlineIcon,
+      bg: APP.primaryLight,
+      color: APP.primary,
+      onClick: () => navigate(`${dp("review")}?tab=pending`),
+    },
+    {
+      key: "rules",
+      label: "待采纳的规则",
+      description: kbPendingCount > 0 ? `从你的编辑中提取 ${kbPendingCount} 条` : "暂无新规则建议",
+      count: kbPendingCount,
+      icon: ArticleOutlinedIcon,
+      bg: CATEGORY_COLORS.custom.bg,
+      color: CATEGORY_COLORS.custom.text,
+      onClick: () => navigate(`${dp("settings/knowledge")}?tab=pending`),
+    },
+  ];
+
+  const quickActions = [
+    {
+      label: "新建病历",
+      icon: <EditNoteOutlinedIcon sx={{ fontSize: 32, color: APP.primary }} />,
+      onClick: () => navigate(`${dp("patients")}?action=new`),
+    },
+    {
+      label: "预问诊码",
+      icon: <QrCodeScannerOutlinedIcon sx={{ fontSize: 32, color: APP.primary }} />,
+      onClick: () => navigate(dp("settings/qr")),
+    },
+    {
+      label: "知识库",
+      icon: <MenuBookOutlinedIcon sx={{ fontSize: 32, color: APP.primary }} />,
+      onClick: () => navigate(dp("settings/knowledge")),
+    },
+  ];
+
   return (
     <div style={pageContainer}>
-      <div style={scrollable}>
-      {/* ── 1. Identity + Quick tools — single Grid, two rows ── */}
-      <Grid
-        columns={3}
-        gap={0}
-        style={{
-          backgroundColor: APP.surface,
-          borderBottom: `0.5px solid ${APP.border}`,
-        }}
-      >
-        {/* Row 1 — identity header (spans 3 columns) */}
-        <Grid.Item span={3}>
+      <div style={{ ...scrollable, paddingTop: 12, paddingBottom: 16 }}>
+        {/* ── Identity card ────────────────────────────────────────── */}
+        <Card>
           <div
             style={{
-              padding: "10px 16px",
+              padding: "14px 16px",
               display: "flex",
               alignItems: "center",
-              gap: "10px",
-              borderBottom: `0.5px solid ${APP.borderLight}`,
+              gap: 12,
             }}
           >
             <AIAvatar size={52} />
-            <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
-              <div style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: FONT.md,
+                  fontWeight: 600,
+                  color: APP.text1,
+                  lineHeight: 1.3,
+                }}
+              >
                 {displayName}的助手
               </div>
               <div
@@ -165,468 +546,276 @@ export default function MyAIPage({ doctorId }) {
                 style={{
                   fontSize: FONT.sm,
                   color: APP.text4,
-                  marginTop: 2,
-                  lineHeight: 1.4,
+                  marginTop: 4,
+                  display: "flex",
+                  alignItems: "center",
                   cursor: "pointer",
                 }}
               >
-                <Ellipsis
-                  direction="end"
-                  content={`AI风格：${personaSummary || "设置你的AI风格"}`}
-                  rows={2}
-                />
+                <span style={{ minWidth: 0, flex: "0 1 auto" }}>
+                  <Ellipsis
+                    direction="end"
+                    content={`AI风格：${personaSummary || "设置你的AI风格"}`}
+                    rows={1}
+                  />
+                </span>
+                <ChevronRightIcon sx={{ fontSize: ICON.xs, color: APP.text4, flexShrink: 0 }} />
               </div>
             </div>
             <div
               onClick={() => navigate(dp("settings"))}
-              style={{ padding: "8px", cursor: "pointer", borderRadius: RADIUS.md }}
+              aria-label="设置"
+              style={{
+                padding: 8,
+                cursor: "pointer",
+                borderRadius: RADIUS.md,
+                flexShrink: 0,
+              }}
             >
-              <SettingsOutlinedIcon sx={{ fontSize: ICON.sm, color: APP.text3 }} />
+              <SettingsOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text3 }} />
             </div>
           </div>
-        </Grid.Item>
+        </Card>
 
-        {/* Row 2 — 3 quick-tool tiles */}
-        {[
-          {
-            label: "新建病历",
-            icon: <EditNoteOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />,
-            onClick: () => navigate(`${dp("patients")}?action=new`),
-          },
-          {
-            label: "预问诊码",
-            icon: <QrCodeScannerOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />,
-            onClick: () => navigate(dp("settings/qr")),
-          },
-          {
-            label: "知识库",
-            icon: <MenuBookOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />,
-            onClick: () => navigate(dp("settings/knowledge")),
-          },
-        ].map(({ label, icon, onClick: onTap }) => (
-          <Grid.Item key={label} onClick={onTap}>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "2px",
-                padding: "8px 0",
-                cursor: "pointer",
-              }}
-            >
-              {icon}
-              <span style={{ fontSize: FONT.sm, color: APP.text2, whiteSpace: "nowrap" }}>
-                {label}
-              </span>
-            </div>
-          </Grid.Item>
-        ))}
-      </Grid>
+        {/* ── Hero banner (AI summary) ─────────────────────────────── */}
+        <HeroBanner
+          title="您的专属医疗AI助手"
+          summaryShort={heroSummaryShort}
+          summaryFull={heroSummaryFull}
+          loading={sLoading && !summaryData}
+          onClick={() => setSummaryDetailOpen(true)}
+        />
+        <SummaryDetailSheet
+          visible={summaryDetailOpen}
+          onClose={() => setSummaryDetailOpen(false)}
+          summary={heroSummaryFull}
+          generatedAt={summaryData?.generated_at}
+        />
 
-      {/* ── 2a. Weekly AI performance digest (F3 feedback loop) ─────
-          Shown between the identity Grid and today's triage block so the
-          doctor sees their flag impact alongside their identity, not
-          buried below the queue. Hidden when there's literally nothing
-          to report (no suggestions ever shown) — new doctors see the
-          activation card instead. */}
-      {digestData && digestData.total_shown > 0 && (
-        <>
-          <div style={{ height: 8, backgroundColor: APP.surfaceAlt }} />
-          <List header="本周 AI 表现">
-            <List.Item>
+        {/* ── Quick actions card — 3 tiles with vertical dividers ─── */}
+        <Card>
+          <div style={{ display: "flex", padding: "14px 0" }}>
+            {quickActions.map((action, idx) => (
               <div
+                key={action.label}
+                onClick={action.onClick}
                 style={{
+                  flex: 1,
                   display: "flex",
-                  alignItems: "baseline",
-                  justifyContent: "space-between",
-                  marginBottom: 10,
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "4px 0",
+                  cursor: "pointer",
+                  borderRight:
+                    idx < quickActions.length - 1
+                      ? `0.5px solid ${APP.borderLight}`
+                      : "none",
                 }}
               >
-                <div style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1 }}>
-                  你的 AI 表现
-                </div>
-                <div style={{ fontSize: FONT.xs, color: APP.text4 }}>近 7 天</div>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: 20,
-                  padding: "6px 0 10px",
-                  borderBottom: `0.5px solid ${APP.borderLight}`,
-                }}
-              >
-                {[
-                  { num: digestData.total_shown, label: "AI 建议展示", warning: false },
-                  { num: digestData.total_accepted, label: "你已采纳", warning: false },
-                  { num: digestData.total_flagged, label: "你反馈不合理", warning: true },
-                ].map(({ num, label, warning }) => (
-                  <div key={label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <span
-                      style={{
-                        fontSize: 24,
-                        fontWeight: 600,
-                        lineHeight: 1.1,
-                        color: warning ? APP.warning : APP.text1,
-                      }}
-                    >
-                      {num}
-                    </span>
-                    <span style={{ fontSize: FONT.xs, color: APP.text4 }}>{label}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Breakdown — all 3 sections render even at zero when any
-                  flag exists; pure-zero state short-circuits to placeholder */}
-              {digestData.total_flagged === 0 ? (
-                <div
+                {action.icon}
+                <span
                   style={{
-                    padding: "12px 0 4px",
-                    fontSize: FONT.sm,
-                    color: APP.text4,
-                    textAlign: "center",
+                    fontSize: FONT.md,
+                    fontWeight: 500,
+                    color: APP.text1,
+                    marginTop: 2,
                   }}
                 >
-                  本周暂无反馈
-                </div>
-              ) : (
-                <div style={{ paddingTop: 10, display: "grid", gap: 8 }}>
-                  {(() => {
-                    const counts = SECTION_ORDER.map(
-                      (s) => (digestData.by_section || {})[s] || 0
-                    );
-                    const maxCount = Math.max(1, ...counts);
-                    return SECTION_ORDER.map((section, idx) => {
-                      const count = counts[idx];
-                      const pct = (count / maxCount) * 100;
-                      return (
-                        <div
-                          key={section}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            fontSize: FONT.sm,
-                            color: APP.text2,
-                          }}
-                        >
-                          <span style={{ minWidth: 48 }}>{SECTION_LABELS[section]}</span>
-                          <span
-                            style={{
-                              flex: 1,
-                              height: 4,
-                              backgroundColor: APP.borderLight,
-                              borderRadius: 2,
-                              margin: "0 10px",
-                              overflow: "hidden",
-                              position: "relative",
-                            }}
-                          >
-                            <span
-                              style={{
-                                position: "absolute",
-                                left: 0,
-                                top: 0,
-                                bottom: 0,
-                                width: `${pct}%`,
-                                backgroundColor: APP.warning,
-                                borderRadius: 2,
-                              }}
-                            />
-                          </span>
-                          <span
-                            style={{
-                              color: APP.text4,
-                              fontSize: FONT.xs,
-                              minWidth: 44,
-                              textAlign: "right",
-                            }}
-                          >
-                            {count} / {digestData.total_flagged}
-                          </span>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              )}
-            </List.Item>
-          </List>
+                  {action.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
 
-          {/* Recent-feedback list — only render when there's at least one
-              flag. Shows up to FLAGGED_RECENT_LIMIT rows (server also caps). */}
-          {digestData.recent && digestData.recent.length > 0 && (
-            <List header="最近反馈">
-              {digestData.recent.slice(0, FLAGGED_RECENT_LIMIT).map((r) => (
-                <List.Item key={r.id}>
-                  <div style={{ display: "grid", gap: 4 }}>
+        {/* ── 今日关注 OR new-doctor activation ─────────────────────── */}
+        {knowledgeCount === 0 ? (
+          <ActivationCard onAdd={() => navigate(dp("settings/knowledge/add"))} />
+        ) : (
+          <>
+            <SectionHeader
+              title="今日关注"
+              actionLabel="全部事项"
+              onAction={() => navigate(`${dp("review")}?tab=pending`)}
+            />
+            <Card>
+              {triageRows.map((row, idx) => (
+                <div
+                  key={row.key}
+                  onClick={row.onClick}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "14px 16px",
+                    cursor: "pointer",
+                    borderTop:
+                      idx > 0 ? `0.5px solid ${APP.borderLight}` : "none",
+                  }}
+                >
+                  <TintedIcon
+                    Icon={row.icon}
+                    bg={row.bg}
+                    color={row.color}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        fontSize: FONT.xs,
-                        color: APP.text4,
+                        fontSize: FONT.md,
+                        fontWeight: 500,
+                        color: APP.text1,
                       }}
                     >
-                      <span
-                        style={{
-                          padding: "1px 6px",
-                          borderRadius: RADIUS.xs,
-                          backgroundColor: APP.warningLight,
-                          color: APP.warning,
-                          fontWeight: 500,
-                        }}
-                      >
-                        {SECTION_LABELS[r.section] || r.section}
-                      </span>
-                      <span>
-                        {[r.patient_name, relativeTime(r.feedback_created_at)]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
+                      {row.label}
                     </div>
-                    <div style={{ fontSize: FONT.sm, color: APP.text1, lineHeight: 1.5 }}>
-                      <Ellipsis direction="end" content={r.content || ""} rows={1} />
+                    <div
+                      style={{
+                        fontSize: FONT.sm,
+                        color: APP.text4,
+                        marginTop: 2,
+                      }}
+                    >
+                      {row.description}
                     </div>
-                    {r.feedback_note && (
-                      <div style={{ fontSize: FONT.xs, color: APP.text3 }}>
-                        <Ellipsis direction="end" content={r.feedback_note} rows={1} />
-                      </div>
-                    )}
                   </div>
-                </List.Item>
+                  {row.count > 0 && (
+                    <span
+                      style={{
+                        fontSize: FONT.md,
+                        fontWeight: 600,
+                        color: APP.primary,
+                      }}
+                    >
+                      {row.count}
+                    </span>
+                  )}
+                  <ChevronRightIcon sx={{ fontSize: ICON.sm, color: APP.text4 }} />
+                </div>
               ))}
-            </List>
-          )}
-        </>
-      )}
+            </Card>
+          </>
+        )}
 
-      {/* ── 2b. New-doctor guided activation OR triage block ─────── */}
-      {knowledgeCount === 0 ? (
-        <List header="开始使用">
-          <List.Item>
+        {/* ── 最近使用 — last-viewed knowledge + patients ──────────── */}
+        {lastViewed.length > 0 && (
+          <>
+            <SectionHeader
+              title="最近使用"
+              actionLabel="查看更多"
+              onAction={() => navigate(dp("patients"))}
+            />
+            <Card>
+              {lastViewed.map((item, idx) => (
+                <LastViewedRow
+                  key={`${item.type}:${item.id}`}
+                  item={item}
+                  isFirst={idx === 0}
+                  onClick={() =>
+                    navigate(
+                      item.type === "knowledge"
+                        ? dp(`settings/knowledge/${item.id}`)
+                        : dp(`patients/${item.id}`)
+                    )
+                  }
+                  onPin={() => pinLastViewed(item.type, item.id)}
+                  onRemove={() => removeLastViewed(item.type, item.id)}
+                />
+              ))}
+            </Card>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── New-doctor activation — unchanged copy, card-styled ─────────────
+
+function ActivationCard({ onAdd }) {
+  return (
+    <>
+      <SectionHeader title="开始使用" />
+      <Card>
+        <div
+          style={{
+            padding: "20px 16px",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              fontSize: FONT.md,
+              fontWeight: 600,
+              color: APP.text1,
+              marginBottom: 4,
+            }}
+          >
+            教 AI 第一条规则
+          </div>
+          <div
+            style={{
+              fontSize: FONT.sm,
+              color: APP.text3,
+              lineHeight: 1.6,
+              marginBottom: 16,
+              maxWidth: 280,
+              marginLeft: "auto",
+              marginRight: "auto",
+            }}
+          >
+            两分钟就够了。AI 还没学到你的诊疗经验 — 从这里开始。
+          </div>
+          <button
+            onClick={onAdd}
+            style={{
+              padding: "8px 18px",
+              marginBottom: 16,
+              backgroundColor: APP.primary,
+              color: APP.surface,
+              border: "none",
+              borderRadius: RADIUS.sm,
+              fontSize: FONT.sm,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            添加第一条规则
+          </button>
+          <div
+            style={{
+              textAlign: "left",
+              maxWidth: 300,
+              marginLeft: "auto",
+              marginRight: "auto",
+              backgroundColor: APP.surfaceAlt,
+              borderRadius: RADIUS.md,
+              padding: "10px 12px",
+            }}
+          >
             <div
               style={{
-                padding: "12px 16px",
-                textAlign: "center",
-              }}
-            >
-            <div
-              style={{
-                fontSize: FONT.md,
+                fontSize: FONT.xs,
+                color: APP.text4,
                 fontWeight: 600,
-                color: APP.text1,
-                marginBottom: "4px",
+                letterSpacing: 0.4,
+                marginBottom: 2,
               }}
             >
-              教 AI 第一条规则
+              常见开端
             </div>
             <div
               style={{
                 fontSize: FONT.sm,
                 color: APP.text3,
                 lineHeight: 1.6,
-                marginBottom: "12px",
-                maxWidth: "280px",
-                marginLeft: "auto",
-                marginRight: "auto",
               }}
             >
-              两分钟就够了。AI 还没学到你的诊疗经验 — 从这里开始。
+              · 术后用药禁忌<br />· 随访时间点<br />· 诊断判断要点
             </div>
-            <button
-              onClick={() => navigate(dp("settings/knowledge/add"))}
-              style={{
-                padding: "8px 14px",
-                marginBottom: "12px",
-                backgroundColor: APP.primary,
-                color: APP.surface,
-                border: "none",
-                borderRadius: RADIUS.sm,
-                fontSize: FONT.sm,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-              onMouseDown={(e) => (e.target.opacity = "0.7")}
-              onMouseUp={(e) => (e.target.opacity = "1")}
-            >
-              添加第一条规则
-            </button>
-            <div
-              style={{
-                textAlign: "left",
-                maxWidth: "300px",
-                marginLeft: "auto",
-                marginRight: "auto",
-                backgroundColor: APP.surfaceAlt,
-                borderRadius: RADIUS.md,
-                padding: "8px 10px",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: FONT.xs,
-                  color: APP.text4,
-                  fontWeight: 600,
-                  letterSpacing: "0.4px",
-                  marginBottom: "2px",
-                }}
-              >
-                常见开端
-              </div>
-              <div
-                style={{
-                  fontSize: FONT.sm,
-                  color: APP.text3,
-                  lineHeight: 1.5,
-                }}
-              >
-                · 术后用药禁忌<br />· 随访时间点<br />· 诊断判断要点
-              </div>
-            </div>
-            </div>
-          </List.Item>
-        </List>
-      ) : (
-        <>
-          <div style={{ height: 8, backgroundColor: APP.surfaceAlt }} />
-          <List header="今日关注">
-            <List.Item
-              onClick={() => navigate(`${dp("review")}?tab=pending`)}
-              arrow
-              extra={pendingReview > 0 ? (
-                <span style={{ fontSize: FONT.sm, fontWeight: 600, color: APP.primary }}>{pendingReview}</span>
-              ) : undefined}
-              description={pendingReview > 0 ? `${pendingReview} 位患者待确认` : "暂无待审核建议"}
-            >
-              待审核诊断建议
-            </List.Item>
-            <List.Item
-              onClick={() => navigate(`${dp("settings/knowledge")}?tab=pending`)}
-              arrow
-              extra={kbPendingCount > 0 ? (
-                <span style={{ fontSize: FONT.sm, fontWeight: 600, color: APP.primary }}>{kbPendingCount}</span>
-              ) : undefined}
-              description={kbPendingCount > 0 ? `从你的编辑中提取 ${kbPendingCount} 条` : "暂无新规则提议"}
-            >
-              待采纳的规则
-            </List.Item>
-          </List>
-        </>
-      )}
-
-      {/* ── 3. Today Summary (LLM-generated, single narrative) ── */}
-      {summaryData &&
-        summaryData.mode !== "empty" &&
-        summaryData.summary && (
-          <>
-            <div style={{ height: 8, backgroundColor: APP.surfaceAlt }} />
-            <List
-              header={
-                <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-                  <AutoAwesomeOutlinedIcon sx={{ fontSize: FONT.main, marginRight: "4px", color: APP.text3 }} />
-                  <span>今日摘要</span>
-                  {summaryData.is_new === false && (
-                    <span style={{ fontSize: FONT.xs, color: APP.text4, marginLeft: "4px" }}>
-                      · 较上次无新增
-                    </span>
-                  )}
-                  {summaryData.generated_at && (
-                    <span style={{ fontSize: FONT.xs, color: APP.text4, marginLeft: "auto" }}>
-                      {new Date(summaryData.generated_at).toLocaleTimeString("zh-CN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  )}
-                </div>
-              }
-            >
-              <List.Item>
-                {/* Chips first — "who to act on" at a glance.
-                    Chip routing: diagnosis review > chat view > knowledge.
-                    Dedupe by (patient_id, kind). */}
-                {summaryData.items?.length > 0 && (() => {
-                  const seen = new Set();
-                  const deduped = summaryData.items.filter((item) => {
-                    const key = `${item.patient_id || ""}:${item.kind || ""}`;
-                    if (seen.has(key)) return false;
-                    seen.add(key);
-                    return true;
-                  });
-                  const routeFor = (item) => {
-                    if (item.record_id) return `${dp("review")}/${item.record_id}`;
-                    if (
-                      item.patient_id &&
-                      item.kind === "message_knowledge_match"
-                    ) {
-                      return `${dp("patients")}/${item.patient_id}?view=chat`;
-                    }
-                    if (item.patient_id) return `${dp("patients")}/${item.patient_id}`;
-                    if (item.kind === "knowledge_gap")
-                      return dp("settings/knowledge/add");
-                    return null;
-                  };
-                  return (
-                    <div style={{ marginBottom: 8 }}>
-                      <Space wrap>
-                        {deduped.map((item, idx) => {
-                          const href = routeFor(item);
-                          const label = (
-                            item.patient_name ||
-                            item.title.replace(/\s*\[KB-\d+\]/g, "")
-                          ).slice(0, 15);
-                          return (
-                            <Tag
-                              key={item.id || idx}
-                              color="primary"
-                              fill="outline"
-                              onClick={href ? () => navigate(href) : undefined}
-                              style={{
-                                "--background-color": APP.primaryLight,
-                                "--border-color": APP.primaryLight,
-                                "--text-color": APP.primary,
-                                fontSize: FONT.sm,
-                                cursor: href ? "pointer" : "default",
-                              }}
-                            >
-                              {label}
-                            </Tag>
-                          );
-                        })}
-                      </Space>
-                    </div>
-                  );
-                })()}
-                {/* Narrative as supporting context */}
-                {summaryData.summary.replace(/\s*\[KB-\d+\]/g, "")}
-              </List.Item>
-            </List>
-          </>
-        )}
-      {sLoading && !sError && (
-        <div style={{ padding: "8px 16px", marginTop: "8px" }}>
-          <Skeleton.Paragraph lineCount={2} animated />
+          </div>
         </div>
-      )}
-      {summaryData && summaryData.mode === "empty" && summaryData.summary && (
-        <div
-          style={{
-            padding: "8px 16px",
-            marginTop: "8px",
-            fontSize: FONT.sm,
-            color: APP.text4,
-            textAlign: "center",
-          }}
-        >
-          {summaryData.summary}
-        </div>
-      )}
-
-      </div>
-    </div>
+      </Card>
+    </>
   );
 }

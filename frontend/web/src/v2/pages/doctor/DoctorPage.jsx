@@ -24,10 +24,8 @@ import PersonaSubpage from "./settings/PersonaSubpage";
 import KnowledgeSubpage from "./settings/KnowledgeSubpage";
 import AddKnowledgeSubpage from "./settings/AddKnowledgeSubpage";
 import KnowledgeDetailSubpage from "./settings/KnowledgeDetailSubpage";
-import SettingsListSubpage from "./settings/SettingsListSubpage";
 import AboutSubpage from "./settings/AboutSubpage";
 import TeachByExampleSubpage from "./settings/TeachByExampleSubpage";
-import ReviewSubpage from "./settings/ReviewSubpage";
 import PendingReviewSubpage from "./settings/PendingReviewSubpage";
 import PersonaOnboardingSubpage from "./settings/PersonaOnboardingSubpage";
 import TemplateSubpage from "./settings/TemplateSubpage";
@@ -164,11 +162,10 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
   // /doctor/settings/knowledge → KnowledgeSubpage
   // /doctor/settings/knowledge/add → AddKnowledgeSubpage
   // /doctor/settings/knowledge/:id → KnowledgeDetailSubpage
-  // /doctor/settings/preferences → SettingsListSubpage
   const settingsMatch = (() => {
     const parts = location.pathname.split("/");
     if (parts[2] !== "settings") return null;
-    const sub = parts[3]; // persona | knowledge | preferences | undefined
+    const sub = parts[3]; // persona | knowledge | undefined
     const sub2 = parts[4]; // add | :id | undefined
     return { sub, sub2 };
   })();
@@ -233,12 +230,12 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
       }
       if (sub === "knowledge" && sub2) return <KnowledgeDetailSubpage itemId={sub2} />;
       if (sub === "knowledge") return <KnowledgeSubpage />;
-      if (sub === "preferences") return <SettingsListSubpage onLogout={onLogout} />;
       if (sub === "about") return <AboutSubpage />;
       if (sub === "teach") return <TeachByExampleSubpage />;
-      if (sub === "review") return <ReviewSubpage />;
       if (sub === "pending") return <PendingReviewSubpage />;
-      if (sub === "persona") return <PersonaOnboardingSubpage />;
+      // Note: `sub === "review"` was removed — ReviewSubpage is a presentational
+      // component that expects props (record + suggestions) and rendered blank
+      // when navigated directly. Real review flow goes through /doctor/review/:id.
       if (sub === "template" || sub === "templates") return <TemplateSubpage />;
       if (sub === "qr") return <QrSubpage />;
       return <SettingsPage />;

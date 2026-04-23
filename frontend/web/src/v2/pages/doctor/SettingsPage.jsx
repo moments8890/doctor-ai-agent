@@ -1,16 +1,102 @@
 /**
  * @route /doctor/settings
  *
- * SettingsPage v2 — doctor info, navigation to subpages, font scale, logout.
- * Mirrors v1: shows doctor profile + all settings in one page (no intermediate nav).
+ * SettingsPage v2 — card-based layout: profile card at top, AI 助手 group,
+ * 通用设置 group, logout + security footer.
  */
-import { NavBar, List, Button, Dialog, Avatar, Switch } from "antd-mobile";
+import { NavBar, Button, Dialog, Switch } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
+import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import FormatSizeOutlinedIcon from "@mui/icons-material/FormatSizeOutlined";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useFontScaleStore, saveFontScaleToServer } from "../../../store/fontScaleStore";
 import { useDoctorStore } from "../../../store/doctorStore";
-import { APP, FONT, RADIUS } from "../../theme";
+import { APP, FONT, RADIUS, ICON } from "../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
+import { NameAvatar } from "../../components";
 
+function SectionHeader({ Icon, iconColor, title }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "0 20px",
+        margin: "16px 0 8px",
+      }}
+    >
+      <Icon sx={{ fontSize: ICON.sm, color: iconColor }} />
+      <span style={{ fontSize: FONT.base, color: APP.text3, fontWeight: 500 }}>
+        {title}
+      </span>
+    </div>
+  );
+}
+
+function Card({ children }) {
+  return (
+    <div
+      style={{
+        background: APP.surface,
+        margin: "0 12px",
+        borderRadius: RADIUS.lg,
+        overflow: "hidden",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SettingsRow({ Icon, iconColor, iconBg, title, subtitle, onClick, extra, isFirst }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "14px 16px",
+        cursor: onClick ? "pointer" : "default",
+        borderTop: isFirst ? "none" : `0.5px solid ${APP.borderLight}`,
+      }}
+    >
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: RADIUS.md,
+          background: iconBg,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <Icon sx={{ fontSize: ICON.sm, color: iconColor }} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: FONT.base, fontWeight: 600, color: APP.text1 }}>
+          {title}
+        </div>
+        {subtitle && (
+          <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
+            {subtitle}
+          </div>
+        )}
+      </div>
+      {extra ?? (onClick && <ChevronRightIcon sx={{ fontSize: ICON.sm, color: APP.text4 }} />)}
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -45,79 +131,122 @@ export default function SettingsPage() {
 
   return (
     <div style={pageContainer}>
-      <NavBar
-        onBack={() => navigate(-1)}
-        style={navBarStyle}
-      >
+      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
         设置
       </NavBar>
 
-      <div style={scrollable}>
-        {/* Doctor profile card */}
-        <List style={{ marginBottom: 12 }}>
-          <List.Item
-            prefix={
-              <Avatar
-                src=""
-                fallback={
-                  <div
-                    style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: "50%",
-                      backgroundColor: APP.primary,
-                      color: APP.white,
-                      fontSize: FONT.lg,
-                      fontWeight: 600,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    {(doctorName || "医").charAt(0).toUpperCase()}
-                  </div>
-                }
-                style={{ "--size": "48px", flexShrink: 0 }}
-              />
-            }
+      <div style={{ ...scrollable, paddingTop: 12, paddingBottom: 24 }}>
+        {/* Doctor profile card — display-only, not tappable */}
+        <Card>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "14px 16px",
+            }}
           >
-            {doctorName || "医生"}
-          </List.Item>
-        </List>
+            <NameAvatar name={doctorName || "医"} size={48} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: FONT.lg, fontWeight: 700, color: APP.text1 }}>
+                {doctorName || "医生"}
+              </div>
+              <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
+                医生 · 主治医师
+              </div>
+            </div>
+          </div>
+        </Card>
 
-        {/* AI settings */}
-        <List header="AI 助手">
-          <List.Item arrow onClick={() => navigate("/doctor/settings/persona")}>
-            AI人设
-          </List.Item>
-          <List.Item arrow onClick={() => navigate("/doctor/settings/knowledge")}>
-            知识库
-          </List.Item>
-          <List.Item arrow onClick={() => navigate("/doctor/settings/template")}>
-            回复模板
-          </List.Item>
-        </List>
+        {/* AI 助手 */}
+        <SectionHeader Icon={SmartToyOutlinedIcon} iconColor={APP.primary} title="AI 助手" />
+        <Card>
+          <SettingsRow
+            Icon={PsychologyOutlinedIcon}
+            iconColor={APP.primary}
+            iconBg={APP.primaryLight}
+            title="AI 人设"
+            subtitle="设置 AI 的角色与沟通风格"
+            onClick={() => navigate("/doctor/settings/persona")}
+            isFirst
+          />
+          <SettingsRow
+            Icon={MenuBookOutlinedIcon}
+            iconColor={APP.primary}
+            iconBg={APP.primaryLight}
+            title="知识库"
+            subtitle="管理 AI 使用的医学知识"
+            onClick={() => navigate("/doctor/settings/knowledge")}
+          />
+          <SettingsRow
+            Icon={ChatBubbleOutlineIcon}
+            iconColor={APP.primary}
+            iconBg={APP.primaryLight}
+            title="回复模板"
+            subtitle="管理常用回复模板"
+            onClick={() => navigate("/doctor/settings/template")}
+          />
+        </Card>
 
-        {/* General settings */}
-        <List header="通用" style={{ marginTop: 12 }}>
-          <List.Item extra={<Switch checked={isLargeFont} onChange={handleFontToggle} />}>
-            大字模式
-          </List.Item>
-          <List.Item arrow onClick={() => navigate("/doctor/settings/about")}>
-            关于
-          </List.Item>
-        </List>
+        {/* 通用设置 */}
+        <SectionHeader Icon={SettingsOutlinedIcon} iconColor={APP.accent} title="通用设置" />
+        <Card>
+          <SettingsRow
+            Icon={FormatSizeOutlinedIcon}
+            iconColor={APP.accent}
+            iconBg={APP.accentLight}
+            title="大字模式"
+            subtitle="开启后界面文字更大更清晰"
+            extra={<Switch checked={isLargeFont} onChange={handleFontToggle} />}
+            isFirst
+          />
+          <SettingsRow
+            Icon={InfoOutlinedIcon}
+            iconColor={APP.accent}
+            iconBg={APP.accentLight}
+            title="关于"
+            subtitle="版本信息、隐私政策等"
+            onClick={() => navigate("/doctor/settings/about")}
+          />
+        </Card>
 
         {/* Logout */}
-        <div style={{ marginTop: 32, padding: "0 16px" }}>
-          <Button block color="danger" fill="outline" onClick={handleLogout}>
-            退出登录
+        <div style={{ margin: "24px 12px 8px" }}>
+          <Button
+            block
+            color="danger"
+            fill="outline"
+            onClick={handleLogout}
+            style={{
+              "--border-radius": `${RADIUS.lg}px`,
+              padding: "14px 0",
+              fontSize: FONT.md,
+              fontWeight: 600,
+            }}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <LogoutOutlinedIcon sx={{ fontSize: ICON.sm }} />
+              退出登录
+            </span>
           </Button>
         </div>
 
-        <div style={{ height: 48 }} />
+        {/* Security footer */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            padding: "8px 16px",
+            fontSize: FONT.sm,
+            color: APP.text4,
+          }}
+        >
+          <SecurityOutlinedIcon sx={{ fontSize: ICON.xs, color: APP.text4 }} />
+          <span>退出后将清除本地缓存，确保账号安全</span>
+        </div>
       </div>
-
     </div>
   );
 }

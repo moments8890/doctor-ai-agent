@@ -15,6 +15,19 @@ import { useVoiceInput } from "../hooks/useVoiceInput";
 import { isInMiniapp } from "../utils/miniappBridge";
 import { APP, FONT, ICON, RADIUS } from "./theme";
 
+// Toggle a chip's text in/out of the textarea. Single source of truth:
+// "selected" means the chip's text currently appears in the textarea.
+const SEP = "，";
+function toggleChipInValue(value, chipText) {
+  if (!value) return chipText;
+  if (!value.includes(chipText)) return `${value}${SEP}${chipText}`;
+  // Remove — peel the surrounding separator if present
+  let next = value.replace(`${chipText}${SEP}`, "");
+  if (next === value) next = value.replace(`${SEP}${chipText}`, "");
+  if (next === value) next = value.replace(chipText, "");
+  return next.replace(new RegExp(`^${SEP}+|${SEP}+$`, "g"), "");
+}
+
 export default function ChatComposer({
   value = "",
   onChange,
@@ -23,8 +36,6 @@ export default function ChatComposer({
   placeholder = "输入消息…",
   doctorId,
   suggestions = [],
-  selectedSuggestions = [],
-  onToggleSuggestion,
   // True when composer sits directly on the viewport bottom (e.g. InterviewPage
   // full-screen). False when a TabBar below already handles the home-indicator
   // inset — doubling up leaves dead space above the TabBar.
@@ -42,10 +53,10 @@ export default function ChatComposer({
 
   const isDisabled = disabled || voiceActive;
 
+  const hasContent = !!value?.trim();
   const handleSend = () => {
-    const trimmed = value?.trim();
-    if (!trimmed || isDisabled) return;
-    onSend?.(trimmed);
+    if (!hasContent || isDisabled) return;
+    onSend?.(value.trim());
   };
 
   // WeChat mobile convention: Enter inserts a newline. Sending requires
@@ -53,18 +64,23 @@ export default function ChatComposer({
 
   return (
     <div style={styles.wrapper}>
-      {/* Suggestion chips */}
+      {/* Suggestion chips — single row, overflow clips. Selection is derived
+          from the textarea: if the chip's text appears in `value`, it shows
+          selected; tapping toggles insertion/removal. */}
       {suggestions.length > 0 && (
         <div style={styles.chips}>
-          {suggestions.map((s, i) => (
-            <span
-              key={i}
-              style={styles.chip}
-              onClick={() => onToggleSuggestion?.(s)}
-            >
-              {s}
-            </span>
-          ))}
+          {suggestions.map((s, i) => {
+            const selected = value.includes(s);
+            return (
+              <span
+                key={i}
+                style={selected ? styles.chipSelected : styles.chip}
+                onClick={() => onChange?.(toggleChipInValue(value, s))}
+              >
+                {selected ? "✓ " : ""}{s}
+              </span>
+            );
+          })}
         </div>
       )}
 
@@ -85,7 +101,7 @@ export default function ChatComposer({
         </div>
 
         {(() => {
-          const active = !!value?.trim() && !isDisabled;
+          const active = hasContent && !isDisabled;
           return (
             <div
               role="button"
@@ -122,9 +138,10 @@ const styles = {
   },
   chips: {
     display: "flex",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     gap: 6,
     marginBottom: 8,
+    overflow: "hidden",
   },
   chip: {
     display: "inline-block",
@@ -136,6 +153,22 @@ const styles = {
     background: APP.surface,
     color: APP.text3,
     border: `1px solid ${APP.border}`,
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  },
+  chipSelected: {
+    display: "inline-block",
+    padding: "4px 10px",
+    borderRadius: RADIUS.lg,
+    fontSize: FONT.sm,
+    cursor: "pointer",
+    userSelect: "none",
+    background: APP.primaryLight,
+    color: APP.primary,
+    border: `1px solid ${APP.primary}`,
+    fontWeight: 500,
+    whiteSpace: "nowrap",
+    flexShrink: 0,
   },
   inputRow: {
     display: "flex",

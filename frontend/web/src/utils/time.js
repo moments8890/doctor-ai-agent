@@ -5,6 +5,19 @@ export function nowTs() {
 }
 
 /**
+ * Format patient age from year_of_birth.
+ * - missing / zero → null (caller filters)
+ * - negative (future DOB or bad data) → "年龄未知"
+ * - valid → "N岁"
+ */
+export function formatAge(yearOfBirth) {
+  if (!yearOfBirth) return null;
+  const age = new Date().getFullYear() - yearOfBirth;
+  if (age < 0) return "年龄未知";
+  return `${age}岁`;
+}
+
+/**
  * Unified relative timestamp for all list views.
  * Past: 今天, 昨天, N天前, N周前, N个月前, N年前
  */
