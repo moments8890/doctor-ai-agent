@@ -12,125 +12,100 @@ from domain.interview.protocols import (
     Mode, Phase, PersistRef, PostConfirmHook, SessionState, Template, Writer,
 )
 
-# ---- field specs ------------------------------------------------------------
+# ---- field specs — canonical source of medical-interview schema ------------
 
-# Inline the legacy constants here to avoid a circular import when
-# completeness.py becomes a shim that imports from this module (Phase 2).
-# These values are the canonical source; completeness.py derives from them.
-_REQUIRED = frozenset({"chief_complaint", "present_illness"})
-_APPENDABLE = frozenset({
-    "present_illness", "past_history", "allergy_history",
-    "family_history", "personal_history", "marital_reproductive",
-    "physical_exam", "specialist_exam", "auxiliary_exam",
-    "treatment_plan", "orders_followup",
-})
-_DOCTOR_RECOMMENDED = frozenset({
-    "past_history", "allergy_history", "family_history", "personal_history",
-    "physical_exam", "diagnosis", "treatment_plan",
-})
-_CARRY_FORWARD_FIELDS_SET = frozenset({
-    "past_history", "allergy_history", "family_history", "personal_history",
-})
+# Declarative: add/remove/reorder fields here. Legacy callers import via the
+# completeness.py and interview_models.py shims (both now thin re-exports).
 
-from domain.patients.interview_models import FIELD_LABELS, FIELD_META
-
-
-def _build_medical_fields() -> list[FieldSpec]:
-    """Translate the existing scattered metadata into a single FieldSpec list.
-
-    Order follows FIELD_LABELS insertion order, with `department` appended
-    afterward (it exists on ExtractedClinicalFields but has no FIELD_LABELS
-    entry).  Each field's attributes are derived from the live source constants:
-    - tier   = "required" if in REQUIRED else "recommended" if in
-               DOCTOR_RECOMMENDED else "optional"
-    - label  = FIELD_LABELS[name] if present, else field description from
-               ExtractedClinicalFields
-    - description = FIELD_META[name]["hint"] if present, else label
-    - example = FIELD_META[name]["example"] if present
-    - appendable = name in APPENDABLE
-    - carry_forward_modes = frozenset({"doctor"}) if name in _CARRY_FORWARD_FIELDS
-                            else frozenset()
-    """
-    REQUIRED = _REQUIRED
-    APPENDABLE = _APPENDABLE
-    DOCTOR_RECOMMENDED = _DOCTOR_RECOMMENDED
-    _CARRY_FORWARD_FIELDS = _CARRY_FORWARD_FIELDS_SET
-
-    from domain.patients.interview_models import ExtractedClinicalFields
-
-    # Build the set of non-patient pydantic fields that have no FIELD_LABELS entry
-    # (currently just "department") so we can add specs for them too.
-    pydantic_no_label = {
-        n for n in ExtractedClinicalFields.model_fields.keys()
-        if not n.startswith("patient_") and n not in FIELD_LABELS
-    }
-
-    # Derive pydantic field descriptions as a fallback label source
-    pydantic_descriptions = {
-        n: (field.description or n)
-        for n, field in ExtractedClinicalFields.model_fields.items()
-    }
-
-    specs: list[FieldSpec] = []
-
-    # Primary loop: iterate FIELD_LABELS insertion order
-    for name, label in FIELD_LABELS.items():
-        meta = FIELD_META.get(name, {})
-        hint = meta.get("hint") or label
-        example = meta.get("example")
-
-        if name in REQUIRED:
-            tier = "required"
-        elif name in DOCTOR_RECOMMENDED:
-            tier = "recommended"
-        else:
-            tier = "optional"
-
-        specs.append(FieldSpec(
-            name=name,
-            type="text" if name in APPENDABLE else "string",
-            description=hint,
-            example=example,
-            label=label,
-            tier=tier,
-            appendable=(name in APPENDABLE),
-            carry_forward_modes=(
-                frozenset({"doctor"}) if name in _CARRY_FORWARD_FIELDS
-                else frozenset()
-            ),
-        ))
-
-    # Secondary loop: pydantic fields not covered by FIELD_LABELS (e.g. department)
-    for name in sorted(pydantic_no_label):
-        meta = FIELD_META.get(name, {})
-        hint = meta.get("hint") or pydantic_descriptions.get(name, name)
-        example = meta.get("example")
-
-        if name in REQUIRED:
-            tier = "required"
-        elif name in DOCTOR_RECOMMENDED:
-            tier = "recommended"
-        else:
-            tier = "optional"
-
-        specs.append(FieldSpec(
-            name=name,
-            type="text" if name in APPENDABLE else "string",
-            description=hint,
-            example=example,
-            label=pydantic_descriptions.get(name, name),
-            tier=tier,
-            appendable=(name in APPENDABLE),
-            carry_forward_modes=(
-                frozenset({"doctor"}) if name in _CARRY_FORWARD_FIELDS
-                else frozenset()
-            ),
-        ))
-
-    return specs
-
-
-MEDICAL_FIELDS: list[FieldSpec] = _build_medical_fields()
+MEDICAL_FIELDS: list[FieldSpec] = [
+    FieldSpec(
+        name="chief_complaint", type="string", tier="required", appendable=False,
+        label="主诉",
+        description="促使就诊的主要症状+持续时间",
+        example="腹痛3天",
+    ),
+    FieldSpec(
+        name="present_illness", type="text", tier="required", appendable=True,
+        label="现病史",
+        description="症状详情、演变、已做检查",
+        example="脐周阵发性钝痛，无放射，进食后加重",
+    ),
+    FieldSpec(
+        name="past_history", type="text", tier="recommended", appendable=True,
+        carry_forward_modes=frozenset({"doctor"}),
+        label="既往史",
+        description="既往疾病、手术、长期用药",
+        example="高血压10年，口服氨氯地平",
+    ),
+    FieldSpec(
+        name="allergy_history", type="text", tier="recommended", appendable=True,
+        carry_forward_modes=frozenset({"doctor"}),
+        label="过敏史",
+        description="药物/食物过敏",
+        example="青霉素过敏",
+    ),
+    FieldSpec(
+        name="family_history", type="text", tier="recommended", appendable=True,
+        carry_forward_modes=frozenset({"doctor"}),
+        label="家族史",
+        description="家族遗传病史",
+        example="父亲糖尿病",
+    ),
+    FieldSpec(
+        name="personal_history", type="text", tier="recommended", appendable=True,
+        carry_forward_modes=frozenset({"doctor"}),
+        label="个人史",
+        description="吸烟、饮酒、职业暴露",
+        example="吸烟20年，1包/天",
+    ),
+    FieldSpec(
+        name="marital_reproductive", type="text", tier="optional", appendable=True,
+        label="婚育史",
+        description="婚育情况",
+        example="已婚，育1子",
+    ),
+    FieldSpec(
+        name="physical_exam", type="text", tier="recommended", appendable=True,
+        label="体格检查",
+        description="生命体征、阳性/阴性体征",
+        example="腹软，脐周压痛，无反跳痛",
+    ),
+    FieldSpec(
+        name="specialist_exam", type="text", tier="optional", appendable=True,
+        label="专科检查",
+        description="专科特殊检查",
+        example="肛门指检未触及肿物",
+    ),
+    FieldSpec(
+        name="auxiliary_exam", type="text", tier="optional", appendable=True,
+        label="辅助检查",
+        description="化验、影像结果",
+        example="血常规WBC 12.5×10⁹/L",
+    ),
+    FieldSpec(
+        name="diagnosis", type="string", tier="recommended", appendable=False,
+        label="诊断",
+        description="初步诊断或印象",
+        example="急性胃肠炎",
+    ),
+    FieldSpec(
+        name="treatment_plan", type="text", tier="recommended", appendable=True,
+        label="治疗方案",
+        description="处方、处置、建议",
+        example="口服蒙脱石散，清淡饮食",
+    ),
+    FieldSpec(
+        name="orders_followup", type="text", tier="optional", appendable=True,
+        label="医嘱及随访",
+        description="医嘱及复诊安排",
+        example="3天后复诊，如加重急诊",
+    ),
+    FieldSpec(
+        name="department", type="string", tier="optional", appendable=False,
+        label="科别",
+        description="科别：门诊/急诊/住院 + 科室",
+    ),
+]
 
 
 # ---- extractor -------------------------------------------------------------
