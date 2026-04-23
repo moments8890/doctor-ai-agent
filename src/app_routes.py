@@ -22,6 +22,7 @@ from channels.web.patient_portal import router as patient_portal_router
 from channels.web.patient_interview_routes import router as patient_interview_router
 from channels.web.doctor_interview import router as doctor_interview_router
 from channels.web.voice_jssdk import router as voice_router
+from channels.web.form_responses import router as form_responses_router
 from db.engine import AsyncSessionLocal
 
 
@@ -49,6 +50,7 @@ def include_routers(app: FastAPI) -> None:
     app.include_router(patient_interview_router)
     app.include_router(doctor_interview_router)
     app.include_router(voice_router)
+    app.include_router(form_responses_router)
 
     # Wiki / help center — static HTML served at /wiki/
     if os.path.isdir(_WIKI_DIR):
