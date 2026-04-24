@@ -135,10 +135,6 @@ const styles = {
     paddingTop: 8,
     paddingLeft: 8,
     paddingRight: 8,
-    // Extra breathing room below the input so the textarea doesn't sit
-    // flush against the keyboard top / URL bar. Replaces the failed
-    // visualViewport-based keyboard math — simpler and predictable.
-    paddingBottom: 40,
   },
   chips: {
     display: "flex",

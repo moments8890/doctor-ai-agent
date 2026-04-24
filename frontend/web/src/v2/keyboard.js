@@ -116,11 +116,13 @@ export function useScrollOnKeyboard(ref) {
 /**
  * CSS for keyboard-aware containers (chat pages).
  * Apply as inline style on the outermost flex container.
+ *
+ * No keyboard-related height math — textarea relies on the browser's
+ * default behavior when the soft keyboard opens.
  */
 export const keyboardAwareStyle = {
   display: "flex",
   flexDirection: "column",
-  height: "calc(100% - var(--keyboard-height, 0px))",
+  height: "100%",
   overflow: "hidden",
-  transition: "height 0.25s cubic-bezier(0.33,1,0.68,1)",
 };
