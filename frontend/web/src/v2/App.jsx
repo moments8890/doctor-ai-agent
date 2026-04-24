@@ -81,19 +81,11 @@ function MobileFrame({ children }) {
     <div
       style={{
         width: "100vw",
-        // Mirror visualViewport.height (set as --app-height by useKeyboard)
-        // so the whole app frame shrinks by exactly the keyboard (or URL
-        // bar) delta. The inner flex-column then redistributes: NavBar
-        // and composer are flexShrink: 0, message list is flex: 1 and
-        // absorbs the shrink. This way the title stays put, the message
-        // area compresses, and the composer hugs the keyboard — without
-        // the browser scrolling the whole page up.
-        height: "var(--app-height, 100vh)",
+        height: "100vh",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         backgroundColor: "transparent",
-        transition: "height 0.2s cubic-bezier(0.33,1,0.68,1)",
       }}
       className="v2-mobile-outer"
     >

@@ -17,26 +17,6 @@ export function useKeyboard() {
     const root = document.documentElement;
     let keyboardOpen = false;
 
-    // Mirror the visual viewport height onto --app-height so MobileFrame can
-    // size to the actual visible area. Tracks both URL-bar changes (Safari)
-    // and keyboard show/hide — so the app frame shrinks ONCE, and the inner
-    // flex column redistributes (NavBar + composer stay, message list
-    // absorbs the delta). Never subtract --keyboard-height from this on top
-    // of it — vv.height already excludes the keyboard.
-    function syncAppHeight() {
-      const vv = window.visualViewport;
-      const h = (vv && vv.height) || window.innerHeight;
-      root.style.setProperty("--app-height", `${h}px`);
-    }
-    syncAppHeight();
-    const vvForApp = window.visualViewport;
-    if (vvForApp) {
-      vvForApp.addEventListener("resize", syncAppHeight);
-      vvForApp.addEventListener("scroll", syncAppHeight);
-    } else {
-      window.addEventListener("resize", syncAppHeight);
-    }
-
     function setKeyboard(height) {
       const open = height > 0;
       root.style.setProperty("--keyboard-height", `${height}px`);
@@ -68,44 +48,11 @@ export function useKeyboard() {
     }
     document.addEventListener("touchend", onTouchEnd, { passive: false });
 
-    // --safe-bottom toggle — decoupled from keyboard-height detection. In
-    // iOS Safari 15.4+, window.innerHeight tracks the keyboard, so the
-    // innerHeight - vv.height diff is ~0 and the height-based detection
-    // never fires. Focus state is the reliable signal for "input is active
-    // → keyboard is up → collapse the home-bar inset".
-    function syncSafeBottom() {
-      const active = document.activeElement;
-      const hasFocus = isInputEl(active);
-      root.style.setProperty(
-        "--safe-bottom",
-        hasFocus ? "0px" : "env(safe-area-inset-bottom, 0px)"
-      );
-    }
-    syncSafeBottom();
-    function onFocusSafe(e) {
-      if (isInputEl(e.target)) syncSafeBottom();
-    }
-    function onBlurSafe(e) {
-      if (isInputEl(e.target)) {
-        setTimeout(syncSafeBottom, 50);
-      }
-    }
-    document.addEventListener("focusin", onFocusSafe);
-    document.addEventListener("focusout", onBlurSafe);
-
     // Strategy 1: WeChat API
     if (window.wx?.onKeyboardHeightChange) {
       window.wx.onKeyboardHeightChange((res) => setKeyboard(res.height));
       return () => {
         document.removeEventListener("touchend", onTouchEnd);
-        document.removeEventListener("focusin", onFocusSafe);
-        document.removeEventListener("focusout", onBlurSafe);
-        if (vvForApp) {
-          vvForApp.removeEventListener("resize", syncAppHeight);
-          vvForApp.removeEventListener("scroll", syncAppHeight);
-        } else {
-          window.removeEventListener("resize", syncAppHeight);
-        }
         if (keyboardOpen) {
           document.documentElement.style.overflow = "";
           document.body.style.overflow = "";
@@ -143,14 +90,6 @@ export function useKeyboard() {
       if (vv) vv.removeEventListener("resize", onVVResize);
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);
-      document.removeEventListener("focusin", onFocusSafe);
-      document.removeEventListener("focusout", onBlurSafe);
-      if (vvForApp) {
-        vvForApp.removeEventListener("resize", syncAppHeight);
-        vvForApp.removeEventListener("scroll", syncAppHeight);
-      } else {
-        window.removeEventListener("resize", syncAppHeight);
-      }
       if (keyboardOpen) {
         document.documentElement.style.overflow = "";
         document.body.style.overflow = "";
@@ -177,19 +116,11 @@ export function useScrollOnKeyboard(ref) {
 /**
  * CSS for keyboard-aware containers (chat pages).
  * Apply as inline style on the outermost flex container.
- *
- * Page height is NOT shrunk when the keyboard opens — we rely on the browser's
- * native scroll-into-view for the focused input and on --safe-bottom
- * collapsing the home-bar inset (see useKeyboard). Previous attempts to
- * shrink the page (calc(100% - --keyboard-height) or var(--app-height))
- * double-counted on WKWebView, where 100vh already tracks the keyboard —
- * leaving ~half-screen gaps below the composer.
  */
 export const keyboardAwareStyle = {
   display: "flex",
   flexDirection: "column",
-  flex: 1,          // fills a flex-column parent (embedded case)
-  minHeight: 0,
-  height: "100%",   // fills a block/absolute parent (standalone case)
+  height: "calc(100% - var(--keyboard-height, 0px))",
   overflow: "hidden",
+  transition: "height 0.25s cubic-bezier(0.33,1,0.68,1)",
 };

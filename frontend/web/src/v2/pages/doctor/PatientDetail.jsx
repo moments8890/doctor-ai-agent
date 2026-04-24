@@ -905,19 +905,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
         </JumboTabs>
       </div>
 
-      {/* Chat tab — rendered OUTSIDE the scrollable wrapper so the chat
-          page's flex column fills the remaining viewport properly. A
-          scrollable wrapper around keyboardAwareStyle collapses its
-          height to content on iOS/WKWebView, which pushes the composer
-          up and leaves a gray band below it. */}
-      {!loading && !error && activeTab === TAB_CHAT && (
-        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-          <PatientChatPage patientId={patientId} embedded />
-        </div>
-      )}
-
-      {/* Scrollable content — overview / records tabs only */}
-      {(loading || error || activeTab !== TAB_CHAT) && (
+      {/* Scrollable content — tab-dependent */}
       <div style={scrollable}>
         {loading && <LoadingCenter />}
 
@@ -1119,8 +1107,11 @@ export default function PatientDetail({ patientId: propPatientId }) {
           </>
         )}
 
+        {/* ── 聊天 tab — rendered inline ── */}
+        {!loading && !error && activeTab === TAB_CHAT && (
+          <PatientChatPage patientId={patientId} embedded />
+        )}
       </div>
-      )}
     </div>
   );
 }
