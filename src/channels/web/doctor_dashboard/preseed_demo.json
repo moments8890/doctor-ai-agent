@@ -82,6 +82,26 @@
               "confidence": "高"
             }
           ]
+        },
+        {
+          "key": "baseline_visit",
+          "record_type": "interview_summary",
+          "status": "completed",
+          "days_ago": 90,
+          "chief_complaint": "高血压常规随访",
+          "present_illness": "高血压病史10年，家测血压多在140/90左右，偶头晕。无胸痛、无下肢水肿。",
+          "past_history": "高血压10年，高脂血症2年。",
+          "diagnosis": "原发性高血压",
+          "treatment_plan": "氨氯地平5mg qd 维持；3月后随访。",
+          "content": "男55岁，高血压随访，血压140/90偶有头晕。",
+          "suggestions": [
+            {
+              "section": "treatment",
+              "content": "维持氨氯地平单药治疗",
+              "detail": "血压控制基本达标，继续单药观察。",
+              "confidence": "高"
+            }
+          ]
         }
       ],
       "messages": [
@@ -91,6 +111,13 @@
           "auto_send": false,
           "ai_reply": "188/115 属于高血压急症范畴，不要等待，现在就去急诊做个头颅CT，排除脑出血。期间保持安静平卧。 [KB-kb_htn_emergency] [KB-kb_icp_screen]",
           "days_ago": 0
+        },
+        {
+          "content": "好的我这就去，需要先吃一粒降压药吗？",
+          "triage": "question",
+          "auto_send": true,
+          "ai_reply": "不要自行加药，急诊会根据监测情况给你静脉降压。路上尽量平卧、避免情绪激动，有家属陪同最稳妥。",
+          "days_ago": 0
         }
       ],
       "tasks": [
@@ -99,6 +126,12 @@
           "task_type": "checkup",
           "due_days": 1,
           "content": "急诊处理后2日内电话随访，确认CT结果、血压控制和用药方案。"
+        },
+        {
+          "title": "王大华 1周后门诊复诊",
+          "task_type": "follow_up",
+          "due_days": 7,
+          "content": "急诊后1周门诊复诊，评估血压控制、调整长期方案。"
         }
       ]
     },
@@ -116,9 +149,9 @@
           "days_ago": 0,
           "chief_complaint": "服用开浦兰后嗜睡",
           "present_illness": "癫痫控制3月，开浦兰500mg bid 2周，近2天白天嗜睡、工作困难。无头晕呕吐。",
-          "past_history": "癫痫2年，颞叶占位术后1年，华法林抗凝（房颤）。",
+          "past_history": "癫痫2年，颞叶占位术后1年，房颤长期服用华法林。",
           "diagnosis": "开浦兰副作用（嗜睡）",
-          "treatment_plan": "观察 1-2周适应期；症状不缓解可考虑减量。",
+          "treatment_plan": "观察 1-2周适应期；症状不缓解可考虑减量。同步监测INR。",
           "content": "女68岁，开浦兰嗜睡2天，合并房颤服用华法林。",
           "suggestions": [
             {
@@ -129,10 +162,30 @@
             },
             {
               "section": "workup",
-              "content": "监测INR",
+              "content": "近期复查INR",
               "detail": "合并服用华法林，需确保INR维持在2.0-3.0范围。 [KB-kb_warfarin]",
               "confidence": "中",
               "urgency": "需关注"
+            }
+          ]
+        },
+        {
+          "key": "initial_epilepsy",
+          "record_type": "interview_summary",
+          "status": "completed",
+          "days_ago": 90,
+          "chief_complaint": "癫痫术后药物调整",
+          "present_illness": "颞叶占位术后1年，近3月偶有先兆性症状，无完全发作。MRI未见新发灶。",
+          "past_history": "颞叶占位术后1年，房颤2年（华法林抗凝）。",
+          "diagnosis": "症状性癫痫（术后）",
+          "treatment_plan": "开浦兰 500mg bid 起始；1月后随访。",
+          "content": "女68岁，癫痫术后药物起始，开浦兰500mg bid。",
+          "suggestions": [
+            {
+              "section": "treatment",
+              "content": "开浦兰起始剂量合理",
+              "detail": "开浦兰 500mg bid 为推荐起始剂量，监测嗜睡等常见反应。 [KB-kb_levetiracetam]",
+              "confidence": "高"
             }
           ]
         }
@@ -144,12 +197,26 @@
           "auto_send": false,
           "ai_reply": "开浦兰嗜睡是常见副作用，一般1-2周可适应，不要自行停药。建议继续服用观察，同时这两天注意开车和高空作业风险。如果一周后仍很明显，我们再调整剂量。 [KB-kb_levetiracetam] [KB-kb_warfarin]",
           "days_ago": 0
+        },
+        {
+          "content": "医生，我这次复查的 INR 是 2.4，正常吗？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "INR 2.4 在您目标范围 2.0-3.0 内，维持当前华法林剂量即可。继续按原计划1-2周复查一次。",
+          "days_ago": 3
         }
       ],
-      "tasks": []
+      "tasks": [
+        {
+          "title": "刘晓梅 INR 复查提醒",
+          "task_type": "checkup",
+          "due_days": 7,
+          "content": "1周后复查INR，确认抗凝强度稳定在2.0-3.0范围。"
+        }
+      ]
     },
     {
-      "key": "demo_chenqi",
+      "key": "demo_chenjianhua",
       "name": "陈建华",
       "gender": "male",
       "age": 58,
@@ -158,13 +225,13 @@
         {
           "key": "postop_d5",
           "record_type": "interview_summary",
-          "status": "completed",
-          "days_ago": 3,
+          "status": "pending_review",
+          "days_ago": 1,
           "chief_complaint": "开颅术后第5天复诊",
           "present_illness": "术后恢复可，伤口愈合良好，无红肿渗液。头痛VAS 3分，可耐受。无新发神经系统症状。",
           "past_history": "脑膜瘤开颅术后5天。",
           "diagnosis": "开颅术后恢复期（顺利）",
-          "treatment_plan": "地塞米松减量至2mg q8h，术后1周复查CT。",
+          "treatment_plan": "地塞米松减量至2mg q8h，术后1周复查CT；术后2周 CTA 评估。",
           "content": "男58岁，开颅术后5天，恢复顺利，VAS 3分。",
           "suggestions": [
             {
@@ -172,6 +239,12 @@
               "content": "地塞米松按计划减量",
               "detail": "术后第3天复查指标正常，按标准方案减量。 [KB-kb_postop_d3] [KB-kb_postop_normal]",
               "confidence": "高"
+            },
+            {
+              "section": "workup",
+              "content": "术后2周安排 CTA/MRV 评估",
+              "detail": "按神经外科术后标准随访节点安排影像复查。 [KB-kb_aneurysm_cta]",
+              "confidence": "中"
             }
           ]
         },
@@ -179,137 +252,67 @@
           "key": "postop_d3",
           "record_type": "interview_summary",
           "status": "completed",
-          "days_ago": 5,
+          "days_ago": 3,
           "chief_complaint": "开颅术后第3天复查",
           "present_illness": "术后第3天，伤口干燥，神经功能正常，VAS 4分。",
+          "past_history": "脑膜瘤开颅术后3天。",
           "diagnosis": "开颅术后恢复期",
-          "treatment_plan": "继续地塞米松4mg q8h，第5天复诊。",
+          "treatment_plan": "继续地塞米松 4mg q8h，第5天复诊。",
           "content": "男58岁，开颅术后3天，伤口好，神经功能正常。",
           "suggestions": [
             {
               "section": "treatment",
-              "content": "继续当前方案，d5复诊",
+              "content": "继续当前方案，d5 复诊",
               "detail": "按术后标准随访节点。 [KB-kb_postop_d3]",
               "confidence": "高"
             }
           ]
+        },
+        {
+          "key": "postop_d2",
+          "record_type": "interview_summary",
+          "status": "completed",
+          "days_ago": 4,
+          "chief_complaint": "开颅术后第2天病程",
+          "present_illness": "术后第2天，神清，肢体活动正常，伤口干燥。",
+          "past_history": "脑膜瘤开颅术后2天。",
+          "diagnosis": "术后恢复期",
+          "treatment_plan": "按标准方案管理。",
+          "content": "男58岁，术后第2天，恢复良好。",
+          "suggestions": []
         }
       ],
-      "messages": [],
+      "messages": [
+        {
+          "content": "医生，伤口今天看着有点红，我能洗脸时沾点水吗？",
+          "triage": "concern",
+          "auto_send": false,
+          "ai_reply": "术后5天伤口仍要保持干燥，先不要沾水，避免感染风险。轻微红是正常反应，但若红肿扩大、渗液或发热，马上来门诊。 [KB-kb_postop_normal] [KB-kb_postop_d3]",
+          "days_ago": 1
+        },
+        {
+          "content": "吃东西有什么要注意的吗？",
+          "triage": "routine",
+          "auto_send": true,
+          "ai_reply": "术后饮食清淡易消化即可，多喝水、多吃蔬菜水果；避免高盐、辛辣、酒精。吞咽和咀嚼没有特殊限制。",
+          "days_ago": 2
+        }
+      ],
       "tasks": [
         {
           "title": "陈建华 术后1周CT",
           "task_type": "checkup",
           "due_days": 2,
           "content": "术后第7天复查头颅CT，评估恢复情况。"
-        }
-      ]
-    },
-    {
-      "key": "demo_liya",
-      "name": "李雅",
-      "gender": "female",
-      "age": 34,
-      "phone": "",
-      "records": [
-        {
-          "key": "htn_followup",
-          "record_type": "interview_summary",
-          "status": "completed",
-          "days_ago": 4,
-          "chief_complaint": "高血压随访，血压控制尚可",
-          "present_illness": "高血压1年，氨氯地平5mg qd，家测血压130/85左右。无头晕、胸闷。",
-          "past_history": "高血压1年，家族史（+）。",
-          "diagnosis": "原发性高血压",
-          "treatment_plan": "维持当前方案，3月后门诊随访。",
-          "content": "女34岁，高血压随访，血压控制在130/85，无不适。",
-          "suggestions": [
-            {
-              "section": "treatment",
-              "content": "维持氨氯地平单药",
-              "detail": "控制达标，家族史阳性建议定期监测靶器官。",
-              "confidence": "高"
-            }
-          ]
-        }
-      ],
-      "messages": [
-        {
-          "content": "最近测血压都在 130/85 左右，还需要继续吃药吗？",
-          "triage": "followup",
-          "auto_send": true,
-          "ai_reply": "您目前血压控制得很好，这是降压药起效的结果，继续按原剂量服用即可。不建议自行停药。下次门诊我们再一起评估。",
-          "days_ago": 2
-        }
-      ],
-      "tasks": []
-    },
-    {
-      "key": "demo_zhouhaitao",
-      "name": "周海涛",
-      "gender": "male",
-      "age": 71,
-      "phone": "",
-      "records": [
-        {
-          "key": "post_cta",
-          "record_type": "interview_summary",
-          "status": "edited",
-          "days_ago": 10,
-          "chief_complaint": "动脉瘤夹闭术后2周CTA复查",
-          "present_illness": "术后2周，无头痛、无神经系统新症状。CTA示夹闭完全，无残留。",
-          "past_history": "右侧大脑中动脉瘤夹闭术后2周。",
-          "diagnosis": "动脉瘤夹闭术后（恢复期）",
-          "treatment_plan": "3月后CTA复查，1年长期随访。",
-          "content": "男71岁，动脉瘤术后2周CTA无残留。",
-          "suggestions": [
-            {
-              "section": "treatment",
-              "content": "按计划3月后CTA复查",
-              "detail": "按照标准术后随访方案。 [KB-kb_aneurysm_cta]",
-              "confidence": "高"
-            }
-          ]
         },
         {
-          "key": "initial_postop",
-          "record_type": "interview_summary",
-          "status": "completed",
-          "days_ago": 12,
-          "chief_complaint": "动脉瘤夹闭术后第2天",
-          "present_illness": "术后第2天，神清，肢体活动正常，伤口干燥。",
-          "diagnosis": "术后恢复期",
-          "treatment_plan": "按标准方案管理。",
-          "content": "男71岁，动脉瘤术后第2天，恢复良好。",
-          "suggestions": []
+          "title": "陈建华 术后d3 复诊",
+          "task_type": "follow_up",
+          "due_days": -3,
+          "content": "术后第3天已完成复诊，伤口干燥、神经功能正常。",
+          "status": "completed"
         }
-      ],
-      "messages": [],
-      "tasks": []
-    },
-    {
-      "key": "demo_sunguoqing",
-      "name": "孙国庆",
-      "gender": "male",
-      "age": 63,
-      "phone": "",
-      "records": [
-        {
-          "key": "old_visit",
-          "record_type": "interview_summary",
-          "status": "completed",
-          "days_ago": 18,
-          "chief_complaint": "腰痛3天，咳嗽加重",
-          "present_illness": "搬物后腰痛3天，咳嗽时加重，无下肢放射。",
-          "past_history": "腰椎间盘突出5年。",
-          "diagnosis": "腰椎间盘突出症急性发作",
-          "treatment_plan": "卧床休息，NSAIDs控制疼痛。",
-          "content": "男63岁，腰痛3天，既往腰椎间盘突出。",
-          "suggestions": []
-        }
-      ],
-      "messages": [],
-      "tasks": []
+      ]
     }
   ]
 }
