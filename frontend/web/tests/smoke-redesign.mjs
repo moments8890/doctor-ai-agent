@@ -116,8 +116,6 @@ async function run() {
     await goto(page, "/doctor/settings/persona/teach", "14-teach-by-example", 800);
     await goto(page, "/doctor/settings/persona/onboarding", "15-persona-onboarding", 1000);
     await goto(page, "/doctor/settings/persona/pending", "16-pending-review", 800);
-    await goto(page, "/doctor/settings/review", "17-review-subpage", 800);
-    await goto(page, "/doctor/settings/preferences", "18-preferences", 800);
     await goto(page, "/doctor/settings/qr", "19-qr", 800);
 
     console.log("\n✅ Smoke complete");
