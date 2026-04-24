@@ -71,7 +71,7 @@ export default function KeyboardDebugHUD() {
       onClick={() => setHidden(true)}
       style={{
         position: "fixed",
-        top: 6,
+        bottom: 6,
         right: 6,
         zIndex: 99999,
         background: "rgba(0,0,0,0.82)",
