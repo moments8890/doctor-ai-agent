@@ -44,6 +44,7 @@ import DoctorPage from "./pages/doctor/DoctorPage";
 import OnboardingWizard from "./pages/doctor/OnboardingWizard";
 import PatientPage from "./pages/patient/PatientPage";
 import PrivacyPage from "./pages/PrivacyPage";
+import KeyboardDebugHUD from "./KeyboardDebugHUD";
 
 const DEV_MODE = import.meta.env.DEV;
 const DEV_DOCTOR_ID = import.meta.env.VITE_DEV_DOCTOR_ID || "test_doctor";
@@ -240,6 +241,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ConfigProvider>
+        <KeyboardDebugHUD />
         <MobileFrame>
           <Routes>
             <Route
