@@ -98,12 +98,24 @@ async def is_demo_seeded(db: AsyncSession, doctor_id: str) -> bool:
 
 
 async def cleanup_seed_data(db: AsyncSession, doctor_id: str) -> None:
-    """Delete all preseed data + onboarding 体验患者 for a doctor. Order respects FK relationships."""
-    # 0. Find 体验患者* from onboarding wizard (not tagged with seed_source)
+    """Delete all preseed data + onboarding sim patients for a doctor.
+
+    Onboarding sim patients come from two generations of the wizard and are
+    never tagged with seed_source:
+      - 体验患者*  (older wizard output)
+      - 模拟患者 / *_模拟 / *模拟* (current wizard output)
+
+    Order below respects FK relationships (suggestions → records → patient).
+    """
+    # 0. Find onboarding sim patients (not tagged with seed_source)
+    from sqlalchemy import or_
     onboarding_patients = (await db.execute(
         select(Patient).where(
             Patient.doctor_id == doctor_id,
-            Patient.name.like("体验患者%"),
+            or_(
+                Patient.name.like("体验患者%"),
+                Patient.name.like("%模拟%"),
+            ),
         )
     )).scalars().all()
     for p in onboarding_patients:
