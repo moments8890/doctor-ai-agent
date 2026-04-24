@@ -110,6 +110,21 @@ export function clearLastViewed() {
   commit([]);
 }
 
+// Drop stale entries whose referenced server row no longer exists.
+// Pass id arrays only for the types you have live data for; types with
+// `undefined` ids are left untouched (partial-load safe).
+export function reconcileLastViewed({ patientIds, knowledgeIds } = {}) {
+  const pSet = patientIds ? new Set(patientIds.map(String)) : null;
+  const kSet = knowledgeIds ? new Set(knowledgeIds.map(String)) : null;
+  if (!pSet && !kSet) return;
+  const next = snapshot.filter((e) => {
+    if (e.type === "patient" && pSet) return pSet.has(String(e.id));
+    if (e.type === "knowledge" && kSet) return kSet.has(String(e.id));
+    return true;
+  });
+  if (next.length !== snapshot.length) commit(next);
+}
+
 export function useLastViewed(limit = MAX) {
   const items = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const record = useCallback(recordView, []);

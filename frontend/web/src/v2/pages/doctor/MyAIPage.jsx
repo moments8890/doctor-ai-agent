@@ -4,7 +4,7 @@
  * MyAIPage — "我的AI" tab. Card-based dashboard: identity, AI summary hero,
  * quick actions, today's triage, and recently viewed items.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar, Skeleton, Ellipsis, ActionSheet, CenterPopup } from "antd-mobile";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
@@ -22,13 +22,14 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import PushPinIcon from "@mui/icons-material/PushPin";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
-import { useLastViewed } from "../../../hooks/useLastViewed";
+import { useLastViewed, reconcileLastViewed } from "../../../hooks/useLastViewed";
 import {
   useReviewQueue,
   usePersona,
   useTodaySummary,
   useKbPending,
   useKnowledgeItems,
+  usePatients,
 } from "../../../lib/doctorQueries";
 import { dp } from "../../../utils/doctorBasePath";
 import { formatAge } from "../../../utils/time";
@@ -236,12 +237,11 @@ function SummaryDetailSheet({ visible, onClose, summary, generatedAt }) {
       showCloseButton
       closeOnMaskClick
       style={{
-        "--max-width": "min(420px, 88vw)",
         "--border-radius": `${RADIUS.lg}px`,
       }}
       bodyStyle={{
         padding: "18px 20px 24px",
-        maxHeight: "70vh",
+        maxHeight: "80vh",
         overflowY: "auto",
       }}
     >
@@ -431,7 +431,20 @@ export default function MyAIPage({ doctorId }) {
   const { data: summaryData, isLoading: sLoading } = useTodaySummary();
   const { data: kbPendingData } = useKbPending();
   const { data: knowledgeData } = useKnowledgeItems();
+  const { data: patientsData } = usePatients();
   const { items: lastViewed, pin: pinLastViewed, remove: removeLastViewed } = useLastViewed(3);
+
+  // Self-heal 最近使用: drop entries whose server row has been deleted since
+  // the view was recorded. Pass ids only for types whose live data has loaded.
+  useEffect(() => {
+    const patientIds = Array.isArray(patientsData)
+      ? patientsData.map((p) => p.id)
+      : patientsData?.items?.map((p) => p.id);
+    const knowledgeIds = Array.isArray(knowledgeData)
+      ? knowledgeData.map((k) => k.id)
+      : knowledgeData?.items?.map((k) => k.id);
+    reconcileLastViewed({ patientIds, knowledgeIds });
+  }, [patientsData, knowledgeData]);
 
   const reviewQueue = reviewQueueData || { pending: [], completed: [] };
 
