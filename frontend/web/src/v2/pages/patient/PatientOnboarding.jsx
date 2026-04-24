@@ -5,12 +5,12 @@
  */
 import { Button } from "antd-mobile";
 import { ContentOutline, FlagOutline } from "antd-mobile-icons";
-import { APP, FONT, RADIUS } from "../../theme";
+import { APP, FONT, ICON, RADIUS } from "../../theme";
 
 const FEATURES = [
-  { bg: APP.primary, label: "随时咨询", desc: "AI助手帮你解答健康问题", icon: <ContentOutline style={{ fontSize: 20, color: APP.white }} /> },
-  { bg: APP.accent, label: "健康档案", desc: "病历和检查结果一目了然", icon: <ContentOutline style={{ fontSize: 20, color: APP.white }} /> },
-  { bg: APP.warning, label: "任务提醒", desc: "用药和复查不再遗漏", icon: <FlagOutline style={{ fontSize: 20, color: APP.white }} /> },
+  { bg: APP.primary, label: "随时咨询", desc: "AI助手帮你解答健康问题", icon: <ContentOutline style={{ fontSize: ICON.sm, color: APP.white }} /> },
+  { bg: APP.accent, label: "健康档案", desc: "病历和检查结果一目了然", icon: <ContentOutline style={{ fontSize: ICON.sm, color: APP.white }} /> },
+  { bg: APP.warning, label: "任务提醒", desc: "用药和复查不再遗漏", icon: <FlagOutline style={{ fontSize: ICON.sm, color: APP.white }} /> },
 ];
 
 /** Returns the localStorage key scoped to a patient id. */
@@ -60,7 +60,7 @@ export default function PatientOnboarding({ doctorName, doctorSpecialty, onDismi
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 28,
+          fontSize: 28, // lint-ui-ignore: hero avatar initial character
           fontWeight: 700,
           color: APP.primary,
           marginBottom: 16,
@@ -96,7 +96,7 @@ export default function PatientOnboarding({ doctorName, doctorSpecialty, onDismi
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 20,
+              fontSize: ICON.sm,
               flexShrink: 0,
             }}>
               {f.icon}

@@ -13,7 +13,7 @@
  */
 import { useEffect, useState } from "react";
 import { CenterPopup, Swiper } from "antd-mobile";
-import { APP, FONT, RADIUS } from "../theme";
+import { APP, FONT, RADIUS, CATEGORY_COLOR } from "../theme";
 
 const CATEGORY_LABELS = {
   diagnosis: "诊断",
@@ -22,15 +22,8 @@ const CATEGORY_LABELS = {
   custom: "其他",
 };
 
-const CATEGORY_COLOR_MAP = {
-  diagnosis:  { bg: APP.primaryLight, fg: APP.primary },
-  medication: { bg: "#e8f0fe", fg: "#1B6EF3" },
-  followup:   { bg: "#fff3e0", fg: "#E67E22" },
-  custom:     { bg: "#f3f0ff", fg: "#7C3AED" },
-};
-
 export function CategoryPill({ category }) {
-  const color = CATEGORY_COLOR_MAP[category] || CATEGORY_COLOR_MAP.custom;
+  const color = CATEGORY_COLOR[category] || CATEGORY_COLOR.custom;
   const label = CATEGORY_LABELS[category] || category || "其他";
   return (
     <span
@@ -162,17 +155,19 @@ export default function CitationPopup({ visible, items, initialIndex = 0, onClos
       showCloseButton
       closeOnMaskClick
       destroyOnClose
-      style={{ "--border-radius": `${RADIUS.lg}px` }}
       bodyStyle={{
-        padding: "18px 20px 20px",
-        ...(single ? { maxHeight: "80vh", overflowY: "auto" } : {}),
+        padding: "22px 22px 24px",
+        ...(single ? { maxHeight: "85vh", overflowY: "auto" } : {}),
       }}
     >
       {single && (
         <CitationCard item={list[0]} onOpenDetail={handleOpenDetail} />
       )}
       {list.length > 1 && (
-        <div style={{ height: "60vh", display: "flex", flexDirection: "column" }}>
+        // Swiper needs a concrete height to page — cap at min(40vh, 340px)
+        // so short-content citations don't stretch the dialog unnecessarily.
+        // Long content scrolls inside the card body (scrollBody flag).
+        <div style={{ height: "min(40vh, 340px)", display: "flex", flexDirection: "column" }}>
           <Swiper
             defaultIndex={initialIndex}
             onIndexChange={setCurrentIndex}

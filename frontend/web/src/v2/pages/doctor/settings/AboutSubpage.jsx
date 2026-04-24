@@ -5,7 +5,7 @@
  */
 import { NavBar } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
-import { APP, FONT, RADIUS } from "../../../theme";
+import { APP, FONT, ICON, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 
 function SectionHeader({ title }) {
@@ -93,7 +93,7 @@ export default function AboutSubpage() {
               alignItems: "center",
               justifyContent: "center",
               marginBottom: 16,
-              fontSize: 36,
+              fontSize: ICON.xl, // lint-ui-ignore: hero illustration (large initial)
               color: APP.white,
               fontWeight: 700,
             }}

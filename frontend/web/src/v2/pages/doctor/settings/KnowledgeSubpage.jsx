@@ -28,7 +28,7 @@ import {
   useRejectKbPending,
 } from "../../../../lib/doctorQueries";
 import { dp } from "../../../../utils/doctorBasePath";
-import { APP, FONT, RADIUS } from "../../../theme";
+import { APP, FONT, RADIUS, CATEGORY_COLOR } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 import { LoadingCenter, EmptyState } from "../../../components";
 
@@ -330,13 +330,7 @@ const PENDING_CATEGORY_LABELS = {
   custom: "通用",
 };
 
-// Category chip palette — matches KnowledgeCard.
-const PENDING_CATEGORY_STYLES = {
-  diagnosis:  { bg: APP.primaryLight,  text: APP.primary },
-  medication: { bg: "#e8f0fe",         text: "#1B6EF3" },
-  followup:   { bg: "#fff3e0",         text: "#E67E22" },
-  custom:     { bg: "#f3f0ff",         text: "#7C3AED" },
-};
+// Category chip palette — matches KnowledgeCard. Uses CATEGORY_COLOR from theme.
 
 const PENDING_CONFIDENCE_STYLES = {
   high:   { color: APP.primary, label: "高置信" },
@@ -347,7 +341,7 @@ const PENDING_CONFIDENCE_STYLES = {
 const PENDING_CONFIDENCE_RANK = { high: 3, medium: 2, low: 1 };
 
 function PendingCategoryChip({ category }) {
-  const style = PENDING_CATEGORY_STYLES[category] || { bg: APP.surfaceAlt, text: APP.text3 };
+  const style = CATEGORY_COLOR[category] || { bg: APP.surfaceAlt, fg: APP.text3 };
   const label = PENDING_CATEGORY_LABELS[category] || category || "规则";
   return (
     <span
@@ -357,7 +351,7 @@ function PendingCategoryChip({ category }) {
         padding: "2px 8px",
         borderRadius: RADIUS.xs,
         backgroundColor: style.bg,
-        color: style.text,
+        color: style.fg,
       }}
     >
       {label}

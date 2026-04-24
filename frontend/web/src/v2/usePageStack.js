@@ -16,6 +16,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useNavigationType } from "react-router-dom";
+import { APP } from "./theme";
 
 const DURATION = 300;
 const EASE = "cubic-bezier(0.32, 0.72, 0, 1)";
@@ -212,7 +213,7 @@ export function usePageStack(routeKey, renderContent) {
         visibility,
         pointerEvents,
         overflow: "hidden",
-        background: "#f5f5f5",
+        background: APP.scrim,
         willChange: topAnim !== "idle" && (isTop || isExiting) ? "transform" : "auto",
       },
     };

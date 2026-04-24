@@ -47,7 +47,7 @@ export const scrollable = {
 /** Sticky bottom action bar with safe-area padding. */
 export const bottomBar = {
   padding: "12px 16px",
-  paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))",
+  paddingBottom: "calc(12px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)))",
   backgroundColor: APP.surface,
   borderTop: `0.5px solid ${APP.border}`,
   flexShrink: 0,

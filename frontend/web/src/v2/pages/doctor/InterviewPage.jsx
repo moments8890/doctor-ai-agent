@@ -27,7 +27,7 @@ import { dp } from "../../../utils/doctorBasePath";
 import ChatComposer from "../../ChatComposer";
 import ChatBubble from "../../ChatBubble";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
-import { APP, FONT, RADIUS } from "../../theme";
+import { APP, FONT, ICON, RADIUS } from "../../theme";
 
 // ── Field label map ────────────────────────────────────────────────
 const FIELD_LABELS = {
@@ -367,7 +367,7 @@ const popupStyles = {
     "--background-color": APP.surfaceAlt,
     "--border-color": APP.border,
     "--text-color": APP.text2,
-    height: 40,
+    minHeight: 40,
     borderRadius: RADIUS.md,
   },
   saveBtn: {
@@ -375,7 +375,7 @@ const popupStyles = {
     "--background-color": APP.primary,
     "--border-color": APP.primary,
     "--text-color": APP.white,
-    height: 40,
+    minHeight: 40,
     borderRadius: RADIUS.md,
   },
   diagBtn: {
@@ -383,7 +383,7 @@ const popupStyles = {
     "--background-color": APP.primary,
     "--border-color": APP.primary,
     "--text-color": APP.white,
-    height: 40,
+    minHeight: 40,
     borderRadius: RADIUS.md,
   },
 };
@@ -757,7 +757,7 @@ export default function InterviewPage({
         onBack={handleBack}
         right={
           <QuestionCircleOutline
-            style={{ fontSize: 20, color: APP.text3 }}
+            style={{ fontSize: ICON.sm, color: APP.text3 }}
             onClick={() =>
               Dialog.alert({
                 content:
@@ -977,7 +977,7 @@ const statusStyles = {
     padding: "2px 10px",
     fontSize: FONT.sm,
     cursor: "pointer",
-    minHeight: 24,
+    minHeight: 28,
   },
   draftBanner: {
     display: "flex",

@@ -57,7 +57,7 @@ function AcceptedRow({ text, note, expanded, onClick }) {
           background: APP.primary,
           color: APP.white,
           borderRadius: "50%",
-          fontSize: 10,
+          fontSize: 10, // lint-ui-ignore: decorative badge glyph (✓ inside 16px circle)
           fontWeight: 700,
         }}
       >
@@ -111,10 +111,6 @@ function AIPendingRow({
   const citedRules = (s.cited_knowledge_ids || [])
     .map((id) => knowledgeMap?.[id])
     .filter(Boolean);
-  const primaryCitation = citedRules[0];
-  const citationName = primaryCitation
-    ? primaryCitation.title || primaryCitation.text?.slice(0, 16) || "已删除"
-    : null;
 
   return (
     <div
@@ -168,32 +164,31 @@ function AIPendingRow({
           {s.detail}
         </div>
       )}
-      {citationName && (
-        <div style={{ marginTop: 4 }}>
-          <button
-            type="button"
-            onClick={
-              onOpenCitation && primaryCitation
-                ? (e) => {
-                    e.stopPropagation();
-                    onOpenCitation(primaryCitation);
-                  }
-                : undefined
-            }
-            style={{
-              display: "inline-block",
-              color: APP.primary,
-              background: APP.primaryLight,
-              fontSize: FONT.xs,
-              padding: "2px 8px",
-              borderRadius: RADIUS.xs,
-              border: "none",
-              cursor: onOpenCitation && primaryCitation ? "pointer" : "default",
-              fontFamily: "inherit",
-            }}
-          >
-            依据：{citationName} ›
-          </button>
+      {citedRules.length > 0 && (
+        <div style={{ marginTop: 4, display: "grid", gap: 4, justifyItems: "start" }}>
+          {citedRules.map((rule, idx) => (
+            <span
+              key={rule.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenCitation?.(citedRules, idx);
+              }}
+              style={{
+                color: APP.primary,
+                background: APP.primaryLight,
+                fontSize: FONT.xs,
+                padding: "2px 8px",
+                borderRadius: RADIUS.xs,
+                cursor: "pointer",
+                maxWidth: "100%",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              依据：{rule.title || rule.text?.slice(0, 16) || "已删除"} ›
+            </span>
+          ))}
         </div>
       )}
       <div
@@ -303,7 +298,7 @@ function EditInline({ initialText, initialDetail, onCancel, onSave }) {
       style={{
         padding: "10px 14px",
         borderTop: `0.5px solid ${APP.borderLight}`,
-        background: "#fafefb",
+        background: APP.editBg,
       }}
     >
       <TextArea

@@ -36,20 +36,17 @@ section() {
   echo -e "${NC}── $1 ──${NC}"
 }
 
-# ── 1. Hardcoded hex colors outside theme.js ──
+# ── 1. Hardcoded hex colors in v2 (admin legitimately uses MUI hex; v1 deleted) ──
 section "Hardcoded hex colors"
 
-# Known exceptions: theme.js itself, constants.jsx (LABEL_PRESET_COLORS), test files
-# Look for #XXXXXX or #XXX patterns in sx props / style objects
+# Scope: v2 only. Admin (pages/admin/) uses MUI and hex is fine there.
+# Known exceptions: theme.js, debug HUD, avatar color palette, lint-ui-ignore.
 HARDCODED_HEX=$(grep -rn --include="*.jsx" --include="*.js" \
-  -E '"#[0-9a-fA-F]{3,8}"' "$SRC" \
+  -E '"#[0-9a-fA-F]{3,8}"' "$SRC/v2" \
   | grep -v 'theme\.js' \
-  | grep -v 'constants\.jsx.*LABEL_PRESET' \
-  | grep -v 'constants\.jsx.*AVATAR_COLORS' \
+  | grep -v 'KeyboardDebugHUD' \
+  | grep -v 'constants\.jsx.*AVATAR' \
   | grep -v '\.test\.' \
-  | grep -v 'node_modules' \
-  | grep -v '\.html' \
-  | grep -v 'mockApi' \
   | grep -v '// lint-ui-ignore' \
   || true)
 
@@ -81,11 +78,11 @@ else
   echo -e "${GREEN}✓ No instant show/hide patterns${NC}"
 fi
 
-# ── 3. Raw CircularProgress for section loading ──
+# ── 3. Raw CircularProgress in v2 (admin uses MUI CircularProgress legitimately) ──
 section "Raw CircularProgress for content loading"
 
 RAW_SPINNER=$(grep -rn --include="*.jsx" \
-  '<CircularProgress' "$SRC/pages" \
+  '<CircularProgress' "$SRC/v2" \
   | grep -v 'AppButton\|loading.*prop\|isProcessing\|size={10}\|size={12}' \
   | grep -v '// lint-ui-ignore' \
   || true)
@@ -132,7 +129,30 @@ if [[ -n "$HIGHLIGHT_BG" ]]; then
 fi
 [[ -z "$WECHAT_GREEN" && -z "$HIGHLIGHT_BG" ]] && echo -e "${GREEN}✓ No known token violations${NC}"
 
-# ── 6. Raw Dialog for bottom sheets ──
+# ── 6. Hardcoded fontSize in v2 (breaks tier scaling) ──
+# v2 uses FONT.*/ICON.* CSS-var tokens that scale with the accessibility
+# text tier (compact/standard/large/extraLarge). Hardcoded px values are
+# frozen at 1.0× — large-text users see no change. Allow theme.js (defines
+# tokens), debug HUDs, and explicit "// lint-ui-ignore" opt-outs.
+section "Hardcoded fontSize in v2 (breaks tier scaling)"
+
+HARDCODED_FONTSIZE=$(grep -rn --include="*.jsx" --include="*.js" \
+  -E '(fontSize:\s*[0-9]+|fontSize:\s*"[0-9]+px")' "$SRC/v2" \
+  | grep -v 'theme\.js' \
+  | grep -v 'KeyboardDebugHUD' \
+  | grep -v '// lint-ui-ignore' \
+  || true)
+
+if [[ -n "$HARDCODED_FONTSIZE" ]]; then
+  COUNT=$(echo "$HARDCODED_FONTSIZE" | wc -l | tr -d ' ')
+  warn "$COUNT hardcoded fontSize value(s) in v2" "Use FONT.* (text) or ICON.* (icons) tokens from v2/theme.js — hardcoded px bypasses accessibility tier scaling"
+  echo "$HARDCODED_FONTSIZE" | head -15
+  [[ $COUNT -gt 15 ]] && echo "   ... and $((COUNT - 15)) more"
+else
+  echo -e "${GREEN}✓ No hardcoded fontSize in v2${NC}"
+fi
+
+# ── 7. Raw Dialog for bottom sheets ──
 section "Raw Dialog usage"
 
 RAW_DIALOG=$(grep -rn --include="*.jsx" \

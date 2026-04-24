@@ -22,7 +22,7 @@ import {
 } from "antd-mobile";
 import { FileOutline } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
-import { APP, FONT, RADIUS } from "../../theme";
+import { APP, FONT, ICON, RADIUS } from "../../theme";
 import { LoadingCenter, EmptyState } from "../../components";
 
 // ---------------------------------------------------------------------------
@@ -363,7 +363,7 @@ export default function RecordsTab({ token }) {
                   key={rec.id}
                   prefix={
                     <FileOutline
-                      style={{ fontSize: 22, color: APP.primary, marginTop: 2 }}
+                      style={{ fontSize: ICON.md, color: APP.primary, marginTop: 2 }}
                     />
                   }
                   title={

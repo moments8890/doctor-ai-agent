@@ -13,7 +13,7 @@ import {
   TextOutline,
   UserOutline,
 } from "antd-mobile-icons";
-import { APP, FONT, RADIUS, applyFontScale } from "../../theme";
+import { APP, FONT, ICON, RADIUS, applyFontScale } from "../../theme";
 import { scrollable } from "../../layouts";
 import { NameAvatar } from "../../components";
 
@@ -100,7 +100,7 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
       {/* General settings */}
       <List header="通用">
         <List.Item
-          prefix={<InformationCircleOutline style={{ fontSize: 20, color: APP.text4 }} />}
+          prefix={<InformationCircleOutline style={{ fontSize: ICON.sm, color: APP.text4 }} />}
           extra={
             <span style={{ fontSize: FONT.base, color: APP.text4 }}>版本信息</span>
           }
@@ -111,7 +111,7 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
           关于
         </List.Item>
         <List.Item
-          prefix={<UserOutline style={{ fontSize: 20, color: APP.text4 }} />}
+          prefix={<UserOutline style={{ fontSize: ICON.sm, color: APP.text4 }} />}
           extra={
             <span style={{ fontSize: FONT.base, color: APP.text4 }}>数据使用与保护</span>
           }
@@ -122,7 +122,7 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
           隐私政策
         </List.Item>
         <List.Item
-          prefix={<TextOutline style={{ fontSize: 20, color: APP.text4 }} />}
+          prefix={<TextOutline style={{ fontSize: ICON.sm, color: APP.text4 }} />}
           extra={
             <span style={{ fontSize: FONT.base, color: APP.text4 }}>{currentFontLabel}</span>
           }
@@ -133,7 +133,7 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
           字体大小
         </List.Item>
         <List.Item
-          prefix={<LoopOutline style={{ fontSize: 20, color: APP.text4 }} />}
+          prefix={<LoopOutline style={{ fontSize: ICON.sm, color: APP.text4 }} />}
           description={null}
           arrow
           onClick={handleReplayOnboarding}

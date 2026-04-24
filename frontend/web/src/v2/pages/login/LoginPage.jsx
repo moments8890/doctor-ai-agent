@@ -24,7 +24,7 @@ import {
   setWebToken,
 } from "../../../api";
 import { useDoctorStore } from "../../../store/doctorStore";
-import { APP, FONT, RADIUS } from "../../theme";
+import { APP, FONT, ICON, RADIUS } from "../../theme";
 
 const STORAGE_KEY = "unified_auth_token";
 const STORAGE_ROLE_KEY = "unified_auth_role";
@@ -74,12 +74,12 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 24,
+    fontSize: ICON.md,
   },
   title: {
     margin: 0,
     fontWeight: 700,
-    fontSize: 18,
+    fontSize: FONT.md,
     color: APP.text1,
   },
   errorText: {

@@ -51,6 +51,10 @@ export const APP = {
   borderLight: "#f0f0f0",
   white: "#fff",
   black: "#000",
+  // Semantic backgrounds
+  scrim: "#f5f5f5",      // neutral scrim bg (usePageStack, modal backdrops)
+  editBg: "#fafefb",     // edit-mode surface tint (distinguishes from read)
+  highlightBg: "#fff8c5", // yellow callout for onboarding emphasis
 };
 
 // Border radius tokens
@@ -106,13 +110,19 @@ export const ICON = {
   xl: "var(--icon-size-xl)",
 };
 
-// Category color palettes (knowledge, records, etc.)
-export const CATEGORY_COLORS = {
-  diagnosis:  { bg: APP.primaryLight,  text: APP.primary },
-  medication: { bg: "#e8f0fe",         text: "#1B6EF3" },  // blue — no APP token
-  followup:   { bg: "#fff3e0",         text: "#E67E22" },  // orange — no APP token
-  custom:     { bg: "#f3f0ff",         text: "#7C3AED" },  // purple — no APP token
+// Category color palette — for knowledge/citation/tag pills. Each category
+// gets a light bg + darker fg pair that meets contrast for small labels.
+// Used by: CitationPopup, KnowledgeSubpage, KnowledgeDetailSubpage, MyAIPage.
+export const CATEGORY_COLOR = {
+  diagnosis:  { bg: APP.primaryLight,  fg: APP.primary },
+  medication: { bg: "#e8f0fe",         fg: "#1B6EF3" },  // blue
+  followup:   { bg: "#fff3e0",         fg: "#E67E22" },  // orange
+  custom:     { bg: "#f3f0ff",         fg: "#7C3AED" },  // purple
+  persona:    { bg: "#f5f0ff",         fg: "#9b59b6" },  // deep purple
 };
+
+// Backward-compatible alias for code using the old name
+export const CATEGORY_COLORS = CATEGORY_COLOR;
 
 // ── Font / icon scaling ─────────────────────────────────────────────
 const FONT_SCALES = {
@@ -181,6 +191,30 @@ function injectComponentOverrides() {
     }
     .adm-tab-bar-item-title {
       line-height: 1.2;
+    }
+
+    /* Keyboard-aware safe-area bottom.
+       iOS doesn't zero out env(safe-area-inset-bottom) when the keyboard
+       opens, so any composer / sticky footer would otherwise float ~34px
+       above the keyboard top. Subtract --keyboard-height (set by
+       useKeyboard) and clamp at 0. Consumers: var(--safe-bottom) instead
+       of env(safe-area-inset-bottom) anywhere bottom padding matters. */
+    :root {
+      --safe-bottom: max(0px, calc(env(safe-area-inset-bottom, 0px) - var(--keyboard-height, 0px)));
+    }
+    .adm-safe-area-position-bottom {
+      padding-bottom: var(--safe-bottom);
+    }
+
+    /* Dialogs & center popups — wider on mobile, capped on desktop.
+       .adm-center-popup-wrap is width:auto, so size is content-driven and
+       clamped between min-width and max-width. Setting both to the same
+       target forces an exact width regardless of content. Dialog renders
+       inside a CenterPopup so these vars cover both. */
+    :root {
+      --adm-center-popup-min-width: min(90vw, 560px);
+      --adm-center-popup-max-width: min(90vw, 560px);
+      --adm-center-popup-border-radius: 16px;
     }
   `;
   document.head.appendChild(styleEl);

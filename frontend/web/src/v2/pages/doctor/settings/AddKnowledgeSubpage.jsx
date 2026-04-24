@@ -12,7 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
-import { APP, FONT, RADIUS } from "../../../theme";
+import { APP, FONT, ICON, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 import { ActionFooter } from "../../../components";
 
@@ -340,7 +340,7 @@ export default function AddKnowledgeSubpage() {
                 <SpinLoading color="primary" />
               ) : (
                 <>
-                  <LinkOutline style={{ fontSize: 36, color: APP.text4 }} />
+                  <LinkOutline style={{ fontSize: ICON.xl, color: APP.text4 }} /> {/* 36 is empty-state illustration */}
                   <div>支持 PDF / Word / 图片</div>
                   <Button
                     color="primary"

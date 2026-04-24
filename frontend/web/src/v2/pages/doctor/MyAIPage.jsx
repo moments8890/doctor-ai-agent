@@ -33,7 +33,7 @@ import {
 } from "../../../lib/doctorQueries";
 import { dp } from "../../../utils/doctorBasePath";
 import { formatAge } from "../../../utils/time";
-import { APP, FONT, RADIUS, ICON, CATEGORY_COLORS } from "../../theme";
+import { APP, FONT, RADIUS, ICON, CATEGORY_COLOR } from "../../theme";
 import { pageContainer, scrollable } from "../../layouts";
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -142,7 +142,7 @@ function TintedIcon({ Icon, bg, color, size = 40 }) {
 // Hero banner — green gradient card with the title + short AI summary.
 // Tap anywhere on the card to open the full narrative in a bottom-sheet popup.
 function HeroBanner({ title, summaryShort, summaryFull, loading, onClick }) {
-  const hasDetail = !!(summaryFull && summaryFull.trim() && summaryFull !== summaryShort);
+  const hasDetail = !!(summaryFull && summaryFull.trim());
   return (
     <div
       onClick={hasDetail ? onClick : undefined}
@@ -202,7 +202,7 @@ function HeroBanner({ title, summaryShort, summaryFull, loading, onClick }) {
             position: "absolute",
             top: 4,
             right: 6,
-            fontSize: 14,
+            fontSize: 14, // lint-ui-ignore
             color: APP.primary,
             opacity: 0.7,
           }}
@@ -212,13 +212,13 @@ function HeroBanner({ title, summaryShort, summaryFull, loading, onClick }) {
             position: "absolute",
             bottom: 6,
             left: 2,
-            fontSize: 10,
+            fontSize: 10, // lint-ui-ignore
             color: APP.primary,
             opacity: 0.5,
           }}
         />
         <AssignmentTurnedInOutlinedIcon
-          sx={{ fontSize: 56, color: APP.primary }}
+          sx={{ fontSize: 56, color: APP.primary }} // lint-ui-ignore
         />
       </div>
     </div>
@@ -236,12 +236,9 @@ function SummaryDetailSheet({ visible, onClose, summary, generatedAt }) {
       onClose={onClose}
       showCloseButton
       closeOnMaskClick
-      style={{
-        "--border-radius": `${RADIUS.lg}px`,
-      }}
       bodyStyle={{
-        padding: "18px 20px 24px",
-        maxHeight: "80vh",
+        padding: "22px 22px 26px",
+        maxHeight: "85vh",
         overflowY: "auto",
       }}
     >
@@ -250,15 +247,18 @@ function SummaryDetailSheet({ visible, onClose, summary, generatedAt }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 12,
-          paddingRight: 24,
+          gap: 12,
+          marginBottom: 14,
+          paddingRight: 36,
         }}
       >
         <div style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1 }}>
           今日摘要
         </div>
         {timeStr && (
-          <div style={{ fontSize: FONT.xs, color: APP.text4 }}>生成于 {timeStr}</div>
+          <div style={{ fontSize: FONT.xs, color: APP.text4, flexShrink: 0 }}>
+            生成于 {timeStr}
+          </div>
         )}
       </div>
       <div style={{ fontSize: FONT.base, color: APP.text2, lineHeight: 1.65 }}>
@@ -320,8 +320,8 @@ function LastViewedRow({ item, isFirst, onClick, onPin, onRemove }) {
       onClose: () => {},
     });
   }
-  const iconBg = isKnowledge ? "#fff3e0" : APP.accentLight;
-  const iconColor = isKnowledge ? "#E67E22" : APP.accent;
+  const iconBg = isKnowledge ? CATEGORY_COLOR.followup.bg : APP.accentLight;
+  const iconColor = isKnowledge ? CATEGORY_COLOR.followup.fg : APP.accent;
   const tag = isKnowledge ? "知识库" : "病历";
   const tagBg = isKnowledge ? APP.primaryLight : APP.accentLight;
   const tagColor = isKnowledge ? APP.primary : APP.accent;
@@ -506,8 +506,8 @@ export default function MyAIPage({ doctorId }) {
       description: kbPendingCount > 0 ? `从你的编辑中提取 ${kbPendingCount} 条` : "暂无新规则建议",
       count: kbPendingCount,
       icon: ArticleOutlinedIcon,
-      bg: CATEGORY_COLORS.custom.bg,
-      color: CATEGORY_COLORS.custom.text,
+      bg: CATEGORY_COLOR.custom.bg,
+      color: CATEGORY_COLOR.custom.fg,
       onClick: () => navigate(`${dp("settings/knowledge")}?tab=pending`),
     },
   ];
@@ -515,17 +515,17 @@ export default function MyAIPage({ doctorId }) {
   const quickActions = [
     {
       label: "新建病历",
-      icon: <EditNoteOutlinedIcon sx={{ fontSize: 32, color: APP.primary }} />,
+      icon: <EditNoteOutlinedIcon sx={{ fontSize: ICON.xl, color: APP.primary }} />,
       onClick: () => navigate(`${dp("patients")}?action=new`),
     },
     {
       label: "预问诊码",
-      icon: <QrCodeScannerOutlinedIcon sx={{ fontSize: 32, color: APP.primary }} />,
+      icon: <QrCodeScannerOutlinedIcon sx={{ fontSize: ICON.xl, color: APP.primary }} />,
       onClick: () => navigate(dp("settings/qr")),
     },
     {
       label: "知识库",
-      icon: <MenuBookOutlinedIcon sx={{ fontSize: 32, color: APP.primary }} />,
+      icon: <MenuBookOutlinedIcon sx={{ fontSize: ICON.xl, color: APP.primary }} />,
       onClick: () => navigate(dp("settings/knowledge")),
     },
   ];
