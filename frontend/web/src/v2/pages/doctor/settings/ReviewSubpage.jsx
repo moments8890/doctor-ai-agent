@@ -11,6 +11,7 @@ import { NavBar, Button, TextArea, Dialog } from "antd-mobile";
 import { CheckOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { APP, FONT, RADIUS } from "../../../theme";
+import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 
 const SECTIONS = [
   { key: "differential", label: "鉴别诊断" },
@@ -462,35 +463,12 @@ export default function ReviewSubpage({
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        backgroundColor: APP.surfaceAlt,
-        overflow: "hidden",
-      }}
-    >
-      <NavBar
-        onBack={handleBack}
-        right={headerRight || null}
-        style={{
-          "--height": "44px",
-          "--border-bottom": `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-        }}
-      >
+    <div style={pageContainer}>
+      <NavBar onBack={handleBack} right={headerRight || null} style={navBarStyle}>
         诊断审核
       </NavBar>
 
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          paddingBottom: hasSuggestions ? 88 : 16,
-        }}
-      >
+      <div style={{ ...scrollable, paddingBottom: hasSuggestions ? 88 : 16 }}>
         {children}
 
         {hasSuggestions && (

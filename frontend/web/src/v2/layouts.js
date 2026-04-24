@@ -10,13 +10,22 @@
  */
 import { APP } from "./theme";
 
-/** Standard full-height flex-column page wrapper. */
+/**
+ * Standard full-height flex-column page wrapper.
+ *
+ * Height subtracts --keyboard-height (set by useKeyboard on :root) so the
+ * visible page shrinks above the soft keyboard. Without this, iOS/WeChat
+ * leave 100vh untouched when the keyboard opens and the page keeps its full
+ * height, producing a ~280px dead zone between a focused textarea and the
+ * keyboard.
+ */
 export const pageContainer = {
   display: "flex",
   flexDirection: "column",
-  height: "100%",
+  height: "calc(100% - var(--keyboard-height, 0px))",
   backgroundColor: APP.surfaceAlt,
   overflow: "hidden",
+  transition: "height 0.25s cubic-bezier(0.33,1,0.68,1)",
 };
 
 /** Standard NavBar style (44px, bottom border, white bg). */

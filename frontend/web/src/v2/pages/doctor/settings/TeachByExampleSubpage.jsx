@@ -13,6 +13,7 @@ import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../../theme";
+import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 
 const FIELD_LABELS = {
   reply_style: "回复风格",
@@ -54,28 +55,12 @@ export default function TeachByExampleSubpage() {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        backgroundColor: APP.surfaceAlt,
-        overflow: "hidden",
-      }}
-    >
-      <NavBar
-        onBack={() => navigate(-1)}
-        style={{
-          "--height": "44px",
-          "--border-bottom": `0.5px solid ${APP.border}`,
-          backgroundColor: APP.surface,
-          flexShrink: 0,
-        }}
-      >
+    <div style={pageContainer}>
+      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
         教AI新偏好
       </NavBar>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+      <div style={{ ...scrollable, padding: "16px" }}>
         {/* Helper text */}
         <p
           style={{
