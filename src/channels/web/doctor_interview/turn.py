@@ -7,9 +7,9 @@ from fastapi import APIRouter, Header, HTTPException, UploadFile, File, Form
 
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from domain.patients.interview_session import create_session, load_session, save_session
-from domain.patients.interview_turn import FIELD_LABELS
 from agent.tools.resolve import resolve
 from domain.interview.engine import InterviewEngine
+from domain.interview.templates import UnknownTemplate, get_template
 from utils.log import log
 
 from .shared import (
@@ -217,9 +217,23 @@ async def update_interview_field(
     resolved_doctor = await _resolve_doctor_id(body.doctor_id, authorization)
     session = await _verify_session(body.session_id, resolved_doctor, candidate_doctor_id=body.doctor_id)
 
-    # Validate field name
-    if body.field not in FIELD_LABELS:
-        raise HTTPException(status_code=422, detail=f"Unknown field: {body.field}")
+    # Validate field name against the active template's extractor field set.
+    # Phase 4 r2 bug C: previously gated on a hardcoded FIELD_LABELS dict, which
+    # rejected specialty fields (onset_time / neuro_exam / vascular_risk_factors
+    # on medical_neuro_v1). The template's extractor is the source of truth.
+    try:
+        template = get_template(session.template_id)
+    except UnknownTemplate:
+        raise HTTPException(
+            status_code=422,
+            detail=f"未知模板: {session.template_id}",
+        )
+    allowed_fields = {spec.name for spec in template.extractor.fields()}
+    if body.field not in allowed_fields:
+        raise HTTPException(
+            status_code=422,
+            detail=f"字段 {body.field} 不在当前模板的字段列表中",
+        )
 
     # Update the field
     session.collected[body.field] = body.value
