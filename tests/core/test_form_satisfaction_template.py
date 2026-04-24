@@ -48,4 +48,5 @@ def test_post_confirm_hooks_are_empty():
 def test_registry_contains_both_templates():
     assert "medical_general_v1" in TEMPLATES
     assert "form_satisfaction_v1" in TEMPLATES
-    assert len(TEMPLATES) == 2
+    # Phase 4 r2 Task 8: registry now also contains medical_neuro_v1.
+    assert len(TEMPLATES) == 3

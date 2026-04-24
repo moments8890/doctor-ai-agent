@@ -60,6 +60,10 @@ def test_doctor_hooks_include_only_followup_tasks():
     assert NotifyDoctorHook not in hook_types
 
 
-def test_registry_contains_medical_and_form_templates():
-    """Phase 3 added form_satisfaction_v1 alongside medical_general_v1."""
-    assert set(TEMPLATES.keys()) == {"medical_general_v1", "form_satisfaction_v1"}
+def test_registry_contains_all_phase4_templates():
+    """Phase 4 r2 Task 8 added medical_neuro_v1 alongside the existing two."""
+    assert set(TEMPLATES.keys()) == {
+        "medical_general_v1",
+        "medical_neuro_v1",
+        "form_satisfaction_v1",
+    }
