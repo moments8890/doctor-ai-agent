@@ -40,12 +40,6 @@ export function useKeyboard() {
     function setKeyboard(height) {
       const open = height > 0;
       root.style.setProperty("--keyboard-height", `${height}px`);
-      // Collapse home-bar inset while the keyboard covers it. Consumers read
-      // var(--safe-bottom, env(safe-area-inset-bottom, 0px)).
-      root.style.setProperty(
-        "--safe-bottom",
-        open ? "0px" : "env(safe-area-inset-bottom, 0px)"
-      );
 
       if (open && !keyboardOpen) {
         document.documentElement.style.overflow = "hidden";
@@ -74,11 +68,38 @@ export function useKeyboard() {
     }
     document.addEventListener("touchend", onTouchEnd, { passive: false });
 
+    // --safe-bottom toggle — decoupled from keyboard-height detection. In
+    // iOS Safari 15.4+, window.innerHeight tracks the keyboard, so the
+    // innerHeight - vv.height diff is ~0 and the height-based detection
+    // never fires. Focus state is the reliable signal for "input is active
+    // → keyboard is up → collapse the home-bar inset".
+    function syncSafeBottom() {
+      const active = document.activeElement;
+      const hasFocus = isInputEl(active);
+      root.style.setProperty(
+        "--safe-bottom",
+        hasFocus ? "0px" : "env(safe-area-inset-bottom, 0px)"
+      );
+    }
+    syncSafeBottom();
+    function onFocusSafe(e) {
+      if (isInputEl(e.target)) syncSafeBottom();
+    }
+    function onBlurSafe(e) {
+      if (isInputEl(e.target)) {
+        setTimeout(syncSafeBottom, 50);
+      }
+    }
+    document.addEventListener("focusin", onFocusSafe);
+    document.addEventListener("focusout", onBlurSafe);
+
     // Strategy 1: WeChat API
     if (window.wx?.onKeyboardHeightChange) {
       window.wx.onKeyboardHeightChange((res) => setKeyboard(res.height));
       return () => {
         document.removeEventListener("touchend", onTouchEnd);
+        document.removeEventListener("focusin", onFocusSafe);
+        document.removeEventListener("focusout", onBlurSafe);
         if (vvForApp) {
           vvForApp.removeEventListener("resize", syncAppHeight);
           vvForApp.removeEventListener("scroll", syncAppHeight);
@@ -122,6 +143,8 @@ export function useKeyboard() {
       if (vv) vv.removeEventListener("resize", onVVResize);
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);
+      document.removeEventListener("focusin", onFocusSafe);
+      document.removeEventListener("focusout", onBlurSafe);
       if (vvForApp) {
         vvForApp.removeEventListener("resize", syncAppHeight);
         vvForApp.removeEventListener("scroll", syncAppHeight);
