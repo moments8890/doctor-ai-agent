@@ -75,22 +75,6 @@ function formatRelative(iso) {
   return d.toLocaleDateString("zh-CN");
 }
 
-// Rounded white card wrapper — consistent with MyAIPage / PatientsPage pattern.
-function Card({ children }) {
-  return (
-    <div
-      style={{
-        background: APP.surface,
-        margin: "12px 12px 0",
-        borderRadius: RADIUS.lg,
-        overflow: "hidden",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 // ── Pending item row (AI diagnosis review) ────────────────────────
 
 function PendingItem({ item, onNavigate }) {
@@ -327,31 +311,29 @@ export default function ReviewQueuePage() {
             <>
               {pendingDedup.length > 0 ? (
                 <>
-                  <Card>
-                    <List
-                      style={{
-                        "--border-top": "none",
-                        "--border-bottom": "none",
-                        "--border-inner": `0.5px solid ${APP.borderLight}`,
-                      }}
-                    >
-                      {pendingDedup.map((item) =>
-                        item._kind === "reply" ? (
-                          <DraftItem
-                            key={`reply-${item.id}`}
-                            item={item}
-                            onNavigate={handleNavigateUnified}
-                          />
-                        ) : (
-                          <PendingItem
-                            key={`review-${item.id}`}
-                            item={item}
-                            onNavigate={handleNavigateUnified}
-                          />
-                        )
-                      )}
-                    </List>
-                  </Card>
+                  <List
+                    style={{
+                      "--border-top": "none",
+                      "--border-bottom": "none",
+                      "--border-inner": `0.5px solid ${APP.border}`,
+                    }}
+                  >
+                    {pendingDedup.map((item) =>
+                      item._kind === "reply" ? (
+                        <DraftItem
+                          key={`reply-${item.id}`}
+                          item={item}
+                          onNavigate={handleNavigateUnified}
+                        />
+                      ) : (
+                        <PendingItem
+                          key={`review-${item.id}`}
+                          item={item}
+                          onNavigate={handleNavigateUnified}
+                        />
+                      )
+                    )}
+                  </List>
                   <div
                     style={{
                       textAlign: "center",
@@ -379,23 +361,21 @@ export default function ReviewQueuePage() {
             <>
               {completed.length > 0 ? (
                 <>
-                  <Card>
-                    <List
-                      style={{
-                        "--border-top": "none",
-                        "--border-bottom": "none",
-                        "--border-inner": `0.5px solid ${APP.borderLight}`,
-                      }}
-                    >
-                      {completed.map((item) => (
-                        <CompletedItem
-                          key={item.id}
-                          item={item}
-                          onNavigate={handleNavigateCompleted}
-                        />
-                      ))}
-                    </List>
-                  </Card>
+                  <List
+                    style={{
+                      "--border-top": "none",
+                      "--border-bottom": "none",
+                      "--border-inner": `0.5px solid ${APP.border}`,
+                    }}
+                  >
+                    {completed.map((item) => (
+                      <CompletedItem
+                        key={item.id}
+                        item={item}
+                        onNavigate={handleNavigateCompleted}
+                      />
+                    ))}
+                  </List>
                   <div
                     style={{
                       textAlign: "center",

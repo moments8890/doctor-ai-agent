@@ -13,20 +13,18 @@ import { APP } from "./theme";
 /**
  * Standard full-height flex-column page wrapper.
  *
- * Uses --app-height (set by useKeyboard from visualViewport) so the page
- * always matches the visible area above the keyboard. Falls back to 100%
- * before the hook mounts. This works on both Mobile Safari (where 100vh
- * stays pre-keyboard) and WKWebView (where 100vh can shrink with the
- * keyboard) — a prior calc(100% - --keyboard-height) version double-shrunk
- * in WKWebView, leaving a ~half-screen gap between the input and keyboard.
+ * Page height is NOT shrunk when the keyboard opens. The browser handles
+ * keyboard avoidance via native scroll-into-view for the focused input, and
+ * the home-bar inset collapses via --safe-bottom (see useKeyboard).
+ * Attempts to shrink via calc(100% - --keyboard-height) or var(--app-height)
+ * double-counted on WKWebView — don't bring them back.
  */
 export const pageContainer = {
   display: "flex",
   flexDirection: "column",
-  height: "var(--app-height, 100%)",
+  height: "100%",
   backgroundColor: APP.surfaceAlt,
   overflow: "hidden",
-  transition: "height 0.25s cubic-bezier(0.33,1,0.68,1)",
 };
 
 /** Standard NavBar style (44px, bottom border, white bg). */
