@@ -5,8 +5,8 @@
  * antd-mobile only, no MUI.
  */
 import { useCallback, useEffect, useState } from "react";
-import { NavBar, Button, TextArea, Dialog, Toast, Tag, Grid } from "antd-mobile";
-import { DeleteOutline } from "antd-mobile-icons";
+import { NavBar, Button, TextArea, Dialog, Toast, Tag } from "antd-mobile";
+import { DeleteOutline, EditSOutline } from "antd-mobile-icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
@@ -14,7 +14,7 @@ import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
 import { recordView } from "../../../../hooks/useLastViewed";
 import { useRuleHealth, useKnowledgeUsage } from "../../../../lib/doctorQueries";
-import { APP, FONT, RADIUS, CATEGORY_COLORS as THEME_CATEGORY_COLORS } from "../../../theme";
+import { APP, FONT, RADIUS, CATEGORY_COLOR } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 import { LoadingCenter, ActionFooter } from "../../../components";
 
@@ -25,14 +25,24 @@ function formatDate(dateStr) {
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-const CATEGORY_COLORS = {
-  ...THEME_CATEGORY_COLORS,
-  persona: { bg: "#f5f0ff", text: "#9b59b6" },
-};
+// "今天 / N 天前 / N 周前 / N 个月前 更新" — for the rule title meta row.
+// Doctors care whether a rule is stale; relative time is easier to scan than a date.
+function timeAgo(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  if (days < 1) return "今天更新";
+  if (days < 7) return `${days} 天前更新`;
+  if (days < 30) return `${Math.floor(days / 7)} 周前更新`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} 个月前更新`;
+  return `${Math.floor(months / 12)} 年前更新`;
+}
 
 function getCategoryStyle(category) {
-  const c = CATEGORY_COLORS[category];
-  if (c) return { bg: c.bg, color: c.text || c.color };
+  const c = CATEGORY_COLOR[category];
+  if (c) return { bg: c.bg, color: c.fg };
   return { bg: APP.surfaceAlt, color: APP.text4 };
 }
 
@@ -182,23 +192,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
 
   return (
     <div style={pageContainer}>
-      <NavBar
-        onBack={() => navigate(-1)}
-        right={
-          item?.category !== "persona" ? (
-            <Button
-              size="small"
-              fill="none"
-              color="danger"
-              loading={deleting}
-              onClick={handleDelete}
-            >
-              <DeleteOutline />
-            </Button>
-          ) : null
-        }
-        style={navBarStyle}
-      >
+      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
         知识详情
       </NavBar>
 
@@ -222,49 +216,21 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
                 padding: "16px 16px 14px",
               }}
             >
-              <div style={{ fontSize: FONT.base, fontWeight: 600, color: APP.text1, marginBottom: 12 }}>
-                AI 使用情况
-              </div>
-
-              {/* Stats grid — 5 columns */}
-              <Grid columns={5} gap={0} style={{ marginBottom: 12 }}>
-                {[
-                  {
-                    label: "总引用",
-                    value: ruleHealth?.cited_count ?? "—",
-                    color: APP.text1,
-                  },
-                  {
-                    label: "近30天",
-                    value: ruleHealth?.last_30_days?.cited_count ?? "—",
-                    color: APP.text1,
-                  },
-                  {
-                    label: "被接受",
-                    value: ruleHealth?.accepted_count ?? "—",
-                    color: APP.success,
-                  },
-                  {
-                    label: "被修改",
-                    value: ruleHealth?.edited_count ?? "—",
-                    color: APP.warning,
-                  },
-                  {
-                    label: "被拒绝",
-                    value: ruleHealth?.rejected_count ?? "—",
-                    color: APP.danger,
-                  },
-                ].map(({ label, value, color }) => (
-                  <Grid.Item key={label}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                      <span style={{ fontSize: 22, fontWeight: 700, color, lineHeight: 1.2 }}>
-                        {value}
-                      </span>
-                      <span style={{ fontSize: FONT.xs, color: APP.text4 }}>{label}</span>
-                    </div>
-                  </Grid.Item>
-                ))}
-              </Grid>
+              {/* Single-line usage summary — doctors just want "is this being used" */}
+              {(() => {
+                const total = ruleHealth?.cited_count ?? 0;
+                const last30 = ruleHealth?.last_30_days?.cited_count ?? 0;
+                const summary = total === 0
+                  ? "AI 暂未引用过该知识"
+                  : last30 > 0
+                  ? `过去 30 天被 AI 引用 ${last30} 次 · 累计 ${total} 次`
+                  : `累计被 AI 引用 ${total} 次`;
+                return (
+                  <div style={{ fontSize: FONT.sm, color: APP.text2, marginBottom: 10, lineHeight: 1.5 }}>
+                    {summary}
+                  </div>
+                );
+              })()}
 
               {/* Recent patient chips */}
               {(() => {
@@ -299,7 +265,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
                           color: APP.text2,
                           cursor: "pointer",
                           border: `0.5px solid ${APP.border}`,
-                          minHeight: 28,
+                          minHeight: 32,
                         }}
                       >
                         {usage.patient_name || "患者"}
@@ -322,9 +288,17 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
                 padding: "16px",
               }}
             >
-              <div style={{ fontSize: FONT.lg, fontWeight: 600, color: APP.text1, marginBottom: 8 }}>
+              <div style={{ fontSize: FONT.lg, fontWeight: 600, color: APP.text1, marginBottom: 4 }}>
                 {title}
               </div>
+              {(() => {
+                const ago = timeAgo(item.updated_at || item.created_at);
+                return ago ? (
+                  <div style={{ fontSize: FONT.xs, color: APP.text4, marginBottom: 10 }}>
+                    {ago}
+                  </div>
+                ) : null;
+              })()}
               <div
                 style={{
                   fontSize: FONT.base,
@@ -387,7 +361,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
         )}
       </div>
 
-      {/* Bottom action bar */}
+      {/* Bottom action bar — 30/70 split, 48px touch target, leading icons */}
       {!loading && item && (
         <ActionFooter>
           {item.category !== "persona" && (
@@ -396,16 +370,20 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
               color="danger"
               loading={deleting}
               onClick={handleDelete}
+              style={{ minHeight: 48, minWidth: 120, whiteSpace: "nowrap" }}
             >
-              删除
+              <DeleteOutline style={{ marginRight: 6, verticalAlign: "middle" }} />
+              <span style={{ verticalAlign: "middle" }}>删除</span>
             </Button>
           )}
           <Button
             color="primary"
             block
             onClick={() => { setEditText(text); setEditing(true); }}
+            style={{ minHeight: 48, whiteSpace: "nowrap" }}
           >
-            编辑
+            <EditSOutline style={{ marginRight: 6, verticalAlign: "middle" }} />
+            <span style={{ verticalAlign: "middle" }}>编辑</span>
           </Button>
         </ActionFooter>
       )}

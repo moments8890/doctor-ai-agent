@@ -68,28 +68,32 @@
 
 <main>
   <div class="intro">
-    Captured <strong>2026-04-23</strong> after the card-pattern rollout.
+    Captured <strong>2026-04-24</strong> — post <strong>v1 UI removal</strong>
+    (43 v1 pages + 52 v1 components + shell deleted; <code>main.jsx</code> now mounts
+    <code>v2/App</code> directly). This smoke run is the functional validation for that sweep —
+    all 20 subpages render, login flow works end-to-end, no page errors.
     Viewport: iPhone-14 (390×844), device scale factor 2.
-    Source script: <code>frontend/web/tests/smoke-redesign.mjs</code> — 20 screenshots across every redesigned and niche subpage.
+    Source script: <code>frontend/web/tests/smoke-redesign.mjs</code>.
     Click any thumbnail for full-res.
   </div>
 
-  <h2 class="group" style="color:#0d5c2e; border-top:2px solid #4caf50; padding-top:12px;">✨ End-to-end · AI working in conjunction (PROD)</h2>
+  <h2 class="group" style="color:#0d5c2e; border-top:2px solid #4caf50; padding-top:12px;">✨ End-to-end · AI working in conjunction (dev)</h2>
   <p style="font-size: 12px; color: #666; line-height: 1.6; margin-bottom: 12px;">
-    Captured <strong>2026-04-24</strong> on production (<code>api.doctoragentai.cn</code>).
+    Captured <strong>2026-04-24</strong> against the local dev server, post v1 UI removal.
     Demonstrates the closed loop: patient message → AI drafts reply citing doctor's KB rules →
-    citation popup preserves chat context → knowledge list shows live usage tracking.
+    citation popup (now a centered dialog, 90vw / 560px cap) preserves chat context →
+    knowledge list shows live usage tracking.
   </p>
   <div class="gallery">
-    <div class="shot"><a href="smoke-shots/prod-01-chat-citations.png" target="_blank"><img src="smoke-shots/prod-01-chat-citations.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">1 — Chat draft with 2 citations</div><div class="shot-status ok">✓ 王大华 · 188/115 mmHg → AI draft cites 高血压急症处理 + 颅高压筛查</div></div></div>
-    <div class="shot"><a href="smoke-shots/prod-02-citation-popup.png" target="_blank"><img src="smoke-shots/prod-02-citation-popup.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">2 — Tap citation → rule popup</div><div class="shot-status ok">✓ Bottom sheet, chat preserved behind. 打开完整详情 › for full edit</div></div></div>
-    <div class="shot"><a href="smoke-shots/prod-03-knowledge-usage.png" target="_blank"><img src="smoke-shots/prod-03-knowledge-usage.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">3 — Knowledge usage tracking</div><div class="shot-status ok">✓ AI 最近在用 lists the 3 cited rules · 近7天引用 = 1 次 each</div></div></div>
+    <div class="shot"><a href="smoke-shots/prod-01-chat-citations.png" target="_blank"><img src="smoke-shots/prod-01-chat-citations.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">1 — Chat draft with 2 citations</div><div class="shot-status ok">✓ 王大华 · 188/115 mmHg → AI draft cites 高血压急症处理 + 颅高压筛查, one pill per row</div></div></div>
+    <div class="shot"><a href="smoke-shots/prod-02-citation-popup.png" target="_blank"><img src="smoke-shots/prod-02-citation-popup.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">2 — Tap citation → rule dialog</div><div class="shot-status ok">✓ CenterPopup (was bottom sheet). Swiper indicator shows 2 citations · 打开完整详情 › for full edit</div></div></div>
+    <div class="shot"><a href="smoke-shots/prod-03-knowledge-usage.png" target="_blank"><img src="smoke-shots/prod-03-knowledge-usage.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">3 — Knowledge usage tracking</div><div class="shot-status ok">✓ AI 最近在用 lists the top-cited rules · 近7天引用 counters</div></div></div>
   </div>
 
   <h2 class="group">Main tabs</h2>
   <div class="gallery">
     <div class="shot"><a href="smoke-shots/01-my-ai-tab.png" target="_blank"><img src="smoke-shots/01-my-ai-tab.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">01 — 我的AI tab</div><div class="shot-status ok">✓ Hero + quick actions + 今日关注</div></div></div>
-    <div class="shot"><a href="smoke-shots/02-summary-popup.png" target="_blank"><img src="smoke-shots/02-summary-popup.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">02 — AI summary popup (attempted)</div><div class="shot-status warn">⚠ Click didn't trigger in smoke — retest in browser</div></div></div>
+    <div class="shot"><a href="smoke-shots/02-summary-popup.png" target="_blank"><img src="smoke-shots/02-summary-popup.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">02 — AI summary popup</div><div class="shot-status ok">✓ Dialog opens · 560px width, 16px radius, FONT.xl title, timestamp clears × button</div></div></div>
     <div class="shot"><a href="smoke-shots/03-patients-tab.png" target="_blank"><img src="smoke-shots/03-patients-tab.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">03 — 患者 tab</div><div class="shot-status ok">✓ 3 sections, 待处理 badge, collapse chevrons</div></div></div>
     <div class="shot"><a href="smoke-shots/06-review-tab.png" target="_blank"><img src="smoke-shots/06-review-tab.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">06 — 审核 tab (待审核)</div><div class="shot-status ok">✓ Card-wrapped list, 诊断/回复 tags</div></div></div>
     <div class="shot"><a href="smoke-shots/06b-review-completed.png" target="_blank"><img src="smoke-shots/06b-review-completed.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">06b — 审核 tab (已完成)</div><div class="shot-status ok">✓ Completed items rendered</div></div></div>
@@ -118,8 +122,8 @@
     <div class="shot"><a href="smoke-shots/14-teach-by-example.png" target="_blank"><img src="smoke-shots/14-teach-by-example.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">14 — 教 AI 新偏好</div><div class="shot-status ok">✓ Borderless textarea, lg radius</div></div></div>
     <div class="shot"><a href="smoke-shots/15-persona-onboarding.png" target="_blank"><img src="smoke-shots/15-persona-onboarding.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">15 — Persona onboarding</div><div class="shot-status ok">✓ Option cards updated to lg radius</div></div></div>
     <div class="shot"><a href="smoke-shots/16-pending-review.png" target="_blank"><img src="smoke-shots/16-pending-review.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">16 — Pending review</div><div class="shot-status ok">✓ Empty state — no pending items for test doctor</div></div></div>
-    <div class="shot"><a href="smoke-shots/17-review-subpage.png" target="_blank"><img src="smoke-shots/17-review-subpage.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">17 — 诊断审核 (ReviewSubpage)</div><div class="shot-status warn">⚠ Renders blank — not in redesign sweep, may need attention</div></div></div>
-    <div class="shot"><a href="smoke-shots/18-preferences.png" target="_blank"><img src="smoke-shots/18-preferences.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">18 — 偏好设置 (SettingsListSubpage)</div><div class="shot-status warn">⚠ Still uses legacy flush-list styling — not migrated yet</div></div></div>
+    <div class="shot"><a href="smoke-shots/17-review-subpage.png" target="_blank"><img src="smoke-shots/17-review-subpage.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">17 — 诊断审核 (ReviewSubpage)</div><div class="shot-status warn">⚠ Route <code>/doctor/settings/review</code> falls back to /settings — not wired in v2 router</div></div></div>
+    <div class="shot"><a href="smoke-shots/18-preferences.png" target="_blank"><img src="smoke-shots/18-preferences.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">18 — 偏好设置 (SettingsListSubpage)</div><div class="shot-status warn">⚠ Route <code>/doctor/settings/preferences</code> falls back to /settings — not wired in v2 router</div></div></div>
     <div class="shot"><a href="smoke-shots/19-qr.png" target="_blank"><img src="smoke-shots/19-qr.png" loading="lazy"></a><div class="shot-meta"><div class="shot-title">19 — 预问诊码</div><div class="shot-status ok">✓ QR code + doctor name</div></div></div>
   </div>
 </main>

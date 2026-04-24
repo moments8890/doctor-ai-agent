@@ -79,6 +79,22 @@ async function run() {
       await page.getByText(/^聊天/).click().catch(() => {});
       await page.waitForTimeout(800);
       await shot(page, "05b-patient-detail-chat");
+
+      // Citation popup — tap the first KB title in the 依据 row of the draft card.
+      // The pills render as clickable divs styled with APP.primary color; the
+      // 依据 label itself is a static span. Use the specific KB title to ensure
+      // we click the pill, not the label. Captures the CenterPopup dialog that
+      // replaced the old bottom sheet.
+      const citationPill = page.locator("text=高血压急症处理").first();
+      if (await citationPill.count()) {
+        await citationPill.click({ force: true }).catch(() => {});
+        await page.waitForTimeout(800);
+        await shot(page, "05c-citation-popup-dialog");
+        await page.keyboard.press("Escape");
+        await page.waitForTimeout(300);
+        await page.locator(".adm-mask").first().click({ force: true }).catch(() => {});
+        await page.waitForTimeout(300);
+      }
     }
 
     await goto(page, "/doctor/review", "06-review-tab", 1200);
