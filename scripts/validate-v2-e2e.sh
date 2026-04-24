@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# validate-v2-e2e.sh — run the full Playwright e2e suite against a clean
+# test backend on :8001. Per AGENTS.md, e2e MUST target :8001 (test server),
+# never :8000 (dev server with real data).
+#
+# Usage:
+#   1. Start a clean test backend on :8001 in another terminal:
+#        PYTHONPATH=src ENVIRONMENT=development \
+#          PATIENTS_DB_PATH=/tmp/e2e_test.db \
+#          uvicorn main:app --port 8001
+#      (or reuse an existing :8001 if you have one configured)
+#   2. Make sure the frontend dev server is running on :5173.
+#   3. Run this script:
+#        bash scripts/validate-v2-e2e.sh
+#
+# Output: pass/fail summary + generated videos in frontend/web/test-results/
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR/frontend/web"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+pass() { echo -e "${GREEN}✓${NC} $1"; }
+fail() { echo -e "${RED}✗${NC} $1"; exit 1; }
+warn() { echo -e "${YELLOW}⚠${NC} $1"; }
+
+# ── Preflight ────────────────────────────────────────────────────────
+echo "── Preflight ──"
+
+# Backend on 8001
+if ! curl -sS --max-time 2 http://127.0.0.1:8001/healthz >/dev/null 2>&1; then
+  fail "Test backend on :8001 is not reachable.
+
+Start it in another terminal with an isolated DB:
+  PYTHONPATH=src ENVIRONMENT=development \\
+    PATIENTS_DB_PATH=/tmp/e2e_test.db \\
+    uvicorn main:app --port 8001"
+fi
+pass "Test backend :8001 healthy"
+
+# Frontend on 5173
+if ! curl -sS --max-time 2 http://127.0.0.1:5173 >/dev/null 2>&1; then
+  fail "Frontend dev server on :5173 is not reachable. Start with: npm run dev"
+fi
+pass "Frontend :5173 reachable"
+
+# Guard against accidental :8000 use
+if [[ "${E2E_API_BASE_URL:-}" == *":8000"* ]]; then
+  fail "E2E_API_BASE_URL points at :8000. Tests must target :8001."
+fi
+
+# ── Run ──────────────────────────────────────────────────────────────
+echo ""
+echo "── Running Playwright e2e suite against :8001 ──"
+echo ""
+
+rm -rf test-results
+export E2E_API_BASE_URL="http://127.0.0.1:8001"
+
+if npx playwright test; then
+  echo ""
+  pass "E2e suite green against :8001"
+  exit 0
+else
+  echo ""
+  warn "E2e suite had failures. Videos + traces in frontend/web/test-results/"
+  exit 1
+fi
