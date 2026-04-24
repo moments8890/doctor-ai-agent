@@ -15,7 +15,7 @@
  * of AppButton — the app's default pattern is colored text, not filled buttons.
  */
 import { Box, CircularProgress } from "@mui/material";
-import { TYPE, BUTTON, COLOR, RADIUS } from "../theme";
+import { TYPE, BUTTON, COLOR, RADIUS } from "../../../theme";
 
 const VARIANT_STYLES = {
   primary:   { bgcolor: COLOR.primary, color: COLOR.white, fontWeight: 600 },

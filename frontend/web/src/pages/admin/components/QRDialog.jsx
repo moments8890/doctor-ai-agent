@@ -2,7 +2,7 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 import { QRCodeSVG } from "qrcode.react";
 import SheetDialog from "./SheetDialog";
 import DialogFooter from "./DialogFooter";
-import { TYPE, COLOR, RADIUS } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../../../theme";
 
 export default function QRDialog({ open, onClose, title, name, url, loading, error, onRegenerate }) {
   return (

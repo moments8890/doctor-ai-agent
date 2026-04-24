@@ -37,7 +37,7 @@ import {
   STRUCTURED_FIELD_LABELS,
   markOnboardingStep,
   ONBOARDING_STEP,
-} from "../../../pages/doctor/constants";
+} from "../../constants";
 import FieldWithAI from "./FieldWithAI";
 import FeedbackSheet from "../../components/FeedbackSheet";
 

@@ -1,6 +1,6 @@
 import { Box, Dialog, SwipeableDrawer, Typography } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { TYPE, COLOR, RADIUS } from "../theme";
+import { TYPE, COLOR, RADIUS } from "../../../theme";
 
 export default function SheetDialog({
   open,

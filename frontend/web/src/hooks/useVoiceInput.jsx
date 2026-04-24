@@ -21,7 +21,7 @@
  *   </>;
  */
 import { useRef, useState } from "react";
-import VoiceMicButton from "../components/VoiceMicButton";
+import VoiceMicButton from "./VoiceMicButton";
 
 export function useVoiceInput({ doctorId, value, setValue, separator = " ", compact = false, onBeforeStart }) {
   const baseRef = useRef("");

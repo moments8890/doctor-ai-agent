@@ -33,7 +33,7 @@ import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import QrCode2OutlinedIcon from "@mui/icons-material/QrCode2Outlined";
-import QRDialog from "../../components/QRDialog";
+import QRDialog from "./components/QRDialog";
 import AdminRelatedDialog from "./AdminRelatedDialog";
 import {
   getAdminFilterOptions,

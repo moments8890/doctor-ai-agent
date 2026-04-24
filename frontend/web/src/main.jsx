@@ -3,7 +3,7 @@ import React, { useMemo } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { CssBaseline, ThemeProvider } from "@mui/material";
-import App from "./App";
+import App from "./v2/App";
 import { applyFontScale, createAppThemeScaled } from "./theme";
 import { useFontScaleStore, useFontScaleRerender, triggerFontScaleRerender } from "./store/fontScaleStore";
 import { setLocale, t } from "./i18n";

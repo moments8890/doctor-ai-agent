@@ -21,7 +21,7 @@ import {
   setWizardProgress,
   markWizardDone,
   clearWizardProgress,
-} from "../../../pages/doctor/onboardingWizardState";
+} from "./onboardingWizardState";
 import { seedDemo, updateDoctorProfile } from "../../../api";
 import { markAllReleasesSeen } from "../../../store/releaseStore";
 import { dp } from "../../../utils/doctorBasePath";
@@ -252,7 +252,7 @@ function Step1Content({ doctorId, progress, updateProgress, setCanAdvance, api }
                   color: APP.primary,
                 }}
               >
-                {s.key === "file" ? <FileOutline style={{ fontSize: 18 }} /> : s.key === "url" ? <GlobalOutline style={{ fontSize: 18 }} /> : <EditSOutline style={{ fontSize: 18 }} />}
+                {s.key === "file" ? <FileOutline style={{ fontSize: ICON.xs }} /> : s.key === "url" ? <GlobalOutline style={{ fontSize: ICON.xs }} /> : <EditSOutline style={{ fontSize: ICON.xs }} />}
               </div>
 
               <div style={{ flex: 1 }}>
@@ -414,7 +414,7 @@ function Step2Content({ progress, setCanAdvance }) {
               患者有10年高血压病史，本次出现头痛加重伴呕吐，需{" "}
               <span
                 style={{
-                  backgroundColor: "#fff8c5",
+                  backgroundColor: APP.highlightBg,
                   borderBottom: "2px solid #f0e040",
                   borderRadius: RADIUS.xs,
                   padding: "0 1px",
@@ -585,7 +585,7 @@ function Step2Content({ progress, setCanAdvance }) {
               {draftParts[0]}
               <span
                 style={{
-                  backgroundColor: "#fff8c5",
+                  backgroundColor: APP.highlightBg,
                   borderBottom: "2px solid #f0e040",
                   borderRadius: RADIUS.xs,
                   padding: "0 1px",
@@ -729,7 +729,7 @@ function Step3Content({ doctorId, progress, updateProgress, setCanAdvance, api }
       }}
     >
       <CheckCircleFill
-        style={{ fontSize: 64, color: APP.primary, marginBottom: 16 }}
+        style={{ fontSize: 64, color: APP.primary, marginBottom: 16 }} // lint-ui-ignore: hero illustration
       />
       <div
         style={{

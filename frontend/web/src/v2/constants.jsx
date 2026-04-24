@@ -27,7 +27,7 @@ import MicNoneOutlinedIcon from "@mui/icons-material/MicNoneOutlined";
 import FileUploadOutlinedIcon from "@mui/icons-material/FileUploadOutlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import AddToHomeScreenOutlinedIcon from "@mui/icons-material/AddToHomeScreenOutlined";
-import { COLOR } from "../../theme";
+import { COLOR } from "../theme";
 
 export const TASK_TYPE_LABEL = {
   follow_up:   "随访",
@@ -101,7 +101,7 @@ export const NAV = [
 
 
 export const LABEL_PRESET_COLORS = [
-  "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6",
+  "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", // lint-ui-ignore: intentional label palette
 ];
 
 export const RECORD_TYPE_FILTER_OPTS = [
@@ -332,7 +332,7 @@ export const ICON_BADGES = {
 };
 
 // Record type → IconBadge config lookup (shared with patient app)
-export { RECORD_TYPE_BADGE } from "../../shared/badgeConfigs";
+export { RECORD_TYPE_BADGE } from "../shared/badgeConfigs";
 
 // ── Page help messages (used with <HelpTip message={PAGE_HELP.xxx} />) ──────
 // Each tip answers: what is this page → why do I need it → how to use it → AI connection

@@ -45,7 +45,7 @@ import { formatAge } from "../../../utils/time";
 import { APP, FONT, RADIUS, ICON } from "../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { LoadingCenter, NameAvatar } from "../../components";
-import { STRUCTURED_FIELD_LABELS } from "../../../pages/doctor/constants";
+import { STRUCTURED_FIELD_LABELS } from "../../constants";
 
 // Fields to show inside an expanded record card, in reading order.
 const RECORD_DETAIL_FIELDS = [
@@ -743,7 +743,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
             style={{ padding: "4px 8px", cursor: "pointer" }}
             aria-label="更多操作"
           >
-            <MoreOutline style={{ fontSize: 22, color: APP.text2 }} />
+            <MoreOutline style={{ fontSize: ICON.md, color: APP.text2 }} />
           </div>
         }
         style={navBarStyle}
@@ -769,7 +769,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
         position="bottom"
         bodyStyle={{
           borderRadius: `${RADIUS.lg}px ${RADIUS.lg}px 0 0`,
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          paddingBottom: "var(--safe-bottom, env(safe-area-inset-bottom, 0px))",
         }}
       >
         <div style={{ padding: "20px 16px 24px", textAlign: "center" }}>
@@ -961,7 +961,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
                 >
                   {refreshingSummary
                     ? <SpinLoading color="primary" style={{ "--size": "14px" }} />
-                    : <RedoOutline style={{ fontSize: 14 }} />}
+                    : <RedoOutline style={{ fontSize: ICON.xs }} />}
                 </span>
               </div>
               <div
