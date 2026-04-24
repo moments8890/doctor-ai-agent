@@ -179,4 +179,7 @@ export const keyboardAwareStyle = {
   flexDirection: "column",
   height: "var(--vvh, 100%)",
   overflow: "hidden",
+  // Smooth the height change so the composer glides up with the
+  // keyboard animation instead of teleporting ~300px on keyboard open.
+  transition: "height 0.2s cubic-bezier(0.33, 1, 0.68, 1)",
 };

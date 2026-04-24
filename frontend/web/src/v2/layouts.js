@@ -24,6 +24,9 @@ export const pageContainer = {
   height: "var(--vvh, 100%)",
   backgroundColor: APP.surfaceAlt,
   overflow: "hidden",
+  // Smooth the 705→405 shrink so the composer glides up with the
+  // keyboard animation instead of snapping.
+  transition: "height 0.2s cubic-bezier(0.33, 1, 0.68, 1)",
 };
 
 /** Standard NavBar style (44px, bottom border, white bg). */
