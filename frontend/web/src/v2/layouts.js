@@ -13,13 +13,15 @@ import { APP } from "./theme";
 /**
  * Standard full-height flex-column page wrapper.
  *
- * No keyboard-related height math — textarea relies on the browser's
- * default behavior when the soft keyboard opens.
+ * Sizes to --vvh (= visualViewport.height, set by useKeyboard) so the
+ * page matches the visible area above the keyboard. Falls back to
+ * 100dvh. Do NOT switch back to `calc(100% - var(--keyboard-height))`
+ * — that mixes coordinate systems and double-counts on WKWebView.
  */
 export const pageContainer = {
   display: "flex",
   flexDirection: "column",
-  height: "100%",
+  height: "var(--vvh, 100dvh)",
   backgroundColor: APP.surfaceAlt,
   overflow: "hidden",
 };

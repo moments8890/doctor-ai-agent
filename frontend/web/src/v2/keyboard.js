@@ -17,6 +17,25 @@ export function useKeyboard() {
     const root = document.documentElement;
     let keyboardOpen = false;
 
+    // --- Visible-viewport height as CSS var (approach b, per codex) ---
+    // Single source of truth for "visible area above the keyboard". Chat
+    // shells size themselves with `height: var(--vvh, 100dvh)`. Don't
+    // subtract --keyboard-height on top — that mixes coordinate systems
+    // and double-counts on WKWebView / WeChat.
+    function updateVvh() {
+      const vv = window.visualViewport;
+      const h = vv ? vv.height : window.innerHeight;
+      root.style.setProperty("--vvh", `${Math.round(h)}px`);
+    }
+    updateVvh();
+    const vvForVvh = window.visualViewport;
+    if (vvForVvh) {
+      vvForVvh.addEventListener("resize", updateVvh);
+      vvForVvh.addEventListener("scroll", updateVvh);
+    } else {
+      window.addEventListener("resize", updateVvh);
+    }
+
     function setKeyboard(height) {
       const open = height > 0;
       root.style.setProperty("--keyboard-height", `${height}px`);
@@ -53,6 +72,12 @@ export function useKeyboard() {
       window.wx.onKeyboardHeightChange((res) => setKeyboard(res.height));
       return () => {
         document.removeEventListener("touchend", onTouchEnd);
+        if (vvForVvh) {
+          vvForVvh.removeEventListener("resize", updateVvh);
+          vvForVvh.removeEventListener("scroll", updateVvh);
+        } else {
+          window.removeEventListener("resize", updateVvh);
+        }
         if (keyboardOpen) {
           document.documentElement.style.overflow = "";
           document.body.style.overflow = "";
@@ -90,6 +115,12 @@ export function useKeyboard() {
       if (vv) vv.removeEventListener("resize", onVVResize);
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);
+      if (vvForVvh) {
+        vvForVvh.removeEventListener("resize", updateVvh);
+        vvForVvh.removeEventListener("scroll", updateVvh);
+      } else {
+        window.removeEventListener("resize", updateVvh);
+      }
       if (keyboardOpen) {
         document.documentElement.style.overflow = "";
         document.body.style.overflow = "";
@@ -117,12 +148,26 @@ export function useScrollOnKeyboard(ref) {
  * CSS for keyboard-aware containers (chat pages).
  * Apply as inline style on the outermost flex container.
  *
- * No keyboard-related height math — textarea relies on the browser's
- * default behavior when the soft keyboard opens.
+ * Sizes to --vvh (= visualViewport.height, set by useKeyboard) so the
+ * shell matches the visible area above the keyboard. Falls back to
+ * 100dvh on platforms without visualViewport (or before the hook
+ * mounts). Do NOT switch back to `calc(100% - var(--keyboard-height))`
+ * — that mixes layout-viewport math with keyboard math and
+ * double-counts on iOS/WKWebView.
+ *
+ * The message list inside should be the ONLY scroll container
+ * (flex: 1 + overflow-y: auto). The composer stays in normal flow as
+ * flex: 0 0 auto at the bottom.
  */
 export const keyboardAwareStyle = {
   display: "flex",
   flexDirection: "column",
-  height: "100%",
+  // Fills a flex-column parent (embedded chat inside PatientDetail) via
+  // flex: 1. In a block/absolute parent (standalone chat as the top-level
+  // page in DoctorPage's overlay), flex properties are ignored and
+  // height: var(--vvh) takes effect.
+  flex: 1,
+  minHeight: 0,
+  height: "var(--vvh, 100dvh)",
   overflow: "hidden",
 };

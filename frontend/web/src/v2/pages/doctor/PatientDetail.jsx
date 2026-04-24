@@ -905,7 +905,18 @@ export default function PatientDetail({ patientId: propPatientId }) {
         </JumboTabs>
       </div>
 
-      {/* Scrollable content — tab-dependent */}
+      {/* 聊天 tab — rendered OUTSIDE the scrollable wrapper so the chat
+          shell's flex column sits directly in the flex-column parent.
+          Nested overflow-y: auto breaks keyboardAwareStyle height
+          propagation and the composer gets orphaned mid-page. */}
+      {!loading && !error && activeTab === TAB_CHAT && (
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <PatientChatPage patientId={patientId} embedded />
+        </div>
+      )}
+
+      {/* Scrollable content — overview / records tabs + loading / error */}
+      {(loading || error || activeTab !== TAB_CHAT) && (
       <div style={scrollable}>
         {loading && <LoadingCenter />}
 
@@ -1107,11 +1118,8 @@ export default function PatientDetail({ patientId: propPatientId }) {
           </>
         )}
 
-        {/* ── 聊天 tab — rendered inline ── */}
-        {!loading && !error && activeTab === TAB_CHAT && (
-          <PatientChatPage patientId={patientId} embedded />
-        )}
       </div>
+      )}
     </div>
   );
 }
