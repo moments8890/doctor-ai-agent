@@ -188,6 +188,8 @@ export function useScrollOnKeyboard(ref) {
 export const keyboardAwareStyle = {
   display: "flex",
   flexDirection: "column",
-  height: "100%",
+  flex: 1,          // fills a flex-column parent (embedded case)
+  minHeight: 0,
+  height: "100%",   // fills a block/absolute parent (standalone case)
   overflow: "hidden",
 };
