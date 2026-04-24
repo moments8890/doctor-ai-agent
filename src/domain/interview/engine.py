@@ -323,6 +323,13 @@ class InterviewEngine:
 
         ref = await template.writer.persist(sess, collected)
 
+        # Bug E fix: persist the reconciled `collected` back to the session
+        # row BEFORE hook dispatch. Hooks are best-effort and may fail; the
+        # reconciled state must survive those failures so the session JSON
+        # stays consistent with the persisted record.
+        sess = sess.model_copy(update={"collected": collected})
+        await _save_session_state(sess)
+
         for hook in template.post_confirm_hooks[sess.mode]:
             try:
                 await hook.run(sess, ref, collected)
