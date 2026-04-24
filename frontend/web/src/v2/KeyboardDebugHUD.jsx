@@ -2,15 +2,16 @@
  * Debug HUD for diagnosing mobile keyboard viewport behavior.
  *
  * Enable by appending ?debug=kb to any route URL. Shows live:
- *   innerHeight, visualViewport.height, documentElement.clientHeight,
- *   --vvh (if set), --keyboard-height (if set), activeElement tag.
- *
- * Updates on visualViewport.resize / scroll / focusin / focusout.
- * Fixed top-right, dismissable by tapping.
+ *   innerHeight, visualViewport.height/offsetTop, clientHeight,
+ *   --vvh, --keyboard-height, window.scrollY, body overflow, focus,
+ *   and a rolling log of the last 6 events (focusin, focusout,
+ *   vv.resize, vv.scroll, window scroll).
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-function read() {
+const MAX_EVENTS = 6;
+
+function snap() {
   const vv = window.visualViewport;
   const root = document.documentElement;
   const cs = getComputedStyle(root);
@@ -18,11 +19,14 @@ function read() {
   return {
     innerH: window.innerHeight,
     vvH: vv ? Math.round(vv.height) : null,
-    vvOffsetTop: vv ? Math.round(vv.offsetTop) : null,
+    vvTop: vv ? Math.round(vv.offsetTop) : null,
     clientH: root.clientHeight,
+    scrollY: Math.round(window.scrollY),
     vvhVar: cs.getPropertyValue("--vvh").trim() || "(unset)",
     kbVar: cs.getPropertyValue("--keyboard-height").trim() || "(unset)",
-    focus: active ? `${active.tagName}${active.id ? "#" + active.id : ""}` : "none",
+    bodyOverflow: document.body.style.overflow || "(empty)",
+    htmlOverflow: root.style.overflow || "(empty)",
+    focus: active ? `${active.tagName}` : "none",
   };
 }
 
@@ -31,30 +35,50 @@ export default function KeyboardDebugHUD() {
     typeof window !== "undefined" &&
     window.location.search.includes("debug=kb");
 
-  const [data, setData] = useState(enabled ? read() : null);
+  const [data, setData] = useState(enabled ? snap() : null);
+  const [events, setEvents] = useState([]);
   const [hidden, setHidden] = useState(false);
+  const startRef = useRef(Date.now());
 
   useEffect(() => {
     if (!enabled) return;
-    const tick = () => setData(read());
-    tick();
+
+    const tick = () => setData(snap());
+    const log = (label) => {
+      const t = Date.now() - startRef.current;
+      const s = snap();
+      const line = `t+${t}ms ${label} sY=${s.scrollY} vvT=${s.vvTop ?? "-"} vvH=${s.vvH ?? "-"}`;
+      setEvents((prev) => [line, ...prev].slice(0, MAX_EVENTS));
+      setData(s);
+    };
+
+    const onFocusIn = (e) => log(`focusin:${e.target?.tagName || "?"}`);
+    const onFocusOut = (e) => log(`focusout:${e.target?.tagName || "?"}`);
+    const onWinScroll = () => log("win:scroll");
+
     const vv = window.visualViewport;
-    const fns = [];
+    const onVvResize = () => log("vv:resize");
+    const onVvScroll = () => log("vv:scroll");
+
+    document.addEventListener("focusin", onFocusIn, true);
+    document.addEventListener("focusout", onFocusOut, true);
+    window.addEventListener("scroll", onWinScroll);
     if (vv) {
-      vv.addEventListener("resize", tick);
-      vv.addEventListener("scroll", tick);
-      fns.push(() => vv.removeEventListener("resize", tick));
-      fns.push(() => vv.removeEventListener("scroll", tick));
+      vv.addEventListener("resize", onVvResize);
+      vv.addEventListener("scroll", onVvScroll);
     }
-    window.addEventListener("resize", tick);
-    document.addEventListener("focusin", tick);
-    document.addEventListener("focusout", tick);
-    fns.push(() => window.removeEventListener("resize", tick));
-    fns.push(() => document.removeEventListener("focusin", tick));
-    fns.push(() => document.removeEventListener("focusout", tick));
     const interval = setInterval(tick, 500);
-    fns.push(() => clearInterval(interval));
-    return () => fns.forEach((f) => f());
+
+    return () => {
+      document.removeEventListener("focusin", onFocusIn, true);
+      document.removeEventListener("focusout", onFocusOut, true);
+      window.removeEventListener("scroll", onWinScroll);
+      if (vv) {
+        vv.removeEventListener("resize", onVvResize);
+        vv.removeEventListener("scroll", onVvScroll);
+      }
+      clearInterval(interval);
+    };
   }, [enabled]);
 
   if (!enabled || hidden || !data) return null;
@@ -74,32 +98,47 @@ export default function KeyboardDebugHUD() {
         bottom: 6,
         right: 6,
         zIndex: 99999,
-        background: "rgba(0,0,0,0.82)",
+        background: "rgba(0,0,0,0.85)",
         color: "#0f0",
         fontFamily: "ui-monospace, Menlo, monospace",
         fontSize: 10,
-        lineHeight: 1.35,
+        lineHeight: 1.3,
         padding: "6px 8px",
         borderRadius: 4,
-        minWidth: 165,
+        minWidth: 220,
+        maxWidth: 280,
         pointerEvents: "auto",
       }}
     >
       {row("innerH", data.innerH)}
-      {row("vv.h", data.vvH ?? "—")}
-      {row("vv.top", data.vvOffsetTop ?? "—")}
+      {row("vv.h/top", `${data.vvH ?? "—"} / ${data.vvTop ?? "—"}`)}
       {row("clientH", data.clientH)}
+      {row("scrollY", data.scrollY)}
       {row("--vvh", data.vvhVar)}
       {row("--kbH", data.kbVar)}
+      {row("body.ovf", data.bodyOverflow)}
+      {row("html.ovf", data.htmlOverflow)}
       {row("focus", data.focus)}
-      <div
-        style={{
-          marginTop: 4,
-          textAlign: "right",
-          opacity: 0.5,
-          fontSize: 9,
-        }}
-      >
+      <div style={{ marginTop: 4, borderTop: "1px dashed #444", paddingTop: 4, opacity: 0.9 }}>
+        {events.length === 0 ? (
+          <div style={{ opacity: 0.5 }}>no events yet</div>
+        ) : (
+          events.map((e, i) => (
+            <div
+              key={i}
+              style={{
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                opacity: i === 0 ? 1 : 0.55,
+              }}
+            >
+              {e}
+            </div>
+          ))
+        )}
+      </div>
+      <div style={{ marginTop: 4, textAlign: "right", opacity: 0.45, fontSize: 9 }}>
         tap to hide
       </div>
     </div>
