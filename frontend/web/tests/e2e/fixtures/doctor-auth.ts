@@ -157,8 +157,10 @@ export async function authenticateDoctorPage(page: Page, doctor: TestDoctor) {
   }, doctor.doctorId);
 
   // Fill the doctor login form. Tab 0 (医生) is the default.
-  await page.getByLabel("昵称").fill(doctor.phone);
-  await page.getByLabel("口令").fill(String(doctor.yearOfBirth));
+  // antd-mobile Form.Item renders labels as plain divs (no aria-label / for=),
+  // so getByLabel can't locate the inputs. Use placeholder text instead.
+  await page.getByPlaceholder("请输入昵称").fill(doctor.phone);
+  await page.getByPlaceholder("请输入数字口令").fill(String(doctor.yearOfBirth));
   await page.getByRole("button", { name: "登录" }).click();
 
   // Wait for the login to succeed and land on the doctor workbench.
@@ -178,8 +180,8 @@ export async function authenticatePatientPage(page: Page, patient: TestPatient) 
   // Switch to 患者 tab (index 1).
   await page.getByRole("tab", { name: "患者" }).click();
 
-  await page.getByLabel("昵称").fill(patient.phone);
-  await page.getByLabel("口令").fill(String(patient.yearOfBirth));
+  await page.getByPlaceholder("请输入昵称").fill(patient.phone);
+  await page.getByPlaceholder("请输入数字口令").fill(String(patient.yearOfBirth));
   await page.getByRole("button", { name: "登录" }).click();
 
   await page.waitForURL(/\/patient/, { timeout: 15_000 });

@@ -21,9 +21,9 @@ test.describe("工作流 01 — 登录认证", () => {
     await expect(page.getByRole("tab", { name: "医生" })).toBeVisible();
 
     // 1.2 — 昵称 = phone
-    await page.getByLabel(/昵称|手机号/).fill(doctor.phone);
+    await page.getByPlaceholder("请输入昵称").fill(doctor.phone);
     // 1.3 — 口令 = birth year
-    await page.getByLabel(/口令|密码/).fill(String(doctor.yearOfBirth));
+    await page.getByPlaceholder("请输入数字口令").fill(String(doctor.yearOfBirth));
 
     // Pre-set onboarding bypass so login lands on workbench (not wizard).
     await page.evaluate((id) => {
@@ -63,8 +63,8 @@ test.describe("工作流 01 — 登录认证", () => {
     await page.goto("/login");
     await page.evaluate(() => localStorage.clear());
 
-    await page.getByLabel(/昵称|手机号/).fill(doctor.phone);
-    await page.getByLabel(/口令|密码/).fill("9999");
+    await page.getByPlaceholder("请输入昵称").fill(doctor.phone);
+    await page.getByPlaceholder("请输入数字口令").fill("9999");
     await page.getByRole("button", { name: "登录" }).click();
 
     await steps.capture(page, "错误凭证登录", "输入错误口令后仍停留在登录页");
