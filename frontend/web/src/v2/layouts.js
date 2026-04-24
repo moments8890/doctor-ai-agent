@@ -13,16 +13,17 @@ import { APP } from "./theme";
 /**
  * Standard full-height flex-column page wrapper.
  *
- * Height subtracts --keyboard-height (set by useKeyboard on :root) so the
- * visible page shrinks above the soft keyboard. Without this, iOS/WeChat
- * leave 100vh untouched when the keyboard opens and the page keeps its full
- * height, producing a ~280px dead zone between a focused textarea and the
- * keyboard.
+ * Uses --app-height (set by useKeyboard from visualViewport) so the page
+ * always matches the visible area above the keyboard. Falls back to 100%
+ * before the hook mounts. This works on both Mobile Safari (where 100vh
+ * stays pre-keyboard) and WKWebView (where 100vh can shrink with the
+ * keyboard) — a prior calc(100% - --keyboard-height) version double-shrunk
+ * in WKWebView, leaving a ~half-screen gap between the input and keyboard.
  */
 export const pageContainer = {
   display: "flex",
   flexDirection: "column",
-  height: "calc(100% - var(--keyboard-height, 0px))",
+  height: "var(--app-height, 100%)",
   backgroundColor: APP.surfaceAlt,
   overflow: "hidden",
   transition: "height 0.25s cubic-bezier(0.33,1,0.68,1)",

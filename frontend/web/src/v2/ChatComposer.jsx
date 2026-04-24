@@ -9,7 +9,7 @@
  * - SafeArea bottom padding for home bar
  */
 import { useState } from "react";
-import { TextArea, SafeArea } from "antd-mobile";
+import { TextArea } from "antd-mobile";
 import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import { useVoiceInput } from "../hooks/useVoiceInput";
 import { isInMiniapp } from "../utils/miniappBridge";
@@ -120,7 +120,18 @@ export default function ChatComposer({
         })()}
       </div>
 
-      {safeBottom && <SafeArea position="bottom" />}
+      {safeBottom && (
+        // Home-bar inset that collapses to 0 while the keyboard is open.
+        // antd-mobile's <SafeArea> emits raw env(safe-area-inset-bottom),
+        // which does NOT reset to 0 on iOS when the keyboard covers the
+        // home indicator — leaving a ~34px gap above the keyboard.
+        <div
+          style={{
+            flexShrink: 0,
+            height: "var(--safe-bottom, env(safe-area-inset-bottom, 0px))",
+          }}
+        />
+      )}
     </div>
   );
 }
