@@ -1,5 +1,5 @@
 /**
- * CitationPopup — bottom-sheet preview for a single knowledge rule.
+ * CitationPopup — centered-modal preview for a single knowledge rule.
  *
  * Replaces the pattern of "tap citation → navigate to /doctor/settings/knowledge/:id",
  * which breaks context in chat/review flows. Preserves the caller's state.
@@ -7,7 +7,7 @@
  * Shape of `item` (from the `buildKnowledgeMap` helper or directly):
  *   { id, title, text, category, updatedAt? }
  */
-import { Popup } from "antd-mobile";
+import { CenterPopup } from "antd-mobile";
 import { APP, FONT, RADIUS } from "../theme";
 
 const CATEGORY_LABELS = {
@@ -72,15 +72,18 @@ export function buildKnowledgeMap(knowledgeData) {
 
 export default function CitationPopup({ visible, item, onClose, onOpenDetail }) {
   return (
-    <Popup
+    <CenterPopup
       visible={visible}
-      onMaskClick={onClose}
       onClose={onClose}
+      showCloseButton
+      closeOnMaskClick
+      style={{
+        "--max-width": "min(420px, 88vw)",
+        "--border-radius": `${RADIUS.lg}px`,
+      }}
       bodyStyle={{
-        borderTopLeftRadius: RADIUS.lg,
-        borderTopRightRadius: RADIUS.lg,
         padding: "18px 20px 20px",
-        maxHeight: "60vh",
+        maxHeight: "70vh",
         overflowY: "auto",
       }}
     >
@@ -92,6 +95,7 @@ export default function CitationPopup({ visible, item, onClose, onOpenDetail }) 
               alignItems: "center",
               gap: 8,
               marginBottom: 12,
+              paddingRight: 24,
             }}
           >
             <span
@@ -143,6 +147,6 @@ export default function CitationPopup({ visible, item, onClose, onOpenDetail }) 
           )}
         </>
       )}
-    </Popup>
+    </CenterPopup>
   );
 }

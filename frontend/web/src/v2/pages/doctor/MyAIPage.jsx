@@ -5,7 +5,7 @@
  * quick actions, today's triage, and recently viewed items.
  */
 import { useState } from "react";
-import { Avatar, Skeleton, Ellipsis, ActionSheet, Popup } from "antd-mobile";
+import { Avatar, Skeleton, Ellipsis, ActionSheet, CenterPopup } from "antd-mobile";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
@@ -224,21 +224,24 @@ function HeroBanner({ title, summaryShort, summaryFull, loading, onClick }) {
   );
 }
 
-// Popup card — shows the full narrative summary when the banner is tapped.
+// Centered modal — shows the full narrative summary when the banner is tapped.
 function SummaryDetailSheet({ visible, onClose, summary, generatedAt }) {
   const timeStr = generatedAt
     ? new Date(generatedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
     : "";
   return (
-    <Popup
+    <CenterPopup
       visible={visible}
-      onMaskClick={onClose}
       onClose={onClose}
+      showCloseButton
+      closeOnMaskClick
+      style={{
+        "--max-width": "min(420px, 88vw)",
+        "--border-radius": `${RADIUS.lg}px`,
+      }}
       bodyStyle={{
-        borderTopLeftRadius: RADIUS.lg,
-        borderTopRightRadius: RADIUS.lg,
         padding: "18px 20px 24px",
-        maxHeight: "60vh",
+        maxHeight: "70vh",
         overflowY: "auto",
       }}
     >
@@ -248,6 +251,7 @@ function SummaryDetailSheet({ visible, onClose, summary, generatedAt }) {
           alignItems: "center",
           justifyContent: "space-between",
           marginBottom: 12,
+          paddingRight: 24,
         }}
       >
         <div style={{ fontSize: FONT.md, fontWeight: 600, color: APP.text1 }}>
@@ -260,7 +264,7 @@ function SummaryDetailSheet({ visible, onClose, summary, generatedAt }) {
       <div style={{ fontSize: FONT.base, color: APP.text2, lineHeight: 1.65 }}>
         {summary}
       </div>
-    </Popup>
+    </CenterPopup>
   );
 }
 
