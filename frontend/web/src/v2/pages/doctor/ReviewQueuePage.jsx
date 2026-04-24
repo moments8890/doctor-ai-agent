@@ -35,8 +35,11 @@ const SECTION_LABEL = {
 };
 
 // Small chip to distinguish diagnose vs reply rows in the unified queue.
-function KindTag({ kind }) {
+// When a group has multiple pending items collapsed into one row,
+// the count is shown inline inside the chip (e.g. "诊断 ×3").
+function KindTag({ kind, count = 1 }) {
   const isReview = kind === "review";
+  const label = isReview ? "诊断" : "回复";
   return (
     <span
       style={{
@@ -51,7 +54,7 @@ function KindTag({ kind }) {
         color: isReview ? APP.primary : APP.accent,
       }}
     >
-      {isReview ? "诊断" : "回复"}
+      {count > 1 ? `${label} ×${count}` : label}
     </span>
   );
 }
@@ -115,7 +118,7 @@ function PendingItem({ item, onNavigate }) {
       style={{ "--align-items": "center" }}
     >
       <div style={{ display: "flex", alignItems: "center" }}>
-        <KindTag kind="review" />
+        <KindTag kind="review" count={item._group_count || 1} />
         <span style={{ fontWeight: 500, fontSize: FONT.md }}>
           {item.patient_name}
         </span>
@@ -142,7 +145,7 @@ function DraftItem({ item, onNavigate }) {
       style={{ "--align-items": "center" }}
     >
       <div style={{ display: "flex", alignItems: "center" }}>
-        <KindTag kind="reply" />
+        <KindTag kind="reply" count={item._group_count || 1} />
         <span style={{ fontWeight: 500, fontSize: FONT.md }}>
           {item.patient_name}
         </span>
@@ -231,12 +234,32 @@ export default function ReviewQueuePage() {
   }
 
   // Unified pending list — AI diagnosis reviews + patient reply drafts.
+  // Sorted newest-first so the dedup step below naturally keeps the latest.
   const pendingUnified = [
     ...pending.map((p) => ({ ...p, _kind: "review" })),
     ...activeDrafts.map((d) => ({ ...d, _kind: "reply" })),
   ].sort((a, b) =>
     (b.created_at || "").localeCompare(a.created_at || "")
   );
+
+  // Dedup: one row per (patient_id, _kind) pair, keeping the latest item
+  // and attaching the group size so the chip can show "诊断 ×N".
+  const pendingDedup = (() => {
+    const groups = new Map();
+    for (const item of pendingUnified) {
+      const key = `${item.patient_id}:${item._kind}`;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        groups.set(key, { latest: item, count: 1 });
+      }
+    }
+    return Array.from(groups.values()).map((g) => ({
+      ...g.latest,
+      _group_count: g.count,
+    }));
+  })();
 
   function handleNavigateUnified(item) {
     if (item._kind === "reply") {
@@ -269,7 +292,7 @@ export default function ReviewQueuePage() {
     await Promise.all([refetchQueue(), refetchDrafts()]);
   }, [refetchQueue, refetchDrafts]);
 
-  const pendingCount = pendingUnified.length;
+  const pendingCount = pendingDedup.length;
   const completedCount = completed.length;
 
   return (
@@ -302,7 +325,7 @@ export default function ReviewQueuePage() {
           {/* Unified pending tab — diagnosis reviews + reply drafts */}
           {!loading && activeTab === "pending" && (
             <>
-              {pendingUnified.length > 0 ? (
+              {pendingDedup.length > 0 ? (
                 <>
                   <Card>
                     <List
@@ -312,7 +335,7 @@ export default function ReviewQueuePage() {
                         "--border-inner": `0.5px solid ${APP.borderLight}`,
                       }}
                     >
-                      {pendingUnified.map((item) =>
+                      {pendingDedup.map((item) =>
                         item._kind === "reply" ? (
                           <DraftItem
                             key={`reply-${item.id}`}
