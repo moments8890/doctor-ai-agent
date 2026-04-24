@@ -17,6 +17,26 @@ export function useKeyboard() {
     const root = document.documentElement;
     let keyboardOpen = false;
 
+    // Mirror the visual viewport height onto --app-height so MobileFrame can
+    // size to the actual visible area. Tracks both URL-bar changes (Safari)
+    // and keyboard show/hide — so the app frame shrinks ONCE, and the inner
+    // flex column redistributes (NavBar + composer stay, message list
+    // absorbs the delta). Never subtract --keyboard-height from this on top
+    // of it — vv.height already excludes the keyboard.
+    function syncAppHeight() {
+      const vv = window.visualViewport;
+      const h = (vv && vv.height) || window.innerHeight;
+      root.style.setProperty("--app-height", `${h}px`);
+    }
+    syncAppHeight();
+    const vvForApp = window.visualViewport;
+    if (vvForApp) {
+      vvForApp.addEventListener("resize", syncAppHeight);
+      vvForApp.addEventListener("scroll", syncAppHeight);
+    } else {
+      window.addEventListener("resize", syncAppHeight);
+    }
+
     function setKeyboard(height) {
       const open = height > 0;
       root.style.setProperty("--keyboard-height", `${height}px`);
@@ -59,6 +79,12 @@ export function useKeyboard() {
       window.wx.onKeyboardHeightChange((res) => setKeyboard(res.height));
       return () => {
         document.removeEventListener("touchend", onTouchEnd);
+        if (vvForApp) {
+          vvForApp.removeEventListener("resize", syncAppHeight);
+          vvForApp.removeEventListener("scroll", syncAppHeight);
+        } else {
+          window.removeEventListener("resize", syncAppHeight);
+        }
         if (keyboardOpen) {
           document.documentElement.style.overflow = "";
           document.body.style.overflow = "";
@@ -96,6 +122,12 @@ export function useKeyboard() {
       if (vv) vv.removeEventListener("resize", onVVResize);
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);
+      if (vvForApp) {
+        vvForApp.removeEventListener("resize", syncAppHeight);
+        vvForApp.removeEventListener("scroll", syncAppHeight);
+      } else {
+        window.removeEventListener("resize", syncAppHeight);
+      }
       if (keyboardOpen) {
         document.documentElement.style.overflow = "";
         document.body.style.overflow = "";
