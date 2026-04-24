@@ -36,7 +36,8 @@ test.describe("工作流 06 — 患者列表", () => {
 
     await steps.capture(doctorPage, "患者列表页面", "显示已注册患者列表");
 
-    await expect(doctorPage.getByText(/最近 · \d+位患者/)).toBeVisible();
+    // Footer text changed from "最近 · N位患者" to "共 N 位患者" (PatientsPage footer)
+    await expect(doctorPage.getByText(/共 \d+ 位患者/)).toBeVisible();
     await expect(doctorPage.getByText("张三E2E06a").first()).toBeVisible();
     await expect(doctorPage.getByText("李四E2E06a").first()).toBeVisible();
 
@@ -66,8 +67,9 @@ test.describe("工作流 06 — 患者列表", () => {
     await steps.capture(doctorPage, "搜索过滤患者", "搜索张秀兰后只显示匹配患者");
 
     await search.fill("张三E2E06unique");
-    // Autocomplete creates a "new patient" row
-    await expect(doctorPage.getByText(/\+ 新建患者「张三E2E06unique」/)).toBeVisible();
+    // When no patient matches, PatientsPage shows an EmptyState "无匹配患者".
+    // The old "+ 新建患者「...」" autocomplete row was removed in the v2 redesign.
+    await expect(doctorPage.getByText(/无匹配患者/)).toBeVisible();
 
     await steps.capture(doctorPage, "新建患者提示", "搜索不存在的名字后显示新建选项");
   });
@@ -104,11 +106,10 @@ test.describe("工作流 06 — 患者列表", () => {
     await doctorPage.goto("/doctor/patients");
     const search = doctorPage.getByPlaceholder(/搜索患者/);
     await search.fill("xyznotapatient");
-    // The Autocomplete noOptionsText is "未找到患者". It may also show the
-    // PatientList empty state "未找到患者「xyznotapatient」".
-    // Check for either text appearing.
+    // PatientsPage empty state when search yields no matches is "无匹配患者"
+    // (EmptyState title in PatientsPage). Old text "未找到患者" was removed.
     await expect(
-      doctorPage.getByText(/未找到患者/).first(),
+      doctorPage.getByText(/无匹配患者/).first(),
     ).toBeVisible({ timeout: 5_000 });
 
     await steps.capture(doctorPage, "搜索无结果状态", "搜索不存在患者后显示未找到提示");

@@ -14,8 +14,8 @@ test.describe("工作流 04 — AI风格规则", () => {
   test("1. 页面外壳标题和空状态正确", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings/persona");
 
-    // PageSkeleton title is "AI 风格"
-    await expect(doctorPage.getByText("AI 风格").first()).toBeVisible();
+    // NavBar title is "AI风格" (no space — antd-mobile NavBar renders it without)
+    await expect(doctorPage.getByText("AI风格").first()).toBeVisible();
     // Empty state CTA
     await expect(doctorPage.getByText("选择一个沟通风格开始")).toBeVisible();
     // Two buttons: 直接写 and 引导生成

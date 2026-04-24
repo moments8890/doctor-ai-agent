@@ -29,9 +29,10 @@ test.describe("工作流 03 — AI助手概览", () => {
 
     // 1.1 — shell
     await expect(doctorPage.getByText("AI助手").first()).toBeVisible();
-    await expect(doctorPage.getByText("本服务为AI生成内容，结果仅供参考")).toBeVisible();
+    // NOTE: Disclaimer "本服务为AI生成内容，结果仅供参考" was removed from
+    // MyAIPage in the v2 card-layout redesign. No replacement disclaimer exists.
 
-    await steps.capture(doctorPage, "打开AI助手页面", "页面外壳和免责声明可见");
+    await steps.capture(doctorPage, "打开AI助手页面", "页面外壳可见");
 
     // 2.2 — hero AI name: "XXX的助手"
     const aiNameLocator = doctorPage.getByText(new RegExp(`${doctor.name}.*助手`));
@@ -42,20 +43,18 @@ test.describe("工作流 03 — AI助手概览", () => {
     // 2.3 — AI风格 subtitle exists
     await expect(doctorPage.getByText(/AI风格/)).toBeVisible();
 
-    // 2.5 — 3 stat columns
-    for (const label of ["待处理", "今日完成", "7天引用"]) {
-      await expect(doctorPage.getByText(label)).toBeVisible();
-    }
+    // NOTE: The 3 stat columns (待处理 / 今日完成 / 7天引用) were removed
+    // in the v2 card-layout redesign. MyAIPage now shows hero banner +
+    // quick-action tiles + 今日关注 + 最近使用.
 
-    await steps.capture(doctorPage, "验证统计数据", "待处理、今日完成、7天引用可见");
-
-    // 4 — quick actions
-    await expect(doctorPage.getByText("快捷工具")).toBeVisible();
+    // 4 — quick action tiles (no "快捷工具" section header anymore; tiles
+    // render directly as labels on the action card)
     await expect(doctorPage.getByText("新建病历")).toBeVisible();
     await expect(doctorPage.getByText("预问诊码")).toBeVisible();
 
-    // 6 — knowledge section
-    await expect(doctorPage.getByText(/我的知识/)).toBeVisible();
+    // 6 — knowledge quick action (section header "我的知识" was removed in
+    // the v2 redesign; knowledge is now reached via the "知识库" quick action)
+    await expect(doctorPage.getByText("知识库")).toBeVisible();
 
     await steps.capture(doctorPage, "验证快捷工具和知识区", "快捷工具和我的知识区域可见");
 
@@ -75,8 +74,9 @@ test.describe("工作流 03 — AI助手概览", () => {
     // 5.3 — persona empty hint
     await expect(doctorPage.getByText("设置你的AI风格")).toBeVisible();
 
-    // Knowledge section still renders
-    await expect(doctorPage.getByText(/我的知识/)).toBeVisible();
+    // Knowledge quick action still renders (section header "我的知识" was
+    // removed; knowledge is reached via the "知识库" quick action tile)
+    await expect(doctorPage.getByText("知识库")).toBeVisible();
 
     await steps.capture(doctorPage, "验证空状态提示", "显示设置AI风格提示和知识区域");
   });
@@ -94,9 +94,10 @@ test.describe("工作流 03 — AI助手概览", () => {
 
     await doctorPage.goBack();
 
-    // Click "管理" link to navigate to knowledge
+    // Click "知识库" quick-action tile to navigate to knowledge management.
+    // (The old "管理" link was removed; the knowledge tile is the entry point.)
     await doctorPage.goto("/doctor/my-ai");
-    await doctorPage.getByText("管理").first().click();
+    await doctorPage.getByText("知识库").first().click();
     await expect(doctorPage).toHaveURL(/\/doctor\/settings\/knowledge/);
 
     await steps.capture(doctorPage, "跳转到知识管理页", "点击管理后进入知识列表页");
