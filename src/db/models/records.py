@@ -56,6 +56,11 @@ class MedicalRecordDB(Base):
     specialist_exam: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     auxiliary_exam: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # --- 神外 (medical_neuro_v1 extras, nullable; never written by medical_general_v1) ---
+    onset_time: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    neuro_exam: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    vascular_risk_factors: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # --- 诊断 ---
     diagnosis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # DROPPED — replaced by ai_suggestions table (see db/models/ai_suggestion.py)

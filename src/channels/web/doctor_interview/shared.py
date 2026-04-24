@@ -7,8 +7,30 @@ from fastapi import HTTPException, UploadFile
 from pydantic import BaseModel
 
 from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
-from domain.patients.interview_turn import FIELD_LABELS
+from domain.patients.interview_turn import FIELD_LABELS as _BASE_FIELD_LABELS
 from utils.log import log
+
+
+# FIELD_LABELS — extend the medical_general_v1 base labels with neuro extras
+# (medical_neuro_v1). Insertion order matters: `_build_clinical_text` iterates
+# this dict, so the rendered order matches doctor expectations.
+#   - onset_time          → 发病时间          (after chief_complaint)
+#   - neuro_exam          → 神经系统查体      (after physical_exam)
+#   - vascular_risk_factors → 血管危险因素    (after past_history)
+def _build_field_labels() -> Dict[str, str]:
+    ordered: Dict[str, str] = {}
+    for key, label in _BASE_FIELD_LABELS.items():
+        ordered[key] = label
+        if key == "chief_complaint":
+            ordered["onset_time"] = "发病时间"
+        elif key == "past_history":
+            ordered["vascular_risk_factors"] = "血管危险因素"
+        elif key == "physical_exam":
+            ordered["neuro_exam"] = "神经系统查体"
+    return ordered
+
+
+FIELD_LABELS: Dict[str, str] = _build_field_labels()
 
 
 # ── Pydantic models ──────────────────────────────────────────────
