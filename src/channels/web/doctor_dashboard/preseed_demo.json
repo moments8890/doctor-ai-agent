@@ -150,7 +150,7 @@
     },
     {
       "key": "demo_chenqi",
-      "name": "陈七",
+      "name": "陈建华",
       "gender": "male",
       "age": 58,
       "phone": "",
@@ -198,7 +198,7 @@
       "messages": [],
       "tasks": [
         {
-          "title": "陈七 术后1周CT",
+          "title": "陈建华 术后1周CT",
           "task_type": "checkup",
           "due_days": 2,
           "content": "术后第7天复查头颅CT，评估恢复情况。"
