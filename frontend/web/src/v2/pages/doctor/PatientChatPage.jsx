@@ -129,13 +129,13 @@ function DraftTriplet({ draft, knowledgeMap, onCitationClick }) {
   const citedIds = Array.isArray(draft.cited_knowledge_ids)
     ? draft.cited_knowledge_ids
     : [];
-  const citations = citedIds
-    .map((id) => {
-      const entry = knowledgeMap[id];
-      if (!entry) return null;
-      return { id, title: entry.title || entry.shortTitle || `KB-${id}` };
-    })
+  const citationItems = citedIds
+    .map((id) => knowledgeMap[id])
     .filter(Boolean);
+  const citations = citationItems.map((entry) => ({
+    id: entry.id,
+    title: entry.title || entry.shortTitle || `KB-${entry.id}`,
+  }));
 
   const risk = draft.risk || draft.risk_note || "";
   const rules = Array.isArray(draft.triggered_rules) ? draft.triggered_rules : [];
@@ -157,12 +157,12 @@ function DraftTriplet({ draft, knowledgeMap, onCitationClick }) {
         <div style={rowStyle}>
           <span style={labelStyle}>依据</span>
           <div style={{ flex: 1, minWidth: 0, display: "grid", gap: 2 }}>
-            {citations.map(({ id, title }) => (
+            {citations.map(({ id, title }, idx) => (
               <div
                 key={id}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onCitationClick?.(id);
+                  onCitationClick?.(citationItems, idx);
                 }}
                 style={{
                   color: APP.primary,
@@ -370,10 +370,15 @@ export default function PatientChatPage({ patientId: propPatientId, embedded = f
   const knowledgeMap = buildKnowledgeMap(knowledgeData);
 
   // Citation popup — each 依据 row in the draft bubble is its own clickable
-  // entry; tapping opens a bottom-sheet preview of that rule.
-  const [citationPopupId, setCitationPopupId] = useState(null);
-  const handleCitationClick = (kbId) => setCitationPopupId(kbId);
-  const popupItem = citationPopupId != null ? knowledgeMap[citationPopupId] : null;
+  // entry; tapping opens a centered-modal swiper over all the draft's cited
+  // rules, positioned at the tapped one.
+  const [citationPopupItems, setCitationPopupItems] = useState(null);
+  const [citationPopupIndex, setCitationPopupIndex] = useState(0);
+  const handleCitationClick = (items, idx) => {
+    if (!Array.isArray(items) || items.length === 0) return;
+    setCitationPopupItems(items);
+    setCitationPopupIndex(idx || 0);
+  };
 
   const bottomRef = useRef(null);
   const hasScrolledRef = useRef(false);
@@ -563,15 +568,15 @@ export default function PatientChatPage({ patientId: propPatientId, embedded = f
         doctorId={doctorId}
       />
 
-      {/* Citation preview popup — one rule at a time */}
+      {/* Citation preview popup — swiper over the draft's cited rules */}
       <CitationPopup
-        visible={citationPopupId != null}
-        item={popupItem}
-        onClose={() => setCitationPopupId(null)}
-        onOpenDetail={() => {
-          const id = citationPopupId;
-          setCitationPopupId(null);
-          if (id != null) navigate(`/doctor/settings/knowledge/${id}`);
+        visible={citationPopupItems != null}
+        items={citationPopupItems}
+        initialIndex={citationPopupIndex}
+        onClose={() => setCitationPopupItems(null)}
+        onOpenDetail={(item) => {
+          setCitationPopupItems(null);
+          if (item?.id != null) navigate(`/doctor/settings/knowledge/${item.id}`);
         }}
       />
     </div>

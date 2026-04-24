@@ -254,14 +254,12 @@ function SuggestionCard({ suggestion, onDecide, knowledgeMap, onOpenCitation }) 
   const isAccepted = s.decision === "confirmed" || s.decision === "edited";
   const isRejected = s.decision === "rejected";
 
-  // Resolve cited knowledge → human-readable name (not [KB-N])
+  // Resolve cited knowledge → human-readable entries. Each shows as its own
+  // row below the card; tapping any row opens the shared swiper popup at that
+  // index.
   const citedRules = (s.cited_knowledge_ids || [])
     .map((id) => knowledgeMap[id])
     .filter(Boolean);
-  const primaryCitation = citedRules[0] || null;
-  const citationName = primaryCitation
-    ? (primaryCitation.title || primaryCitation.text?.slice(0, 16) || "已删除")
-    : null;
 
   function startEdit() {
     setEditText(s.edited_text || s.content || "");
@@ -420,48 +418,33 @@ function SuggestionCard({ suggestion, onDecide, knowledgeMap, onOpenCitation }) 
       {s.detail && (
         <div style={{ fontSize: FONT.sm, color: APP.text3, lineHeight: 1.55 }}>
           {s.detail}
-          {citationName && (
+        </div>
+      )}
+      {citedRules.length > 0 && (
+        <div style={{ display: "grid", gap: 4, justifyItems: "start" }}>
+          {citedRules.map((rule, idx) => (
             <span
+              key={rule.id}
               onClick={(e) => {
                 e.stopPropagation();
-                onOpenCitation?.(primaryCitation);
+                onOpenCitation?.(citedRules, idx);
               }}
               style={{
-                display: "inline-block",
                 color: APP.primary,
                 background: APP.primaryLight,
                 fontSize: FONT.xs,
                 padding: "2px 8px",
                 borderRadius: RADIUS.xs,
                 cursor: "pointer",
-                marginLeft: 6,
-                verticalAlign: "middle",
+                maxWidth: "100%",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
-              依据：{citationName} ›
+              依据：{rule.title || rule.text?.slice(0, 16) || "已删除"} ›
             </span>
-          )}
-        </div>
-      )}
-      {!s.detail && citationName && (
-        <div>
-          <span
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenCitation?.(primaryCitation);
-            }}
-            style={{
-              display: "inline-block",
-              color: APP.primary,
-              background: APP.primaryLight,
-              fontSize: FONT.xs,
-              padding: "2px 8px",
-              borderRadius: RADIUS.xs,
-              cursor: "pointer",
-            }}
-          >
-            依据：{citationName} ›
-          </span>
+          ))}
         </div>
       )}
       <div
@@ -1377,32 +1360,33 @@ export default function ReviewPage({ recordId }) {
     setAddingCustom(false);
   }
 
-  // Citation preview — open the bottom-sheet popup instead of navigating away
-  // so the doctor keeps their review context. Popup rendered at the root
-  // (see end of this component).
-  const [citationPopupRule, setCitationPopupRule] = useState(null);
-  function handleOpenCitation(rule) {
-    if (!rule?.id) return;
-    // Rule objects passed in here are the entries from knowledgeMap, which
-    // the shared CitationPopup consumes directly ({ title, text, category }).
-    setCitationPopupRule(rule);
+  // Citation preview — open the centered-modal swiper instead of navigating
+  // away so the doctor keeps their review context. Popup rendered at the root
+  // (see end of this component). Each SuggestionCard passes its full list of
+  // citedRules and the tapped index so the swiper opens on the right card.
+  const [citationPopupItems, setCitationPopupItems] = useState(null);
+  const [citationPopupIndex, setCitationPopupIndex] = useState(0);
+  function handleOpenCitation(rules, idx) {
+    if (!Array.isArray(rules) || rules.length === 0) return;
+    setCitationPopupItems(rules);
+    setCitationPopupIndex(idx || 0);
   }
 
   // Keyboard-aware scroll — keeps add form visible when keyboard opens
   const scrollBottomRef = useRef(null);
   useScrollOnKeyboard(scrollBottomRef);
 
-  // Shared citation preview — rendered on both layout paths so the bottom-sheet
+  // Shared citation preview — rendered on both layout paths so the swiper
   // popup is always available when a 依据 pill is tapped.
   const citationPopupNode = (
     <CitationPopup
-      visible={citationPopupRule != null}
-      item={citationPopupRule}
-      onClose={() => setCitationPopupRule(null)}
-      onOpenDetail={() => {
-        const id = citationPopupRule?.id;
-        setCitationPopupRule(null);
-        if (id != null) navigate(`/doctor/settings/knowledge/${id}`);
+      visible={citationPopupItems != null}
+      items={citationPopupItems}
+      initialIndex={citationPopupIndex}
+      onClose={() => setCitationPopupItems(null)}
+      onOpenDetail={(item) => {
+        setCitationPopupItems(null);
+        if (item?.id != null) navigate(`/doctor/settings/knowledge/${item.id}`);
       }}
     />
   );
