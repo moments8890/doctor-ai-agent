@@ -62,6 +62,20 @@ export function useKeyboard() {
     }
     document.addEventListener("touchend", onTouchEnd, { passive: false });
 
+    // Preemptive scroll lock — fires on focusin BEFORE Safari's keyboard
+    // animation and its auto-scroll. Without this, on the 2nd+ tap of a
+    // textarea the layout viewport scrolls up (~275px), our setKeyboard
+    // then snaps it back with scrollTo(0,0), and the user sees a visible
+    // "flash" as the page jumps. Locking overflow+scroll at focus time
+    // means there's no scroll for Safari to perform in the first place.
+    function lockScrollForKeyboard(e) {
+      if (!isInputEl(e.target)) return;
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+      window.scrollTo(0, 0);
+    }
+    document.addEventListener("focusin", lockScrollForKeyboard, { capture: true });
+
     // Strategy 1: WeChat API
     if (window.wx?.onKeyboardHeightChange) {
       window.wx.onKeyboardHeightChange((res) => {
@@ -71,6 +85,7 @@ export function useKeyboard() {
       });
       return () => {
         document.removeEventListener("touchend", onTouchEnd);
+        document.removeEventListener("focusin", lockScrollForKeyboard, { capture: true });
         if (keyboardOpen) {
           document.documentElement.style.overflow = "";
           document.body.style.overflow = "";
@@ -120,6 +135,7 @@ export function useKeyboard() {
 
     return () => {
       document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("focusin", lockScrollForKeyboard, { capture: true });
       if (vv) {
         vv.removeEventListener("resize", onVVResize);
         vv.removeEventListener("scroll", onVVScroll);
