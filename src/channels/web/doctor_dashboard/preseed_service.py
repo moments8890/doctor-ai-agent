@@ -27,8 +27,11 @@ from db.models.tasks import DoctorTask
 from .preseed_schema import SeedSpec
 
 _SEED_SOURCE = "onboarding_preseed"
+_DEMO_SOURCE = "onboarding_demo"
 _DATA_FILE = Path(__file__).parent / "preseed_data.json"
+_DEMO_FILE = Path(__file__).parent / "preseed_demo.json"
 _spec_cache: Optional[SeedSpec] = None
+_demo_cache: Optional[SeedSpec] = None
 
 
 def _load_spec() -> SeedSpec:
@@ -37,6 +40,14 @@ def _load_spec() -> SeedSpec:
         with open(_DATA_FILE, encoding="utf-8") as f:
             _spec_cache = SeedSpec(**json.load(f))
     return _spec_cache
+
+
+def _load_demo_spec() -> SeedSpec:
+    global _demo_cache
+    if _demo_cache is None:
+        with open(_DEMO_FILE, encoding="utf-8") as f:
+            _demo_cache = SeedSpec(**json.load(f))
+    return _demo_cache
 
 
 def _ts(days_ago: int) -> datetime:
@@ -65,11 +76,22 @@ class SeedResult(BaseModel):
 
 
 async def is_seeded(db: AsyncSession, doctor_id: str) -> bool:
-    """Check if any preseed data exists for this doctor."""
+    """Check if the thin preseed has been applied to this doctor."""
     row = (await db.execute(
         select(Patient.id).where(
             Patient.doctor_id == doctor_id,
             Patient.seed_source == _SEED_SOURCE,
+        ).limit(1)
+    )).scalar_one_or_none()
+    return row is not None
+
+
+async def is_demo_seeded(db: AsyncSession, doctor_id: str) -> bool:
+    """Check if rich demo data has been applied to this doctor."""
+    row = (await db.execute(
+        select(Patient.id).where(
+            Patient.doctor_id == doctor_id,
+            Patient.seed_source == _DEMO_SOURCE,
         ).limit(1)
     )).scalar_one_or_none()
     return row is not None
@@ -99,51 +121,65 @@ async def cleanup_seed_data(db: AsyncSession, doctor_id: str) -> None:
     # 1. AI suggestions (FK → records)
     await db.execute(delete(AISuggestion).where(
         AISuggestion.doctor_id == doctor_id,
-        AISuggestion.seed_source == _SEED_SOURCE,
+        AISuggestion.seed_source.in_([_SEED_SOURCE, _DEMO_SOURCE]),
     ))
     # 2. Message drafts (FK → messages)
     await db.execute(delete(MessageDraft).where(
         MessageDraft.doctor_id == doctor_id,
-        MessageDraft.seed_source == _SEED_SOURCE,
+        MessageDraft.seed_source.in_([_SEED_SOURCE, _DEMO_SOURCE]),
     ))
     # 3. Tasks (FK → patients/records)
     await db.execute(delete(DoctorTask).where(
         DoctorTask.doctor_id == doctor_id,
-        DoctorTask.seed_source == _SEED_SOURCE,
+        DoctorTask.seed_source.in_([_SEED_SOURCE, _DEMO_SOURCE]),
     ))
     # 4. Messages (FK → patients)
     await db.execute(delete(PatientMessage).where(
         PatientMessage.doctor_id == doctor_id,
-        PatientMessage.seed_source == _SEED_SOURCE,
+        PatientMessage.seed_source.in_([_SEED_SOURCE, _DEMO_SOURCE]),
     ))
     # 5. Records (FK → patients)
     await db.execute(delete(MedicalRecordDB).where(
         MedicalRecordDB.doctor_id == doctor_id,
-        MedicalRecordDB.seed_source == _SEED_SOURCE,
+        MedicalRecordDB.seed_source.in_([_SEED_SOURCE, _DEMO_SOURCE]),
     ))
     # 6. Knowledge items
     await db.execute(delete(DoctorKnowledgeItem).where(
         DoctorKnowledgeItem.doctor_id == doctor_id,
-        DoctorKnowledgeItem.seed_source == _SEED_SOURCE,
+        DoctorKnowledgeItem.seed_source.in_([_SEED_SOURCE, _DEMO_SOURCE]),
     ))
     # 7. Patients (last — others reference patient_id)
     await db.execute(delete(Patient).where(
         Patient.doctor_id == doctor_id,
-        Patient.seed_source == _SEED_SOURCE,
+        Patient.seed_source.in_([_SEED_SOURCE, _DEMO_SOURCE]),
     ))
     await db.flush()
 
 
 async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
-    """Create all preseed demo data in one transaction.
-
-    Non-destructive: if data already exists, returns existing counts.
-    Caller must call db.commit() after this returns.
-    """
+    """Apply the original (thin) preseed — fired on new-doctor registration."""
     if await is_seeded(db, doctor_id):
         return await _build_existing_result(db, doctor_id)
+    return await _apply_spec(db, doctor_id, _load_spec(), _SEED_SOURCE)
 
-    spec = _load_spec()
+
+async def seed_demo_data_rich(db: AsyncSession, doctor_id: str) -> SeedResult:
+    """Apply the rich demo spec (6 patients, 8 KBs, varied urgency, diverse
+    citations). Idempotent — tagged with _DEMO_SOURCE so it coexists with the
+    thin preseed and can be cleaned independently via cleanup_seed_data().
+    Caller must db.commit() after this returns.
+    """
+    if await is_demo_seeded(db, doctor_id):
+        return await _build_existing_result(db, doctor_id, source=_DEMO_SOURCE)
+    return await _apply_spec(db, doctor_id, _load_demo_spec(), _DEMO_SOURCE)
+
+
+async def _apply_spec(
+    db: AsyncSession, doctor_id: str, spec: SeedSpec, source: str
+) -> SeedResult:
+    """Shared mutation path — creates knowledge items, patients, records,
+    suggestions, messages, drafts, and tasks from a spec, tagged with `source`.
+    """
     now = datetime.now(timezone.utc)
 
     # Phase 1: Knowledge items
@@ -155,7 +191,7 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
             title=kb_spec.title,
             content=json.dumps({"text": kb_spec.content}, ensure_ascii=False),
             category="custom",
-            seed_source=_SEED_SOURCE,
+            seed_source=source,
             created_at=now - timedelta(hours=1),
         )
         db.add(item)
@@ -178,7 +214,7 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
 
         if existing_patient:
             patient = existing_patient
-            patient.seed_source = _SEED_SOURCE
+            patient.seed_source = source
         else:
             patient = Patient(
                 doctor_id=doctor_id,
@@ -186,7 +222,7 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
                 gender=p_spec.gender,
                 year_of_birth=year_of_birth,
                 phone=p_spec.phone,
-                seed_source=_SEED_SOURCE,
+                seed_source=source,
                 created_at=_ts(max((r.days_ago for r in p_spec.records), default=0)),
             )
             db.add(patient)
@@ -216,7 +252,7 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
                 treatment_plan=r_spec.treatment_plan,
                 orders_followup=r_spec.orders_followup,
                 content=r_spec.content,
-                seed_source=_SEED_SOURCE,
+                seed_source=source,
                 created_at=_ts(r_spec.days_ago),
                 updated_at=_ts(r_spec.days_ago),
             )
@@ -235,7 +271,7 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
                     confidence=s_spec.confidence,
                     urgency=s_spec.urgency,
                     intervention=s_spec.intervention,
-                    seed_source=_SEED_SOURCE,
+                    seed_source=source,
                     decision="confirmed" if is_completed else None,
                     decided_at=_ts(r_spec.days_ago) if is_completed else None,
                 )
@@ -251,7 +287,7 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
                 source="patient",
                 triage_category=m_spec.triage,
                 ai_handled=m_spec.auto_send,
-                seed_source=_SEED_SOURCE,
+                seed_source=source,
                 created_at=_ts(m_spec.days_ago),
             )
             db.add(inbound)
@@ -269,7 +305,7 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
                     direction="outbound",
                     source="ai",
                     reference_id=inbound.id,
-                    seed_source=_SEED_SOURCE,
+                    seed_source=source,
                     created_at=_ts(m_spec.days_ago) + timedelta(minutes=2),
                 )
                 db.add(outbound)
@@ -286,7 +322,7 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
                     draft_text=re.sub(r"\[KB-\d+\]", "", reply_text).strip(),
                     cited_knowledge_ids=json.dumps(valid_cited, ensure_ascii=False),
                     status=DraftStatus.generated.value,
-                    seed_source=_SEED_SOURCE,
+                    seed_source=source,
                 )
                 db.add(draft)
                 await db.flush()  # get draft.id before citation logging
@@ -311,7 +347,7 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
                 due_at=now + timedelta(days=t_spec.due_days),
                 completed_at=_ts(-t_spec.due_days) if is_done else None,
                 source_type="manual",
-                seed_source=_SEED_SOURCE,
+                seed_source=source,
             )
             db.add(task)
             p_result.task_count += 1
@@ -331,19 +367,21 @@ async def seed_demo_data(db: AsyncSession, doctor_id: str) -> SeedResult:
     )
 
 
-async def _build_existing_result(db: AsyncSession, doctor_id: str) -> SeedResult:
-    """Build result from existing seeded data."""
+async def _build_existing_result(
+    db: AsyncSession, doctor_id: str, source: str = _SEED_SOURCE
+) -> SeedResult:
+    """Build result from existing seeded data tagged with `source`."""
     patients = (await db.execute(
         select(Patient).where(
             Patient.doctor_id == doctor_id,
-            Patient.seed_source == _SEED_SOURCE,
+            Patient.seed_source == source,
         )
     )).scalars().all()
 
     kb_items = (await db.execute(
         select(DoctorKnowledgeItem).where(
             DoctorKnowledgeItem.doctor_id == doctor_id,
-            DoctorKnowledgeItem.seed_source == _SEED_SOURCE,
+            DoctorKnowledgeItem.seed_source == source,
         )
     )).scalars().all()
 
