@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 
 from channels.web.patient_portal.auth import _authenticate_patient
@@ -16,8 +16,18 @@ class InterviewTurnRequest(BaseModel):
 
 class InterviewSessionRequest(BaseModel):
     session_id: str
+
+
+class InterviewStartRequest(BaseModel):
+    """Optional body for /start — lets the patient portal pass an explicit
+    ``template_id``. When omitted the handler falls back to the doctor's
+    ``preferred_template_id`` and finally to ``medical_general_v1``.
+    """
+    template_id: Optional[str] = None
+
+
 from db.models.interview_session import InterviewStatus
-from domain.patients.completeness import check_completeness, count_filled
+from domain.patients.completeness import count_filled
 from domain.patients.interview_session import (
     create_session,
     get_active_session,
@@ -26,6 +36,24 @@ from domain.patients.interview_session import (
 )
 from domain.patients.interview_summary import confirm_interview
 from domain.interview.engine import InterviewEngine
+from domain.interview.templates import UnknownTemplate, get_template
+
+
+def _session_readiness(session) -> tuple[bool, list[str]]:
+    """Run the active template's extractor-level completeness check.
+
+    Returns ``(ready_to_review, missing)`` where ``missing`` is the
+    ``required_missing`` list (empty when ``can_complete``). Callers use
+    ``ready_to_review`` to decide whether to flip status to ``reviewing``.
+
+    Bug B fix (Phase 4 r2): previously this went through the legacy
+    ``check_completeness`` helper hardcoded to ``medical_general_v1`` fields,
+    so non-default templates (e.g. ``medical_neuro_v1``) got judged against
+    the wrong field set.
+    """
+    template = get_template(session.template_id)
+    state = template.extractor.completeness(session.collected or {}, "patient")
+    return state.can_complete, list(state.required_missing)
 
 router = APIRouter(prefix="/api/patient/interview", tags=["patient-interview"])
 
@@ -55,19 +83,70 @@ async def _get_doctor_name(doctor_id: str) -> str:
     return (doctor.name if doctor else None) or "医生"
 
 
+async def _resolve_start_template_id(
+    doctor_id: str, explicit_template_id: Optional[str]
+) -> str:
+    """Resolve the template id for /start using the documented order:
+
+    1. Explicit ``template_id`` from the request (query or body).
+    2. ``doctors.preferred_template_id`` from the authenticated doctor row.
+    3. Fallback: ``medical_general_v1``.
+
+    Raises ``HTTPException(422)`` if the resolved id is not in the template
+    registry so the patient sees a clear failure rather than silently
+    running on a missing template.
+    """
+    from db.engine import AsyncSessionLocal
+    from db.models.doctor import Doctor
+    from sqlalchemy import select
+
+    resolved = (explicit_template_id or "").strip() or None
+    if resolved is None:
+        async with AsyncSessionLocal() as db:
+            doctor = (await db.execute(
+                select(Doctor).where(Doctor.doctor_id == doctor_id)
+            )).scalar_one_or_none()
+            pref = getattr(doctor, "preferred_template_id", None) if doctor else None
+            if pref and pref.strip():
+                resolved = pref.strip()
+    if resolved is None:
+        resolved = "medical_general_v1"
+
+    try:
+        get_template(resolved)
+    except UnknownTemplate:
+        raise HTTPException(
+            status_code=422,
+            detail=f"未知的问诊模板: {resolved}",
+        )
+    return resolved
+
+
 @router.post("/start")
 async def start_interview(
     authorization: Optional[str] = Header(default=None),
+    template_id: Optional[str] = Query(default=None),
+    body: Optional[InterviewStartRequest] = None,
 ):
-    """Create or resume an interview session."""
+    """Create or resume an interview session.
+
+    ``template_id`` may be supplied either as a query parameter or inside the
+    JSON body. Resolution order on a fresh session:
+
+    1. Explicit ``template_id`` from the request.
+    2. Doctor's ``preferred_template_id``.
+    3. ``medical_general_v1`` default.
+    """
     patient = await _authenticate_patient(authorization)
     doctor_name = await _get_doctor_name(patient.doctor_id)
 
     # Check for existing active session
     active = await get_active_session(patient.id, patient.doctor_id)
     if active:
-        missing = check_completeness(active.collected or {}, mode="patient")
-        ready_to_review = active.status == InterviewStatus.reviewing or len(missing) == 0
+        can_complete, _missing = _session_readiness(active)
+        ready_to_review = (
+            active.status == InterviewStatus.reviewing or can_complete
+        )
         if ready_to_review and active.status != InterviewStatus.reviewing:
             active.status = InterviewStatus.reviewing
             await save_session(active)
@@ -87,7 +166,17 @@ async def start_interview(
             "resumed": True,
         }
 
-    session = await create_session(patient.doctor_id, patient.id)
+    # Resolution order: explicit (query > body) → doctor.preferred_template_id → default.
+    explicit = template_id if (template_id and template_id.strip()) else (
+        body.template_id if (body and body.template_id) else None
+    )
+    resolved_template_id = await _resolve_start_template_id(
+        patient.doctor_id, explicit,
+    )
+
+    session = await create_session(
+        patient.doctor_id, patient.id, template_id=resolved_template_id,
+    )
     return {
         "session_id": session.id,
         "reply": f"您好！我是{doctor_name if doctor_name.endswith('医生') else doctor_name + '医生'}的AI助手。请描述您的症状，我来帮您整理病历信息。",
@@ -173,8 +262,10 @@ async def current_session(
     if active is None:
         return None
 
-    missing = check_completeness(active.collected or {}, mode="patient")
-    ready_to_review = active.status == InterviewStatus.reviewing or len(missing) == 0
+    can_complete, _missing = _session_readiness(active)
+    ready_to_review = (
+        active.status == InterviewStatus.reviewing or can_complete
+    )
     if ready_to_review and active.status != InterviewStatus.reviewing:
         active.status = InterviewStatus.reviewing
         await save_session(active)
