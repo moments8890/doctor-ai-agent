@@ -241,7 +241,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ConfigProvider>
-        <KeyboardDebugHUD />
+        {/* <KeyboardDebugHUD /> — re-enable to diagnose keyboard issues */}
         <MobileFrame>
           <Routes>
             <Route
