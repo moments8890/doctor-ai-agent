@@ -1,39 +1,45 @@
 fastapi==0.135.1
 uvicorn[standard]==0.41.0
 openai==2.24.0
-instructor>=1.14.0
-python-multipart==0.0.22
+instructor==1.14.5
+python-multipart==0.0.26       # CVE-2026-40347
 python-dotenv==1.2.2
 wechatpy==1.8.18
-cryptography==46.0.5
+cryptography==46.0.7           # CVE-2026-34073, CVE-2026-39892
 httpx==0.28.1
 sqlalchemy[asyncio]==2.0.47
 aiosqlite==0.22.1
-aiomysql
-pymysql
-alembic
+aiomysql==0.3.2
+pymysql==1.1.2
+alembic==1.18.4
 greenlet==3.3.2
 jieba==0.42.1
 datasette==0.65.2
 sqladmin==0.23.0
-nicegui==3.8.0
+nicegui==3.9.0                 # CVE-2026-33332
 apscheduler==3.11.2
-pytest==9.0.2
+pytest==9.0.3                  # CVE-2025-71176
 pytest-asyncio==1.3.0
 pytest-cov==7.0.0
 chardet==5.2.0
-python-docx
-fpdf2                          # PDF export for medical records (pure Python, no system deps)
+python-docx==1.2.0
+fpdf2==2.8.7                   # PDF export for medical records (pure Python, no system deps)
 pydantic==2.12.5
 anyio==4.12.1
-PyJWT==2.11.0
+PyJWT==2.12.0                  # CVE-2026-32597
+# Security-relevant transitives — pinned directly so a parent-package
+# bump can't silently regress us. Bump these in lockstep with pip-audit
+# findings.
+aiohttp==3.13.4                # CVE-2026-22815 / 34514 / 34518-20 / 34525
+lxml==6.1.0                    # CVE-2026-41066 (wechatpy XML parser)
+pillow==12.2.0                 # CVE-2026-40192 (image upload path)
 # Vision (image → text):
 #   No new pip deps — services/vision.py reuses the existing openai client with Ollama's
 #   OpenAI-compatible endpoint.
 #   Requires: ollama pull qwen2.5vl:7b  (or set OLLAMA_VISION_MODEL to another vision model)
 #   Env vars: VISION_LLM=ollama (default) | openai
 #             OLLAMA_VISION_MODEL=qwen2.5vl:7b (default)
-structlog>=21.5.0              # structured JSON logging
-sentry-sdk[fastapi]>=2.0.0     # error alerting (optional, set SENTRY_DSN to enable)
-langfuse>=3.0.0                # LLM observability (optional, set LANGFUSE_PUBLIC_KEY to enable)
-pyyaml
+structlog==25.5.0              # structured JSON logging
+sentry-sdk[fastapi]==2.56.0    # error alerting (optional, set SENTRY_DSN to enable)
+langfuse==4.0.1                # LLM observability (optional, set LANGFUSE_PUBLIC_KEY to enable)
+pyyaml==6.0.3

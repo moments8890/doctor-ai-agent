@@ -10,6 +10,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── Dependency-vulnerability audit gate ──────────────────────────
+  # Fails on HIGH/CRITICAL CVEs in pip or npm production deps. Catches
+  # new CVEs the day they're published instead of when someone reads
+  # the next quarterly audit.
+  security-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: pip-audit (Python deps)
+        run: |
+          pip install --upgrade pip pip-audit
+          pip install -r requirements.txt
+          # --strict fails on any vulnerability. The two ignored IDs
+          # have no upstream fix available as of last review; revisit
+          # whenever the audit tooling reports a fix version.
+          #   CVE-2026-3219    pip itself (no fix shipped)
+          #   CVE-2025-69872   diskcache 5.6.3 (no fix shipped)
+          pip-audit --strict \
+            --ignore-vuln CVE-2026-3219 \
+            --ignore-vuln CVE-2025-69872 \
+            || {
+              echo "::warning::pip-audit reported new vulnerabilities — bump in requirements.txt"
+              exit 1
+            }
+
+      - name: npm audit (frontend production deps)
+        working-directory: frontend/web
+        run: |
+          npm ci --omit=dev --silent
+          # --omit=dev skips vite et al; prod only ships the build
+          # output. --audit-level=high fails on high+critical only;
+          # moderate gets logged for visibility.
+          npm audit --omit=dev --audit-level=high
+
   # ── Fast unit tests (mocked, no LLM/server needed) ───────────────
   unit-tests:
     runs-on: ubuntu-latest
