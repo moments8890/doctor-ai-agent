@@ -18,7 +18,7 @@ from infra.auth import UserRole
 from utils.hashing import hash_passcode, verify_passcode
 from utils.log import log
 
-_TOKEN_TTL = int(os.environ.get("UNIFIED_TOKEN_TTL", "31536000"))  # 1 year default
+_TOKEN_TTL = int(os.environ.get("UNIFIED_TOKEN_TTL", "604800"))  # 7 days default
 _AUDIENCE = "doctor-ai-agent"
 
 # Brute-force defense: lock the account after N consecutive failures.
