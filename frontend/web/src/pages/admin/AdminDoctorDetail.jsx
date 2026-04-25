@@ -1,5 +1,9 @@
-/** AdminDoctorDetail — drill-down view for a single doctor (GitHub Dark theme)
+/** AdminDoctorDetail — drill-down view for a single doctor (GitHub Dark theme).
  *  Shows all related data across every table via tabs.
+ *
+ *  DEPRECATED 2026-04-24 — superseded by `./v3/doctorDetail/AdminDoctorDetailV3.jsx`.
+ *  Kept available at /admin?v=1 as a fallback for one release.
+ *  See docs/plans/2026-04-24-admin-modern-port.md.
  */
 
 import { Box, Tab, Tabs } from "@mui/material";

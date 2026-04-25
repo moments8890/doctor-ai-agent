@@ -1,4 +1,9 @@
-/** AdminOverview — 总览 tab for Admin dashboard (GitHub Dark theme) */
+/** AdminOverview — 总览 tab for Admin dashboard (GitHub Dark theme).
+ *
+ *  DEPRECATED 2026-04-24 — superseded by `./v3/`. Kept available at
+ *  /admin?v=1 as a fallback for one release. Remove after no regressions
+ *  are reported on the v3 surface. See docs/plans/2026-04-24-admin-modern-port.md.
+ */
 
 import { useEffect, useState } from "react";
 import { GH } from "./adminTheme";

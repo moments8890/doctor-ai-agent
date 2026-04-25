@@ -15,6 +15,7 @@ import { adminTheme } from "../../theme";
 import AdminDoctorDetail, { DoctorList } from "./AdminDoctorDetail";
 import AdminOverview from "./AdminOverview";
 import AdminRawData, { TABLE_GROUPS } from "./AdminRawData";
+import AdminPageV3 from "./v3";
 
 const ADMIN_TOKEN_KEY = "adminToken";
 const DEV_MODE = import.meta.env.DEV;
@@ -437,6 +438,16 @@ function AdminDashboard({ onLockout }) {
 
 // ── Token gate + auth wrapper ─────────────────────────────────────────────────
 export default function AdminPage() {
+	// v3 is the default admin surface as of 2026-04-24. The legacy GitHub Dark
+	// dashboard (this file's body below) remains available at /admin?v=1 for
+	// one release as a fallback. Remove after no regressions are reported.
+	if (
+		typeof window !== "undefined" &&
+		new URLSearchParams(window.location.search).get("v") !== "1"
+	) {
+		return <AdminPageV3 />;
+	}
+
 	const location = useLocation();
 	const [status, setStatus] = useState(() => {
 		if (DEV_MODE) return "ok";

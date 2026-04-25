@@ -1,4 +1,10 @@
-/** AdminRawData — raw table browser (GitHub Dark theme, sidebar-driven) */
+/** AdminRawData — raw table browser (GitHub Dark theme, sidebar-driven).
+ *
+ *  DEPRECATED 2026-04-24 — v3 hides raw tables behind a dev-mode toggle
+ *  (frontend/web/src/pages/admin/v3/devMode.js). Still reachable at
+ *  /admin?v=1 as a fallback for one release.
+ *  See docs/plans/2026-04-24-admin-modern-port.md.
+ */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
