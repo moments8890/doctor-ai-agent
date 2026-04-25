@@ -217,7 +217,8 @@ export default function LoginPage() {
         patientId: data.patient_id ? String(data.patient_id) : "",
         patientName: data.name || "",
         doctorId: data.doctor_id || "",
-        doctorName: data.doctor_name || "",
+        // doctorName intentionally omitted — not in unified-login response;
+        // /patient/me refresh will populate via mergeProfile.
       });
       // Legacy localStorage key — MyPage and isOnboardingDone() still read this
       // directly. Task 1.2 didn't migrate them, so keep this write until they do.

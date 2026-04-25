@@ -84,7 +84,15 @@ export default function PatientPage() {
   });
 
   // ── Identity state ───────────────────────────────────────────────
-  const { token, patientName, doctorName, doctorId } = usePatientStore();
+  // Field-scoped selectors: each subscription only re-renders when that
+  // specific field changes (zustand Object.is check on selector return).
+  // Avoids whole-store subscription footgun once Phase 3 mergeProfile
+  // writes patientId — PatientPage doesn't consume it, so it shouldn't
+  // re-render when it changes.
+  const token       = usePatientStore((s) => s.token);
+  const patientName = usePatientStore((s) => s.patientName);
+  const doctorName  = usePatientStore((s) => s.doctorName);
+  const doctorId    = usePatientStore((s) => s.doctorId);
   const [unreadCount, setUnreadCount] = useState(0);
   const [onboardingDone, setOnboardingDone] = useState(() => {
     const pid = localStorage.getItem("patient_portal_patient_id");
