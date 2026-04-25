@@ -16,7 +16,16 @@
         if (env) document.title = "[" + env + "] " + document.title;
       })();
     </script>
-    <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+    <!-- WeChat JS-SDK pinned via Subresource Integrity. If Tencent's CDN
+         ever serves modified content for this URL, the browser refuses
+         to execute it and the WeChat features fail loud rather than
+         silently exfiltrate. Re-compute the hash if WeChat publishes a
+         legitimate update:
+           curl https://res.wx.qq.com/open/js/jweixin-1.6.0.js \
+             | openssl dgst -sha384 -binary | openssl base64 -A -->
+    <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"
+            integrity="sha384-bhnoAf0QbZ3a4P9JqPJNMlBxDP0bxxqnuRLFdwyTOUOUqCcvFKk6Jv4M+x9r+P+d"
+            crossorigin="anonymous"></script>
     <link rel="stylesheet" href="/fonts/material-symbols-outlined.css" />
   </head>
   <body>
