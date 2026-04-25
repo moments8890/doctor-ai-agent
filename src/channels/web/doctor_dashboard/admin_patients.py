@@ -29,7 +29,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.engine import get_db
@@ -164,8 +164,13 @@ async def admin_patients(
     total = (await db.execute(count_stmt)).scalar() or 0
 
     # ── Page ──────────────────────────────────────────────────────────────
+    # MySQL does not support `ORDER BY ... NULLS LAST` (Postgres/SQLite do),
+    # so SQLAlchemy's `.nullslast()` emitted raw "NULLS LAST" and produced a
+    # 1064 syntax error on prod. Portable equivalent: pre-sort by a CASE that
+    # places NULLs at the end (1 vs 0), then by the actual datetime DESC.
+    nulls_last_marker = case((last_msg_sq.is_(None), 1), else_=0)
     paged = (
-        base.order_by(last_msg_sq.desc().nullslast(), Patient.id.desc())
+        base.order_by(nulls_last_marker, last_msg_sq.desc(), Patient.id.desc())
         .limit(limit)
         .offset(offset)
     )
