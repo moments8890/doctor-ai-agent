@@ -88,7 +88,7 @@ function DoctorRow({ doctor }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
           <span style={{ fontSize: FONT.body, fontWeight: 500, color: COLOR.text1 }}>
-            {doctor.name || doctor.doctor_id}
+            {doctor.name || "(未命名医生)"}
           </span>
           {dept && (
             <span

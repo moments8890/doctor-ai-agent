@@ -125,7 +125,7 @@ function useDoctorOptions() {
         setOpts(
           list.map((d) => ({
             id: d.doctor_id,
-            name: d.name || d.doctor_id,
+            name: d.name || "(未命名医生)",
           })),
         );
       })

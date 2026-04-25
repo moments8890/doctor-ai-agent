@@ -577,7 +577,8 @@ async def admin_overview(
         {
             "level": "warn",
             "label": "不活跃",
-            "detail": f"{d.name or d.doctor_id} 超过3天未登录",
+            # Sentinel instead of raw doctor_id — see admin_patients.py.
+            "detail": f"{d.name or '(未命名医生)'} 超过3天未登录",
         }
         for d in inactive_doctors_rows
     ]
@@ -1581,7 +1582,8 @@ async def admin_patient_related(
     doctor = (await db.execute(
         select(Doctor.name).where(Doctor.doctor_id == patient.doctor_id)
     )).scalar()
-    profile["doctor_name"] = doctor or patient.doctor_id
+    # Sentinel instead of raw doctor_id — see admin_patients.py.
+    profile["doctor_name"] = doctor or "(未命名医生)"
 
     # Medical records
     records = (await db.execute(

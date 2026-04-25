@@ -199,7 +199,9 @@ async def admin_messages_recent(
                 "patient_id": r.patient_id,
                 "patient_name": r.patient_name or "",
                 "doctor_id": r.doctor_id,
-                "doctor_name": r.doctor_name or r.doctor_id,
+                # See admin_patients.py — fall back to a sentinel rather than
+                # leaking the raw doctor_id when the name column is null.
+                "doctor_name": r.doctor_name or "(未命名医生)",
                 "last_message": {
                     "id": r.msg_id,
                     "direction": r.direction,

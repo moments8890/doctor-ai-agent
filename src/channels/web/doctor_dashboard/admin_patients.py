@@ -183,7 +183,10 @@ async def admin_patients(
                 "gender": r.gender,
                 "year_of_birth": r.year_of_birth,
                 "doctor_id": r.doctor_id,
-                "doctor_name": r.doctor_name or r.doctor_id,
+                # Falls back to a sentinel rather than the raw doctor_id when
+                # Doctor.name is null — leaking IDs into the UI looks broken
+                # to non-developer viewers (admin self-eval 2026-04-25).
+                "doctor_name": r.doctor_name or "(未命名医生)",
                 "last_message_at": _fmt_ts(last_at) if last_at else None,
                 "message_count_30d": int(r.message_count_30d or 0),
                 "record_count": int(r.record_count or 0),

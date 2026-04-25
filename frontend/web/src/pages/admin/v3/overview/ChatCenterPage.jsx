@@ -241,7 +241,7 @@ function ChatRow({ entry, onClick }) {
               flexShrink: 0,
             }}
           >
-            {entry.doctor_name || entry.doctor_id}
+            {entry.doctor_name || "(未命名医生)"}
           </span>
         </div>
         <div

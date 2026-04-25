@@ -182,7 +182,9 @@ async def admin_suggestions_recent(
                 "decision": r.decision,
                 "patient_name": r.patient_name or "",
                 "doctor_id": r.doctor_id,
-                "doctor_name": r.doctor_name or r.doctor_id,
+                # See admin_patients.py — fall back to a sentinel rather than
+                # leaking the raw doctor_id when the name column is null.
+                "doctor_name": r.doctor_name or "(未命名医生)",
                 "content_preview": _preview(preview_source),
                 "cited_knowledge_count": _count_cited_ids(r.cited_knowledge_ids),
                 "created_at": _fmt_ts(r.created_at),
