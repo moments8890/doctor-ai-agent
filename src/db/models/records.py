@@ -103,3 +103,64 @@ class MedicalRecordDB(Base):
         date = self.created_at.strftime("%Y-%m-%d") if self.created_at else "—"
         snippet = (self.content or "—")[:30]
         return f"{snippet} [{date}]"
+
+
+class FieldEntryDB(Base):
+    """Append-only history field entries.
+
+    Replaces direct mutation of the 7 string columns (chief_complaint /
+    present_illness / past_history / allergy_history / personal_history /
+    marital_reproductive / family_history) on MedicalRecordDB. Each new
+    patient turn that carries a field-level fact appends a row here,
+    keyed by (record_id, field_name); the doctor view collapses
+    timestamps + segments at render time.
+
+    The legacy string columns on MedicalRecordDB stay populated for
+    backward-compat reads; new writes go here. Phase 0 backfill copies
+    existing string values into single FieldEntryDB rows.
+    """
+    __tablename__ = "record_field_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    record_id: Mapped[int] = mapped_column(Integer, ForeignKey("medical_records.id", ondelete="CASCADE"), index=True, nullable=False)
+    # field_name is one of the 7 history fields above. Free String(64)
+    # rather than Enum so adding a field doesn't require a migration.
+    field_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    intake_segment_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
+
+    __table_args__ = (
+        Index("ix_record_field_entries_record_id", "record_id"),
+        Index("ix_record_field_entries_record_field", "record_id", "field_name"),
+    )
+
+
+class RecordSupplementDB(Base):
+    """Patient-supplied supplement to a doctor-reviewed record.
+
+    When a patient adds new info about a complaint after the doctor has
+    already reviewed/decided the record, we never silently mutate the
+    doctor's clinical work product. Instead a row lands here, status =
+    pending_doctor_review, and the doctor explicitly accepts (merges
+    field entries into the record) / creates a new record / ignores.
+
+    field_entries_json is a JSON list of {field_name, text,
+    intake_segment_id, created_at} dicts — one per supplemented field
+    in this supplement event.
+    """
+    __tablename__ = "record_supplements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    record_id: Mapped[int] = mapped_column(Integer, ForeignKey("medical_records.id", ondelete="CASCADE"), index=True, nullable=False)
+    # status: pending_doctor_review | accepted | rejected_create_new | rejected_ignored
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending_doctor_review")
+    field_entries_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
+    doctor_decision_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    doctor_decision_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    __table_args__ = (
+        Index("ix_record_supplements_record_id", "record_id"),
+        Index("ix_record_supplements_status", "status"),
+    )
