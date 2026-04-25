@@ -11,7 +11,8 @@ import json
 from app_middleware import _redact_pii_in_json
 
 
-def test_top_level_keys_redacted() -> None:
+def test_unknown_keys_redacted_by_default() -> None:
+    """Allowlist semantics: anything not on _EXC_BODY_SAFE_KEYS is redacted."""
     out = _redact_pii_in_json(json.dumps({
         "nickname": "alice",
         "passcode": "112233",
@@ -20,16 +21,16 @@ def test_top_level_keys_redacted() -> None:
     obj = json.loads(out)
     assert obj["nickname"] == "<redacted>"
     assert obj["passcode"] == "<redacted>"
-    assert obj["doctor_id"] == "inv_xyz"  # not in redact list
+    assert obj["doctor_id"] == "inv_xyz"  # synthetic ID — on allowlist
 
 
-def test_nested_keys_redacted() -> None:
+def test_nested_user_content_redacted() -> None:
     out = _redact_pii_in_json(json.dumps({
         "task": {"title": "follow-up", "notes": "patient reports headache"},
     }))
     obj = json.loads(out)
-    assert obj["task"]["title"] == "follow-up"  # not in list
-    assert obj["task"]["notes"] == "<redacted>"
+    # "task" is not safe — its whole value is redacted at the outer level.
+    assert obj["task"] == "<redacted>"
 
 
 def test_clinical_content_redacted() -> None:
@@ -44,23 +45,21 @@ def test_clinical_content_redacted() -> None:
     assert obj["key_symptoms"] == "<redacted>"
 
 
-def test_arrays_walked() -> None:
+def test_safe_keys_recurse_into_nested_dicts() -> None:
+    """A safe key keeps its value, but if that value is a dict, the inner
+    keys are still allowlist-checked."""
     out = _redact_pii_in_json(json.dumps({
-        "messages": [
-            {"role": "patient", "content": "I feel sick"},
-            {"role": "doctor", "content": "Take rest"},
-        ],
+        "status": {"ok": True, "secret": "should-redact"},
     }))
     obj = json.loads(out)
-    assert obj["messages"][0]["content"] == "<redacted>"
-    assert obj["messages"][0]["role"] == "patient"  # not redacted
-    assert obj["messages"][1]["content"] == "<redacted>"
+    assert obj["status"]["ok"] is True
+    assert obj["status"]["secret"] == "<redacted>"
 
 
 def test_case_insensitive_match() -> None:
-    out = _redact_pii_in_json(json.dumps({"Name": "Bob", "PASSCODE": "1234"}))
+    out = _redact_pii_in_json(json.dumps({"DOCTOR_ID": "inv_xyz", "PASSCODE": "1234"}))
     obj = json.loads(out)
-    assert obj["Name"] == "<redacted>"
+    assert obj["DOCTOR_ID"] == "inv_xyz"  # case-insensitive allowlist hit
     assert obj["PASSCODE"] == "<redacted>"
 
 
@@ -71,11 +70,11 @@ def test_invalid_json_passes_through() -> None:
     assert _redact_pii_in_json(raw) == raw
 
 
-def test_no_redaction_for_unknown_keys() -> None:
+def test_safe_synthetic_ids_retained() -> None:
     out = _redact_pii_in_json(json.dumps({
         "doctor_id": "inv_xyz",
         "patient_id": 42,
-        "task_type": "followup",
+        "task_id": 7,
     }))
     obj = json.loads(out)
-    assert obj == {"doctor_id": "inv_xyz", "patient_id": 42, "task_type": "followup"}
+    assert obj == {"doctor_id": "inv_xyz", "patient_id": 42, "task_id": 7}

@@ -244,7 +244,15 @@ async def generate_qr_token(
             raise HTTPException(404, "Patient not found or does not belong to this doctor")
         patient_name = patient.name
 
-    # --- Issue 30-day token ---
+    # --- Issue 30-day token, stamped with the user's CURRENT pcv ---
+    # Critical: if the doctor or patient has rotated their passcode (pcv > 1),
+    # the QR token must carry that pcv too. Otherwise the token is born
+    # invalid (authenticate() rejects it as revoked) the moment it's used.
+    if body.role == "patient":
+        token_pcv = (patient.passcode_version if patient is not None else 1) or 1
+    else:
+        token_pcv = (doctor.passcode_version or 1) if doctor is not None else 1
+
     ttl = 30 * 24 * 3600
     token = issue_token(
         role=body.role,
@@ -252,6 +260,7 @@ async def generate_qr_token(
         patient_id=body.patient_id,
         name=patient_name or (doctor.name if body.role == "doctor" else None),
         ttl_seconds=ttl,
+        passcode_version=token_pcv,
     )
 
     # --- Build URL ---

@@ -60,28 +60,41 @@ _EXC_BODY_SKIP_PREFIXES = (
     "video/",
 )
 
-# JSON keys whose values should be redacted before the body lands in
-# Sentry / GlitchTip. These are user-supplied PII, free-text clinical
-# content, or credentials — none of it belongs in error telemetry.
-# Match is case-insensitive and exact on the key name.
-_EXC_BODY_REDACT_KEYS = frozenset({
-    # Identifying / contact
-    "name", "patient_name", "doctor_name", "nickname", "phone",
-    # Credentials
-    "passcode", "access_code", "password", "token",
-    # Free-text clinical content
-    "content", "text", "edited_text", "notes", "reason_text", "message",
-    "chief_complaint", "diagnosis", "final_diagnosis", "key_symptoms",
-    "neuro_exam",
+# Allowlist of JSON keys safe to retain in error telemetry. Everything else
+# is replaced with "<redacted>". An allowlist (rather than denylist) means
+# new endpoints don't silently leak PII just because their field names
+# weren't on a list someone forgot to update.
+#
+# Add a key here only after confirming its values are NOT user-controlled
+# free text and NOT a credential / identifier the operator wouldn't want
+# in an exception trace. When in doubt, keep the key OFF the list.
+_EXC_BODY_SAFE_KEYS = frozenset({
+    # Status / control flags
+    "ok", "status", "decision", "role", "kind", "type", "method",
+    "category", "intent", "section", "direction", "source",
+    # Pagination + filters
+    "limit", "offset", "page", "per_page", "since", "before", "after",
+    # Synthetic IDs (random tokens, not PII)
+    "id", "task_id", "record_id", "doctor_id", "patient_id",
+    "suggestion_id", "session_id", "template_id", "edit_id",
+    "invite_code", "request_id", "trace_id",
+    # Booleans + counters from response shapes
+    "has_more", "total", "count", "ok_count", "err_count",
+    # Versioning fields
+    "version", "schema_version", "migration",
 })
 
 
 def _redact_pii_in_json(text: str) -> str:
-    """Return a JSON string with sensitive values replaced by "<redacted>".
+    """Return a JSON string with non-allowlisted values replaced by "<redacted>".
 
-    Used to scrub request bodies before attaching them to Sentry events.
-    Best-effort: if the body isn't valid JSON, returns the original
-    string (which still gets truncated by the caller's max-bytes cap).
+    Allowlist semantics: only keys explicitly listed in _EXC_BODY_SAFE_KEYS
+    keep their values; everything else is redacted. Recurse into dicts to
+    catch nested user content. Lists pass through (we don't redact list
+    elements unless they themselves are dicts, which then get walked).
+
+    Best-effort: if the body isn't valid JSON, returns the original string
+    (still bounded by the caller's max-bytes cap).
     """
     import json
     try:
@@ -91,11 +104,14 @@ def _redact_pii_in_json(text: str) -> str:
 
     def _walk(node):
         if isinstance(node, dict):
-            return {
-                k: ("<redacted>" if isinstance(k, str) and k.lower() in _EXC_BODY_REDACT_KEYS
-                    else _walk(v))
-                for k, v in node.items()
-            }
+            out = {}
+            for k, v in node.items():
+                key_lc = k.lower() if isinstance(k, str) else ""
+                if key_lc in _EXC_BODY_SAFE_KEYS:
+                    out[k] = _walk(v)  # safe key — keep value, but recurse
+                else:
+                    out[k] = "<redacted>"
+            return out
         if isinstance(node, list):
             return [_walk(x) for x in node]
         return node

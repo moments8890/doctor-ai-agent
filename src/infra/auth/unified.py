@@ -28,6 +28,16 @@ _LOGIN_FAIL_THRESHOLD = int(os.environ.get("LOGIN_FAIL_THRESHOLD", "5"))
 _LOGIN_LOCK_SECONDS = int(os.environ.get("LOGIN_LOCK_SECONDS", str(7 * 86400)))
 
 
+def _dummy_hash() -> str:
+    """A real PBKDF2 hash of a dummy passcode, used to equalize timing on
+    the not-found path so an attacker can't enumerate valid nicknames by
+    measuring response latency. Computed once and cached in module state.
+    """
+    if not hasattr(_dummy_hash, "_cached"):
+        _dummy_hash._cached = hash_passcode("dummy-passcode-for-timing-parity-only")  # type: ignore[attr-defined]
+    return _dummy_hash._cached  # type: ignore[attr-defined]
+
+
 def _secret() -> str:
     secret = os.environ.get("UNIFIED_AUTH_SECRET", "")
     if not secret:
@@ -124,18 +134,23 @@ async def _enforce_passcode_version(payload: dict) -> None:
     role = payload.get("role")
     async with AsyncSessionLocal() as db:
         if role == UserRole.doctor:
-            doctor = (await db.execute(
+            row = (await db.execute(
                 select(Doctor).where(Doctor.doctor_id == payload.get("doctor_id"))
             )).scalar_one_or_none()
-            current_pcv = (doctor.passcode_version if doctor else None) or 1
         elif role == UserRole.patient:
-            patient = (await db.execute(
+            row = (await db.execute(
                 select(Patient).where(Patient.id == payload.get("patient_id"))
             )).scalar_one_or_none()
-            current_pcv = (patient.passcode_version if patient else None) or 1
         else:
             return  # unknown role — let downstream role guards reject
 
+    # Missing user row = the principal no longer exists (e.g., forget_me
+    # deleted them). The token must NOT be honored as if pcv=1 still
+    # matched. Reject with the same shape as a revoked token.
+    if row is None:
+        raise HTTPException(401, "Token revoked")
+
+    current_pcv = row.passcode_version or 1
     if int(token_pcv) != int(current_pcv):
         raise HTTPException(401, "Token revoked")
 
@@ -178,7 +193,7 @@ async def forget_me(role: str, doctor_id: Optional[str] = None, patient_id: Opti
             log(f"[auth] doctor forget-me id={doctor_id}")
             await db.execute(delete(Doctor).where(Doctor.doctor_id == doctor_id))
         else:
-            log(f"[auth] patient forget-me id={patient_id} doctor={row.doctor_id}")
+            log(f"[auth] patient forget-me id={patient_id}")
             await db.execute(delete(Patient).where(Patient.id == patient_id))
         await db.commit()
 
@@ -235,25 +250,38 @@ def _is_locked(record) -> bool:
     return locked_until > datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def _record_login_failure(record) -> bool:
-    """Increment the failure counter on a record; lock when threshold hit.
+async def _atomic_record_login_failure(db, model, pk_col, pk_value) -> None:
+    """Atomically increment failure counter and set lock when threshold trips.
 
-    Caller must commit. Returns True if this attempt tripped a fresh lock.
+    Single SQL UPDATE so two parallel bad guesses can't both read counter=N,
+    write N+1, and effectively skip an increment. The lock_until column is
+    set via CASE so the threshold check happens server-side.
     """
-    record.passcode_failed_attempts = (record.passcode_failed_attempts or 0) + 1
-    if record.passcode_failed_attempts >= _LOGIN_FAIL_THRESHOLD:
-        from datetime import timedelta
-        record.passcode_locked_until = (
-            datetime.now(timezone.utc).replace(tzinfo=None)
-            + timedelta(seconds=_LOGIN_LOCK_SECONDS)
+    from datetime import timedelta
+    from sqlalchemy import case, update
+    lock_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=_LOGIN_LOCK_SECONDS)
+    new_attempts = model.passcode_failed_attempts + 1
+    await db.execute(
+        update(model)
+        .where(pk_col == pk_value)
+        .values(
+            passcode_failed_attempts=new_attempts,
+            passcode_locked_until=case(
+                (new_attempts >= _LOGIN_FAIL_THRESHOLD, lock_at),
+                else_=model.passcode_locked_until,
+            ),
         )
-        return True
-    return False
+    )
 
 
-def _record_login_success(record) -> None:
-    record.passcode_failed_attempts = 0
-    record.passcode_locked_until = None
+async def _atomic_record_login_success(db, model, pk_col, pk_value) -> None:
+    """Atomically clear failure counter + lock on a successful login."""
+    from sqlalchemy import update
+    await db.execute(
+        update(model)
+        .where(pk_col == pk_value)
+        .values(passcode_failed_attempts=0, passcode_locked_until=None)
+    )
 
 
 async def login(nickname: str, passcode: str, role: Optional[str] = None) -> dict:
@@ -281,19 +309,26 @@ async def login(nickname: str, passcode: str, role: Optional[str] = None) -> dic
         raise HTTPException(400, "role must be 'doctor' or 'patient'")
 
     results = []
-    locked_any = False
+    # Track which row to penalize on failure. We only mutate counters when
+    # the (nickname, role) tuple narrows to ONE row — otherwise an attacker
+    # could lock out unrelated accounts that happen to share a nickname.
+    sole_doctor = None
+    sole_patient = None
+    matched_passcode = False  # True iff at least one passcode_hash verified
 
     async with AsyncSessionLocal() as db:
         if role in (None, UserRole.doctor):
             doctors = (await db.execute(
                 select(Doctor).where(Doctor.nickname == nickname)
             )).scalars().all()
+            if len(doctors) == 1:
+                sole_doctor = doctors[0]
             for d in doctors:
                 if _is_locked(d):
-                    locked_any = True
                     continue
                 if d.passcode_hash and verify_passcode(passcode, d.passcode_hash):
-                    _record_login_success(d)
+                    matched_passcode = True
+                    await _atomic_record_login_success(db, Doctor, Doctor.doctor_id, d.doctor_id)
                     results.append({
                         "role": UserRole.doctor,
                         "doctor_id": d.doctor_id,
@@ -301,19 +336,19 @@ async def login(nickname: str, passcode: str, role: Optional[str] = None) -> dic
                         "name": d.name or d.doctor_id,
                         "passcode_version": d.passcode_version or 1,
                     })
-                else:
-                    _record_login_failure(d)
 
         if role in (None, UserRole.patient):
             patients = (await db.execute(
                 select(Patient).where(Patient.nickname == nickname)
             )).scalars().all()
+            if len(patients) == 1:
+                sole_patient = patients[0]
             for p in patients:
                 if _is_locked(p):
-                    locked_any = True
                     continue
                 if p.passcode_hash and verify_passcode(passcode, p.passcode_hash):
-                    _record_login_success(p)
+                    matched_passcode = True
+                    await _atomic_record_login_success(db, Patient, Patient.id, p.id)
                     results.append({
                         "role": UserRole.patient,
                         "doctor_id": p.doctor_id,
@@ -321,17 +356,26 @@ async def login(nickname: str, passcode: str, role: Optional[str] = None) -> dic
                         "name": p.name,
                         "passcode_version": p.passcode_version or 1,
                     })
-                else:
-                    _record_login_failure(p)
 
-        await db.commit()  # persist failure counter / lock / reset
+        # Failure path. To prevent account-DOS via shared nicknames, we only
+        # increment the lockout counter when there is exactly ONE candidate
+        # for the (nickname, role) pair. Multi-candidate misses fail fast
+        # without mutating any row.
+        if not matched_passcode:
+            if sole_doctor is not None and not _is_locked(sole_doctor):
+                await _atomic_record_login_failure(db, Doctor, Doctor.doctor_id, sole_doctor.doctor_id)
+            if sole_patient is not None and not _is_locked(sole_patient):
+                await _atomic_record_login_failure(db, Patient, Patient.id, sole_patient.id)
+            # Equalize timing on the not-found / wrong-passcode path so an
+            # attacker can't enumerate by latency.
+            if sole_doctor is None and sole_patient is None:
+                verify_passcode(passcode, _dummy_hash())
+
+        await db.commit()
 
     if not results:
-        if locked_any:
-            raise HTTPException(
-                423,
-                f"账号已锁定（{_LOGIN_LOCK_SECONDS // 86400} 天后自动解锁），请稍后再试或联系管理员",
-            )
+        # Uniform 401 for all failure modes (locked / wrong passcode / no
+        # such nickname). Distinct status codes leak account state.
         raise HTTPException(401, "昵称或口令不正确")
 
     if len(results) == 1:
@@ -361,14 +405,19 @@ async def login_with_role(nickname: str, passcode: str, role: str, doctor_id: Op
             doctor = (await db.execute(
                 select(Doctor).where(Doctor.nickname == nickname)
             )).scalar_one_or_none()
-            if doctor and _is_locked(doctor):
-                raise HTTPException(423, "账号已锁定，请稍后再试或联系管理员")
-            if not doctor or not doctor.passcode_hash or not verify_passcode(passcode, doctor.passcode_hash):
-                if doctor:
-                    _record_login_failure(doctor)
+            if (
+                not doctor
+                or _is_locked(doctor)
+                or not doctor.passcode_hash
+                or not verify_passcode(passcode, doctor.passcode_hash)
+            ):
+                if doctor and not _is_locked(doctor):
+                    await _atomic_record_login_failure(db, Doctor, Doctor.doctor_id, doctor.doctor_id)
                     await db.commit()
+                elif doctor is None:
+                    verify_passcode(passcode, _dummy_hash())  # timing parity
                 raise HTTPException(401, "登录失败")
-            _record_login_success(doctor)
+            await _atomic_record_login_success(db, Doctor, Doctor.doctor_id, doctor.doctor_id)
             await db.commit()
             token = issue_token(
                 UserRole.doctor, doctor.doctor_id, None, doctor.name,
@@ -377,25 +426,36 @@ async def login_with_role(nickname: str, passcode: str, role: str, doctor_id: Op
             return {"token": token, "role": UserRole.doctor, "doctor_id": doctor.doctor_id, "name": doctor.name}
 
         elif role == UserRole.patient:
+            # DOS prevention: a patient login MUST narrow to one row before
+            # we mutate any failure counter. Without doctor_id or patient_id,
+            # an attacker hammering "alice" would lock out every patient
+            # with that nickname across all doctors.
+            if not patient_id and not doctor_id:
+                raise HTTPException(400, "patient login requires doctor_id or patient_id")
             stmt = select(Patient).where(Patient.nickname == nickname)
             if patient_id:
                 stmt = stmt.where(Patient.id == patient_id)
             elif doctor_id:
                 stmt = stmt.where(Patient.doctor_id == doctor_id)
             candidates = (await db.execute(stmt)).scalars().all()
-            unlocked = [p for p in candidates if not _is_locked(p)]
-            if candidates and not unlocked:
-                raise HTTPException(423, "账号已锁定，请稍后再试或联系管理员")
-            patient = next(
-                (p for p in unlocked if p.passcode_hash and verify_passcode(passcode, p.passcode_hash)),
-                None,
-            )
-            if not patient:
-                for p in unlocked:
-                    _record_login_failure(p)
-                await db.commit()
+            # Find the unique unlocked candidate that matches the passcode.
+            patient = None
+            for p in candidates:
+                if _is_locked(p):
+                    continue
+                if p.passcode_hash and verify_passcode(passcode, p.passcode_hash):
+                    patient = p
+                    break
+            if patient is None:
+                # Only mutate the counter when the selector narrows to ONE row;
+                # otherwise we'd be back to the multi-candidate DOS hazard.
+                if len(candidates) == 1 and not _is_locked(candidates[0]):
+                    await _atomic_record_login_failure(db, Patient, Patient.id, candidates[0].id)
+                    await db.commit()
+                elif not candidates:
+                    verify_passcode(passcode, _dummy_hash())
                 raise HTTPException(401, "登录失败")
-            _record_login_success(patient)
+            await _atomic_record_login_success(db, Patient, Patient.id, patient.id)
             await db.commit()
             token = issue_token(
                 UserRole.patient, patient.doctor_id, patient.id, patient.name,
@@ -453,7 +513,9 @@ async def register_doctor(nickname: str, passcode: str, invite_code: str, specia
 
         await db.commit()
 
-    log(f"[auth] doctor registered id={doctor_id} nickname={nickname}")
+    # Don't log nickname — that's a user-typed credential identifier.
+    # doctor_id is a synthetic random ID, safe to log for correlation.
+    log(f"[auth] doctor registered id={doctor_id}")
     token = issue_token(UserRole.doctor, doctor_id, None, nickname, passcode_version=1)
     return {"token": token, "role": UserRole.doctor, "doctor_id": doctor_id, "name": nickname}
 
@@ -495,6 +557,7 @@ async def register_patient(nickname: str, passcode: str, doctor_id: str, gender:
         await db.commit()
         await db.refresh(patient)
 
-    log(f"[auth] patient registered id={patient.id} nickname={nickname} doctor={doctor_id}")
+    # patient.id + doctor_id are synthetic, nickname is user-typed.
+    log(f"[auth] patient registered id={patient.id} doctor={doctor_id}")
     token = issue_token(UserRole.patient, doctor_id, patient.id, nickname, passcode_version=1)
     return {"token": token, "role": UserRole.patient, "doctor_id": doctor_id, "patient_id": patient.id, "name": nickname}

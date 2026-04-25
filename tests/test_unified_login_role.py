@@ -116,21 +116,36 @@ async def test_login_wrong_passcode_rejected(session_factory):
 
 @pytest.mark.asyncio
 async def test_lockout_after_threshold_failures(session_factory, monkeypatch):
-    """5 wrong passcodes → account locks; correct passcode then 423s."""
+    """3 wrong passcodes → account locks; correct passcode then refused.
+
+    All login failures (wrong passcode, locked account, no such user)
+    return a uniform HTTP 401 to avoid leaking account state via status
+    codes. A locked account is observable via the user's own /me path
+    or the lockout-cleared timestamp, not via login response.
+    """
     from fastapi import HTTPException
+    from sqlalchemy import select
     import infra.auth.unified as auth_mod
 
     monkeypatch.setattr(auth_mod, "_LOGIN_FAIL_THRESHOLD", 3)
     monkeypatch.setattr(auth_mod, "_LOGIN_LOCK_SECONDS", 7 * 86400)
 
     for _ in range(3):
-        with pytest.raises(HTTPException):
+        with pytest.raises(HTTPException) as exc:
             await login(NICK, "0000", role="doctor")
+        assert exc.value.status_code == 401
 
-    # Even the correct passcode is refused while locked.
+    # Correct passcode is now also refused (locked) — same 401, not 423.
     with pytest.raises(HTTPException) as exc:
         await login(NICK, PASSCODE, role="doctor")
-    assert exc.value.status_code == 423
+    assert exc.value.status_code == 401
+
+    # Verify the lock actually landed in the DB.
+    factory = session_factory
+    async with factory() as s:
+        d = (await s.execute(select(Doctor).where(Doctor.nickname == NICK))).scalar_one()
+        assert d.passcode_locked_until is not None
+        assert d.passcode_failed_attempts >= 3
 
 
 @pytest.mark.asyncio
@@ -186,6 +201,90 @@ async def test_forget_me_deletes_with_correct_passcode(session_factory):
     async with factory() as s:
         d = (await s.execute(select(Doctor).where(Doctor.doctor_id == out["doctor_id"]))).scalar_one_or_none()
         assert d is None
+
+
+@pytest.mark.asyncio
+async def test_authenticate_rejects_token_for_deleted_user(session_factory):
+    """P1.1 — token issued before forget_me must NOT pass authenticate().
+
+    Regression for the codex review finding: _enforce_passcode_version
+    used to default missing users to pcv=1, so an old token (pcv=1) for
+    a deleted user would still authenticate.
+    """
+    from fastapi import HTTPException
+    from infra.auth.unified import authenticate, forget_me
+
+    out = await login(NICK, PASSCODE, role="doctor")
+    auth_header = f"Bearer {out['token']}"
+
+    payload = await authenticate(auth_header)  # warm token: ok
+    assert payload["role"] == "doctor"
+
+    await forget_me(role="doctor", doctor_id=out["doctor_id"], passcode=PASSCODE)
+
+    with pytest.raises(HTTPException) as exc:
+        await authenticate(auth_header)
+    assert exc.value.status_code == 401
+    assert "revoke" in (exc.value.detail or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_patient_login_no_dos_via_shared_nickname(session_factory):
+    """P1.2 — failed patient login via shared nickname must NOT lock out
+    other patients across doctors.
+    """
+    from sqlalchemy import select
+    factory = session_factory
+    # Seed two patients sharing a nickname under different doctors.
+    async with factory() as s:
+        s.add(Patient(
+            doctor_id="doc_alpha", name="shared",
+            nickname="shared", passcode_hash=hash_passcode("aaaa"),
+        ))
+        s.add(Patient(
+            doctor_id="doc_beta", name="shared",
+            nickname="shared", passcode_hash=hash_passcode("bbbb"),
+        ))
+        await s.commit()
+
+    # Hammer wrong passcode via the multi-candidate (no-selector) path.
+    from fastapi import HTTPException
+    for _ in range(10):
+        with pytest.raises(HTTPException):
+            await login("shared", "0000", role="patient")
+
+    # Neither row's counter should have moved — the multi-candidate
+    # path must refuse to penalize unrelated accounts.
+    async with factory() as s:
+        rows = (await s.execute(
+            select(Patient).where(Patient.nickname == "shared")
+        )).scalars().all()
+        for p in rows:
+            assert p.passcode_failed_attempts == 0
+            assert p.passcode_locked_until is None
+
+
+@pytest.mark.asyncio
+async def test_login_with_role_patient_requires_selector(session_factory):
+    """P1.2 — login_with_role(role=patient) without doctor_id/patient_id is 400."""
+    from fastapi import HTTPException
+    from infra.auth.unified import login_with_role
+    with pytest.raises(HTTPException) as exc:
+        await login_with_role("shared", "0000", role="patient")
+    assert exc.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_uniform_401_no_user_vs_wrong_passcode(session_factory):
+    """P2.6 — login response is the same status for missing-user and
+    wrong-passcode paths (no enumeration via 401-vs-other status)."""
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as exc1:
+        await login("does-not-exist-anywhere", "0000", role="doctor")
+    with pytest.raises(HTTPException) as exc2:
+        await login(NICK, "0000", role="doctor")
+    assert exc1.value.status_code == 401
+    assert exc2.value.status_code == 401
 
 
 @pytest.mark.asyncio
