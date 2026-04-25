@@ -45,6 +45,7 @@ from db.models import (
     TaskStatus,
 )
 from channels.web.doctor_dashboard.filters import _fmt_ts, apply_exclude_test_doctors
+from channels.web.doctor_dashboard.deps import require_admin_role
 
 router = APIRouter(tags=["admin-overview"], include_in_schema=False)
 
@@ -70,7 +71,10 @@ def _cutoff_days(n: int) -> datetime:
 # ---------------------------------------------------------------------------
 
 @router.get("/api/admin/overview")
-async def admin_overview(db: AsyncSession = Depends(get_db)) -> dict:
+async def admin_overview(
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(require_admin_role),
+) -> dict:
     """Aggregated platform metrics for a pre-launch medical AI dashboard."""
     now = _now_utc()
     cutoff_7d = _cutoff_days(7)
@@ -654,7 +658,10 @@ async def admin_overview(db: AsyncSession = Depends(get_db)) -> dict:
 # ---------------------------------------------------------------------------
 
 @router.get("/api/admin/doctors")
-async def admin_doctors_list(db: AsyncSession = Depends(get_db)) -> dict:
+async def admin_doctors_list(
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(require_admin_role),
+) -> dict:
     """Doctor list with per-doctor activity metrics."""
     cutoff_24h = _cutoff_24h()
 
@@ -757,7 +764,10 @@ async def admin_doctors_list(db: AsyncSession = Depends(get_db)) -> dict:
 # ---------------------------------------------------------------------------
 
 @router.get("/api/admin/activity")
-async def admin_activity(db: AsyncSession = Depends(get_db)) -> dict:
+async def admin_activity(
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(require_admin_role),
+) -> dict:
     """Recent activity feed: AI suggestions, records, tasks from last 24h, sorted desc."""
     cutoff_24h = _cutoff_24h()
 
@@ -867,7 +877,9 @@ async def admin_activity(db: AsyncSession = Depends(get_db)) -> dict:
 
 @router.get("/api/admin/doctors/{doctor_id}")
 async def admin_doctor_detail(
-    doctor_id: str, db: AsyncSession = Depends(get_db)
+    doctor_id: str,
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(require_admin_role),
 ) -> dict:
     """Doctor profile, setup checklist, and 7-day stats."""
     doc = (
@@ -1054,7 +1066,9 @@ async def admin_doctor_detail(
 
 @router.get("/api/admin/doctors/{doctor_id}/patients")
 async def admin_doctor_patients(
-    doctor_id: str, db: AsyncSession = Depends(get_db)
+    doctor_id: str,
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(require_admin_role),
 ) -> dict:
     """Patient list for a doctor with message/record/task counts."""
     patients = (
@@ -1136,6 +1150,7 @@ async def admin_doctor_timeline(
     doctor_id: str,
     patient_id: int = Query(..., description="Patient ID to show timeline for"),
     db: AsyncSession = Depends(get_db),
+    _role: str = Depends(require_admin_role),
 ) -> dict:
     """Chronological case timeline for a patient: messages, records, AI suggestions, tasks."""
     # Messages
@@ -1269,7 +1284,9 @@ async def admin_doctor_timeline(
 
 @router.get("/api/admin/doctors/{doctor_id}/related")
 async def admin_doctor_related(
-    doctor_id: str, db: AsyncSession = Depends(get_db)
+    doctor_id: str,
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(require_admin_role),
 ) -> dict:
     """All related data for a doctor across every table."""
     LIMIT = 50
@@ -1538,7 +1555,9 @@ async def admin_doctor_related(
 
 @router.get("/api/admin/patients/{patient_id}/related")
 async def admin_patient_related(
-    patient_id: int, db: AsyncSession = Depends(get_db)
+    patient_id: int,
+    db: AsyncSession = Depends(get_db),
+    _role: str = Depends(require_admin_role),
 ) -> dict:
     """All related data for a patient across every table."""
     LIMIT = 50
