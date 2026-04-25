@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+launchd plist template for the Mac-side backup puller.
+
+This file is the source of truth — copy it to ~/Library/LaunchAgents/
+on each Mac that should pull backups, then load:
+
+    cp deploy/tencent/mac/com.doctoragentai.pull-backups.plist \
+       ~/Library/LaunchAgents/
+
+    launchctl load ~/Library/LaunchAgents/com.doctoragentai.pull-backups.plist
+
+Edit USER paths if the host's home directory or repo location differs
+from the original Mac mini setup (jingwuxu / /Volumes/ORICO/Code/...).
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.doctoragentai.pull-backups</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Volumes/ORICO/Code/doctor-ai-agent/deploy/tencent/mac_pull_backups.sh</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>23</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Volumes/ORICO/Code/db-backup/logs/launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Volumes/ORICO/Code/db-backup/logs/launchd.err</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/jingwuxu/.local/pipx/venvs/tccli/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/jingwuxu</string>
+    </dict>
+</dict>
+</plist>
