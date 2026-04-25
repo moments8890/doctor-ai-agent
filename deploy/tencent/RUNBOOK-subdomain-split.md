@@ -13,7 +13,7 @@ gitee → `deploy.sh`.
 | `api.doctoragentai.cn` | JSON API only | public, JWT |
 | `app.doctoragentai.cn` | Doctor + patient SPA | public |
 | `wiki.doctoragentai.cn` | Public docs | public (gate 内部 later) |
-| `ops.doctoragentai.cn` | glitchtip + dbgate + n8n | basic-auth + IP allowlist |
+| `ops.doctoragentai.cn` | glitchtip + dbgate | basic-auth + IP allowlist |
 
 One wildcard cert `*.doctoragentai.cn` covers all four.
 
@@ -32,7 +32,7 @@ One wildcard cert `*.doctoragentai.cn` covers all four.
 
 ## Phase 0 — emergency lockdown (10 min, do today)
 
-Closes the open hole on `/glitchtip/`, `/dbgate/`, `/n8n/` while the rest
+Closes the open hole on `/glitchtip/`, `/dbgate/` while the rest
 of the migration is rolled out. Zero infra change.
 
 ```bash
@@ -201,7 +201,7 @@ When you're ready to retire the legacy paths:
 
 ```bash
 # The new api.doctoragentai.cn.conf already returns 301 redirects for
-# /wiki/, /glitchtip/, /dbgate/, /n8n/. Replace the OLD api.* server
+# /wiki/, /glitchtip/, /dbgate/. Replace the OLD api.* server
 # block with the new one — install-vhosts.sh will have already done
 # this if your previous block was at sites-enabled/api.doctoragentai.cn.conf.
 
@@ -223,7 +223,7 @@ The build pipeline produces `frontend/dist/` (already does). Both
 `app.*` (root → dist) and `wiki.*` (root → dist/wiki) read from there
 on every deploy. No script change.
 
-The ops tools (glitchtip, dbgate, n8n) keep their existing
+The ops tools (glitchtip, dbgate) keep their existing
 docker-compose lifecycle — out of band from `deploy.sh`, untouched.
 
 ---

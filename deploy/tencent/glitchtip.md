@@ -2,7 +2,7 @@
 
 GlitchTip is an OSS, Sentry-SDK-compatible error tracker. We self-host
 on the Tencent CVM because Sentry.io SaaS is unreliable from mainland
-China and we already have Docker on this VM (`n8n`, `doctor-ai-mysql`).
+China and we already have Docker on this VM (`doctor-ai-mysql`).
 
 **Network shape**: web UI bound to `127.0.0.1:8100` only. External
 access via SSH tunnel (easiest) or nginx reverse proxy under a

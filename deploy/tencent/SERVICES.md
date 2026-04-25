@@ -6,8 +6,8 @@ something breaks. Companion to:
 - [`RUNBOOK-subdomain-split.md`](./RUNBOOK-subdomain-split.md) — how the
   current host/cert/CORS setup was built
 - [`deploy.sh`](./deploy.sh) — what runs on every gitee push
-- [`adminer.md`](./adminer.md), [`glitchtip.md`](./glitchtip.md),
-  [`n8n-setup.md`](./n8n-setup.md) — per-tool first-time setup
+- [`adminer.md`](./adminer.md), [`glitchtip.md`](./glitchtip.md) —
+  per-tool first-time setup
 
 ---
 
@@ -60,7 +60,7 @@ The doctor-ai-agent FastAPI app on `127.0.0.1:8000`. nginx
 | `/test/*` | `127.0.0.1:8000` | Internal smoke endpoints (debug; `UI_DEBUG_TOKEN` gate) |
 | `/hooks/deploy` | `127.0.0.1:9000` | Gitee webhook receiver (separate `webhook_server.py`) |
 | `/.well-known/acme-challenge/` | `/var/www/certbot` | certbot HTTP-01 challenge serving |
-| `/glitchtip/`, `/dbgate/`, `/n8n/` | (see ops.*) | **Legacy paths** — basic-auth gated as transitional Phase 0 fix; will 301 → `ops.*` after Phase 5 cutover |
+| `/glitchtip/`, `/dbgate/` | (see ops.*) | **Legacy paths** — basic-auth gated as transitional Phase 0 fix; will 301 → `ops.*` after Phase 5 cutover |
 | `/` | static `frontend/dist` | SPA fallback — moves to `app.*` after Phase 5 |
 
 ### Auth model (`api.*`)
@@ -102,7 +102,6 @@ gated by **basic-auth + IP allowlist** at the vhost level (`satisfy all`).
 | `/glitchtip/` | `127.0.0.1:8100` | GlitchTip — Sentry-compatible error tracking | [glitchtip.md](./glitchtip.md) |
 | `/glitchtip/api/` | `127.0.0.1:8100/api/` | **Carve-out** — `auth_basic off; allow all`. Sentry SDK ingest path; auth happens at GlitchTip layer via DSN key in `X-Sentry-Auth` | (carve-out: `ops.doctoragentai.cn.conf:55-69`) |
 | `/dbgate/` | `127.0.0.1:8101` | dbgate — DB UI | [adminer.md](./adminer.md) (file is named "adminer" but the tool is dbgate) |
-| `/n8n/` | `127.0.0.1:5678` | n8n — workflow automation | [n8n-setup.md](./n8n-setup.md) |
 
 ### Auth
 
