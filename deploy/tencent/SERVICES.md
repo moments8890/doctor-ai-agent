@@ -38,7 +38,7 @@ cert (`/etc/letsencrypt/live/api.doctoragentai.cn/`) — certbot auto-renews.
 | `app.doctoragentai.cn` | `/etc/nginx/sites-enabled/app.doctoragentai.cn` | Yes | JWT only | Static `/home/ubuntu/doctor-ai-agent/frontend/dist` (the SPA) |
 | `wiki.doctoragentai.cn` | `/etc/nginx/sites-enabled/wiki.doctoragentai.cn` | Yes | None (public docs only — 内部 sidebar removed) | Static `frontend/dist/wiki` |
 | `ops.doctoragentai.cn` | `/etc/nginx/sites-enabled/ops.doctoragentai.cn` | **No** | basic-auth + IP allowlist `50.47.192.0/20` (`satisfy all`) | Internal tools (see below) |
-| `admin.doctoragentai.cn` | `/etc/nginx/sites-enabled/admin.doctoragentai.cn` | **No** | basic-auth (vhost-level) + app-layer `X-Admin-Token` (`require_admin_role`) | SPA (same `frontend/dist` as app.*) + `/api/*` proxy to `:8000`; admin SPA mounts at `/admin/login` and `/admin/*` |
+| `admin.doctoragentai.cn` | `/etc/nginx/sites-enabled/admin.doctoragentai.cn` | Yes (gate is at app layer) | app-layer `X-Admin-Token` only (`require_admin_role` on `/api/admin/*`) | SPA (same `frontend/dist` as app.*) + `/api/*` proxy to `:8000`; admin SPA mounts at `/admin/login` and `/admin/*` |
 
 DNS records live at DNSPod (Tencent) — managed via
 `tccli dnspod {Describe,Create,Modify}Record` on the
