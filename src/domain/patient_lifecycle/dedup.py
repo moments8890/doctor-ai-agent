@@ -145,7 +145,8 @@ async def _llm_chief_complaint_similarity(a: str, b: str) -> float:
 # The 7 history fields tracked in FieldEntryDB. Same constant as
 # extraction_confidence.REQUIRED_FIELDS — kept local so dedup.py
 # doesn't reach across modules for it.
-_REQUIRED_FIELDS = (
+# Public alias used by supplement_handlers for field-name whitelist check.
+REQUIRED_FIELDS = _REQUIRED_FIELDS = (
     "chief_complaint",
     "present_illness",
     "past_history",

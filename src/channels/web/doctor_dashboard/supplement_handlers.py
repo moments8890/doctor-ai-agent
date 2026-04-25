@@ -10,9 +10,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from db.engine import get_db
-from db.models.records import RecordSupplementDB, FieldEntryDB
+from db.models.records import MedicalRecordDB, RecordSupplementDB, FieldEntryDB
+from domain.patient_lifecycle.dedup import REQUIRED_FIELDS
 
 router = APIRouter(tags=["ui"], include_in_schema=False)
+
+
+async def _load_supplement_for_doctor(
+    session: AsyncSession,
+    supplement_id: int,
+    doctor_id: str,
+) -> RecordSupplementDB:
+    """Load a pending supplement and verify it belongs to the requesting doctor."""
+    sup = await session.get(RecordSupplementDB, supplement_id)
+    if not sup or sup.status != "pending_doctor_review":
+        raise HTTPException(status_code=404)
+    rec = await session.get(MedicalRecordDB, sup.record_id)
+    if not rec or rec.doctor_id != doctor_id:
+        raise HTTPException(status_code=404)
+    return sup
 
 
 @router.get("/api/manage/supplements/pending")
@@ -22,8 +38,11 @@ async def list_pending(
 ):
     rows = (
         await session.execute(
-            select(RecordSupplementDB).where(
-                RecordSupplementDB.status == "pending_doctor_review"
+            select(RecordSupplementDB)
+            .join(MedicalRecordDB, MedicalRecordDB.id == RecordSupplementDB.record_id)
+            .where(
+                RecordSupplementDB.status == "pending_doctor_review",
+                MedicalRecordDB.doctor_id == doctor_id,
             )
         )
     ).scalars().all()
@@ -46,11 +65,11 @@ async def accept(
     doctor_id: str = Query(...),
     session: AsyncSession = Depends(get_db),
 ):
-    sup = await session.get(RecordSupplementDB, supplement_id)
-    if not sup or sup.status != "pending_doctor_review":
-        raise HTTPException(status_code=404)
+    sup = await _load_supplement_for_doctor(session, supplement_id, doctor_id)
     entries = json.loads(sup.field_entries_json)
     for e in entries:
+        if e["field_name"] not in REQUIRED_FIELDS:
+            continue
         session.add(
             FieldEntryDB(
                 record_id=sup.record_id,
@@ -73,9 +92,7 @@ async def create_new(
     doctor_id: str = Query(...),
     session: AsyncSession = Depends(get_db),
 ):
-    sup = await session.get(RecordSupplementDB, supplement_id)
-    if not sup or sup.status != "pending_doctor_review":
-        raise HTTPException(status_code=404)
+    sup = await _load_supplement_for_doctor(session, supplement_id, doctor_id)
     sup.status = "rejected_create_new"
     sup.doctor_decision_at = datetime.utcnow()
     sup.doctor_decision_by = doctor_id
@@ -91,9 +108,7 @@ async def ignore(
     doctor_id: str = Query(...),
     session: AsyncSession = Depends(get_db),
 ):
-    sup = await session.get(RecordSupplementDB, supplement_id)
-    if not sup or sup.status != "pending_doctor_review":
-        raise HTTPException(status_code=404)
+    sup = await _load_supplement_for_doctor(session, supplement_id, doctor_id)
     sup.status = "rejected_ignored"
     sup.doctor_decision_at = datetime.utcnow()
     sup.doctor_decision_by = doctor_id
