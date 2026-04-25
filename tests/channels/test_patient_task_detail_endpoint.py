@@ -198,3 +198,64 @@ async def test_get_tasks_includes_completed_at_and_source_record_id(
     # source_record_id derives from task.record_id, NOT from source_id.
     assert out["source_record_id"] == record.id
     assert out["source_record_id"] != 999  # explicit decoy guard
+
+
+# ── Task 0.2 — GET /api/patient/tasks/{task_id} ────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_get_patient_task_by_id_happy_path(async_client, db_session):
+    """GET /tasks/{id} returns the task body when owned + patient-targeted."""
+    patient, _record, task = await _seed_patient_with_task(db_session)
+    token = _patient_token(patient)
+
+    resp = await async_client.get(
+        f"/tasks/{task.id}", headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200, resp.text
+
+    body = resp.json()
+    assert body["id"] == task.id
+    assert body["title"] == task.title
+    assert body["status"] == task.status
+    assert body["task_type"] == task.task_type
+
+
+@pytest.mark.asyncio
+async def test_get_patient_task_by_id_404_when_not_found(
+    async_client, db_session,
+):
+    """Unknown task id → 404 (don't reveal whether the row exists)."""
+    patient, _record, _task = await _seed_patient_with_task(db_session)
+    token = _patient_token(patient)
+
+    resp = await async_client.get(
+        "/tasks/9999999", headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 404, resp.text
+
+
+@pytest.mark.asyncio
+async def test_get_patient_task_by_id_404_for_other_patients_task(
+    async_client, db_session,
+):
+    """Cross-patient access returns 404 (not 403) to hide ownership info."""
+    # Patient A owns the seeded task.
+    patient_a, _record_a, task_a = await _seed_patient_with_task(db_session)
+
+    # Seed a second patient (B) under the same doctor — token used to probe.
+    patient_b = Patient(
+        doctor_id=TEST_DOCTOR_ID,
+        name="Other Patient B",
+    )
+    db_session.add(patient_b)
+    await db_session.commit()
+    await db_session.refresh(patient_b)
+
+    token_b = _patient_token(patient_b)
+
+    resp = await async_client.get(
+        f"/tasks/{task_a.id}",
+        headers={"Authorization": f"Bearer {token_b}"},
+    )
+    assert resp.status_code == 404, resp.text

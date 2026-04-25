@@ -115,6 +115,40 @@ async def get_patient_tasks(
     ]
 
 
+@tasks_router.get("/tasks/{task_id}", response_model=PatientTaskOut)
+async def get_patient_task_detail(
+    task_id: int,
+    authorization: Optional[str] = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return a single patient-owned task by id. 404 on missing or not owned."""
+    patient = await _authenticate_patient(authorization)
+
+    task = (await db.execute(
+        select(DoctorTask).where(DoctorTask.id == task_id)
+    )).scalar_one_or_none()
+
+    if task is None or task.patient_id != patient.id or task.target != "patient":
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    safe_create_task(audit(
+        "patient", "READ",
+        resource_type="patient_task", resource_id=str(task_id),
+    ))
+    return PatientTaskOut(
+        id=task.id,
+        task_type=task.task_type,
+        title=task.title,
+        content=task.content,
+        status=task.status,
+        due_at=task.due_at,
+        source_type=task.source_type,
+        created_at=task.created_at,
+        completed_at=task.completed_at,
+        source_record_id=task.record_id,
+    )
+
+
 @tasks_router.post("/tasks/{task_id}/complete", response_model=PatientTaskOut)
 async def complete_patient_task(
     task_id: int,
