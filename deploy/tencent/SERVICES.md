@@ -39,6 +39,7 @@ cert (`/etc/letsencrypt/live/api.doctoragentai.cn/`) — certbot auto-renews.
 | `wiki.doctoragentai.cn` | `/etc/nginx/sites-enabled/wiki.doctoragentai.cn` | Yes | None (public docs only — 内部 sidebar removed) | Static `frontend/dist/wiki` |
 | `ops.doctoragentai.cn` | `/etc/nginx/sites-enabled/ops.doctoragentai.cn` | **No** | basic-auth + IP allowlist `50.47.192.0/20` (`satisfy all`) | Internal tools (see below) |
 | `admin.doctoragentai.cn` | `/etc/nginx/sites-enabled/admin.doctoragentai.cn` | Yes (gate is at app layer) | app-layer `X-Admin-Token` only (`require_admin_role` on `/api/admin/*`) | SPA (same `frontend/dist` as app.*) + `/api/*` proxy to `:8000`; admin SPA mounts at `/admin/login` and `/admin/*` |
+| `docs.doctoragentai.cn` | `/etc/nginx/sites-enabled/docs.doctoragentai.cn` | **No** | basic-auth (`dev` user, htpasswd at `/etc/nginx/.docs-htpasswd` — dedicated, not shared with ops.*) | Internal architecture + ops docs. Reads same `frontend/dist/wiki/` as wiki.* but only serves `docs.html`, `wiki-internal.html`, `internal-docs/*`; everything else 404s |
 
 DNS records live at DNSPod (Tencent) — managed via
 `tccli dnspod {Describe,Create,Modify}Record` on the
@@ -202,7 +203,7 @@ tail -50 /var/log/nginx/access.log | grep "/glitchtip/api/" | tail
 | Item | Value |
 |---|---|
 | Type | Multi-SAN Let's Encrypt (RSA 2048) |
-| SANs | `api`, `app`, `wiki`, `ops` (all `.doctoragentai.cn`) |
+| SANs | `api`, `app`, `wiki`, `ops`, `admin`, `docs` (all `.doctoragentai.cn`) |
 | Cert | `/etc/letsencrypt/live/api.doctoragentai.cn/fullchain.pem` |
 | Key | `/etc/letsencrypt/live/api.doctoragentai.cn/privkey.pem` |
 | Issuer | certbot 1.21.0 (HTTP-01 via webroot `/var/www/certbot`) |
@@ -229,6 +230,8 @@ when adding subdomains.
 | `app` | A | `101.35.116.122` | 600 |
 | `wiki` | A | `101.35.116.122` | 600 |
 | `ops` | A | `101.35.116.122` | 600 |
+| `admin` | A | `101.35.116.122` | 600 |
+| `docs` | A | `101.35.116.122` | 600 |
 
 Apex `doctoragentai.cn` has **no** A record yet — visiting the bare
 domain returns NXDOMAIN. Add one if you want a marketing landing page.
