@@ -13,6 +13,8 @@
 //       super  → "管理员"
 
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { setAdminToken } from "../../../api";
 import { COLOR, FONT, FONT_STACK, RADIUS, SHADOW } from "./tokens";
 import { isDevMode, toggleDevMode, useAdminRole, useDevMode } from "./devMode";
 
@@ -211,6 +213,7 @@ function UserMenu({ role }) {
   const [open, setOpen] = useState(false);
   const dev = useDevMode();
   const wrapRef = useRef(null);
+  const navigate = useNavigate();
 
   // Click-outside closes the popover.
   useEffect(() => {
@@ -226,6 +229,13 @@ function UserMenu({ role }) {
 
   const roleLabel = role === "viewer" ? "合作伙伴 · 只读" : "管理员";
   const showDevRow = role !== "viewer";
+
+  function handleLogout() {
+    localStorage.removeItem("adminToken");
+    setAdminToken("");
+    setOpen(false);
+    navigate("/admin/login");
+  }
 
   return (
     <div
@@ -265,33 +275,23 @@ function UserMenu({ role }) {
             borderRadius: "50%",
             background: COLOR.info,
             color: "#fff",
-            fontSize: 11,
-            fontWeight: 600,
             display: "grid",
             placeItems: "center",
           }}
         >
-          陈
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+            person
+          </span>
         </div>
         <div
           style={{
-            fontSize: 12.5,
+            fontSize: 13,
             fontWeight: 500,
-            display: "flex",
-            flexDirection: "column",
+            color: COLOR.text1,
             lineHeight: 1.2,
           }}
         >
-          陈宇明
-          <span
-            style={{
-              fontSize: 10.5,
-              color: COLOR.text3,
-              letterSpacing: "0.04em",
-            }}
-          >
-            {roleLabel}
-          </span>
+          {roleLabel}
         </div>
         <span
           className="material-symbols-outlined"
@@ -335,7 +335,7 @@ function UserMenu({ role }) {
                 <Switch on={dev} onClick={toggleDevMode} />
               </PopoverRow>
             )}
-            <PopoverRow icon="logout" label="退出" danger onClick={() => setOpen(false)} />
+            <PopoverRow icon="logout" label="退出" danger onClick={handleLogout} />
           </div>
         )}
       </div>
