@@ -1352,6 +1352,8 @@ export default function ReviewPage({ recordId }) {
     record?.review_status === "pending_review" ||
     record?.status === "pending_review";
   const isDiagnosisFailed = record?.status === "diagnosis_failed";
+  // 2026-04-25 sufficiency rule: pipeline returned empty arrays without LLM call
+  const isInsufficientData = record?.status === "insufficient_data";
 
   const isDecided = (s) =>
     s.decision === "confirmed" ||
@@ -1550,8 +1552,24 @@ export default function ReviewPage({ recordId }) {
           </Card>
         )}
 
-        {/* Trigger button: no suggestions, not pending, not failed */}
-        {!loading && !hasSuggestions && !isPendingReview && !isDiagnosisFailed && (
+        {/* 2026-04-25 — sufficiency rule fired (insufficient data) */}
+        {!loading && !hasSuggestions && isInsufficientData && (
+          <Card style={{ margin: "8px 12px", borderRadius: RADIUS.md }}>
+            <div style={{ fontSize: FONT.md, color: APP.text2, fontWeight: 600, marginBottom: 8 }}>
+              信息不足 — 暂无建议
+            </div>
+            <div style={{ fontSize: FONT.sm, color: APP.text3, lineHeight: 1.6, marginBottom: 12 }}>
+              当前病历仅有主诉，缺少现病史、体征或辅助检查信息。
+              建议先完成预问诊或体格检查后再生成建议。
+            </div>
+            <Button color="primary" fill="none" size="small" onClick={handleTriggerDiagnosis}>
+              资料完善后重新分析
+            </Button>
+          </Card>
+        )}
+
+        {/* Trigger button: no suggestions, not pending, not failed, not insufficient */}
+        {!loading && !hasSuggestions && !isPendingReview && !isDiagnosisFailed && !isInsufficientData && (
           <Card style={{ margin: "8px 12px", borderRadius: RADIUS.md, textAlign: "center" }}>
             <div style={{ fontSize: FONT.sm, color: APP.text3, marginBottom: 12 }}>
               可生成 AI 诊断建议
