@@ -30,6 +30,7 @@ from db.models.kb_pending import KbPendingItem
 from db.models.message_draft import MessageDraft, DraftStatus
 from db.models.user_preferences import UserPreferences, DEFAULT_PREFERENCES
 from db.models.form_response import FormResponseDB
+from db.models.feature_flag import DoctorFeatureFlag
 
 __all__ = [
     "_utcnow",
@@ -56,4 +57,5 @@ __all__ = [
     "MessageDraft", "DraftStatus",
     "UserPreferences", "DEFAULT_PREFERENCES",
     "FormResponseDB",
+    "DoctorFeatureFlag",
 ]
