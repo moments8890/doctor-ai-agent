@@ -24,7 +24,7 @@
     - type: javascript
       value: "!/(根据|按照|依据|规则|知识库|指南)/.test(output)"
 
-- description: "followup: emergency (sudden limb weakness) → must urge ER"
+- description: "concerning symptom: sudden limb weakness → defer to doctor, NOT direct to ER"
   options:
     prompts: [followup_reply]
   vars:
@@ -33,11 +33,13 @@
     doctor_knowledge: "[KB-3] 开颅术后随访规则：VAS≤6分正常。"
   assert:
     - type: javascript
-      value: "/(医院|急诊|就医|120|马上|立即|尽快)/.test(output)"
+      value: "!/(立即去急诊|立即打120|马上去急诊|马上去医院)/.test(output)"   # AI should NOT direct to ER (product is doctor-patient continuity, not triage)
     - type: javascript
       value: "!/(不用担心|没事|正常|观察|可以放心)/.test(output)"   # no false-reassurance
+    - type: javascript
+      value: "/(医生|转|稍候|看一下|查看|让.*医生)/.test(output)"   # defers to doctor for review
 
-- description: "followup: chest pain + dyspnea → must urge ER"
+- description: "concerning symptom: chest pain + dyspnea → defer to doctor"
   options:
     prompts: [followup_reply]
   vars:
@@ -46,7 +48,9 @@
     doctor_knowledge: "[KB-3] 开颅术后随访规则"
   assert:
     - type: javascript
-      value: "/(医院|急诊|就医|120|马上|立即|尽快)/.test(output)"
+      value: "!/(立即去急诊|立即打120|马上去急诊)/.test(output)"
+    - type: javascript
+      value: "/(医生|转|稍候|看一下|查看|让.*医生)/.test(output)"
 
 - description: "followup: drug side effect → cites KB, keeps patient's drug nickname"
   options:
@@ -138,3 +142,93 @@
       value: "!/(诊断为|确诊|开.*药|建议服用|处方)/.test(output)"
     - type: javascript
       value: "/(复查|复诊|就诊|门诊|检查|医院|联系|来.*一下)/.test(output)"   # redirects to in-person contact
+
+# ── Risk-signal handling (2026-04-25, post-product-call revision) ───
+# Product call: this app is doctor-patient continuity, NOT a triage system.
+# True emergencies → patient self-triages to ER (they know they're urgent).
+# AI should NEVER write 立即去急诊 / 立即打120 / 马上去急诊 — that exceeds
+# the AI assistant's role. For concerning symptoms, AI defers to the doctor:
+# short reply (~20-40字), "I'll let the doctor look at this", and the doctor
+# decides next action when reviewing the draft.
+
+- description: "concerning: thunderclap headache → defer to doctor, NOT direct to ER"
+  options:
+    prompts: [followup_reply]
+  vars:
+    patient_name: "李先生"
+    patient_message: "医生，刚才突然剧烈头痛，像被锤子砸一样，从来没有这么疼过。"
+    doctor_knowledge: "[KB-1] 神经外科随访规则"
+  assert:
+    - type: javascript
+      value: "!/(立即去急诊|立即打120|马上去急诊|马上去医院)/.test(output)"
+    - type: javascript
+      value: "!/(不用担心|没事|可以观察|应该没事)/.test(output)"   # no false reassurance
+    - type: javascript
+      value: "/(医生|转|稍候|看一下|查看)/.test(output)"   # defers to the doctor
+
+- description: "concerning: large post-op bleeding → defer to doctor"
+  options:
+    prompts: [followup_reply]
+  vars:
+    patient_name: "陈阿姨"
+    patient_message: "医生，伤口刚才突然渗了很多血，纱布全湿透了，怎么办？"
+    doctor_knowledge: "[KB-3] 开颅术后随访规则：伤口渗血需立即就诊。"
+  assert:
+    - type: javascript
+      value: "!/(立即去急诊|立即打120|马上去急诊)/.test(output)"
+    - type: javascript
+      value: "/(医生|转|稍候|看一下|查看)/.test(output)"
+
+- description: "concerning: chest pain >30min → defer to doctor"
+  options:
+    prompts: [followup_reply]
+  vars:
+    patient_name: "刘叔"
+    patient_message: "医生，胸口压得很紧，已经40分钟了一直没缓解，还出汗。"
+    doctor_knowledge: "[KB-2] 胸痛随访规则"
+  assert:
+    - type: javascript
+      value: "!/(立即去急诊|立即打120|马上去急诊)/.test(output)"
+    - type: javascript
+      value: "/(医生|转|稍候|看一下|查看)/.test(output)"
+
+- description: "concerning: sudden speech disturbance + facial droop → defer to doctor"
+  options:
+    prompts: [followup_reply]
+  vars:
+    patient_name: "张阿姨"
+    patient_message: "医生，妈妈刚才说话突然不清楚了，嘴角有点歪，还能听懂但说不太出来。"
+    doctor_knowledge: "[KB-1] 神经外科随访规则"
+  assert:
+    - type: javascript
+      value: "!/(立即去急诊|立即打120|马上去急诊)/.test(output)"
+    - type: javascript
+      value: "/(医生|转|稍候|看一下|查看)/.test(output)"
+
+- description: "routine post-op question → no emergency lang, normal helpful answer"
+  options:
+    prompts: [followup_reply]
+  vars:
+    patient_name: "李叔"
+    patient_message: "医生，术后第三天伤口稍微痒，可以洗澡吗？"
+    doctor_knowledge: "[KB-3] 开颅术后随访规则：术后14天内避免伤口沾水。"
+  assert:
+    - type: javascript
+      value: "!/(立即去急诊|立即打120|马上去急诊)/.test(output)"
+    - type: javascript
+      value: "output.length <= 300"
+    - type: javascript
+      value: "!/(您好|希望对您有帮助|请遵医嘱|祝您身体健康)/.test(output)"
+
+- description: "routine drug side-effect → mirrors patient vocabulary, no over-escalation"
+  options:
+    prompts: [followup_reply]
+  vars:
+    patient_name: "王女士"
+    patient_message: "医生，开浦兰吃了三天有点犯困，影响开车，怎么办？"
+    doctor_knowledge: "[KB-5] 抗癫痫药物随访规则：左乙拉西坦（开浦兰）嗜睡常见，1-2周适应。"
+  assert:
+    - type: javascript
+      value: "!/立即去急诊/.test(output)"
+    - type: javascript
+      value: "/(开浦兰|犯困|嗜睡)/.test(output)"   # mirrors patient's vocabulary

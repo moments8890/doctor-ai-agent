@@ -36,7 +36,7 @@ def _inject_date(text: str) -> str:
     return text
 
 
-async def _resolve_specialty(doctor_id: str) -> str:
+async def _resolve_specialty(doctor_id: str) -> str:  # noqa: E303
     """Look up doctor's specialty from web_doctors when not passed by caller.
 
     Returns "" if no doctor row or no specialty set. Empty result means
