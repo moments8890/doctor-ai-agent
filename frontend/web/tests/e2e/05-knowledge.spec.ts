@@ -17,7 +17,8 @@ test.describe("工作流 05 — 知识库管理", () => {
     // ("暂无知识条目") will NOT appear. Instead, verify the list renders
     // with the search bar and stats row.
     await doctorPage.goto("/doctor/settings/knowledge");
-    await expect(doctorPage.getByText(/条规则/)).toBeVisible();
+    // Stats strip shows "总规则" (not "条规则") since the v2 redesign.
+    await expect(doctorPage.getByText(/总规则/)).toBeVisible();
 
     await steps.capture(doctorPage, "知识列表初始状态", "新医生显示预置知识条目");
   });
@@ -35,8 +36,8 @@ test.describe("工作流 05 — 知识库管理", () => {
 
     await steps.capture(doctorPage, "知识列表页面", "显示添加的知识条目");
 
-    // Stats bar labels
-    for (const label of ["条规则", "本周引用", "未引用"]) {
+    // Stats bar labels (v2 redesign: 总规则 / 近7天引用 / 30天未用)
+    for (const label of ["总规则", "近7天引用", "30天未用"]) {
       await expect(doctorPage.getByText(label)).toBeVisible();
     }
 
@@ -90,6 +91,8 @@ test.describe("工作流 05 — 知识库管理", () => {
 
     await steps.capture(doctorPage, "搜索前列表", "显示全部知识条目");
 
+    // Search bar lives in the "全部" tab — switch to it first.
+    await doctorPage.getByText("全部").first().click();
     const search = doctorPage.getByPlaceholder(/搜索知识规则/);
     await search.fill("头痛");
     await expect(doctorPage.getByText("头痛鉴别诊断要点").first()).toBeVisible();

@@ -21,8 +21,22 @@ export class OnboardingPage {
   }
 
   // ── Locators the spec needs to assert on ──────────────────────────────
+  /**
+   * The wizard NavBar title for each step (v2 OnboardingWizard):
+   *   1 → "添加一条规则"
+   *   2 → "看AI怎么用它"
+   *   3 → "确认并开始"
+   * The old "步骤 N/3" text no longer exists; the antd-mobile Steps component
+   * renders an icon-based progress bar without that literal string.
+   */
+  private static readonly STEP_TITLES: Record<number, string> = {
+    1: "添加一条规则",
+    2: "看AI怎么用它",
+    3: "确认并开始",
+  };
+
   stepHeading(n: number): Locator {
-    return this.page.getByText(`步骤 ${n}/3`);
+    return this.page.getByText(OnboardingPage.STEP_TITLES[n] || `步骤 ${n}`).first();
   }
 
   get ruleEchoCard(): Locator {
