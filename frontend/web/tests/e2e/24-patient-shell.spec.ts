@@ -1,14 +1,41 @@
 import { test, expect } from "@playwright/test";
 
-const PATIENT_CREDS = { nickname: "patient", passcode: "123456" };
+// Seed identity directly into the new zustand-persisted store
+// (`patient-portal-auth`). Bypasses LoginPage, which still writes legacy
+// per-key localStorage; PatientPage now reads from the store. The store's
+// legacy-key migration IIFE only fires at module-import time, so a SPA
+// nav from /login to /patient after login won't pick those up — direct
+// seed is the simplest stable path until LoginPage is also migrated.
+const SEEDED_AUTH = {
+  state: {
+    token: "seeded-patient-token",
+    patientId: "1",
+    patientName: "测试患者",
+    doctorId: "seeded_doctor",
+    doctorName: "测试医生",
+  },
+  version: 0,
+};
 
 test.describe("patient shell", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/login");
-    await page.getByText("患者", { exact: true }).click();
-    await page.getByPlaceholder("请输入昵称").fill(PATIENT_CREDS.nickname);
-    await page.getByPlaceholder("请输入数字口令").fill(PATIENT_CREDS.passcode);
-    await page.getByText("登录", { exact: true }).click();
+    // Stub /api/patient/me so the refresh effect doesn't 401 + clear identity.
+    await page.route("**/api/patient/me", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          patient_id: 1,
+          patient_name: "测试患者",
+          doctor_id: "seeded_doctor",
+          doctor_name: "测试医生",
+        }),
+      }),
+    );
+    await page.addInitScript((auth) => {
+      localStorage.setItem("patient-portal-auth", JSON.stringify(auth));
+    }, SEEDED_AUTH);
+    await page.goto("/patient");
     await page.waitForURL(/\/patient/);
   });
 

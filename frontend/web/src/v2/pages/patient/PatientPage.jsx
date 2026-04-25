@@ -26,6 +26,7 @@ import {
   AddCircleOutline,
 } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
+import { usePatientStore } from "../../../store/patientStore";
 import { APP, FONT, ICON } from "../../theme";
 import { pageContainer, navBarStyle } from "../../layouts";
 import ChatTab from "./ChatTab";
@@ -47,10 +48,6 @@ import {
 
 // ── Storage keys ───────────────────────────────────────────────────
 
-const STORAGE_KEY = "patient_portal_token";
-const STORAGE_NAME_KEY = "patient_portal_name";
-const STORAGE_DOCTOR_KEY = "patient_portal_doctor_id";
-const STORAGE_DOCTOR_NAME_KEY = "patient_portal_doctor_name";
 const LAST_SEEN_CHAT_KEY = "patient_last_seen_chat";
 const PATIENT_CHAT_STORAGE_KEY = "patient_chat_messages";
 
@@ -74,23 +71,20 @@ export default function PatientPage() {
   useState(() => {
     const params = new URLSearchParams(window.location.search);
     const qrToken = params.get("token");
-    if (qrToken) {
-      const qrDoctorId = params.get("doctor_id");
-      const qrName = params.get("name");
-      localStorage.setItem(STORAGE_KEY, qrToken);
-      if (qrName) localStorage.setItem(STORAGE_NAME_KEY, qrName);
-      if (qrDoctorId) localStorage.setItem(STORAGE_DOCTOR_KEY, qrDoctorId);
-      const cleanUrl = new URL(window.location.href);
-      ["token", "doctor_id", "name"].forEach((k) => cleanUrl.searchParams.delete(k));
-      window.history.replaceState({}, "", cleanUrl.toString());
-    }
+    if (!qrToken) return;
+    usePatientStore.getState().loginWithIdentity({
+      token: qrToken,
+      patientName: params.get("name") || "",
+      doctorId: params.get("doctor_id") || "",
+      // patientId + doctorName intentionally empty — refreshed by /patient/me
+    });
+    const cleanUrl = new URL(window.location.href);
+    ["token", "doctor_id", "name"].forEach((k) => cleanUrl.searchParams.delete(k));
+    window.history.replaceState({}, "", cleanUrl.toString());
   });
 
   // ── Identity state ───────────────────────────────────────────────
-  const [token, setToken] = useState(() => localStorage.getItem(STORAGE_KEY) || "");
-  const [patientName, setPatientName] = useState(() => localStorage.getItem(STORAGE_NAME_KEY) || "");
-  const [doctorName, setDoctorName] = useState(() => localStorage.getItem(STORAGE_DOCTOR_NAME_KEY) || "");
-  const [doctorId, setDoctorId] = useState(() => localStorage.getItem(STORAGE_DOCTOR_KEY) || "");
+  const { token, patientName, doctorName, doctorId } = usePatientStore();
   const [unreadCount, setUnreadCount] = useState(0);
   const [onboardingDone, setOnboardingDone] = useState(() => {
     const pid = localStorage.getItem("patient_portal_patient_id");
@@ -99,12 +93,13 @@ export default function PatientPage() {
 
   // Mock mode
   useEffect(() => {
-    if (api.isMock) {
-      setToken("mock-patient-token");
-      setPatientName("陈伟强");
-      setDoctorName("张医生");
-      setDoctorId("mock_doctor");
-    }
+    if (!api.isMock) return;
+    usePatientStore.getState().loginWithIdentity({
+      token: "mock-patient-token",
+      patientName: "陈伟强",
+      doctorId: "mock_doctor",
+      doctorName: "张医生",
+    });
   }, [api.isMock]);
 
   // Real mode: refresh identity
@@ -113,12 +108,12 @@ export default function PatientPage() {
     api
       .getPatientMe(token)
       .then((data) => {
-        if (data.patient_name) setPatientName(data.patient_name);
-        setDoctorName(data.doctor_name || "");
-        if (data.doctor_id) setDoctorId(data.doctor_id);
-        if (data.patient_id) {
-          localStorage.setItem("patient_portal_patient_id", String(data.patient_id));
-        }
+        usePatientStore.getState().mergeProfile({
+          patientId: data.patient_id ? String(data.patient_id) : undefined,
+          patientName: data.patient_name || undefined,
+          doctorId: data.doctor_id || undefined,
+          doctorName: data.doctor_name || undefined,
+        });
       })
       .catch(() => {});
   }, [token, api]);
@@ -164,18 +159,8 @@ export default function PatientPage() {
   }, []);
 
   const handleLogout = useCallback(() => {
-    [
-      STORAGE_KEY,
-      STORAGE_NAME_KEY,
-      STORAGE_DOCTOR_KEY,
-      STORAGE_DOCTOR_NAME_KEY,
-      PATIENT_CHAT_STORAGE_KEY,
-      "patient_portal_patient_id",
-    ].forEach((k) => localStorage.removeItem(k));
-    setToken("");
-    setPatientName("");
-    setDoctorName("");
-    setDoctorId("");
+    localStorage.removeItem(PATIENT_CHAT_STORAGE_KEY);
+    usePatientStore.getState().clearAuth();
   }, []);
 
   // ── Auth guard ────────────────────────────────────────────────────
