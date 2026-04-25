@@ -28,7 +28,26 @@ import AdminTopbar from "./AdminTopbar";
 
 const MOBILE_STYLE_ID = "admin-v3-mobile-styles";
 
+// The v2 patient/doctor app deliberately runs as a fixed-viewport mobile
+// shell — main.jsx imports `antd-mobile/es/global` (which sets html/body
+// height:100%) and v2/App.jsx wraps everything in .v2-mobile-outer +
+// .v2-mobile-inner with `height: 100%; overflow: hidden`. That makes the
+// patient app behave like a native screen (internal scroll containers,
+// sticky bottom tab-bar, no document scroll). Admin v3 lives inside the
+// SAME bundle but needs the OPPOSITE — normal document scroll for tall
+// dashboards. We scope an override to a body class toggled by the shell
+// on mount, so the mobile app keeps its native feel intact.
 const MOBILE_CSS = `
+body.admin-v3-mounted,
+body.admin-v3-mounted #root,
+body.admin-v3-mounted .v2-mobile-outer,
+body.admin-v3-mounted .v2-mobile-inner,
+html:has(body.admin-v3-mounted) {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow: visible !important;
+}
+
 @media (max-width: 768px) {
   [data-v3-shell] { grid-template-columns: 1fr !important; }
   [data-v3-sidebar] { display: none !important; }
@@ -54,6 +73,8 @@ function injectMobileStyles() {
 export default function AdminShellV3({ section, breadcrumb, children }) {
   useEffect(() => {
     injectMobileStyles();
+    document.body.classList.add("admin-v3-mounted");
+    return () => document.body.classList.remove("admin-v3-mounted");
   }, []);
 
   return (
