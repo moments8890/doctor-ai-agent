@@ -1,0 +1,17 @@
+/* Self-hosted Material Symbols Outlined.
+ *
+ * Replaces the cross-border Google Fonts CDN load. The original variable
+ * font is ~3.9 MB; this is the static (fixed-axis) cut at ~400 KB, which
+ * is fine because src/index.css only ever instances at one fixed point
+ * (FILL=0, wght=400, GRAD=0, opsz=20).
+ *
+ * Sourced from fonts.gstatic.com on 2026-04-25 via Google Fonts' static
+ * CSS endpoint. Re-fetch when the design wants new glyph coverage.
+ */
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('/fonts/material-symbols-outlined.woff') format('woff');
+}
