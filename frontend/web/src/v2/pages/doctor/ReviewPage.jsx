@@ -26,7 +26,7 @@ import {
 import { MoreOutline } from "antd-mobile-icons";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
-import { ActionFooter, SectionHeader, CitationPopup } from "../../components";
+import { ActionFooter, ListSectionDivider as SectionHeader, CitationPopup } from "../../components";
 import { useTaskRecord, useSuggestions } from "../../../lib/doctorQueries";
 import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";

@@ -14,7 +14,7 @@ import { usePatientApi } from "../../../api/PatientApiContext";
 import { relativeFuture } from "../../../utils/time";
 import { APP, FONT } from "../../theme";
 import { pageContainer, scrollable } from "../../layouts";
-import { LoadingCenter, EmptyState, SectionHeader } from "../../components";
+import { LoadingCenter, EmptyState, ListSectionDivider as SectionHeader } from "../../components";
 
 // ---------------------------------------------------------------------------
 // Date helpers
