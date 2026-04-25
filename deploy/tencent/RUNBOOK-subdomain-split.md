@@ -1,9 +1,15 @@
 # Subdomain split runbook
 
-Take `api.doctoragentai.cn` from "everything-on-one-host" to four scoped
-hosts. Designed for zero downtime — old paths keep redirecting for a
-release after cutover. **All risky steps run on the Tencent host as root**;
-the repo holds the configs and scripts that get deployed there via
+> **Status: COMPLETED 2026-04-26** — all phases below have shipped.
+> Live state is in [`SERVICES.md`](./SERVICES.md). This file is the
+> historical record of how the migration was executed, kept for
+> reference (rollback, future similar moves, postmortem reading).
+> Do not re-execute the phases against current production.
+
+Took `api.doctoragentai.cn` from "everything-on-one-host" to four scoped
+hosts with zero downtime — old paths still 301-redirect for one release
+cycle after cutover. **All risky steps ran on the Tencent host as root**;
+the repo holds the configs and scripts that deployed there via
 gitee → `deploy.sh`.
 
 ## Target
@@ -12,10 +18,11 @@ gitee → `deploy.sh`.
 |---|---|---|
 | `api.doctoragentai.cn` | JSON API only | public, JWT |
 | `app.doctoragentai.cn` | Doctor + patient SPA | public |
-| `wiki.doctoragentai.cn` | Public docs | public (gate 内部 later) |
+| `wiki.doctoragentai.cn` | Public docs | public (内部 sidebar removed) |
 | `ops.doctoragentai.cn` | glitchtip + dbgate | basic-auth + IP allowlist |
 
-One wildcard cert `*.doctoragentai.cn` covers all four.
+Multi-SAN cert covers all four (planned wildcard via `acme.sh`
+deferred — see `scripts/issue-wildcard-cert.sh`).
 
 ---
 

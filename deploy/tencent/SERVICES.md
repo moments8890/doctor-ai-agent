@@ -34,9 +34,9 @@ cert (`/etc/letsencrypt/live/api.doctoragentai.cn/`) — certbot auto-renews.
 
 | Host | Vhost file | Public? | Auth | Backed by |
 |---|---|---|---|---|
-| `api.doctoragentai.cn` | `/etc/nginx/sites-enabled/doctoragentai.cn` | Yes | JWT (FastAPI middleware), per-path basic-auth on internal tools | uvicorn `:8000` + SPA fallback (transitional) |
-| `app.doctoragentai.cn` | `/etc/nginx/sites-enabled/app.doctoragentai.cn` | Yes | JWT only | Static `/home/ubuntu/doctor-ai-agent/frontend/dist` |
-| `wiki.doctoragentai.cn` | `/etc/nginx/sites-enabled/wiki.doctoragentai.cn` | Yes | None (mixed 公开 / 内部 — pending scrub) | Static `frontend/dist/wiki` |
+| `api.doctoragentai.cn` | `/etc/nginx/sites-enabled/doctoragentai.cn` | Yes | JWT (FastAPI middleware) | uvicorn `:8000` — JSON API only after Phase 5 cutover |
+| `app.doctoragentai.cn` | `/etc/nginx/sites-enabled/app.doctoragentai.cn` | Yes | JWT only | Static `/home/ubuntu/doctor-ai-agent/frontend/dist` (the SPA) |
+| `wiki.doctoragentai.cn` | `/etc/nginx/sites-enabled/wiki.doctoragentai.cn` | Yes | None (public docs only — 内部 sidebar removed) | Static `frontend/dist/wiki` |
 | `ops.doctoragentai.cn` | `/etc/nginx/sites-enabled/ops.doctoragentai.cn` | **No** | basic-auth + IP allowlist `50.47.192.0/20` (`satisfy all`) | Internal tools (see below) |
 
 DNS records live at DNSPod (Tencent) — managed via
@@ -60,8 +60,8 @@ The doctor-ai-agent FastAPI app on `127.0.0.1:8000`. nginx
 | `/test/*` | `127.0.0.1:8000` | Internal smoke endpoints (debug; `UI_DEBUG_TOKEN` gate) |
 | `/hooks/deploy` | `127.0.0.1:9000` | Gitee webhook receiver (separate `webhook_server.py`) |
 | `/.well-known/acme-challenge/` | `/var/www/certbot` | certbot HTTP-01 challenge serving |
-| `/glitchtip/`, `/dbgate/` | (see ops.*) | **Legacy paths** — basic-auth gated as transitional Phase 0 fix; will 301 → `ops.*` after Phase 5 cutover |
-| `/` | static `frontend/dist` | SPA fallback — moves to `app.*` after Phase 5 |
+| `/wiki/`, `/glitchtip/`, `/dbgate/` | 301 redirect | Legacy paths → wiki.* / ops.* — drop after one release cycle |
+| `/` (and `/login`, `/doctor/*`, `/patient/*`, `/admin/*`) | 301 → `https://app.doctoragentai.cn$request_uri` | Catch-all — bookmarks against the old everything-on-api.* URL survive cutover by redirecting to the new SPA host |
 
 ### Auth model (`api.*`)
 
@@ -247,10 +247,14 @@ The doctor + patient SPA reads its API base from build-time env:
 | WeChat miniapp | `https://api.doctoragentai.cn` | `frontend/web/.env.android` |
 | E2E tests | `http://127.0.0.1:8001` | `tests/e2e/fixtures/doctor-auth.ts:20` (E2E_API_BASE_URL override) |
 
-After Phase 5 cutover, the web build should explicitly target
-`https://api.doctoragentai.cn` to make the cross-origin boundary
-visible (and to make CORS misconfigurations fail loud rather than
-silently work via same-origin).
+Now that `api.*` is JSON-only and the SPA lives at `app.*`, the web
+build IS effectively cross-origin: the page loaded from `app.*` calls
+`api.*` via `fetch()`, and CORS at the FastAPI layer (`runtime.json:
+CORS_ALLOW_ORIGINS`) gates which origins are allowed. If you set
+`VITE_API_BASE_URL=https://api.doctoragentai.cn` explicitly in the
+production build, you make that boundary unmissable in the source —
+worth doing at the next frontend build cycle to avoid surprise when
+someone deploys the SPA to a third host and forgets the CORS config.
 
 ---
 
@@ -287,15 +291,22 @@ sudo htpasswd /etc/nginx/.dbgate-htpasswd opsuser
 
 ## Pending / known follow-ups
 
-- **Phase 5 cutover** — `api.*` still serves SPA + has 301-redirects for
-  legacy `/wiki/`, `/glitchtip/`, etc. After ~1 week of soak on the new
-  hosts, swap to `deploy/tencent/nginx/api.doctoragentai.cn.conf` (in
-  repo) so `api.*` is API-only, then update WeChat miniapp + frontend
-  builds to use `app.*`.
-- **Wiki 内部 scrub** — `wiki.html` sidebar still mixes 公开 (常见问题,
-  更新计划) with 内部 (设计文档, Redesign 截图). Move 内部 pages to
-  `ops.doctoragentai.cn/internal-wiki/` (auth-gated) before treating
-  `wiki.*` as a public marketing surface.
+- **Drop the legacy 301 redirects on `api.*`** — after ~1 release cycle
+  with no fallback hits in the access log, remove the `/wiki/`,
+  `/glitchtip/`, `/dbgate/`, and catch-all `/ → app.*` rules from
+  `deploy/tencent/nginx/api.doctoragentai.cn.conf`. Until then they're
+  load-bearing for any old bookmarks / shared links.
+- **One-time re-login** — users who were logged in on the old
+  `api.doctoragentai.cn` SPA have their JWT in `api.*` localStorage.
+  When they next visit, the 301 to `app.*` lands them on a fresh origin
+  with empty storage → forced to log in again once. No long-term issue;
+  no action required unless complaints come in.
+- **Wiki 内部 page files** — `wiki-specs.html` and
+  `wiki-smoke-gallery.html` are no longer linked from the public wiki
+  sidebar but the files still ship in `frontend/dist/wiki/` (reachable
+  by direct URL). If the screenshots or specs are sensitive, move them
+  to `ops.doctoragentai.cn/internal-wiki/` (auth-gated) and delete from
+  `frontend/web/public/wiki/`.
 - **Wildcard cert** — current cert is multi-SAN; adding a new subdomain
   needs `certbot --expand`. Migrate to wildcard via
   `scripts/issue-wildcard-cert.sh` to make new subdomains zero-touch

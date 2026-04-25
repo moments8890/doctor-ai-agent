@@ -21,13 +21,16 @@
 
 部署工件目录：
 
-1. `deploy/tencent/README.md` — 部署操作手册（当前生产配置）
-2. `deploy/tencent/docker-compose.prod.yml` — 容器化备选方案
-3. `deploy/tencent/nginx.conf` — 前端 Nginx 配置
-4. `config/runtime.json.vm` — **生产运行时配置模板**（推荐，v2 结构化格式）
-5. `deploy/tencent/runtime.example.json` — 生产配置参考（扁平格式）
-6. `.github/workflows/ci.yml`
-7. `.github/workflows/deploy-prod.yml`
+1. **`deploy/tencent/SERVICES.md`** — 当前生产服务总览（什么跑在哪、认证、CORS、cheat-sheet）
+2. **`deploy/tencent/RUNBOOK-subdomain-split.md`** — 子域名拆分历史 runbook（已完成 2026-04-26）
+3. `deploy/tencent/deploy.sh` — Gitee webhook 触发的部署脚本（git pull + alembic + npm build + systemd restart）
+4. `deploy/tencent/nginx/` — 4 个 vhost 配置（`api/app/wiki/ops`）+ Phase 0 锁定片段
+5. `deploy/tencent/scripts/` — `issue-wildcard-cert.sh`、`install-vhosts.sh`
+6. `deploy/tencent/glitchtip.md`、`adminer.md` — 单工具首次配置说明
+7. `deploy/tencent/mysql_restore.md` — MySQL 恢复流程
+8. `config/runtime.json.vm` — **生产运行时配置模板**（推荐，v2 结构化格式）
+9. `.github/workflows/ci.yml`
+10. `.github/workflows/deploy-prod.yml`
 
 ## 里程碑（建议）
 
