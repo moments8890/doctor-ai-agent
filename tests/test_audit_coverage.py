@@ -46,7 +46,6 @@ _AUDIT_BASELINE_GAPS = frozenset({
     "channels/web/doctor_dashboard/admin_patients.py",
     "channels/web/doctor_dashboard/admin_suggestions.py",
     "channels/web/doctor_dashboard/briefing_handlers.py",
-    "channels/web/doctor_dashboard/diagnosis_handlers.py",
     "channels/web/doctor_dashboard/draft_handlers.py",
     "channels/web/doctor_dashboard/feedback_handlers.py",
     "channels/web/doctor_dashboard/kb_pending_handlers.py",

@@ -30,6 +30,7 @@ from db.models.ai_suggestion import AISuggestion, SuggestionDecision, Suggestion
 from db.models.records import MedicalRecordDB, RecordStatus
 from domain.knowledge.teaching import log_doctor_edit, should_prompt_teaching
 from domain.tasks.from_record import generate_tasks_from_record
+from infra.observability.audit import audit
 from infra.observability.events import log_event
 from utils.log import log, safe_create_task
 
@@ -187,21 +188,26 @@ async def get_suggestions(
     # Filter out hallucinated citation IDs — LLM sometimes generates [KB-N]
     # references for IDs that don't correspond to real knowledge items.
     # Batch-fetch valid KB IDs for this doctor and remove any phantom IDs.
-    if any(s["cited_knowledge_ids"] for s in suggestions):
-        valid_kb_ids: set[int] = {
-            row[0]
-            for row in (
-                await db.execute(
-                    select(DoctorKnowledgeItem.id).where(
-                        DoctorKnowledgeItem.doctor_id == resolved
-                    )
+    valid_kb_ids: set[int] = {
+        row[0]
+        for row in (
+            await db.execute(
+                select(DoctorKnowledgeItem.id).where(
+                    DoctorKnowledgeItem.doctor_id == resolved
                 )
-            ).all()
-        }
-        for s in suggestions:
-            s["cited_knowledge_ids"] = [
-                kid for kid in s["cited_knowledge_ids"] if kid in valid_kb_ids
-            ]
+            )
+        ).all()
+    }
+    for s in suggestions:
+        s["cited_knowledge_ids"] = [
+            kid for kid in s["cited_knowledge_ids"] if kid in valid_kb_ids
+        ]
+        # Grounding flag: True iff the cleaned citation list is non-empty.
+        # Surface to the frontend so it can display a "未引用知识库" warning
+        # chip on suggestions that the LLM produced without anchoring to a
+        # KB item — they're not necessarily wrong, but they ARE the high-risk
+        # bucket for hallucination and warrant doctor scrutiny.
+        s["grounded"] = bool(s["cited_knowledge_ids"])
 
     return {"status": rec.status, "suggestions": suggestions}
 
@@ -276,6 +282,38 @@ async def decide_suggestion(
 
     if updated is None:
         raise HTTPException(status_code=404, detail="Suggestion not found")
+
+    # Moderation telemetry: log when a doctor confirms a suggestion that
+    # carries no valid KB citations. The visibility lets us answer "how
+    # often do ungrounded LLM outputs reach a confirmed clinical decision"
+    # — input for whether stricter enforcement (re-prompt or block) is
+    # warranted later. Best-effort; does not gate the decision flow.
+    if decision_enum == SuggestionDecision.confirmed:
+        try:
+            from domain.knowledge.citation_parser import extract_citations as _ec
+            text = (row.content or "") + " " + (row.detail or "")
+            cited_ids = _ec(text).cited_ids
+            if cited_ids:
+                valid_ids = {
+                    r[0] for r in (
+                        await db.execute(
+                            select(DoctorKnowledgeItem.id).where(
+                                DoctorKnowledgeItem.doctor_id == row.doctor_id
+                            )
+                        )
+                    ).all()
+                }
+                grounded = any(cid in valid_ids for cid in cited_ids)
+            else:
+                grounded = False
+            if not grounded:
+                safe_create_task(audit(
+                    row.doctor_id, "WRITE",
+                    resource_type="suggestion_confirmed_ungrounded",
+                    resource_id=str(suggestion_id),
+                ))
+        except Exception as exc:
+            log(f"[diagnosis] grounding-audit failed (non-fatal): {exc}", level="warning")
 
     result: dict = {"status": "ok", "id": updated.id, "decision": updated.decision}
     if teach_prompt and edit_id is not None:
