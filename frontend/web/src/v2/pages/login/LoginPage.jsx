@@ -27,6 +27,7 @@ import {
   setWebToken,
 } from "../../../api";
 import { useDoctorStore } from "../../../store/doctorStore";
+import { usePatientStore } from "../../../store/patientStore";
 import { APP, FONT, ICON, RADIUS } from "../../theme";
 
 const STORAGE_KEY = "unified_auth_token";
@@ -206,9 +207,23 @@ export default function LoginPage() {
       }
       navigate("/doctor", { replace: true });
     } else {
-      localStorage.setItem("patient_portal_token", data.token);
-      localStorage.setItem("patient_portal_name", data.name || "");
-      localStorage.setItem("patient_portal_doctor_id", data.doctor_id || "");
+      // Atomic identity write — source of truth is usePatientStore
+      // (persisted under "patient-portal-auth"). Any field absent from the
+      // response becomes "" so stale identity from a prior session can't bleed
+      // through. PatientPage's auth guard reads token from this store, so this
+      // must run before navigate("/patient") to avoid a redirect loop.
+      usePatientStore.getState().loginWithIdentity({
+        token: data.token || "",
+        patientId: data.patient_id ? String(data.patient_id) : "",
+        patientName: data.name || "",
+        doctorId: data.doctor_id || "",
+        doctorName: data.doctor_name || "",
+      });
+      // Legacy localStorage key — MyPage and isOnboardingDone() still read this
+      // directly. Task 1.2 didn't migrate them, so keep this write until they do.
+      if (data.patient_id) {
+        localStorage.setItem("patient_portal_patient_id", String(data.patient_id));
+      }
       navigate("/patient", { replace: true });
     }
   }
