@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
+import sqlalchemy as sa
 from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -49,6 +50,16 @@ class PatientMessage(Base):
     read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
     seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    # Intake segment grouping — all messages within one continuous patient
+    # intake exchange share the same intake_segment_id (UUID). Used by
+    # retraction logic: when red_flag.detect fires, all whitelist replies
+    # in the same segment are marked retracted.
+    intake_segment_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # True when this outbound AI message was generated from the whitelist
+    # auto-reply path (as opposed to a doctor-authored or LLM draft).
+    is_whitelist_reply: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=sa.text("0"), default=False,
+    )
     # Set when a whitelist auto-reply is retracted because a red-flag
     # signal fired in the same intake_segment. Front-end renders these
     # with strikethrough + a "已撤回" tag.
