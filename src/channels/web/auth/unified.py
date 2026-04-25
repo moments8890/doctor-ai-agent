@@ -5,11 +5,12 @@ import os
 from typing import Optional
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.engine import get_db
+from infra.auth.rate_limit import enforce_ip_rate_limit
 from infra.auth.unified import (
     authenticate,
     issue_token,
@@ -17,7 +18,13 @@ from infra.auth.unified import (
     login_with_role,
     register_doctor,
     register_patient,
+    revoke_user_tokens,
 )
+
+# Per-IP soft cap on unauthenticated login attempts. Layered with the per-account
+# lockout (LOGIN_FAIL_THRESHOLD) so distributed brute force can't sidestep the
+# account ceiling by spreading guesses across many nicknames from one IP.
+_LOGIN_IP_RATE_PER_MIN = int(os.environ.get("LOGIN_IP_RATE_PER_MIN", "30"))
 
 router = APIRouter(prefix="/api/auth", tags=["auth-unified"])
 
@@ -73,18 +80,42 @@ class QRTokenResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.post("/unified/login")
-async def unified_login(body: LoginRequest):
+async def unified_login(body: LoginRequest, request: Request):
     """Login with nickname + passcode, optionally constrained by role."""
+    enforce_ip_rate_limit(
+        request, scope="auth.unified.login",
+        max_requests=_LOGIN_IP_RATE_PER_MIN,
+    )
     return await login(body.nickname, body.passcode, role=body.role)
 
 
 @router.post("/unified/login-role")
-async def unified_login_with_role(body: LoginWithRoleRequest):
+async def unified_login_with_role(body: LoginWithRoleRequest, request: Request):
     """Login with explicit role selection (after role picker)."""
+    enforce_ip_rate_limit(
+        request, scope="auth.unified.login",
+        max_requests=_LOGIN_IP_RATE_PER_MIN,
+    )
     return await login_with_role(
         body.nickname, body.passcode, body.role,
         doctor_id=body.doctor_id, patient_id=body.patient_id,
     )
+
+
+@router.post("/unified/logout")
+async def unified_logout(authorization: Optional[str] = Header(default=None)):
+    """Bump the caller's passcode_version, invalidating every token they hold.
+
+    Useful as "log out everywhere". Standard single-device logout can keep
+    using client-side localStorage clear; this is the kill switch.
+    """
+    payload = await authenticate(authorization)
+    await revoke_user_tokens(
+        role=payload.get("role"),
+        doctor_id=payload.get("doctor_id"),
+        patient_id=payload.get("patient_id"),
+    )
+    return {"ok": True}
 
 
 @router.post("/unified/register/doctor")

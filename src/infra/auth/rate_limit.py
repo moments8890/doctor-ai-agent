@@ -68,3 +68,45 @@ def clear_rate_limits_for_tests() -> None:
     global _last_prune
     _RATE_WINDOWS.clear()
     _last_prune = 0.0
+
+
+def _client_ip_from_request(request) -> str:
+    """Best-effort client IP. Trusts X-Forwarded-For when set (nginx in front)."""
+    xff = (request.headers.get("X-Forwarded-For") or "").strip()
+    if xff:
+        # Left-most entry is the original client.
+        return xff.split(",", 1)[0].strip() or "unknown"
+    real = (request.headers.get("X-Real-IP") or "").strip()
+    if real:
+        return real
+    client = getattr(request, "client", None)
+    return getattr(client, "host", None) or "unknown"
+
+
+def enforce_ip_rate_limit(
+    request,
+    *,
+    scope: str,
+    max_requests: int,
+    window_seconds: float = 60.0,
+) -> None:
+    """Per-IP sliding-window limiter for unauthenticated endpoints (login, etc.).
+
+    Uses the same shared deque map as the doctor-keyed limiter, so both share
+    the prune cycle. Scope must be distinct between use sites.
+    """
+    ip = _client_ip_from_request(request)
+    now = time.time()
+    _maybe_prune(now, max_window=window_seconds)
+    window_start = now - window_seconds
+    key = (scope, ip)
+    q = _RATE_WINDOWS.setdefault(key, deque())
+    while q and q[0] < window_start:
+        q.popleft()
+    if len(q) >= max_requests:
+        raise HTTPException(
+            status_code=429,
+            detail="rate_limit_exceeded",
+            headers={"Retry-After": str(int(window_seconds))},
+        )
+    q.append(now)

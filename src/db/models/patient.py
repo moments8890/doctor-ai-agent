@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import List, Optional
+import sqlalchemy as sa
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, DateTime, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.engine import Base
@@ -23,6 +24,9 @@ class Patient(Base):
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     nickname: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     passcode_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    passcode_failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sa.text("0"))
+    passcode_locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    passcode_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sa.text("1"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     last_activity_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)

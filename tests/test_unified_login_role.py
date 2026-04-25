@@ -112,3 +112,62 @@ async def test_login_wrong_passcode_rejected(session_factory):
     with pytest.raises(HTTPException) as exc:
         await login(NICK, "0000", role="doctor")
     assert exc.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_lockout_after_threshold_failures(session_factory, monkeypatch):
+    """5 wrong passcodes → account locks; correct passcode then 423s."""
+    from fastapi import HTTPException
+    import infra.auth.unified as auth_mod
+
+    monkeypatch.setattr(auth_mod, "_LOGIN_FAIL_THRESHOLD", 3)
+    monkeypatch.setattr(auth_mod, "_LOGIN_LOCK_SECONDS", 7 * 86400)
+
+    for _ in range(3):
+        with pytest.raises(HTTPException):
+            await login(NICK, "0000", role="doctor")
+
+    # Even the correct passcode is refused while locked.
+    with pytest.raises(HTTPException) as exc:
+        await login(NICK, PASSCODE, role="doctor")
+    assert exc.value.status_code == 423
+
+
+@pytest.mark.asyncio
+async def test_success_resets_failure_counter(session_factory):
+    """Failures below threshold + a success → counter cleared, no lock."""
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException):
+        await login(NICK, "0000", role="doctor")
+
+    out = await login(NICK, PASSCODE, role="doctor")
+    assert out["role"] == "doctor"
+
+    # Verify counter reset on row.
+    factory = session_factory
+    async with factory() as s:
+        from sqlalchemy import select
+        d = (await s.execute(select(Doctor).where(Doctor.nickname == NICK))).scalar_one()
+        assert d.passcode_failed_attempts == 0
+        assert d.passcode_locked_until is None
+
+
+@pytest.mark.asyncio
+async def test_revoke_user_tokens_kills_old_jwts(session_factory):
+    """Bumping passcode_version invalidates any token issued at the old version."""
+    from fastapi import HTTPException
+    from infra.auth.unified import authenticate, revoke_user_tokens
+
+    out = await login(NICK, PASSCODE, role="doctor")
+    auth_header = f"Bearer {out['token']}"
+
+    payload = await authenticate(auth_header)  # fresh token: ok
+    assert payload["role"] == "doctor"
+
+    await revoke_user_tokens(role="doctor", doctor_id=out["doctor_id"])
+
+    with pytest.raises(HTTPException) as exc:
+        await authenticate(auth_header)
+    assert exc.value.status_code == 401
+    assert "revoke" in (exc.value.detail or "").lower()
