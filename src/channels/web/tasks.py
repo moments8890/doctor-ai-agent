@@ -359,6 +359,12 @@ async def get_task_record(
             pass
 
     structured = record.structured_dict() if record.has_structured_data() else {}
+
+    safe_create_task(audit(
+        resolved_doctor_id, "READ",
+        resource_type="record", resource_id=str(record_id),
+    ))
+
     return {
         "id": record.id,
         "patient_name": record.patient.name if record.patient else None,
