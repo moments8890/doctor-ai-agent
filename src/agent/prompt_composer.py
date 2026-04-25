@@ -24,6 +24,7 @@ from agent.prompt_config import (
     PATIENT_INTERVIEW_LAYERS,
     DAILY_SUMMARY_LAYERS,
 )
+from agent.prompt_safety import wrap_untrusted
 from utils.log import log, _ctx_layers
 from utils.prompt_loader import get_prompt_sync
 
@@ -122,25 +123,27 @@ async def compose_messages(
         messages: List[Dict[str, str]] = [{"role": "system", "content": system_msg}]
         if history:
             messages.extend(history)
-        # KB goes in user message (trust boundary: user-authored content ≠ system instructions)
+        # Trust boundary: user-authored content is wrapped in tags AND its
+        # angle brackets are escaped (see agent/prompt_safety.py) so a close
+        # tag inside the content can't break out of the boundary.
         user_parts: List[str] = []
         if doctor_persona:
             user_parts.append(
-                f"<doctor_persona>\n"
-                f"以下是医生的个人回复风格，请按此风格起草回复。\n"
-                f"{doctor_persona}\n"
-                f"</doctor_persona>"
+                "<doctor_persona>\n"
+                "以下是医生的个人回复风格，请按此风格起草回复。\n"
+                + wrap_untrusted("persona_body", doctor_persona)
+                + "\n</doctor_persona>"
             )
         if doctor_knowledge:
             user_parts.append(
-                f"<doctor_knowledge>\n"
-                f"以下是可引用的医生知识规则。若使用其中内容，"
-                f"在相关内容后追加 [KB-{{id}}] 引用标签。\n"
-                f"{doctor_knowledge}\n"
-                f"</doctor_knowledge>"
+                "<doctor_knowledge>\n"
+                "以下是可引用的医生知识规则。若使用其中内容，"
+                "在相关内容后追加 [KB-{id}] 引用标签。\n"
+                + wrap_untrusted("knowledge_body", doctor_knowledge)
+                + "\n</doctor_knowledge>"
             )
         if doctor_message:
-            user_parts.append(doctor_message)
+            user_parts.append(wrap_untrusted("doctor_message", doctor_message))
         if user_parts:
             messages.append({"role": "user", "content": "\n\n".join(user_parts)})
 
@@ -149,25 +152,28 @@ async def compose_messages(
         # ── Pattern 1: Single-turn ────────────────────────────────
         # L1-L3 (Identity+Specialty+Task) → system message
         # L4-L7 (Doctor Rules+Patient+Input) → user message with XML tags
+        # Trust boundary: every user-authored field is wrapped via
+        # wrap_untrusted() so embedded close tags become &lt;/foo&gt; text
+        # rather than parseable structure.
         user_parts = []
         if doctor_persona:
             user_parts.append(
-                f"<doctor_persona>\n"
-                f"以下是医生的个人回复风格，请按此风格起草回复。\n"
-                f"{doctor_persona}\n"
-                f"</doctor_persona>"
+                "<doctor_persona>\n"
+                "以下是医生的个人回复风格，请按此风格起草回复。\n"
+                + wrap_untrusted("persona_body", doctor_persona)
+                + "\n</doctor_persona>"
             )
         if doctor_knowledge:
             user_parts.append(
-                f"<doctor_knowledge>\n"
-                f"以下是可引用的医生知识规则。若在 detail 中使用其中任何内容，"
-                f"必须在该 detail 末尾追加对应的 [KB-{{id}}] 引用标签。\n"
-                f"{doctor_knowledge}\n"
-                f"</doctor_knowledge>"
+                "<doctor_knowledge>\n"
+                "以下是可引用的医生知识规则。若在 detail 中使用其中任何内容，"
+                "必须在该 detail 末尾追加对应的 [KB-{id}] 引用标签。\n"
+                + wrap_untrusted("knowledge_body", doctor_knowledge)
+                + "\n</doctor_knowledge>"
             )
         if config.patient_context and patient_context:
-            user_parts.append(f"<patient_context>\n{patient_context}\n</patient_context>")
-        user_parts.append(f"<doctor_request>\n{doctor_message}\n</doctor_request>")
+            user_parts.append(wrap_untrusted("patient_context", patient_context))
+        user_parts.append(wrap_untrusted("doctor_request", doctor_message))
         user_msg = "\n\n".join(user_parts)
 
         messages = [{"role": "system", "content": system_msg}]
