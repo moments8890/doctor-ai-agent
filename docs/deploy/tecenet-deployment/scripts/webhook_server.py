@@ -105,6 +105,10 @@ class WebhookHandler(http.server.BaseHTTPRequestHandler):
 if __name__ == "__main__":
     if not SECRET:
         log.warning("WEBHOOK_SECRET is not set — all requests will be accepted")
-    server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), WebhookHandler)
-    log.info("webhook server listening on port %d", PORT)
+    # Bind to loopback only — nginx proxies /hooks/deploy → 127.0.0.1:9000
+    # so there's no reason to expose the listener on the public interface.
+    # WEBHOOK_BIND can override (e.g. for a debug harness) but defaults safe.
+    BIND = os.environ.get("WEBHOOK_BIND", "127.0.0.1")
+    server = http.server.ThreadingHTTPServer((BIND, PORT), WebhookHandler)
+    log.info("webhook server listening on %s:%d", BIND, PORT)
     server.serve_forever()
