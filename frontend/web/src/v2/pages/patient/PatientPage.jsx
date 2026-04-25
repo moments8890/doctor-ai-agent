@@ -28,7 +28,7 @@ import {
 import { usePatientApi } from "../../../api/PatientApiContext";
 import { usePatientMe } from "../../../lib/patientQueries";
 import { usePatientStore } from "../../../store/patientStore";
-import { APP, FONT, ICON } from "../../theme";
+import { APP, ICON } from "../../theme";
 import { pageContainer, navBarStyle } from "../../layouts";
 import ChatTab from "./ChatTab";
 import InterviewPage from "./InterviewPage";
@@ -112,8 +112,12 @@ export default function PatientPage() {
   }, [api.isMock]);
 
   // Refresh canonical profile from /patient/me; merges into store on success.
+  // Skip in mock mode — mock loginWithIdentity (above) seeds the store once
+  // with deterministic test data; letting mock /patient/me overwrite it
+  // would re-introduce the legacy flicker/divergence the prior gate avoided.
   const meQuery = usePatientMe();
   useEffect(() => {
+    if (api.isMock) return;
     if (!meQuery.data) return;
     usePatientStore.getState().mergeProfile({
       patientId: meQuery.data.patient_id ? String(meQuery.data.patient_id) : undefined,
@@ -121,7 +125,7 @@ export default function PatientPage() {
       doctorId: meQuery.data.doctor_id || undefined,
       doctorName: meQuery.data.doctor_name || undefined,
     });
-  }, [meQuery.data]);
+  }, [api.isMock, meQuery.data]);
 
   // ── Pathname-driven overlay/section detection ────────────────────
   const section = detectSection(location.pathname);

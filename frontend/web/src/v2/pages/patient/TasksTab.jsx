@@ -6,7 +6,7 @@
  * Patient-specific: no create-task, no patient_name prefix, no followup merging.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { JumboTabs, List, Tag, ErrorBlock, Button, Ellipsis } from "antd-mobile";
 import { CheckCircleOutline, ClockCircleOutline } from "antd-mobile-icons";
@@ -144,12 +144,20 @@ function CompletedRow({ item, onUncomplete, onTap }) {
 
 export default function TasksTab({ token: _token }) {
   const navigate = useNavigate();
-  const { data: tasks = [], isLoading, isError, refetch } = usePatientTasks();
+  const { data: tasks = [], isLoading, isError, refetch, dataUpdatedAt } = usePatientTasks();
   const completeTask = useCompletePatientTask();
   const uncompleteTask = useUncompletePatientTask();
   const [activeTab, setActiveTab] = useState("pending");
   const [pendingOverride, setPendingOverride] = useState(null);
   const [completedOverride, setCompletedOverride] = useState(null);
+
+  useEffect(() => {
+    // Canonical list just refreshed — drop overrides so we render fresh data
+    // atomically with the new tasks (avoids flicker between override clear
+    // and refetch resolution).
+    setPendingOverride(null);
+    setCompletedOverride(null);
+  }, [dataUpdatedAt]);
 
   // Derived lists with optimistic overrides
   const rawPending = tasks.filter((t) => t.status !== "completed");
@@ -171,11 +179,6 @@ export default function TasksTab({ token: _token }) {
       return [{ ...item, status: "completed", completed_at: new Date().toISOString() }, ...cur];
     });
     completeTask.mutate(item.id, {
-      onSuccess: () => {
-        // Drop overrides so the refetched canonical list takes over.
-        setPendingOverride(null);
-        setCompletedOverride(null);
-      },
       onError: () => {
         setPendingOverride(null);
         setCompletedOverride(null);
@@ -193,11 +196,6 @@ export default function TasksTab({ token: _token }) {
       return [{ ...item, status: "pending", completed_at: null }, ...cur];
     });
     uncompleteTask.mutate(item.id, {
-      onSuccess: () => {
-        // Drop overrides so the refetched canonical list takes over.
-        setPendingOverride(null);
-        setCompletedOverride(null);
-      },
       onError: () => {
         setPendingOverride(null);
         setCompletedOverride(null);
