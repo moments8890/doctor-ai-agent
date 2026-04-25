@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { APP, FONT, ICON, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 import { Card } from "../../../components";
+import { APP_VERSION } from "../../../version";
 
 function SectionHeader({ title }) {
   return (
@@ -90,7 +91,7 @@ export default function AboutSubpage() {
             AI 医疗助手
           </div>
           <div style={{ fontSize: FONT.sm, color: APP.text4, marginBottom: 16 }}>
-            版本 1.0.0
+            版本 {APP_VERSION}
           </div>
           <div
             style={{
@@ -107,7 +108,7 @@ export default function AboutSubpage() {
         {/* App info */}
         <SectionHeader title="应用信息" />
         <Card>
-          <InfoRow label="版本号" value="1.0.0" isFirst />
+          <InfoRow label="版本号" value={APP_VERSION} isFirst />
           <InfoRow label="产品名称" value="医生AI助手" />
           <InfoRow label="AI 提供商" value="腾讯 · 通义千问" />
         </Card>
