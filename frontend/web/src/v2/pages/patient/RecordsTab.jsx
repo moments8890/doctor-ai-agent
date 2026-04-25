@@ -3,30 +3,28 @@
  *
  * Business logic ported from src/pages/patient/RecordsTab.jsx.
  * Renders:
- *  - "New record" entry button (starts interview)
  *  - Filter pills for list / timeline view + record type
- *  - List of records with type tag, date, chief complaint, status
- *  - Timeline view grouped by month
- *  - Empty state when there are no records
+ *  - List of records as floating Card rows on a gray pageContainer bg
+ *  - Timeline view grouped by month (per-month Card stack)
+ *  - PullToRefresh wrap calls usePatientRecords().refetch
+ *  - Empty / loading / error states use shared components
  */
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Button,
   CapsuleTabs,
-  ErrorBlock,
-  List,
+  PullToRefresh,
   Tag,
   Ellipsis,
 } from "antd-mobile";
-import { FileOutline } from "antd-mobile-icons";
 import { usePatientRecords } from "../../../lib/patientQueries";
-import { APP, FONT, ICON, RADIUS } from "../../theme";
-import { LoadingCenter, EmptyState } from "../../components";
+import { APP, FONT, RADIUS } from "../../theme";
+import { pageContainer } from "../../layouts";
+import { LoadingCenter, EmptyState, Card } from "../../components";
 
 // ---------------------------------------------------------------------------
-// Helpers (no MUI / theme.js deps)
+// Helpers
 // ---------------------------------------------------------------------------
 
 const RECORD_TYPE_LABEL = {
@@ -35,6 +33,17 @@ const RECORD_TYPE_LABEL = {
   import: "导入记录",
   interview_summary: "预问诊",
 };
+
+// Type tag color mapping — green for medical encounters, blue/accent for
+// interview summaries, gray fallback for unknown.
+const RECORD_TYPE_COLOR = {
+  visit: { bg: APP.primaryLight, fg: APP.primary },
+  dictation: { bg: APP.primaryLight, fg: APP.primary },
+  import: { bg: APP.primaryLight, fg: APP.primary },
+  interview_summary: { bg: APP.accentLight, fg: APP.accent },
+};
+
+const DEFAULT_TYPE_COLOR = { bg: APP.borderLight, fg: APP.text3 };
 
 const DIAGNOSIS_STATUS_LABELS = {
   pending: "诊断中",
@@ -85,143 +94,133 @@ function groupByMonth(records) {
 }
 
 // ---------------------------------------------------------------------------
+// Card row — shared between list view and timeline view
+// ---------------------------------------------------------------------------
+
+function RecordCardRow({ rec, onTap, style }) {
+  const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
+  const typeColor = RECORD_TYPE_COLOR[rec.record_type] || DEFAULT_TYPE_COLOR;
+  const chief = rec.structured?.chief_complaint;
+  const fallback = (rec.content || "").replace(/\n/g, " ");
+  const title = chief || fallback || "（内容为空）";
+  const ds = rec.status;
+  const dsLabel = ds ? DIAGNOSIS_STATUS_LABELS[ds] : null;
+  const dsColor = ds ? DIAGNOSIS_STATUS_COLORS[ds] : "default";
+
+  return (
+    <Card style={style}>
+      <div
+        data-testid="patient-record-row"
+        onClick={() => onTap(rec.id)}
+        style={{
+          padding: "12px 14px",
+          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+        }}
+      >
+        {/* Top row: type tag + status tag */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
+        >
+          <span
+            style={{
+              display: "inline-block",
+              padding: "2px 8px",
+              borderRadius: RADIUS.sm,
+              fontSize: FONT.xs,
+              fontWeight: 600,
+              background: typeColor.bg,
+              color: typeColor.fg,
+              flexShrink: 0,
+            }}
+          >
+            {typeLabel}
+          </span>
+          {dsLabel && (
+            <Tag color={dsColor} fill="outline" style={{ fontSize: FONT.xs }}>
+              {dsLabel}
+            </Tag>
+          )}
+        </div>
+
+        {/* Title — Ellipsis rows={1}, never .slice() */}
+        <div
+          style={{
+            fontSize: FONT.md,
+            fontWeight: 600,
+            color: APP.text1,
+            lineHeight: 1.4,
+          }}
+        >
+          <Ellipsis direction="end" content={title} rows={1} />
+        </div>
+
+        {/* Meta line: date · diagnosis (if any) */}
+        <div
+          style={{
+            fontSize: FONT.sm,
+            color: APP.text4,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            minWidth: 0,
+          }}
+        >
+          <span style={{ flexShrink: 0 }}>{formatDate(rec.created_at)}</span>
+          {rec.structured?.diagnosis && (
+            <>
+              <span style={{ flexShrink: 0 }}>·</span>
+              <div style={{ flex: 1, minWidth: 0, color: APP.text3 }}>
+                <Ellipsis
+                  direction="end"
+                  content={rec.structured.diagnosis}
+                  rows={1}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Timeline view
 // ---------------------------------------------------------------------------
 
 function TimelineView({ records, onTap }) {
   const groups = groupByMonth(records);
   return (
-    <div style={{ padding: "8px 16px" }}>
+    <div style={{ paddingBottom: 12 }}>
       {groups.map((group) => (
         <div key={group.label}>
+          {/* Month section header — sits on gray bg, OUTSIDE the cards */}
           <div
             style={{
               fontSize: FONT.sm,
               fontWeight: 600,
               color: APP.text4,
-              marginTop: 12,
-              marginBottom: 8,
+              padding: "16px 16px 8px",
             }}
           >
             {group.label}
           </div>
-          <div style={{ position: "relative", paddingLeft: 24 }}>
-            {/* Vertical connecting line */}
-            <div
-              style={{
-                position: "absolute",
-                left: 7,
-                top: 8,
-                bottom: 8,
-                width: 2,
-                background: APP.borderLight,
-                borderRadius: RADIUS.xs,
-              }}
+          {group.items.map((rec, idx) => (
+            <RecordCardRow
+              key={rec.id}
+              rec={rec}
+              onTap={onTap}
+              style={idx === 0 ? undefined : { marginTop: 8 }}
             />
-            {group.items.map((rec, idx) => {
-              const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
-              const chief = rec.structured?.chief_complaint;
-              const preview = chief || (rec.content || "").replace(/\n/g, " ").slice(0, 30) || "";
-              const ds = rec.status;
-              const dsLabel = ds ? DIAGNOSIS_STATUS_LABELS[ds] : null;
-              const dsColor = ds ? DIAGNOSIS_STATUS_COLORS[ds] : "default";
-              const d = new Date(rec.created_at);
-              const dayStr = `${d.getMonth() + 1}/${d.getDate()}`;
-              const diagnosis = rec.structured?.diagnosis;
-              const dotColor = APP.primary;
-
-              return (
-                <div
-                  key={rec.id}
-                  onClick={() => onTap(rec.id)}
-                  style={{
-                    position: "relative",
-                    marginBottom: idx < group.items.length - 1 ? 12 : 0,
-                    cursor: "pointer",
-                  }}
-                >
-                  {/* Timeline dot */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: -18,
-                      top: 8,
-                      width: 10,
-                      height: 10,
-                      borderRadius: RADIUS.circle,
-                      background: dotColor,
-                      border: `2px solid ${APP.white}`,
-                      zIndex: 1,
-                    }}
-                  />
-                  {/* Card */}
-                  <div
-                    style={{
-                      background: APP.surface,
-                      borderRadius: RADIUS.lg,
-                      padding: "8px 12px",
-                      border: `0.5px solid ${APP.borderLight}`,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: 4,
-                      }}
-                    >
-                      <span style={{ fontSize: FONT.sm, color: dotColor, fontWeight: 600 }}>
-                        {typeLabel}
-                      </span>
-                      <span style={{ fontSize: FONT.sm, color: APP.text4 }}>{dayStr}</span>
-                    </div>
-                    {preview && (
-                      <div
-                        style={{
-                          fontSize: FONT.main,
-                          fontWeight: 500,
-                          color: APP.text1,
-                          lineHeight: 1.4,
-                          marginBottom: 4,
-                        }}
-                      >
-                        <Ellipsis direction="end" content={preview} rows={1} />
-                      </div>
-                    )}
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      {diagnosis ? (
-                        <div
-                          style={{
-                            fontSize: FONT.sm,
-                            color: APP.text3,
-                            flex: 1,
-                            marginRight: 8,
-                            minWidth: 0,
-                          }}
-                        >
-                          <Ellipsis direction="end" content={diagnosis} rows={1} />
-                        </div>
-                      ) : (
-                        <span />
-                      )}
-                      {dsLabel && (
-                        <Tag color={dsColor} fill="outline" style={{ fontSize: FONT.xs }}>
-                          {dsLabel}
-                        </Tag>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          ))}
         </div>
       ))}
     </div>
@@ -256,23 +255,20 @@ export default function RecordsTab({ token: _token }) {
 
   if (isError) {
     return (
-      <div style={{ padding: 16 }}>
-        <ErrorBlock
-          status="default"
+      <div style={{ ...pageContainer, justifyContent: "center" }}>
+        <EmptyState
           title="加载失败"
           description="无法获取病历记录"
-        >
-          <Button color="primary" size="small" onClick={() => refetch()}>
-            重试
-          </Button>
-        </ErrorBlock>
+          action="重试"
+          onAction={() => refetch()}
+        />
       </div>
     );
   }
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {/* Filter pills — only show when records exist */}
+    <div style={pageContainer}>
+      {/* Filter pills — only show when records exist. Sit on gray bg. */}
       {records.length > 0 && (
         <>
           <div
@@ -280,7 +276,6 @@ export default function RecordsTab({ token: _token }) {
               padding: "6px 12px",
               fontSize: FONT.sm,
               color: APP.text4,
-              background: APP.surface,
               flexShrink: 0,
             }}
           >
@@ -288,8 +283,6 @@ export default function RecordsTab({ token: _token }) {
           </div>
           <div
             style={{
-              background: APP.surface,
-              borderBottom: `0.5px solid ${APP.border}`,
               flexShrink: 0,
               padding: "4px 12px",
             }}
@@ -305,10 +298,8 @@ export default function RecordsTab({ token: _token }) {
           </div>
           <div
             style={{
-              background: APP.surface,
-              borderBottom: `0.5px solid ${APP.border}`,
               flexShrink: 0,
-              padding: "4px 12px",
+              padding: "4px 12px 8px",
             }}
           >
             <CapsuleTabs
@@ -324,68 +315,29 @@ export default function RecordsTab({ token: _token }) {
         </>
       )}
 
-      {/* Content */}
+      {/* Scrollable content with PullToRefresh */}
       <div style={{ flex: 1, overflowY: "auto" }}>
-        {filteredRecords.length === 0 ? (
-          <EmptyState
-            title="暂无病历记录"
-            description="点击上方「新建病历」开始预问诊"
-          />
-        ) : recordView === "list" ? (
-          <List>
-            {filteredRecords.map((rec) => {
-              const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
-              const chief = rec.structured?.chief_complaint;
-              const preview =
-                chief || (rec.content || "").replace(/\n/g, " ").slice(0, 40) || "（内容为空）";
-              const ds = rec.status;
-              const dsLabel = ds ? DIAGNOSIS_STATUS_LABELS[ds] : null;
-              const dsColor = ds ? DIAGNOSIS_STATUS_COLORS[ds] : "default";
-
-              return (
-                <List.Item
+        <PullToRefresh onRefresh={async () => { await refetch(); }}>
+          {filteredRecords.length === 0 ? (
+            <EmptyState
+              title="暂无病历记录"
+              description="点击上方「新建病历」开始预问诊"
+            />
+          ) : recordView === "list" ? (
+            <div style={{ paddingTop: 4, paddingBottom: 12 }}>
+              {filteredRecords.map((rec, idx) => (
+                <RecordCardRow
                   key={rec.id}
-                  prefix={
-                    <FileOutline
-                      style={{ fontSize: ICON.md, color: APP.primary, marginTop: 2 }}
-                    />
-                  }
-                  title={
-                    <span style={{ fontWeight: 600, fontSize: FONT.md, color: APP.text1 }}>
-                      {typeLabel}
-                    </span>
-                  }
-                  description={
-                    <span style={{ fontSize: FONT.sm, color: APP.text3 }}>{preview}</span>
-                  }
-                  extra={
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "flex-end",
-                        gap: 4,
-                      }}
-                    >
-                      <span style={{ fontSize: FONT.xs, color: APP.text4 }}>
-                        {formatDate(rec.created_at)}
-                      </span>
-                      {dsLabel && (
-                        <Tag color={dsColor} fill="outline" style={{ fontSize: FONT.xs }}>
-                          {dsLabel}
-                        </Tag>
-                      )}
-                    </div>
-                  }
-                  onClick={() => handleTap(rec.id)}
-                  arrow
+                  rec={rec}
+                  onTap={handleTap}
+                  style={idx === 0 ? undefined : { marginTop: 8 }}
                 />
-              );
-            })}
-          </List>
-        ) : (
-          <TimelineView records={filteredRecords} onTap={handleTap} />
-        )}
+              ))}
+            </div>
+          ) : (
+            <TimelineView records={filteredRecords} onTap={handleTap} />
+          )}
+        </PullToRefresh>
       </div>
     </div>
   );
