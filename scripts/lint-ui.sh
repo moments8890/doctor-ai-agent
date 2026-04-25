@@ -152,7 +152,27 @@ else
   echo -e "${GREEN}✓ No hardcoded fontSize in v2${NC}"
 fi
 
-# ── 7. Raw Dialog for bottom sheets ──
+# ── 7. Removed SectionHeader alias (Phase 5 / Task 5.6) ──
+# `SectionHeader` was renamed to `ListSectionDivider` and the barrel alias
+# was deleted. Block any re-introduction of `SectionHeader` imports from
+# v2/components — they will fail at runtime since the export no longer exists.
+section "Removed SectionHeader alias from v2/components"
+
+SH_HITS=$(grep -rEn "from\s+['\"][^'\"]*v2/components['\"]" "$SRC" \
+  --include="*.jsx" --include="*.js" \
+  | grep -E "\bSectionHeader\b" \
+  | grep -v '// lint-ui-ignore' \
+  || true)
+
+if [[ -n "$SH_HITS" ]]; then
+  COUNT=$(echo "$SH_HITS" | wc -l | tr -d ' ')
+  warn "$COUNT import(s) of removed SectionHeader from v2/components" "Use ListSectionDivider — the SectionHeader alias was removed in Phase 5 (Task 5.6)"
+  echo "$SH_HITS"
+else
+  echo -e "${GREEN}✓ No SectionHeader imports from v2/components${NC}"
+fi
+
+# ── 8. Raw Dialog for bottom sheets ──
 section "Raw Dialog usage"
 
 RAW_DIALOG=$(grep -rn --include="*.jsx" \

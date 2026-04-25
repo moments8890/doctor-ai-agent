@@ -23,7 +23,7 @@ import { pageContainer, scrollable } from "../../layouts";
 import {
   LoadingCenter,
   EmptyState,
-  ListSectionDivider as SectionHeader,
+  ListSectionDivider,
   Card,
 } from "../../components";
 
@@ -260,7 +260,7 @@ export default function TasksTab({ token: _token }) {
           {activeTab === "pending" && (
             dateGroups.length > 0 ? dateGroups.map((group) => (
               <div key={group.label} style={{ marginTop: 12 }}>
-                <SectionHeader color={group.color}>{group.label}</SectionHeader>
+                <ListSectionDivider color={group.color}>{group.label}</ListSectionDivider>
                 {group.items.map((item) => (
                   <TaskCard
                     key={item.id}

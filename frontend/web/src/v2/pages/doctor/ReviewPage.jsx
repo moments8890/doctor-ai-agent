@@ -26,7 +26,7 @@ import {
 import { MoreOutline } from "antd-mobile-icons";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
-import { ActionFooter, ListSectionDivider as SectionHeader, CitationPopup } from "../../components";
+import { ActionFooter, ListSectionDivider, CitationPopup } from "../../components";
 import { useTaskRecord, useSuggestions } from "../../../lib/doctorQueries";
 import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
@@ -518,12 +518,12 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
   return (
     <div style={{ marginBottom: 4 }}>
       {/* Section header */}
-      <SectionHeader
+      <ListSectionDivider
         action={adding ? "取消" : "+ 添加"}
         onAction={() => setAdding((v) => !v)}
       >
         {label}
-      </SectionHeader>
+      </ListSectionDivider>
 
       {/* Add form */}
       {adding && (

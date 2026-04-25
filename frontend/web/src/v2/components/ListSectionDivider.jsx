@@ -1,11 +1,6 @@
 /**
  * ListSectionDivider — styled section divider with optional right-side action.
  *
- * NOTE: The internal symbol is still `SectionHeader` during the Phase 2-5
- * migration window. Phase 5 (Task 5.6) renames the function symbol and
- * removes the barrel alias together. Until then, both `ListSectionDivider`
- * and `SectionHeader` re-exports point to the same default below.
- *
  * Usage:
  *   <ListSectionDivider>鉴别诊断</ListSectionDivider>
  *   <ListSectionDivider action="+ 添加" onAction={() => {}}>鉴别诊断</ListSectionDivider>
@@ -13,7 +8,7 @@
  */
 import { APP, FONT } from "../theme";
 
-export default function SectionHeader({
+export default function ListSectionDivider({
   children,
   action,
   onAction,
