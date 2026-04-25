@@ -3,7 +3,7 @@
  *
  * Ported from src/pages/patient/ChatTab.jsx.
  * Key behaviours preserved:
- *   - QuickActions row ("新问诊", "我的病历")
+ *   - QuickActions row ("新问诊", "查看病历")
  *   - Message polling (10s visible / 60s hidden)
  *   - Optimistic patient messages with de-duplication on poll
  *   - Unread count tracking via LAST_SEEN_CHAT_KEY
@@ -15,8 +15,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SpinLoading } from "antd-mobile";
-import { ContentOutline, FolderOutline } from "antd-mobile-icons";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import { usePatientApi } from "../../../api/PatientApiContext";
+import { Card, TintedIconRow } from "../../components";
 import ChatBubble from "../../ChatBubble";
 import ChatComposer from "../../ChatComposer";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
@@ -29,22 +31,26 @@ const LAST_SEEN_CHAT_KEY = "patient_last_seen_chat";
 // ---------------------------------------------------------------------------
 
 function QuickActions({ onNewInterview, onViewRecords }) {
-  const items = [
-    { label: "新问诊", subtitle: "AI帮您整理病情", icon: <ContentOutline style={{ fontSize: FONT.xl, color: APP.primary }} />, onClick: onNewInterview },
-    { label: "我的病历", subtitle: "查看历史记录", icon: <FolderOutline style={{ fontSize: FONT.xl, color: APP.text3 }} />, onClick: onViewRecords },
-  ];
   return (
-    <div style={styles.quickRow}>
-      {items.map((a) => (
-        <div key={a.label} style={styles.quickCard} onClick={a.onClick}>
-          <span style={styles.quickEmoji}>{a.icon}</span>
-          <div>
-            <div style={styles.quickTitle}>{a.label}</div>
-            <div style={styles.quickSub}>{a.subtitle}</div>
-          </div>
-        </div>
-      ))}
-    </div>
+    <Card style={{ marginTop: 8, marginBottom: 8 }}>
+      <TintedIconRow
+        Icon={AddCircleOutlineIcon}
+        iconColor={APP.primary}
+        iconBg={APP.primaryLight}
+        title="新问诊"
+        subtitle="开始 AI 预问诊"
+        onClick={onNewInterview}
+        isFirst
+      />
+      <TintedIconRow
+        Icon={FolderOutlinedIcon}
+        iconColor={APP.accent}
+        iconBg={APP.accentLight}
+        title="查看病历"
+        subtitle="历史记录与诊断"
+        onClick={onViewRecords}
+      />
+    </Card>
   );
 }
 
@@ -289,40 +295,6 @@ export default function ChatTab({
 }
 
 const styles = {
-  quickRow: {
-    display: "flex",
-    gap: 10,
-    padding: "12px 16px 8px",
-    background: APP.surfaceAlt,
-    flexShrink: 0,
-  },
-  quickCard: {
-    flex: 1,
-    background: APP.surface,
-    borderRadius: RADIUS.md,
-    padding: "10px 12px",
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    cursor: "pointer",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-    userSelect: "none",
-  },
-  quickEmoji: {
-    fontSize: FONT.xl,
-    flexShrink: 0,
-  },
-  quickTitle: {
-    fontSize: FONT.base,
-    fontWeight: 600,
-    color: APP.text1,
-    lineHeight: 1.3,
-  },
-  quickSub: {
-    fontSize: FONT.xs,
-    color: APP.text4,
-    marginTop: 2,
-  },
   msgList: {
     flex: 1,
     overflowY: "auto",
