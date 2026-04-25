@@ -24,7 +24,7 @@ COS_BUCKET="doctor-ai-backups-1408751198"
 COS_REGION="ap-shanghai"
 LOG="$DEST/logs/pull-$(date +%Y-%m).log"
 
-mkdir -p "$DEST/encrypted" "$DEST/cos" "$DEST/logs"
+mkdir -p "$DEST/encrypted" "$DEST/cos" "$DEST/uploads" "$DEST/logs"
 
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
@@ -68,17 +68,43 @@ client = CosS3Client(CosConfig(
     SecretId=cp.get("default", "secretId"),
     SecretKey=cp.get("default", "secretKey"),
 ))
-resp = client.list_objects(Bucket="$COS_BUCKET", Prefix="mysql-daily/")
-new_count = 0
-for obj in resp.get("Contents", []):
-    key = obj["Key"]
-    local = os.path.join("$DEST/cos", os.path.basename(key))
-    if os.path.exists(local) and os.path.getsize(local) == int(obj["Size"]):
-        continue
-    print(f"  pulling {key} ({int(obj['Size']):,}B)")
-    client.download_file(Bucket="$COS_BUCKET", Key=key, DestFilePath=local)
-    new_count += 1
-print(f"  COS pulled: {new_count} new file(s)")
+def sync_prefix(prefix: str, dest_root: str, flatten: bool) -> int:
+    """Sync a COS prefix to a local dir. Returns count of new files pulled.
+
+    flatten=True: store all files in dest_root/<basename> (used for mysql
+    backups — flat list).
+    flatten=False: preserve relative paths under prefix (used for uploads —
+    so uploads/inv_FTCkQZ7FDVts/... lives at dest_root/inv_FTCkQZ7FDVts/...).
+    """
+    new = 0
+    marker = ""
+    while True:
+        resp = client.list_objects(
+            Bucket="$COS_BUCKET", Prefix=prefix, Marker=marker, MaxKeys=1000,
+        )
+        for obj in resp.get("Contents", []):
+            key = obj["Key"]
+            rel = key[len(prefix):] if key.startswith(prefix) else key
+            local = (os.path.join(dest_root, os.path.basename(key))
+                     if flatten else os.path.join(dest_root, rel))
+            os.makedirs(os.path.dirname(local) or dest_root, exist_ok=True)
+            if os.path.exists(local) and os.path.getsize(local) == int(obj["Size"]):
+                continue
+            print(f"  pulling {key} ({int(obj['Size']):,}B)")
+            client.download_file(Bucket="$COS_BUCKET", Key=key, DestFilePath=local)
+            new += 1
+        if resp.get("IsTruncated") in ("true", True):
+            marker = resp.get("NextMarker", "")
+            if not marker:
+                break
+        else:
+            break
+    return new
+
+new_mysql = sync_prefix("mysql-daily/", "$DEST/cos", flatten=True)
+print(f"  COS mysql pulled: {new_mysql} new file(s)")
+new_uploads = sync_prefix("uploads/", "$DEST/uploads", flatten=False)
+print(f"  COS uploads pulled: {new_uploads} new file(s)")
 PY
 else
   log "WARN: missing $TCCLI_CRED or $PIPX_PYTHON — skip COS pull"
