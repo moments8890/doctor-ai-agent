@@ -21,3 +21,12 @@ export const QK = {
   knowledgeUsage: (did, itemId) => ["doctor", did, "knowledgeUsage", itemId],
   feedbackDigest: (did, days) => ["doctor", did, "feedbackDigest", days],
 };
+
+// Patient portal keys — parallel to QK (doctor)
+export const PK = {
+  patientMe:           ()    => ["patient","me"],
+  patientRecords:      ()    => ["patient","records"],
+  patientRecordDetail: (id)  => ["patient","records", String(id)],
+  patientTasks:        ()    => ["patient","tasks"],
+  patientTaskDetail:   (id)  => ["patient","tasks", String(id)],
+};
