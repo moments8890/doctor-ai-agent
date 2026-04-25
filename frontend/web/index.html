@@ -26,7 +26,11 @@
     <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"
             integrity="sha384-bhnoAf0QbZ3a4P9JqPJNMlBxDP0bxxqnuRLFdwyTOUOUqCcvFKk6Jv4M+x9r+P+d"
             crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="/fonts/material-symbols-outlined.css" />
+    <!-- ?v= cache-buster: nginx serves /fonts/*.css with `Cache-Control: public,
+         immutable, max-age=30d`, so browsers that cached the pre-rlig copy will
+         keep using it for a month unless the URL changes. Bump this string
+         whenever this file's content changes. -->
+    <link rel="stylesheet" href="/fonts/material-symbols-outlined.css?v=2026-04-25-rlig" />
   </head>
   <body>
     <div id="root"></div>

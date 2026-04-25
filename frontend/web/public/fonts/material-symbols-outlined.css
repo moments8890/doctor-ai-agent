@@ -33,7 +33,12 @@
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
-  font-feature-settings: 'liga';
-  -webkit-font-feature-settings: 'liga';
+  /* Google's published CSS only lists 'liga', but the static woff cut we
+   * shipped exposes its ligature lookups under 'rlig' (Required Ligatures)
+   * with zero 'liga' entries. Asking for 'liga' alone was therefore a no-op
+   * and every icon span rendered its raw text ("dashboard", "search", ...).
+   * Listing both feature tags picks up whichever the on-disk font uses. */
+  font-feature-settings: 'liga', 'rlig';
+  -webkit-font-feature-settings: 'liga', 'rlig';
   -webkit-font-smoothing: antialiased;
 }
