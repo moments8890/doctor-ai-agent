@@ -21,6 +21,7 @@ import { usePatientApi } from "../../../api/PatientApiContext";
 import { Card, TintedIconRow } from "../../components";
 import ChatBubble from "../../ChatBubble";
 import ChatConfirmGate from "../../components/ChatConfirmGate";
+import ChatDedupPrompt from "../../components/ChatDedupPrompt";
 import ChatComposer from "../../ChatComposer";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { APP, FONT, RADIUS } from "../../theme";
@@ -118,7 +119,7 @@ export default function ChatTab({
   onUnreadCountChange,
 }) {
   const navigate = useNavigate();
-  const { getPatientChatMessages, sendPatientChat, confirmPatientChatDraft } = usePatientApi();
+  const { getPatientChatMessages, sendPatientChat, confirmPatientChatDraft, dedupDecisionPatientChat } = usePatientApi();
 
   const welcomeMsg = {
     source: "ai",
@@ -205,6 +206,15 @@ export default function ChatTab({
     }
   }
 
+  async function sendDedupDecision(draft_id, action) {
+    try {
+      await dedupDecisionPatientChat(token, draft_id, action);
+    } catch (err) {
+      if (err?.status === 401) return;
+      console.warn("dedupDecisionPatientChat failed:", err?.message);
+    }
+  }
+
   async function handleSend(text) {
     if (!text || sending) return;
     setMessages((prev) => [
@@ -233,6 +243,18 @@ export default function ChatTab({
           continuity={msg.continuity}
           onConfirm={() => sendConfirmation(msg.draft_id, "confirm")}
           onContinue={() => sendConfirmation(msg.draft_id, "continue")}
+        />
+      );
+    }
+
+    if (msg.kind === "dedup_prompt") {
+      return (
+        <ChatDedupPrompt
+          key={msg.id ?? i}
+          targetReviewed={msg.target_reviewed}
+          onMerge={() => sendDedupDecision(msg.draft_id, "merge")}
+          onNew={() => sendDedupDecision(msg.draft_id, "new")}
+          onNeither={() => sendDedupDecision(msg.draft_id, "neither")}
         />
       );
     }

@@ -1049,6 +1049,14 @@ export async function confirmPatientChatDraft(token, draft_id, action) {
   });
 }
 
+export async function dedupDecisionPatientChat(token, draft_id, action) {
+  return patientRequest("/api/patient/chat/dedup_decision", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ draft_id, action }),
+  });
+}
+
 // Doctor-side patient chat/reply
 export async function getPatientChat(patientId, doctorId) {
   const qs = doctorId ? `?doctor_id=${encodeURIComponent(doctorId)}` : "";
