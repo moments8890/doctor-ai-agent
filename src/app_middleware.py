@@ -74,10 +74,13 @@ _EXC_BODY_SAFE_KEYS = frozenset({
     "category", "intent", "section", "direction", "source",
     # Pagination + filters
     "limit", "offset", "page", "per_page", "since", "before", "after",
-    # Synthetic IDs (random tokens, not PII)
+    # Synthetic IDs (random tokens, not PII). Excluded by design:
+    #   - invite_code: a registration credential. Keep redacted.
+    #   - session_id: used as patient-portal auth in some flows.
+    #   - access_code: same.
     "id", "task_id", "record_id", "doctor_id", "patient_id",
-    "suggestion_id", "session_id", "template_id", "edit_id",
-    "invite_code", "request_id", "trace_id",
+    "suggestion_id", "template_id", "edit_id",
+    "request_id", "trace_id",
     # Booleans + counters from response shapes
     "has_more", "total", "count", "ok_count", "err_count",
     # Versioning fields

@@ -78,3 +78,18 @@ def test_safe_synthetic_ids_retained() -> None:
     }))
     obj = json.loads(out)
     assert obj == {"doctor_id": "inv_xyz", "patient_id": 42, "task_id": 7}
+
+
+def test_credentials_shaped_keys_redacted() -> None:
+    """N3 — keys that LOOK like IDs but actually carry credentials must
+    not slip through the allowlist. invite_code mints doctor accounts;
+    session_id / access_code are auth handles."""
+    out = _redact_pii_in_json(json.dumps({
+        "invite_code": "WELCOME",
+        "session_id": "abc123",
+        "access_code": "482901",
+    }))
+    obj = json.loads(out)
+    assert obj["invite_code"] == "<redacted>"
+    assert obj["session_id"] == "<redacted>"
+    assert obj["access_code"] == "<redacted>"

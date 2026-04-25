@@ -275,6 +275,30 @@ async def test_login_with_role_patient_requires_selector(session_factory):
 
 
 @pytest.mark.asyncio
+async def test_cross_role_shared_nickname_no_dos(session_factory):
+    """N1 — login(role=None) with the same nickname in both roles must
+    not lock either account on a wrong-passcode attempt.
+
+    The session_factory fixture seeds nickname=alice as BOTH a doctor
+    and a patient (different doctor_ids). A wrong-passcode attempt with
+    role=None should leave both rows untouched.
+    """
+    from sqlalchemy import select
+    from fastapi import HTTPException
+    factory = session_factory
+
+    for _ in range(10):
+        with pytest.raises(HTTPException):
+            await login(NICK, "0000")  # role=None — shared-nickname ambiguity
+
+    async with factory() as s:
+        d = (await s.execute(select(Doctor).where(Doctor.nickname == NICK))).scalar_one()
+        p = (await s.execute(select(Patient).where(Patient.nickname == NICK))).scalar_one()
+        assert d.passcode_failed_attempts == 0
+        assert p.passcode_failed_attempts == 0
+
+
+@pytest.mark.asyncio
 async def test_uniform_401_no_user_vs_wrong_passcode(session_factory):
     """P2.6 — login response is the same status for missing-user and
     wrong-passcode paths (no enumeration via 401-vs-other status)."""

@@ -357,18 +357,36 @@ async def login(nickname: str, passcode: str, role: Optional[str] = None) -> dic
                         "passcode_version": p.passcode_version or 1,
                     })
 
-        # Failure path. To prevent account-DOS via shared nicknames, we only
-        # increment the lockout counter when there is exactly ONE candidate
-        # for the (nickname, role) pair. Multi-candidate misses fail fast
-        # without mutating any row.
+        # Failure path. Counter mutation rules — DOS prevention:
+        #   - Only mutate the counter when (nickname, role) narrows to ONE
+        #     row within that role (sole_doctor / sole_patient).
+        #   - When BOTH a sole_doctor AND a sole_patient exist (the same
+        #     nickname coexists across roles), mutating EITHER would let an
+        #     attacker who knows the nickname is shared lock out both
+        #     accounts in one campaign. Skip both — the user can retry with
+        #     an explicit role to penalize the right one.
+        #   - When a sole candidate exists but is locked, run a dummy hash
+        #     verify so an attacker can't distinguish "active" from "locked"
+        #     via response latency.
         if not matched_passcode:
-            if sole_doctor is not None and not _is_locked(sole_doctor):
-                await _atomic_record_login_failure(db, Doctor, Doctor.doctor_id, sole_doctor.doctor_id)
-            if sole_patient is not None and not _is_locked(sole_patient):
-                await _atomic_record_login_failure(db, Patient, Patient.id, sole_patient.id)
-            # Equalize timing on the not-found / wrong-passcode path so an
-            # attacker can't enumerate by latency.
-            if sole_doctor is None and sole_patient is None:
+            cross_role_ambiguous = (sole_doctor is not None and sole_patient is not None)
+
+            if cross_role_ambiguous:
+                # Same nickname in both roles, no role hint — refuse to
+                # penalize either account.
+                verify_passcode(passcode, _dummy_hash())
+            elif sole_doctor is not None:
+                if _is_locked(sole_doctor):
+                    verify_passcode(passcode, _dummy_hash())  # timing parity
+                else:
+                    await _atomic_record_login_failure(db, Doctor, Doctor.doctor_id, sole_doctor.doctor_id)
+            elif sole_patient is not None:
+                if _is_locked(sole_patient):
+                    verify_passcode(passcode, _dummy_hash())  # timing parity
+                else:
+                    await _atomic_record_login_failure(db, Patient, Patient.id, sole_patient.id)
+            else:
+                # No candidate at all — dummy verify keeps timing comparable.
                 verify_passcode(passcode, _dummy_hash())
 
         await db.commit()
@@ -405,17 +423,18 @@ async def login_with_role(nickname: str, passcode: str, role: str, doctor_id: Op
             doctor = (await db.execute(
                 select(Doctor).where(Doctor.nickname == nickname)
             )).scalar_one_or_none()
-            if (
-                not doctor
-                or _is_locked(doctor)
-                or not doctor.passcode_hash
-                or not verify_passcode(passcode, doctor.passcode_hash)
-            ):
-                if doctor and not _is_locked(doctor):
-                    await _atomic_record_login_failure(db, Doctor, Doctor.doctor_id, doctor.doctor_id)
-                    await db.commit()
-                elif doctor is None:
-                    verify_passcode(passcode, _dummy_hash())  # timing parity
+            # Order matters: don't run verify_passcode on a locked account
+            # (it would skip the timing-parity dummy below, and we don't
+            # want the lock to be observable via latency).
+            if doctor is None:
+                verify_passcode(passcode, _dummy_hash())
+                raise HTTPException(401, "登录失败")
+            if _is_locked(doctor):
+                verify_passcode(passcode, _dummy_hash())
+                raise HTTPException(401, "登录失败")
+            if not doctor.passcode_hash or not verify_passcode(passcode, doctor.passcode_hash):
+                await _atomic_record_login_failure(db, Doctor, Doctor.doctor_id, doctor.doctor_id)
+                await db.commit()
                 raise HTTPException(401, "登录失败")
             await _atomic_record_login_success(db, Doctor, Doctor.doctor_id, doctor.doctor_id)
             await db.commit()
@@ -447,12 +466,14 @@ async def login_with_role(nickname: str, passcode: str, role: str, doctor_id: Op
                     patient = p
                     break
             if patient is None:
-                # Only mutate the counter when the selector narrows to ONE row;
-                # otherwise we'd be back to the multi-candidate DOS hazard.
+                # Only mutate the counter when the selector narrows to ONE
+                # row; multi-candidate misses fail fast without touching
+                # any account. Locked-but-unique candidate gets a timing-
+                # parity dummy verify, no counter movement.
                 if len(candidates) == 1 and not _is_locked(candidates[0]):
                     await _atomic_record_login_failure(db, Patient, Patient.id, candidates[0].id)
                     await db.commit()
-                elif not candidates:
+                else:
                     verify_passcode(passcode, _dummy_hash())
                 raise HTTPException(401, "登录失败")
             await _atomic_record_login_success(db, Patient, Patient.id, patient.id)
