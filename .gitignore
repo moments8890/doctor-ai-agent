@@ -53,6 +53,8 @@ frontend/web/.playwright/
 # local screts, runtime config
 config/local.secrets
 config/runtime.json
+config/credentials.local.md
+config/*.local.*
 
 # Mined routing rules and turn log (generated artifacts)
 data/*.json
