@@ -99,12 +99,18 @@ class ChatSessionState:
 
     def apply_idle_decay(self, now_iso: str) -> "ChatSessionState":
         now = datetime.fromisoformat(now_iso)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
         if self.state == "intake" and self.last_intake_turn_at_iso:
             last = datetime.fromisoformat(self.last_intake_turn_at_iso)
+            if last.tzinfo is None:
+                last = last.replace(tzinfo=timezone.utc)
             if (now - last).total_seconds() / 3600 >= INTAKE_IDLE_HOURS:
                 return ChatSessionState(state="idle", record_id=self.record_id, cancellation_reason="idle_decay")
         if self.state == "qa_window" and self.qa_window_entered_at_iso:
             entered = datetime.fromisoformat(self.qa_window_entered_at_iso)
+            if entered.tzinfo is None:
+                entered = entered.replace(tzinfo=timezone.utc)
             if (now - entered).total_seconds() / 60 >= QA_WINDOW_IDLE_MINUTES:
                 return ChatSessionState(
                     state="intake",

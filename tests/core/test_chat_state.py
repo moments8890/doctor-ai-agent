@@ -102,6 +102,30 @@ def test_qa_window_returns_to_intake_on_30min_silence():
 # Observability log tests
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Timezone normalization regression tests
+# ---------------------------------------------------------------------------
+
+def test_apply_idle_decay_handles_aware_state_naive_now():
+    """Regression: writes use tz-aware ISO; if a caller passes naive now_iso,
+    apply_idle_decay must coerce instead of raising TypeError."""
+    state = ChatSessionState(state="qa_window", record_id=1,
+                              qa_window_entered_at_iso="2026-04-25T10:00:00+00:00")
+    # Naive now_iso 35min later — should NOT raise
+    result = state.apply_idle_decay(now_iso="2026-04-25T10:35:00")
+    assert result.state == "intake"
+
+
+def test_apply_idle_decay_handles_naive_state_aware_now():
+    """Both paths handle aware now_iso with naive stored timestamp."""
+    state = ChatSessionState(state="intake", record_id=1,
+                              last_intake_turn_at_iso="2026-04-23T08:00:00")
+    # Aware now_iso 25h later — should NOT raise
+    result = state.apply_idle_decay(now_iso="2026-04-24T09:00:00+00:00")
+    assert result.state == "idle"
+    assert result.cancellation_reason == "idle_decay"
+
+
 def test_entry_logs_branch(caplog):
     import logging
     caplog.set_level(logging.INFO, logger="chat_state.entry")
