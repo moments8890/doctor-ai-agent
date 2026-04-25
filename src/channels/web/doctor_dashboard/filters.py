@@ -81,3 +81,23 @@ def apply_exclude_test_doctors(stmt, doctor_id_col):
     if len(conditions) == 1:
         return stmt.where(conditions[0])
     return stmt.where(and_(*conditions))
+
+
+def apply_exclude_seeded(stmt, model, *, include_seeded: bool = False):
+    """Filter out rows tagged as preseeded demo data unless explicitly opted in.
+
+    Every table that ``preseed_service`` writes to has a nullable
+    ``seed_source`` column — NULL on real rows, ``"onboarding_preseed"`` /
+    ``"onboarding_demo"`` on seeded ones. Dashboards exclude seeded rows by
+    default so the partner-doctor pitch doesn't read inflated counts and
+    100% AI-acceptance ratios that come purely from auto-seeded fixtures.
+
+    Operators flip ``include_seeded=True`` (admin "包含演示数据" toggle) when
+    they explicitly want to see the seed plumbing.
+
+    No-op for models that don't carry ``seed_source`` (e.g. InterviewSessionDB,
+    DoctorChatLog) — those tables are never written by the seeder.
+    """
+    if include_seeded or not hasattr(model, "seed_source"):
+        return stmt
+    return stmt.where(model.seed_source.is_(None))

@@ -44,7 +44,7 @@ from db.models import (
     PatientMessage,
     TaskStatus,
 )
-from channels.web.doctor_dashboard.filters import _fmt_ts, apply_exclude_test_doctors
+from channels.web.doctor_dashboard.filters import _fmt_ts, apply_exclude_seeded, apply_exclude_test_doctors
 from channels.web.doctor_dashboard.deps import require_admin_role
 
 router = APIRouter(tags=["admin-overview"], include_in_schema=False)
@@ -72,10 +72,16 @@ def _cutoff_days(n: int) -> datetime:
 
 @router.get("/api/admin/overview")
 async def admin_overview(
+    include_seeded: bool = False,
     db: AsyncSession = Depends(get_db),
     _role: str = Depends(require_admin_role),
 ) -> dict:
-    """Aggregated platform metrics for a pre-launch medical AI dashboard."""
+    """Aggregated platform metrics for a pre-launch medical AI dashboard.
+
+    ``include_seeded=False`` (default) excludes rows produced by
+    ``seed_demo_data`` (where ``seed_source`` is non-NULL) so the dashboard
+    reflects only real doctor/patient activity.
+    """
     now = _now_utc()
     cutoff_7d = _cutoff_days(7)
     cutoff_14d = _cutoff_days(14)
@@ -97,27 +103,30 @@ async def admin_overview(
 
     active_ids_cur: set[str] = set()
     active_ids_prev: set[str] = set()
+    _seeded_models = {PatientMessage, MedicalRecordDB}
     for _model, did_col, ts_col in activity_tables:
-        rows_cur = (
-            await db.execute(
-                apply_exclude_test_doctors(
-                    select(func.distinct(did_col)).where(ts_col >= cutoff_7d),
-                    did_col,
-                )
+        cur_stmt = apply_exclude_test_doctors(
+            select(func.distinct(did_col)).where(ts_col >= cutoff_7d),
+            did_col,
+        )
+        if _model in _seeded_models:
+            cur_stmt = apply_exclude_seeded(
+                cur_stmt, _model, include_seeded=include_seeded
             )
-        ).scalars().all()
+        rows_cur = (await db.execute(cur_stmt)).scalars().all()
         active_ids_cur.update(rows_cur)
 
-        rows_prev = (
-            await db.execute(
-                apply_exclude_test_doctors(
-                    select(func.distinct(did_col)).where(
-                        and_(ts_col >= cutoff_14d, ts_col < cutoff_7d)
-                    ),
-                    did_col,
-                )
+        prev_stmt = apply_exclude_test_doctors(
+            select(func.distinct(did_col)).where(
+                and_(ts_col >= cutoff_14d, ts_col < cutoff_7d)
+            ),
+            did_col,
+        )
+        if _model in _seeded_models:
+            prev_stmt = apply_exclude_seeded(
+                prev_stmt, _model, include_seeded=include_seeded
             )
-        ).scalars().all()
+        rows_prev = (await db.execute(prev_stmt)).scalars().all()
         active_ids_prev.update(rows_prev)
 
     active_cur = len(active_ids_cur)
@@ -184,16 +193,20 @@ async def admin_overview(
     # -----------------------------------------------------------------------
     ai_rows_cur = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(AISuggestion.decision, func.count().label("cnt"))
-                .where(
-                    and_(
-                        AISuggestion.decided_at >= cutoff_7d,
-                        AISuggestion.decision.isnot(None),
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(AISuggestion.decision, func.count().label("cnt"))
+                    .where(
+                        and_(
+                            AISuggestion.decided_at >= cutoff_7d,
+                            AISuggestion.decision.isnot(None),
+                        )
                     )
-                )
-                .group_by(AISuggestion.decision),
-                AISuggestion.doctor_id,
+                    .group_by(AISuggestion.decision),
+                    AISuggestion.doctor_id,
+                ),
+                AISuggestion,
+                include_seeded=include_seeded,
             )
         )
     ).all()
@@ -209,17 +222,21 @@ async def admin_overview(
 
     ai_rows_prev = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(AISuggestion.decision, func.count().label("cnt"))
-                .where(
-                    and_(
-                        AISuggestion.decided_at >= cutoff_14d,
-                        AISuggestion.decided_at < cutoff_7d,
-                        AISuggestion.decision.isnot(None),
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(AISuggestion.decision, func.count().label("cnt"))
+                    .where(
+                        and_(
+                            AISuggestion.decided_at >= cutoff_14d,
+                            AISuggestion.decided_at < cutoff_7d,
+                            AISuggestion.decision.isnot(None),
+                        )
                     )
-                )
-                .group_by(AISuggestion.decision),
-                AISuggestion.doctor_id,
+                    .group_by(AISuggestion.decision),
+                    AISuggestion.doctor_id,
+                ),
+                AISuggestion,
+                include_seeded=include_seeded,
             )
         )
     ).all()
@@ -238,33 +255,41 @@ async def admin_overview(
     # -----------------------------------------------------------------------
     # Inbound messages with no subsequent outbound for the same patient
     latest_outbound = (
-        select(
-            PatientMessage.patient_id,
-            func.max(PatientMessage.created_at).label("last_out"),
+        apply_exclude_seeded(
+            select(
+                PatientMessage.patient_id,
+                func.max(PatientMessage.created_at).label("last_out"),
+            )
+            .where(PatientMessage.direction == "outbound")
+            .group_by(PatientMessage.patient_id),
+            PatientMessage,
+            include_seeded=include_seeded,
         )
-        .where(PatientMessage.direction == "outbound")
-        .group_by(PatientMessage.patient_id)
         .subquery()
     )
 
     unanswered_rows = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(PatientMessage.created_at)
-                .outerjoin(
-                    latest_outbound,
-                    PatientMessage.patient_id == latest_outbound.c.patient_id,
-                )
-                .where(
-                    and_(
-                        PatientMessage.direction == "inbound",
-                        # No outbound at all, or last outbound before this inbound
-                        (latest_outbound.c.last_out.is_(None))
-                        | (PatientMessage.created_at > latest_outbound.c.last_out),
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(PatientMessage.created_at)
+                    .outerjoin(
+                        latest_outbound,
+                        PatientMessage.patient_id == latest_outbound.c.patient_id,
                     )
-                )
-                .order_by(PatientMessage.created_at.asc()),
-                PatientMessage.doctor_id,
+                    .where(
+                        and_(
+                            PatientMessage.direction == "inbound",
+                            # No outbound at all, or last outbound before this inbound
+                            (latest_outbound.c.last_out.is_(None))
+                            | (PatientMessage.created_at > latest_outbound.c.last_out),
+                        )
+                    )
+                    .order_by(PatientMessage.created_at.asc()),
+                    PatientMessage.doctor_id,
+                ),
+                PatientMessage,
+                include_seeded=include_seeded,
             )
         )
     ).scalars().all()
@@ -322,24 +347,32 @@ async def admin_overview(
     # -----------------------------------------------------------------------
     records_cur = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(func.count()).select_from(MedicalRecordDB).where(
-                    MedicalRecordDB.created_at >= cutoff_7d
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(func.count()).select_from(MedicalRecordDB).where(
+                        MedicalRecordDB.created_at >= cutoff_7d
+                    ),
+                    MedicalRecordDB.doctor_id,
                 ),
-                MedicalRecordDB.doctor_id,
+                MedicalRecordDB,
+                include_seeded=include_seeded,
             )
         )
     ).scalar() or 0
     records_prev = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(func.count()).select_from(MedicalRecordDB).where(
-                    and_(
-                        MedicalRecordDB.created_at >= cutoff_14d,
-                        MedicalRecordDB.created_at < cutoff_7d,
-                    )
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(func.count()).select_from(MedicalRecordDB).where(
+                        and_(
+                            MedicalRecordDB.created_at >= cutoff_14d,
+                            MedicalRecordDB.created_at < cutoff_7d,
+                        )
+                    ),
+                    MedicalRecordDB.doctor_id,
                 ),
-                MedicalRecordDB.doctor_id,
+                MedicalRecordDB,
+                include_seeded=include_seeded,
             )
         )
     ).scalar() or 0
@@ -347,28 +380,36 @@ async def admin_overview(
     # SECONDARY: ai_replies (outbound messages)
     ai_replies_cur = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(func.count()).select_from(PatientMessage).where(
-                    and_(
-                        PatientMessage.direction == "outbound",
-                        PatientMessage.created_at >= cutoff_7d,
-                    )
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(func.count()).select_from(PatientMessage).where(
+                        and_(
+                            PatientMessage.direction == "outbound",
+                            PatientMessage.created_at >= cutoff_7d,
+                        )
+                    ),
+                    PatientMessage.doctor_id,
                 ),
-                PatientMessage.doctor_id,
+                PatientMessage,
+                include_seeded=include_seeded,
             )
         )
     ).scalar() or 0
     ai_replies_prev = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(func.count()).select_from(PatientMessage).where(
-                    and_(
-                        PatientMessage.direction == "outbound",
-                        PatientMessage.created_at >= cutoff_14d,
-                        PatientMessage.created_at < cutoff_7d,
-                    )
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(func.count()).select_from(PatientMessage).where(
+                        and_(
+                            PatientMessage.direction == "outbound",
+                            PatientMessage.created_at >= cutoff_14d,
+                            PatientMessage.created_at < cutoff_7d,
+                        )
+                    ),
+                    PatientMessage.doctor_id,
                 ),
-                PatientMessage.doctor_id,
+                PatientMessage,
+                include_seeded=include_seeded,
             )
         )
     ).scalar() or 0
@@ -376,28 +417,36 @@ async def admin_overview(
     # SECONDARY: patient_messages (inbound)
     patient_msgs_cur = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(func.count()).select_from(PatientMessage).where(
-                    and_(
-                        PatientMessage.direction == "inbound",
-                        PatientMessage.created_at >= cutoff_7d,
-                    )
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(func.count()).select_from(PatientMessage).where(
+                        and_(
+                            PatientMessage.direction == "inbound",
+                            PatientMessage.created_at >= cutoff_7d,
+                        )
+                    ),
+                    PatientMessage.doctor_id,
                 ),
-                PatientMessage.doctor_id,
+                PatientMessage,
+                include_seeded=include_seeded,
             )
         )
     ).scalar() or 0
     patient_msgs_prev = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(func.count()).select_from(PatientMessage).where(
-                    and_(
-                        PatientMessage.direction == "inbound",
-                        PatientMessage.created_at >= cutoff_14d,
-                        PatientMessage.created_at < cutoff_7d,
-                    )
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(func.count()).select_from(PatientMessage).where(
+                        and_(
+                            PatientMessage.direction == "inbound",
+                            PatientMessage.created_at >= cutoff_14d,
+                            PatientMessage.created_at < cutoff_7d,
+                        )
+                    ),
+                    PatientMessage.doctor_id,
                 ),
-                PatientMessage.doctor_id,
+                PatientMessage,
+                include_seeded=include_seeded,
             )
         )
     ).scalar() or 0
@@ -405,24 +454,32 @@ async def admin_overview(
     # SECONDARY: new_patients
     patients_cur = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(func.count()).select_from(Patient).where(
-                    Patient.created_at >= cutoff_7d
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(func.count()).select_from(Patient).where(
+                        Patient.created_at >= cutoff_7d
+                    ),
+                    Patient.doctor_id,
                 ),
-                Patient.doctor_id,
+                Patient,
+                include_seeded=include_seeded,
             )
         )
     ).scalar() or 0
     patients_prev = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(func.count()).select_from(Patient).where(
-                    and_(
-                        Patient.created_at >= cutoff_14d,
-                        Patient.created_at < cutoff_7d,
-                    )
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(func.count()).select_from(Patient).where(
+                        and_(
+                            Patient.created_at >= cutoff_14d,
+                            Patient.created_at < cutoff_7d,
+                        )
+                    ),
+                    Patient.doctor_id,
                 ),
-                Patient.doctor_id,
+                Patient,
+                include_seeded=include_seeded,
             )
         )
     ).scalar() or 0
@@ -430,24 +487,32 @@ async def admin_overview(
     # SECONDARY: new_knowledge
     kb_cur = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(func.count()).select_from(DoctorKnowledgeItem).where(
-                    DoctorKnowledgeItem.created_at >= cutoff_7d
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(func.count()).select_from(DoctorKnowledgeItem).where(
+                        DoctorKnowledgeItem.created_at >= cutoff_7d
+                    ),
+                    DoctorKnowledgeItem.doctor_id,
                 ),
-                DoctorKnowledgeItem.doctor_id,
+                DoctorKnowledgeItem,
+                include_seeded=include_seeded,
             )
         )
     ).scalar() or 0
     kb_prev = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(func.count()).select_from(DoctorKnowledgeItem).where(
-                    and_(
-                        DoctorKnowledgeItem.created_at >= cutoff_14d,
-                        DoctorKnowledgeItem.created_at < cutoff_7d,
-                    )
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(func.count()).select_from(DoctorKnowledgeItem).where(
+                        and_(
+                            DoctorKnowledgeItem.created_at >= cutoff_14d,
+                            DoctorKnowledgeItem.created_at < cutoff_7d,
+                        )
+                    ),
+                    DoctorKnowledgeItem.doctor_id,
                 ),
-                DoctorKnowledgeItem.doctor_id,
+                DoctorKnowledgeItem,
+                include_seeded=include_seeded,
             )
         )
     ).scalar() or 0
@@ -472,15 +537,19 @@ async def admin_overview(
     # SECONDARY: overdue_tasks
     overdue_count = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(func.count()).select_from(DoctorTask).where(
-                    and_(
-                        DoctorTask.status == TaskStatus.pending,
-                        DoctorTask.due_at != None,  # noqa: E711
-                        DoctorTask.due_at < now,
-                    )
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(func.count()).select_from(DoctorTask).where(
+                        and_(
+                            DoctorTask.status == TaskStatus.pending,
+                            DoctorTask.due_at != None,  # noqa: E711
+                            DoctorTask.due_at < now,
+                        )
+                    ),
+                    DoctorTask.doctor_id,
                 ),
-                DoctorTask.doctor_id,
+                DoctorTask,
+                include_seeded=include_seeded,
             )
         )
     ).scalar() or 0
@@ -490,16 +559,20 @@ async def admin_overview(
     # subsequent outbound for the same patient.
     inbound_7d = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(PatientMessage)
-                .where(
-                    and_(
-                        PatientMessage.direction == "inbound",
-                        PatientMessage.created_at >= cutoff_7d,
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(PatientMessage)
+                    .where(
+                        and_(
+                            PatientMessage.direction == "inbound",
+                            PatientMessage.created_at >= cutoff_7d,
+                        )
                     )
-                )
-                .order_by(PatientMessage.created_at.asc()),
-                PatientMessage.doctor_id,
+                    .order_by(PatientMessage.created_at.asc()),
+                    PatientMessage.doctor_id,
+                ),
+                PatientMessage,
+                include_seeded=include_seeded,
             )
         )
     ).scalars().all()
@@ -540,15 +613,19 @@ async def admin_overview(
     # -----------------------------------------------------------------------
     overdue_tasks_rows = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(DoctorTask).where(
-                    and_(
-                        DoctorTask.status == TaskStatus.pending,
-                        DoctorTask.due_at != None,  # noqa: E711
-                        DoctorTask.due_at < now,
-                    )
-                ).order_by(DoctorTask.due_at.asc()).limit(10),
-                DoctorTask.doctor_id,
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(DoctorTask).where(
+                        and_(
+                            DoctorTask.status == TaskStatus.pending,
+                            DoctorTask.due_at != None,  # noqa: E711
+                            DoctorTask.due_at < now,
+                        )
+                    ).order_by(DoctorTask.due_at.asc()).limit(10),
+                    DoctorTask.doctor_id,
+                ),
+                DoctorTask,
+                include_seeded=include_seeded,
             )
         )
     ).scalars().all()
@@ -660,18 +737,27 @@ async def admin_overview(
 
 @router.get("/api/admin/doctors")
 async def admin_doctors_list(
+    include_unnamed: bool = False,
     db: AsyncSession = Depends(get_db),
     _role: str = Depends(require_admin_role),
 ) -> dict:
-    """Doctor list with per-doctor activity metrics."""
+    """Doctor list with per-doctor activity metrics.
+
+    `include_unnamed=False` (default) hides rows where ``Doctor.name`` is
+    NULL — those are invite-link clicks where registration never reached
+    the nickname step, so they have no display name and clutter the list
+    when the partner doctor is using the dashboard for the pitch. The
+    admin can flip the toggle to see them when investigating drop-off.
+    """
     cutoff_24h = _cutoff_24h()
+
+    base_query = select(Doctor).order_by(Doctor.updated_at.desc())
+    if not include_unnamed:
+        base_query = base_query.where(Doctor.name.is_not(None))
 
     doctors = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(Doctor).order_by(Doctor.updated_at.desc()),
-                Doctor.doctor_id,
-            )
+            apply_exclude_test_doctors(base_query, Doctor.doctor_id)
         )
     ).scalars().all()
 
@@ -766,6 +852,7 @@ async def admin_doctors_list(
 
 @router.get("/api/admin/activity")
 async def admin_activity(
+    include_seeded: bool = False,
     db: AsyncSession = Depends(get_db),
     _role: str = Depends(require_admin_role),
 ) -> dict:
@@ -775,11 +862,15 @@ async def admin_activity(
     # AI suggestions
     suggestions = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(AISuggestion).where(
-                    AISuggestion.created_at >= cutoff_24h
-                ).order_by(AISuggestion.created_at.desc()).limit(50),
-                AISuggestion.doctor_id,
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(AISuggestion).where(
+                        AISuggestion.created_at >= cutoff_24h
+                    ).order_by(AISuggestion.created_at.desc()).limit(50),
+                    AISuggestion.doctor_id,
+                ),
+                AISuggestion,
+                include_seeded=include_seeded,
             )
         )
     ).scalars().all()
@@ -787,11 +878,15 @@ async def admin_activity(
     # Medical records
     records = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(MedicalRecordDB).where(
-                    MedicalRecordDB.created_at >= cutoff_24h
-                ).order_by(MedicalRecordDB.created_at.desc()).limit(50),
-                MedicalRecordDB.doctor_id,
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(MedicalRecordDB).where(
+                        MedicalRecordDB.created_at >= cutoff_24h
+                    ).order_by(MedicalRecordDB.created_at.desc()).limit(50),
+                    MedicalRecordDB.doctor_id,
+                ),
+                MedicalRecordDB,
+                include_seeded=include_seeded,
             )
         )
     ).scalars().all()
@@ -799,11 +894,15 @@ async def admin_activity(
     # Tasks
     tasks = (
         await db.execute(
-            apply_exclude_test_doctors(
-                select(DoctorTask).where(
-                    DoctorTask.created_at >= cutoff_24h
-                ).order_by(DoctorTask.created_at.desc()).limit(50),
-                DoctorTask.doctor_id,
+            apply_exclude_seeded(
+                apply_exclude_test_doctors(
+                    select(DoctorTask).where(
+                        DoctorTask.created_at >= cutoff_24h
+                    ).order_by(DoctorTask.created_at.desc()).limit(50),
+                    DoctorTask.doctor_id,
+                ),
+                DoctorTask,
+                include_seeded=include_seeded,
             )
         )
     ).scalars().all()

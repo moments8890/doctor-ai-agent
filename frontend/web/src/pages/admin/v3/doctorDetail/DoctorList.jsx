@@ -126,12 +126,18 @@ export default function DoctorList() {
   const [doctors, setDoctors] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // include_unnamed=false hides invite-link clicks that never reached the
+  // nickname step. Operators flip this on when investigating drop-off.
+  const [showUnnamed, setShowUnnamed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetchJson("/api/admin/doctors")
+    const url = showUnnamed
+      ? "/api/admin/doctors?include_unnamed=true"
+      : "/api/admin/doctors";
+    fetchJson(url)
       .then((data) => {
         if (cancelled) return;
         setDoctors(data.doctors || data.items || []);
@@ -141,7 +147,7 @@ export default function DoctorList() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [showUnnamed]);
 
   if (loading) {
     return (
@@ -183,7 +189,28 @@ export default function DoctorList() {
         <span style={{ fontSize: FONT.body, fontWeight: 600, color: COLOR.text1 }}>
           选择医生
         </span>
-        <span style={{ fontSize: FONT.sm, color: COLOR.text3 }}>{list.length} 位</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <label
+            style={{
+              fontSize: FONT.sm,
+              color: COLOR.text3,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              cursor: "pointer",
+              userSelect: "none",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showUnnamed}
+              onChange={(e) => setShowUnnamed(e.target.checked)}
+              style={{ cursor: "pointer" }}
+            />
+            显示未入驻
+          </label>
+          <span style={{ fontSize: FONT.sm, color: COLOR.text3 }}>{list.length} 位</span>
+        </div>
       </div>
       {list.length === 0 ? (
         <div style={{ padding: "40px 16px", textAlign: "center", color: COLOR.text3, fontSize: FONT.body }}>

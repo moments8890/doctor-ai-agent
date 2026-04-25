@@ -77,6 +77,25 @@ function deriveEvidence(row, knowledge) {
       quote: k.quote || k.snippet || "",
     }));
   }
+  // 2026-04-25 new schema: trigger_rule_ids array (e.g. ["KB-12"]) maps to KB items
+  if (Array.isArray(row.trigger_rule_ids) && row.trigger_rule_ids.length > 0) {
+    const items = knowledge?.knowledge?.items || knowledge?.items || [];
+    const byId = new Map(items.map((k) => [k.id, k]));
+    const fromTriggers = row.trigger_rule_ids
+      .map((tid) => {
+        const m = String(tid).match(/KB-(\d+)/i);
+        const id = m ? Number(m[1]) : null;
+        const k = id !== null ? byId.get(id) : null;
+        if (!k) return null;
+        return {
+          num: id,
+          title: k.title || "",
+          quote: k.quote || k.snippet || k.content || "",
+        };
+      })
+      .filter(Boolean);
+    if (fromTriggers.length > 0) return fromTriggers;
+  }
   // Fallback: cited_knowledge_ids matched against knowledge.items by id.
   if (Array.isArray(row.cited_knowledge_ids) && row.cited_knowledge_ids.length > 0) {
     const items = knowledge?.knowledge?.items || knowledge?.items || [];
@@ -103,6 +122,13 @@ function normalizeRiskLevel(level) {
 }
 
 function deriveRisks(row) {
+  // 2026-04-25 new schema: risk_signals array (atomic strings) is the primary source
+  if (Array.isArray(row.risk_signals) && row.risk_signals.length > 0) {
+    return row.risk_signals
+      .filter((s) => s && typeof s === "string")
+      .map((s) => ({ label: s, level: "med" }));
+  }
+  // Legacy: risk_tags array (mixed string/object shape)
   const tags = row.risk_tags;
   if (!Array.isArray(tags)) return [];
   return tags
@@ -158,7 +184,11 @@ export function toDecisionCards(items, knowledge) {
       kind,
       sectionTag: deriveSectionTag(row, kind),
       time: fmtTime(row.created_at),
-      observation: row.observation || row.content || "",
+      // 2026-04-25 new schema: prefer evidence array (atomic facts) for the
+      // "AI 观察" block; fall back to legacy observation/content.
+      observation: (Array.isArray(row.evidence) && row.evidence.length > 0)
+        ? row.evidence.join("，")
+        : (row.observation || row.content || ""),
       evidence: deriveEvidence(row, knowledge),
       risks: deriveRisks(row),
       outcome: deriveOutcome(row, kind),
