@@ -26,6 +26,7 @@ import {
   AddCircleOutline,
 } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
+import { usePatientMe } from "../../../lib/patientQueries";
 import { usePatientStore } from "../../../store/patientStore";
 import { APP, FONT, ICON } from "../../theme";
 import { pageContainer, navBarStyle } from "../../layouts";
@@ -110,21 +111,17 @@ export default function PatientPage() {
     });
   }, [api.isMock]);
 
-  // Real mode: refresh identity
+  // Refresh canonical profile from /patient/me; merges into store on success.
+  const meQuery = usePatientMe();
   useEffect(() => {
-    if (!token || api.isMock) return;
-    api
-      .getPatientMe(token)
-      .then((data) => {
-        usePatientStore.getState().mergeProfile({
-          patientId: data.patient_id ? String(data.patient_id) : undefined,
-          patientName: data.patient_name || undefined,
-          doctorId: data.doctor_id || undefined,
-          doctorName: data.doctor_name || undefined,
-        });
-      })
-      .catch(() => {});
-  }, [token, api]);
+    if (!meQuery.data) return;
+    usePatientStore.getState().mergeProfile({
+      patientId: meQuery.data.patient_id ? String(meQuery.data.patient_id) : undefined,
+      patientName: meQuery.data.patient_name || undefined,
+      doctorId: meQuery.data.doctor_id || undefined,
+      doctorName: meQuery.data.doctor_name || undefined,
+    });
+  }, [meQuery.data]);
 
   // ── Pathname-driven overlay/section detection ────────────────────
   const section = detectSection(location.pathname);

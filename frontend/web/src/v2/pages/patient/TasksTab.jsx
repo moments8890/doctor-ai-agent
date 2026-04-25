@@ -6,11 +6,15 @@
  * Patient-specific: no create-task, no patient_name prefix, no followup merging.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { JumboTabs, List, Tag, ErrorBlock, Button, Ellipsis } from "antd-mobile";
 import { CheckCircleOutline, ClockCircleOutline } from "antd-mobile-icons";
-import { usePatientApi } from "../../../api/PatientApiContext";
+import {
+  usePatientTasks,
+  useCompletePatientTask,
+  useUncompletePatientTask,
+} from "../../../lib/patientQueries";
 import { relativeFuture } from "../../../utils/time";
 import { APP, FONT } from "../../theme";
 import { pageContainer, scrollable } from "../../layouts";
@@ -138,26 +142,14 @@ function CompletedRow({ item, onUncomplete, onTap }) {
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function TasksTab({ token }) {
+export default function TasksTab({ token: _token }) {
   const navigate = useNavigate();
-  const { getPatientTasks, completePatientTask, uncompletePatientTask } = usePatientApi();
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const { data: tasks = [], isLoading, isError, refetch } = usePatientTasks();
+  const completeTask = useCompletePatientTask();
+  const uncompleteTask = useUncompletePatientTask();
   const [activeTab, setActiveTab] = useState("pending");
   const [pendingOverride, setPendingOverride] = useState(null);
   const [completedOverride, setCompletedOverride] = useState(null);
-
-  const loadTasks = useCallback(() => {
-    setLoading(true);
-    setError(false);
-    getPatientTasks(token)
-      .then((data) => setTasks(Array.isArray(data) ? data : []))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }, [token, getPatientTasks]);
-
-  useEffect(() => { loadTasks(); }, [loadTasks]);
 
   // Derived lists with optimistic overrides
   const rawPending = tasks.filter((t) => t.status !== "completed");
@@ -169,7 +161,7 @@ export default function TasksTab({ token }) {
 
   const handleTap = (item) => navigate(`/patient/tasks/${item.id}`);
 
-  const handleComplete = useCallback(async (item) => {
+  const handleComplete = useCallback((item) => {
     setPendingOverride((prev) => {
       const cur = prev !== null ? prev : rawPending;
       return cur.filter((t) => t.id !== item.id);
@@ -178,15 +170,20 @@ export default function TasksTab({ token }) {
       const cur = prev !== null ? prev : rawCompleted;
       return [{ ...item, status: "completed", completed_at: new Date().toISOString() }, ...cur];
     });
-    try {
-      await completePatientTask(token, item.id);
-    } catch {
-      setPendingOverride(null);
-      setCompletedOverride(null);
-    }
-  }, [token, completePatientTask, rawPending, rawCompleted]);
+    completeTask.mutate(item.id, {
+      onSuccess: () => {
+        // Drop overrides so the refetched canonical list takes over.
+        setPendingOverride(null);
+        setCompletedOverride(null);
+      },
+      onError: () => {
+        setPendingOverride(null);
+        setCompletedOverride(null);
+      },
+    });
+  }, [completeTask, rawPending, rawCompleted]);
 
-  const handleUncomplete = useCallback(async (item) => {
+  const handleUncomplete = useCallback((item) => {
     setCompletedOverride((prev) => {
       const cur = prev !== null ? prev : rawCompleted;
       return cur.filter((t) => t.id !== item.id);
@@ -195,19 +192,24 @@ export default function TasksTab({ token }) {
       const cur = prev !== null ? prev : rawPending;
       return [{ ...item, status: "pending", completed_at: null }, ...cur];
     });
-    try {
-      await uncompletePatientTask(token, item.id);
-    } catch {
-      setPendingOverride(null);
-      setCompletedOverride(null);
-    }
-  }, [token, uncompletePatientTask, rawPending, rawCompleted]);
+    uncompleteTask.mutate(item.id, {
+      onSuccess: () => {
+        // Drop overrides so the refetched canonical list takes over.
+        setPendingOverride(null);
+        setCompletedOverride(null);
+      },
+      onError: () => {
+        setPendingOverride(null);
+        setCompletedOverride(null);
+      },
+    });
+  }, [uncompleteTask, rawPending, rawCompleted]);
 
-  if (loading) return <LoadingCenter />;
-  if (error) return (
+  if (isLoading) return <LoadingCenter />;
+  if (isError) return (
     <div style={{ padding: 16 }}>
       <ErrorBlock status="default" title="加载失败" description="无法获取任务列表">
-        <Button color="primary" size="small" onClick={loadTasks}>重试</Button>
+        <Button color="primary" size="small" onClick={() => refetch()}>重试</Button>
       </ErrorBlock>
     </div>
   );

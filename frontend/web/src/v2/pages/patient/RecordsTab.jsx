@@ -10,7 +10,7 @@
  *  - Empty state when there are no records
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Button,
@@ -21,7 +21,7 @@ import {
   Ellipsis,
 } from "antd-mobile";
 import { FileOutline } from "antd-mobile-icons";
-import { usePatientApi } from "../../../api/PatientApiContext";
+import { usePatientRecords } from "../../../lib/patientQueries";
 import { APP, FONT, ICON, RADIUS } from "../../theme";
 import { LoadingCenter, EmptyState } from "../../components";
 
@@ -232,28 +232,12 @@ function TimelineView({ records, onTap }) {
 // RecordsTab
 // ---------------------------------------------------------------------------
 
-export default function RecordsTab({ token }) {
+export default function RecordsTab({ token: _token }) {
   const navigate = useNavigate();
-  const { getPatientRecords } = usePatientApi();
 
-  const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const { data: records = [], isLoading, isError, refetch } = usePatientRecords();
   const [recordView, setRecordView] = useState("list");
   const [typeFilter, setTypeFilter] = useState("");
-
-  const loadRecords = useCallback(() => {
-    setLoading(true);
-    setError(false);
-    getPatientRecords(token)
-      .then((data) => setRecords(Array.isArray(data) ? data : []))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }, [token, getPatientRecords]);
-
-  useEffect(() => {
-    loadRecords();
-  }, [loadRecords]);
 
   const filteredRecords = typeFilter
     ? records.filter((rec) => {
@@ -266,11 +250,11 @@ export default function RecordsTab({ token }) {
     navigate(`/patient/records/${recordId}`);
   }
 
-  if (loading) {
+  if (isLoading) {
     return <LoadingCenter />;
   }
 
-  if (error) {
+  if (isError) {
     return (
       <div style={{ padding: 16 }}>
         <ErrorBlock
@@ -278,7 +262,7 @@ export default function RecordsTab({ token }) {
           title="加载失败"
           description="无法获取病历记录"
         >
-          <Button color="primary" size="small" onClick={loadRecords}>
+          <Button color="primary" size="small" onClick={() => refetch()}>
             重试
           </Button>
         </ErrorBlock>
