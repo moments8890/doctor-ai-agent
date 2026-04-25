@@ -6,10 +6,13 @@ cancellation or 24h decay; classifier confidence alone never exits intake.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
+
+log = logging.getLogger("chat_state.entry")
 
 from domain.patient_lifecycle.triage import TriageResult, TriageCategory
 
@@ -47,8 +50,10 @@ def evaluate_entry(triage: TriageResult, message: str) -> IntakeEntryDecision:
     if triage.category != TriageCategory.symptom_report:
         return IntakeEntryDecision(entered=False)
     if triage.confidence >= PRIMARY_THRESHOLD:
+        log.info("chat_state.entry.entered branch=primary_threshold confidence=%.2f", triage.confidence)
         return IntakeEntryDecision(entered=True, reason=IntakeEntryReason.PRIMARY_THRESHOLD)
     if triage.confidence >= LOWER_THRESHOLD and _lexicon_match(message):
+        log.info("chat_state.entry.entered branch=lexicon_boost confidence=%.2f", triage.confidence)
         return IntakeEntryDecision(entered=True, reason=IntakeEntryReason.LEXICON_BOOST)
     return IntakeEntryDecision(entered=False)
 

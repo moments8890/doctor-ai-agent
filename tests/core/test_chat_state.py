@@ -96,3 +96,17 @@ def test_qa_window_returns_to_intake_on_30min_silence():
     state = ChatSessionState(state="qa_window", record_id=1, qa_window_entered_at_iso="2026-04-25T10:00:00")
     state = state.apply_idle_decay(now_iso="2026-04-25T10:35:00")
     assert state.state == "intake"
+
+
+# ---------------------------------------------------------------------------
+# Observability log tests
+# ---------------------------------------------------------------------------
+
+def test_entry_logs_branch(caplog):
+    import logging
+    caplog.set_level(logging.INFO, logger="chat_state.entry")
+    evaluate_entry(_triage(TriageCategory.symptom_report, 0.85), message="头晕")
+    assert any("branch=primary_threshold" in r.message for r in caplog.records)
+    caplog.clear()
+    evaluate_entry(_triage(TriageCategory.symptom_report, 0.55), message="胃疼")
+    assert any("branch=lexicon_boost" in r.message for r in caplog.records)
