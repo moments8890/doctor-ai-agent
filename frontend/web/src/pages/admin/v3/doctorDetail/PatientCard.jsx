@@ -53,12 +53,37 @@ function Sparkline({ points, isDanger }) {
   );
 }
 
+function navigateToPatient(patientId) {
+  if (typeof window === "undefined" || patientId == null) return;
+  const params = new URLSearchParams(window.location.search);
+  params.set("v", "3");
+  params.set("patient", String(patientId));
+  // Keep `doctor=` so the patient detail's "← 返回医生" preserves context.
+  const next = `${window.location.pathname}?${params.toString()}${window.location.hash || ""}`;
+  window.history.pushState(null, "", next);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
 export default function PatientCard({ patient }) {
   const isDanger = patient.risk === "danger";
   const initial = (patient.name || "?").trim().charAt(0);
 
+  function handleClick() {
+    navigateToPatient(patient.id);
+  }
+  function handleKeyDown(e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      navigateToPatient(patient.id);
+    }
+  }
+
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
       style={{
         background: COLOR.bgCard,
         border: `1px solid ${COLOR.borderSubtle}`,
