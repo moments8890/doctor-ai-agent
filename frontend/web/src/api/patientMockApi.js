@@ -35,6 +35,17 @@ export async function getPatientTasks(token) {
   return tasks;
 }
 
+export async function getPatientTaskDetail(_token, taskId) {
+  const all = await getPatientTasks(_token);
+  const found = all.find((t) => String(t.id) === String(taskId));
+  if (!found) {
+    const err = new Error("Task not found");
+    err.status = 404;
+    throw err;
+  }
+  return found;
+}
+
 // ── Write operations ──
 
 export async function completePatientTask(token, taskId) {
