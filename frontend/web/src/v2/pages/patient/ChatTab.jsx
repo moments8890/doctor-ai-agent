@@ -20,6 +20,7 @@ import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import { usePatientApi } from "../../../api/PatientApiContext";
 import { Card, TintedIconRow } from "../../components";
 import ChatBubble from "../../ChatBubble";
+import ChatConfirmGate from "../../components/ChatConfirmGate";
 import ChatComposer from "../../ChatComposer";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { APP, FONT, RADIUS } from "../../theme";
@@ -117,7 +118,7 @@ export default function ChatTab({
   onUnreadCountChange,
 }) {
   const navigate = useNavigate();
-  const { getPatientChatMessages, sendPatientChat } = usePatientApi();
+  const { getPatientChatMessages, sendPatientChat, confirmPatientChatDraft } = usePatientApi();
 
   const welcomeMsg = {
     source: "ai",
@@ -195,6 +196,15 @@ export default function ChatTab({
     onUnreadCountChange?.(0);
   }, [messages, onUnreadCountChange]);
 
+  async function sendConfirmation(draft_id, action) {
+    try {
+      await confirmPatientChatDraft(token, draft_id, action);
+    } catch (err) {
+      if (err?.status === 401) return;
+      console.warn("confirmPatientChatDraft failed:", err?.message);
+    }
+  }
+
   async function handleSend(text) {
     if (!text || sending) return;
     setMessages((prev) => [
@@ -216,6 +226,17 @@ export default function ChatTab({
   }
 
   function renderMessage(msg, i) {
+    if (msg.kind === "confirm_gate") {
+      return (
+        <ChatConfirmGate
+          key={msg.id ?? i}
+          continuity={msg.continuity}
+          onConfirm={() => sendConfirmation(msg.draft_id, "confirm")}
+          onContinue={() => sendConfirmation(msg.draft_id, "continue")}
+        />
+      );
+    }
+
     const src = msg.source || (msg.role === "user" ? "patient" : "ai");
 
     if (src === "doctor") {
