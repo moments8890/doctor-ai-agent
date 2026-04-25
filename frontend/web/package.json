@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "sync-internal-wiki": "bash ../../scripts/sync-internal-wiki-docs.sh",
+    "predev": "npm run sync-internal-wiki",
+    "predev:stable": "npm run sync-internal-wiki",
+    "prebuild": "npm run sync-internal-wiki",
+    "prebuild:android": "npm run sync-internal-wiki",
     "dev": "vite",
     "dev:stable": "VITE_NO_HMR=1 vite",
     "build": "vite build",

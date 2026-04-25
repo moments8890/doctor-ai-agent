@@ -86,3 +86,10 @@ test-results/
 # GlitchTip secrets (per-host, never committed)
 deploy/tencent/glitchtip/glitchtip.secrets
 deploy/tencent/glitchtip/postgres_data/
+
+# Internal wiki docs are DERIVED from source .md files via
+# scripts/sync-internal-wiki-docs.sh — committing them duplicates
+# content and creates drift. The sync runs:
+#   prod:  deploy.sh before vite build
+#   local: predev/prebuild hooks in frontend/web/package.json
+frontend/web/public/wiki/internal-docs/
