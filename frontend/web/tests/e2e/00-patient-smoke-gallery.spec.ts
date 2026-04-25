@@ -211,27 +211,17 @@ test.describe("patient smoke gallery", () => {
     });
   });
 
-  test("02 — records list", async ({ page }) => {
+  test("02 — records timeline (unified)", async ({ page }) => {
+    // As of 2026-04-24, RecordsTab is a single chronological timeline —
+    // view toggle and type filter were dropped (YAGNI for sub-5-record audience).
     await page.goto("/patient/records");
     await page.waitForSelector("text=门诊记录");
     await page.waitForSelector("text=预问诊");
-    await page.waitForTimeout(300);
-    await page.screenshot({
-      path: `${SHOTS_DIR}/patient-02-records-list.png`,
-      fullPage: false,
-    });
-  });
-
-  test("03 — records timeline view", async ({ page }) => {
-    await page.goto("/patient/records");
-    await page.waitForSelector("text=门诊记录");
-    // Switch to timeline view via the CapsuleTabs control.
-    await page.getByText("时间线", { exact: true }).click();
     // Month section header is rendered by groupByMonth → "2026年4月".
     await page.waitForSelector("text=/2026年.月/");
     await page.waitForTimeout(300);
     await page.screenshot({
-      path: `${SHOTS_DIR}/patient-03-records-timeline.png`,
+      path: `${SHOTS_DIR}/patient-02-records-timeline.png`,
       fullPage: false,
     });
   });

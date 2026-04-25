@@ -1,23 +1,21 @@
 /**
  * RecordsTab — patient medical records list (v2, antd-mobile).
  *
- * Business logic ported from src/pages/patient/RecordsTab.jsx.
+ * Single chronological timeline grouped by month. Per a 2026-04-24 product
+ * call, both the view-toggle (病历/时间线) and the type filter (全部/病历/问诊)
+ * were dropped: most patients have <5 records, both controls added decision
+ * cost for almost no benefit, and the colored type tag on each Card already
+ * conveys type at a glance.
+ *
  * Renders:
- *  - Filter pills for list / timeline view + record type
+ *  - Month section header on gray bg above per-month Card stack
  *  - List of records as floating Card rows on a gray pageContainer bg
- *  - Timeline view grouped by month (per-month Card stack)
  *  - PullToRefresh wrap calls usePatientRecords().refetch
  *  - Empty / loading / error states use shared components
  */
 
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  CapsuleTabs,
-  PullToRefresh,
-  Tag,
-  Ellipsis,
-} from "antd-mobile";
+import { PullToRefresh, Tag, Ellipsis } from "antd-mobile";
 import { usePatientRecords } from "../../../lib/patientQueries";
 import { APP, FONT, RADIUS } from "../../theme";
 import { pageContainer } from "../../layouts";
@@ -59,12 +57,6 @@ const DIAGNOSIS_STATUS_COLORS = {
   failed: "danger",
 };
 
-const PATIENT_RECORD_TABS = [
-  { key: "", label: "全部" },
-  { key: "medical", label: "病历", types: ["visit", "dictation", "import"] },
-  { key: "interview", label: "问诊", types: ["interview_summary"] },
-];
-
 function formatDate(iso) {
   if (!iso) return "";
   try {
@@ -94,7 +86,7 @@ function groupByMonth(records) {
 }
 
 // ---------------------------------------------------------------------------
-// Card row — shared between list view and timeline view
+// Card row
 // ---------------------------------------------------------------------------
 
 function RecordCardRow({ rec, onTap, style }) {
@@ -235,15 +227,6 @@ export default function RecordsTab({ token: _token }) {
   const navigate = useNavigate();
 
   const { data: records = [], isLoading, isError, refetch } = usePatientRecords();
-  const [recordView, setRecordView] = useState("list");
-  const [typeFilter, setTypeFilter] = useState("");
-
-  const filteredRecords = typeFilter
-    ? records.filter((rec) => {
-        const tab = PATIENT_RECORD_TABS.find((t) => t.key === typeFilter);
-        return tab?.types?.includes(rec.record_type);
-      })
-    : records;
 
   function handleTap(recordId) {
     navigate(`/patient/records/${recordId}`);
@@ -268,74 +251,16 @@ export default function RecordsTab({ token: _token }) {
 
   return (
     <div style={pageContainer}>
-      {/* Filter pills — only show when records exist. Sit on gray bg. */}
-      {records.length > 0 && (
-        <>
-          <div
-            style={{
-              padding: "6px 12px",
-              fontSize: FONT.sm,
-              color: APP.text4,
-              flexShrink: 0,
-            }}
-          >
-            最近 · {records.length} 份病历
-          </div>
-          <div
-            style={{
-              flexShrink: 0,
-              padding: "4px 12px",
-            }}
-          >
-            <CapsuleTabs
-              activeKey={recordView}
-              onChange={setRecordView}
-              style={{ "--capsule-tab-font-size": FONT.sm }}
-            >
-              <CapsuleTabs.Tab title="病历" key="list" />
-              <CapsuleTabs.Tab title="时间线" key="timeline" />
-            </CapsuleTabs>
-          </div>
-          <div
-            style={{
-              flexShrink: 0,
-              padding: "4px 12px 8px",
-            }}
-          >
-            <CapsuleTabs
-              activeKey={typeFilter}
-              onChange={setTypeFilter}
-              style={{ "--capsule-tab-font-size": FONT.sm }}
-            >
-              {PATIENT_RECORD_TABS.map((t) => (
-                <CapsuleTabs.Tab title={t.label} key={t.key} />
-              ))}
-            </CapsuleTabs>
-          </div>
-        </>
-      )}
-
       {/* Scrollable content with PullToRefresh */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         <PullToRefresh onRefresh={async () => { await refetch(); }}>
-          {filteredRecords.length === 0 ? (
+          {records.length === 0 ? (
             <EmptyState
               title="暂无病历记录"
               description="点击上方「新建病历」开始预问诊"
             />
-          ) : recordView === "list" ? (
-            <div style={{ paddingTop: 4, paddingBottom: 12 }}>
-              {filteredRecords.map((rec, idx) => (
-                <RecordCardRow
-                  key={rec.id}
-                  rec={rec}
-                  onTap={handleTap}
-                  style={idx === 0 ? undefined : { marginTop: 8 }}
-                />
-              ))}
-            </div>
           ) : (
-            <TimelineView records={filteredRecords} onTap={handleTap} />
+            <TimelineView records={records} onTap={handleTap} />
           )}
         </PullToRefresh>
       </div>
