@@ -5,7 +5,7 @@
  * antd-mobile only, no MUI.
  */
 import { useCallback, useEffect, useState } from "react";
-import { NavBar, Button, TextArea, Dialog, Toast, Tag } from "antd-mobile";
+import { NavBar, Button, TextArea, Dialog, Toast, Tag, Switch } from "antd-mobile";
 import { DeleteOutline, EditSOutline } from "antd-mobile-icons";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -63,6 +63,10 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
   const [editText, setEditText] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Optimistic local state for the patient_safe toggle so the Switch
+  // reflects the click immediately even before the PATCH round-trips.
+  const [patientSafe, setPatientSafe] = useState(false);
+  const [patientSafeSaving, setPatientSafeSaving] = useState(false);
 
   const load = useCallback(() => {
     if (!doctorId || !itemId) return;
@@ -82,6 +86,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
       .then((result) => {
         setItem(result);
         if (result) {
+          setPatientSafe(!!result.patient_safe);
           const raw = result.text || result.content || "";
           const firstLine = raw.split("\n")[0] || "";
           const title = (result.title || firstLine || "知识条目").slice(0, 40);
@@ -120,6 +125,26 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
         }
       },
     });
+  }
+
+  async function handleTogglePatientSafe(next) {
+    if (!api.setKnowledgeItemPatientSafe) return;
+    const previous = patientSafe;
+    setPatientSafe(next);  // optimistic
+    setPatientSafeSaving(true);
+    try {
+      await api.setKnowledgeItemPatientSafe(doctorId, itemId, next);
+      queryClient.invalidateQueries({ queryKey: QK.knowledge(doctorId) });
+      Toast.show({
+        content: next ? "已开启对患者可见" : "已关闭对患者可见",
+        position: "bottom",
+      });
+    } catch {
+      setPatientSafe(previous);  // revert
+      Toast.show({ content: "保存失败，请重试", position: "bottom" });
+    } finally {
+      setPatientSafeSaving(false);
+    }
   }
 
   async function handleSaveEdit() {
@@ -277,6 +302,37 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
                   </div>
                 );
               })()}
+            </div>
+
+            {/* Patient-safe toggle (Phase 0.5) — gates whether the AI may
+                use this rule when replying directly to a patient. Has no
+                effect until the doctor also marks curation onboarding done
+                on the KB list page. */}
+            <div
+              style={{
+                backgroundColor: APP.surface,
+                margin: "12px 12px 0",
+                borderRadius: RADIUS.lg,
+                padding: "14px 16px",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 12,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: FONT.base, fontWeight: 600, color: APP.text1 }}>
+                  对患者可见
+                </div>
+                <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 4, lineHeight: 1.5 }}>
+                  勾选后，遇到匹配问题鲸鱼会直接回复患者；否则只生成草稿给您审核。
+                </div>
+              </div>
+              <Switch
+                checked={patientSafe}
+                onChange={handleTogglePatientSafe}
+                loading={patientSafeSaving}
+                style={{ "--checked-color": APP.primary }}
+              />
             </div>
 
             {/* Content card */}

@@ -913,6 +913,26 @@ export async function deleteKnowledgeItem(doctorId, itemId) {
   return request(`/api/manage/knowledge/${itemId}?doctor_id=${doctorId}`, { method: "DELETE" });
 }
 
+// ── Phase 0.5: KB curation onboarding (chat-interview merge) ────────
+// Server gates patient-facing autonomous replies on TWO flags:
+//  - per-item `patient_safe`
+//  - per-doctor `kb_curation_onboarding_done`
+// Both must be true. See src/domain/knowledge/curation_gate.py.
+
+export async function setKnowledgeItemPatientSafe(doctorId, itemId, patientSafe) {
+  return request(`/api/manage/knowledge/${itemId}/patient_safe?doctor_id=${doctorId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ patient_safe: !!patientSafe }),
+  });
+}
+
+export async function markKbCurationOnboardingDone(doctorId) {
+  return request(`/api/manage/knowledge/curation_onboarding_done?doctor_id=${doctorId}`, {
+    method: "POST",
+  });
+}
+
 export async function addKnowledgeItem(doctorId, content, category = "custom") {
   return request(`/api/manage/knowledge?doctor_id=${doctorId}`, {
     method: "POST",

@@ -6,7 +6,7 @@
  *
  * antd-mobile only, no MUI.
  */
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   NavBar,
   List,
@@ -17,7 +17,10 @@ import {
   JumboTabs,
   Grid,
   Dialog,
+  Toast,
 } from "antd-mobile";
+import { markKbCurationOnboardingDone } from "../../../../api";
+import { useDoctorStore } from "../../../../store/doctorStore";
 import { AddCircleOutline } from "antd-mobile-icons";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -596,13 +599,46 @@ function PendingTab({ pendingItems, navigate }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
+// localStorage key — doctor-scoped, persists the "I've completed curation"
+// dismiss across sessions. Server `kb_curation_onboarding_done` is the
+// source of truth; this is the optimistic UI bit that hides the banner
+// without waiting for a doctor-profile refetch.
+const CURATION_DONE_STORAGE_KEY = "kb_curation_onboarding_done";
+
+function curationDoneKeyFor(doctorId) {
+  return `${CURATION_DONE_STORAGE_KEY}:${doctorId || "unknown"}`;
+}
+
 export default function KnowledgeSubpage() {
   const navigate = useNavigate();
+  const doctorId = useDoctorStore((s) => s.doctorId);
   const { data: kData, isLoading: loadingItems } = useKnowledgeItems();
   const { data: statsData } = useKnowledgeStats(7);
   const { data: pendingData } = useKbPending();
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get("q") || "";
+
+  // Curation-onboarding banner: visible by default, hides once the doctor
+  // clicks "我已完成审核" (which POSTs the server endpoint).
+  const [curationDone, setCurationDone] = useState(() => {
+    if (!doctorId) return true;  // hide if we don't know the doctor yet
+    return window.localStorage.getItem(curationDoneKeyFor(doctorId)) === "1";
+  });
+  useEffect(() => {
+    if (!doctorId) return;
+    setCurationDone(window.localStorage.getItem(curationDoneKeyFor(doctorId)) === "1");
+  }, [doctorId]);
+
+  async function handleMarkCurationDone() {
+    try {
+      await markKbCurationOnboardingDone(doctorId);
+      window.localStorage.setItem(curationDoneKeyFor(doctorId), "1");
+      setCurationDone(true);
+      Toast.show({ content: "已完成审核", position: "bottom" });
+    } catch {
+      Toast.show({ content: "保存失败，请重试", position: "bottom" });
+    }
+  }
   function setSearch(q) {
     const next = new URLSearchParams(searchParams);
     if (q) { next.set("q", q); } else { next.delete("q"); }
@@ -678,6 +714,38 @@ export default function KnowledgeSubpage() {
       >
         我的知识库
       </NavBar>
+
+      {/* KB curation onboarding banner (Phase 0.5) — until the doctor
+          clicks "我已完成审核", no item's patient_safe flag is honored
+          server-side. Forces a deliberate first-pass review pass. */}
+      {!curationDone && (
+        <div
+          style={{
+            margin: "8px 12px 0",
+            borderRadius: RADIUS.lg,
+            backgroundColor: "#fff8e1",
+            border: `1px solid #f9a825`,
+            padding: "12px 14px",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: FONT.sm, color: APP.text2, lineHeight: 1.55 }}>
+              请逐条确认每个知识点是否对患者可见。完成后点击右侧按钮，鲸鱼才会基于这些知识点直接回复患者。
+            </div>
+          </div>
+          <Button
+            size="small"
+            color="primary"
+            onClick={handleMarkCurationDone}
+            style={{ flexShrink: 0 }}
+          >
+            我已完成审核
+          </Button>
+        </div>
+      )}
 
       {/* Summary strip — always visible above tabs */}
       {!loadingItems && items.length > 0 && (
