@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -69,10 +69,10 @@ class FeedbackRequest(BaseModel):
     # suggestion row we look up (keeps client/server in sync automatically).
     suggestion_id: int
     record_id: int
-    doctor_id: str
-    reason_tag: str
-    reason_text: Optional[str] = None
-    doctor_action: Optional[str] = None
+    doctor_id: str = Field(..., max_length=64)
+    reason_tag: str = Field(..., max_length=64)
+    reason_text: Optional[str] = Field(default=None, max_length=4000)
+    doctor_action: Optional[str] = Field(default=None, max_length=64)
 
 
 @router.post("/api/doctor/feedback", include_in_schema=True)

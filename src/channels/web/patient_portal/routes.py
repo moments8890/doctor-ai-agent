@@ -52,9 +52,11 @@ router.include_router(tasks_router)
 # ---------------------------------------------------------------------------
 
 class PatientSessionRequest(BaseModel):
-    doctor_id: str
-    patient_name: str
-    access_code: Optional[str] = None  # Required when patient has an access_code set
+    doctor_id: str = Field(..., max_length=64)
+    patient_name: str = Field(..., max_length=128)
+    # Required when patient has an access_code set; 6-digit numeric in
+    # practice but bounded loosely so future formats don't break.
+    access_code: Optional[str] = Field(default=None, max_length=64)
 
 
 class PatientSessionResponse(BaseModel):

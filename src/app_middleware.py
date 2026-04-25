@@ -60,6 +60,51 @@ _EXC_BODY_SKIP_PREFIXES = (
     "video/",
 )
 
+# JSON keys whose values should be redacted before the body lands in
+# Sentry / GlitchTip. These are user-supplied PII, free-text clinical
+# content, or credentials — none of it belongs in error telemetry.
+# Match is case-insensitive and exact on the key name.
+_EXC_BODY_REDACT_KEYS = frozenset({
+    # Identifying / contact
+    "name", "patient_name", "doctor_name", "nickname", "phone",
+    # Credentials
+    "passcode", "access_code", "password", "token",
+    # Free-text clinical content
+    "content", "text", "edited_text", "notes", "reason_text", "message",
+    "chief_complaint", "diagnosis", "final_diagnosis", "key_symptoms",
+    "neuro_exam",
+})
+
+
+def _redact_pii_in_json(text: str) -> str:
+    """Return a JSON string with sensitive values replaced by "<redacted>".
+
+    Used to scrub request bodies before attaching them to Sentry events.
+    Best-effort: if the body isn't valid JSON, returns the original
+    string (which still gets truncated by the caller's max-bytes cap).
+    """
+    import json
+    try:
+        obj = json.loads(text)
+    except (ValueError, TypeError):
+        return text
+
+    def _walk(node):
+        if isinstance(node, dict):
+            return {
+                k: ("<redacted>" if isinstance(k, str) and k.lower() in _EXC_BODY_REDACT_KEYS
+                    else _walk(v))
+                for k, v in node.items()
+            }
+        if isinstance(node, list):
+            return [_walk(x) for x in node]
+        return node
+
+    try:
+        return json.dumps(_walk(obj), ensure_ascii=False)
+    except (TypeError, ValueError):
+        return text
+
 
 async def _capture_request_body_for_sentry(request: Request) -> None:
     """Attach truncated request body to Sentry scope.
@@ -68,6 +113,9 @@ async def _capture_request_body_for_sentry(request: Request) -> None:
     result internally on the ASGI receive channel), so subsequent
     handler code still gets the body. Binary / multipart payloads are
     skipped with a placeholder marker instead of being serialized.
+    Sensitive JSON keys (patient names, passcodes, free-text clinical
+    content) are redacted before the body lands in Sentry — see
+    ``_EXC_BODY_REDACT_KEYS`` above.
 
     Never raises — observability must not break the error path.
     """
@@ -100,6 +148,13 @@ async def _capture_request_body_for_sentry(request: Request) -> None:
         text = truncated.decode("utf-8", errors="replace")
     except Exception:
         text = repr(truncated)
+
+    # Redact PII keys when the body looks like JSON. Non-JSON bodies
+    # pass through unchanged — they'd be form-urlencoded or plain text
+    # and rarely carry PHI in this app.
+    if "json" in content_type or text.lstrip().startswith(("{", "[")):
+        text = _redact_pii_in_json(text)
+
     sentry_sdk.set_context(
         "request_body",
         {

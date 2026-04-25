@@ -4,18 +4,21 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from channels.web.patient_portal.auth import _authenticate_patient
 
 
 class InterviewTurnRequest(BaseModel):
-    session_id: str
-    text: str
+    session_id: str = Field(..., max_length=64)
+    # Patient-controlled free text. 16k chars is generous for a single
+    # interview turn but bounded so a malicious client can't DOS by
+    # POSTing megabyte-scale strings.
+    text: str = Field(..., max_length=16000)
 
 
 class InterviewSessionRequest(BaseModel):
-    session_id: str
+    session_id: str = Field(..., max_length=64)
 
 
 class InterviewStartRequest(BaseModel):
@@ -23,7 +26,7 @@ class InterviewStartRequest(BaseModel):
     ``template_id``. When omitted the handler falls back to the doctor's
     ``preferred_template_id`` and finally to ``medical_general_v1``.
     """
-    template_id: Optional[str] = None
+    template_id: Optional[str] = Field(default=None, max_length=64)
 
 
 from db.models.interview_session import InterviewStatus

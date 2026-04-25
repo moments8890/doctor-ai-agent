@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.engine import AsyncSessionLocal, get_db
@@ -75,24 +75,24 @@ class TaskOut(BaseModel):
 
 
 class TaskStatusUpdate(BaseModel):
-    status: str
+    status: str = Field(..., max_length=32)
 
 
 class TaskNotesUpdate(BaseModel):
-    notes: str
+    notes: str = Field(..., max_length=8000)
 
 
 class TaskDueUpdate(BaseModel):
-    due_at: str  # ISO 8601 datetime string
+    due_at: str = Field(..., max_length=64)  # ISO 8601 datetime string
 
 
 class TaskCreate(BaseModel):
-    task_type: str
-    title: str
-    due_at: Optional[str] = None
+    task_type: str = Field(..., max_length=32)
+    title: str = Field(..., max_length=200)
+    due_at: Optional[str] = Field(default=None, max_length=64)
     patient_id: Optional[int] = None
-    content: Optional[str] = None
-    target: str = "doctor"
+    content: Optional[str] = Field(default=None, max_length=8000)
+    target: str = Field(default="doctor", max_length=16)
 
 
 def _parse_due_at(due_at_str: str) -> datetime:

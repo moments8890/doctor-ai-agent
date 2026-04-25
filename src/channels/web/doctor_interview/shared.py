@@ -173,13 +173,29 @@ async def _load_carry_forward(doctor_id: str, patient_id: Optional[int]) -> List
 
 
 async def _extract_file_text(file: UploadFile) -> str:
+    """Extract text from an uploaded image or PDF.
+
+    File-type detection is content-sniff first, then falls back to MIME
+    + filename. Trusting the filename extension alone is unsafe: a
+    malicious file renamed `.pdf` would otherwise reach the PDF parser
+    library where parser CVEs accumulate (pypdf, fpdf2, etc.).
+    """
     content_type = (file.content_type or "").split(";")[0].strip()
     raw = await file.read()
+
+    # PDF: signature check on the magic bytes is authoritative.
+    if raw[:5] == b"%PDF-":
+        from domain.knowledge.pdf_extract import extract_text_from_pdf_smart
+        return extract_text_from_pdf_smart(raw)
+
+    # Images: rely on declared content_type (the bytes themselves are
+    # also vetted by the vision LLM downstream, which validates format).
     if content_type.startswith("image/"):
         from infra.llm.vision import extract_text_from_image
         result = await extract_text_from_image(raw)
         return result.get("text", "") if isinstance(result, dict) else str(result)
-    elif content_type == "application/pdf" or (file.filename or "").endswith(".pdf"):
-        from domain.knowledge.pdf_extract import extract_text_from_pdf_smart
-        return extract_text_from_pdf_smart(raw)
+
+    # Unknown — refuse rather than guess. A file claiming PDF content-type
+    # without the %PDF- signature is suspicious; same for missing both
+    # signature and a recognised image MIME.
     return ""

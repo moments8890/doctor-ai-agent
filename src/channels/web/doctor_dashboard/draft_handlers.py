@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,7 +54,8 @@ async def _process_edit_for_learning_bg(doctor_id: str, original: str, edited: s
 
 
 class EditDraftRequest(BaseModel):
-    edited_text: str
+    # WeChat single-message limit is ~2000 chars; allow a little headroom.
+    edited_text: str = Field(..., max_length=4000)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
