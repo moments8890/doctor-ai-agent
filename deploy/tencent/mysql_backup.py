@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/ubuntu/doctor-ai-agent/.venv/bin/python
 """mysql_backup.py — daily MySQL → Tencent COS backup.
 
 Why: the doctor-ai MySQL container runs on a single CVM with a single
