@@ -240,3 +240,86 @@ async def test_merge_skips_duplicate_chief_complaint(db_session):
         )
     ).scalars().all()
     assert len(chief) == 1, "duplicate chief_complaint should be skipped"
+
+
+# ── Supplement for reviewed records (§5c) ─────────────────────────
+
+
+async def _seed_completed_record(session):
+    """Seed a minimal doctor + completed MedicalRecordDB (no FieldEntryDB rows)."""
+    from db.models.doctor import Doctor
+    from db.models.records import MedicalRecordDB, RecordStatus
+
+    doc_id = f"doc_{uuid.uuid4().hex[:8]}"
+    session.add(Doctor(doctor_id=doc_id))
+    await session.flush()
+
+    record = MedicalRecordDB(
+        doctor_id=doc_id,
+        record_type="visit",
+        status=RecordStatus.completed.value,
+    )
+    session.add(record)
+    await session.flush()
+    return record
+
+
+@pytest.mark.asyncio
+async def test_create_supplement_writes_pending_row(db_session):
+    import json
+    from sqlalchemy import select
+
+    from db.models.records import RecordSupplementDB
+    from domain.patient_lifecycle.dedup import create_supplement
+
+    record = await _seed_completed_record(db_session)
+
+    sup = await create_supplement(
+        db_session,
+        target_record_id=record.id,
+        new_fields={"chief_complaint": "头痛复发", "present_illness": "停药后又痛"},
+        intake_segment_id="segment_3",
+    )
+
+    persisted = (
+        await db_session.execute(
+            select(RecordSupplementDB).where(RecordSupplementDB.record_id == record.id)
+        )
+    ).scalar_one()
+    assert persisted.status == "pending_doctor_review"
+    entries = json.loads(persisted.field_entries_json)
+    assert any(
+        e["field_name"] == "chief_complaint" and e["text"] == "头痛复发"
+        for e in entries
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_supplement_does_not_mutate_target(db_session):
+    from sqlalchemy import select
+
+    from db.models.records import FieldEntryDB
+    from domain.patient_lifecycle.dedup import create_supplement
+
+    record = await _seed_completed_record(db_session)
+
+    before = (
+        await db_session.execute(
+            select(FieldEntryDB).where(FieldEntryDB.record_id == record.id)
+        )
+    ).scalars().all()
+    before_count = len(before)
+
+    await create_supplement(
+        db_session,
+        target_record_id=record.id,
+        new_fields={"chief_complaint": "新症状"},
+        intake_segment_id="segment_3",
+    )
+
+    after = (
+        await db_session.execute(
+            select(FieldEntryDB).where(FieldEntryDB.record_id == record.id)
+        )
+    ).scalars().all()
+    assert len(after) == before_count, "create_supplement must not write FieldEntryDB rows"

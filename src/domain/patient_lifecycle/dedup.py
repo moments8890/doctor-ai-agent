@@ -206,3 +206,46 @@ async def merge_into_existing(
             )
         )
     await session.flush()
+
+
+# ── Supplement for doctor-reviewed records (§5c) ────────────────────
+
+
+async def create_supplement(
+    session,
+    target_record_id: int,
+    new_fields: dict,
+    intake_segment_id: str | None,
+):
+    """Create a pending supplement for a doctor-reviewed record.
+
+    Never mutates FieldEntryDB on the target record. The supplement row
+    carries the new field entries as a JSON blob; the doctor explicitly
+    accepts (merges into the record), rejects-create-new, or ignores.
+    """
+    import json as _json
+    from datetime import datetime as _datetime
+
+    from db.models.records import RecordSupplementDB
+
+    now = _datetime.utcnow()
+    entries = []
+    for field in _REQUIRED_FIELDS:
+        text = new_fields.get(field)
+        if text is None or not str(text).strip():
+            continue
+        entries.append({
+            "field_name": field,
+            "text": text,
+            "intake_segment_id": intake_segment_id,
+            "created_at": now.isoformat(),
+        })
+    sup = RecordSupplementDB(
+        record_id=target_record_id,
+        status="pending_doctor_review",
+        field_entries_json=_json.dumps(entries),
+        created_at=now,
+    )
+    session.add(sup)
+    await session.flush()
+    return sup
