@@ -77,13 +77,42 @@ class FinalizeRequest(BaseModel):
 
 
 def _suggestion_to_dict(s: AISuggestion) -> dict:
-    # Extract citation IDs and strip [KB-N] markers from detail text
+    # Extract citation IDs and strip [KB-N] markers from detail text (legacy path)
     raw_detail = s.detail or ""
     citation_result = extract_citations(raw_detail)
     clean_detail = _CITATION_RE.sub("", raw_detail).strip()
     # Collapse double spaces left by stripping
     import re as _re
+    import json as _json
     clean_detail = _re.sub(r"  +", " ", clean_detail)
+
+    # Parse new schema fields (2026-04-25 diagnosis migration).
+    # Stored as JSON-encoded arrays in *_json columns; decode for the API.
+    def _parse_json_array(value: str | None) -> list[str]:
+        if not value:
+            return []
+        try:
+            parsed = _json.loads(value)
+            return [str(x) for x in parsed] if isinstance(parsed, list) else []
+        except (ValueError, TypeError):
+            return []
+
+    evidence = _parse_json_array(s.evidence_json)
+    risk_signals = _parse_json_array(s.risk_signals_json)
+    trigger_rule_ids = _parse_json_array(s.trigger_rule_ids_json)
+
+    # Merge citations: prefer trigger_rule_ids when present (new schema),
+    # fall back to KB-N markers extracted from detail (legacy schema).
+    if trigger_rule_ids:
+        # trigger_rule_ids stored as ["KB-12"] → parse to numeric ids for UI
+        merged_kb_ids = []
+        for tid in trigger_rule_ids:
+            m = _re.match(r"KB-(\d+)", tid)
+            if m:
+                merged_kb_ids.append(int(m.group(1)))
+        cited_ids = merged_kb_ids or citation_result.cited_ids
+    else:
+        cited_ids = citation_result.cited_ids
 
     return {
         "id": s.id,
@@ -91,10 +120,14 @@ def _suggestion_to_dict(s: AISuggestion) -> dict:
         "section": s.section,
         "content": s.content,
         "detail": clean_detail,
-        "cited_knowledge_ids": citation_result.cited_ids,
+        "cited_knowledge_ids": cited_ids,
         "confidence": s.confidence,
         "urgency": s.urgency,
         "intervention": s.intervention,
+        # 2026-04-25 new schema fields — frontend should prefer these when non-empty
+        "evidence": evidence,
+        "risk_signals": risk_signals,
+        "trigger_rule_ids": trigger_rule_ids,
         "decision": s.decision,
         "edited_text": s.edited_text,
         "reason": s.reason,

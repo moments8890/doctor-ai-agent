@@ -25,6 +25,10 @@ async def create_suggestion(
     is_custom: bool = False,
     cited_knowledge_ids: Optional[str] = None,
     prompt_hash: Optional[str] = None,
+    # 2026-04-25 new schema fields (JSON-encoded arrays)
+    evidence_json: Optional[str] = None,
+    risk_signals_json: Optional[str] = None,
+    trigger_rule_ids_json: Optional[str] = None,
 ) -> AISuggestion:
     row = AISuggestion(
         record_id=record_id,
@@ -38,6 +42,9 @@ async def create_suggestion(
         is_custom=is_custom,
         cited_knowledge_ids=cited_knowledge_ids,
         prompt_hash=prompt_hash,
+        evidence_json=evidence_json,
+        risk_signals_json=risk_signals_json,
+        trigger_rule_ids_json=trigger_rule_ids_json,
         decision=SuggestionDecision.custom.value if is_custom else None,
     )
     session.add(row)

@@ -76,6 +76,13 @@ class AISuggestion(Base):
 
     cited_knowledge_ids: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # 2026-04-25: new diagnosis schema fields (locked plan Day 10-15).
+    # JSON-encoded arrays stored as Text. Coexist with legacy
+    # detail/confidence/urgency/intervention columns above.
+    evidence_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    risk_signals_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    trigger_rule_ids_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Hash of the composed system prompt that generated this suggestion.
     # Same value as `llm.call` event's prompt_hash — lets us correlate
     # stored outputs to prompt versions for quality-loop analysis.

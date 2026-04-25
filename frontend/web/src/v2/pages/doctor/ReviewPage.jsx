@@ -415,7 +415,33 @@ function SuggestionCard({ suggestion, onDecide, knowledgeMap, onOpenCitation }) 
       <div style={{ fontSize: FONT.md, color: APP.text1, fontWeight: 500, lineHeight: 1.4 }}>
         {s.edited_text || s.content}
       </div>
-      {s.detail && (
+      {/* 2026-04-25 new schema: prefer evidence/risk_signals arrays over legacy detail prose */}
+      {s.evidence && s.evidence.length > 0 && (
+        <div>
+          <div style={{ fontSize: FONT.xs, color: APP.text4, marginBottom: 4, fontWeight: 500 }}>
+            依据
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: FONT.sm, color: APP.text2, lineHeight: 1.55 }}>
+            {s.evidence.map((fact, i) => (
+              <li key={i}>{fact}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {s.risk_signals && s.risk_signals.length > 0 && (
+        <div>
+          <div style={{ fontSize: FONT.xs, color: APP.danger || "#d92d2d", marginBottom: 4, fontWeight: 500 }}>
+            风险监测
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: FONT.sm, color: APP.text2, lineHeight: 1.55 }}>
+            {s.risk_signals.map((signal, i) => (
+              <li key={i}>{signal}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {/* Legacy fallback: show detail prose only when new fields are absent */}
+      {(!s.evidence || s.evidence.length === 0) && s.detail && (
         <div style={{ fontSize: FONT.sm, color: APP.text3, lineHeight: 1.55 }}>
           {s.detail}
         </div>

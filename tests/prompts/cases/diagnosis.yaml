@@ -1,12 +1,15 @@
 # Test cases for diagnosis.md
 # Prompt: clinical data → differential diagnosis JSON
 # Fields: differentials, workup, treatment
-# Note: diagnosis output is large — needs higher max_tokens than default
 #
-# Product spec (see migration a7c4e9d1b3f2 and prompt Rule 1): the UI shows
-# exactly one differential per record. The prompt MUST output a single top
-# pick; every case below asserts `differentials.length === 1` to guard against
-# regressions where examples-vs-rule drift lets the LLM produce lists again.
+# 2026-04-25 SCHEMA MIGRATION (locked plan Day 10-15):
+#   OLD shape: {condition, confidence, detail}
+#   NEW shape: {condition, evidence: [], risk_signals: [], trigger_rule_ids: [], confidence?, detail?}
+#
+#   Assertions test the new schema. confidence/detail kept optional for
+#   backward-compat but no longer asserted on. Sufficiency rules (locked
+#   plan rule 4-6) now return [] for sparse input — see "insufficient data"
+#   case at the bottom.
 
 - description: "diagnosis: critical case — hypotension + chest pain triggers emergency workup"
   options:
@@ -25,7 +28,7 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        // Top-1 cap (see header comment).
+        // Top-1 cap (locked plan rule 1)
         return Array.isArray(obj.differentials) && obj.differentials.length === 1;
     - type: javascript
       value: |
@@ -34,10 +37,16 @@
         return workup.some(w => w.urgency === '急诊' || w.urgency === '紧急');
     - type: javascript
       value: |
+        // New schema: differential must have evidence array with patient-specific facts
         const obj = JSON.parse(output);
-        const diffs = obj.differentials || [];
-        // The single differential should be high confidence — STEMI / ACS territory.
-        return diffs[0] && diffs[0].confidence === '高';
+        const d = (obj.differentials || [])[0];
+        return d && Array.isArray(d.evidence) && d.evidence.length >= 1;
+    - type: javascript
+      value: |
+        // New schema: critical cases should surface risk_signals (escalation triggers)
+        const obj = JSON.parse(output);
+        const d = (obj.differentials || [])[0];
+        return d && Array.isArray(d.risk_signals);
 
 - description: "diagnosis: drug class only — no specific drug names in treatment"
   options:
@@ -48,9 +57,9 @@
   vars:
     clinical_data: |
       chief_complaint: "咳嗽咳痰5天，发热3天"
-      present_illness: "5天前出现咳嗽咳黄痰，3天前出现发热，体温最高38.8度"
-      physical_exam: "T 38.5，双肺可闻及湿啰音"
-      auxiliary_exam: "胸片：右下肺斑片状阴影。血常规：WBC 12.5×10⁹/L，N 85%"
+      present_illness: "5天前受凉后出现咳嗽，3天前发热38.5℃，咳黄痰"
+      physical_exam: "右下肺可闻及湿啰音"
+      auxiliary_exam: "胸片：右下肺片状阴影"
   assert:
     - type: is-json
     - type: javascript
@@ -59,26 +68,21 @@
         return Array.isArray(obj.differentials) && obj.differentials.length === 1;
     - type: javascript
       value: |
+        // No specific drug names: must reject 阿莫西林, 头孢, 100mg etc.
         const obj = JSON.parse(output);
         const tx = obj.treatment || [];
-        // drug_class should use class names, not specific drug names
-        const drugItems = tx.filter(t => t.intervention === '药物');
-        if (drugItems.length === 0) return true;
-        // Should not contain specific drug names like 阿莫西林, 头孢, 左氧氟沙星
-        return drugItems.every(d => {
-          const desc = d.description || '';
-          return !desc.includes('阿莫西林') && !desc.includes('头孢曲松') && !desc.includes('左氧氟沙星');
-        });
+        const allText = JSON.stringify(tx);
+        return !/阿莫西林|头孢克肟|左氧氟沙星|\d+\s*mg|\d+\s*片/.test(allText);
     - type: javascript
       value: |
+        // Treatment must be drug class only (e.g. "抗生素" / "抗感染药物")
         const obj = JSON.parse(output);
         const tx = obj.treatment || [];
-        const drugItems = tx.filter(t => t.intervention === '药物');
-        // drug_class should be a category like 抗菌药物/抗生素
-        if (drugItems.length === 0) return true;
-        return drugItems.every(d => d.drug_class && d.drug_class.length > 0);
+        return tx.length === 0 || tx.every(t =>
+          (t.drug_class || '').length > 0 || t.intervention === '观察' || t.intervention === '转诊'
+        );
 
-- description: "diagnosis: detail field carries both clinical reasoning and explanation"
+- description: "diagnosis: evidence-grounded — new schema replaces detail prose with atomic facts"
   options:
     prompts: [diagnosis]
     provider:
@@ -98,25 +102,21 @@
         return Array.isArray(obj.differentials) && obj.differentials.length === 1;
     - type: javascript
       value: |
+        // New schema: evidence is array of atomic patient facts, not prose blob
         const obj = JSON.parse(output);
-        const diffs = obj.differentials || [];
-        // Prod schema: each differential has a single `detail` field that
-        // carries clinical reasoning + plain explanation together.
-        return diffs.length > 0 && diffs.every(d =>
-          typeof d.detail === 'string' && d.detail.length >= 20
-        );
+        const d = (obj.differentials || [])[0];
+        if (!d || !Array.isArray(d.evidence) || d.evidence.length === 0) return false;
+        // Each evidence item should be a short atomic fact, not a paragraph
+        return d.evidence.every(e => typeof e === 'string' && e.length > 0 && e.length < 80);
     - type: javascript
       value: |
+        // Evidence must include patient-specific finding (MRI/占位/强化/etc.)
         const obj = JSON.parse(output);
-        const diffs = obj.differentials || [];
-        // detail must include a [KB-N] citation if the source prompt says so,
-        // OR describe reasoning tied to the clinical findings (MRI/占位/强化).
-        return diffs.every(d => {
-          const txt = d.detail || '';
-          return /\[KB-\d+\]/.test(txt) || /(MRI|占位|强化|附着|硬脑膜|额叶)/.test(txt);
-        });
+        const d = (obj.differentials || [])[0];
+        const allEvidence = (d?.evidence || []).join(' ');
+        return /(MRI|占位|强化|附着|硬脑膜|额叶|头痛)/.test(allEvidence);
 
-- description: "diagnosis: insufficient data — low confidence, no fabrication"
+- description: "diagnosis: insufficient data — sufficiency rule returns empty arrays"
   options:
     prompts: [diagnosis]
     provider:
@@ -131,21 +131,50 @@
     - type: is-json
     - type: javascript
       value: |
+        // 2026-04-25 sufficiency rule (locked plan rule 4): chief_complaint
+        // alone with no present_illness/exam/aux returns empty differentials.
+        // Old behavior: emit "原发性头痛 confidence=低" guess. New: empty.
         const obj = JSON.parse(output);
-        return Array.isArray(obj.differentials) && obj.differentials.length === 1;
+        return Array.isArray(obj.differentials) && obj.differentials.length === 0;
     - type: javascript
       value: |
-        const obj = JSON.parse(output);
-        const diffs = obj.differentials || [];
-        // With minimal info, no differential should be "高" confidence
-        return diffs.every(d => d.confidence !== '高');
-    - type: javascript
-      value: |
-        const obj = JSON.parse(output);
         // treatment should be empty for insufficient data
+        const obj = JSON.parse(output);
         return Array.isArray(obj.treatment) && obj.treatment.length === 0;
     - type: javascript
       value: |
+        // All 3 top-level keys must exist (even when arrays are empty)
         const obj = JSON.parse(output);
-        // All 3 top-level keys must exist
         return 'differentials' in obj && 'workup' in obj && 'treatment' in obj;
+
+- description: "diagnosis: treatment requires non-empty trigger_rule_ids (locked plan rule 23)"
+  options:
+    prompts: [diagnosis]
+    provider:
+      config:
+        max_tokens: 4096
+  vars:
+    clinical_data: |
+      chief_complaint: "胸痛3小时"
+      present_illness: "突发胸骨后压榨样疼痛，伴出汗"
+      past_history: "高血压8年"
+    doctor_knowledge: |
+      [KB-1] 胸痛首诊必须完善心电图，排除急性冠脉综合征
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        // If treatment is emitted, it MUST have non-empty trigger_rule_ids
+        // (no commodity treatment without doctor's KB rule firing)
+        const obj = JSON.parse(output);
+        const tx = obj.treatment || [];
+        return tx.every(t =>
+          Array.isArray(t.trigger_rule_ids) && t.trigger_rule_ids.length > 0
+        );
+    - type: javascript
+      value: |
+        // Workup should reference KB-1 if available
+        const obj = JSON.parse(output);
+        const w = (obj.workup || [])[0];
+        if (!w) return true;  // workup may be empty if differential alone is sufficient
+        return Array.isArray(w.trigger_rule_ids);

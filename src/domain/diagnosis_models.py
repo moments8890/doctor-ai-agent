@@ -18,20 +18,31 @@ from pydantic import BaseModel, Field
 
 class DiagnosisDifferential(BaseModel):
     condition: str = Field(description="Diagnosis name (brief label)")
-    confidence: str = Field(default="中", description="Confidence level: 低/中/高")
-    detail: str = Field(default="", description="Full description: clinical reasoning + plain explanation")
+    # 2026-04-25 new schema fields (locked plan Day 10-15)
+    evidence: List[str] = Field(default_factory=list, description="Atomic clinical facts supporting the diagnosis")
+    risk_signals: List[str] = Field(default_factory=list, description="When to escalate / monitor")
+    trigger_rule_ids: List[str] = Field(default_factory=list, description="KB rule IDs that fired (e.g. ['KB-12'])")
+    # Legacy fields — kept for backward-compat with old prompt outputs
+    confidence: str = Field(default="", description="DEPRECATED — replaced by evidence/risk grounding")
+    detail: str = Field(default="", description="DEPRECATED — replaced by evidence/risk_signals arrays")
 
 
 class DiagnosisWorkup(BaseModel):
     test: str = Field(description="Test/examination name (brief label)")
-    detail: str = Field(default="", description="Full description: rationale + plain explanation")
+    evidence: List[str] = Field(default_factory=list)
+    risk_signals: List[str] = Field(default_factory=list)
+    trigger_rule_ids: List[str] = Field(default_factory=list)
     urgency: str = Field(default="常规", description="Urgency: 常规/紧急/急诊")
+    detail: str = Field(default="", description="DEPRECATED")
 
 
 class DiagnosisTreatment(BaseModel):
     drug_class: str = Field(default="", description="Drug class (brief label)")
     intervention: str = Field(default="观察", description="Intervention type: 手术/药物/观察/转诊")
-    detail: str = Field(default="", description="Full description: treatment rationale + plain explanation")
+    evidence: List[str] = Field(default_factory=list)
+    risk_signals: List[str] = Field(default_factory=list)
+    trigger_rule_ids: List[str] = Field(default_factory=list)
+    detail: str = Field(default="", description="DEPRECATED")
 
 
 class DiagnosisLLMResponse(BaseModel):

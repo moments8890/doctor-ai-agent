@@ -224,10 +224,20 @@ def _coerce_intervention(value: Any) -> str:
     return "观察"
 
 
+def _clean_str_list(items: Any) -> List[str]:
+    """Normalize a list-of-strings field — drop empties, strip whitespace."""
+    if not isinstance(items, list):
+        return []
+    return [str(s).strip() for s in items if s and str(s).strip()]
+
+
 def _validate_and_coerce_result(result: DiagnosisLLMResponse) -> Optional[Dict[str, Any]]:
     """Validate and coerce the structured LLM response.
 
     Returns validated dict or None if empty differentials.
+    Both legacy (confidence/detail) and new (evidence/risk_signals/
+    trigger_rule_ids) fields are passed through. Downstream consumers
+    prefer new fields and fall back to legacy.
     """
     with trace_block("llm", "diagnosis.validate_response"):
         # Validate differentials — hard cap to MAX_DIFFERENTIALS (Phase 2b).
@@ -237,9 +247,12 @@ def _validate_and_coerce_result(result: DiagnosisLLMResponse) -> Optional[Dict[s
             if not condition:
                 continue
             differentials.append({
-                "condition":    condition,
-                "confidence":   _coerce_confidence(item.confidence),
-                "detail":       item.detail.strip(),
+                "condition":         condition,
+                "evidence":          _clean_str_list(item.evidence),
+                "risk_signals":      _clean_str_list(item.risk_signals),
+                "trigger_rule_ids":  _clean_str_list(item.trigger_rule_ids),
+                "confidence":        _coerce_confidence(item.confidence) if item.confidence else "",
+                "detail":            item.detail.strip(),
             })
 
         if not differentials:
@@ -253,22 +266,31 @@ def _validate_and_coerce_result(result: DiagnosisLLMResponse) -> Optional[Dict[s
             if not test:
                 continue
             workup.append({
-                "test":         test,
-                "detail":       item.detail.strip(),
-                "urgency":      _coerce_urgency(item.urgency),
+                "test":              test,
+                "evidence":          _clean_str_list(item.evidence),
+                "risk_signals":      _clean_str_list(item.risk_signals),
+                "trigger_rule_ids":  _clean_str_list(item.trigger_rule_ids),
+                "urgency":           _coerce_urgency(item.urgency),
+                "detail":            item.detail.strip(),
             })
 
         # Validate treatment — hard cap to MAX_TREATMENT (Phase 2b).
+        # New schema requires non-empty trigger_rule_ids per locked plan rule 23.
         treatment = []
         for item in result.treatment[:MAX_TREATMENT]:
             drug_class = item.drug_class.strip()
             detail = item.detail.strip()
-            if not drug_class and not detail:
+            evidence = _clean_str_list(item.evidence)
+            trigger = _clean_str_list(item.trigger_rule_ids)
+            if not drug_class and not detail and not evidence:
                 continue
             treatment.append({
-                "drug_class":    drug_class,
-                "intervention":  _coerce_intervention(item.intervention),
-                "detail":        detail,
+                "drug_class":        drug_class,
+                "intervention":      _coerce_intervention(item.intervention),
+                "evidence":          evidence,
+                "risk_signals":      _clean_str_list(item.risk_signals),
+                "trigger_rule_ids":  trigger,
+                "detail":            detail,
             })
 
         return {
@@ -276,6 +298,22 @@ def _validate_and_coerce_result(result: DiagnosisLLMResponse) -> Optional[Dict[s
             "workup":        workup,
             "treatment":     treatment,
         }
+
+
+def _is_sufficient_for_diagnosis(structured: Dict[str, Any]) -> bool:
+    """Deterministic pre-check (locked plan rule 4) — return True if record
+    has chief_complaint + at least one of (present_illness, physical_exam,
+    auxiliary_exam). Empty input → skip LLM call entirely."""
+    if not structured:
+        return False
+    chief = (structured.get("chief_complaint") or "").strip()
+    if not chief:
+        return False
+    return bool(
+        (structured.get("present_illness") or "").strip()
+        or (structured.get("physical_exam") or "").strip()
+        or (structured.get("auxiliary_exam") or "").strip()
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -381,6 +419,21 @@ async def run_diagnosis(
             raise
 
         chief_complaint = (structured.get("chief_complaint") or clinical_text or "")[:200]
+
+        # ------------------------------------------------------------------
+        # Step 1b: Sufficiency pre-check (locked plan rule 4 · 2026-04-25)
+        # If we only have chief_complaint without present_illness/exam/aux,
+        # skip LLM call entirely. Surface "信息不足" rather than fake guess.
+        # ------------------------------------------------------------------
+        if not _is_sufficient_for_diagnosis(structured):
+            log(f"{_tag} sufficiency rule failed: chief_complaint='{chief_complaint[:60]}' — returning empty result without LLM call")
+            return {
+                "differentials": [],
+                "workup":        [],
+                "treatment":     [],
+                "status":        "insufficient_data",
+                "reason":        "需要更多病史/体征/辅助检查信息才能生成建议",
+            }
 
         # ------------------------------------------------------------------
         # Step 2: Case matching — find similar confirmed cases
@@ -554,6 +607,9 @@ async def run_diagnosis(
                         ids = _extract_citations(text).cited_ids
                         return json.dumps(ids) if ids else None
 
+                    def _json_or_none(items):
+                        return json.dumps(items, ensure_ascii=False) if items else None
+
                     for d in result["differentials"]:
                         _detail = d.get("detail") or ""
                         await create_suggestion(
@@ -566,6 +622,9 @@ async def run_diagnosis(
                             confidence=d.get("confidence") or None,
                             cited_knowledge_ids=_cited_json(f"{d['condition']} {_detail}"),
                             prompt_hash=_prompt_hash,
+                            evidence_json=_json_or_none(d.get("evidence")),
+                            risk_signals_json=_json_or_none(d.get("risk_signals")),
+                            trigger_rule_ids_json=_json_or_none(d.get("trigger_rule_ids")),
                         )
                     for w in result["workup"]:
                         _detail = w.get("detail") or ""
@@ -579,6 +638,9 @@ async def run_diagnosis(
                             urgency=w.get("urgency") or None,
                             cited_knowledge_ids=_cited_json(f"{w['test']} {_detail}"),
                             prompt_hash=_prompt_hash,
+                            evidence_json=_json_or_none(w.get("evidence")),
+                            risk_signals_json=_json_or_none(w.get("risk_signals")),
+                            trigger_rule_ids_json=_json_or_none(w.get("trigger_rule_ids")),
                         )
                     for t in result["treatment"]:
                         _detail = t.get("detail") or ""
@@ -592,6 +654,9 @@ async def run_diagnosis(
                             intervention=t.get("intervention") or None,
                             cited_knowledge_ids=_cited_json(f"{t['drug_class']} {_detail}"),
                             prompt_hash=_prompt_hash,
+                            evidence_json=_json_or_none(t.get("evidence")),
+                            risk_signals_json=_json_or_none(t.get("risk_signals")),
+                            trigger_rule_ids_json=_json_or_none(t.get("trigger_rule_ids")),
                         )
                     log(f"{_tag} diagnosis persisted to ai_suggestions for record {record_id}")
             except Exception as persist_err:
