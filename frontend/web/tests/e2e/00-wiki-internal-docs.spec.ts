@@ -21,14 +21,24 @@ import { test, expect, type Page } from "@playwright/test";
 // a new doc to the wiki sidebar, add it here too — the spec is the
 // regression boundary.
 const DOCS = [
+  // 系统架构 / 产品
   { slug: "architecture",            expectInTitle: "架构" },
+  { slug: "product-strategy",        expectInTitle: "策略" },
+  { slug: "north-star",              expectInTitle: "" },     // tiny doc, no specific keyword guarantee
+  { slug: "roadmap",                 expectInTitle: "" },
+  // 部署运维
   { slug: "services",                expectInTitle: "服务" },
   { slug: "runbook-subdomain-split", expectInTitle: "子域名" },
   { slug: "tencent-resources",       expectInTitle: "资源" },
   { slug: "glitchtip",               expectInTitle: "GlitchTip" },
   { slug: "dbgate",                  expectInTitle: "DBGate" },
   { slug: "mysql-restore",           expectInTitle: "MySQL" },
-  { slug: "product-strategy",        expectInTitle: "策略" },
+  // 开发指南
+  { slug: "repo-rules",              expectInTitle: "" },
+  { slug: "dev-onboarding",          expectInTitle: "" },
+  { slug: "ui-design",               expectInTitle: "" },
+  { slug: "e2e-guide",               expectInTitle: "" },
+  { slug: "changelog",               expectInTitle: "" },
 ];
 
 async function visitDoc(page: Page, slug: string) {
@@ -53,12 +63,16 @@ test.describe("wiki internal docs render", () => {
 
       // Title check — the doc has SOMETHING about its topic, not just the
       // wrapper chrome. We accept the slug appearing in any heading.
-      const headingTexts = await page.locator("#content h1, #content h2, #content h3").allInnerTexts();
-      const joined = headingTexts.join(" ").toLowerCase();
-      expect(
-        joined.includes(doc.expectInTitle.toLowerCase()),
-        `${doc.slug}: expected "${doc.expectInTitle}" somewhere in headings, got: ${joined.slice(0, 200)}`,
-      ).toBeTruthy();
+      // Skipped for short docs (north-star, roadmap, repo-rules, etc.) where
+      // a specific keyword in headings isn't a stable contract.
+      if (doc.expectInTitle) {
+        const headingTexts = await page.locator("#content h1, #content h2, #content h3").allInnerTexts();
+        const joined = headingTexts.join(" ").toLowerCase();
+        expect(
+          joined.includes(doc.expectInTitle.toLowerCase()),
+          `${doc.slug}: expected "${doc.expectInTitle}" somewhere in headings, got: ${joined.slice(0, 200)}`,
+        ).toBeTruthy();
+      }
 
       // Page <title> updates from the JS — confirms the script ran past the
       // DOCS lookup. (If the slug were unknown we'd see the "未知文档 slug" error.)

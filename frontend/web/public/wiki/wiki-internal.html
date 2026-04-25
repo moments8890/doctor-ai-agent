@@ -52,14 +52,24 @@
   // Map of slug → source path. Each entry is the path under public/wiki/internal-docs/
   // (vite copies public/* to dist/ at build time, so they're served as static files).
   const DOCS = {
-    "architecture":      { title: "系统架构",            file: "internal-docs/architecture.md" },
-    "services":          { title: "生产服务总览",         file: "internal-docs/services.md" },
-    "runbook-subdomain-split": { title: "子域名拆分历史", file: "internal-docs/runbook-subdomain-split.md" },
-    "tencent-resources": { title: "服务器资源清单",       file: "internal-docs/tencent-resources.md" },
-    "glitchtip":         { title: "GlitchTip 错误追踪",   file: "internal-docs/glitchtip.md" },
-    "dbgate":            { title: "数据库管理 (DBGate)",  file: "internal-docs/dbgate.md" },
-    "mysql-restore":     { title: "MySQL 恢复",          file: "internal-docs/mysql-restore.md" },
-    "product-strategy":  { title: "产品定位与策略",       file: "internal-docs/product-strategy.md" },
+    // 系统架构 / 产品
+    "architecture":              { title: "系统架构",         file: "internal-docs/architecture.md" },
+    "product-strategy":          { title: "产品定位与策略",    file: "internal-docs/product-strategy.md" },
+    "north-star":                { title: "北极星",           file: "internal-docs/north-star.md" },
+    "roadmap":                   { title: "路线图",           file: "internal-docs/roadmap.md" },
+    // 部署运维
+    "services":                  { title: "生产服务总览",      file: "internal-docs/services.md" },
+    "runbook-subdomain-split":   { title: "子域名拆分历史",    file: "internal-docs/runbook-subdomain-split.md" },
+    "tencent-resources":         { title: "服务器资源清单",    file: "internal-docs/tencent-resources.md" },
+    "glitchtip":                 { title: "GlitchTip 错误追踪", file: "internal-docs/glitchtip.md" },
+    "dbgate":                    { title: "数据库管理 (DBGate)", file: "internal-docs/dbgate.md" },
+    "mysql-restore":             { title: "MySQL 恢复",        file: "internal-docs/mysql-restore.md" },
+    // 开发指南
+    "repo-rules":                { title: "仓库规范 (AGENTS)", file: "internal-docs/repo-rules.md" },
+    "dev-onboarding":            { title: "开发入门",          file: "internal-docs/dev-onboarding.md" },
+    "ui-design":                 { title: "UI 设计系统",       file: "internal-docs/ui-design.md" },
+    "e2e-guide":                 { title: "E2E 测试指南",      file: "internal-docs/e2e-guide.md" },
+    "changelog":                 { title: "更新日志",          file: "internal-docs/changelog.md" },
   };
 
   function getSlug() {

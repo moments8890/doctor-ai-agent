@@ -17,14 +17,24 @@ mkdir -p "$DEST"
 
 # slug:source-path pairs. Bash 3.x compatible (no associative arrays).
 DOCS=(
+  # 系统架构 / 产品
   "architecture:docs/architecture.md"
+  "product-strategy:docs/product/product-strategy.md"
+  "north-star:docs/product/north-star.md"
+  "roadmap:docs/product/roadmap.md"
+  # 部署运维
   "services:deploy/tencent/SERVICES.md"
   "runbook-subdomain-split:deploy/tencent/RUNBOOK-subdomain-split.md"
   "tencent-resources:docs/deploy/tecenet-deployment/资源清单.md"
   "glitchtip:deploy/tencent/glitchtip.md"
   "dbgate:deploy/tencent/adminer.md"
   "mysql-restore:deploy/tencent/mysql_restore.md"
-  "product-strategy:docs/product/product-strategy.md"
+  # 开发指南
+  "repo-rules:AGENTS.md"
+  "dev-onboarding:docs/dev/README.md"
+  "ui-design:docs/ux/design-spec.md"
+  "e2e-guide:docs/qa/e2e-guide.md"
+  "changelog:CHANGELOG.md"
 )
 
 for entry in "${DOCS[@]}"; do
