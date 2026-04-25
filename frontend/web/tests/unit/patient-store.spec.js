@@ -1,9 +1,12 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 describe("usePatientStore", () => {
   beforeEach(() => {
-    // Reset localStorage between tests so persist middleware is clean
+    // Reset localStorage AND module cache so the zustand singleton is
+    // re-created from scratch for each test (and the migration IIFE re-runs).
+    // Without vi.resetModules(), the in-memory store leaks state across tests.
     localStorage.clear();
+    vi.resetModules();
   });
 
   it("loginWithIdentity replaces all identity fields atomically", async () => {
@@ -40,6 +43,14 @@ describe("usePatientStore", () => {
     const { usePatientStore } = await import("../../src/store/patientStore.js");
     usePatientStore.getState().loginWithIdentity({ token: "T", patientId: "p1" });
     usePatientStore.getState().clearAuth();
+    expect(usePatientStore.getState().token).toBe("");
+    expect(usePatientStore.getState().patientId).toBe("");
+  });
+
+  it("test isolation — fresh store starts empty even after a prior test mutated it", async () => {
+    const { usePatientStore } = await import("../../src/store/patientStore.js");
+    // No setup — directly assert default state. If isolation is broken, this
+    // would see "tok-1" or similar leak from earlier tests.
     expect(usePatientStore.getState().token).toBe("");
     expect(usePatientStore.getState().patientId).toBe("");
   });
