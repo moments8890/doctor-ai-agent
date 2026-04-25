@@ -2,6 +2,19 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<title>wiki-specs</title>
+<script>
+  /* page-title-env-prefix */
+  (function() {
+    var host = window.location.hostname;
+    var port = window.location.port;
+    var env = "";
+    if (host === "localhost" || host === "127.0.0.1" || port === "5173" || port === "5174") env = "dev";
+    else if (host.indexOf(".doctoragentai.cn") !== -1 && host.lastIndexOf(".doctoragentai.cn") === host.length - ".doctoragentai.cn".length) env = "tencent";
+    var prefix = (env ? "[" + env + "]" : "") + "[wiki]";
+    document.title = prefix + " " + document.title;
+  })();
+</script>
 <link rel="stylesheet" href="wiki-common.css">
 <!-- GitHub-style markdown for rendered docs -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.5.1/github-markdown-light.css">

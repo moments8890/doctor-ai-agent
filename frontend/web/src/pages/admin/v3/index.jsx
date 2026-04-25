@@ -18,6 +18,7 @@
 // when handing the URL to a viewer.
 
 import { useEffect, useState } from "react";
+import { setPageTitle } from "../../../lib/pageTitle";
 import AdminShellV3 from "./AdminShellV3";
 import AdminDoctorDetailV3 from "./doctorDetail/AdminDoctorDetailV3";
 import DoctorList from "./doctorDetail/DoctorList";
@@ -96,6 +97,15 @@ function DoctorDetailWithBreadcrumb({ doctorId }) {
 
 export default function AdminPageV3() {
   const { doctorId, opsSub, overviewSub, sidebarSection } = useUrlRoute();
+
+  useEffect(() => {
+    let label = "运营总览";
+    if (opsSub) label = OPS_SUBS[opsSub] || "运营总览";
+    else if (overviewSub) label = OVERVIEW_SUBS[overviewSub] || "运营总览";
+    else if (doctorId) label = "医生详情";
+    else label = "医生列表";
+    setPageTitle("admin", label);
+  }, [doctorId, opsSub, overviewSub]);
 
   if (opsSub) {
     const breadcrumb = [

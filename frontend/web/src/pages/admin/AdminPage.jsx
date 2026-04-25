@@ -16,6 +16,7 @@ import AdminDoctorDetail, { DoctorList } from "./AdminDoctorDetail";
 import AdminOverview from "./AdminOverview";
 import AdminRawData, { TABLE_GROUPS } from "./AdminRawData";
 import AdminPageV3 from "./v3";
+import { setPageTitle } from "../../lib/pageTitle";
 
 const ADMIN_TOKEN_KEY = "adminToken";
 const DEV_MODE = import.meta.env.DEV;
@@ -461,7 +462,7 @@ export default function AdminPage() {
 		setStatus("locked");
 	}
 
-	useEffect(() => { document.title = "[admin] 鲸鱼随行"; }, []);
+	useEffect(() => { setPageTitle("admin", "鲸鱼随行"); }, []);
 
 	useEffect(() => {
 		if (DEV_MODE) return;

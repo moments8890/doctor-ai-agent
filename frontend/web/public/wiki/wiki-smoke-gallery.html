@@ -4,6 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>v2 Redesign Smoke Gallery — Doctor AI</title>
+<script>
+  /* page-title-env-prefix */
+  (function() {
+    var host = window.location.hostname;
+    var port = window.location.port;
+    var env = "";
+    if (host === "localhost" || host === "127.0.0.1" || port === "5173" || port === "5174") env = "dev";
+    else if (host.indexOf(".doctoragentai.cn") !== -1 && host.lastIndexOf(".doctoragentai.cn") === host.length - ".doctoragentai.cn".length) env = "tencent";
+    var prefix = (env ? "[" + env + "]" : "") + "[wiki]";
+    document.title = prefix + " " + document.title;
+  })();
+</script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {

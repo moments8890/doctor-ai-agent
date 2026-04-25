@@ -6,6 +6,16 @@
     <link rel="icon" href="data:,">
     <style>html, body { overscroll-behavior: none; } *, *::before, *::after { box-sizing: border-box; }</style>
     <title>鲸鱼随行</title>
+    <script>
+      (function() {
+        var host = window.location.hostname;
+        var port = window.location.port;
+        var env = "";
+        if (host === "localhost" || host === "127.0.0.1" || port === "5173" || port === "5174") env = "dev";
+        else if (host.indexOf(".doctoragentai.cn") !== -1 && host.lastIndexOf(".doctoragentai.cn") === host.length - ".doctoragentai.cn".length) env = "tencent";
+        if (env) document.title = "[" + env + "] " + document.title;
+      })();
+    </script>
     <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..600,0..1,-25..200" />
   </head>
