@@ -727,7 +727,7 @@ export default function KnowledgeSubpage() {
             border: `1px solid #f9a825`,
             padding: "12px 14px",
             display: "flex",
-            alignItems: "flex-start",
+            alignItems: "center",
             gap: 10,
           }}
         >
