@@ -5,6 +5,12 @@ All LLM cloud-fallback paths must call ``check_cloud_egress()`` before
 sending PHI-bearing payloads to external providers. This is the single
 enforcement point for the local / in-China / cross-border boundary.
 
+Per-provider data-handling status (training on inputs, retention, signed
+DPAs, etc.) is tracked in ``docs/security/llm-providers.md`` — keep that
+file updated when terms or contracts change. The gate here only enforces
+the geographic boundary; whether a given provider actually honours
+"no training on inputs" is a contractual question answered by that doc.
+
 Three tiers of provider:
 
   LOCAL        - runs on the local network / same trust boundary.
