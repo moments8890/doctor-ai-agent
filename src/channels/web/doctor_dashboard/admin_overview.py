@@ -1411,18 +1411,47 @@ async def admin_doctor_related(
         "updated_at": _fmt_ts(doctor.updated_at),
     }
 
-    # Patients
-    patients = (await db.execute(
-        select(Patient).where(Patient.doctor_id == doctor_id)
-        .order_by(Patient.created_at.desc()).limit(LIMIT)
-    )).scalars().all()
+    # Patients (with per-patient message/record counts so the doctor-detail
+    # 患者 tab doesn't render every card as "0 消息 0 病历"). Scalar subqueries
+    # mirror the cross-doctor /api/admin/patients shape — names normalized to
+    # `message_count` / `record_count` since that's what the V3 PatientsTab
+    # component reads.
+    msg_count_sq = (
+        select(func.count())
+        .select_from(PatientMessage)
+        .where(PatientMessage.patient_id == Patient.id)
+        .correlate(Patient)
+        .scalar_subquery()
+    )
+    rec_count_sq = (
+        select(func.count())
+        .select_from(MedicalRecordDB)
+        .where(MedicalRecordDB.patient_id == Patient.id)
+        .correlate(Patient)
+        .scalar_subquery()
+    )
+    patient_rows = (await db.execute(
+        select(
+            Patient,
+            msg_count_sq.label("message_count"),
+            rec_count_sq.label("record_count"),
+        )
+        .where(Patient.doctor_id == doctor_id)
+        .order_by(Patient.created_at.desc())
+        .limit(LIMIT)
+    )).all()
     patients_data = [
         {"id": p.id, "name": p.name, "gender": p.gender,
          "year_of_birth": p.year_of_birth, "phone": p.phone or "",
          "created_at": _fmt_ts(p.created_at),
-         "last_activity_at": _fmt_ts(p.last_activity_at)}
-        for p in patients
+         "last_activity_at": _fmt_ts(p.last_activity_at),
+         "message_count": msg_count or 0,
+         "record_count": rec_count or 0}
+        for p, msg_count, rec_count in patient_rows
     ]
+    # Keep `patients` (the ORM list) populated for downstream sections that
+    # iterate it — preserves the original variable contract.
+    patients = [row[0] for row in patient_rows]
 
     # Medical records
     records = (await db.execute(
