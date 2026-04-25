@@ -39,7 +39,7 @@ export default function ChatBubble({ role, content, timestamp }) {
             <span style={styles.userText}>{content}</span>
           ) : (
             <div style={styles.markdown}>
-              <ReactMarkdown>{content}</ReactMarkdown>
+              <ReactMarkdown components={MARKDOWN_COMPONENTS}>{content}</ReactMarkdown>
             </div>
           )}
         </div>
@@ -88,8 +88,10 @@ const styles = {
   colWrap: {
     display: "flex",
     flexDirection: "column",
+    alignItems: "stretch",
     gap: 2,
     maxWidth: "72%",
+    width: "fit-content", // shrink to content so AI bubbles don't pad to 72%
   },
   bubble: {
     padding: "9px 13px",
@@ -105,10 +107,16 @@ const styles = {
     fontSize: FONT.md,
     color: APP.text1,
     lineHeight: "1.6",
-    // Reset react-markdown default margins
   },
   ts: {
     fontSize: FONT.xs,
     color: APP.text4,
   },
+};
+
+// ReactMarkdown wraps content in <p> tags which carry default browser
+// margins (~1em top + 1em bottom) and force block-level layout. Override
+// to inline-style margins so chat bubbles size to text, not to a paragraph.
+const MARKDOWN_COMPONENTS = {
+  p: ({ children }) => <p style={{ margin: 0 }}>{children}</p>,
 };
