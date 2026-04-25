@@ -157,12 +157,15 @@ function AreaChart() {
   );
 }
 
-export default function AiAdoptionPanel({ doctor }) {
+export default function AiAdoptionPanel({ doctor, includeSeeded = false }) {
   const [overview, setOverview] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetchAdminJson("/api/admin/overview")
+    const url = includeSeeded
+      ? "/api/admin/overview?include_seeded=true"
+      : "/api/admin/overview";
+    fetchAdminJson(url)
       .then((data) => {
         if (!cancelled) setOverview(data);
       })
@@ -172,7 +175,7 @@ export default function AiAdoptionPanel({ doctor }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [includeSeeded]);
 
   // Prefer per-doctor numbers (always available on stats_7d) so the panel
   // reflects the doctor whose detail page is shown.

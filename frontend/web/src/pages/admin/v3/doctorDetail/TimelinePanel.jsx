@@ -186,7 +186,7 @@ function yesterdayKey() {
   return `${y}-${m}-${d}`;
 }
 
-export default function TimelinePanel({ doctorId, doctorName, title }) {
+export default function TimelinePanel({ doctorId, doctorName, title, includeSeeded = false }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -196,7 +196,10 @@ export default function TimelinePanel({ doctorId, doctorName, title }) {
     setLoading(true);
     setError(null);
 
-    fetchAdminJson("/api/admin/activity")
+    const url = includeSeeded
+      ? "/api/admin/activity?include_seeded=true"
+      : "/api/admin/activity";
+    fetchAdminJson(url)
       .then((data) => {
         if (cancelled) return;
         const all = data?.items || [];
@@ -215,7 +218,7 @@ export default function TimelinePanel({ doctorId, doctorName, title }) {
     return () => {
       cancelled = true;
     };
-  }, [doctorId]);
+  }, [doctorId, includeSeeded]);
 
   // Group by day key, preserving descending order (newest first).
   const groups = [];

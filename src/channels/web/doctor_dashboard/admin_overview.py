@@ -214,9 +214,13 @@ async def admin_overview(
     for decision, cnt in ai_rows_cur:
         ai_cur[decision] = ai_cur.get(decision, 0) + cnt
 
-    ai_confirmed_cur = ai_cur.get(SuggestionDecision.confirmed, 0) + ai_cur.get("confirmed", 0)
-    ai_edited_cur = ai_cur.get(SuggestionDecision.edited, 0) + ai_cur.get("edited", 0)
-    ai_rejected_cur = ai_cur.get(SuggestionDecision.rejected, 0) + ai_cur.get("rejected", 0)
+    # SuggestionDecision is `(str, Enum)`, so `enum_member` and `"confirmed"`
+    # hash-equal and resolve to the SAME dict key. Looking up both and adding
+    # double-counted every row — that's why the production dashboard was
+    # showing 2× the real AI acceptance volume. One lookup is enough.
+    ai_confirmed_cur = ai_cur.get("confirmed", 0)
+    ai_edited_cur = ai_cur.get("edited", 0)
+    ai_rejected_cur = ai_cur.get("rejected", 0)
     ai_total_cur = ai_confirmed_cur + ai_edited_cur + ai_rejected_cur
     ai_rate_cur = round(ai_confirmed_cur / max(ai_total_cur, 1), 2)
 
@@ -244,9 +248,9 @@ async def admin_overview(
     for decision, cnt in ai_rows_prev:
         ai_prev[decision] = ai_prev.get(decision, 0) + cnt
 
-    ai_confirmed_prev = ai_prev.get(SuggestionDecision.confirmed, 0) + ai_prev.get("confirmed", 0)
-    ai_edited_prev = ai_prev.get(SuggestionDecision.edited, 0) + ai_prev.get("edited", 0)
-    ai_rejected_prev = ai_prev.get(SuggestionDecision.rejected, 0) + ai_prev.get("rejected", 0)
+    ai_confirmed_prev = ai_prev.get("confirmed", 0)
+    ai_edited_prev = ai_prev.get("edited", 0)
+    ai_rejected_prev = ai_prev.get("rejected", 0)
     ai_total_prev = ai_confirmed_prev + ai_edited_prev + ai_rejected_prev
     ai_rate_prev = round(ai_confirmed_prev / max(ai_total_prev, 1), 2)
 

@@ -69,12 +69,20 @@ export default function DashboardPage() {
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Default OFF so the partner-doctor pitch view excludes auto-seeded
+  // demo data (which would otherwise produce the misleading "AI 采纳率
+  // 100%" / inflated patient count). Operators flip it on when they
+  // explicitly want to inspect seed plumbing.
+  const [includeSeeded, setIncludeSeeded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetchAdminJson("/api/admin/overview")
+    const url = includeSeeded
+      ? "/api/admin/overview?include_seeded=true"
+      : "/api/admin/overview";
+    fetchAdminJson(url)
       .then((data) => {
         if (cancelled) return;
         setOverview(data);
@@ -88,7 +96,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [includeSeeded]);
 
   const hero = overview?.hero;
   const secondary = overview?.secondary;
@@ -106,6 +114,28 @@ export default function DashboardPage() {
     >
       {error && <ErrorBanner error={error} />}
 
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <label
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: FONT.sm,
+            color: COLOR.text3,
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={includeSeeded}
+            onChange={(e) => setIncludeSeeded(e.target.checked)}
+            style={{ cursor: "pointer" }}
+          />
+          包含演示数据
+        </label>
+      </div>
+
       {loading && !overview ? (
         <KpiSkeleton />
       ) : (
@@ -120,7 +150,7 @@ export default function DashboardPage() {
           alignItems: "start",
         }}
       >
-        <AiAdoptionPanel />
+        <AiAdoptionPanel includeSeeded={includeSeeded} />
         <div
           style={{
             display: "flex",
@@ -134,7 +164,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <TimelinePanel title="平台动态" />
+      <TimelinePanel title="平台动态" includeSeeded={includeSeeded} />
     </div>
   );
 }
