@@ -49,6 +49,10 @@ class PatientMessage(Base):
     read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
     seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    # Set when a whitelist auto-reply is retracted because a red-flag
+    # signal fired in the same intake_segment. Front-end renders these
+    # with strikethrough + a "已撤回" tag.
+    retracted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     __table_args__ = (
         CheckConstraint(

@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Optional
+import sqlalchemy as sa
 from sqlalchemy import ForeignKey, Index, Integer, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship  # noqa: F401 (relationship used by Patient back_populates)
 from db.engine import Base
@@ -76,6 +77,16 @@ class MedicalRecordDB(Base):
     final_diagnosis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     treatment_outcome: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     key_symptoms: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # --- Chat–interview merge (Phase 0) ---
+    # Schema added in alembic d3d865309344. ORM declarations here so
+    # callers can read/write via the standard ORM path.
+    extraction_confidence: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True)
+    patient_confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    cancellation_reason: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    red_flag: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
+    intake_segment_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    dedup_skipped_by_patient: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
 
     patient: Mapped[Optional["Patient"]] = relationship("Patient", back_populates="records")
 

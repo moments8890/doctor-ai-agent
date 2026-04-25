@@ -36,6 +36,10 @@ class DoctorKnowledgeItem(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
     seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
+    # Per-item gate for patient-facing answers. Honored only when the
+    # owning doctor has completed kb_curation_onboarding (see Doctor).
+    patient_safe: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
 
 
 class InviteCode(Base):
@@ -75,6 +79,11 @@ class Doctor(Base):
     preferred_template_id: Mapped[Optional[str]] = mapped_column(
         String(64), nullable=True,
     )
+    # Doctor-level gate for the chat-interview merge: until set, patient-
+    # facing replies grounded in this doctor's KB items are blocked even
+    # if individual items are flagged patient_safe=True. Forces a
+    # one-time deliberate review pass over every existing KB item.
+    kb_curation_onboarding_done: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     __table_args__ = (
         Index("ix_doctors_phone", "phone"),
