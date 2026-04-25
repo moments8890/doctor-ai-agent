@@ -265,6 +265,70 @@ async def update_knowledge(
     return {"status": "ok", "id": item.id}
 
 
+# ── Phase 0.5: KB curation onboarding ──────────────────────────────
+# Per-item patient_safe flag and per-doctor onboarding-done flag.
+# Both must be True for the curation_gate to allow a KB item in
+# patient-facing replies (see src/domain/knowledge/curation_gate.py).
+
+
+class PatientSafeUpdate(BaseModel):
+    patient_safe: bool
+
+
+@router.patch("/api/manage/knowledge/{item_id}/patient_safe")
+async def update_patient_safe(
+    item_id: int,
+    body: PatientSafeUpdate,
+    doctor_id: str = Query(...),
+    authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
+):
+    """Toggle the per-item patient_safe flag.
+
+    Only the owning doctor may flip the flag. The flag has no effect
+    until the doctor also sets `kb_curation_onboarding_done` (see
+    POST /api/manage/knowledge/curation_onboarding_done).
+    """
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+    from db.models.doctor import DoctorKnowledgeItem
+
+    item = await session.get(DoctorKnowledgeItem, item_id)
+    if not item or item.doctor_id != resolved:
+        raise HTTPException(404, "未找到该知识条目")
+    item.patient_safe = body.patient_safe
+    await session.commit()
+    invalidate_knowledge_cache(resolved)
+    return {"id": item_id, "patient_safe": item.patient_safe}
+
+
+@router.post("/api/manage/knowledge/curation_onboarding_done")
+async def mark_curation_onboarding_done(
+    doctor_id: str = Query(...),
+    authorization: Optional[str] = Header(default=None),
+    session: AsyncSession = Depends(get_db),
+):
+    """Mark this doctor as having completed the KB curation walkthrough.
+
+    Idempotent — re-calling once already done is a no-op (returns the
+    same shape). Doctor must hit this once after reviewing every
+    existing KB item, otherwise no item's patient_safe flag is
+    honored by the curation_gate.
+    """
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+    from db.models.doctor import Doctor
+
+    doctor = await session.get(Doctor, resolved)
+    if not doctor:
+        raise HTTPException(404, "未找到该医生")
+    doctor.kb_curation_onboarding_done = True
+    await session.commit()
+    invalidate_knowledge_cache(resolved)
+    return {
+        "doctor_id": resolved,
+        "kb_curation_onboarding_done": True,
+    }
+
+
 @router.delete("/api/manage/knowledge/{item_id}")
 async def remove_knowledge(
     item_id: int,
