@@ -56,6 +56,10 @@ config/runtime.json
 config/credentials.local.md
 config/*.local.*
 
+# DB snapshots / backups (large binary, never commit)
+patients.db.bak.*
+*.db.bak.*
+
 # Mined routing rules and turn log (generated artifacts)
 data/*.json
 logs/turn_log.jsonl
