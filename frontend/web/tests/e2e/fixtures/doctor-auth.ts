@@ -17,7 +17,13 @@
 import { test as base, expect, type Page } from "@playwright/test";
 import { StepRecorder } from "./step-recorder";
 
-export const API_BASE_URL = process.env.E2E_API_BASE_URL || "http://127.0.0.1:8000";
+// E2E targets the isolated test backend on :8001 (per AGENTS.md and
+// scripts/validate-v2-e2e.sh) — never the dev backend on :8000. Prior runs
+// silently polluted the dev DB because the default pointed at :8000; pinning
+// to :8001 here means an accidental run cannot register E2E test rows
+// against real dev data. Override only with E2E_API_BASE_URL when the test
+// backend is genuinely on a different port.
+export const API_BASE_URL = process.env.E2E_API_BASE_URL || "http://127.0.0.1:8001";
 
 export interface TestDoctor {
   doctorId: string;

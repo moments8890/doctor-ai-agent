@@ -30,12 +30,14 @@ needs `NO_PROXY=*` and a specific startup order, and the frontend sometimes
 needs HMR disabled. Start them yourself:
 
 ```bash
-# Terminal 1 — backend on :8000
+# Terminal 1 — TEST backend on :8001 with an isolated DB (never share with
+# the dev DB on :8000 — see scripts/validate-v2-e2e.sh).
 cd /Volumes/ORICO/Code/doctor-ai-agent
-NO_PROXY=* no_proxy=* PYTHONPATH=src \
-  .venv/bin/python -m uvicorn main:app --port 8000 --app-dir src
+NO_PROXY=* no_proxy=* PYTHONPATH=src ENVIRONMENT=development \
+  PATIENTS_DB_PATH=/tmp/e2e_test.db \
+  .venv/bin/python -m uvicorn main:app --port 8001 --app-dir src
 
-# Terminal 2 — frontend on :5173
+# Terminal 2 — frontend on :5173 (proxy points at :8001 for e2e)
 cd frontend/web
 npm run dev:stable   # HMR off — prevents flaky reloads during tests
 ```
@@ -43,8 +45,15 @@ npm run dev:stable   # HMR off — prevents flaky reloads during tests
 Verify both are up:
 
 ```bash
-curl -s http://127.0.0.1:8000/healthz            # expect 200
+curl -s http://127.0.0.1:8001/healthz            # expect 200
 curl -sI http://127.0.0.1:5173/login | head -1   # expect 200
+```
+
+To start fresh between runs (recommended), wipe the test DB before launching
+:8001:
+
+```bash
+rm -f /tmp/e2e_test.db
 ```
 
 ## Running tests
