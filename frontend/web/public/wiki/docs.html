@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doctor AI 内部文档</title>
+<script>
+  /* page-title-env-prefix */
+  (function() {
+    var host = window.location.hostname;
+    var port = window.location.port;
+    var env = "";
+    if (host === "localhost" || host === "127.0.0.1" || port === "5173" || port === "5174") env = "dev";
+    else if (host.indexOf(".doctoragentai.cn") !== -1) env = "tencent";
+    var prefix = (env ? "[" + env + "]" : "") + "[docs]";
+    document.title = prefix + " " + document.title;
+  })();
+</script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f6f6f6; color: #202122; font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif; font-size: 14px; overflow: hidden; height: 100vh; }
+
+  /* ── Topbar (slightly different shade so devs can tell at a glance
+        that they are on docs.* not wiki.*) ── */
+  .wiki-topbar {
+    background: linear-gradient(180deg, #1a3a5c 0%, #102b47 100%);
+    border-bottom: 3px solid #2196f3;
+    display: flex; align-items: center;
+    padding: 0 16px; height: 50px;
+  }
+  .wiki-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #fff; margin-right: 24px; flex-shrink: 0; }
+  .wiki-logo-icon { width: 32px; height: 32px; background: #2196f3; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; color: #fff; }
+  .wiki-logo-text { font-size: 16px; font-weight: bold; letter-spacing: 0.5px; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .wiki-logo-text small { display: block; font-size: 9px; font-weight: normal; color: #90caf9; letter-spacing: 2px; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; color: #90caf9; font-size: 12px; }
+  .topbar-badge { background: rgba(255,255,255,0.1); padding: 3px 8px; border-radius: 3px; font-size: 11px; }
+
+  /* ── Layout ── */
+  .wiki-layout { display: flex; height: calc(100vh - 53px); }
+  .wiki-sidebar {
+    width: 240px; flex-shrink: 0;
+    background: #fff; border-right: 1px solid #ddd;
+    overflow-y: auto; padding: 12px 0;
+  }
+  .sidebar-section { padding: 0 12px; margin-bottom: 12px; }
+  .sidebar-heading {
+    font-size: 11px; font-weight: bold; text-transform: uppercase;
+    color: #1a3a5c; letter-spacing: 1px; padding: 4px 0;
+  }
+  .sidebar-section a {
+    display: block; padding: 4px 8px; margin: 1px 0;
+    color: #333; text-decoration: none; font-size: 13px;
+    border-radius: 3px;
+  }
+  .sidebar-section a:hover { background: #e3f2fd; color: #102b47; }
+  .sidebar-section a.active { background: #e3f2fd; color: #1a3a5c; font-weight: bold; }
+
+  .wiki-content { flex: 1; border: none; background: #fff; }
+
+  /* ── Mobile responsive ── */
+  .menu-btn { display: none; background: none; border: 1px solid #2d6a3e; border-radius: 3px; color: #90caf9; cursor: pointer; padding: 4px 8px; font-size: 18px; line-height: 1; }
+  .menu-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; }
+  .menu-overlay.open { display: block; }
+  @media (max-width: 768px) {
+    .menu-btn { display: block; }
+    .wiki-sidebar {
+      position: fixed; left: -260px; top: 50px; bottom: 0; z-index: 100;
+      width: 250px; transition: left 0.5s ease;
+      box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+    }
+    .wiki-sidebar.open { left: 0; }
+    .wiki-content { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wiki-topbar">
+  <a class="wiki-logo" href="docs.html" onclick="event.preventDefault(); loadPage('wiki-internal.html?doc=services');">
+    <div class="wiki-logo-icon">DEV</div>
+    <div class="wiki-logo-text">
+      Doctor AI Docs
+      <small>内部 / 部署 / 架构</small>
+    </div>
+  </a>
+  <button class="menu-btn" id="menu-btn" onclick="toggleMenu()">&#9776;</button>
+  <div class="topbar-right">
+    <span class="topbar-badge">🔒 INTERNAL · auth required</span>
+  </div>
+</div>
+
+<div class="menu-overlay" id="menu-overlay" onclick="toggleMenu()"></div>
+<div class="wiki-layout">
+  <aside class="wiki-sidebar" id="wiki-sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-heading">系统架构</div>
+      <a href="wiki-internal.html?doc=architecture" data-page>系统架构</a>
+      <a href="wiki-internal.html?doc=product-strategy" data-page>产品定位与策略</a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-heading">部署运维</div>
+      <a href="wiki-internal.html?doc=services" data-page>生产服务总览</a>
+      <a href="wiki-internal.html?doc=runbook-subdomain-split" data-page>子域名拆分历史</a>
+      <a href="wiki-internal.html?doc=tencent-resources" data-page>服务器资源清单</a>
+      <a href="wiki-internal.html?doc=glitchtip" data-page>错误追踪 (GlitchTip)</a>
+      <a href="wiki-internal.html?doc=dbgate" data-page>数据库管理 (DBGate)</a>
+      <a href="wiki-internal.html?doc=mysql-restore" data-page>MySQL 恢复</a>
+    </div>
+
+  </aside>
+
+  <iframe id="content-frame" class="wiki-content" src="wiki-internal.html?doc=services"></iframe>
+</div>
+
+<script>
+  function loadPage(page) {
+    const frame = document.getElementById('content-frame');
+    frame.src = page;
+    document.querySelectorAll('.sidebar-section a[data-page]').forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === page);
+    });
+    const url = new URL(window.location);
+    url.searchParams.set('page', page);
+    history.pushState({page}, '', url);
+    if (window.innerWidth <= 768) toggleMenu();
+  }
+  document.querySelectorAll('.sidebar-section a[data-page]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      loadPage(a.getAttribute('href'));
+    });
+  });
+  const params = new URLSearchParams(window.location.search);
+  const page = params.get('page');
+  if (page) loadPage(page);
+  function toggleMenu() {
+    document.getElementById('wiki-sidebar').classList.toggle('open');
+    document.getElementById('menu-overlay').classList.toggle('open');
+  }
+  window.addEventListener('popstate', e => {
+    if (e.state && e.state.page) loadPage(e.state.page);
+  });
+</script>
+</body>
+</html>
