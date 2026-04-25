@@ -1,56 +1,66 @@
 /**
- * MyPage — patient "我的" settings page (v2, antd-mobile).
+ * MyPage — patient "我的" settings page (v2, antd-mobile, doctor-card-pattern).
  *
- * Business logic ported from src/pages/patient/MyPage.jsx.
- * Sections: patient info, doctor info, general (about/privacy/font), logout.
+ * Mirrors doctor SettingsPage visual structure: profile card, section headers
+ * (icon + label) above each Card, TintedIconRow rows inside Cards, danger-
+ * outlined logout button, security footer. The local SectionHeader stays local
+ * — patient app is the only second consumer right now and the abstraction
+ * isn't earned yet (different from doctor SettingsPage's local SectionHeader,
+ * which has the same {Icon, iconColor, title} signature).
  */
-
 import { useState } from "react";
-import { Button, Dialog, List, Popup, Radio, Space } from "antd-mobile";
+import { Button, Dialog, Popup, Radio, Space } from "antd-mobile";
+import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import FormatSizeOutlinedIcon from "@mui/icons-material/FormatSizeOutlined";
+import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
+import { useNavigate } from "react-router-dom";
+
+import { APP, FONT, ICON, RADIUS } from "../../theme";
+import { pageContainer, scrollable } from "../../layouts";
+import { Card, NameAvatar, TintedIconRow } from "../../components";
 import {
-  InformationCircleOutline,
-  LoopOutline,
-  TextOutline,
-  UserOutline,
-} from "antd-mobile-icons";
-import { APP, FONT, ICON, RADIUS, applyFontScale } from "../../theme";
-import { scrollable } from "../../layouts";
-import { NameAvatar } from "../../components";
-
-// ---------------------------------------------------------------------------
-// Font scale store (inline — no MUI / v1 store dependency)
-// ---------------------------------------------------------------------------
-
-const FONT_SCALE_KEY = "v2_font_scale";
-
-function getFontScale() {
-  return localStorage.getItem(FONT_SCALE_KEY) || "large";
-}
-
-function setFontScaleStored(tier) {
-  localStorage.setItem(FONT_SCALE_KEY, tier);
-  applyFontScale(tier);
-}
-
-const FONT_SCALE_OPTIONS = [
-  { key: "standard", label: "标准" },
-  { key: "large", label: "大" },
-  { key: "extraLarge", label: "特大" },
-];
-
-// ---------------------------------------------------------------------------
-// MyPage
-// ---------------------------------------------------------------------------
+  FONT_SCALE_OPTIONS,
+  getFontScale,
+  setFontScale as persistFontScale,
+  getFontScaleLabel,
+} from "../../lib/patientFontScale";
 
 const ONBOARDING_DONE_KEY_PREFIX = "patient_onboarding_done_";
 
-export default function MyPage({ patientName, doctorName, doctorSpecialty, doctorId, onLogout }) {
-  const [fontScale, setFontScale] = useState(getFontScale);
+// Local section header (icon + label, sits OUTSIDE Card on the gray bg).
+// Same visual pattern as doctor/SettingsPage's local SectionHeader.
+function SectionHeader({ Icon, iconColor, title }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "0 20px",
+        margin: "16px 0 8px",
+      }}
+    >
+      <Icon sx={{ fontSize: ICON.sm, color: iconColor }} />
+      <span style={{ fontSize: FONT.base, color: APP.text3, fontWeight: 500 }}>
+        {title}
+      </span>
+    </div>
+  );
+}
+
+export default function MyPage({ patientName, doctorName, doctorSpecialty, onLogout }) {
+  const navigate = useNavigate();
+  const [fontScale, setFontScaleState] = useState(getFontScale);
   const [showFontPopup, setShowFontPopup] = useState(false);
 
   function handleFontScaleChange(tier) {
-    setFontScale(tier);
-    setFontScaleStored(tier);
+    setFontScaleState(tier);
+    persistFontScale(tier);
     setShowFontPopup(false);
   }
 
@@ -70,133 +80,148 @@ export default function MyPage({ patientName, doctorName, doctorSpecialty, docto
     });
   }
 
-  const currentFontLabel =
-    FONT_SCALE_OPTIONS.find((o) => o.key === fontScale)?.label || "标准";
-
   return (
-    <div style={scrollable}>
-      {/* Patient info */}
-      <List header="我的信息">
-        <List.Item
-          prefix={<NameAvatar name={patientName || "患者"} size={44} color={APP.primary} charPosition="last" />}
-          description="患者"
-        >
-          {patientName || "患者"}
-        </List.Item>
-      </List>
+    <div style={pageContainer}>
+      <div style={{ ...scrollable, paddingTop: 12, paddingBottom: 24 }}>
+        {/* Profile card — display only */}
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px" }}>
+            <NameAvatar name={patientName || "患"} size={48} color={APP.primary} charPosition="last" />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: FONT.lg, fontWeight: 700, color: APP.text1 }}>
+                {patientName || "患者"}
+              </div>
+              <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
+                患者
+              </div>
+            </div>
+          </div>
+        </Card>
 
-      {/* Doctor info */}
-      {doctorName && (
-        <List header="我的医生">
-          <List.Item
-            prefix={<NameAvatar name={doctorName} size={44} color={APP.accent} charPosition="last" />}
-            description={doctorSpecialty || ""}
+        {/* My doctor */}
+        {doctorName && (
+          <>
+            <SectionHeader Icon={LocalHospitalOutlinedIcon} iconColor={APP.accent} title="我的医生" />
+            <Card>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px" }}>
+                <NameAvatar name={doctorName} size={44} color={APP.accent} charPosition="last" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: FONT.base, fontWeight: 600, color: APP.text1 }}>
+                    {doctorName}
+                  </div>
+                  {doctorSpecialty && (
+                    <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
+                      {doctorSpecialty}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </>
+        )}
+
+        {/* General */}
+        <SectionHeader Icon={SettingsOutlinedIcon} iconColor={APP.accent} title="通用" />
+        <Card>
+          <TintedIconRow
+            Icon={InfoOutlinedIcon}
+            iconColor={APP.accent}
+            iconBg={APP.accentLight}
+            title="关于"
+            subtitle="版本信息"
+            onClick={() => navigate("/patient/profile/about")}
+            isFirst
+          />
+          <TintedIconRow
+            Icon={LockOutlinedIcon}
+            iconColor={APP.accent}
+            iconBg={APP.accentLight}
+            title="隐私政策"
+            subtitle="数据使用与保护"
+            onClick={() => navigate("/patient/profile/privacy")}
+          />
+          <TintedIconRow
+            Icon={FormatSizeOutlinedIcon}
+            iconColor={APP.accent}
+            iconBg={APP.accentLight}
+            title="字体大小"
+            subtitle={getFontScaleLabel(fontScale)}
+            onClick={() => setShowFontPopup(true)}
+          />
+          <TintedIconRow
+            Icon={RefreshOutlinedIcon}
+            iconColor={APP.accent}
+            iconBg={APP.accentLight}
+            title="重新查看引导"
+            onClick={handleReplayOnboarding}
+          />
+        </Card>
+
+        {/* Logout */}
+        <div style={{ margin: "24px 12px 8px" }}>
+          <Button
+            block
+            color="danger"
+            fill="outline"
+            onClick={handleLogoutTap}
+            style={{
+              "--border-radius": `${RADIUS.lg}px`,
+              padding: "14px 0",
+              fontSize: FONT.md,
+              fontWeight: 600,
+            }}
           >
-            {doctorName}
-          </List.Item>
-        </List>
-      )}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <LogoutOutlinedIcon sx={{ fontSize: ICON.sm }} />
+              退出登录
+            </span>
+          </Button>
+        </div>
 
-      {/* General settings */}
-      <List header="通用">
-        <List.Item
-          prefix={<InformationCircleOutline style={{ fontSize: ICON.sm, color: APP.text4 }} />}
-          extra={
-            <span style={{ fontSize: FONT.base, color: APP.text4 }}>版本信息</span>
-          }
-          description={null}
-          arrow
-          onClick={() => {}}
-        >
-          关于
-        </List.Item>
-        <List.Item
-          prefix={<UserOutline style={{ fontSize: ICON.sm, color: APP.text4 }} />}
-          extra={
-            <span style={{ fontSize: FONT.base, color: APP.text4 }}>数据使用与保护</span>
-          }
-          description={null}
-          arrow
-          onClick={() => {}}
-        >
-          隐私政策
-        </List.Item>
-        <List.Item
-          prefix={<TextOutline style={{ fontSize: ICON.sm, color: APP.text4 }} />}
-          extra={
-            <span style={{ fontSize: FONT.base, color: APP.text4 }}>{currentFontLabel}</span>
-          }
-          description={null}
-          arrow
-          onClick={() => setShowFontPopup(true)}
-        >
-          字体大小
-        </List.Item>
-        <List.Item
-          prefix={<LoopOutline style={{ fontSize: ICON.sm, color: APP.text4 }} />}
-          description={null}
-          arrow
-          onClick={handleReplayOnboarding}
-        >
-          重新查看引导
-        </List.Item>
-      </List>
-
-      {/* Logout */}
-      <List header="账户操作">
-        <List.Item
-          onClick={handleLogoutTap}
-          style={{ color: APP.danger, textAlign: "center", cursor: "pointer" }}
-        >
-          <span style={{ fontSize: FONT.md, color: APP.danger, fontWeight: 500 }}>退出登录</span>
-        </List.Item>
-      </List>
-
-      <div style={{ height: 32 }} />
-
-      {/* Font scale popup */}
-      <Popup
-        visible={showFontPopup}
-        onMaskClick={() => setShowFontPopup(false)}
-        position="bottom"
-        bodyStyle={{ borderRadius: `${RADIUS.xl}px ${RADIUS.xl}px 0 0`, padding: "16px 16px 32px" }}
-      >
         <div
           style={{
-            textAlign: "center",
-            fontSize: FONT.md,
-            fontWeight: 600,
-            color: APP.text1,
-            marginBottom: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            padding: "8px 16px",
+            fontSize: FONT.sm,
+            color: APP.text4,
           }}
         >
-          字体大小
+          <SecurityOutlinedIcon sx={{ fontSize: ICON.xs, color: APP.text4 }} />
+          <span>退出后将清除本地缓存，确保账号安全</span>
         </div>
-        <Radio.Group
-          value={fontScale}
-          onChange={handleFontScaleChange}
+
+        {/* Font-size Popup (3 options preserved — patient audience needs 特大) */}
+        <Popup
+          visible={showFontPopup}
+          onMaskClick={() => setShowFontPopup(false)}
+          position="bottom"
+          bodyStyle={{ borderRadius: `${RADIUS.xl}px ${RADIUS.xl}px 0 0`, padding: "16px 16px 32px" }}
         >
-          <Space direction="vertical" style={{ width: "100%" }}>
-            {FONT_SCALE_OPTIONS.map((o) => (
-              <Radio
-                key={o.key}
-                value={o.key}
-                style={{ width: "100%", fontSize: FONT.md }}
-              >
-                {o.label}
-              </Radio>
-            ))}
-          </Space>
-        </Radio.Group>
-        <Button
-          block
-          color="default"
-          style={{ marginTop: 16, borderRadius: RADIUS.md }}
-          onClick={() => setShowFontPopup(false)}
-        >
-          取消
-        </Button>
-      </Popup>
+          <div style={{ textAlign: "center", fontSize: FONT.md, fontWeight: 600, color: APP.text1, marginBottom: 16 }}>
+            字体大小
+          </div>
+          <Radio.Group value={fontScale} onChange={handleFontScaleChange}>
+            <Space direction="vertical" style={{ width: "100%" }}>
+              {FONT_SCALE_OPTIONS.map((o) => (
+                <Radio key={o.key} value={o.key} style={{ width: "100%", fontSize: FONT.md }}>
+                  {o.label}
+                </Radio>
+              ))}
+            </Space>
+          </Radio.Group>
+          <Button
+            block
+            color="default"
+            style={{ marginTop: 16, borderRadius: RADIUS.md }}
+            onClick={() => setShowFontPopup(false)}
+          >
+            取消
+          </Button>
+        </Popup>
+      </div>
     </div>
   );
 }
