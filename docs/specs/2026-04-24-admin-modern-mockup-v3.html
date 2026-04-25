@@ -1,0 +1,2197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>鲸鱼随行 · Admin — Modern UI Mockup v3 (codex theme)</title>
+<!-- v3 — system fonts only per codex; no Fraunces, no Geist.
+     Closest continuity with the mobile v2 app's PingFang/Noto stack. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..600,0..1,-25..200" />
+<style>
+/* ───────────────────────────────────────────────────────────────────────── */
+/* v3 design tokens — Plaid-style operations console, anchored to mobile v2   */
+/* ───────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Background hierarchy — neutral gray-white only */
+  --bg-page:    #F5F7F8;
+  --bg-canvas:  #EEF2F3;
+  --bg-card:    #FFFFFF;
+  --bg-cardAlt: #FAFBFB;
+
+  /* Borders — quiet but real */
+  --border-subtle:  #E9EEF0;
+  --border-default: #DDE4E7;
+  --border-strong:  #C6D0D5;
+
+  /* Text */
+  --text-1: #1A1A1A;
+  --text-2: #5F6B76;
+  --text-3: #8B98A5;
+  --text-4: #B0BAC2;
+
+  /* Brand — green stays #07C160 (mobile family) but used sparingly */
+  --brand:        #07C160;
+  --brand-hover:  #06AD56;
+  --brand-tint:   #E7F8EE;
+  --brand-tint-2: #F2FBF6;
+
+  /* Info accent (WeChat-style indigo-blue from mobile) */
+  --info:       #576B95;
+  --info-tint:  #EEF1F6;
+
+  /* Semantic — exact mobile values */
+  --danger:        #FA5151;
+  --danger-tint:   #FFF1F1;
+  --danger-strong: #E03A3A;
+
+  --warning:      #B07A1C;     /* darker variant for chips on white */
+  --warning-bg:   #FFC300;     /* used only as a 1-2px stripe */
+  --warning-tint: #FFF8E0;
+
+  /* Mono */
+  --mono: "SF Mono","JetBrains Mono","Roboto Mono",ui-monospace,Menlo,monospace;
+
+  /* Sans — system-first per codex */
+  --sans: "PingFang SC","Noto Sans SC","HarmonyOS Sans SC",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+
+  /* Shadows — restrained */
+  --shadow-1: 0 1px 1px rgba(15, 23, 28, 0.04);
+  --shadow-2: 0 1px 2px rgba(15, 23, 28, 0.05), 0 6px 16px -8px rgba(15, 23, 28, 0.06);
+
+  /* Radius */
+  --r-sm: 6px;
+  --r:    8px;
+  --r-lg: 12px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-1);
+  background: var(--bg-page);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+.mono { font-family: var(--mono); }
+::selection { background: var(--brand-tint); color: var(--text-1); }
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-size: 20px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* shell                                                                      */
+/* ───────────────────────────────────────────────────────────────────────── */
+.app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+
+/* ─── sidebar ─── */
+.sidebar {
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  padding: 16px 12px 12px;
+  position: sticky; top: 0;
+  height: 100vh;
+  display: flex; flex-direction: column;
+}
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 8px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+}
+.brand-logo {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--brand);
+  color: #fff; display: grid; place-items: center;
+  font-weight: 600; font-size: 13px;
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-name { font-size: 14px; font-weight: 600; color: var(--text-1); }
+.brand-tag {
+  font-size: 10px; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3); font-weight: 500;
+}
+
+.nav-group { margin-bottom: 12px; }
+.nav-label {
+  font-size: 10.5px; letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 4px 10px 6px;
+  font-weight: 600;
+}
+.nav-item {
+  height: 36px;                          /* codex: 36px nav rows */
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 13.5px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 100ms;
+  margin-bottom: 1px;
+  position: relative;
+}
+.nav-item:hover { background: var(--bg-page); color: var(--text-1); }
+.nav-item.active {
+  background: var(--brand-tint);
+  color: var(--text-1);
+  font-weight: 500;
+}
+/* the motif: 2px left rail on the active item */
+.nav-item.active::before {
+  content: ""; position: absolute;
+  left: -12px; top: 6px; bottom: 6px;
+  width: 2px;
+  background: var(--brand);
+  border-radius: 0 2px 2px 0;
+}
+.nav-item .material-symbols-outlined { font-size: 18px; color: var(--text-3); flex-shrink: 0; }
+.nav-item.active .material-symbols-outlined { color: var(--brand); }
+.nav-item .count {
+  margin-left: auto; font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--mono);
+}
+.nav-item .pill {
+  margin-left: auto; font-size: 10px; font-weight: 600;
+  padding: 1px 6px; border-radius: 999px;
+  background: var(--danger); color: #fff;
+  letter-spacing: 0.04em;
+}
+
+.user-menu {
+  margin-top: auto;
+  padding: 8px 4px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.user-row {
+  display: flex; align-items: center; gap: 10px;
+  height: 44px; padding: 0 8px;
+  border-radius: 7px; cursor: pointer;
+  position: relative;
+}
+.user-row:hover { background: var(--bg-page); }
+.user-av {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--info); color: #fff;
+  font-size: 11px; font-weight: 600;
+  display: grid; place-items: center;
+}
+.user-name { font-size: 12.5px; font-weight: 500; display: flex; flex-direction: column; line-height: 1.2; }
+.user-name .role { font-size: 10.5px; color: var(--text-3); letter-spacing: 0.04em; }
+.user-row .material-symbols-outlined { margin-left: auto; color: var(--text-4); font-size: 18px; }
+
+.popover {
+  position: absolute;
+  bottom: calc(100% + 6px); left: 0; right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-2);
+  padding: 6px;
+  font-size: 12.5px;
+  z-index: 10;
+}
+.popover .row {
+  height: 32px; padding: 0 10px;
+  border-radius: 5px;
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+}
+.popover .row:hover { background: var(--bg-page); }
+.popover .row.danger { color: var(--danger); }
+.popover .dev-row {
+  font-family: var(--mono); font-size: 11.5px;
+  color: var(--text-3);
+}
+.switch {
+  width: 26px; height: 14px;
+  background: var(--text-4);
+  border-radius: 7px;
+  position: relative;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.switch::after {
+  content: ""; position: absolute;
+  width: 10px; height: 10px;
+  background: #fff;
+  border-radius: 50%;
+  top: 2px; left: 2px;
+  transition: 200ms;
+}
+
+/* ─── main ─── */
+.main { background: var(--bg-page); min-width: 0; }
+
+.topbar {
+  height: 56px;
+  padding: 0 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(245, 247, 248, 0.88);
+  backdrop-filter: blur(8px);
+  position: sticky; top: 0; z-index: 5;
+}
+.crumbs { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+.crumbs a:hover { color: var(--text-1); }
+.crumbs .sep { color: var(--text-4); }
+.crumbs .here {
+  /* v3: NO serif — page title is sans, weight 600, 22px (mobile xl scale) */
+  color: var(--text-1);
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.015em;
+}
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.search {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-card); border: 1px solid var(--border-default);
+  border-radius: var(--r);
+  padding: 7px 10px;
+  font-size: 13px; color: var(--text-3);
+  width: 240px; height: 36px;
+}
+.search .material-symbols-outlined { font-size: 16px; color: var(--text-3); }
+.search .kbd {
+  margin-left: auto;
+  font-size: 10.5px; color: var(--text-3);
+  border: 1px solid var(--border-default); border-radius: 4px;
+  padding: 0 4px; font-family: var(--mono);
+  background: var(--bg-page);
+}
+.icon-btn {
+  width: 36px; height: 36px;
+  border-radius: var(--r);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  display: grid; place-items: center;
+}
+.icon-btn:hover { background: var(--bg-canvas); color: var(--text-1); }
+
+.content { padding: 20px 24px 80px; max-width: 1320px; }
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* doctor header                                                              */
+/* ───────────────────────────────────────────────────────────────────────── */
+.dh {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  padding: 16px;                          /* codex: 16px card padding */
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  box-shadow: var(--shadow-1);
+}
+.dh-portrait {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--info-tint);
+  color: var(--info);
+  display: grid; place-items: center;
+  font-size: 17px; font-weight: 600;
+  border: 1px solid var(--info-tint);
+}
+.dh-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.dh-name-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.dh-name { font-size: 17px; font-weight: 600; color: var(--text-1); letter-spacing: -0.005em; }
+.dh-title { font-size: 13px; color: var(--text-2); }
+.dh-sub {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px;
+  color: var(--text-2);
+  flex-wrap: wrap;
+}
+.dh-sub .dept {
+  background: var(--brand-tint);
+  color: var(--brand);
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-weight: 500; font-size: 11.5px;
+}
+.dh-sub .id { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+.dh-sub .dot { width: 3px; height: 3px; background: var(--text-4); border-radius: 50%; }
+
+.dh-actions { display: flex; gap: 8px; align-items: center; }
+.btn {
+  height: 36px;
+  font-size: 13px; font-weight: 500;
+  padding: 0 14px;
+  border-radius: var(--r);
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  cursor: pointer;
+  color: var(--text-1);
+  transition: 100ms;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--sans);
+}
+.btn .material-symbols-outlined { font-size: 16px; color: var(--text-2); }
+.btn:hover { border-color: var(--border-strong); }
+.btn.primary {
+  background: var(--brand); color: #fff; border-color: var(--brand);
+}
+.btn.primary .material-symbols-outlined { color: rgba(255,255,255,0.9); }
+.btn.primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+.btn.ghost { border: 1px solid transparent; background: transparent; }
+.btn.ghost:hover { background: var(--bg-canvas); }
+
+/* KPI strip */
+.kpi-strip {
+  margin-top: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+.kpi {
+  padding: 14px 16px;
+  border-right: 1px solid var(--border-subtle);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.kpi:last-child { border-right: none; }
+.kpi-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+  font-weight: 600;
+}
+.kpi-value {
+  font-size: 28px;                        /* codex spec: 28/32 */
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+  display: flex; align-items: baseline; gap: 4px;
+}
+.kpi-value .unit { font-size: 13px; font-weight: 400; color: var(--text-2); letter-spacing: 0; }
+.kpi-trend {
+  font-size: 11.5px;
+  display: flex; align-items: center; gap: 6px;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.trend-up   { color: var(--brand); }
+.trend-down { color: var(--danger); }
+.trend-flat { color: var(--text-3); }
+.trend-up .material-symbols-outlined,
+.trend-down .material-symbols-outlined { font-size: 14px; font-family: 'Material Symbols Outlined'; }
+.spark { margin-left: auto; width: 60px; height: 18px; }
+
+/* ─── tabs ─── */
+.tabs {
+  margin-top: 22px;
+  display: flex; gap: 2px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.tab {
+  height: 40px; padding: 0 14px;
+  font-size: 13.5px;
+  color: var(--text-2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  display: flex; align-items: center; gap: 7px;
+  transition: 100ms;
+}
+.tab .material-symbols-outlined { font-size: 17px; color: var(--text-3); }
+.tab:hover { color: var(--text-1); }
+.tab:hover .material-symbols-outlined { color: var(--text-2); }
+.tab.active {
+  color: var(--text-1);
+  border-bottom-color: var(--brand);     /* green only on active */
+  font-weight: 500;
+}
+.tab.active .material-symbols-outlined { color: var(--brand); }
+.tab .badge {
+  font-size: 10.5px;
+  font-family: var(--mono);
+  background: var(--bg-canvas);
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: var(--text-2);
+}
+.tab.active .badge { background: var(--brand-tint); color: var(--brand); }
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* panels                                                                     */
+/* ───────────────────────────────────────────────────────────────────────── */
+.tab-panel { padding-top: 16px; }
+.row-2     { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.row-3-1   { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+  position: relative;
+}
+.panel-head {
+  height: 44px;
+  padding: 0 16px;
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--text-1);
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-title .material-symbols-outlined { font-size: 17px; color: var(--text-3); }
+.panel-aside { font-size: 12px; color: var(--text-2); font-family: var(--mono); }
+.panel-body { padding: 16px; }
+
+/* the motif — 2px left rail on highlighted panels */
+.panel.rail-info::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--info);
+}
+.panel.rail-brand::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--brand);
+}
+.panel.rail-danger::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--danger);
+}
+
+/* AI 采纳 */
+.adoption {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 24px;
+  align-items: center;
+}
+.adoption-num {
+  font-size: 40px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
+}
+.adoption-num .pct { font-size: 20px; vertical-align: super; margin-left: 2px; color: var(--brand-hover); }
+.adoption-detail .row {
+  display: flex; justify-content: space-between;
+  font-size: 13px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--border-subtle);
+}
+.adoption-detail .row:last-child { border: none; }
+.adoption-detail .lbl { color: var(--text-2); }
+.adoption-detail .val { font-variant-numeric: tabular-nums; font-weight: 500; }
+.bar {
+  width: 100%; height: 4px; background: var(--bg-canvas);
+  border-radius: 999px; overflow: hidden; margin-top: 12px;
+  display: flex;
+}
+.bar > span { height: 100%; }
+.bar .accept { background: var(--brand); }
+.bar .edit   { background: var(--info); opacity: 0.85; }
+.bar .reject { background: var(--danger); opacity: 0.6; }
+
+.linechart { width: 100%; height: 130px; display: block; }
+
+/* ─── timeline ─── */
+.timeline { display: flex; flex-direction: column; }
+.tl-day {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 12px 0 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 4px;
+}
+.tl-day:first-child { padding-top: 0; }
+.tl-row {
+  display: grid;
+  grid-template-columns: 64px 22px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  height: 36px;
+}
+.tl-row + .tl-row { border-top: 1px dashed var(--border-subtle); }
+.tl-time {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.tl-icon {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  display: grid; place-items: center;
+}
+.tl-icon .material-symbols-outlined { font-size: 14px; }
+.ic-msg    { background: var(--info-tint); color: var(--info); }
+.ic-record { background: var(--brand-tint); color: var(--brand); }
+.ic-ai     { background: var(--warning-tint); color: var(--warning); }
+.ic-task   { background: var(--danger-tint); color: var(--danger); }
+.tl-detail {
+  font-size: 13.5px; color: var(--text-1); line-height: 1.45;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tl-detail b { font-weight: 600; }
+.tl-detail .who { color: var(--brand); font-weight: 600; }
+.tl-detail .quiet { color: var(--text-2); }
+.tl-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.st-accept { background: var(--brand-tint); color: var(--brand); }
+.st-edit   { background: var(--info-tint); color: var(--info); }
+.st-reject { background: var(--danger-tint); color: var(--danger); }
+.st-pending{ background: var(--warning-tint); color: var(--warning); }
+.st-done   { background: var(--brand-tint); color: var(--brand); }
+
+/* ─── filter bar + patient grid ─── */
+.filter-bar {
+  display: flex; gap: 8px; align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-cardAlt);
+  flex-wrap: wrap;
+}
+.filter-chip {
+  font-size: 12.5px;
+  height: 28px; padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  color: var(--text-1);
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.filter-chip:hover { border-color: var(--border-strong); }
+.filter-chip.active { background: var(--bg-canvas); border-color: var(--text-2); color: var(--text-1); }
+.filter-chip .material-symbols-outlined { font-size: 14px; }
+.filter-chip .num {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-left: 2px;
+}
+.filter-chip.active .num { color: var(--text-2); }
+.filter-spacer { flex: 1; }
+.filter-sort {
+  font-size: 12.5px; color: var(--text-2);
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 28px; padding: 0 8px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.filter-sort:hover { background: var(--bg-page); color: var(--text-1); }
+.filter-sort .material-symbols-outlined { font-size: 16px; }
+
+.patient-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 12px 14px;
+}
+.pc {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+  cursor: pointer;
+  transition: 120ms;
+  position: relative;
+}
+.pc:hover { border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-2); }
+/* high-risk patient cards get the danger rail (motif) */
+.pc.danger::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--danger);
+  border-radius: 2px 0 0 2px;
+}
+.pc-head { display: flex; align-items: center; gap: 10px; }
+.pc-av {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 600;
+  background: var(--brand-tint); color: var(--brand);
+}
+.pc.danger .pc-av { background: var(--danger-tint); color: var(--danger); }
+.pc-name { font-size: 14px; font-weight: 600; }
+.pc-meta { font-size: 11.5px; color: var(--text-2); margin-top: 1px; }
+.pc-spark {
+  height: 22px;
+  background: var(--bg-cardAlt);
+  border-radius: 4px;
+  position: relative;
+}
+.pc-stats {
+  display: flex; gap: 12px;
+  font-size: 11.5px;
+  color: var(--text-2);
+  border-top: 1px dashed var(--border-subtle);
+  padding-top: 6px;
+}
+.pc-stats b { color: var(--text-1); font-weight: 600; font-variant-numeric: tabular-nums; font-family: var(--mono); }
+.pc-stats .tag-danger  { color: var(--danger); margin-left: auto; font-weight: 600; }
+.pc-stats .tag-warn    { color: var(--warning); margin-left: auto; font-weight: 500; }
+.pc-stats .tag-ok      { color: var(--brand); margin-left: auto; }
+.pc-stats .tag-quiet   { color: var(--text-3); margin-left: auto; }
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* preview divider                                                            */
+/* ───────────────────────────────────────────────────────────────────────── */
+.preview-divider {
+  margin: 40px 0 18px;
+  display: flex; align-items: center; gap: 14px;
+}
+.preview-divider .line { flex: 1; height: 1px; background: var(--border-subtle); }
+.preview-divider .label {
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.preview-divider .material-symbols-outlined { font-size: 16px; color: var(--text-3); }
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* chat thread + AI footnote                                                  */
+/* ───────────────────────────────────────────────────────────────────────── */
+.chat-shell {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+  height: 700px;
+}
+.chat-list { border-right: 1px solid var(--border-subtle); background: var(--bg-cardAlt); overflow-y: auto; }
+.cl-search { padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); }
+.cl-search-input {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-card); border: 1px solid var(--border-default);
+  border-radius: var(--r);
+  padding: 6px 10px;
+  font-size: 12.5px; color: var(--text-3);
+}
+.cl-search-input .material-symbols-outlined { font-size: 16px; }
+.cl-search-input input {
+  flex: 1; border: none; outline: none;
+  background: transparent; font: inherit; color: inherit;
+}
+.cl-row {
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle);
+  position: relative;
+}
+.cl-row:hover { background: var(--bg-card); }
+.cl-row.active { background: var(--bg-card); }
+.cl-row.active::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--brand);
+}
+.cl-av {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--bg-canvas); color: var(--text-2);
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 600;
+}
+.cl-row.active .cl-av { background: var(--brand); color: #fff; }
+.cl-name { font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.cl-name .risk {
+  font-size: 9.5px; padding: 0 5px; border-radius: 999px;
+  font-weight: 600; letter-spacing: 0.04em;
+}
+.cl-name .risk.high { background: var(--danger-tint); color: var(--danger); }
+.cl-name .risk.warn { background: var(--warning-tint); color: var(--warning); }
+.cl-snip {
+  font-size: 11.5px; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 1px;
+}
+.cl-time { font-size: 11px; color: var(--text-3); font-family: var(--mono); }
+.cl-row .unread {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--brand);
+  margin-left: 6px;
+}
+
+.chat-thread {
+  display: flex; flex-direction: column;
+  background: var(--bg-card);
+}
+.ct-head {
+  height: 56px; padding: 0 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.ct-head .who { display: flex; align-items: center; gap: 10px; }
+.ct-head .name { font-size: 15px; font-weight: 600; }
+.ct-head .meta { font-size: 12px; color: var(--text-2); margin-top: 1px; }
+.ct-tools { display: flex; gap: 4px; }
+
+.ct-body {
+  flex: 1; overflow-y: auto;
+  padding: 18px 22px;
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--bg-cardAlt);
+}
+.day-tag {
+  align-self: center;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  background: var(--bg-card);
+  padding: 3px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  font-weight: 600;
+}
+.bubble {
+  max-width: 64%;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  position: relative;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.bubble .text { white-space: pre-wrap; }
+.bubble .stamp {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-3);
+  align-self: flex-end;
+}
+/* Patient bubbles use neutral white card style — NOT cream */
+.b-patient {
+  align-self: flex-start;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px 12px 12px 4px;
+  color: var(--text-1);
+}
+/* Doctor bubbles in WeChat green — primary */
+.b-doctor {
+  align-self: flex-end;
+  background: var(--brand);
+  color: #fff;
+  border-radius: 12px 12px 4px 12px;
+}
+.b-doctor .stamp { color: rgba(255,255,255,0.75); }
+
+/* AI footnote — narrow, dashed border, info-blue motif (not green, to avoid
+   confusion with primary doctor reply) */
+.ai-anchor {
+  align-self: flex-end;
+  display: flex; align-items: stretch;
+  max-width: 360px;
+  margin: -2px 0 0 0;
+}
+.ai-bracket {
+  width: 14px;
+  border-left: 2px solid var(--info);
+  border-top: 2px solid var(--info);
+  border-bottom: 2px solid var(--info);
+  border-radius: 0 0 0 6px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+.ai-card {
+  flex: 1;
+  background: var(--info-tint);
+  border: 1px dashed var(--info);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.ai-card .ai-line {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--info);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ai-card .ai-line .material-symbols-outlined { font-size: 13px; }
+.ai-card .ai-line .gap { flex: 1; }
+.ai-card .ai-line .toggle {
+  font-size: 10.5px; color: var(--text-2);
+  font-weight: 500; letter-spacing: 0;
+  text-transform: none;
+  display: inline-flex; align-items: center; gap: 2px;
+}
+.ai-card .ai-line .toggle .material-symbols-outlined { font-size: 14px; }
+.ai-card .ai-summary {
+  font-size: 11.5px;
+  color: var(--text-2);
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ai-card.expanded {
+  /* keep AI-specific tint + dashed border so expanded cards never look
+     like a real outbound message (codex v3 critique) */
+  background: var(--info-tint);
+  border-style: dashed;
+}
+.ai-card.expanded .ai-body {
+  margin-top: 8px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-1);
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-subtle);
+}
+.ai-card.expanded .ai-src {
+  margin-top: 8px;
+  display: flex; flex-wrap: wrap; gap: 4px;
+}
+.ai-card .src-chip {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--text-2);
+}
+
+.adoption-trace {
+  align-self: flex-end;
+  max-width: 64%;
+  font-size: 11.5px;
+  color: var(--text-2);
+  display: flex; align-items: center; gap: 8px;
+  margin-top: -4px;
+}
+.adoption-trace .pill {
+  font-size: 10.5px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  padding: 1px 8px;
+  background: var(--bg-card);
+  font-weight: 500;
+}
+.adoption-trace .pill.ok { border-color: var(--brand); color: var(--brand); }
+.adoption-trace .pill.edit { border-color: var(--info); color: var(--info); }
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* AI 与知识 — decision cards (4-block anatomy + triptych)                   */
+/* ───────────────────────────────────────────────────────────────────────── */
+.deck { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.dc {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+  display: flex; flex-direction: column;
+  position: relative;
+}
+.dc.danger::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--danger);
+}
+.dc.info::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--info);
+}
+.dc-head {
+  padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.dc-head .left { display: flex; align-items: center; gap: 10px; }
+.dc-pat-av {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--info-tint); color: var(--info);
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 600;
+}
+.dc.danger .dc-pat-av { background: var(--danger-tint); color: var(--danger); }
+.dc-pat-name { font-weight: 600; font-size: 14px; }
+.dc-section-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-2);
+  font-weight: 600;
+}
+.dc-time { font-family: var(--mono); font-size: 11.5px; color: var(--text-3); }
+
+.dc-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+.dc-block .label {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-weight: 600;
+  margin-bottom: 5px;
+  display: flex; align-items: center; gap: 6px;
+}
+.dc-block .label .material-symbols-outlined { font-size: 14px; color: var(--text-3); }
+.dc-text { font-size: 13.5px; line-height: 1.55; color: var(--text-1); }
+
+.kb-list { display: flex; flex-direction: column; gap: 6px; }
+.kb-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--info-tint);
+  border-left: 2px solid var(--info);
+  border-radius: 4px;
+  font-size: 12.5px;
+}
+.kb-item .num { font-family: var(--mono); font-size: 11px; color: var(--info); font-weight: 600; }
+.kb-item .title { color: var(--text-1); font-weight: 500; }
+.kb-item .quote { color: var(--text-2); margin-top: 2px; font-size: 12px; line-height: 1.5; }
+
+.risk-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.risk-tag {
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-weight: 500;
+  border: 1px solid;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.risk-tag .material-symbols-outlined { font-size: 12px; }
+.risk-high { background: var(--danger-tint); border-color: rgba(250,81,81,0.3); color: var(--danger); }
+.risk-med  { background: var(--warning-tint); border-color: rgba(176,122,28,0.3); color: var(--warning); }
+.risk-low  { background: var(--info-tint); border-color: rgba(87,107,149,0.25); color: var(--info); }
+
+.triptych {
+  display: grid;
+  grid-template-columns: 1fr 1fr 200px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r);
+  overflow: hidden;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.triptych > div {
+  padding: 10px 12px;
+  border-right: 1px solid var(--border-subtle);
+}
+.triptych > div:last-child { border-right: none; background: var(--bg-cardAlt); }
+.triptych .col-label {
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+.triptych .ai-text  { color: var(--text-2); }
+.triptych .doc-text { color: var(--text-1); font-weight: 500; }
+.triptych .reason   { color: var(--text-2); }
+
+.dc-foot {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-cardAlt);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.outcome { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+.outcome .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+.outcome .who { color: var(--text-2); }
+.outcome .who b { color: var(--text-1); font-weight: 500; }
+.dc-foot a {
+  font-size: 12.5px; color: var(--info); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px; font-weight: 500;
+}
+.dc-foot a .material-symbols-outlined { font-size: 14px; }
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* 运营 cards                                                                  */
+/* ───────────────────────────────────────────────────────────────────────── */
+.ops-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.ops-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  box-shadow: var(--shadow-1);
+}
+.ops-card .head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: var(--text-1);
+}
+.ops-card .head .material-symbols-outlined { color: var(--text-2); font-size: 18px; }
+.ops-card .num {
+  font-size: 24px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+  letter-spacing: -0.02em;
+}
+.ops-card .num .unit { font-size: 12px; font-weight: 400; color: var(--text-2); margin-left: 4px; }
+.ops-card .sub { font-size: 12px; color: var(--text-2); }
+.ops-card .meter { height: 4px; background: var(--bg-canvas); border-radius: 999px; overflow: hidden; }
+.ops-card .meter > span { display: block; height: 100%; background: var(--info); }
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* states                                                                     */
+/* ───────────────────────────────────────────────────────────────────────── */
+.states-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.state-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-lg);
+  padding: 28px 18px;
+  display: flex; flex-direction: column; gap: 8px;
+  align-items: center; text-align: center;
+  min-height: 180px; justify-content: center;
+  box-shadow: var(--shadow-1);
+}
+.state-card .icon-circle {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center;
+}
+.state-card .icon-circle.empty { background: var(--bg-canvas); color: var(--text-3); }
+.state-card .icon-circle.loading { background: var(--info-tint); color: var(--info); }
+.state-card .icon-circle.error { background: var(--danger-tint); color: var(--danger); }
+.state-card .icon-circle .material-symbols-outlined { font-size: 24px; }
+.state-card .title { font-size: 14px; font-weight: 600; color: var(--text-1); }
+.state-card .desc  { font-size: 12.5px; color: var(--text-2); max-width: 240px; line-height: 1.5; }
+.state-card .cta {
+  margin-top: 4px;
+  font-size: 12.5px; color: var(--info); cursor: pointer; font-weight: 600;
+}
+.skel-line {
+  height: 8px; background: linear-gradient(90deg, var(--bg-canvas), var(--bg-cardAlt), var(--bg-canvas));
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: shimmer 1.4s linear infinite;
+}
+.skel-line + .skel-line { margin-top: 6px; }
+.skel-line.short { width: 60%; }
+@keyframes shimmer { 0% {background-position: 100% 0;} 100% {background-position: -100% 0;} }
+
+/* ───────────────────────────────────────────────────────────────────────── */
+/* mobile preview                                                             */
+/* ───────────────────────────────────────────────────────────────────────── */
+.mobile-row {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  align-items: flex-start;
+}
+.phone {
+  width: 320px;
+  height: 600px;
+  border: 8px solid #1a1a1a;
+  border-radius: 28px;
+  overflow: hidden;
+  background: var(--bg-page);
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-2);
+}
+.phone-body { width: 100%; height: 100%; overflow-y: auto; padding: 8px 8px 24px; }
+.phone-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 4px; font-size: 11px; color: var(--text-2);
+}
+.phone-bar .left { display: flex; align-items: center; gap: 6px; }
+.phone-bar .material-symbols-outlined { font-size: 18px; }
+.phone-card {
+  background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: 12px; padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.phone-card .row1 { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.phone-card .av {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--brand-tint); color: var(--brand);
+  font-size: 11px; font-weight: 600;
+  display: grid; place-items: center;
+}
+.phone-card .name { font-size: 13px; font-weight: 600; }
+.phone-card .badge {
+  margin-left: auto; font-size: 9.5px; font-weight: 600;
+  padding: 1px 6px; border-radius: 999px;
+}
+.phone-card .badge.danger { background: var(--danger-tint); color: var(--danger); }
+.phone-card .badge.warn { background: var(--warning-tint); color: var(--warning); }
+.phone-card .meta { font-size: 11px; color: var(--text-2); }
+.phone-section-h {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-weight: 600;
+  padding: 8px 4px 6px;
+}
+
+.note {
+  margin-top: 24px;
+  padding: 14px 18px;
+  background: var(--info-tint);
+  border: 1px solid var(--border-subtle);
+  border-left: 2px solid var(--info);
+  border-radius: var(--r);
+  font-size: 13px;
+  color: var(--text-1);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.note .heading {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--info);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+hr.thin { border: none; border-top: 1px dashed var(--border-subtle); margin: 16px 0; }
+
+/* ─── responsive ─── */
+@media (max-width: 1100px) {
+  .patient-grid { grid-template-columns: repeat(2, 1fr); }
+  .deck { grid-template-columns: 1fr; }
+  .ops-grid { grid-template-columns: 1fr; }
+  .states-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .kpi-strip { grid-template-columns: 1fr 1fr; }
+  .kpi { border-bottom: 1px solid var(--border-subtle); }
+  .row-3-1, .row-2 { grid-template-columns: 1fr; }
+  .chat-shell { grid-template-columns: 1fr; height: auto; }
+  .chat-list { display: none; }
+  .triptych { grid-template-columns: 1fr; }
+  .triptych > div { border-right: none; border-bottom: 1px solid var(--border-subtle); }
+  .content { padding: 14px 12px 60px; }
+  .search { width: auto; flex: 1; }
+  .crumbs .here { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ─────────────────────────────────────────────────────────── sidebar ─── -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">鲸</div>
+      <div class="brand-text">
+        <span class="brand-name">鲸鱼随行</span>
+        <span class="brand-tag">Admin</span>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">概览</div>
+      <a class="nav-item">
+        <span class="material-symbols-outlined">dashboard</span>仪表盘
+      </a>
+      <a class="nav-item active">
+        <span class="material-symbols-outlined">stethoscope</span>全体医生<span class="count">14</span>
+      </a>
+      <a class="nav-item">
+        <span class="material-symbols-outlined">groups</span>全体患者<span class="count">486</span>
+      </a>
+      <a class="nav-item">
+        <span class="material-symbols-outlined">forum</span>沟通中心<span class="pill">5</span>
+      </a>
+      <a class="nav-item">
+        <span class="material-symbols-outlined">network_intelligence</span>知识 &amp; AI
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">运营</div>
+      <a class="nav-item">
+        <span class="material-symbols-outlined">key</span>邀请码
+      </a>
+      <a class="nav-item">
+        <span class="material-symbols-outlined">deployed_code_history</span>试点进度
+      </a>
+      <a class="nav-item">
+        <span class="material-symbols-outlined">summarize</span>合作伙伴报表
+      </a>
+      <a class="nav-item">
+        <span class="material-symbols-outlined">download</span>数据导出
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">系统</div>
+      <a class="nav-item">
+        <span class="material-symbols-outlined">monitor_heart</span>系统健康
+      </a>
+      <a class="nav-item">
+        <span class="material-symbols-outlined">history</span>审计日志
+      </a>
+    </div>
+
+    <div class="user-menu">
+      <div class="user-row">
+        <div class="user-av">陈</div>
+        <div class="user-name">
+          陈宇明
+          <span class="role">合作伙伴 · 只读</span>
+        </div>
+        <span class="material-symbols-outlined">expand_less</span>
+        <div class="popover">
+          <div class="row"><span class="material-symbols-outlined">person</span>账号设置</div>
+          <div class="row"><span class="material-symbols-outlined">help</span>帮助 / 反馈</div>
+          <div class="row dev-row">
+            <span class="material-symbols-outlined">terminal</span>raw_db_view (internal)
+            <span class="switch"></span>
+          </div>
+          <div class="row danger"><span class="material-symbols-outlined">logout</span>退出</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─────────────────────────────────────────────────────────── main ─── -->
+  <main class="main">
+    <header class="topbar">
+      <div class="crumbs">
+        <a>医生</a>
+        <span class="sep">/</span>
+        <span class="here">王明远</span>
+      </div>
+      <div class="topbar-right">
+        <div class="search">
+          <span class="material-symbols-outlined">search</span>
+          <span>搜索患者、消息、知识…</span>
+          <span class="kbd">⌘K</span>
+        </div>
+        <button class="icon-btn" title="通知"><span class="material-symbols-outlined">notifications</span></button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- doctor header -->
+      <section class="dh">
+        <div class="dh-portrait">王</div>
+        <div class="dh-meta">
+          <div class="dh-name-row">
+            <span class="dh-name">王明远</span>
+            <span class="dh-title">主任医师</span>
+          </div>
+          <div class="dh-sub">
+            <span class="dept">心血管内科</span>
+            <span>注册于 2025·11·14</span>
+            <span class="dot"></span>
+            <span>最近活跃 12 分钟前</span>
+            <span class="dot"></span>
+            <span class="id">doc__7Hf2KPnQ</span>
+          </div>
+        </div>
+        <div class="dh-actions">
+          <button class="btn ghost"><span class="material-symbols-outlined">file_download</span>导出</button>
+          <button class="btn"><span class="material-symbols-outlined">forum</span>查看消息</button>
+          <button class="btn primary"><span class="material-symbols-outlined">flag</span>设置随访目标</button>
+        </div>
+      </section>
+
+      <!-- KPI strip -->
+      <section class="kpi-strip">
+        <div class="kpi">
+          <div class="kpi-label">近 7 日 患者</div>
+          <div class="kpi-value">42<span class="unit">位</span></div>
+          <div class="kpi-trend trend-up">
+            <span class="material-symbols-outlined">arrow_upward</span>+6 较上周
+          </div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">近 7 日 消息</div>
+          <div class="kpi-value">218</div>
+          <div class="kpi-trend trend-up">
+            <span class="material-symbols-outlined">arrow_upward</span>+14% 较上周
+            <svg class="spark" viewBox="0 0 60 18" fill="none" stroke="currentColor" stroke-width="1.4">
+              <polyline points="0,12 10,10 18,11 26,8 34,9 42,5 50,7 60,3"/>
+            </svg>
+          </div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">AI 采纳率</div>
+          <div class="kpi-value" style="color:var(--info);">78<span class="unit" style="color:var(--info);">%</span></div>
+          <div class="kpi-trend trend-up">
+            <span class="material-symbols-outlined">arrow_upward</span>+4pp 较上周
+          </div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">回复时效 P50</div>
+          <div class="kpi-value">3.2<span class="unit">小时</span></div>
+          <div class="kpi-trend trend-flat">— 与上周一致</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">逾期任务</div>
+          <div class="kpi-value" style="color:var(--danger);">2</div>
+          <div class="kpi-trend trend-down">
+            <span class="material-symbols-outlined">arrow_downward</span>−1 位
+          </div>
+        </div>
+      </section>
+
+      <!-- tabs -->
+      <nav class="tabs">
+        <div class="tab active"><span class="material-symbols-outlined">overview</span>总览</div>
+        <div class="tab"><span class="material-symbols-outlined">groups</span>患者 <span class="badge">42</span></div>
+        <div class="tab"><span class="material-symbols-outlined">forum</span>沟通 <span class="badge">12</span></div>
+        <div class="tab"><span class="material-symbols-outlined">network_intelligence</span>AI 与知识 <span class="badge">18</span></div>
+      </nav>
+
+      <!-- 总览 -->
+      <div class="tab-panel">
+
+        <div class="row-3-1" style="margin-bottom:14px;">
+          <!-- AI 采纳趋势 -->
+          <div class="panel">
+            <div class="panel-head">
+              <div class="panel-title">
+                <span class="material-symbols-outlined">network_intelligence</span>
+                AI 建议如何被使用
+              </div>
+              <div class="panel-aside">14d · 312 条</div>
+            </div>
+            <div class="panel-body">
+              <div class="adoption">
+                <div class="adoption-num">78<span class="pct">%</span></div>
+                <div class="adoption-detail">
+                  <div class="row"><span class="lbl">直接采纳</span><span class="val">186</span></div>
+                  <div class="row"><span class="lbl">医生修改后采纳</span><span class="val">58</span></div>
+                  <div class="row"><span class="lbl">拒绝 / 改写</span><span class="val">68</span></div>
+                </div>
+              </div>
+              <div class="bar">
+                <span class="accept" style="width:60%;"></span>
+                <span class="edit" style="width:18%;"></span>
+                <span class="reject" style="width:22%;"></span>
+              </div>
+              <svg class="linechart" viewBox="0 0 600 130" preserveAspectRatio="none" style="margin-top:14px;">
+                <defs>
+                  <linearGradient id="fillBrand" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%"  stop-color="#07C160" stop-opacity="0.18"/>
+                    <stop offset="100%" stop-color="#07C160" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <line x1="0" x2="600" y1="32"  y2="32"  stroke="#E9EEF0" stroke-dasharray="2 4"/>
+                <line x1="0" x2="600" y1="65"  y2="65"  stroke="#E9EEF0" stroke-dasharray="2 4"/>
+                <line x1="0" x2="600" y1="98" y2="98" stroke="#E9EEF0" stroke-dasharray="2 4"/>
+                <path d="M0,86 L40,76 L80,82 L120,68 L160,64 L200,52 L240,58 L280,46 L320,50 L360,38 L400,44 L440,30 L480,36 L520,26 L560,32 L600,20 L600,130 L0,130 Z"
+                      fill="url(#fillBrand)"/>
+                <polyline points="0,86 40,76 80,82 120,68 160,64 200,52 240,58 280,46 320,50 360,38 400,44 440,30 480,36 520,26 560,32 600,20"
+                          fill="none" stroke="#07C160" stroke-width="2"/>
+                <circle cx="600" cy="20" r="3.5" fill="#07C160"/>
+              </svg>
+              <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-3); font-family:var(--mono); margin-top:4px;">
+                <span>04·10</span><span>04·14</span><span>04·18</span><span>04·22</span><span>今日</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 关注患者 — gets the danger rail motif -->
+          <div class="panel rail-danger">
+            <div class="panel-head">
+              <div class="panel-title">
+                <span class="material-symbols-outlined" style="color:var(--danger) !important;">priority_high</span>
+                需要关注
+              </div>
+              <div class="panel-aside">3 位</div>
+            </div>
+            <div class="panel-body" style="padding:10px 12px; display:flex; flex-direction:column; gap:6px;">
+              <div style="padding:11px 13px; border-radius:8px; background:var(--danger-tint);">
+                <div style="font-weight:600; font-size:14px; display:flex; align-items:center; gap:8px;">
+                  林文华
+                  <span style="font-size:9.5px; font-weight:700; padding:1px 7px; border-radius:999px; background:var(--danger); color:#fff; letter-spacing:0.06em;">高危</span>
+                </div>
+                <div style="font-size:12.5px; color:var(--text-2); margin-top:4px;">
+                  心衰复发 · 心率 102 + 体重 +1.8kg <span style="color:var(--text-3);">（昨 17:14）</span>
+                </div>
+              </div>
+
+              <div style="padding:11px 13px; border-radius:8px; background:var(--warning-tint);">
+                <div style="font-weight:600; font-size:14px;">陈玉琴</div>
+                <div style="font-size:12.5px; color:var(--text-2); margin-top:4px;">
+                  血压未达标，已 11 天 <span style="color:var(--text-3);">建议调药</span>
+                </div>
+              </div>
+
+              <div style="padding:11px 13px; border-radius:8px; background:var(--bg-cardAlt); border:1px solid var(--border-subtle);">
+                <div style="font-weight:600; font-size:14px;">周建国</div>
+                <div style="font-size:12.5px; color:var(--text-2); margin-top:4px;">
+                  心电图复查 04·26 到期 · 提前 1 天提醒
+                </div>
+              </div>
+
+              <a style="padding:8px 4px; font-size:12.5px; color:var(--info); display:flex; justify-content:space-between; cursor:pointer; font-weight:500;">
+                <span>查看全部 7 位标记患者</span>
+                <span class="material-symbols-outlined">arrow_forward</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- timeline -->
+        <div class="panel" style="margin-bottom:14px;">
+          <div class="panel-head">
+            <div class="panel-title">
+              <span class="material-symbols-outlined">history</span>
+              王医生 · 近期足迹
+            </div>
+            <div class="panel-aside">7d · 142 events</div>
+          </div>
+          <div class="panel-body">
+            <div class="timeline">
+
+              <div class="tl-day">今天 · 04 月 24 日</div>
+
+              <div class="tl-row">
+                <span class="tl-time">14:38</span>
+                <span class="tl-icon ic-msg"><span class="material-symbols-outlined">mail</span></span>
+                <span class="tl-detail"><b>陈玉琴</b> 询问 — <span class="quiet">「最近血压一直在 145/95 左右，需要调药吗？」</span></span>
+                <span class="tl-status st-pending">待回复</span>
+              </div>
+              <div class="tl-row">
+                <span class="tl-time">14:42</span>
+                <span class="tl-icon ic-ai"><span class="material-symbols-outlined">auto_awesome</span></span>
+                <span class="tl-detail">AI 起草回复 · 引用 <span class="who">高血压用药调整 · 内部规则</span></span>
+                <span class="tl-status st-edit">医生修改后发送</span>
+              </div>
+              <div class="tl-row">
+                <span class="tl-time">14:46</span>
+                <span class="tl-icon ic-msg"><span class="material-symbols-outlined">send</span></span>
+                <span class="tl-detail">→ 回复 <b>陈玉琴</b>：建议先增加 苯磺酸氨氯地平 至 10 mg…</span>
+                <span class="tl-status st-done">已发送</span>
+              </div>
+              <div class="tl-row">
+                <span class="tl-time">11:20</span>
+                <span class="tl-icon ic-record"><span class="material-symbols-outlined">description</span></span>
+                <span class="tl-detail">为 <b>周建国</b> 创建门诊病历 — <span class="quiet">主诉胸闷三日，建议复查心电图</span></span>
+                <span class="tl-status st-done">已确认</span>
+              </div>
+              <div class="tl-row">
+                <span class="tl-time">10:52</span>
+                <span class="tl-icon ic-task"><span class="material-symbols-outlined">event</span></span>
+                <span class="tl-detail">为 <b>周建国</b> 设置随访任务 — <span class="quiet">04·26 心电图结果复查</span></span>
+                <span class="tl-status st-pending">待处理</span>
+              </div>
+
+              <div class="tl-day">昨天 · 04 月 23 日</div>
+
+              <div class="tl-row">
+                <span class="tl-time">17:14</span>
+                <span class="tl-icon ic-ai"><span class="material-symbols-outlined">auto_awesome</span></span>
+                <span class="tl-detail">AI 提示 <b>林文华</b> 可能存在 <span class="who">心衰复发危险信号</span></span>
+                <span class="tl-status st-accept">医生确认</span>
+              </div>
+              <div class="tl-row">
+                <span class="tl-time">16:05</span>
+                <span class="tl-icon ic-msg"><span class="material-symbols-outlined">image</span></span>
+                <span class="tl-detail"><b>林文华</b> 上传 — <span class="quiet">[图片]&nbsp;血压日记 · 04·17 - 04·23</span></span>
+                <span class="tl-status st-done">已查看</span>
+              </div>
+              <div class="tl-row">
+                <span class="tl-time">09:38</span>
+                <span class="tl-icon ic-record"><span class="material-symbols-outlined">description</span></span>
+                <span class="tl-detail">问诊小结同步 — <b>赵海涛</b> · 由 AI 生成，王医生未修改</span>
+                <span class="tl-status st-accept">采纳</span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- patient grid -->
+        <div class="panel">
+          <div class="panel-head">
+            <div class="panel-title">
+              <span class="material-symbols-outlined">groups</span>
+              王医生的患者
+            </div>
+            <div class="panel-aside">42 位</div>
+          </div>
+
+          <div class="filter-bar">
+            <span class="filter-chip active">全部 <span class="num">42</span></span>
+            <span class="filter-chip"><span class="material-symbols-outlined" style="color:var(--danger);">priority_high</span>高危 <span class="num">3</span></span>
+            <span class="filter-chip">未达标 <span class="num">5</span></span>
+            <span class="filter-chip">7天无沟通 <span class="num">8</span></span>
+            <span class="filter-chip">术后随访 <span class="num">12</span></span>
+            <span class="filter-spacer"></span>
+            <span class="filter-sort">
+              <span class="material-symbols-outlined">sort</span>
+              按最近活跃
+            </span>
+          </div>
+
+          <div class="patient-grid">
+
+            <div class="pc">
+              <div class="pc-head">
+                <div class="pc-av">陈</div>
+                <div>
+                  <div class="pc-name">陈玉琴</div>
+                  <div class="pc-meta">女 · 1962 · 高血压 III 级</div>
+                </div>
+              </div>
+              <div class="pc-spark">
+                <svg viewBox="0 0 240 22" preserveAspectRatio="none" style="width:100%; height:100%;">
+                  <polyline points="0,18 30,16 60,14 90,12 120,15 150,9 180,11 210,7 240,5" fill="none" stroke="var(--brand)" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <div class="pc-stats">
+                <span><b>32</b> 消息</span>
+                <span><b>5</b> 病历</span>
+                <span class="tag-warn">血压未达标</span>
+              </div>
+            </div>
+
+            <div class="pc">
+              <div class="pc-head">
+                <div class="pc-av">周</div>
+                <div>
+                  <div class="pc-name">周建国</div>
+                  <div class="pc-meta">男 · 1954 · 冠心病 / 支架术后</div>
+                </div>
+              </div>
+              <div class="pc-spark">
+                <svg viewBox="0 0 240 22" preserveAspectRatio="none" style="width:100%; height:100%;">
+                  <polyline points="0,12 30,10 60,15 90,8 120,11 150,6 180,9 210,5 240,8" fill="none" stroke="var(--brand)" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <div class="pc-stats">
+                <span><b>18</b> 消息</span>
+                <span><b>3</b> 病历</span>
+                <span class="tag-quiet">04·26 复查</span>
+              </div>
+            </div>
+
+            <div class="pc danger">
+              <div class="pc-head">
+                <div class="pc-av">林</div>
+                <div>
+                  <div class="pc-name">林文华</div>
+                  <div class="pc-meta">男 · 1967 · 慢性心衰</div>
+                </div>
+              </div>
+              <div class="pc-spark">
+                <svg viewBox="0 0 240 22" preserveAspectRatio="none" style="width:100%; height:100%;">
+                  <polyline points="0,8 30,12 60,9 90,14 120,11 150,16 180,13 210,18 240,20" fill="none" stroke="var(--danger)" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <div class="pc-stats">
+                <span><b>27</b> 消息</span>
+                <span><b>7</b> 病历</span>
+                <span class="tag-danger">高危信号</span>
+              </div>
+            </div>
+
+            <div class="pc">
+              <div class="pc-head">
+                <div class="pc-av">赵</div>
+                <div>
+                  <div class="pc-name">赵海涛</div>
+                  <div class="pc-meta">男 · 1971 · 阵发性房颤</div>
+                </div>
+              </div>
+              <div class="pc-spark">
+                <svg viewBox="0 0 240 22" preserveAspectRatio="none" style="width:100%; height:100%;">
+                  <polyline points="0,14 30,12 60,10 90,11 120,9 150,8 180,9 210,7 240,6" fill="none" stroke="var(--brand)" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <div class="pc-stats">
+                <span><b>9</b> 消息</span>
+                <span><b>2</b> 病历</span>
+                <span class="tag-ok">稳定</span>
+              </div>
+            </div>
+
+            <div class="pc">
+              <div class="pc-head">
+                <div class="pc-av">张</div>
+                <div>
+                  <div class="pc-name">张玉兰</div>
+                  <div class="pc-meta">女 · 1958 · 主动脉瓣置换术后</div>
+                </div>
+              </div>
+              <div class="pc-spark">
+                <svg viewBox="0 0 240 22" preserveAspectRatio="none" style="width:100%; height:100%;">
+                  <polyline points="0,16 30,14 60,12 90,10 120,11 150,8 180,7 210,6 240,5" fill="none" stroke="var(--brand)" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <div class="pc-stats">
+                <span><b>22</b> 消息</span>
+                <span><b>4</b> 病历</span>
+                <span class="tag-ok">恢复良好</span>
+              </div>
+            </div>
+
+            <div class="pc">
+              <div class="pc-head">
+                <div class="pc-av">何</div>
+                <div>
+                  <div class="pc-name">何建华</div>
+                  <div class="pc-meta">男 · 1963 · 高脂血症</div>
+                </div>
+              </div>
+              <div class="pc-spark">
+                <svg viewBox="0 0 240 22" preserveAspectRatio="none" style="width:100%; height:100%;">
+                  <polyline points="0,11 30,12 60,10 90,11 120,10 150,11 180,10 210,9 240,10" fill="none" stroke="var(--text-3)" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <div class="pc-stats">
+                <span><b>4</b> 消息</span>
+                <span><b>1</b> 病历</span>
+                <span class="tag-quiet">12 天未联系</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ───────────────────────────────────────── 沟通 preview ─── -->
+      <div class="preview-divider">
+        <span class="line"></span>
+        <span class="label"><span class="material-symbols-outlined">forum</span>沟通 — AI 旁注（蓝色，与绿色医生回复区分）</span>
+        <span class="line"></span>
+      </div>
+
+      <div class="chat-shell">
+        <div class="chat-list">
+          <div class="cl-search">
+            <div class="cl-search-input">
+              <span class="material-symbols-outlined">search</span>
+              <input placeholder="搜索患者…" />
+            </div>
+          </div>
+          <div class="cl-row active">
+            <div class="cl-av">陈</div>
+            <div>
+              <div class="cl-name">陈玉琴 <span class="risk warn">未达标</span></div>
+              <div class="cl-snip">医生，最近血压一直在 145/95…</div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+              <span class="cl-time">14:38</span>
+              <span class="unread"></span>
+            </div>
+          </div>
+          <div class="cl-row">
+            <div class="cl-av">林</div>
+            <div>
+              <div class="cl-name">林文华 <span class="risk high">高危</span></div>
+              <div class="cl-snip">[图片] 血压日记 · 04·17 - 04·23</div>
+            </div>
+            <span class="cl-time">昨 16:05</span>
+          </div>
+          <div class="cl-row">
+            <div class="cl-av">周</div>
+            <div>
+              <div class="cl-name">周建国</div>
+              <div class="cl-snip">王医生好的，我下周二来复查心电图</div>
+            </div>
+            <span class="cl-time">昨 11:32</span>
+          </div>
+          <div class="cl-row">
+            <div class="cl-av">赵</div>
+            <div>
+              <div class="cl-name">赵海涛</div>
+              <div class="cl-snip">问诊总结已自动同步</div>
+            </div>
+            <span class="cl-time">04·23</span>
+          </div>
+          <div class="cl-row">
+            <div class="cl-av">张</div>
+            <div>
+              <div class="cl-name">张玉兰</div>
+              <div class="cl-snip">谢谢医生，我按时吃药了</div>
+            </div>
+            <span class="cl-time">04·22</span>
+          </div>
+        </div>
+
+        <div class="chat-thread">
+          <div class="ct-head">
+            <div class="who">
+              <div class="cl-av" style="background:var(--brand); color:#fff;">陈</div>
+              <div>
+                <div class="name">陈玉琴 <span style="font-size:13px; color:var(--text-2); font-weight:400;">· 女 · 63 岁</span></div>
+                <div class="meta">高血压 III 级 · 32 条消息 · 上次回访 04·22</div>
+              </div>
+            </div>
+            <div class="ct-tools">
+              <button class="icon-btn"><span class="material-symbols-outlined">search</span></button>
+              <button class="icon-btn"><span class="material-symbols-outlined">more_horiz</span></button>
+            </div>
+          </div>
+
+          <div class="ct-body">
+
+            <span class="day-tag">04 月 22 日 · 周一</span>
+
+            <div class="bubble b-patient">
+              <div class="text">王医生您好，今天复查的化验单我拍照发您了。</div>
+              <span class="stamp">10:14</span>
+            </div>
+            <div class="bubble b-patient">
+              <div class="text">[图片] 化验单 · 血常规 · 血压记录</div>
+              <span class="stamp">10:14</span>
+            </div>
+
+            <div class="bubble b-doctor">
+              <div class="text">收到，我先看一下，下午给你回复。</div>
+              <span class="stamp">10:46</span>
+            </div>
+
+            <div class="ai-anchor">
+              <div class="ai-bracket"></div>
+              <div class="ai-card">
+                <div class="ai-line">
+                  <span class="material-symbols-outlined">network_intelligence</span>
+                  AI 解析 · 不发送
+                  <span class="gap"></span>
+                  <span class="toggle">展开 <span class="material-symbols-outlined">expand_more</span></span>
+                </div>
+                <div class="ai-summary">尿微量白蛋白 28 mg/L 轻度升高 · 7d 血压均值 145/93 未达标 · 建议调药。</div>
+              </div>
+            </div>
+
+            <span class="day-tag">今天 · 04 月 24 日</span>
+
+            <div class="bubble b-patient">
+              <div class="text">医生，最近血压一直在 145/95 左右，早起还会头晕，需要调药吗？我现在吃的是氨氯地平 5mg。</div>
+              <span class="stamp">14:38</span>
+            </div>
+
+            <div class="ai-anchor">
+              <div class="ai-bracket"></div>
+              <div class="ai-card expanded">
+                <div class="ai-line">
+                  <span class="material-symbols-outlined">network_intelligence</span>
+                  AI 起草 · 待医生处理
+                  <span class="gap"></span>
+                  <span class="toggle">收起 <span class="material-symbols-outlined">expand_less</span></span>
+                </div>
+                <div class="ai-summary" style="white-space:normal; color:var(--text-1);">
+                  <b>建议：</b>氨氯地平 5→10 mg/日；2 周后复测；监测起立性低血压。
+                </div>
+                <div class="ai-body">
+                  陈阿姨您好。根据近 7 日 145/95 平均血压（未达标）+ 上次尿微量白蛋白 28 mg/L 的化验结果，建议先把氨氯地平加到 10 mg。两周后复测，如仍不达标，再考虑加用 ACEI。早起头晕注意起床动作放慢，监测站立时血压偏低。
+                </div>
+                <div class="ai-src">
+                  <span class="src-chip">[KB-12] 高血压调药梯度</span>
+                  <span class="src-chip">[KB-23] 老年起立性低血压</span>
+                  <span class="src-chip">王医生 · 内部规则</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bubble b-doctor">
+              <div class="text">陈阿姨好，您先把氨氯地平加到 10mg/日，两周后我们再测一次。早上起床动作放慢一些，监测有没有站起来头晕的情况。两周后如果还不达标，我们再加一个药。</div>
+              <span class="stamp">14:46</span>
+            </div>
+
+            <div class="adoption-trace">
+              <span class="pill edit">医生修改后发送</span>
+              <span>采纳 ≈ 70% · 加入了起立性低血压的具体描述</span>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ───────────────────────────────────────── AI 与知识 ─── -->
+      <div class="preview-divider">
+        <span class="line"></span>
+        <span class="label"><span class="material-symbols-outlined">network_intelligence</span>AI 与知识 — 决策卡（统一 4 块结构）</span>
+        <span class="line"></span>
+      </div>
+
+      <div class="deck">
+
+        <div class="dc danger">
+          <div class="dc-head">
+            <div class="left">
+              <div class="dc-pat-av">林</div>
+              <div>
+                <div class="dc-pat-name">林文华</div>
+                <div class="dc-section-tag">危险信号 · 心衰复发</div>
+              </div>
+            </div>
+            <span class="dc-time">04·23 17:14</span>
+          </div>
+          <div class="dc-body">
+            <div class="dc-block">
+              <div class="label"><span class="material-symbols-outlined">visibility</span>AI 观察</div>
+              <div class="dc-text">
+                过去 5 天体重连续上升（+1.8 kg），夜间静息心率从 78 升至 102 bpm。
+                结合上周自述「平躺时胸闷加重」，疑似慢性心衰急性失代偿前兆。
+              </div>
+            </div>
+
+            <div class="dc-block">
+              <div class="label"><span class="material-symbols-outlined">menu_book</span>依据</div>
+              <div class="kb-list">
+                <div class="kb-item">
+                  <div class="num">[KB-08]</div>
+                  <div>
+                    <div class="title">心衰失代偿早期识别 · 王医生临床经验</div>
+                    <div class="quote">"体重 7 天内增加 ≥1.5 kg + 心率持续 ↑ + 端坐呼吸 = 高度怀疑"</div>
+                  </div>
+                </div>
+                <div class="kb-item">
+                  <div class="num">[KB-15]</div>
+                  <div>
+                    <div class="title">2023 中国心衰指南 · 摘录</div>
+                    <div class="quote">体重监测是门诊随访早期识别失代偿的最敏感指标。</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dc-block">
+              <div class="label"><span class="material-symbols-outlined">priority_high</span>触发规则 / 风险</div>
+              <div class="risk-row">
+                <span class="risk-tag risk-high"><span class="material-symbols-outlined">warning</span>高风险</span>
+                <span class="risk-tag risk-med">建议 24h 内联系</span>
+                <span class="risk-tag risk-low">已通知王医生</span>
+              </div>
+            </div>
+
+            <div class="dc-block">
+              <div class="label"><span class="material-symbols-outlined">stethoscope</span>医生处理</div>
+              <div class="dc-text" style="font-size:13px;">
+                <b>已确认</b> · 王医生 04·23 17:38 主动致电患者；预约 04·24 上午 BNP + 心电图复查。
+              </div>
+            </div>
+          </div>
+          <div class="dc-foot">
+            <div class="outcome">
+              <span class="badge st-accept">医生确认</span>
+              <span class="who"><b>王医生</b> · 04·23 17:38</span>
+            </div>
+            <a>查看完整决策链 <span class="material-symbols-outlined">arrow_forward</span></a>
+          </div>
+        </div>
+
+        <div class="dc info">
+          <div class="dc-head">
+            <div class="left">
+              <div class="dc-pat-av">陈</div>
+              <div>
+                <div class="dc-pat-name">陈玉琴</div>
+                <div class="dc-section-tag">回复建议 · 用药调整</div>
+              </div>
+            </div>
+            <span class="dc-time">04·24 14:42</span>
+          </div>
+          <div class="dc-body">
+            <div class="dc-block">
+              <div class="label"><span class="material-symbols-outlined">visibility</span>AI 观察</div>
+              <div class="dc-text">
+                陈阿姨连续 11 天血压未达标，要求复诊建议。AI 起草用药调整方案。
+              </div>
+            </div>
+
+            <div class="dc-block">
+              <div class="label"><span class="material-symbols-outlined">menu_book</span>依据</div>
+              <div class="kb-list">
+                <div class="kb-item">
+                  <div class="num">[KB-12]</div>
+                  <div>
+                    <div class="title">高血压调药梯度 · 王医生内部规则</div>
+                    <div class="quote">"先加量再加药；CCB 优先加到 10mg 再考虑联合"</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dc-block">
+              <div class="label"><span class="material-symbols-outlined">priority_high</span>触发规则 / 风险</div>
+              <div class="risk-row">
+                <span class="risk-tag risk-med">用药变更 · 需医生确认</span>
+                <span class="risk-tag risk-low">符合医生既有规则</span>
+              </div>
+            </div>
+
+            <div class="dc-block">
+              <div class="label"><span class="material-symbols-outlined">stethoscope</span>医生处理</div>
+              <div class="triptych">
+                <div>
+                  <div class="col-label">AI 原稿</div>
+                  <div class="ai-text">建议：氨氯地平加到 10mg；两周后复测；如仍不达标，再考虑加用 ACEI。</div>
+                </div>
+                <div>
+                  <div class="col-label">医生发送版</div>
+                  <div class="doc-text">陈阿姨好，您先把氨氯地平加到 10mg/日，两周后我们再测一次。早上起床动作放慢，监测有没有站起来头晕。</div>
+                </div>
+                <div>
+                  <div class="col-label">修改原因</div>
+                  <div class="reason">王医生删除了 ACEI 提示（过早），加入了起立性低血压的患者级提醒。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="dc-foot">
+            <div class="outcome">
+              <span class="badge st-edit">医生修改后采纳</span>
+              <span class="who">采纳 ≈ 70%</span>
+            </div>
+            <a>对比历史决策 <span class="material-symbols-outlined">arrow_forward</span></a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ───────────────────────────────────────── 运营 ─── -->
+      <div class="preview-divider">
+        <span class="line"></span>
+        <span class="label"><span class="material-symbols-outlined">deployed_code_history</span>运营 — 试点伙伴专属</span>
+        <span class="line"></span>
+      </div>
+
+      <div class="ops-grid">
+        <div class="ops-card">
+          <div class="head"><span class="material-symbols-outlined">key</span>邀请码使用</div>
+          <div class="num">12<span class="unit">/ 20 已激活</span></div>
+          <div class="meter"><span style="width:60%;"></span></div>
+          <div class="sub">第一批 20 名医生 · 还有 8 张未发出</div>
+        </div>
+        <div class="ops-card">
+          <div class="head"><span class="material-symbols-outlined">timeline</span>试点进度</div>
+          <div class="num">第 12 / 24 周</div>
+          <div class="meter"><span style="width:50%;"></span></div>
+          <div class="sub">下一里程碑 04·30 · 阶段汇报</div>
+        </div>
+        <div class="ops-card">
+          <div class="head"><span class="material-symbols-outlined">summarize</span>本周伙伴报表</div>
+          <div class="num" style="font-size:18px;">已就绪</div>
+          <div class="sub">医生采纳率 / 患者活跃 / 危险信号触发统计</div>
+          <a style="font-size:12.5px; color:var(--info); cursor:pointer; display:inline-flex; align-items:center; gap:4px; font-weight:500;">
+            <span class="material-symbols-outlined">download</span>下载 PDF
+          </a>
+        </div>
+      </div>
+
+      <!-- ───────────────────────────────────────── states ─── -->
+      <div class="preview-divider">
+        <span class="line"></span>
+        <span class="label"><span class="material-symbols-outlined">layers</span>缺省 / 加载 / 错误</span>
+        <span class="line"></span>
+      </div>
+
+      <div class="states-row">
+        <div class="state-card">
+          <div class="icon-circle empty">
+            <span class="material-symbols-outlined">inbox</span>
+          </div>
+          <div class="title">这位医生暂无患者</div>
+          <div class="desc">王医生注册后还没有添加患者。可以发送一份 onboarding 提醒。</div>
+          <a class="cta">发送 onboarding →</a>
+        </div>
+        <div class="state-card">
+          <div class="icon-circle loading">
+            <span class="material-symbols-outlined">hourglass_top</span>
+          </div>
+          <div class="title">正在加载…</div>
+          <div style="width: 80%;">
+            <div class="skel-line"></div>
+            <div class="skel-line short"></div>
+            <div class="skel-line"></div>
+          </div>
+        </div>
+        <div class="state-card">
+          <div class="icon-circle error">
+            <span class="material-symbols-outlined">error</span>
+          </div>
+          <div class="title">加载失败</div>
+          <div class="desc">读取王医生的患者列表时出错（HTTP 500）。已自动通知系统团队。</div>
+          <a class="cta">重试 →</a>
+        </div>
+      </div>
+
+      <!-- ───────────────────────────────────────── mobile ─── -->
+      <div class="preview-divider">
+        <span class="line"></span>
+        <span class="label"><span class="material-symbols-outlined">phone_iphone</span>移动端（≤ 768px）</span>
+        <span class="line"></span>
+      </div>
+
+      <div class="mobile-row">
+        <div class="phone">
+          <div class="phone-body">
+            <div class="phone-bar">
+              <div class="left">
+                <span class="material-symbols-outlined">menu</span>
+                <span style="font-weight:600; color:var(--text-1);">医生 / 王明远</span>
+              </div>
+              <span class="material-symbols-outlined">notifications</span>
+            </div>
+
+            <div class="phone-card">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                  <div style="font-size:10px; color:var(--text-3); text-transform:uppercase; letter-spacing:0.12em; font-weight:600;">7d 患者</div>
+                  <div style="font-size:20px; font-weight:600;">42</div>
+                </div>
+                <div>
+                  <div style="font-size:10px; color:var(--text-3); text-transform:uppercase; letter-spacing:0.12em; font-weight:600;">AI 采纳</div>
+                  <div style="font-size:20px; font-weight:600; color:var(--brand);">78%</div>
+                </div>
+                <div>
+                  <div style="font-size:10px; color:var(--text-3); text-transform:uppercase; letter-spacing:0.12em; font-weight:600;">P50</div>
+                  <div style="font-size:20px; font-weight:600;">3.2h</div>
+                </div>
+                <div>
+                  <div style="font-size:10px; color:var(--text-3); text-transform:uppercase; letter-spacing:0.12em; font-weight:600;">逾期</div>
+                  <div style="font-size:20px; font-weight:600; color:var(--danger);">2</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="phone-section-h">需要关注</div>
+            <div class="phone-card" style="position:relative;">
+              <div style="position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--danger); border-radius:2px 0 0 2px;"></div>
+              <div class="row1">
+                <div class="av" style="background:var(--danger-tint); color:var(--danger);">林</div>
+                <div class="name">林文华</div>
+                <span class="badge danger">高危</span>
+              </div>
+              <div class="meta">心衰复发 · 心率 102 + 体重 +1.8kg</div>
+            </div>
+            <div class="phone-card">
+              <div class="row1">
+                <div class="av" style="background:var(--warning-tint); color:var(--warning);">陈</div>
+                <div class="name">陈玉琴</div>
+                <span class="badge warn">未达标</span>
+              </div>
+              <div class="meta">血压未达标 11 天</div>
+            </div>
+
+            <div class="phone-section-h">最近沟通</div>
+            <div class="phone-card">
+              <div class="row1">
+                <div class="av">陈</div>
+                <div class="name">陈玉琴</div>
+                <span class="meta" style="margin-left:auto;">14:38</span>
+              </div>
+              <div class="meta" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">医生，最近血压一直在 145/95…</div>
+            </div>
+            <div class="phone-card">
+              <div class="row1">
+                <div class="av">林</div>
+                <div class="name">林文华</div>
+                <span class="meta" style="margin-left:auto;">昨</span>
+              </div>
+              <div class="meta">[图片] 血压日记 · 04·17 - 04·23</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="phone">
+          <div class="phone-body" style="padding:0;">
+            <div class="phone-bar" style="padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); background:var(--bg-card);">
+              <div class="left">
+                <span class="material-symbols-outlined">arrow_back</span>
+                <div style="display:flex; flex-direction:column; line-height:1.2;">
+                  <span style="font-weight:600; color:var(--text-1); font-size:13px;">陈玉琴</span>
+                  <span style="font-size:10.5px; color:var(--text-2);">高血压 III 级 · 32 条</span>
+                </div>
+              </div>
+              <span class="material-symbols-outlined">more_horiz</span>
+            </div>
+
+            <div style="padding: 12px; display:flex; flex-direction:column; gap:10px; background:var(--bg-cardAlt); min-height:100%;">
+              <div class="bubble b-patient" style="max-width: 80%; font-size: 13px;">
+                <div class="text">医生，血压一直 145/95，需要调药吗？现在吃氨氯地平 5mg。</div>
+                <span class="stamp">14:38</span>
+              </div>
+
+              <div class="ai-anchor" style="max-width: 90%;">
+                <div class="ai-bracket"></div>
+                <div class="ai-card">
+                  <div class="ai-line">
+                    <span class="material-symbols-outlined">network_intelligence</span>
+                    AI 起草
+                    <span class="gap"></span>
+                    <span class="toggle">展开</span>
+                  </div>
+                  <div class="ai-summary">氨氯地平 5→10 mg/日；2 周复测；监测起立头晕。</div>
+                </div>
+              </div>
+
+              <div class="bubble b-doctor" style="max-width: 80%; font-size: 13px;">
+                <div class="text">陈阿姨好，氨氯地平加到 10mg/日，两周后再测。早上起床动作放慢…</div>
+                <span class="stamp">14:46</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex: 1; min-width: 280px; max-width: 420px; padding: 12px; align-self: center;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--text-1); margin-bottom: 8px;">移动端规则</div>
+          <ul style="font-size: 12.5px; color: var(--text-2); line-height: 1.7; padding-left: 18px; margin: 0;">
+            <li>侧边栏折叠为汉堡菜单</li>
+            <li>KPI 5×1 → 2×2 网格</li>
+            <li>会话列表与对话切换为单页推入</li>
+            <li>AI 旁注 max-width 90%，蓝色括号锚点</li>
+            <li>三栏对照（triptych）变为单列堆叠</li>
+            <li>触摸目标 ≥ 44 × 44 CSS px</li>
+            <li>与 antd-mobile 主题色完全一致</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="note">
+        <div class="heading">隐私 / 权限</div>
+        <div>
+          目前此入口对 <b>陈宇明（合作伙伴 · 只读）</b> 开放，可见所有医生的患者沟通和 AI 决策。
+          上线前需与试点医生签署数据可见性同意书；
+          也可启用「仅可见自己引荐医生的数据」模式（见 运营 / 合作伙伴报表）。
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+</body>
+</html>
