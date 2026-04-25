@@ -15,3 +15,25 @@
   font-display: block;
   src: url('/fonts/material-symbols-outlined.woff') format('woff');
 }
+
+/* Class definition mirrors the upstream Google Fonts payload. Without
+ * `font-family` on the class the @font-face is registered but unused;
+ * without `font-feature-settings: 'liga'` the font loads but ligature
+ * substitution is off, so spans like <span>dashboard</span> render as
+ * the literal text "dashboard" instead of the dashboard glyph. The
+ * 2026-04-25 self-host deploy was missing both — this is the fix.
+ */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
