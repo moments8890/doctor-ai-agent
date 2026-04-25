@@ -108,11 +108,11 @@ async function adminRequest(url, options = {}) {
 // Unified auth API
 // ---------------------------------------------------------------------------
 
-export async function unifiedLogin(phone, yearOfBirth) {
+export async function unifiedLogin(nickname, passcode, role) {
   const res = await fetch(apiUrl("/api/auth/unified/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, year_of_birth: yearOfBirth }),
+    body: JSON.stringify({ nickname, passcode: String(passcode), role: role || null }),
   });
   if (!res.ok) {
     const err = new Error(await readError(res));
@@ -122,11 +122,11 @@ export async function unifiedLogin(phone, yearOfBirth) {
   return res.json();
 }
 
-export async function unifiedLoginWithRole(phone, yearOfBirth, role, doctorId, patientId) {
+export async function unifiedLoginWithRole(nickname, passcode, role, doctorId, patientId) {
   const res = await fetch(apiUrl("/api/auth/unified/login-role"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, year_of_birth: yearOfBirth, role, doctor_id: doctorId, patient_id: patientId }),
+    body: JSON.stringify({ nickname, passcode: String(passcode), role, doctor_id: doctorId, patient_id: patientId }),
   });
   if (!res.ok) {
     const err = new Error(await readError(res));
@@ -136,11 +136,11 @@ export async function unifiedLoginWithRole(phone, yearOfBirth, role, doctorId, p
   return res.json();
 }
 
-export async function unifiedRegisterDoctor(phone, name, yearOfBirth, inviteCode, specialty) {
+export async function unifiedRegisterDoctor(nickname, passcode, inviteCode, specialty) {
   const res = await fetch(apiUrl("/api/auth/unified/register/doctor"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, name, year_of_birth: yearOfBirth, invite_code: inviteCode, specialty }),
+    body: JSON.stringify({ nickname, passcode: String(passcode), invite_code: inviteCode, specialty }),
   });
   if (!res.ok) {
     const err = new Error(await readError(res));
@@ -150,11 +150,11 @@ export async function unifiedRegisterDoctor(phone, name, yearOfBirth, inviteCode
   return res.json();
 }
 
-export async function unifiedRegisterPatient(phone, name, yearOfBirth, doctorId, gender) {
+export async function unifiedRegisterPatient(nickname, passcode, doctorId, gender) {
   const res = await fetch(apiUrl("/api/auth/unified/register/patient"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, name, year_of_birth: yearOfBirth, doctor_id: doctorId, gender }),
+    body: JSON.stringify({ nickname, passcode: String(passcode), doctor_id: doctorId, gender }),
   });
   if (!res.ok) {
     const err = new Error(await readError(res));

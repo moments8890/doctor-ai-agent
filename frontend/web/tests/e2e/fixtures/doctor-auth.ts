@@ -22,8 +22,8 @@ export const API_BASE_URL = process.env.E2E_API_BASE_URL || "http://127.0.0.1:80
 export interface TestDoctor {
   doctorId: string;
   name: string;
-  phone: string;
-  yearOfBirth: number;
+  nickname: string;
+  passcode: string;
   token: string;
 }
 
@@ -31,49 +31,50 @@ export interface TestPatient {
   patientId: string;
   doctorId: string;
   name: string;
-  phone: string;
-  yearOfBirth: number;
+  nickname: string;
+  passcode: string;
   gender: string;
   token: string;
 }
 
 /**
- * Generate a unique 11-digit phone so re-runs on a shared DB don't collide on
- * the backend's "phone already registered" guard. Keeps the 13x prefix the
- * unified/register endpoint accepts for mobile numbers.
+ * Generate a unique nickname so re-runs on a shared DB don't collide on the
+ * backend's "nickname already registered" guard. The login UI requires
+ * a numeric passcode, so we pair it with a random one per run.
  */
-function uniquePhone(prefix: "doctor" | "patient"): string {
-  const lead = prefix === "doctor" ? "138" : "139";
-  // 11-digit total: lead (3) + random (8)
-  const rand = String(Math.floor(Math.random() * 1e8)).padStart(8, "0");
-  return lead + rand;
+function uniqueNickname(prefix: "doctor" | "patient"): string {
+  const lead = prefix === "doctor" ? "doc" : "pat";
+  const rand = String(Math.floor(Math.random() * 1e9)).padStart(9, "0");
+  return `${lead}_${rand}`;
+}
+
+function randomPasscode(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 export async function registerDoctor(
   request: import("@playwright/test").APIRequestContext,
-  opts: { name?: string; yearOfBirth?: number } = {},
+  opts: { name?: string } = {},
 ): Promise<TestDoctor> {
-  // Append random suffix to name to avoid DB uniqueness collisions across runs
   const suffix = String(Math.floor(Math.random() * 1e6)).padStart(6, "0");
   const name = (opts.name || "E2E测试医生") + suffix;
-  const yearOfBirth = opts.yearOfBirth || 1980;
-  const phone = uniquePhone("doctor");
+  const nickname = uniqueNickname("doctor");
+  const passcode = randomPasscode();
 
   const res = await request.post(`${API_BASE_URL}/api/auth/unified/register/doctor`, {
-    data: { name, phone, year_of_birth: yearOfBirth, invite_code: "WELCOME" },
+    data: { nickname, passcode, invite_code: "WELCOME" },
   });
   expect(
     res.ok(),
     `register doctor failed: ${res.status()} ${await res.text()}`,
   ).toBeTruthy();
   const body = await res.json();
-  // Real response shape (src/infra/auth/unified.py:261):
-  //   { token, role: "doctor", doctor_id, name }
+  // Response shape:  { token, role: "doctor", doctor_id, name }
   return {
     doctorId: body.doctor_id,
     name: body.name || name,
-    phone,
-    yearOfBirth,
+    nickname,
+    passcode,
     token: body.token,
   };
 }
@@ -81,22 +82,21 @@ export async function registerDoctor(
 export async function registerPatient(
   request: import("@playwright/test").APIRequestContext,
   doctorId: string,
-  opts: { name?: string; yearOfBirth?: number; gender?: string } = {},
+  opts: { name?: string; gender?: string } = {},
 ): Promise<TestPatient> {
   const name = opts.name || "E2E测试患者";
-  const yearOfBirth = opts.yearOfBirth || 1990;
   // Backend stores gender verbatim; production data uses 男/女 (see
   // OnboardingWizard createOnboardingPatientEntry). BUG-06 regressed when the
   // NL search filter only matched male/female; the fix normalizes both, but
   // seeded patients should match what production actually writes.
   const gender = opts.gender || "男";
-  const phone = uniquePhone("patient");
+  const nickname = uniqueNickname("patient");
+  const passcode = randomPasscode();
 
   const res = await request.post(`${API_BASE_URL}/api/auth/unified/register/patient`, {
     data: {
-      name,
-      phone,
-      year_of_birth: yearOfBirth,
+      nickname,
+      passcode,
       doctor_id: doctorId,
       gender,
     },
@@ -106,16 +106,13 @@ export async function registerPatient(
     `register patient failed: ${res.status()} ${await res.text()}`,
   ).toBeTruthy();
   const body = await res.json();
-  // Real response shape (src/infra/auth/unified.py:313):
-  //   { token, role: "patient", doctor_id, patient_id, name }
-  // patient_id is a DB integer row PK; coerce to string so selectors &
-  // URL params treat it consistently.
+  // Response shape:  { token, role: "patient", doctor_id, patient_id, name }
   return {
     patientId: String(body.patient_id),
     doctorId: body.doctor_id || doctorId,
     name: body.name || name,
-    phone,
-    yearOfBirth,
+    nickname,
+    passcode,
     gender,
     token: body.token,
   };
@@ -159,8 +156,8 @@ export async function authenticateDoctorPage(page: Page, doctor: TestDoctor) {
   // Fill the doctor login form. Tab 0 (医生) is the default.
   // antd-mobile Form.Item renders labels as plain divs (no aria-label / for=),
   // so getByLabel can't locate the inputs. Use placeholder text instead.
-  await page.getByPlaceholder("请输入昵称").fill(doctor.phone);
-  await page.getByPlaceholder("请输入数字口令").fill(String(doctor.yearOfBirth));
+  await page.getByPlaceholder("请输入昵称").fill(doctor.nickname);
+  await page.getByPlaceholder("请输入数字口令").fill(doctor.passcode);
   await page.getByRole("button", { name: "登录" }).click();
 
   // Wait for the login to succeed and land on the doctor workbench.
@@ -180,8 +177,8 @@ export async function authenticatePatientPage(page: Page, patient: TestPatient) 
   // Switch to 患者 tab (index 1).
   await page.getByRole("tab", { name: "患者" }).click();
 
-  await page.getByPlaceholder("请输入昵称").fill(patient.phone);
-  await page.getByPlaceholder("请输入数字口令").fill(String(patient.yearOfBirth));
+  await page.getByPlaceholder("请输入昵称").fill(patient.nickname);
+  await page.getByPlaceholder("请输入数字口令").fill(patient.passcode);
   await page.getByRole("button", { name: "登录" }).click();
 
   await page.waitForURL(/\/patient/, { timeout: 15_000 });

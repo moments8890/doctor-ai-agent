@@ -20,10 +20,10 @@ test.describe("工作流 01 — 登录认证", () => {
     // Doctor tab should be default.
     await expect(page.getByRole("tab", { name: "医生" })).toBeVisible();
 
-    // 1.2 — 昵称 = phone
-    await page.getByPlaceholder("请输入昵称").fill(doctor.phone);
-    // 1.3 — 口令 = birth year
-    await page.getByPlaceholder("请输入数字口令").fill(String(doctor.yearOfBirth));
+    // 1.2 — 昵称
+    await page.getByPlaceholder("请输入昵称").fill(doctor.nickname);
+    // 1.3 — 口令
+    await page.getByPlaceholder("请输入数字口令").fill(doctor.passcode);
 
     // Pre-set onboarding bypass so login lands on workbench (not wizard).
     await page.evaluate((id) => {
@@ -63,7 +63,7 @@ test.describe("工作流 01 — 登录认证", () => {
     await page.goto("/login");
     await page.evaluate(() => localStorage.clear());
 
-    await page.getByPlaceholder("请输入昵称").fill(doctor.phone);
+    await page.getByPlaceholder("请输入昵称").fill(doctor.nickname);
     await page.getByPlaceholder("请输入数字口令").fill("9999");
     await page.getByRole("button", { name: "登录" }).click();
 

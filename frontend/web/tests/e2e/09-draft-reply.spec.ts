@@ -130,8 +130,8 @@ test.describe("工作流 09 — 草稿回复", () => {
       // injection hydration race that caused tests to stick on /login).
       await page.goto("/login");
       await page.getByRole("tab", { name: "患者" }).click();
-      await page.getByPlaceholder("请输入昵称").fill(patient.phone);
-      await page.getByPlaceholder("请输入数字口令").fill(String(patient.yearOfBirth));
+      await page.getByPlaceholder("请输入昵称").fill(patient.nickname);
+      await page.getByPlaceholder("请输入数字口令").fill(patient.passcode);
       await page.getByRole("button", { name: "登录" }).click();
       await page.waitForURL(/\/patient/, { timeout: 15_000 });
 

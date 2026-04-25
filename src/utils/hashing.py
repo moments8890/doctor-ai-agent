@@ -66,6 +66,12 @@ def verify_access_code(plaintext: str, stored: str) -> bool:
     return hmac.compare_digest(dk, expected)
 
 
+# Doctor / patient unified-login passcode uses the same PBKDF2-SHA256 scheme.
+# Keeping a named alias clarifies call-site intent.
+hash_passcode = hash_access_code
+verify_passcode = verify_access_code
+
+
 # ---------------------------------------------------------------------------
 # WeChat ID hashing
 # ---------------------------------------------------------------------------

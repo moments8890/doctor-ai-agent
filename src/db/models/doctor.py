@@ -62,6 +62,8 @@ class Doctor(Base):
     department: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     year_of_birth: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    nickname: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    passcode_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     clinic_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
@@ -73,6 +75,7 @@ class Doctor(Base):
 
     __table_args__ = (
         Index("ix_doctors_phone", "phone"),
+        Index("ix_doctors_nickname", "nickname", unique=True),
     )
 
     def __str__(self) -> str:

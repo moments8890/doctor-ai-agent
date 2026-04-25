@@ -21,6 +21,8 @@ class Patient(Base):
     gender: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     year_of_birth: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    nickname: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    passcode_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     last_activity_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
@@ -33,6 +35,7 @@ class Patient(Base):
     __table_args__ = (
         Index("ix_patients_doctor_created", "doctor_id", "created_at"),
         Index("ix_patients_doctor_phone", "doctor_id", "phone"),
+        Index("ix_patients_doctor_nickname", "doctor_id", "nickname", unique=True),
         UniqueConstraint("id", "doctor_id", name="uq_patients_id_doctor"),
         UniqueConstraint("doctor_id", "name", name="uq_patients_doctor_name"),
     )

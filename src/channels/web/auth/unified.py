@@ -27,30 +27,31 @@ router = APIRouter(prefix="/api/auth", tags=["auth-unified"])
 # ---------------------------------------------------------------------------
 
 class LoginRequest(BaseModel):
-    phone: str
-    year_of_birth: int
+    nickname: str
+    passcode: str
+    role: Optional[str] = None  # "doctor" or "patient" — set from the login tab so
+                                # same nickname can coexist across roles without
+                                # forcing a role picker every login.
 
 
 class LoginWithRoleRequest(BaseModel):
-    phone: str
-    year_of_birth: int
+    nickname: str
+    passcode: str
     role: str  # "doctor" or "patient"
     doctor_id: Optional[str] = None
     patient_id: Optional[int] = None
 
 
 class DoctorRegisterRequest(BaseModel):
-    phone: str
-    name: str
-    year_of_birth: int
+    nickname: str
+    passcode: str
     invite_code: str
     specialty: Optional[str] = None
 
 
 class PatientRegisterRequest(BaseModel):
-    phone: str
-    name: str
-    year_of_birth: int
+    nickname: str
+    passcode: str
     doctor_id: str
     gender: Optional[str] = None
 
@@ -73,16 +74,16 @@ class QRTokenResponse(BaseModel):
 
 @router.post("/unified/login")
 async def unified_login(body: LoginRequest):
-    """Login with phone + year_of_birth. Auto-detects role."""
-    return await login(body.phone, body.year_of_birth)
+    """Login with nickname + passcode, optionally constrained by role."""
+    return await login(body.nickname, body.passcode, role=body.role)
 
 
 @router.post("/unified/login-role")
 async def unified_login_with_role(body: LoginWithRoleRequest):
     """Login with explicit role selection (after role picker)."""
     return await login_with_role(
-        body.phone, body.year_of_birth, body.role,
-        doctor_id=doctor_id, patient_id=body.patient_id,
+        body.nickname, body.passcode, body.role,
+        doctor_id=body.doctor_id, patient_id=body.patient_id,
     )
 
 
@@ -90,8 +91,7 @@ async def unified_login_with_role(body: LoginWithRoleRequest):
 async def unified_register_doctor(body: DoctorRegisterRequest):
     """Register as doctor with invitation code."""
     result = await register_doctor(
-        body.phone, body.name, body.year_of_birth,
-        body.invite_code, body.specialty,
+        body.nickname, body.passcode, body.invite_code, body.specialty,
     )
     # Auto-preseed demo data so the doctor sees populated content on first visit.
     try:
@@ -110,8 +110,7 @@ async def unified_register_doctor(body: DoctorRegisterRequest):
 async def unified_register_patient(body: PatientRegisterRequest):
     """Register as patient under a doctor."""
     return await register_patient(
-        body.phone, body.name, body.year_of_birth,
-        body.doctor_id, body.gender,
+        body.nickname, body.passcode, body.doctor_id, body.gender,
     )
 
 

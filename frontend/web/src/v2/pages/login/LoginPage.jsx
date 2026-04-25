@@ -10,7 +10,10 @@ import {
   Button,
   Form,
   Input,
+  List,
   Picker,
+  Popup,
+  SearchBar,
   SpinLoading,
   Tabs,
   Toast,
@@ -163,6 +166,7 @@ export default function LoginPage() {
   // Picker visibility
   const [doctorPickerVisible, setDoctorPickerVisible] = useState(false);
   const [genderPickerVisible, setGenderPickerVisible] = useState(false);
+  const [doctorSearch, setDoctorSearch] = useState("");
 
   // Role picker (multi-role login)
   const [roleChoices, setRoleChoices] = useState(null);
@@ -223,7 +227,7 @@ export default function LoginPage() {
     setError("");
     setRoleChoices(null);
     try {
-      const data = await unifiedLogin(nickname.trim(), parseInt(passcode));
+      const data = await unifiedLogin(nickname.trim(), passcode.trim(), tab);
       if (data.needs_role_selection) {
         setRoleChoices(data.roles);
       } else {
@@ -242,7 +246,7 @@ export default function LoginPage() {
     try {
       const data = await unifiedLoginWithRole(
         nickname.trim(),
-        parseInt(passcode),
+        passcode.trim(),
         role.role,
         role.doctor_id,
         role.patient_id,
@@ -257,8 +261,16 @@ export default function LoginPage() {
 
   async function handleRegisterDoctor(e) {
     e?.preventDefault();
-    if (!regNickname.trim() || !regPasscode.trim() || !inviteCode.trim()) {
-      setError("请填写完整信息");
+    if (!inviteCode.trim()) {
+      setError("请填写邀请码");
+      return;
+    }
+    if (!regNickname.trim()) {
+      setError("请输入昵称");
+      return;
+    }
+    if (!regPasscode.trim()) {
+      setError("请输入口令");
       return;
     }
     if (!/^\d+$/.test(regPasscode.trim())) {
@@ -270,8 +282,7 @@ export default function LoginPage() {
     try {
       const data = await unifiedRegisterDoctor(
         regNickname.trim(),
-        regNickname.trim(),
-        parseInt(regPasscode),
+        regPasscode.trim(),
         inviteCode.trim(),
       );
       handleLoginSuccess(data);
@@ -284,8 +295,16 @@ export default function LoginPage() {
 
   async function handleRegisterPatient(e) {
     e?.preventDefault();
-    if (!regNickname.trim() || !regPasscode.trim() || !doctorId) {
-      setError("请填写完整信息");
+    if (!doctorId) {
+      setError("请选择医生");
+      return;
+    }
+    if (!regNickname.trim()) {
+      setError("请输入昵称");
+      return;
+    }
+    if (!regPasscode.trim()) {
+      setError("请输入口令");
       return;
     }
     if (!/^\d+$/.test(regPasscode.trim())) {
@@ -297,8 +316,7 @@ export default function LoginPage() {
     try {
       const data = await unifiedRegisterPatient(
         regNickname.trim(),
-        regNickname.trim(),
-        parseInt(regPasscode),
+        regPasscode.trim(),
         doctorId,
         gender || undefined,
       );
@@ -312,13 +330,12 @@ export default function LoginPage() {
 
   const isDoctor = tab === "doctor";
 
-  // Doctor picker columns
-  const doctorColumns = [
-    doctors.map((d) => ({
-      label: d.name + (d.department ? ` · ${d.department}` : ""),
-      value: d.doctor_id,
-    })),
-  ];
+  const filteredDoctors = doctors.filter((d) => {
+    const q = doctorSearch.trim().toLowerCase();
+    if (!q) return true;
+    const haystack = `${d.name || ""} ${d.department || ""}`.toLowerCase();
+    return haystack.includes(q);
+  });
 
   const genderColumns = [
     [
@@ -368,7 +385,7 @@ export default function LoginPage() {
                   placeholder="请输入数字口令"
                   value={passcode}
                   onChange={setPasscode}
-                  type="number"
+                  type="password"
                   inputMode="numeric"
                 />
               </Form.Item>
@@ -456,6 +473,7 @@ export default function LoginPage() {
                   onChange={setRegPasscode}
                   type="password"
                   inputMode="numeric"
+                  autoComplete="new-password"
                 />
               </Form.Item>
             </Form>
@@ -528,23 +546,63 @@ export default function LoginPage() {
                   onChange={setRegPasscode}
                   type="password"
                   inputMode="numeric"
+                  autoComplete="new-password"
                 />
               </Form.Item>
             </Form>
 
-            {/* Doctor picker */}
-            <Picker
-              columns={doctorColumns}
+            {/* Doctor picker — searchable list */}
+            <Popup
               visible={doctorPickerVisible}
+              onMaskClick={() => setDoctorPickerVisible(false)}
               onClose={() => setDoctorPickerVisible(false)}
-              value={doctorId ? [doctorId] : []}
-              onConfirm={(val) => {
-                setDoctorId(val[0] || "");
-                setDoctorPickerVisible(false);
+              bodyStyle={{
+                height: "60vh",
+                display: "flex",
+                flexDirection: "column",
+                borderTopLeftRadius: RADIUS.lg,
+                borderTopRightRadius: RADIUS.lg,
               }}
-              cancelText="取消"
-              confirmText="确定"
-            />
+            >
+              <div style={{ padding: "12px 12px 8px" }}>
+                <SearchBar
+                  placeholder="搜索医生姓名或科室"
+                  value={doctorSearch}
+                  onChange={setDoctorSearch}
+                />
+              </div>
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                <List>
+                  {filteredDoctors.length === 0 && (
+                    <List.Item>
+                      <span style={{ color: APP.text4, fontSize: FONT.sm }}>
+                        没有匹配的医生
+                      </span>
+                    </List.Item>
+                  )}
+                  {filteredDoctors.map((d) => (
+                    <List.Item
+                      key={d.doctor_id}
+                      clickable
+                      arrow={false}
+                      onClick={() => {
+                        setDoctorId(d.doctor_id);
+                        setDoctorPickerVisible(false);
+                        setDoctorSearch("");
+                      }}
+                      description={d.department || undefined}
+                      extra={
+                        doctorId === d.doctor_id ? (
+                          <span style={{ color: APP.primary, fontSize: FONT.sm }}>已选</span>
+                        ) : null
+                      }
+                    >
+                      {d.name}
+                    </List.Item>
+                  ))}
+                </List>
+              </div>
+            </Popup>
 
             {/* Gender picker */}
             <Picker
