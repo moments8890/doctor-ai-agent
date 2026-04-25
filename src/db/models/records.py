@@ -18,6 +18,7 @@ class RecordStatus(str, Enum):
     interview_active = "interview_active"
     pending_review = "pending_review"
     diagnosis_failed = "diagnosis_failed"
+    insufficient_data = "insufficient_data"  # 2026-04-25: sufficiency rule fired, LLM skipped
     completed = "completed"
 
 
@@ -142,7 +143,7 @@ class FieldEntryDB(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
 
     __table_args__ = (
-        Index("ix_record_field_entries_record_id", "record_id"),
+        # ix_record_field_entries_record_id is auto-created by index=True on the column above.
         Index("ix_record_field_entries_record_field", "record_id", "field_name"),
     )
 
@@ -172,6 +173,6 @@ class RecordSupplementDB(Base):
     doctor_decision_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     __table_args__ = (
-        Index("ix_record_supplements_record_id", "record_id"),
+        # ix_record_supplements_record_id is auto-created by index=True on the column above.
         Index("ix_record_supplements_status", "status"),
     )
