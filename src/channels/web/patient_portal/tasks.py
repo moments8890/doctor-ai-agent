@@ -45,6 +45,8 @@ class PatientTaskOut(BaseModel):
     due_at: Optional[datetime] = None
     source_type: Optional[str] = None
     created_at: datetime
+    completed_at: Optional[datetime] = None
+    source_record_id: Optional[int] = None
 
 
 class PatientRecordDetailOut(BaseModel):
@@ -106,6 +108,8 @@ async def get_patient_tasks(
             due_at=t.due_at,
             source_type=t.source_type,
             created_at=t.created_at,
+            completed_at=t.completed_at,
+            source_record_id=t.record_id,
         )
         for t in tasks
     ]
@@ -149,6 +153,8 @@ async def complete_patient_task(
         due_at=task.due_at,
         source_type=task.source_type,
         created_at=task.created_at,
+        completed_at=task.completed_at,
+        source_record_id=task.record_id,
     )
 
 
@@ -186,6 +192,8 @@ async def uncomplete_patient_task(
         due_at=task.due_at,
         source_type=task.source_type,
         created_at=task.created_at,
+        completed_at=task.completed_at,
+        source_record_id=task.record_id,
     )
 
 
