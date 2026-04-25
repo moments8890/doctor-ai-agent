@@ -8,10 +8,11 @@ import App from "./v2/App";
 import { applyFontScale, createAppThemeScaled } from "./theme";
 import { useFontScaleStore, useFontScaleRerender, triggerFontScaleRerender } from "./store/fontScaleStore";
 import { setLocale, t } from "./i18n";
+import { buildTitle } from "./lib/pageTitle";
 
 setLocale("zh-CN");
 document.documentElement.lang = "zh-CN";
-document.title = t("app.title");
+document.title = buildTitle(null, t("app.title"));
 
 // Apply persisted font scale immediately (before first render)
 applyFontScale(useFontScaleStore.getState().fontScale);
