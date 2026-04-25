@@ -1,10 +1,14 @@
 """
-Patient portal registration routes: access-code management, doctor listing,
-patient self-registration, and phone-based login.
+Patient portal registration routes: access-code management + doctor listing.
+
+The legacy POST /register and POST /login (phone + year_of_birth as auth)
+were removed once the unified /api/auth/unified/* path replaced them with
+hashed-passcode auth, lockout, and IP rate limiting. See the comment near
+the bottom of this file for the rationale.
 
 This module owns an APIRouter that is included into the main patient_portal
 router (which already carries ``prefix="/api/patient"``), so routes here
-use bare paths (e.g. ``/register``, not ``/api/patient/register``).
+use bare paths (e.g. ``/access-code``, not ``/api/patient/access-code``).
 """
 from __future__ import annotations
 
@@ -16,27 +20,12 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.engine import AsyncSessionLocal, get_db
-from db.models import Patient
-from db.models.patient_auth import PatientAuth
+from db.engine import get_db
 from infra.auth.rate_limit import enforce_doctor_rate_limit
-
-from infra.auth import UserRole
-from infra.auth.unified import issue_token as _issue_unified_token
 
 logger = logging.getLogger(__name__)
 
 registration_router = APIRouter(tags=["patient-portal"])
-
-
-async def _get_access_code_version(db, patient_id: int) -> int:
-    """Fetch access_code_version from PatientAuth for JWT generation."""
-    auth_row = (
-        await db.execute(
-            select(PatientAuth).where(PatientAuth.patient_id == patient_id).limit(1)
-        )
-    ).scalar_one_or_none()
-    return auth_row.access_code_version if auth_row is not None else 0
 
 
 # ---------------------------------------------------------------------------
@@ -116,124 +105,13 @@ async def list_accepting_doctors(db: AsyncSession = Depends(get_db)):
     ]
 
 
-class PatientRegisterRequest(BaseModel):
-    doctor_id: str
-    name: str
-    gender: Optional[str] = None
-    year_of_birth: int
-    phone: str
-
-
-@registration_router.post("/register")
-async def register_patient(body: PatientRegisterRequest, db: AsyncSession = Depends(get_db)):
-    """Patient self-registration. Links to existing record if name matches."""
-    from db.models import Doctor
-
-    doctor_id = body.doctor_id
-    name = body.name
-    gender = body.gender
-    year_of_birth = body.year_of_birth
-    phone = body.phone
-
-    if not doctor_id or not name or not phone or not year_of_birth:
-        raise HTTPException(400, "\u8bf7\u586b\u5199\u5b8c\u6574\u4fe1\u606f")
-
-    # Validate doctor exists and is accepting
-    doctor = (await db.execute(
-        select(Doctor).where(Doctor.doctor_id == doctor_id)
-    )).scalar_one_or_none()
-    if doctor is None:
-        raise HTTPException(404, "\u672a\u627e\u5230\u8be5\u533b\u751f")
-
-    # Check for existing patient record
-    patient = (await db.execute(
-        select(Patient).where(
-            Patient.doctor_id == doctor_id,
-            Patient.name == name,
-        )
-    )).scalar_one_or_none()
-
-    if patient:
-        # Validate non-null fields don't conflict
-        if patient.gender and gender and patient.gender != gender:
-            raise HTTPException(400, "\u4fe1\u606f\u4e0e\u5df2\u6709\u8bb0\u5f55\u4e0d\u7b26\uff0c\u8bf7\u8054\u7cfb\u533b\u751f\u786e\u8ba4")
-        if patient.year_of_birth and patient.year_of_birth != year_of_birth:
-            raise HTTPException(400, "\u4fe1\u606f\u4e0e\u5df2\u6709\u8bb0\u5f55\u4e0d\u7b26\uff0c\u8bf7\u8054\u7cfb\u533b\u751f\u786e\u8ba4")
-        if patient.phone and patient.phone != phone:
-            raise HTTPException(400, "\u4fe1\u606f\u4e0e\u5df2\u6709\u8bb0\u5f55\u4e0d\u7b26\uff0c\u8bf7\u8054\u7cfb\u533b\u751f\u786e\u8ba4")
-        # Backfill nulls
-        if not patient.gender and gender:
-            patient.gender = gender
-        if not patient.year_of_birth:
-            patient.year_of_birth = year_of_birth
-        if not patient.phone:
-            patient.phone = phone
-        await db.commit()
-    else:
-        # Create new patient
-        patient = Patient(
-            doctor_id=doctor_id,
-            name=name,
-            gender=gender,
-            year_of_birth=year_of_birth,
-            phone=phone,
-        )
-        db.add(patient)
-        await db.commit()
-        await db.refresh(patient)
-
-    token = _issue_unified_token(UserRole.patient, doctor_id, patient.id, patient.name)
-    return {"token": token, "patient_id": patient.id, "patient_name": patient.name}
-
-
-class PatientLoginRequest(BaseModel):
-    phone: str
-    year_of_birth: int
-    doctor_id: Optional[str] = None
-
-
-@registration_router.post("/login")
-async def login_by_phone(body: PatientLoginRequest, db: AsyncSession = Depends(get_db)):
-    """Patient login with phone + year_of_birth."""
-    phone = body.phone
-    year_of_birth = body.year_of_birth
-    doctor_id = body.doctor_id
-
-    if not phone or not year_of_birth:
-        raise HTTPException(400, "\u8bf7\u8f93\u5165\u624b\u673a\u53f7\u548c\u51fa\u751f\u5e74\u4efd")
-
-    if doctor_id:
-        # Direct login to specific doctor
-        patient = (await db.execute(
-            select(Patient).where(
-                Patient.doctor_id == doctor_id,
-                Patient.phone == phone,
-                Patient.year_of_birth == year_of_birth,
-            )
-        )).scalar_one_or_none()
-        if patient is None:
-            raise HTTPException(401, "\u624b\u673a\u53f7\u6216\u51fa\u751f\u5e74\u4efd\u4e0d\u6b63\u786e")
-        token = _issue_unified_token(UserRole.patient, doctor_id, patient.id, patient.name)
-        return {"token": token, "patient_id": patient.id, "patient_name": patient.name, "doctor_id": doctor_id}
-    else:
-        # Find all patient records for this phone+yob
-        patients = (await db.execute(
-            select(Patient).where(
-                Patient.phone == phone,
-                Patient.year_of_birth == year_of_birth,
-            )
-        )).scalars().all()
-        if not patients:
-            raise HTTPException(401, "\u624b\u673a\u53f7\u6216\u51fa\u751f\u5e74\u4efd\u4e0d\u6b63\u786e")
-        if len(patients) == 1:
-            p = patients[0]
-            token = _issue_unified_token(UserRole.patient, p.doctor_id, p.id, p.name)
-            return {"token": token, "patient_id": p.id, "patient_name": p.name, "doctor_id": p.doctor_id}
-        # Multiple doctors -- return list for picker
-        return {
-            "needs_doctor_selection": True,
-            "doctors": [
-                {"doctor_id": p.doctor_id, "patient_name": p.name}
-                for p in patients
-            ],
-        }
+# Removed: POST /register and POST /login (phone + year_of_birth as auth).
+# Both endpoints had no callers (verified across frontend + backend) and
+# carried two real risks: (1) login without doctor_id matched the first
+# Patient row across the whole table by phone+yob, an IDOR risk; and
+# (2) neither had any rate limit or lockout. The unified
+# /api/auth/unified/* path replaces them with hashed-passcode auth,
+# per-account lockout, and IP rate limiting.
+#
+# /access-code above (doctor-issued patient portal pin) is the path that
+# still mints PatientAuth credentials going forward.
