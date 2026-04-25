@@ -16,7 +16,10 @@ from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from channels.web.doctor_dashboard.deps import _require_ui_admin_access
+from channels.web.doctor_dashboard.deps import (
+    _require_ui_admin_access,
+    require_admin_super,
+)
 from db.engine import get_db
 from db.models import (
     AISuggestion,
@@ -256,11 +259,13 @@ async def cleanup_preview(
 async def cleanup_execute(
     action: str = Query(..., description="test_doctors | stale_patients | orphaned_records | all"),
     doctor_id: Optional[str] = Query(default=None, description="Target a specific doctor"),
-    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
     db: AsyncSession = Depends(get_db),
+    _role: str = Depends(require_admin_super),
 ):
-    """Delete data matching the specified action or target doctor."""
-    _require_ui_admin_access(x_admin_token)
+    """Delete data matching the specified action or target doctor.
+
+    Super-only: viewer-role tokens get 403 (Task 4.1).
+    """
 
     deleted: dict[str, int] = {}
 
