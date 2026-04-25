@@ -1,24 +1,31 @@
 /**
  * TasksTab — patient task list (v2, antd-mobile).
  *
- * Matches doctor TaskPage UI: JumboTabs, date-grouped pending rows with
- * circle-checkbox, completed rows with CheckCircleOutline, optimistic updates.
- * Patient-specific: no create-task, no patient_name prefix, no followup merging.
+ * Patient parity (Task 4.4): card pattern + visible tap-target prefix
+ * (NOT SwipeAction — older audience needs a discoverable affordance).
+ * PullToRefresh wraps the rendered list. Optimistic-override behavior
+ * from Task 3.3 is preserved (dataUpdatedAt clears overrides atomically
+ * with the canonical refetch).
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { JumboTabs, List, Tag, ErrorBlock, Button, Ellipsis } from "antd-mobile";
-import { CheckCircleOutline, ClockCircleOutline } from "antd-mobile-icons";
+import { JumboTabs, ErrorBlock, Button, Ellipsis, PullToRefresh } from "antd-mobile";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import {
   usePatientTasks,
   useCompletePatientTask,
   useUncompletePatientTask,
 } from "../../../lib/patientQueries";
 import { relativeFuture } from "../../../utils/time";
-import { APP, FONT } from "../../theme";
+import { APP, FONT, ICON, RADIUS } from "../../theme";
 import { pageContainer, scrollable } from "../../layouts";
-import { LoadingCenter, EmptyState, ListSectionDivider as SectionHeader } from "../../components";
+import {
+  LoadingCenter,
+  EmptyState,
+  ListSectionDivider as SectionHeader,
+  Card,
+} from "../../components";
 
 // ---------------------------------------------------------------------------
 // Date helpers
@@ -66,75 +73,97 @@ function groupByDate(items) {
   return groups;
 }
 
+function formatDueDate(dueAt) {
+  // Prefer relative phrasing for near-future deadlines; fall back to MM-DD.
+  const rel = relativeFuture(dueAt);
+  if (rel) return rel;
+  const normalized = normalizeDue(dueAt);
+  if (!normalized) return "";
+  const d = new Date(normalized);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
+}
+
 // ---------------------------------------------------------------------------
-// Row components
+// Row component — visible tap-target prefix + card body
 // ---------------------------------------------------------------------------
 
 function TabTitleWithCount({ label, count }) {
   return count > 0 ? <span>{label} ({count})</span> : <span>{label}</span>;
 }
 
-function PendingRow({ item, isOverdue, onComplete, onTap }) {
-  const title = item.title || "任务";
-  const subtitle = item.content && item.content.trim() !== title.trim() ? item.content : null;
-  const dueLabel = item.due_at ? (relativeFuture(item.due_at) || "") : "";
+function TaskCard({ item, isOverdue, onToggle, onTap }) {
+  const completed = item.status === "completed";
+  const title = item.title || item.content || "任务";
+  const dueLabel = item.due_at ? `截止: ${formatDueDate(item.due_at)}` : "";
+
   return (
-    <List.Item
-      onClick={onTap}
-      prefix={
+    <Card style={{ margin: "8px 12px" }}>
+      <div
+        data-testid="patient-task-row"
+        onClick={onTap}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "12px 14px",
+          cursor: "pointer",
+        }}
+      >
+        {/* Visible tap-target prefix — 36px tinted circle */}
         <div
-          onClick={(e) => { e.stopPropagation(); onComplete(item); }}
-          style={{
-            width: 24, height: 24, borderRadius: "50%",
-            border: `2px solid ${isOverdue ? APP.danger : APP.border}`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", flexShrink: 0,
+          role="button"
+          aria-label={completed ? "撤销完成" : "标记完成"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle(item);
           }}
-        />
-      }
-      description={
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-          {subtitle && (
-            <div style={{ fontSize: FONT.sm, color: APP.text4, flex: 1, minWidth: 0 }}>
-              <Ellipsis direction="end" content={subtitle} rows={1} />
-            </div>
-          )}
-          {dueLabel && (
-            <Tag color={isOverdue ? "danger" : "default"} style={{ fontSize: FONT.xs, flexShrink: 0 }}>
-              <ClockCircleOutline style={{ fontSize: FONT.xs, marginRight: 2 }} />
-              {dueLabel}
-            </Tag>
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: RADIUS.md,
+            background: completed ? APP.primaryLight : APP.surfaceAlt,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            cursor: "pointer",
+          }}
+        >
+          {completed ? (
+            <CheckOutlinedIcon sx={{ fontSize: ICON.sm, color: APP.primary }} />
+          ) : (
+            <div
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                border: `1.5px solid ${APP.border}`,
+              }}
+            />
           )}
         </div>
-      }
-      style={{ "--padding-left": "12px" }}
-    >
-      <span style={{ fontSize: FONT.md, color: isOverdue ? APP.danger : APP.text1, fontWeight: 500 }}>
-        {title}
-      </span>
-    </List.Item>
-  );
-}
 
-function CompletedRow({ item, onUncomplete, onTap }) {
-  const title = item.title || item.content || "任务";
-  const timeStr = item.completed_at ? new Date(item.completed_at).toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" }) : "";
-  return (
-    <List.Item
-      onClick={onTap}
-      prefix={
-        <CheckCircleOutline
-          onClick={(e) => { e.stopPropagation(); onUncomplete(item); }}
-          style={{ fontSize: FONT.xl, color: APP.primary, cursor: "pointer", flexShrink: 0 }}
-        />
-      }
-      extra={<span style={{ fontSize: FONT.sm, color: APP.text4 }}>{timeStr}</span>}
-      style={{ "--padding-left": "12px" }}
-    >
-      <span style={{ fontSize: FONT.md, color: APP.text4, textDecoration: "line-through" }}>
-        {title}
-      </span>
-    </List.Item>
+        {/* Body */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: FONT.base,
+              fontWeight: 500,
+              color: completed ? APP.text4 : (isOverdue ? APP.danger : APP.text1),
+              textDecoration: completed ? "line-through" : "none",
+            }}
+          >
+            <Ellipsis content={title} rows={2} direction="end" />
+          </div>
+          {dueLabel && (
+            <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 4 }}>
+              {dueLabel}
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -203,6 +232,11 @@ export default function TasksTab({ token: _token }) {
     });
   }, [uncompleteTask, rawPending, rawCompleted]);
 
+  const handleToggle = useCallback((item) => {
+    if (item.status === "completed") handleUncomplete(item);
+    else handleComplete(item);
+  }, [handleComplete, handleUncomplete]);
+
   if (isLoading) return <LoadingCenter />;
   if (isError) return (
     <div style={{ padding: 16 }}>
@@ -222,45 +256,44 @@ export default function TasksTab({ token: _token }) {
       </div>
 
       <div style={scrollable}>
-        {activeTab === "pending" && (
-          dateGroups.length > 0 ? dateGroups.map((group) => (
-            <div key={group.label} style={{ marginTop: 12 }}>
-              <SectionHeader color={group.color}>{group.label}</SectionHeader>
-              <List>
+        <PullToRefresh onRefresh={async () => { await refetch(); }}>
+          {activeTab === "pending" && (
+            dateGroups.length > 0 ? dateGroups.map((group) => (
+              <div key={group.label} style={{ marginTop: 12 }}>
+                <SectionHeader color={group.color}>{group.label}</SectionHeader>
                 {group.items.map((item) => (
-                  <PendingRow
+                  <TaskCard
                     key={item.id}
                     item={item}
                     isOverdue={group.label === "已逾期"}
-                    onComplete={handleComplete}
+                    onToggle={handleToggle}
                     onTap={() => handleTap(item)}
                   />
                 ))}
-              </List>
-            </div>
-          )) : (
-            <EmptyState title="暂无待处理任务" description="医生安排的复查、用药提醒会显示在这里" />
-          )
-        )}
-        {activeTab === "completed" && (
-          completed.length > 0 ? (
-            <div style={{ marginTop: 12 }}>
-              <List>
+              </div>
+            )) : (
+              <EmptyState title="暂无待处理任务" description="医生安排的复查、用药提醒会显示在这里" />
+            )
+          )}
+          {activeTab === "completed" && (
+            completed.length > 0 ? (
+              <div style={{ marginTop: 12 }}>
                 {completed.map((item) => (
-                  <CompletedRow
+                  <TaskCard
                     key={item.id}
                     item={item}
-                    onUncomplete={handleUncomplete}
+                    isOverdue={false}
+                    onToggle={handleToggle}
                     onTap={() => handleTap(item)}
                   />
                 ))}
-              </List>
-            </div>
-          ) : (
-            <EmptyState title="暂无已完成任务" description="完成的任务会出现在这里" />
-          )
-        )}
-        <div style={{ height: 24 }} />
+              </div>
+            ) : (
+              <EmptyState title="暂无已完成任务" description="完成的任务会出现在这里" />
+            )
+          )}
+          <div style={{ height: 24 }} />
+        </PullToRefresh>
       </div>
     </div>
   );
