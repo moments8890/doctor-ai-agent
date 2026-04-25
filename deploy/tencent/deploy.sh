@@ -36,6 +36,12 @@ sudo systemctl daemon-reload
 # deploy/tencent/deploy.sh in-repo auto-propagate via git reset above.
 ENVIRONMENT=production PYTHONPATH="$APP_DIR/src" "$VENV/bin/alembic" upgrade head
 
+# Sync internal wiki docs from their source paths into
+# frontend/web/public/wiki/internal-docs/ — vite copies public/* to dist
+# during the build that follows, so /wiki on production always reflects
+# the latest committed .md content.
+bash "$APP_DIR/scripts/sync-internal-wiki-docs.sh"
+
 # Frontend build (package.json is in frontend/web/)
 cd "$APP_DIR/frontend/web"
 npm ci --silent

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>内部文档</title>
+<script>
+  /* page-title-env-prefix */
+  (function() {
+    var host = window.location.hostname;
+    var port = window.location.port;
+    var env = "";
+    if (host === "localhost" || host === "127.0.0.1" || port === "5173" || port === "5174") env = "dev";
+    else if (host.indexOf(".doctoragentai.cn") !== -1 && host.lastIndexOf(".doctoragentai.cn") === host.length - ".doctoragentai.cn".length) env = "tencent";
+    var prefix = (env ? "[" + env + "]" : "") + "[wiki]";
+    document.title = prefix + " " + document.title;
+  })();
+</script>
+<style>
+  body { font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; line-height: 1.65; color: #202122; max-width: 880px; margin: 0 auto; padding: 24px 32px 64px; }
+  h1, h2, h3, h4 { color: #0d5c2e; line-height: 1.3; }
+  h1 { font-size: 28px; border-bottom: 2px solid #4caf50; padding-bottom: 10px; margin-bottom: 18px; }
+  h2 { font-size: 21px; margin-top: 32px; padding-bottom: 6px; border-bottom: 1px solid #e0e0e0; }
+  h3 { font-size: 17px; margin-top: 20px; }
+  h4 { font-size: 15px; margin-top: 16px; }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 24px; margin: 8px 0; }
+  li { margin: 3px 0; }
+  code { background: #f0f0f0; padding: 1px 6px; border-radius: 3px; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { background: #1e1e1e; color: #d4d4d4; padding: 12px 14px; border-radius: 6px; overflow-x: auto; margin: 12px 0; font-size: 12.5px; line-height: 1.5; }
+  pre code { background: transparent; padding: 0; color: inherit; }
+  blockquote { border-left: 3px solid #4caf50; padding: 4px 12px; margin: 12px 0; color: #555; background: #f7faf7; }
+  table { border-collapse: collapse; margin: 12px 0; width: 100%; font-size: 13px; }
+  th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f7faf7; font-weight: 600; }
+  a { color: #2e7d32; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 24px 0; }
+  .doc-meta { font-size: 12px; color: #999; padding: 8px 12px; background: #fff8e1; border-left: 3px solid #f9a825; margin-bottom: 18px; border-radius: 0 4px 4px 0; }
+  .doc-meta a { color: #c68400; }
+  .loading { color: #888; padding: 40px 0; text-align: center; }
+  .err { color: #c62828; padding: 24px; background: #ffebee; border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<div class="doc-meta" id="meta"></div>
+<div id="content"><div class="loading">加载中...</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+  // Map of slug → source path. Each entry is the path under public/wiki/internal-docs/
+  // (vite copies public/* to dist/ at build time, so they're served as static files).
+  const DOCS = {
+    "architecture":      { title: "系统架构",            file: "internal-docs/architecture.md" },
+    "services":          { title: "生产服务总览",         file: "internal-docs/services.md" },
+    "runbook-subdomain-split": { title: "子域名拆分历史", file: "internal-docs/runbook-subdomain-split.md" },
+    "tencent-resources": { title: "服务器资源清单",       file: "internal-docs/tencent-resources.md" },
+    "glitchtip":         { title: "GlitchTip 错误追踪",   file: "internal-docs/glitchtip.md" },
+    "dbgate":            { title: "数据库管理 (DBGate)",  file: "internal-docs/dbgate.md" },
+    "mysql-restore":     { title: "MySQL 恢复",          file: "internal-docs/mysql-restore.md" },
+    "product-strategy":  { title: "产品定位与策略",       file: "internal-docs/product-strategy.md" },
+  };
+
+  function getSlug() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("doc") || "services";
+  }
+
+  async function render() {
+    const slug = getSlug();
+    const entry = DOCS[slug];
+    if (!entry) {
+      document.getElementById("content").innerHTML =
+        '<div class="err">未知文档 slug: <code>' + slug + '</code></div>';
+      return;
+    }
+    document.title = "[wiki] " + entry.title + " — 内部文档";
+    document.getElementById("meta").innerHTML =
+      '内部文档 · 来源 <code>' + entry.file + '</code> · 在 wiki.* 上面对公网公开（无认证）';
+
+    try {
+      const res = await fetch(entry.file, { cache: "no-cache" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const md = await res.text();
+      // marked v9+ uses marked.parse; older uses marked()
+      const html = (marked.parse || marked)(md, { gfm: true, breaks: false });
+      document.getElementById("content").innerHTML = html;
+    } catch (e) {
+      document.getElementById("content").innerHTML =
+        '<div class="err">加载失败: ' + (e && e.message || e) + '</div>';
+    }
+  }
+  render();
+</script>
+</body>
+</html>
