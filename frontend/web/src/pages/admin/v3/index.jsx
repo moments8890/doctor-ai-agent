@@ -18,6 +18,8 @@
 // when handing the URL to a viewer.
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { onAdminAuthError, setAdminToken } from "../../../api";
 import { setPageTitle } from "../../../lib/pageTitle";
 import AdminShellV3 from "./AdminShellV3";
 import AdminDoctorDetailV3 from "./doctorDetail/AdminDoctorDetailV3";
@@ -97,6 +99,7 @@ function DoctorDetailWithBreadcrumb({ doctorId }) {
 
 export default function AdminPageV3() {
   const { doctorId, opsSub, overviewSub, sidebarSection } = useUrlRoute();
+  const navigate = useNavigate();
 
   useEffect(() => {
     let label = "运营总览";
@@ -106,6 +109,19 @@ export default function AdminPageV3() {
     else label = "医生列表";
     setPageTitle("admin", label);
   }, [doctorId, opsSub, overviewSub]);
+
+  // V3 owns its admin lockout handler. AdminPage's legacy wiring is bypassed
+  // by the early-return at the top of AdminPage.jsx, so without this hook a
+  // 403/503 would leave _adminAuthErrorHandler unset and a 401 would fall
+  // through to v2/App.jsx's onAuthExpired (which sends doctors to /login).
+  useEffect(() => {
+    onAdminAuthError(() => {
+      localStorage.removeItem("adminToken");
+      setAdminToken("");
+      navigate("/admin/login");
+    });
+    return () => onAdminAuthError(null);
+  }, [navigate]);
 
   if (opsSub) {
     const breadcrumb = [

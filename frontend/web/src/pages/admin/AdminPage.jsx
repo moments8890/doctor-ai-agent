@@ -439,6 +439,16 @@ function AdminDashboard({ onLockout }) {
 
 // ── Token gate + auth wrapper ─────────────────────────────────────────────────
 export default function AdminPage() {
+	// Populate the api.js admin token cache synchronously on every render so
+	// admin API calls dispatched from V3's child useEffects (which fire BEFORE
+	// any parent useEffect) see X-Admin-Token from the very first request.
+	// Legacy `?v=1` path also benefits — its own useEffect re-asserts the same
+	// value and registers the lockout handler.
+	if (!DEV_MODE && typeof window !== "undefined") {
+		const stored = localStorage.getItem(ADMIN_TOKEN_KEY) || "";
+		if (stored) setAdminToken(stored);
+	}
+
 	// v3 is the default admin surface as of 2026-04-24. The legacy GitHub Dark
 	// dashboard (this file's body below) remains available at /admin?v=1 for
 	// one release as a fallback. Remove after no regressions are reported.
