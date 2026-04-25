@@ -15,7 +15,6 @@ import FormatSizeOutlinedIcon from "@mui/icons-material/FormatSizeOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useFontScaleStore, saveFontScaleToServer } from "../../../store/fontScaleStore";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { APP, FONT, RADIUS, ICON } from "../../theme";
