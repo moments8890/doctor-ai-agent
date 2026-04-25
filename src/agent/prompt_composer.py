@@ -36,6 +36,26 @@ def _inject_date(text: str) -> str:
     return text
 
 
+async def _resolve_specialty(doctor_id: str) -> str:
+    """Look up doctor's specialty from web_doctors when not passed by caller.
+
+    Returns "" if no doctor row or no specialty set. Empty result means
+    L2 is silently disabled with a log line (per round-1 codex review).
+    """
+    if not doctor_id:
+        return ""
+    try:
+        from db.crud.doctor import get_doctor_by_id
+        from db.engine import AsyncSessionLocal
+        async with AsyncSessionLocal() as session:
+            doc = await get_doctor_by_id(session, doctor_id)
+            if doc and doc.specialty:
+                return doc.specialty
+    except Exception as exc:
+        log(f"[composer] specialty lookup failed (non-fatal): {exc}", level="warning")
+    return ""
+
+
 async def _load_doctor_knowledge(doctor_id: str, config: LayerConfig, query: str = "", patient_context: str = "") -> tuple:
     """Load doctor KB items and active persona. Returns (knowledge_text, persona_text)."""
     knowledge = ""
@@ -69,16 +89,33 @@ async def compose_messages(
     patient_context: str = "",
     doctor_message: str = "",
     history: Optional[List[Dict[str, str]]] = None,
-    specialty: str = "neurology",
+    specialty: str = "",
     extra_system: str = "",
 ) -> List[Dict[str, str]]:
     """Assemble the prompt stack into a message list.
 
     L4 Doctor Rules is auto-loaded from DB when config.load_knowledge
     is True. Callers don't need to load KB.
+
+    specialty: empty string means no L2 specialty layer (correct default).
+    Callers should pass the doctor's actual specialty (e.g. "cardiology")
+    to load domain/{specialty}.md if it exists. Missing files silently
+    disable L2 and emit a log line — see "L2 disabled" in composer logs.
     """
-    # ── L1-L3: System message ────────────────────────────────────────
+    # ── L0-L3: System message ────────────────────────────────────────
     parts = []
+
+    # Resolve specialty from DB if caller didn't pass one (fix for neurology
+    # regression: callers historically relied on default="neurology" which
+    # contaminated cardio/peds doctors. Now: lookup doctor's actual specialty.)
+    if config.domain and not specialty and doctor_id:
+        specialty = await _resolve_specialty(doctor_id)
+
+    # L0 Style Guard (cross-cutting anti-AI-smell rules)
+    if config.style_guard:
+        guard = get_prompt_sync("common/style_guard", fallback="")
+        if guard:
+            parts.append(guard)
 
     # L1 Identity (always included)
     if config.system:
@@ -86,11 +123,16 @@ async def compose_messages(
         if base:
             parts.append(base)
 
-    # L2 Specialty
+    # L2 Specialty — silent-disable + log when file missing (per round-1 codex review)
     if config.domain:
-        domain = get_prompt_sync(f"domain/{specialty}", fallback="")
-        if domain:
-            parts.append(domain)
+        if not specialty:
+            log(f"[composer] L2 disabled: no specialty passed (intent={config.intent})")
+        else:
+            domain = get_prompt_sync(f"domain/{specialty}", fallback="")
+            if domain:
+                parts.append(domain)
+            else:
+                log(f"[composer] L2 disabled: no domain/{specialty}.md (intent={config.intent})")
 
     # L3 Task
     intent_prompt = get_prompt_sync(f"intent/{config.intent}", fallback="")
@@ -111,6 +153,20 @@ async def compose_messages(
     kb_note = f" kb={len(doctor_knowledge)}chars" if doctor_knowledge else ""
     if doctor_persona:
         kb_note += f" persona={len(doctor_persona)}chars"
+
+    # ── L5 Examples (corpus-clustered, runtime-routed) ──────────────
+    # Per Codex round-2: deterministic top-ranked, primary cluster + at most
+    # one secondary, zero examples on weak match (anchoring risk).
+    examples_block = ""
+    if config.load_examples and config.example_limit > 0 and doctor_message:
+        try:
+            from agent.example_pool import select_examples, format_examples_block
+            exs = select_examples(doctor_message, k=config.example_limit)
+            if exs:
+                examples_block = format_examples_block(exs)
+                log(f"[composer] L5 loaded {len(exs)} examples")
+        except Exception as exc:
+            log(f"[composer] L5 load failed (non-fatal): {exc}", level="warning")
 
     if config.conversation_mode:
         # ── Pattern 2: Conversation ───────────────────────────────
@@ -133,6 +189,12 @@ async def compose_messages(
                 "以下是医生的个人回复风格，请按此风格起草回复。\n"
                 + wrap_untrusted("persona_body", doctor_persona)
                 + "\n</doctor_persona>"
+            )
+        if examples_block:
+            user_parts.append(
+                "<corpus_examples>\n"
+                + wrap_untrusted("examples_body", examples_block)
+                + "\n</corpus_examples>"
             )
         if doctor_knowledge:
             user_parts.append(
@@ -163,6 +225,12 @@ async def compose_messages(
                 + wrap_untrusted("persona_body", doctor_persona)
                 + "\n</doctor_persona>"
             )
+        if examples_block:
+            user_parts.append(
+                "<corpus_examples>\n"
+                + wrap_untrusted("examples_body", examples_block)
+                + "\n</corpus_examples>"
+            )
         if doctor_knowledge:
             user_parts.append(
                 "<doctor_knowledge>\n"
@@ -184,7 +252,10 @@ async def compose_messages(
         log(f"[composer] intent={config.intent} pattern=single system={len(system_msg)}chars user={len(user_msg)}chars{kb_note} history={len(history or [])}turns")
 
     # Track active layers for LLM call logging
-    active = ["L1"]
+    active = []
+    if config.style_guard:
+        active.append("L0")
+    active.append("L1")
     if config.domain:
         active.append("L2")
     active.append("L3")
@@ -192,6 +263,8 @@ async def compose_messages(
         active.append("L4")
     if doctor_persona:
         active.append("L4p")
+    if examples_block:
+        active.append("L5")
     if config.patient_context and patient_context:
         active.append("L6")
     if doctor_message:
@@ -207,7 +280,7 @@ async def compose_for_doctor_interview(
     patient_context: str = "",
     doctor_message: str = "",
     history: Optional[List[Dict[str, str]]] = None,
-    specialty: str = "neurology",
+    specialty: str = "",
     extra_system: str = "",
     template_id: str = "medical_general_v1",  # Accepted for Phase 1 plumbing; currently ignored.
 ) -> List[Dict[str, str]]:
@@ -228,7 +301,7 @@ async def compose_for_review(
     doctor_id: str = "",
     patient_context: str = "",
     doctor_message: str = "",
-    specialty: str = "neurology",
+    specialty: str = "",
     extra_system: str = "",
 ) -> List[Dict[str, str]]:
     """Compose messages for the review/diagnosis pipeline."""
@@ -248,7 +321,7 @@ async def compose_for_patient_interview(
     patient_context: str = "",
     doctor_message: str = "",
     history: Optional[List[Dict[str, str]]] = None,
-    specialty: str = "neurology",
+    specialty: str = "",
     template_id: str = "medical_general_v1",  # Accepted for Phase 1 plumbing; currently ignored.
 ) -> List[Dict[str, str]]:
     """Compose messages for the patient interview flow."""
@@ -266,7 +339,7 @@ async def compose_for_daily_summary(
     *,
     doctor_id: str = "",
     doctor_message: str = "",
-    specialty: str = "neurology",
+    specialty: str = "",
 ) -> List[Dict[str, str]]:
     """Compose messages for the daily summary generation.
 

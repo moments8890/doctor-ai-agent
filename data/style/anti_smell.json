@@ -1,0 +1,354 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-04-25",
+  "corpus": {
+    "meddg_doctor_turns": 5000,
+    "meddialog_doctor_turns": 5000,
+    "source": "/Volumes/ORICO/doctor-ai-agent/train (sampled)"
+  },
+  "thresholds": {
+    "hard_block_max_pct": 0.05,
+    "soft_block_max_pct": 1.0
+  },
+  "summary": {
+    "hard_block_count": 30,
+    "soft_block_count": 8,
+    "allowed_count": 3
+  },
+  "hard_block": [
+    "为了更好地为您提供服务",
+    "为了更好的提供服务",
+    "亲！",
+    "亲，",
+    "以下几方面",
+    "以下几点",
+    "保持心情愉悦",
+    "其次，",
+    "劳逸结合",
+    "如有不适及时就医",
+    "如有不适请及时就医",
+    "如有疑问",
+    "希望对您有帮助",
+    "希望我的回答对您有帮助",
+    "您所描述的",
+    "您描述的症状",
+    "愿您早日康复",
+    "我是您的接诊医生",
+    "最后，",
+    "根据您所描述的情况",
+    "祝您生活愉快",
+    "祝您身体健康",
+    "祝您身体安康",
+    "综上所述",
+    "请咨询专业医生",
+    "请咨询医生",
+    "请按时服药",
+    "请遵医嘱",
+    "随时联系",
+    "首先，"
+  ],
+  "soft_block": [
+    "仅供参考",
+    "多喝水",
+    "根据您的描述",
+    "注意休息",
+    "清淡饮食",
+    "祝您早日康复",
+    "适当运动",
+    "避免熬夜"
+  ],
+  "allowed_in_context": [
+    "建议您",
+    "您好！",
+    "您好，"
+  ],
+  "phrase_details": {
+    "希望对您有帮助": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "希望我的回答对您有帮助": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "综上所述": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "祝您身体健康": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "祝您早日康复": {
+      "meddg_count": 1,
+      "meddg_rate_pct": 0.02,
+      "meddialog_count": 6,
+      "meddialog_rate_pct": 0.12,
+      "verdict": "soft"
+    },
+    "愿您早日康复": {
+      "meddg_count": 2,
+      "meddg_rate_pct": 0.04,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "如有不适请及时就医": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "如有不适及时就医": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "请咨询专业医生": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "请咨询医生": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "请遵医嘱": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "仅供参考": {
+      "meddg_count": 2,
+      "meddg_rate_pct": 0.04,
+      "meddialog_count": 5,
+      "meddialog_rate_pct": 0.1,
+      "verdict": "soft"
+    },
+    "请按时服药": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "为了更好地为您提供服务": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "为了更好的提供服务": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "我是您的接诊医生": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "祝您生活愉快": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "祝您身体安康": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "多喝水": {
+      "meddg_count": 26,
+      "meddg_rate_pct": 0.52,
+      "meddialog_count": 13,
+      "meddialog_rate_pct": 0.26,
+      "verdict": "soft"
+    },
+    "注意休息": {
+      "meddg_count": 14,
+      "meddg_rate_pct": 0.28,
+      "meddialog_count": 13,
+      "meddialog_rate_pct": 0.26,
+      "verdict": "soft"
+    },
+    "清淡饮食": {
+      "meddg_count": 19,
+      "meddg_rate_pct": 0.38,
+      "meddialog_count": 3,
+      "meddialog_rate_pct": 0.06,
+      "verdict": "soft"
+    },
+    "保持心情愉悦": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "劳逸结合": {
+      "meddg_count": 2,
+      "meddg_rate_pct": 0.04,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "避免熬夜": {
+      "meddg_count": 2,
+      "meddg_rate_pct": 0.04,
+      "meddialog_count": 4,
+      "meddialog_rate_pct": 0.08,
+      "verdict": "soft"
+    },
+    "适当运动": {
+      "meddg_count": 6,
+      "meddg_rate_pct": 0.12,
+      "meddialog_count": 3,
+      "meddialog_rate_pct": 0.06,
+      "verdict": "soft"
+    },
+    "您好！": {
+      "meddg_count": 30,
+      "meddg_rate_pct": 0.6,
+      "meddialog_count": 83,
+      "meddialog_rate_pct": 1.66,
+      "verdict": "allowed"
+    },
+    "您好，": {
+      "meddg_count": 184,
+      "meddg_rate_pct": 3.68,
+      "meddialog_count": 121,
+      "meddialog_rate_pct": 2.42,
+      "verdict": "allowed"
+    },
+    "亲，": {
+      "meddg_count": 1,
+      "meddg_rate_pct": 0.02,
+      "meddialog_count": 1,
+      "meddialog_rate_pct": 0.02,
+      "verdict": "hard"
+    },
+    "亲！": {
+      "meddg_count": 1,
+      "meddg_rate_pct": 0.02,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "根据您的描述": {
+      "meddg_count": 2,
+      "meddg_rate_pct": 0.04,
+      "meddialog_count": 4,
+      "meddialog_rate_pct": 0.08,
+      "verdict": "soft"
+    },
+    "根据您所描述的情况": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "您所描述的": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "您描述的症状": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 1,
+      "meddialog_rate_pct": 0.02,
+      "verdict": "hard"
+    },
+    "首先，": {
+      "meddg_count": 1,
+      "meddg_rate_pct": 0.02,
+      "meddialog_count": 2,
+      "meddialog_rate_pct": 0.04,
+      "verdict": "hard"
+    },
+    "其次，": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 2,
+      "meddialog_rate_pct": 0.04,
+      "verdict": "hard"
+    },
+    "最后，": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "以下几点": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "以下几方面": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 1,
+      "meddialog_rate_pct": 0.02,
+      "verdict": "hard"
+    },
+    "建议您": {
+      "meddg_count": 8,
+      "meddg_rate_pct": 0.16,
+      "meddialog_count": 78,
+      "meddialog_rate_pct": 1.56,
+      "verdict": "allowed"
+    },
+    "如有疑问": {
+      "meddg_count": 0,
+      "meddg_rate_pct": 0.0,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    },
+    "随时联系": {
+      "meddg_count": 1,
+      "meddg_rate_pct": 0.02,
+      "meddialog_count": 0,
+      "meddialog_rate_pct": 0.0,
+      "verdict": "hard"
+    }
+  }
+}

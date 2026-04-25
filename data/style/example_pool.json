@@ -1,0 +1,3378 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-04-25",
+  "corpus": {
+    "meddg_pairs": 5000,
+    "meddialog_pairs": 5000
+  },
+  "curation": {
+    "input_total": 10000,
+    "kept": 8343,
+    "kept_pct": 83.43,
+    "reject_reasons": {
+      "too_short": 957,
+      "duplicate": 358,
+      "multi_question": 186,
+      "list_format": 44,
+      "too_long": 36,
+      "dismissive:不知道": 35,
+      "dismissive:不好说": 14,
+      "list_format_inline": 6,
+      "promo:http://": 3,
+      "banned_phrase:首先，": 2,
+      "banned_phrase:愿您早日康复": 2,
+      "banned_phrase:亲，": 2,
+      "promo:联系我": 2,
+      "promo:QQ": 2,
+      "banned_phrase:随时联系": 1,
+      "banned_phrase:亲！": 1,
+      "promo:加我": 1,
+      "banned_phrase:劳逸结合": 1,
+      "banned_phrase:以下几方面": 1,
+      "banned_phrase:您描述的症状": 1,
+      "promo:微信": 1,
+      "banned_phrase:其次，": 1
+    }
+  },
+  "clusters_summary": {
+    "usable_clusters_n>=10": {
+      "nausea_vomit": 50,
+      "diarrhea": 50,
+      "abdominal_pain": 50,
+      "constipation": 50,
+      "pregnancy": 50,
+      "cough": 50,
+      "chest_pain": 50,
+      "headache": 50,
+      "menstrual": 50,
+      "rash": 50,
+      "fever": 50
+    },
+    "sparse_clusters_n<10": {},
+    "unclustered": 6234
+  },
+  "clusters": {
+    "nausea_vomit": [
+      {
+        "patient": "也不恶心。",
+        "doctor": "以前有过胃病吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "先恶心了五六天现在又返酸一共七天左右吧。",
+        "doctor": "吃什么药了没呢？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "不过严重是在三月月经之后，因为吐了很多次。",
+        "doctor": "当时为什么吐呢。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "这两周胃好像一直不太好吃点东西就像饱了，恶心啊一直恶心。打嗝，不难受正常时候也偶尔腹泻的。",
+        "doctor": "以前有没有检查过。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "恶心，但是没吐过。",
+        "doctor": "大便一半一天几次。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生你好，我前几天晚上可能是凉拌的面筋吃多了，胃特别难受，一晚上没怎么睡着，催吐了两次，然后第二天能好点了，最近一直没什么食欲，吃不了多少饭。昨天吃的稍微多点，先是特别涨，后来又难受了一会。请问医生应该吃点什么药呢？（男，24岁）",
+        "doctor": "你好，你多大年龄了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "吃饱饭，胃难受，想吐。（女，24岁）",
+        "doctor": "胃难受是涨还是痛呢？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "晚上吃了两个炸鸡腿开始恶心，刚才吐了出去，还是不舒服（女，19岁）",
+        "doctor": "请问有没有拉肚子呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "之前觉得胸部下的位置，感觉隐隐的疼，有不舒服的感觉，刚呕吐了，今天晚上也就吃了点玉米距现在也就2个多小时的时间，吐掉后舒服点了，请问下医生这是什么问题，需要检查什么？（女，37岁）",
+        "doctor": "有进不干净的食物吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "上腹部阵痛，有时候恶心想吐，有胃酸，腹胀，大便一节一节，每次到饭点就痛，有2年了，今天更严重了（男，24岁）",
+        "doctor": "这个是胃炎的问题了。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "每天都很紧张，天天呕吐（男，15）",
+        "doctor": "您好，这样有多久了，",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "目前症状主要就是想吃，但不敢多吃，怕难受！打嗝，肚子凉，有时会恶心！但都是一会儿，过了那个劲就好了。老感觉肚子里不通，好像有气，还是怎么，也说不清，反正感觉肚子里懵懵的。",
+        "doctor": "奥美拉唑你吃了多久。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "说吃了就不呕吐了。",
+        "doctor": "吃多久了，有效果吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "之前胃疼反胃酸。",
+        "doctor": "经常性还是偶尔性啊？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生您好！我大约从五天前，连续三天在半夜胃不舒服，恶心、吐胃酸。昨天凌晨的时候突然胃痛，放射状的痛，一直持续到早上。然后到晚上吃完饭后开始上吐下泻，今天早上吃完饭立刻就吐了。这是怎么回事？是不是不能再吃东西了？应该怎么办？（女，21岁）",
+        "doctor": "你好，以前有胃病吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "吃完饭后喉咙经常不舒服想吐过一阵子又好了是怎么回事（女，29岁）",
+        "doctor": "你这个情况多久了呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "大便正常没吃啥就是在外面的饭店吃的米饭菜和包子没有恶心的感觉有点胃胀的感觉。",
+        "doctor": "平时胃胀胃痛胃酸吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "随时都是这样，不恶心。",
+        "doctor": "有没有查幽门螺旋杆菌？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃一阵一阵的难受，像有人握着，伴着恶心。昨天是吃了饭难受，今天一直难受。不拉稀（女，28岁）",
+        "doctor": "你好，很荣幸与你互动。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨天中午突然心慌恶心出汗腹泻，从昨天下午到现在肚子一直隐隐的痛，腹泻好点了。晚上吃饭伴有出虚汗症状。请问咋回事？（男，25岁）",
+        "doctor": "只有恶心，没有呕吐吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃隐痛一周，吃了点中成药胃康宁胶囊，本来都觉得好了，昨天又吃了一个红心火龙果一下子又开始隐痛。不打嗝不呕吐，也不拉肚子，饿了痛感强烈一些，能够忍受的住（女，28岁）",
+        "doctor": "你好，很高兴为您解答。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "左腹部疼，反胃，不是妇科的问题，腹部疼2个多月了，胃口难受刚一周，是什么原因呢（女，29岁）",
+        "doctor": "你好，请问大便正常吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "经常晨起想吐，🈶时饭吃进一会就吐光。",
+        "doctor": "有什么诱因？油腻食物。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近一个多星期每天有反胃想吐的感觉，请问这是怎么回事（女，25岁）",
+        "doctor": "有没有腹胀反酸症状，，",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近两天我老婆一直肚子疼吃不下食物而且反胃吐，另外还有腹泻和肚子胀气，请问是什么原因（男，30岁）",
+        "doctor": "以症状考虑急性胃肠炎。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "腹部有不适，恶心也有，不太明显。反酸有。",
+        "doctor": "大便正常吗？什么颜色。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生您好，这是我的问题：经常有恶心的感觉（男，42岁）",
+        "doctor": "你好！这种情况多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近几天，印象中是从7.8（上周有点闹肚子吃了双歧杆菌和奥美拉唑）早饭开始之后，就是每次吃完饭过一阵都会持续感觉肚子胀，像是东西在肚子里没消化似的。然后躺着的时候就感觉从左侧转身到右侧翻身时肚子里的东西就像跟着翻身了。右边躺就往右下垂。还有就是吃完饭后的一段时间感觉有点恶心想吐的感觉，尤其一按肚子附近，感觉明显。（男，21岁）",
+        "doctor": "你好，做过什么检查没？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "近日左下腹部不适乙状结肠疼痛大便不成形一日腹泻3-4次恶心想吐已经持续三四天了有服用过肠炎宁一日没有好转请问怎么办（男，25岁）",
+        "doctor": "您好，请问有没有发烧？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生，您好，我最近胃特别不舒服，吃完饭后常打嗝，肚子咕噜咕噜的，而且反酸，烧心，老感觉想吐唾液，大便也不正常，睡觉时感觉枕头高点舒服，按胸口有疼痛感，请问这严重吗？（男，27岁）",
+        "doctor": "之前有慢性胃炎病史吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "你好，医生，前段时间就是胃特别不舒服，就是特别胀，就是没吃东西和吃完东西以后就会有恶心呕吐的感觉，这两天才好一些。",
+        "doctor": "目前还有什么具体症状？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "七点多吃了晚饭，胃又不舒服，又吐了，吐完就没事了。",
+        "doctor": "你吃点儿清淡一点儿的。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "30岁男，一直吃抗抑郁的药，肚子疼但是一直便秘，呕吐，温度最高37度，请问是什么情况？现在特殊时期也不敢去医院（男，31岁）",
+        "doctor": "请问你这样情况多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃隐痛一周，吃了点中成药胃康宁胶囊，本来都觉得好了，昨天又吃了一个红心火龙果一下子又开始隐痛。不打嗝不呕吐，也不拉肚子，饿了痛感强烈一些，能够忍受的住（女，28岁）",
+        "doctor": "除了疼还有其他症状吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "女，36岁，于昨晚餐后突然出现上腹部疼痛，呈持续性疼痛，阵发性加剧，伴恶心、呕吐，呕吐物为胃内容物，吐后病痛不缓解，查体，体温38℃，呼吸频率20次/分，血压100/60，心肺听诊未发现异常，腹软，上腹部压痛，肠鸣音1―2次/分，初步诊断？需做哪些检查？治疗方案？（女，36岁）",
+        "doctor": "你这个情况去医院了吗。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "不知道什么原因引起的恶心干呕，拉稀，吃什么药能止呕（女，28岁）",
+        "doctor": "这种情况具体多久了呢?",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "起来咽口水就恶心，刷牙干呕。",
+        "doctor": "清宫后复查过hcg吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "右上腹胀，疼，口苦，恶心。",
+        "doctor": "方便拍部位给我看看吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生您好！我现在孕31+4天，突然恶心想吐然后拉肚子，肚子很疼，每次拉肚子都冒一身冷汗，并且肚子疼得厉害，这是怎么回事？会不会影响宝宝，这已经是第三次了，几乎就是每个月都会来这么一次。（女，30岁）",
+        "doctor": "你目前拉肚子几次了呢？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "肠胃炎，早上跑厕所两次，好有点恶心。下午喝啦点药，身上很困，嫌冷，感觉四肢无力，头疼，怕不怕晚上烧起来？（女，22岁）",
+        "doctor": "有可能发烧，吃得什么药？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "请问医生我腹痛，恶心，呕吐，反酸，嗳气这是怎么了（男，14岁）",
+        "doctor": "很可能是胃十二指肠溃疡。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "左下腹剧烈疼痛，伴随盗汗呕吐（男，26岁）",
+        "doctor": "你好，腹痛有多长时间了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "没有呀，中午吃饱饭，过了十多分钟就开始胃不舒服，之后就呕吐。",
+        "doctor": "这种情况考虑急性胃肠炎。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "烧退了今天早上闹肚子了没有呕吐也没别的就是肚子痛拉肚子拉了两次现在喝了妈咪爱好点了。",
+        "doctor": "还有感冒也会引起拉肚子。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "肚子疼不腹泻不呕吐腹部四周（女，22岁）",
+        "doctor": "您好，这种情况有多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨天晚上来月经了就感觉胃一直不舒服，有时候还想吐，这什么情况啊（女，20岁）",
+        "doctor": "昨天有无吃什么不合适的？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "一直有呕吐的感觉，昨晚吃了饭到现在吃什么吐什么。喝水都吐，还有胸闷的感觉（女，25岁）",
+        "doctor": "你好，以前有这种情况吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃不舒服，不吃饭时难受，吃饭了也难受，有时候疼。恶心，胀（女，32岁）",
+        "doctor": "您好，这种症状有多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生，如果我犯恶心想吐，怎么缓解？",
+        "doctor": "可以口服胃复安或吗丁啉。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "69岁，胆囊结石，总胆管结石，在医院做了ercp，鼻插管，由于白蛋白低，无法取石。目前每天输液，但一直浑身不舒服，上腹部不适，经常恶心，呕吐，吐黄水，苦水，乏力，精神非常萎靡。该如何办才好？（女，69岁）",
+        "doctor": "你好很高兴为你回答问题。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      }
+    ],
+    "diarrhea": [
+      {
+        "patient": "大便两次都是拉稀。",
+        "doctor": "恶心呕吐厉害吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "这个没注意反正是发黑的还有刚才腹泻的时候杏黄色的。",
+        "doctor": "大便一天几次啊。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "吃了药，不拉肚子了。",
+        "doctor": "平时大小便如何？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "疼是一阵一阵的疼，昨天有拉肚子的症状。",
+        "doctor": "今天疼能好点么？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "还拉肚子。",
+        "doctor": "一天几次大便呢。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "三十那天发烧了，第二天开始就拉肚子。",
+        "doctor": "拉肚子吃药了吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "就是感觉吹的风容易拉肚子。",
+        "doctor": "吃菌群调节剂了？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "拉肚子不是正常的大便。",
+        "doctor": "有没有腹胀腹痛？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "没有腹泻，只是吐。",
+        "doctor": "嗯嗯精神还好不好？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "这两周胃好像一直不太好吃点东西就像饱了，恶心啊一直恶心。打嗝，不难受正常时候也偶尔腹泻的。",
+        "doctor": "以前有没有检查过。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "疼痛部位没改变，有一点腹泻。",
+        "doctor": "吃了什么不合适的？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "现在胃里不要紧了，就是吃不好就拉肚子。",
+        "doctor": "这个最好做下肠镜。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "初九时拉肚子，之后有了好转，然而不久，每天早上，中午，晚上，深夜都想拉肚子，而且拉的有点稀，还会放很多屁。有时候拉肚子前由于不方便上厕所，还会出现肚子疼的情况。十分苦恼，我自己猜测是春节时冷饮喝多了，但没想到现在都快一个月了还没好。是不是肠胃炎，该吃什么药好（男，19岁）",
+        "doctor": "这种情况有多久了啊？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "喝了一杯水，发现底下有点灰，最近有点拉肚子（女，18岁）",
+        "doctor": "还有其他的不舒服吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "早晨吃完饭以后半个小时拉肚子一次，肚子咕噜咕噜响，轻微腹疼，下午偶尔大便。",
+        "doctor": "排便后腹痛能缓解吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "孕早期胃疼难受拉肚子？（女，35岁）",
+        "doctor": "你好，大便一天几次？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "腹部按压有轻微的胀痛感，偶尔便后擦拭有血迹，一着急或则受凉容易拉肚子，请问这是什么情况（男，31岁）",
+        "doctor": "肚脐上面还是哪里疼。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "就是有时候肚子不舒服老是拉肚子。",
+        "doctor": "查一下幽门螺旋杆菌。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "吃的稍微凉点就拉肚子，特别敏感，喝常温水都有点拉，必须比常温偏热点的才可以，水果常温的都不敢吃（女，26岁）",
+        "doctor": "你好这种情况多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "左上腹疼痛拉稀！！！！（男，28岁）",
+        "doctor": "一直痛还是一阵阵痛。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨天有些腹泻，没吃药，自行好转。",
+        "doctor": "没吃不干净的东西吧。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "后来一直吐，倒是没拉肚子，然后当时觉得冷，一开始的时候浑身麻，头也麻，后来不那么麻了。头晕，眼睁不开。",
+        "doctor": "头晕有眩晕的情况吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "姨妈不来肚子疼拉肚子怎么回事（女，16岁）",
+        "doctor": "肚子痛拉肚子几天了？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨天晚上好像吃坏东西了！拉肚子不停！到现在都有血了！还是不停！咋办？（男，17岁）",
+        "doctor": "你好，很高兴帮助你。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "左上腹疼痛拉稀！！！！（男，28岁）",
+        "doctor": "你好。这情况多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "我老公30岁，拉肚子大半年了，吃了好多药都不好，平时一天拉一两次，吃点凉的水果，饮料，就一天拉两三次，也不是很严重，平常肚子也不疼，就是拉的时候才疼，拉完也没事了，但每次都拉的很稀，从来没拉过条状的，都是拉肚子那种，怎么办（女，29岁）",
+        "doctor": "大便上面有没有粘液？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "以前没有过拉肚子三天了疼就今天晚上开始。",
+        "doctor": "有没有进食不洁饮食？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "肠炎，从前天晚上开始，肚子胀气有响声，老爱放屁，还拉肚子，请问该怎么治疗？谢谢。（女，29岁）",
+        "doctor": "三天左右应该会好转。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "积食，发高烧。以前有点拉肚子后来吃了诺氟沙星后就不怎么拉了。现在是肚子痛，还有点烧。（女，30岁）",
+        "doctor": "你好，拉肚子多久了，",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃一阵一阵的难受，像有人握着，伴着恶心。昨天是吃了饭难受，今天一直难受。不拉稀（女，28岁）",
+        "doctor": "你好，很荣幸与你互动。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨天中午突然心慌恶心出汗腹泻，从昨天下午到现在肚子一直隐隐的痛，腹泻好点了。晚上吃饭伴有出虚汗症状。请问咋回事？（男，25岁）",
+        "doctor": "只有恶心，没有呕吐吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃隐痛一周，吃了点中成药胃康宁胶囊，本来都觉得好了，昨天又吃了一个红心火龙果一下子又开始隐痛。不打嗝不呕吐，也不拉肚子，饿了痛感强烈一些，能够忍受的住（女，28岁）",
+        "doctor": "你好，很高兴为您解答。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "胸下一点正中央有点隐痛，并拉肚子是什么回事？（男，29岁）",
+        "doctor": "你好，很高兴为你服务！",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "吃了辣吃多了导致拉肚子（男，19岁）",
+        "doctor": "您好，这种情况多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近两天我老婆一直肚子疼吃不下食物而且反胃吐，另外还有腹泻和肚子胀气，请问是什么原因（男，30岁）",
+        "doctor": "以症状考虑急性胃肠炎。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "我朋友都吃了没拉肚子就我拉以前我就有点肠胃不好。",
+        "doctor": "稀水便么？排了几次了。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "拉肚子，水状，肚子咕噜咕噜响，两天了（男，27岁）",
+        "doctor": "你好，大便一天几次呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "吃了三肾丸拉肚子是怎么回事（男，28岁）",
+        "doctor": "你好！很高兴为你解答！",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "姨妈不来肚子疼拉肚子怎么回事（女，16岁）",
+        "doctor": "您好，月经推迟几天了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "近日左下腹部不适乙状结肠疼痛大便不成形一日腹泻3-4次恶心想吐已经持续三四天了有服用过肠炎宁一日没有好转请问怎么办（男，25岁）",
+        "doctor": "您好，请问有没有发烧？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "拉稀。",
+        "doctor": "多少度，现在不烧了吧？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "拉肚子，胃痛，吃一点就拉，没食欲，是不是急性肠胃验（男，27岁）",
+        "doctor": "你好，这种情况几天了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "拉稀。",
+        "doctor": "水样的还是蛋花样大便？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃镜，肠镜，做后，肚子疼，拉肚子（女，38岁）",
+        "doctor": "你好！具体是哪个部位？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "有过拉肚子和肚子疼的情况不过是在肚脐眼的位置。",
+        "doctor": "目前大便正常不正常呢？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "没有拉肚子。",
+        "doctor": "吐了后腹痛缓解些没有？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃隐痛一周，吃了点中成药胃康宁胶囊，本来都觉得好了，昨天又吃了一个红心火龙果一下子又开始隐痛。不打嗝不呕吐，也不拉肚子，饿了痛感强烈一些，能够忍受的住（女，28岁）",
+        "doctor": "除了疼还有其他症状吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "不知道什么原因引起的恶心干呕，拉稀，吃什么药能止呕（女，28岁）",
+        "doctor": "这种情况具体多久了呢?",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "腹泻近三个月，每天两次左右。吃了黄连素，整肠生。还有管肠胃紊乱的药，还吃过香连素。一直没效果，每天都是这样，大便不成型。做过两次便常规都无异常。还做了大生化。（男，22岁）",
+        "doctor": "你好，有没有肚子疼呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近一吃东西就拉肚子，一天要大便3次，大便呈稀水状，有黏液，腹痛严重，求医生解答（男，19岁）",
+        "doctor": "你好，很荣幸为您服务。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      }
+    ],
+    "abdominal_pain": [
+      {
+        "patient": "那我夜里肚脐周围疼大便也不成型是什么原因?应该怎么办?另我脾有寒医生开了中药的，但是肚脐周围疼真的是折磨人！",
+        "doctor": "你有做过肠镜吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃部不适是从前天晚上开始的，到今天有两天多了。",
+        "doctor": "之前做过胃镜吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "不会像之前那样会想吃点什么。胃现在就是有时候会难受，觉得消化不那么快也不知道是不是运动少，但也不是痛。也没有吐，就只觉得胃有东西顶喉咙感觉。嗝气就舒服了。所以这几天我的心情也很差很差，也不知道是不是受情绪影响，我是一看到吃的就潜意识告诉自己我胃不舒服没胃口吃不下的。",
+        "doctor": "最近饮食不好么。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "腹痛的感觉是那种钻着的痛。",
+        "doctor": "就只是今天是吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "有腹痛。",
+        "doctor": "平时有没有胃炎？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "左下腹部好像严重点，关键是涨的不行。",
+        "doctor": "末次月经是好久。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨天早上胃疼。",
+        "doctor": "之前有没有胃病？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "就胃疼嗳气。",
+        "doctor": "说一下具体症状。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "有的，胃胀胃痛都有。",
+        "doctor": "哦，多长时间了？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "没有拉前肚子痛拉好就好了。",
+        "doctor": "最好化验一下大便。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "一直就是肚脐周围和上方疼。",
+        "doctor": "做没有做过胃肠镜？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "腹痛有点，但厕所上不出来。",
+        "doctor": "现在还有没有发热。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "肛门上面！然后偶尔左下腹和右下腹！",
+        "doctor": "有没有恶心，呕吐。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "恩就是现在在厕所蹲了30分钟了还肚子不舒服。",
+        "doctor": "是不是吃的不干净？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "上腹部按着有点疼。",
+        "doctor": "根据描述考虑胃炎。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "也治肚子疼吗。",
+        "doctor": "嗯。祝你早日康复。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "偶尔肚子疼。",
+        "doctor": "昨天吃了什么东西？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "而且是上腹部。拍打腹部一点感觉都没有。",
+        "doctor": "上腹部是胃的位置。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "我小腹痛是一阵一阵的。",
+        "doctor": "大便什么时候解的？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "但是晚上腹胀比较明显，尤其吃了零食以后。",
+        "doctor": "嗯嗯原先胃怎么样。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "拉了一次。一个小时前。就肚子疼。没有。",
+        "doctor": "疼的剧烈？持续痛？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "肚子疼有没有黏液没有太留意。",
+        "doctor": "建议查个大便看看。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "初九时拉肚子，之后有了好转，然而不久，每天早上，中午，晚上，深夜都想拉肚子，而且拉的有点稀，还会放很多屁。有时候拉肚子前由于不方便上厕所，还会出现肚子疼的情况。十分苦恼，我自己猜测是春节时冷饮喝多了，但没想到现在都快一个月了还没好。是不是肠胃炎，该吃什么药好（男，19岁）",
+        "doctor": "这种情况有多久了啊？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近肚子不舒服没有吃啥辛辣的东西呀。",
+        "doctor": "最近有没有受凉感冒？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "就是肚子疼，好像是上腹部两边都疼。",
+        "doctor": "你的检查现在有乙肝。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "今天早上拉的正常大便，下午拉的混合褐色血便，之前没吃猪肝、桑甚等东西，没有异常症状，无腹痛，两年前也拉过同样的血便，但比现在严重多了大出血，曾住院治疗，做了cT、B超、胃镜、肠镜，血小板等检查都没有问题，只查出了有内、外混合痔，当时医生说没必要动手木，请问我这次拉血便是怎么一回事？（女，46岁）",
+        "doctor": "肉眼看的不一定准的。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近是没有食欲，肚子胀，今天第三次出现。前面两次是吃太辣了，吃坏了。然后最近这一次是吃香辣虾吃太多，然后又饮食不规律。下午三四点才吃饭。肚子不舒服，出现暖气，打嗝，偶尔干呕感觉。早上起床嘴巴酸，有便意，但是拉不出来。放屁臭。肚脐附近一阵阵的大概一秒左右灼热感。【前几天一阵阵痛，就痛了一天，后来我按时吃饭了就好了。这几天就是拉不出屎，两天了。】早上起来空腹时候不舒服，吃饱饭就正常，但是屁多。",
+        "doctor": "是医生给你开的药吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "孕早期胃疼难受拉肚子？（女，35岁）",
+        "doctor": "你好，大便一天几次？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃胀胃痛，做胃镜是胃窦炎该如何冶疗？（男，42岁）",
+        "doctor": "有烧心，反酸症状吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃痛。",
+        "doctor": "大便怎么样？口苦吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "吐完了感觉肚子疼，吃东西然后有不舒服又吐。",
+        "doctor": "还有体温有没有问题？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "从昨天下午开始他就没有肚子不舒服的症状了，食欲也很好，只是我没敢让他多吃，只吃粥和馒头。",
+        "doctor": "对，吃东西还注意点。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "吃饱饭，胃难受，想吐。（女，24岁）",
+        "doctor": "胃难受是涨还是痛呢？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "感觉不像是胃病，虽然本人胃不是太好，没有口苦胃疼等反应，每天七点左右起床。",
+        "doctor": "有没有查过肝胆超声？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "就是有时候肚子不舒服老是拉肚子。",
+        "doctor": "查一下幽门螺旋杆菌。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近几天胃不舒服但是没这么难受，，今晚上吃完饭吃了点苹果就这样了。",
+        "doctor": "平时有胃肠道疾病吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "上腹部阵痛，有时候恶心想吐，有胃酸，腹胀，大便一节一节，每次到饭点就痛，有2年了，今天更严重了（男，24岁）",
+        "doctor": "这个是胃炎的问题了。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "生气位置没注意，就感觉胃不舒服，睡眠不好，带小孩的。",
+        "doctor": "平时容易生气发火吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "左上腹疼痛拉稀！！！！（男，28岁）",
+        "doctor": "一直痛还是一阵阵痛。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "左下腹部。",
+        "doctor": "嗯，大便呢？正常吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "去年夏天发现的胃部不适，不能吃冷的。",
+        "doctor": "嗯，有没有治疗过呢。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近肚子不舒服没有吃啥辛辣的东西呀。",
+        "doctor": "有没有尿频尿急尿痛。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "肚子痛。",
+        "doctor": "是肚脐以下的位置吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "之前胃疼反胃酸。",
+        "doctor": "经常性还是偶尔性啊？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "姨妈不来肚子疼拉肚子怎么回事（女，16岁）",
+        "doctor": "肚子痛拉肚子几天了？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生您好！我大约从五天前，连续三天在半夜胃不舒服，恶心、吐胃酸。昨天凌晨的时候突然胃痛，放射状的痛，一直持续到早上。然后到晚上吃完饭后开始上吐下泻，今天早上吃完饭立刻就吐了。这是怎么回事？是不是不能再吃东西了？应该怎么办？（女，21岁）",
+        "doctor": "你好，以前有胃病吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "左上腹疼痛拉稀！！！！（男，28岁）",
+        "doctor": "你好。这情况多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "今天下午开始胃疼晚上吃饭的时候吃一半胃还有胃右下方开始疼痛使劲呼吸就疼这样怎么了（女，19岁）",
+        "doctor": "有没有反酸水、烧心？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "上腹部一到晚上就胀，闷，像吃多了撑的，可是我还没吃晚饭。症状大概有三四天了。白天没事。（女，24岁）",
+        "doctor": "你好，平常放屁多吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "我之前有过胃溃疡的。前天晚上吃了酸菜鱼后感觉肠胃，肚子不舒服，这是昨天开始的。今天吃过安胃疡胶囊也没有效果。",
+        "doctor": "您胃溃疡多长时间了？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      }
+    ],
+    "constipation": [
+      {
+        "patient": "运动不多，没有便秘。",
+        "doctor": "豆制品吃的多吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "大便有点干，有一些便秘，晚上放屁多。",
+        "doctor": "疼了吃饭能缓解吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "啊如果便秘不严重的话呢也要吗。",
+        "doctor": "平时多久排便一次？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃胀一个月了吧，便秘时间比较长了。",
+        "doctor": "那您几天解一次大便。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近是没有食欲，肚子胀，今天第三次出现。前面两次是吃太辣了，吃坏了。然后最近这一次是吃香辣虾吃太多，然后又饮食不规律。下午三四点才吃饭。肚子不舒服，出现暖气，打嗝，偶尔干呕感觉。早上起床嘴巴酸，有便意，但是拉不出来。放屁臭。肚脐附近一阵阵的大概一秒左右灼热感。【前几天一阵阵痛，就痛了一天，后来我按时吃饭了就好了。这几天就是拉不出屎，两天了。】早上起来空腹时候不舒服，吃饱饭就正常，但是屁多。",
+        "doctor": "是医生给你开的药吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "张医生您好，鉴于我的病情，胃寒，便秘并于腹胀（有过肛裂），您可以给我个好的建议吗？麻烦您在百忙之中抽点时间为我解忧。",
+        "doctor": "大便几天一次，干吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "这几天每天便秘！拉得比较干燥！（女，26岁）",
+        "doctor": "您好，平时喝水多吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "大前天一天拉两回肚子，吃错了东西应该是，但是这两天又便秘，不知为何（女，20岁）",
+        "doctor": "到药店买乳酸菌素片。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "便秘喝泻叶有效果吗，喝了差不多一两个小时了，还是没什么感觉，怎么办（女，17岁）",
+        "doctor": "您好，便秘有多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "大前天一天拉两回肚子，吃错了东西应该是，但是这两天又便秘，不知为何（女，20岁）",
+        "doctor": "考虑您是吃坏肚子了。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "肚子有胀气，好几天不解大手，解大手的时候总感觉没结完，还不是便秘（女，49岁）",
+        "doctor": "你好，这种情况多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "便秘吃什么才能好，求助（男，22岁）",
+        "doctor": "你好，很高兴为你解答。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近便秘的厉害，而且大便也不干，怎么回事，吃什么可以管点用（男，22岁）",
+        "doctor": "你好，大便几天一次呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生我这是不是便秘了。我感觉每天就早上有一点大便，而且就在肛门哪里的之后就没了。只要早上大便一次今天怎么也啦不出大便。什么情况。而且我没当空腹的时候鼓动肚子胃就会发出声音。",
+        "doctor": "大便是怎样的？干燥吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "这两天有点便秘（颗粒），没有做检查。",
+        "doctor": "有没有做过胃镜的检查？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "便秘有点严重一个礼拜的应该吃什么药还是要注意些什么那（女，26岁）",
+        "doctor": "应急可以用开塞露肛注。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "30岁男，一直吃抗抑郁的药，肚子疼但是一直便秘，呕吐，温度最高37度，请问是什么情况？现在特殊时期也不敢去医院（男，31岁）",
+        "doctor": "请问你这样情况多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "以前便秘，前段时间吃了益生菌加穴位按摩不便秘了，就是结大便前肚子疼。",
+        "doctor": "肚脐上还是肚脐下疼痛。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "老是想大便，又上不出来，这是便秘吗，（女，24岁）",
+        "doctor": "请问，大便稀还是干燥？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "便秘有半年了想咨询一下相关问题（女，18岁）",
+        "doctor": "您好，您想咨询什么问题？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生您好，我存在以下情况，想请您帮我分析一下：第一个问题：有脱发问题吗？(有一点点)第二个问题：最近是否感觉皮肤变差了很多？(一点点)第三个问题：你最近感觉压力大吗？(有！压力可大了)第四个问题：有便秘的问题吗？(经常便秘)最后一个问题：呃……内个……最近有遇到痛经或月经不调吗？(从不呀)*本问题由春雨智能机器人根据与用户的对话自动创建（女，36岁）",
+        "doctor": "你好，你想咨询什么问题。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "近半个月大便不成型，还便秘，这是什么情况？（女，20岁）",
+        "doctor": "你好，还有其他不舒服吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "哦我吃了一盒不吃是便秘有什么办法能治愈呢。",
+        "doctor": "你好，便秘有多长时间了？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "你好，38个月男孩，刚才睡觉翻来覆去，后来说肚子疼，疼得挺难受，拉不出来屎，就是疼，得疼二十分钟（男，3岁）",
+        "doctor": "你好，多长时间没有大便？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "我上小学经常吃汤泡饭，当时就开始便秘，不过现在每天也会排便，只是量不多，而且涨气。",
+        "doctor": "反酸、烧心这些症状有么？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "今天最好就去了一趟但是想拉不出来的感觉肚子疼搞得胃也疼浑身酸痛。",
+        "doctor": "这种情况建议立即去医院。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "有点便秘最近好多了。",
+        "doctor": "这种情况与饮食有关系吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "便秘十日左右，两天排便一次，无排便那天小腹最下面胀痛，今日排便后也感胀痛，请问是什么病症？（女，34岁）",
+        "doctor": "你好(^_^)，，，，，，",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "肚子很痛，一直放屁但是什么都拉不出来……肠胃一直都不好，很容易拉肚子，但是这种情况很少，以前都是痛了去厕所就好了（女，16岁）",
+        "doctor": "你好！这种情况多长时间了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "有时候有有些便秘。",
+        "doctor": "是便后出血吗？有出血多吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "请问医生便秘应该怎么治疗？（男，37岁）",
+        "doctor": "你好请问便秘有多长时间了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "50岁的老人糖尿病，经常便秘怎么办？（女，32岁）",
+        "doctor": "可以吃点调节肠道菌群的药。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "便秘半月了，从药店买了便必通、四消丸、也吃了香蕉，稍有改善，肚子多有咕噜声，大便不干，两天基本没拉了，有便意时挤出一点点，觉得大便不是酣畅淋漓，这两天用劲便时疑似有血迹，不痛，春节结束了，该怎么治疗?（男，48岁）",
+        "doctor": "你好，你这个情况有多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "正常啊，不吃辛辣的、油腻的，但就是嘴里酸，喝了五维他口服液，嘴酸好些了，但又便秘了，这是为什么？",
+        "doctor": "平时多运动运动按摩按摩肚子。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "连着几天便秘，给自己用白醋做了灌肠，现在肚子很不舒服，总是拉出像粘液一样的液体，会不会有什么问题？？（女，27岁）",
+        "doctor": "您好请问您这种情况有多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "我想咨询下，本人有便秘的毛病，请问应该怎么调理，吃什么药效果好？谢谢了（女，42）",
+        "doctor": "平时大便几天一次？是很干嘛？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "有时候有有些便秘。",
+        "doctor": "有吃辛辣油炸油腻生冷食物吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "不便秘。",
+        "doctor": "嗯，那没事。你吃这些药可以。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "有一段时间了。但是总是一阵一阵的。像是什么硬物在滑动。吃东西的时候最明显。有点缺水。刚喝过就渴了。有反酸。一天一次排便。没有便秘但是感觉东西挺多的。",
+        "doctor": "您这个情况与月经期有关系吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "长期拉肚子不拉肚子就便秘而且很长时间下腹都叫咕噜叫去医院验了血医生说没啥大问题回家吃了药打了消炎针也忌口了但是还是效果不明显我不经常运动（男，23岁）",
+        "doctor": "你好，请问你吃的什么药了吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "周一感觉便秘，昨晚和今天都是大便带鲜血，原来每天一次大便，今天两次了，肛门不疼，肚子有点胀气（女，50岁）",
+        "doctor": "大便带鲜血还是要考虑为痔疮。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "不好意思刚下班，我想问一下便秘，直肠还跑出来了是怎么回事。。",
+        "doctor": "是肛门摸到有小肉肉突出来吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "但我现在便秘出血，而且现在又尿频尿急。",
+        "doctor": "可以查一下泌尿系彩超和尿常规。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "有时候便秘。",
+        "doctor": "咕咕叫的时候也没有拉肚放屁吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "因为十二指肠溃疡，服用奥美拉唑，造成便秘，怎样输便（男，49岁）",
+        "doctor": "便秘考虑与你的生活习惯有关系。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "就是上火导致的便秘是吗？",
+        "doctor": "还有胃肠蠕动缓慢，出现腹胀便秘。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "吃不下饭，便秘。",
+        "doctor": "常见于消化不良哦。也可见于胃炎。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "长期便秘，前后大便时间相隔两三天或三四天（女，46岁）",
+        "doctor": "请问老人家这种情况有多长时间了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近晚上躺下就觉得肚脐周围很胀，不痛，只是发胀，而且周围感觉硬硬的。偶尔还会有咕噜咕噜的声音，偶尔打嗝，但是不会放屁也不想大便。胀的部位在肚脐下面两指左右，以及肚脐上方和左边，吃正露丸或者藿香正气丸都没有用。平时坐着没有明显的感觉，只有躺下时感觉胀气，觉得好像有人在按我的肚脐一样。刚刚摸到肚脐旁边有硬硬的东西，不知道是什么，但我平时不便秘，而且大便通畅，最近大便有一些偏浅色，看起来比以前稀一些，但也不是拉肚子。想请问这是什么情况呢？谢谢！（女，22岁）",
+        "doctor": "你好，这种情况多长时间了？在吗。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "长期拉肚子不拉肚子就便秘而且很长时间下腹都叫咕噜叫去医院验了血医生说没啥大问题回家吃了药打了消炎针也忌口了但是还是效果不明显我不经常运动（男，23岁）",
+        "doctor": "你好根据你的描述分析多长时间了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      }
+    ],
+    "pregnancy": [
+      {
+        "patient": "现在怀孕快六周。",
+        "doctor": "有没有大饮大食？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "肯定不是怀孕。",
+        "doctor": "吃饭觉得恶心想吐吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "会影响怀孕吗？",
+        "doctor": "不会的，新生儿都可以吃。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "没有怀孕。",
+        "doctor": "我的意思是要排除怀孕的可能。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "刚刚查出怀孕感觉这两天一天一次大便都很稀，是怎么回事？要紧？（女，26岁）",
+        "doctor": "您好，有没有吃什么特殊东西吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "目前两个小时过去了，没有出现任何反应。如果中毒，多久后会出现症状？孕妇的胎儿会受影响吗。",
+        "doctor": "你好，一般30-1小时会出现症状。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "孕妇便秘，有什么解决的办法啊，肚子痛，又拉不出（女，35岁）",
+        "doctor": "你好，请问这种情况多久了？大便干燥厉害吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "我没看说明接个视频，喝了，两瓶半，没怀孕。",
+        "doctor": "不过你要继续观察有没有腹痛等之类的不舒服。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "大夫您好，我爱人分娩完哺乳3个月，怀孕早期和晚期有胃胀气现象，最近又出现了。坐月子期间吃的不少，但因为产奶大，都能消化，午饭晚饭喝汤。最近又开始胀气了，大多是吃完饭一两个小时。只能喝点陈皮山楂水改善一下。今天晚上吃了两个草莓，昨天饭后吃了苹果，也开始难受。请问哺乳期有什么办法吗？（男，29岁）",
+        "doctor": "你好，哺乳期最好不要受凉，受凉容易引起腹胀。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "孕妇上吐下泄完之后肚子涨而且一喘气肚子直哆嗦怎么回事（女，28岁）",
+        "doctor": "考虑急性肠胃炎后，肠痉挛可能。需要热敷。注意休息。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "像怀孕5个月大，并没有怀孕，右下腹疼。",
+        "doctor": "有没有做过腹部彩超检查？腹痛是一阵一阵的还是一直疼？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "请问医生从早上起床到现在一直反胃是怎么回事？上午吐了两次，不是怀孕（女，29岁）",
+        "doctor": "你好！除了呕吐，还有其他不适情况吗？比如发烧，感冒，拉肚子等。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生你好，我不同时间段的检查。想调理好身体怀孕，平时吃东西会顶气，没有什么胃口，肚子右侧会隐隐疼，人比较瘦，这情况怎么处理，饮食应该怎么做，注意什么。刚刚照完肠镜，这段时间怎么注意，还有照完肠镜后可以立刻吃猴头菇口服液吗（女，31岁）",
+        "doctor": "你好，您目前主要是怎么不舒服？我看看你的资料。现在月经正常吗?",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "目前两个小时过去了，没有出现任何反应。如果中毒，多久后会出现症状？孕妇的胎儿会受影响吗。",
+        "doctor": "你好，是否对胎儿有影响建议你重新提问，你可以咨询一下产科医生，我不是专科不是很清楚。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "怀孕期间输液了！！！十一月分查出乳腺炎，末次月经11月22号。12月8号输的液，也是这天同的房，没采取措施，一直输液到12月24日!24日早上试纸测出怀孕！输的是青霉素，头孢哌酮，清开灵，氨溴索，甲硝唑！！这个孩子可以要吗。",
+        "doctor": "影响不大可以的。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "胎儿左侧侧脑室后角约10mm，我老婆怀孕27周3天去医院做产检B超单子上显示胎儿左侧侧脑室后角约10mm,问医生医生也没说什么，就让下次检查时再看看，我想知道这种情况会影响胎儿发育吗？有没有什么方法可以治疗？今天又到市人民医院做复查B超单子显示左右侧脑室各位9mm3.5mm请问李医师这种情况是否有好转的迹象呢？拜托了李医师。",
+        "doctor": "B超提示有好转。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "怀孕中期痔疮。怀孕5个月了我原来痔疮不是特别严重，自此怀孕中期我的痔疮就是加重的情况，大便后不能回去但还没有便血的情况发生。",
+        "doctor": "能以手推回纳吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "怀孕，10月25日来月经、11月16日在一起后、18日吃避孕药、23日在一起后、25日吃避孕药！30日确定怀孕、请问这个宝宝可以生吗？谢谢！",
+        "doctor": "吃的哪种避孕药。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "缺铁性贫血，我在你那化验孩子缺东西=但是都补了=为什么都有效果=只有补铁下降呢。他妈妈怀孕时血小板降低，钙锌都补上去了 就铁下降了，",
+        "doctor": "你需要给他补铁。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "外阴瘙痒、疼痛、肿胀、溃烂，有过宫颈糜烂病史，但己治愈，现在还些阴道炎症状，目前己怀孕五个月，外阴一直瘙痒、疼痛、肿胀、溃烂。。。",
+        "doctor": "到医院检查一下。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "子宫腺肌症，子宫内膜囊肿，輸卵管一侧堵塞。左下腹疼痛5年，月经加重，结婚4年未孕，想要孩子如何治疗，丈夫精子成活率达标，有前列腺炎曾经治疗情况和效果：吃过中药调理，怎么办。",
+        "doctor": "周四到我门诊看下。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "恶心，想吐。我是这个月2号来的月经，然后这几天老是想吐，请问是不是怀孕了？我有霉菌性阴道炎，能不能怀孕？",
+        "doctor": "用早孕试纸验一下。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "月经多，且不走。我38岁，近两年月经量大，且不走，有时要打止血针，中西药都用过，用上就好，不用就不行，今年做了子宫内膜的诊刮，病理没有问题。激素六项做过，医生说是内分泌的问题，现就是维持。",
+        "doctor": "建议尝试中药调理。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "胎停育已二次，备孕中。我于2012年10月份第一次胎停（一直有卵黄囊、见胎芽不见胎心），黄体酮、hcg保胎治疗，hcg最高1600，80天无痛流产；2013年5月份第二次胎停育（一直有卵黄囊、见胎芽不见胎心），黄体酮、hcg保胎治疗，hcg最高4万，孕酮降低，72天无痛流产.于2013年6月份到产二科就诊，经检测发现β2糖蛋白抗体阳性，付大夫给开的阿司匹林跟泼尼松，一直吃到现在；8月份做了输卵管造影，双侧通畅；去年11月17日在潍坊人民医院做完第四次免疫治疗后，您说可以在家备孕了，到现在一直在家备孕中，到目前没有怀孕。",
+        "doctor": "停药，治疗不孕征。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "不孕不育，您好！我是这样的情况。34岁，08年之前有过两次主动流产。08年9月怀孕，无孕吐，无腹痛一直到六七十天左右忽然开始有轻微的腹痛并伴有褐色分泌物，去医院检查时开始是普通妇检，医生说没事做个BC看看，结果在等待做BC阶段开始大量出血，BC检查说什么也没看到，后紧接着就做清宫手术了，术后第二天就干净没有继续出血。09年6月，确定怀孕后就开始打HCG针保胎，到四五十天的时候有胚芽有胎心，医生建议最好不要打针太久，就停针了，大概也是在七十天左右BC查出停育，有八周左右，后清宫手术，也是术后两天就很干净了。西医检查项目：染色体，各抗体，内分泌都是正常。08年之前吃了大量的中药调理，08年至09年",
+        "doctor": "先考虑试孕后保胎！",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "封闭抗体。结婚14年，前三年一年流一个孩子，后来不孕有9年，2012年8月份在北京做了腹腔镜后两个月，怀孕了，在坏孕一个月零3天，在不知道怀孕的情况打了三天吊水，抗病毒的吊水，还有治疗鼻炎的药，怀孕2个半月胎停未检查抗体原因，在2014年3月24日怀孕，到北京新兴保胎5月检查抗体不合格，打了2次针，还未打3次到7月24日胎停育，想到咱们医院治疗。抗体(CD4+细胞-2)-0.6(CD3-BE)-0.9其他染色体甚么全部检查都合格。孕期黄铜低。",
+        "doctor": "建议主动免疫治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "湿疹，您好！医生，这个皮肤病困扰我有七八年的时间了，以前是一到夏天就会复发，天气转凉就好了，但不知道今年怎么了到现在还没有好，反而越加严重，还起了水泡，奇痒无比！今年5、6、7月都在武汉第一人民医院就诊了，一直反反复复！说是湿疹，药也没少吃，身上都成激素反应体毛都变长了，还是不得好！好痛苦！我一直都不敢怀孕怕吃药带来副作用！帮帮我吧！",
+        "doctor": "这种疾病瘙痒厉害。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "月经一直不走检查血怀孕，B超没有怀孕。上个月来事是11月25.12月2日同房，12月19日来月经，月经一直不干净，这今天腹部腰部有点轻微痛，月经13天了还是有褐色分泌物，血检显示怀孕，是能确定宫外孕吗。",
+        "doctor": "有可能是生化妊娠。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "不育，怀过两次孕，第一次不到两月时不在生长，半年多以后再次怀孕，在不到一个月的时候自然流产，",
+        "doctor": "做个宫腔镜检查看看。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "卵巢囊肿5.2CM。龚医生，11月26日单位体检，检查出有5.2cm的卵巢囊肿，去年差不多是时候检查时没有的，不知道为什么会长得这么快，会不会影响怀孕。目前正在备孕中，是不是和每天吃豆浆和蜂蜜有关系。",
+        "doctor": "观察3个月看看再说。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "各方面都检查过；会是不排卵导致的吗医生。结婚三年了；；一直没怀孕；；看过医生；；后来才知道是我老公的问题；；但我也有一些一直没搞懂的问题；这次回来就想找个好医院好医生给我看看真的很想要个宝宝。",
+        "doctor": "请转发我院不孕症科。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "自然流产一次+胎停一次，自然流产发生在09年7月，怀孕55天胚胎完全排出体外，胎停发生在10年8月，（怀孕60天B超显示一切正常，有胚芽胎心），并且一直黄体酮注射加中药胞胎，怀孕87天出血，B超显示无胎心，孕囊萎缩至60多天大小，后药流+清宫，2次都是在常州市中医院治疗的。烦请张博士有空时帮我看一下，我在清宫后首次月经后到您那边去看门诊，非常感谢。",
+        "doctor": "请带上您的资料门诊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "甲状腺，32岁,女性,今年2月初颈部右侧中下部按压痛,血检甲状腺功能全套正常,甲状腺B超右侧叶内可见片状回声区，范围2.3*1.8cm,医生未配任何药,说好好休息.2月中痛感加剧,连头都痛了,颈部右侧略肿,休息不好,去浙医甲状腺外科,初诊断为亚急性甲状腺炎,配吲哚美辛15粒与优甲乐25粒.吃药疼痛止,但不吃还是痛.2月26浙医专家门诊,复查，做血沉31，甲状腺功能全套，其中第三代甲状腺素0.373,(正常是0.400-4.000),游离三碘甲状腺原氨酸7.37,(正常是3.23-7.22),其它指标正常,说我甲亢,不要吃海带紫菜,原来的药继续吃.说一定要做ECT才能确诊是什么病,考虑到我计划怀",
+        "doctor": "是亚急性甲状腺炎吧？",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "怀孕30天，出现两次白带是肉色的怎么办？10月14日末次月经，11月8日排卵,11月16日有少量流血,17和18日粉色白带，20日吃黄体酮，24日有肉色白带。",
+        "doctor": "建议到正规产科就诊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "请问人流手术后得了盆腔炎何时适合怀孕。人流手术后一星期发现盆腔炎输液治疗六天后无疼痛无不良反应之后服用优思明无不良反应。",
+        "doctor": "最好是来6次月经后！",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "原发性不孕，今年34岁，月经量偏大，时间长，有小血块。B超结果显示子宫内膜增厚（16mm）有多发性子宫内膜息肉可能。吃过中药调理。上个月刚做的造影。",
+        "doctor": "应该考虑做宫腹腔镜。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "不孕，不避孕一年未孕，在当地市妇幼做了相关检查，白带常规显示正常，监测排卵3个月，显示都是右侧排卵，同房后没有怀孕，检查内分泌数据如下：输卵管造影结果：05年曾怀孕没打算要所以做过一次无痛人流不避孕一年未孕，在当地市妇幼做了相关检查，白带常规显示正常，监测排卵3个月，显示都是右侧排卵，同房后没有怀孕，检查内分泌数据如下：促卵泡刺激素：5.19促黄体生成素：8.76催乳素：19.25雌二醇：34.09睾酮：0.274孕酮：0.988输卵管造影结果：经宫颈管插入双腔管，注入造影剂3、5ml后，摄片示：子宫大小、形态正常，腔内未见充缺，腔壁光滑。右侧输卵管显影至峡部，未见造影剂进入盆腔弥散。左侧输卵",
+        "doctor": "你好：建议介入治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "神经功能异常。从三岁开始是腿不舒服，像爬满蚂蚁似的，最近发展到身体各个部位，主要是腹部，孩子几乎难受的在地上打滚。唐山的医生说她的病就是会这样。建议吃b1b12钙片之类并且不建议做仪器检查，说神经是检查不出来的。在孕期曾缺氧并且导致一只眼睛眼睑下垂，大夫也说是因为缺氧引起孩子的神经功能异常。",
+        "doctor": "当时大夫说是什么病。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "患者女，33岁，不孕，2000年生了一个孩子，再也没怀孕过，在当地医院做了碘油照影，两侧输卵管严重堵塞。陆大夫，这是我最近一次的检查报告，请帮我看看有没有治愈的可能！谢谢，很想要个孩子！",
+        "doctor": "单凭造影片，无法判断。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "怀孕三个月，做四维彩超。怀孕三个月了，其他项整正常，头胎是剖腹产，医生让做四维彩超，",
+        "doctor": "我们医院已经预约不上。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "我羊水指数AFI70怀孕38周需要住院，",
+        "doctor": "请到当地医院产科咨询。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "不孕不育。2017年宫外孕手术切除一次输卵管，2019年7月份做了造影手术，结果通畅，最近在家里医院检查了六项激素和彩超，大半年没有怀孕去你们那里要不要重新检查，要做哪些检查，大概什么时候可以治好，什么时候能顺利怀孕。你们医院现在去要预约吗。",
+        "doctor": "不需要，工作日来就行。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "甲亢，如果可以的请短信通知预约号及时间谢谢！管医生    我还T3T4已经正常  还有最上面的一个还没正常  请问我如果下月验出来正常了  用什么方法再治疗最好!我是急着想要小孩的!但是又怕怀孕的时候吃药不好!有什么好的建议吗？ 急急!!因为听别的医生都说要停药半年才可以怀孕! 我甲亢有几年了   09年头已经正常  后面一直吃丙基维持   一直到2010年5月都是正常  吃维持量每天1片  5月头开始没有那种进口丙基了   就改了国产药   2个月 7月头查后  所以指标都不正常了   现在吃塞治已经快3个月了   T3T4养正常了  最上面的也上升点了 (还是不正常)    具体情况就是这",
+        "doctor": "建议 改 服用 丙基。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "胎囊变形，29岁，怀孕47天，做彩超显示没有胚芽，没心管搏动，胚囊3.3x1.2CM但是孕酮，血常规，尿常规，全部正常，要流产吗？第一胎我想尽量保。谢谢您。",
+        "doctor": "可以10天后复查B超。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "子宫腺肌症，想怀孩子，怎么办？2013年10月底流产，孕期2个月。流产前长期痛经，2012年5月份做过子宫B超，未发现腺肌症。2014年3月11日体检，彩超显示子宫肌（腺）瘤。主要症状：心情不好，劳累后感觉子宫位置疼痛。",
+        "doctor": "不要紧的，可继续试孕。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "宫颈上皮内瘤变2级可以不做手术吗？准备怀孕！做彩超无任何异常。做刷片炎细胞严重，其他都无。做阴道镜薄的醋酸上皮，宫颈糜烂，碘阴性区，宫颈肥大。后来做活检就宫颈上皮内瘤2级。我觉的这个结果跨度让人质疑。",
+        "doctor": "一般希望作手术再怀孕。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "怀孕。怀孕前没有做孕优检查。",
+        "doctor": "你好，后期做好产检 。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "孕早期发烧影响胎儿发育么。病情描述：怀孕53天发烧38.4度约一天（从头天晚7点到第二天晚七点），大概有一个小时烧到39度，然后退到37.8度。吃了三九感冒冲剂两次。请问对胎儿发育有影响么？会不会造成畸形，需要做什么检查么？想得到怎样的帮助：孩子还能要么？需要做什么检查么？谢谢吴医生，那羊水穿刺等还需要做么？",
+        "doctor": "那都得孕4个月以后才做。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "怀孕六个月今天检查胎儿左肺下部囊实性团块。囊团块大小1.8/1.6/1.4cm怀孕六个月。",
+        "doctor": "建议到上级医院彩超会诊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "孕期咨询。现怀孕三个半月,前期服用阿司匹林2个月,每日一片.目前状态是:常常处于半感冒状态,多次抽血白细胞均较高;晚上睡觉盗汗,现有服用黄芪颗粒,每日2次,每次2袋;怀孕后，晚上睡觉易手发麻。",
+        "doctor": "阿司匹林妊娠期可以使用。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      }
+    ],
+    "cough": [
+      {
+        "patient": "我总是流鼻涕，头有点痛，有点咳嗽。是不是现在的肺炎呢！",
+        "doctor": "多长时间了？多长时间了？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "不咳嗽有咽炎。",
+        "doctor": "可以口服奥美拉唑、达喜。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "前几天慢性胃炎复发，药停了几天，这几天一直咳嗽，咳得胸口刺痛，有什么关系么事胃炎引起的么，需要就诊么（女，20）",
+        "doctor": "咳嗽有痰吗？痰什么颜色？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "您好，检查完自己就咳嗽，干咳嗽没有痰，特别是出外面冷空气再进屋就咳嗽厉害，出气费劲，45女（女，20岁）",
+        "doctor": "你好，这种情况有多长时间了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "不咳嗽有咽炎。",
+        "doctor": "咽炎可以晨起或刷牙的时候恶心。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "不咳嗽有咽炎。",
+        "doctor": "至于剑突下不适，考虑与胃炎有关。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "这些药对咳嗽有帮助吗？",
+        "doctor": "麻烦空的时候，帮忙点个满意，谢谢。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "没咳嗽。",
+        "doctor": "粘膜损伤，所以问题不大。你胃疼有多久了。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生你好主要我想咨询下我经常咳嗽的问题咳嗽主要是大学的时候受寒了大概十年了期间一直去医院看医生说支气管炎后来看了中医其中有一年胸口贴了一些药物后来几年没咳但是一旦工作辛苦就会继续咳，大概一年前胸口有点微痛，去看医生了医生说我太胖了让我多运动，这一年也经常锻炼，身体感觉好多了但是一辛苦或者天气变化就又咳嗽，胸口好多了.咳的时候有一点痰。我不吸烟，偶尔喝酒。（男，34岁）",
+        "doctor": "你好，很高兴为你解答，平时受凉会咳嗽吗。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "有点咳嗽怕冷。",
+        "doctor": "拖了多长时间了？今天一共吐了几次。吐了多久。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "咳嗽后就想呕吐，恶心。",
+        "doctor": "考虑胃酸分泌过多引起的烧灼感。既往有胃炎病史嘛？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "喉咙异物咳嗽是幽门还是喷门。",
+        "doctor": "有异物感的话，可能跟贲门有关，但咽炎的可能性大。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "低烧不退，胸口不适，可能有食管反流您好大夫，从1月24号晚上开始我发现有点低热、嗳气，胸口中间不舒服，当天最高37.5℃左右，吃了点药控制。然后到今天为止，一般上午36.8℃左右，下午三点钟到晚上十点左右37.0~37.3℃，最高也就37.4℃。加起来七天了。基本无咳嗽流涕，没啥典型感冒症状，喉咙轻度粘稠感，呼吸正常，无明显乏力，37.2℃。今天胸口不适厉害些，用手摸胸口也会有点点感觉，喝几口水会减轻些。诊断方面：1月25日去医院检查了下肺部ct和血常规没看出啥，医生说可能慢性胃炎引起(有胃炎史)。25日开始吃了两天阿奇霉素、莲花清瘟颗粒，27日恶心不想吃东西，把阿奇和莲花清瘟颗粒停了，换吃了",
+        "doctor": "你好！你可能是胃炎及食管炎，低热也可能与其有关。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "吃饭后就咳嗽，喝温水就异物感。",
+        "doctor": "建议您先吃药观察一下这些药对贲门松弛引起的症状也有效果。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "没咳嗽。",
+        "doctor": "一般来说，从嘴巴出来的血，除非有解黑便那种情况。才考虑消化道出血。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "左下腹痛肛门坠胀大便青色，小便有尿不尽感觉，早晨起来喉咙稍有点痛有点气不足咳痰饭后咳痰一会，睡觉后无感觉。1月25号和2月13号CT检查支气管炎，血常规正常。复查一样。平常有肠易激综合征和焦虑症。体温正常（男，39岁）",
+        "doctor": "您好，感谢信任，前来就诊！我将尽心尽力为您做出最准确的病情分析和治疗方案。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "感冒、咳嗽。",
+        "doctor": "参阅药品说明书。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "56岁老人持续低烧，咳嗽，并伴有疼痛。状，最近老是感冒，发高烧，轻微咳嗽，咳嗽时胸腔稍微有些不适。",
+        "doctor": "建议到医院看看。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "肺部有结节，因为咳嗽、心率快、2010年5月发病6月1日住院北京友谊医院至今。",
+        "doctor": "换个医院做气管镜。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "右膝关节滑膜炎，9月12日咳嗽有些发烧，输液头孢第四天也就是9月15日早上走路时突然右腿无力，跛行明显。",
+        "doctor": "可以慢慢走走看看。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "左肺支气管黏膜慢性炎（怀疑是肺癌），患者是我母亲，51岁。大约一个月以前感觉左胸肋下疼痛。（前几年有时候因为生气的时候她说过疼的话，但不经常疼）疼了几天后，发现脖子左侧出现囊肿，去医院检查后，没有查出什么原因，大夫给开了点消炎活血化淤的药，回去服用后感觉消肿好了一些。可是没过几天就又出现憋气的现象，活动大了憋气就加重，一直到现在。主要症状为：脖子左侧有囊肿，左胸肋下疼痛，呼吸困难，咳嗽，有少量痰液，痰中无血。",
+        "doctor": "门诊/住院患者报到。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "咳嗽。孩子8岁，咳嗽断断续续2、3个月，期间吃过枇杷膏，做过雾化，用的令舒。最近，又开始脱鼻涕咳嗽。且身上出皮疹，叫光泽性苔藓。请问咳嗽是否与过敏有关？",
+        "doctor": "有关，需要门诊看看！",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "孩子总是闹毛病。孩子三周五个月，总是感冒，一感冒就咳嗽，没有打过针和点滴都是吃药好的，吃饭一般，体重28斤身高100厘米。",
+        "doctor": "建议先查个免疫功能。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "支原体支气管炎，3岁8个月，4月17日检查支原体抗体弱阳性，冷凝集阴性，被诊断支原体感染，经足够的疗程治疗后好转，后来几个月又感冒和发烧几次，断断续续的咳嗽，直到10月2日又检查支原体抗体弱阳性，冷凝集1：255，拍片诊断为支气管炎，无发烧，医生说是要住院（感冒咳嗽未好时检查的）我想问一下，这是不是支原体复发，感冒时检查是不是影响冷凝集的值，需不需要过一星期再检查后确定是不是要住院，因为现在咳嗽很少，也就是偶尔咳嗽一下。",
+        "doctor": "建议中西医结合治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "流鼻涕，咳嗽，有痰，",
+        "doctor": "不是很了解这2种药。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "肺鳞癌中晚期，患者男，58岁，以前身体健康。此次咳嗽，有白痰，偶尔有血丝。在临沂市人民医院确诊为肺鳞癌中晚期，",
+        "doctor": "化放疗为主综合治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "5个月男宝宝喉咙有痰，5个月男宝宝细菌感冒咳嗽严重注射了青梅素不咳嗽了，但是出气咕噜咕噜的，医生说是喉咙有痰。做雾化治疗，但是都做了三次了没什么效果。该怎么办啊。",
+        "doctor": "多喝水，观察几天看看。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "咳嗽。",
+        "doctor": "找个好中医吃些中药吧。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "感冒后咳嗽，发病4天鼻塞咳嗽，轻微有点痰，不发烧。",
+        "doctor": "需要看医生，别乱用药。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "最近几年鼻子不舒服，堵，鼻涕多。最近头疼，嗓子咳嗽，不舒服，有恶心，难受。",
+        "doctor": "可以先吃中药保守治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "纵膈节细胞神经母细胞瘤。2015年11月底咳嗽不见好转，去医院检查做胸透，发现肺部有阴影，做CT后确定有肿物，其他无症状。",
+        "doctor": "你就在那个医院综合治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "反复上呼吸道感染，在三岁半时开始频繁咳嗽、发烧、鼻塞，每次到当地几个市级医院治疗，每次晚上咳嗽就呕吐，食欲不振。",
+        "doctor": "做B超，看肠系膜淋巴结。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "宝宝四个月，嗓子不舒服。宝宝4个多月，偶尔干咳，一两声，笑大了咳嗽一两声，偶尔干呕。",
+        "doctor": "可以观察一下，不必用药。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "前胸和后背以及两肋疼痛难忍。我妈58岁，腰椎间盘4、5节膨胀变形，脊椎有骨质增生，胆囊有息肉，胃炎，半个月前开始前胸和后背以及两肋疼痛难忍，稍微一动所有的肉都感觉在抽紧的痛，咳嗽打喷嚏的时候也痛，不能用力。去年年底摔了一跤当时也有这种疼痛感，但是去拍了CT没有骨折，只是骨质增生严重，而且脊椎弯曲了，医生开了止痛片，说平时多补钙，但是实在疼痛难忍。肺部CT说有点炎症。",
+        "doctor": "需要再做个胸椎核磁共振。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "5个月宝宝咳嗽。病情描述：我家宝宝5个多月了，这3天晚上老是咳嗽第一天和第二天咳嗽都吐奶昨天晚上没有吐奶了，但是还是咳嗽想今天喂她吃易坦静氨溴特罗口服溶液可以吗？白天精神也很好曾经治疗情况和效果：没有想得到怎样的帮助：请问医生。",
+        "doctor": "有痰咳不出适合氨溴特罗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "女50岁，2010年5月份发烧37-39度干咳。喘经常低烧痰少用激素药。",
+        "doctor": "可以考虑中西医结合治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "心脏病，做的三腔起搏器现在没有电了，请问。没有家庭病史，三腔起搏器患者上不来气儿咳嗽。",
+        "doctor": "还是建议尽快更换起搏器。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "慢性支气管炎。4个月前开始，发现干咳、痰少，后来胸闷，一跑步就气短，咳嗽加重。胸透检查，说是慢性支气管炎。经过吃中药、西药，挂吊瓶，但是一次感冒又加重，上个月在做胸透，说支气管炎加重。吃药快一个月，有好转，就是不完全好。",
+        "doctor": "必要时去上级医院看看啊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "呼吸内科。咳嗽，在本地医院医生建议转院。",
+        "doctor": "胸片等检查结果传上来看看。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "过敏性哮喘。前十天，咳嗽引起喘息。到宁夏附属医院住院3天治疗。现已控制。",
+        "doctor": "你好，用药和血糖没有相关性。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "限制性通气功能障碍；重度阻塞性功能障碍等万托林吸入400微克。稍一活动甚或完全休息时仍感气短，天气凉时会长时间咳，天暖和点又好一些，咳嗽时有痰。",
+        "doctor": "可以考虑吸入舒利迭和思力华。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "肺炎。病情描述：女宝45天问题描述:2014年3月10日，咳嗽鼻塞，不发烧。拍片显示两肺纹理增强。沿肺纹理分布见斑片状模糊影，心影大小，形态正常，双膈面光整。上纵膈见增大胸腺影。请问如何治疗？是否一定要打针治疗？",
+        "doctor": "最好打针，小婴儿病情变化快。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "咳嗽，女儿9个月了，4月份在保定儿童医院确诊肺炎，治疗后一直没好利索，经常咳嗽，嗓子有痰。",
+        "doctor": "最好再查一下血常规和支原体。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "职业病尘肺。咳嗽痰多，上坡呼吸困难。抵抗力下降。容易疲劳。食欲不佳。",
+        "doctor": "来我院评估后才能确定能否洗肺。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "慢性咽炎，鼻炎。我的扁桃体在20岁左右就割了，现在偶尔抽烟，晚睡都会咳嗽。",
+        "doctor": "做鼻内镜及喉镜看看图片才知道。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "咯痰嗓子哑咳嗽。每天早上起床后嗓子哑，会有卡痰的现象，然后咳嗽。",
+        "doctor": "建议到医院耳鼻咽喉科检查就诊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "肺炎支原体.，孩子发病就用了2天阿奇.2天后用了8天红霉素.第6天化验支原体阳性.孩子第3天就不发热了.5天咳嗽明显减轻.现在偶有咳嗽.早晨有少量痰.请问还用输液吗！09年夏在医大二诊断为肺炎支原体.",
+        "doctor": "可以配合中药的内服和外敷治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "咳嗽病，小孩，三周半，上学后经常生病，这次咳嗽还有点喘，咳嗽有了三四天了。袁医生，你好！我再补充一下，宝宝咳嗽好多了，就是还喘，那个平喘贴要贴在什么部分效果更好呢？",
+        "doctor": "按说明书用！蓝芩口服液减半量。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "咳嗽，小孩已经咳嗽一年多了，是干咳，小孩觉得喉咙有痰咳不出有时觉得有一股气往上冲。曾经在上海新华医院看了专家门诊，还有中医医院还有东方医院都看过。",
+        "doctor": "过敏性咳嗽，用中医药治疗调理！",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "咳嗽伴有胸痛，患者女，43岁，咳嗽伴有胸痛差不多三个月了，月经期间检查检查血沉109，血红蛋白93，红细胞压积0.30，平均红细胞体积72.20，平均血红蛋白含量22.40，平均血红蛋白浓度310，红细胞体积分布宽度14.1，血小板计数601，中性粒细胞76.60，淋巴细胞15.90，血小板分布宽度28.3做CT检查为支气管炎。",
+        "doctor": "请把CT片拍照上传 阅后再议。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      }
+    ],
+    "chest_pain": [
+      {
+        "patient": "中午吃午饭时感觉胸痛后刺痛，是什么原因？（男，46岁）",
+        "doctor": "以前有过这种情况吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生都不开药，但是我觉得有点麻烦，胸闷气短，咳咳，",
+        "doctor": "是支气管炎。要吃0．5",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨天中午突然心慌恶心出汗腹泻，从昨天下午到现在肚子一直隐隐的痛，腹泻好点了。晚上吃饭伴有出虚汗症状。请问咋回事？（男，25岁）",
+        "doctor": "只有恶心，没有呕吐吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "这个胃胀气导致的胸闷不用管吗。",
+        "doctor": "观察看看。暂不用管它。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "今天胸痛厉害些，一难受喝水会有改观，不知道是不是反流症状。",
+        "doctor": "是反流性食管炎的症状。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "一直有呕吐的感觉，昨晚吃了饭到现在吃什么吐什么。喝水都吐，还有胸闷的感觉（女，25岁）",
+        "doctor": "你好，以前有这种情况吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "胸前闷，打出饱嗝就好很多。一饿就胃疼，吃饭后半小时缓解。打饱嗝有时会返出酸水到喉咙，有时突然心慌恶心（女，26岁）",
+        "doctor": "你好这种情况有多长时间了?",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "中午吃午饭时感觉胸痛后刺痛，是什么原因？（男，46岁）",
+        "doctor": "咽东西的时候痛还是过后痛？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "半夜肚子疼，没有便意，但是上完厕所却会好些，排空的感觉也容易引起心慌紧张，怎么回事（女，23岁）",
+        "doctor": "你好，这情况多久了？有加重麽。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生你好，自小以来就有胃病，经常感觉有气无力，胸骨中央有点闷闷的感觉，平时没什么胃口这段时间总是心慌，不知道是不是胃病引起的症状（男，27岁）",
+        "doctor": "你好，请问这种情况有多长时间了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "前几天，下午吃了雪糕，喝了茶水，晚餐吃的烤冷面和蒸红薯，现在一阵阵犯恶心想吐，有点拉肚子，胃也一阵阵疼（大姨妈第四天。。）胃一疼就头晕晕的上个月也这样过一次，是急性肠胃炎这两天一直吃的很清淡没吃辣，可是胃还是胀气时疼痛，今天早上吃了一个奥美拉唑，想去爬山，在路上就一阵阵恶心想吐，想吃个面包又犯恶心，然后就胃一疼，头也有点晕，心慌慌的，就一小会儿，现在拉肚子了（女，24岁）",
+        "doctor": "你好，急性胃肠炎还没有完全恢复。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "没什么感觉，应该偶尔有一点点腹胀吧！就是有的时候偶尔有一点心绞痛感觉。",
+        "doctor": "是上腹部胀及疼痛吗？与饮食有关吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "以有十多年胃肠胀气了，近两个多月出现了心烧，心慌还有右边肉皮疼痛。",
+        "doctor": "这些都是胃食管反流的症状，以前做过胃镜吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "女，23岁，最近几天有些消化不良，每天都感觉不到饿，吃完东西好像就卡在喉咙那，胸闷难受，有些想吐。从中秋节那段时间开始的，断断续续好几次了。上厕所之类的正常啊。麻烦了（女，22岁）",
+        "doctor": "有没有吃生冷刺激辛辣油腻食物？月经正常吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "女，23岁，最近几天有些消化不良，每天都感觉不到饿，吃完东西好像就卡在喉咙那，胸闷难受，有些想吐。从中秋节那段时间开始的，断断续续好几次了。上厕所之类的正常啊。麻烦了（女，22岁）",
+        "doctor": "有没有做过检查或者吃过什么药？以前有胃病吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "前几天拉肚子后来又发烧去诊所挂了两天水又给了蒙脱石和多潘立酮现在感觉胃隐隐的痛按下去又没有什么感觉有点胸闷偶尔肚脐眼两边的下方还有点痛请问这是什么情况？该怎么用药？（男，27岁）",
+        "doctor": "你好，这段时间饮食怎么样？有没有吃辛辣寒凉刺激食物多吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "胸口疼，反酸吃了一周的国产奥美拉唑，莫沙必利，铝碳酸镁咀嚼片现在基本好了，还需要在吃吗（男，27岁）",
+        "doctor": "你好，铝碳酸镁咀嚼片不可以常服的，其他可以再服用一周的。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "谭医生您好，是这样的，去年10月末去外地旅游时候突发急症住院，心肌酶谱超标，医生诊断是急性心肌炎（但在生病前几天有做过HIIT高强度体能训练，后期复查也未发现有心肌炎相应症状），出院后一直有乏力胸闷腹部正中间烧灼不适的感觉，后来在今天2月份时候去看过中医，诊断是肠胃问题，但喝药也没有太大作用，症状依旧时好时坏，后来在4月份做了胃镜，显示有浅表性胃炎和胆汁反流，脏器彩超显示胆囊内有小型结石粒，现在的主要症状就是偶尔会胸闷乏力，胸骨中间会有压痛，胃部有烧灼感，且熬夜的话会更加强烈，有在服用奥美拉挫和熊去氧胆酸胶囊，请问你对这些症状的治疗有什么建议吗？（男，24岁）",
+        "doctor": "你好，胆汁反流性胃炎通常跟胆囊问题也有关系！除了这两种药物建议加用莫沙必利和达喜。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "胸口疼。早上起床时胸口疼，又半年多了现在比以前严重点了但不是一直痛，间歇性的，尤其是早上起床时，躺在床上稍微一欠身就觉得正胸口痛，像是干体力活太重太多的那种感觉。起床后持续一段时间后渐渐减轻，但第二天早起时又会发生。正胸口的位置（胸肌和胸肌之间），大概有掌心那么大的一片地方。仔细观察，不红不肿，好像是里面骨头带着肌肉疼，用手轻轻按压也会感觉到疼。请教各位朋友及专家，这是怎么回事？",
+        "doctor": "肋软骨炎的表现。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "左下肢静脉血栓好转，目前胸部下方胀痛。目前有胸闷，气短，呼吸困难，乏力，腹部胀痛症状。",
+        "doctor": "需要排除肺栓塞。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "心肌梗死、冠心病。我爸58岁，前几年得过心肌梗死、心绞痛，因为对有些药过敏，平时没怎么吃药维持，最近呼吸气喘，在医院输液治疗15天，后面病情缓解，出院时医生建议做冠脉造影。目前不知道去哪里做好。高大夫，你好，我爸的心脏彩超没什么大问题，右心房扩大，跑步心电图显示前间壁心肌梗死，这个严重吗？心电图有时有问题，有时没问题，我们现在是做心脏CT还是造影呀？我在外地，所以他的彩超结果这些没办法上传给你。",
+        "doctor": "建议直接做造影。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "胸闷、乏力。胸闷，哽咽，口干口苦、乏力恶心，便血，面部生疮。",
+        "doctor": "你要咨询什么病呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "心肌炎，胸闷.气短.心慌。乏力.一年办左右精神状态差睡眠还行经常腹泻.",
+        "doctor": "建议做个心脏超声。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "心情低落感觉累想发呆。发病时间不明确，时而明显15岁青春期女生，心情差烦躁，个人忧郁性格不是太开朗想得多，感觉各个方面压力大，心累的时候什么都不想做就想发呆在学校经常胸闷喘不过气上课提问脸红有时发抖对学校和公共场所等环境敏感，但学习好害怕发病时耽误学习小时候有过阴影觉得自己和留守儿童一样，父母不是很忙和我居住在同一城市但是很少回家看过我，沟通少把精神寄托在同龄人身上而且不同的是我喜欢同性但非同性恋这点明确但却不喜欢异性甚至反感。",
+        "doctor": "建议看下焦虑有无。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "房颤。今年六月份和十月份分别犯过一次房颤，服用安碘酮一到两天就好了，最近待着还好，稍稍累一点就心慌心忙，请问医生该如何治疗，或者服用些什么药能管用，谢谢。",
+        "doctor": "您吃过稳心颗粒么？",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "甲亢。甲亢，胸闷，性能力下降曾经治疗情况和效果：曾经治疗情况和效果：2010.10在303医院服碘治疗，快好了又反弹，之后一直吃了七个月的咪唑片和利可君维持2012.7在横州人民医院检查T3T4高达三百多，然后服碘，感觉亳无效果，对他们失去信心，这两年自已自行购买咪唑片维持至今，也没去医院检查过，最近发现感觉身体特不正常。",
+        "doctor": "请上传你的B超和甲功。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "慢性支气管炎。4个月前开始，发现干咳、痰少，后来胸闷，一跑步就气短，咳嗽加重。胸透检查，说是慢性支气管炎。经过吃中药、西药，挂吊瓶，但是一次感冒又加重，上个月在做胸透，说支气管炎加重。吃药快一个月，有好转，就是不完全好。",
+        "doctor": "必要时去上级医院看看啊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "全身不适。大夫你好：我在一个多月前，有一次上楼刚进家，突然心慌、头晕。后过了一两秒就一下子清醒了，第二天感觉喉部有异物感，咽不下去，咳不上来。这个症状持续了大概半个月，感觉是慢慢的异物在往下走，直到感觉不到。同时有流汗，晚上要厉害些。舌头上还出现了细细的白绒状物，舌面有红点。这个症状持续到现在，有一个多月了，现在红点颜色变浅了，但早上起来舌面有黄色，刷牙就黄色刷掉了，白毛刷不掉，舌边有齿痕，舌背面正常。不疼。第三天感觉有点头疼，不是很明显。到晚上就感觉好像身体里有什么东西在游荡，游荡到哪里自己都有感觉，很不舒服，特别是晚上躺床上后感觉更甚，这个症状持续了大概两三天。第四天有发烧，没量，一会热，",
+        "doctor": "建议你到医院耳鼻喉科就诊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "先天性心脏病，先天性心脏病;主动脉瓣二叶瓣畸形：主动脉瓣关闭不全（重度）CDFI示：主动脉瓣瓣下返流：左室收缩.舒张功能正常偶尔呼吸比较吃力胸闷：\n。",
+        "doctor": "建议及时行主动脉瓣置换手术。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "阵发性房颤并且伴有频发房性早搏，患者男，67岁，以前患有房性早搏。今年9月出现心慌，胸闷，到医院检查，查出阵发性房颤并且伴有频发房性早搏。谢谢姚大夫！我父亲现在身体很不好，胸闷，心慌，不能劳累，走路走不到300米，不能惊吓，电话铃声汽车喇叭，说话声音大，都有可能不舒服！姚大夫能给开一些药吗？我想过完春节再去贵院做心脏消融~",
+        "doctor": "网络不能开药。请到当地就诊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "心脏，心慌，特别是吃完饭后，很睡前，要是饿着不心慌！",
+        "doctor": "心脏没问题的话，可能是焦虑，",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "咳嗽伴有胸痛，患者女，43岁，咳嗽伴有胸痛差不多三个月了，月经期间检查检查血沉109，血红蛋白93，红细胞压积0.30，平均红细胞体积72.20，平均血红蛋白含量22.40，平均血红蛋白浓度310，红细胞体积分布宽度14.1，血小板计数601，中性粒细胞76.60，淋巴细胞15.90，血小板分布宽度28.3做CT检查为支气管炎。",
+        "doctor": "请把CT片拍照上传 阅后再议。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "神经官能综合症。在车上车速过快的时候就感觉心悸、窒息，但如果我保持放松，转移注意，就会缓解。学业压力大，突然一天夜里开始心悸，现在心悸、胸闷、头晕，会有恐惧感，偶尔失眠，脑海一直有难以克制的想法。以前做过甲状腺手术，之前的全身检查正常，甲状腺功能检查、心电图和造影都正常。",
+        "doctor": "可能属于以焦虑为主的神经官能症。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "心律失常、心脏变大。初诊建议射频消融手术。Holter检查发现24小时室性早搏38617（单发的心搏数）、成对的心搏数156、二联率心搏数27606，彩超检查发现心脏变大，三尖瓣、二尖瓣、肺动脉瓣均有返流。平时感觉心慌，有时气短，睡眠不好，易疲劳，难恢复。不能剧烈运动。",
+        "doctor": "服药不管用可以考虑射频消融手术。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "不明。感觉喉咙有痰咳不出来，胸闷气短呼吸困难，病有一月有余曾经治疗情况和效果：吃了头孢和止咳糖浆不见好。",
+        "doctor": "呼吸科，做胸部CT和肺功能检查。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "C型胸腺瘤，2010年3月份，胸疼胸闷，声音轻度嘶哑，县级医院就诊。",
+        "doctor": "应当化疗。一般是以顺铂为主的化疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "冠心病。之前在亚心医院医生考虑冠心病，建议做冠脉造影没有做，一直服药治疗，最近一周劳累后感觉心慌，胸闷加重。请问医生怎么办。",
+        "doctor": "请把检查的心电图和心脏彩超发过来我看看。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "胸闷，总感觉胸口有东西支气管哮喘。总感觉痰不容易咳出来而且咳出来的痰量很少，所以感觉不爽。",
+        "doctor": "可服用标准桃金娘油肠溶胶囊，排痰效果很好。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "用药量的问题。从2011年3月手术后，吃药每天2片，有出汗、心慌等症状，后改为1.5片，又乏力、体重增加，所以调整为1.75片，每天一次，一年未调整。",
+        "doctor": "可以暂时不变。三个月后复查再决定是否调整。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "扩张性心肌病，患者男54岁发病时胸闷气短咳嗽得病5年。",
+        "doctor": "请把详细资料发来，以便给您有针对性的回复。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "耳朵闭气。患者男，34岁，11年5月发病，刚开始感到胸闷，耳朵闭气，头上毛细血管还有血疹，感到血好像闷在胸口，过了一段时间，这些症状消失，但耳朵一年来一直闭气，左耳严重点，期间出现痔疮，脾胃功能也不行，大便经常不成形。三年了，偶尔耳朵有几天正常，大便也跟着正常几天。这几天肚子还胀。03年左颈受过外伤，当时没有症状，04年喝酒后发过一次病，症状和现在一样，在中大医院检查也没看出什么问题，过了两三个月，吃中药，针灸后来好了，11年颈部被捏了一下，又一次发病，期间去了几次医院，没好，这次3年了，一直到现在。前段时间腹胀，在医院做彩超，还发现了血管瘤，挂了两个疗程的川穹丹参活血，好了一点，这几天又恢复",
+        "doctor": "如果听力测试正常，可能与咽鼓管功能障碍有关。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "非对称性肥厚性非梗阻性心肌病。运动过度以及劳累后就出现胸闷胸痛气短等症状。",
+        "doctor": "目前无手术指证，不管是外科开刀还是内科消融。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "系统性红斑狼疮，先是雷诺氏现象，然后手脚肿胀，关节疼痛，胸口疼痛。",
+        "doctor": "可以进一步诊治，相信应当有进一步好转的可能。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "脾胃和皮肤及气血。头晕恶心，胸闷，肤色暗淡！皮肤局部有又湿疹。",
+        "doctor": "你好！你的症状有多长时间了？饮食，睡眠情况如何呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "做完颈椎脊髓前路手术后胸闷、腹胀等症状。前三个月做的颈椎手术，之后一个月就有肚胀，胸憋，浑身没劲，打嗝，迷迷糊糊。有高血压。有新资料上传。",
+        "doctor": "可能是颈交感神经症状，建议现口服营养神经药物治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "肥胖症。你好大夫我今年23岁身高173体重130kgbmi指数43.5曾经一度达到150kg以上但是经过适当节食体重有所下降但是最近感觉经常容易心慌到医院检查未检查出异常到医院做葡萄糖测试（各种酶法）显示高密度脂蛋白1.09低密度脂蛋白4这两项指标异常，载脂蛋白A和B其他指标虽未超出正常值但也接近于临界值。我想问一下我这种情况是否有必要做减肥手术因为平时食量比较大而且饮食比较不健康不规律。",
+        "doctor": "唯有腹腔镜减重手术能够解决你的问题。请参见我的有关文章。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "左心室站位，时间10-20年，胸闷，四肢发麻，早期手脚肿，心率混乱，",
+        "doctor": "你好，是左心室占位吧，应该手术治疗，费用大约3-4万吧。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "中晚期肺癌，8的月前痰中就偶有血迹。现在全身无力，气喘，咳痰困难或咳黄色痰，胸中中量积水，轻微胸痛，说话声音细微。",
+        "doctor": "吃易瑞沙，靶向治疗，副作用小，效果是目前药物治疗中较好的。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "咽喉感觉有异物，胸闷，总是憋得不行。到现在为止有一年多了。中药，西药都喝过了，没什么效果，该拍的片子也都拍过，都很正常。",
+        "doctor": "你可以看看口腔科，看看咽腔有没有充血，排除咽炎，平时多饮水。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "头昏，心慌气短，视力模糊，脚软，精神萎缩等。帮帮忙我吧，病症状越来越严重，我还需要哪些检查？",
+        "doctor": "太远了，想帮也不好帮，建议到广西中医药大学附属医院就诊看看。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      }
+    ],
+    "headache": [
+      {
+        "patient": "就是头晕晕的，嗓子也难受。",
+        "doctor": "有条件测血糖没有。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "后来一直吐，倒是没拉肚子，然后当时觉得冷，一开始的时候浑身麻，头也麻，后来不那么麻了。头晕，眼睁不开。",
+        "doctor": "头晕有眩晕的情况吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "还会有头晕感，爱深呼。",
+        "doctor": "睡眠饮食作息规律吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "我确诊为慢性胃炎，并且有螺旋菌，我吃了医院拿的药怎么老感到头晕？（男，53岁）",
+        "doctor": "您好，您吃的什么药呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "肠胃炎，早上跑厕所两次，好有点恶心。下午喝啦点药，身上很困，嫌冷，感觉四肢无力，头疼，怕不怕晚上烧起来？（女，22岁）",
+        "doctor": "有可能发烧，吃得什么药？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生您好，大便困难，干，腹部胀气，刺痛，头晕乏力，怎幺情况（男，37岁）",
+        "doctor": "这样不舒服症状有多久了？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "我早餐吃了一粒拜糖平，喝了一盒牛奶，一个鸡蛋，现在头晕晕的。是不是血糖低了呀（女，25岁）",
+        "doctor": "有无出冷汗、心慌等情况。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "后来一直吐，倒是没拉肚子，然后当时觉得冷，一开始的时候浑身麻，头也麻，后来不那么麻了。头晕，眼睁不开。",
+        "doctor": "就是感觉天旋地转的情况。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "我胃口不太好，吃东西肚子不舒服，想吐但是又吐不出来，一热就头疼，请问医生这是怎么回事女17岁（女，17岁）",
+        "doctor": "吃什么东西，肚子不舒服。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "4月份做过一次胃镜检查，显示浅表性胃炎，开了雷贝拉唑和一个钠剂，服用不到一盒感觉胃痛就停止服用了，7月份体检碳十四790，幽门螺杆菌阳性，中间因为过敏和肠胃感冒一直没有对它进行治疗，9月开始服用丽珠维三联，已经服用6天，但最近两天头痛，眼睛痛，入睡困难，有时恶心，大便黑色，想知道还要不要继续服用这个药物，如果需要，还需服用几天。另外，平时爱胃胀，伴有口臭。（女，25岁）",
+        "doctor": "你好，这种情况多长时间了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "今天中午吃完东西突然又拉又吐，有点头晕，无发热。胃里一直响，一响就想拉。是急性肠胃炎吗（女，24岁）",
+        "doctor": "你好，是不是吃了不洁食物？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "腹泻一周，感觉有点胀气，经常打嗝，放屁，还有点厌食。每天傍晚会有头疼发热症状，到第二天早上好了。去医院验血只给我开了蒙脱石散（男，21岁）",
+        "doctor": "你好！请问每天大便几次呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "头晕是这两天比较明显。",
+        "doctor": "在吃这些药物之前大便正常吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "打嗝不频繁，胃胀胃痛还有点，主要是头晕恶心没食欲。",
+        "doctor": "安翰胶囊胃镜。对不起发错了。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "将近一个多月了每天早上起床(睡醒坐在床上不会，下床一会)就会有感觉恶心想吐的感觉，都是干呕两三次，恶心过人就舒服了这几天也经常头晕(就是太阳穴一根筋跳的很快)请问医生这是怎么回事呢？？（女，23岁）",
+        "doctor": "你好，有没有去看过做过检查？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "腹泻两天了，拉黄水一样的。没有头晕及其他不适。是什么原因？（女，42岁）",
+        "doctor": "你好，吃什么不干净食物没有？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "偶尔有点，有时有点头晕，感觉饿得快。",
+        "doctor": "有没有发烧，反酸，呕吐等情况？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生您好，大便困难，干，腹部胀气，刺痛，头晕乏力，怎幺情况（男，37岁）",
+        "doctor": "您好，您伴有恶心呕吐不舒服吗。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "浑身无力，三天前晚上发高烧，头疼，无感冒症状。第二天高烧38.3喝了退烧药好了，昨日症状减轻。今天到了下午四点又开始相同症状重复。体温37.8，排便不畅。（男，29岁）",
+        "doctor": "可能感冒呀，感冒药可连吃两天。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "下午拉肚子，拉了五六次，肚子疼，现在发烧38.3，买的诺氟沙星和胃肠康，需要再吃点退烧药吗？现在感觉冷，肚子疼，腿软头晕（女，30岁）",
+        "doctor": "早注意饮食，先吃稀饭，烂面条。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "病情描述病人85岁，目前的主要症状是胃疼恶心呕吐，胃部极度不适，不能进食，不能喝水，喝水也会恶心想吐。可能是前期一直有消化不良的症状吧，加上吃的药太多太杂，可能胃功能受损。前天吃了，可能是买回来比较时间比较长的冷冻馄饨，傍晚就开始吐。目前症状复杂，主要是胃部不适。从前天晚上开始呕吐，不能喝水，不能进食，而且胃部一直有恶心呕吐的感觉。还伴有胃疼，头疼，身上发冷，还伴有尿路感染。用过一次藿香正气丸，很快吐掉了。期间还用过左氧氟沙星，沙棘干乳剂，今天下午服用了一次奥美拉挫2粒。目前胃部症状无缓解。病人年龄比较大了，合并多种疾病，病人有严重的失眠，有脑鸣耳鸣，尿路感染心脏病，血压稍偏高，血糖不是很正常",
+        "doctor": "你好，请问这种情况有多久了呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨天晚上9点吃了一个坏香肠，然后11：30到凌晨3点多吐了好几次，今天早上起来喝水有些恶心，体温36.9有点头疼肚子一直响（女，23岁）",
+        "doctor": "您好！腹泻没有？目前体温正常。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近一段时间，感觉头疼，食欲不振，而且腹泻，还挺严重的，吃一点就拉稀，刚刚还流鼻血了，这是什么原因造成的呢？（男，25岁）",
+        "doctor": "您好，请问您这种情况有多长时间。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "前几天，下午吃了雪糕，喝了茶水，晚餐吃的烤冷面和蒸红薯，现在一阵阵犯恶心想吐，有点拉肚子，胃也一阵阵疼（大姨妈第四天。。）胃一疼就头晕晕的上个月也这样过一次，是急性肠胃炎这两天一直吃的很清淡没吃辣，可是胃还是胀气时疼痛，今天早上吃了一个奥美拉唑，想去爬山，在路上就一阵阵恶心想吐，想吃个面包又犯恶心，然后就胃一疼，头也有点晕，心慌慌的，就一小会儿，现在拉肚子了（女，24岁）",
+        "doctor": "你好，急性胃肠炎还没有完全恢复。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "一坐车就感觉头晕恶心。",
+        "doctor": "你好！有没有其他症状需要补充的。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "你好医生，胃不舒服，拉肚子，头晕浑身没力，食欲差。（女，33岁）",
+        "doctor": "您好，请问这种情况有多长时间了。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "吃海蛎子拉肚子头疼恶心吃了肠炎宁和藿香正气水现在有点发烧38度还需要吃什么药（男，38岁）",
+        "doctor": "需要服用左氧氟沙星，和蒙脱石散。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "打嗝不频繁，胃胀胃痛还有点，主要是头晕恶心没食欲。",
+        "doctor": "你的这个主要考虑胃肠型感冒症状。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "没有，就头疼。",
+        "doctor": "冒味问下有性生活吗？有怀孕可能吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "今天头疼吃了点止痛药，一直冒虚汗。",
+        "doctor": "疼痛持续时间？怎么的体位可以缓解。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "下午拉肚子，拉了五六次，肚子疼，现在发烧38.3，买的诺氟沙星和胃肠康，需要再吃点退烧药吗？现在感觉冷，肚子疼，腿软头晕（女，30岁）",
+        "doctor": "多喝温开水，水跟不上体温不好往下降。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "恶心不呕吐早晨刷牙尤为严重无腹痛腹泻头疼。",
+        "doctor": "是烧灼疼还是针刺样疼，还是胀疼等等？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "晕车晕的厉害，下了车休息了一下午还是头晕呕吐怎么办（女，21岁）",
+        "doctor": "你好，坐了多长时间车，呕吐有几次了。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "好的，本来都没什么问题了，可能昨晚喝酒引起了，现在觉得全身没力，头晕晕了！肚有点闷痛的感觉。",
+        "doctor": "恩，跟饮食还是有关系的。要注意饮食。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "胸腔近期有压抑感，锁骨中间偏上地方咽东西有异物感，早上起来或猛然蹲起有头晕感，偶尔早上会干呕，请问是什么原因导致的啊？（女，18岁）",
+        "doctor": "你好，这种情况多长时间啦？是18岁吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "女18今天吃了炒面和鸡腿然后下午开始呕吐，喝水也吐，大概7点半到八点开始拉肚子，八点多吐了绿色苦水，并且还头疼（女，17岁）",
+        "doctor": "您好，还有其他不适吗？发烧拉肚子之类的？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近老是感觉力不从心，身体易疲劳，乏力，头痛，精神不济，胃口也不好，胃胀，我该从哪找问题，前段时间有贫血喝了一段时间药感觉好了的，查了稍有些低，不是很严重的。还有什么可以导致这些问题的出现呢，请专家给些建议（女，42岁）",
+        "doctor": "胃病也可以引起的啊，还有你最近休息好吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "头晕，想吐，胃不舒服，老是感觉饿又没什么胃口，很冷。无发烧症状，有正常饮食。（女，27岁）",
+        "doctor": "您好，请问这种情况多长时间了？请问在吗。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "问题脸色发白，头晕眼花，精神恍惚，还总想睡觉，便秘半个月了。是怎么回事呢。去医院血尿常规，肝肾功能就查出个尿酸血脂高，和糜烂性胃炎。（男，24岁）",
+        "doctor": "有时候糜烂性胃炎可以有贫血，有慢性胃出血。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "打嗝不频繁，胃胀胃痛还有点，主要是头晕恶心没食欲。",
+        "doctor": "在加上抗生素这些本身对胃有刺激。所以症状明显。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "肠胃不舒服快三个月了，吃了好多的药，现在药停了，胃不痛了，可是每次大便都无力，感觉肠道不推动一样，下腹右边平躺能摸到有气的东西！用力按还有点伤痛的感觉！坐下站起来还头晕眼黑的！出气感觉也乏力！请医生分析下是什么情况！最开始是胃痛去医院做胃镜检查有慢性浅表性胃炎，刚开始肠道没有什么异常！右下腹做过彩超可是什么也没发现（男，25岁）",
+        "doctor": "目前这个情况胃肠道功能紊乱引起的可能性比较大哦！",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "小腹一阵阵的痛，按肚子也会痛，又便秘，想拉粑粑拉不出来。昨天有点着凉了，然后有点头晕发热，然后喝了999就去睡觉了，第二天早上开始也不肚子痛，吃了点面包以后就开始这样了痛得不严重但是一阵阵的然后就想拉粑粑可是又拉不出来（女，18岁）",
+        "doctor": "你好，你这个应该是便秘引起来的，不完全性肠梗阻。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "女，54岁。昨天洗了衣服，吃了点西瓜和其他东西后头痛恶心，今早凌晨5点出现呕吐和拉肚子现象，白天偶有想吐，出现浑身酸痛，现在有点畏寒，还有想吐的症状，请问该吃点什么药？（女，54岁）",
+        "doctor": "您好，结合您的症状估计是急性胃肠炎，体温现在多少？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "拉肚子，腹痛，四肢无力，困，头晕头疼（女，26岁）",
+        "doctor": "你好，你的这个情况有多久了。发烧不，鼻塞，流涕不。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃炎会引起头晕吗？医院呢开的半个月的药今天吃完了，230元半个月，感觉和我药店里买的奥美拉唑吗丁啉50块钱吃二十几天的效果差不多。我现在胃就是每天用手按一下就不舒服想吐，前几天晚上头一直晕得厉害一直干呕。现在感觉又有点头晕。到底是胃炎引起的头晕还是肠胃炎引起的头晕？（男，23岁）",
+        "doctor": "胃炎一般不会引起头晕，你多大年纪？还有其他毛病吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "吃海蛎子拉肚子头疼恶心吃了肠炎宁和藿香正气水现在有点发烧38度还需要吃什么药（男，38岁）",
+        "doctor": "这是吃了被感染的食物引起的急性肠炎，伴肠道菌感染。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "你好。前两个星期，医生说我反流性胃炎，我吃了两个星期药，还是想吐。这几天还头晕。医生说等8号照胃镜。请问为什么还会头晕，很难受。（男，25岁）",
+        "doctor": "您好，头晕有很多原因，有些药物副作用会这样，感冒，休息不好都会头晕，",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "头疼，反胃，恶心，呕吐（女，22岁）",
+        "doctor": "您好，请问这种情况有多长时间了呢？发病之前有没有吃什么特殊的食物呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "最近颈椎病犯了，老是头疼头昏恶心。",
+        "doctor": "嗯嗯头疼头昏恶心有可能是颈椎病的缘故但是吃东西容易饿和颈椎病没关系哈。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "问题脸色发白，头晕眼花，精神恍惚，还总想睡觉，便秘半个月了。是怎么回事呢。去医院血尿常规，肝肾功能就查出个尿酸血脂高，和糜烂性胃炎。（男，24岁）",
+        "doctor": "你好！这种情况像是贫血的表现，请问最近有没有大便发黑？有没有化验过血常规？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      }
+    ],
+    "menstrual": [
+      {
+        "patient": "不过严重是在三月月经之后，因为吐了很多次。",
+        "doctor": "当时为什么吐呢。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "我才结束经期昨天但是这次月经量很少。",
+        "doctor": "最近有没有受凉呢？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "月经刚走几天，我最近扁桃体发炎还有一点感冒，在吃药。",
+        "doctor": "小腹具体哪个位置痛？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "拉大便出血，好几次了，中间我去买药吃了，吃了2次又没有吃了，今天上厕所又出血了，不知不觉流了很多血，拉完擦屁屁时候有血块，跟来了大姨妈一样，不疼，每次吃饭吃2口就饱了，好可怕，我是个男士24岁，医生可以告诉我怎么根治调养嘛？非常谢谢！（男，23岁）",
+        "doctor": "您好，有没有痔疮史？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "没有啊上个月都来了月经。",
+        "doctor": "你可以吃点胃药观察看。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生您好，我存在以下情况，想请您帮我分析一下：第一个问题：有脱发问题吗？(有一点点)第二个问题：最近是否感觉皮肤变差了很多？(一点点)第三个问题：你最近感觉压力大吗？(有！压力可大了)第四个问题：有便秘的问题吗？(经常便秘)最后一个问题：呃……内个……最近有遇到痛经或月经不调吗？(从不呀)*本问题由春雨智能机器人根据与用户的对话自动创建（女，36岁）",
+        "doctor": "你好，你想咨询什么问题。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨天晚上来月经了就感觉胃一直不舒服，有时候还想吐，这什么情况啊（女，20岁）",
+        "doctor": "昨天有无吃什么不合适的？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "自从月经来了就开始肚子疼。",
+        "doctor": "月经完了就会好吗这些症状。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "我有非萎缩性胃炎，贫血，6、6克，吃益胃补肠丸，硫酸亚铁片，叶酸片，吃了一个半月了，血补起来一些了，可胃还是打嗝，胀的难受，怎么办？一个月来月经十天左右，前三四天特多，有大的血块，后五六天不多，今年45岁了（女，44岁）",
+        "doctor": "现在血是多少克，有复查吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "会不会和快来例假有关系呀？",
+        "doctor": "会有的，以前来例假疼过没有。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "上个月就是提前一周大便不好，月经后就好了。",
+        "doctor": "有可能月经前体内激素调节影响。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨天晚上来月经了就感觉胃一直不舒服，有时候还想吐，这什么情况啊（女，20岁）",
+        "doctor": "以前来例假之前有无恶心的感觉？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "那需要吃药吗？我饮食没法规律，月经前期每次都会作息混乱，白天基本在睡觉，也吃不下东西。",
+        "doctor": "可以服用归脾丸中成药调理一下。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "前几天，下午吃了雪糕，喝了茶水，晚餐吃的烤冷面和蒸红薯，现在一阵阵犯恶心想吐，有点拉肚子，胃也一阵阵疼（大姨妈第四天。。）胃一疼就头晕晕的上个月也这样过一次，是急性肠胃炎这两天一直吃的很清淡没吃辣，可是胃还是胀气时疼痛，今天早上吃了一个奥美拉唑，想去爬山，在路上就一阵阵恶心想吐，想吃个面包又犯恶心，然后就胃一疼，头也有点晕，心慌慌的，就一小会儿，现在拉肚子了（女，24岁）",
+        "doctor": "你好，急性胃肠炎还没有完全恢复。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "是反酸，月经已经过去了。",
+        "doctor": "嗯。考虑反流性食道炎。胃酸分泌过多。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "你好，今天早上便血，之前有过便血情况，第一次便血是经期过后，第二次是吃了超级辣的食物，肚子里面很辣，还有点痛，第二天早上就便血。这次昨晚没吃饭，吃了两个很凉的苹果。（女，29岁）",
+        "doctor": "你好，便的血是鲜红色的吗？量多不多。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨天晚上来月经了就感觉胃一直不舒服，有时候还想吐，这什么情况啊（女，20岁）",
+        "doctor": "您好，请问排除受孕了吗？以前胃部好吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "是什么原因一直月经这么长时间，吃什么药可以调一下吗。",
+        "doctor": "再者服用硫酸亚铁之前胃部有这种情况吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "女性半夜左下腹突然绞痛，刚开始肚脐周围疼，大便也不管用，不拉稀不呕吐，下午刚打了狂犬，晚上的不良反应就是有点发热，还有就是昨天刚来月经（女，26岁）",
+        "doctor": "你好。还有其他伴随不适吗?被宠物咬伤了吗?",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "痛经是什么啊，医生。",
+        "doctor": "你所说的位置还是考虑胆囊区域，是否做过腹部CT",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "上个月就是提前一周大便不好，月经后就好了。",
+        "doctor": "建议你去妇科方便检查一下，看看是否是经期前的系统问题。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "三个月没来月经，有点便秘，是肠胃不好吗？（女，19岁）",
+        "doctor": "便秘有时与不良的饮食和生活习惯有关。辛辣刺激的食物？熬夜？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "1月31日刚结束月经。",
+        "doctor": "你好，请问在饮食作息方面有什么诱因吗？这一些症状肠道和妇科都可以影响。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "我胃不舒服。你又扯到月经了。",
+        "doctor": "网络平台只能通过问诊，通过你的描述初步考虑什么原因，不像面对面医师诊疗，视触叩听都可以。望您了解。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "我胃不舒服。你又扯到月经了。",
+        "doctor": "你好，是这样的，比如体型偏胖的人，有的会出现腹部脂肪过多，出现腹部赘肉，再一个结婚或有性生活的女性腹部隆起，伴随月经不正常（不来），有妊娠的可能。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "怀孕期间输液了！！！十一月分查出乳腺炎，末次月经11月22号。12月8号输的液，也是这天同的房，没采取措施，一直输液到12月24日!24日早上试纸测出怀孕！输的是青霉素，头孢哌酮，清开灵，氨溴索，甲硝唑！！这个孩子可以要吗。",
+        "doctor": "影响不大可以的。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "如何确诊多囊卵巢。15岁即2005年月经初潮，此后月经一直不规律，经期6个月左右，但2010年6月至2011年9月一个月一次，此后一直没来月经，2012年3月做彩超检查无异常，吃黄体酮和雌二醇二个月来了一次月经，此后1年半没来，2013年8月检查激素，查了6项都正常，做B超也正常，吃了2个月的黄体酮和雌二醇还是没来，2个月后吃中药调理于2014年1月28日来了一次月经，现在1个多月过去了又没来月经。",
+        "doctor": "还需复查内分泌。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "怀孕，10月25日来月经、11月16日在一起后、18日吃避孕药、23日在一起后、25日吃避孕药！30日确定怀孕、请问这个宝宝可以生吗？谢谢！",
+        "doctor": "吃的哪种避孕药。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "疤痕妊娠术后22天好像要来月经正常吗。2014年11月27做的手术12月18好像要来月经正常吗。",
+        "doctor": "有些早，量多吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "左卵巢多囊样改变，右卵巢囊肿59，积液。月经周期一直不太正常，基本每月推迟，最近一次是2013年11月10日，至今两月有余，还未来。月经头一天，阴道口如伤口裂开般疼痛。",
+        "doctor": "病情复杂，面诊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "妇科。妇科，月经不正常，2个月没有来。上次在你们医院吃过药好了。现在又不正常了。想再买些原来的药吃吃。不知道去哪里买。药店没有卖。可以去你们医院直接买吗？",
+        "doctor": "需要就诊才能配药。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "子宫腺肌症，子宫内膜囊肿，輸卵管一侧堵塞。左下腹疼痛5年，月经加重，结婚4年未孕，想要孩子如何治疗，丈夫精子成活率达标，有前列腺炎曾经治疗情况和效果：吃过中药调理，怎么办。",
+        "doctor": "周四到我门诊看下。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "恶心，想吐。我是这个月2号来的月经，然后这几天老是想吐，请问是不是怀孕了？我有霉菌性阴道炎，能不能怀孕？",
+        "doctor": "用早孕试纸验一下。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "月经多，且不走。我38岁，近两年月经量大，且不走，有时要打止血针，中西药都用过，用上就好，不用就不行，今年做了子宫内膜的诊刮，病理没有问题。激素六项做过，医生说是内分泌的问题，现就是维持。",
+        "doctor": "建议尝试中药调理。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "多囊卵巢。3天前发现的，而且还这次月经过了半个月还没来，还有多毛的症状，去医院检查只做了个彩超，发现卵巢略大，周围有多个囊泡，最大直径可达1.5cm。",
+        "doctor": "做性激素六项检查。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "围绝经期更年期综合症。缺铁性贫血失眠心跳加快心脏难受曾经治疗情况和效果：治疗多次效果不佳，更年期综合症怎么治疗。",
+        "doctor": "去住院检查一下吧。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "孕酮是否过高。月经周期过长，40来天，检查孕酮稍高。建议我吃麒麟丸。",
+        "doctor": "你应该做排卵监测，",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "月经不调来了不走。2013年9月份来月经不走正月看好了看好了8个月以后就又不行了。",
+        "doctor": "需要来进一步检查。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "腺肌症。B超显示腺肌症，痛经多年，近年来痛经症状加剧。目前未婚未育。",
+        "doctor": "建议海扶治疗看看。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "月经一直不走检查血怀孕，B超没有怀孕。上个月来事是11月25.12月2日同房，12月19日来月经，月经一直不干净，这今天腹部腰部有点轻微痛，月经13天了还是有褐色分泌物，血检显示怀孕，是能确定宫外孕吗。",
+        "doctor": "有可能是生化妊娠。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "你好！我月经不调。我的月经用药就来，不用就不来，打黄体酮就来不打就不来，请帮我，谢谢你。",
+        "doctor": "这需一个调理的过程。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "乳腺结节。乳房结节，有时候会有胀痛月经前后，几年前就乳房不舒服，一直到16年才做乳腺b超，这几年定期检查，16年到现在一直没变化，18年生孩子后没变大。需要手术吗，还是定期检查？定期检查了今天 还是和以前一样  我这种情况是继续定期检查吗还是手术。",
+        "doctor": "可以观察，定期复查。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "自然流产一次+胎停一次，自然流产发生在09年7月，怀孕55天胚胎完全排出体外，胎停发生在10年8月，（怀孕60天B超显示一切正常，有胚芽胎心），并且一直黄体酮注射加中药胞胎，怀孕87天出血，B超显示无胎心，孕囊萎缩至60多天大小，后药流+清宫，2次都是在常州市中医院治疗的。烦请张博士有空时帮我看一下，我在清宫后首次月经后到您那边去看门诊，非常感谢。",
+        "doctor": "请带上您的资料门诊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "乳腺上象限扭曲，月经前乳房胀痛。12月份做了乳腺常规检查，现年40岁。",
+        "doctor": "您好。周一是我门诊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "怀孕30天，出现两次白带是肉色的怎么办？10月14日末次月经，11月8日排卵,11月16日有少量流血,17和18日粉色白带，20日吃黄体酮，24日有肉色白带。",
+        "doctor": "建议到正规产科就诊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "一个半月没来月经。一直母乳，宝宝十七个月的时候我才来月经，接下来这都一个半月了都没来。",
+        "doctor": "妇科彩超。血HGC。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "原发性不孕，今年34岁，月经量偏大，时间长，有小血块。B超结果显示子宫内膜增厚（16mm）有多发性子宫内膜息肉可能。吃过中药调理。上个月刚做的造影。",
+        "doctor": "应该考虑做宫腹腔镜。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "月经期后腹部疼痛。医生您好：我说的病人50岁、女，一直未生育，近半年出现月经期后腹部疼痛，做过彩超未见异常，请问怎么回事？",
+        "doctor": "月经怎么样？规律吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "阴道炎。霉菌性阴道炎，今天第一天来月经是否可以用药。",
+        "doctor": "把微生态结果拍全了。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "多囊卵巢。月经初潮14岁闭经三年.身高150体重134斤.体毛较重.彩超检查子宫及双附件区未见明显异常.医生诊断多囊卵巢综合症，开药达英35，吃三个月.",
+        "doctor": "胖了，查胰岛素血糖。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      }
+    ],
+    "rash": [
+      {
+        "patient": "其他医生给我开的药我吃了起一些红疹是什么原因。",
+        "doctor": "药物过敏，需要停药。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "大夫我3.24号和小姐戴套xj.第5天出现的腹泻水样而且出现了脖子负重的感觉喉咙左右.吃药不管用后我去医院检查白细胞****.淋巴细胞率高.现在住院一周了大便恢复成形可是肚子还有肠鸣和顶气.可好像左脖子淋巴结有点不舒服，也没有肿大只有偶尔的不舒服.也不知道是不是淋巴结炎，想问大夫我被感染的几率不大吧？今天第18天了没发烧没感冒也没出现过皮疹.，（男，19岁）",
+        "doctor": "这个我觉得没什么问题的。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "大夫我3.24号和小姐戴套xj.第5天出现的腹泻水样而且出现了脖子负重的感觉喉咙左右.吃药不管用后我去医院检查白细胞****.淋巴细胞率高.现在住院一周了大便恢复成形可是肚子还有肠鸣和顶气.可好像左脖子淋巴结有点不舒服，也没有肿大只有偶尔的不舒服.也不知道是不是淋巴结炎，想问大夫我被感染的几率不大吧？今天第18天了没发烧没感冒也没出现过皮疹.，（男，19岁）",
+        "doctor": "你好很高兴回答你的问题。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "我一年前做胃镜是红疹样变，慢性胃炎。",
+        "doctor": "药物吃点莫沙必利，雷贝拉唑，达喜。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "大夫我3.24号和小姐戴套xj.第5天出现的腹泻水样而且出现了脖子负重的感觉喉咙左右.吃药不管用后我去医院检查白细胞****.淋巴细胞率高.现在住院一周了大便恢复成形可是肚子还有肠鸣和顶气.可好像左脖子淋巴结有点不舒服，也没有肿大只有偶尔的不舒服.也不知道是不是淋巴结炎，想问大夫我被感染的几率不大吧？今天第18天了没发烧没感冒也没出现过皮疹.，（男，19岁）",
+        "doctor": "即使要确诊艾滋这类的话也需要三个月，你不要太焦虑。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生给我看了四款药，我吃了出现皮疹，现在好多了，请问这些要我还要继续吃吗。",
+        "doctor": "继续吃雷贝拉唑和铝镁加，其他的两个药不吃了，但这两个药必须再吃两个月。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "新生儿湿疹，我小孩2月份面部有红湿疹，在医院观察使用硼酸，赛庚啶乳膏，开始效果不错，但是停用就反复发作，到现在还不见好转，请问什么方法能根治？要配置什么？谢谢！\n。周大夫，你好，我没有我家小孩面部照片。她前段时间很严重，面部皮肤全部僵硬，而且还脱皮，现在刚好一点，可是昨天帮她洗完澡后面部有红了。又冒出点，我想问下周大夫我是不是要继续帮她查药膏，小孩太小，皮肤能受得了长期查药膏吗？谢谢!查什么样的油膏比较好呢。能说具体点，能建议我买什么牌子的效果比较好，因为我去药店或是医院他都是给我配好多药膏。谢谢！",
+        "doctor": "强生婴儿护夫露。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "手脚皮肤病。我的手和脚从出身到现在已经30多年了，一泡水和出汗就会发白，而且有时还会有点异味（臭脚丫的味），但是我又感觉不到任何的疼痛，也不会痒。曾经治疗情况和效果：从小就看过医生，大多说是湿疹什么的，开了药都没多大用。开始怕是传染病，可我小孩也生了，他都没有。",
+        "doctor": "水源性肢端角化症。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "湿疹，您好！医生，这个皮肤病困扰我有七八年的时间了，以前是一到夏天就会复发，天气转凉就好了，但不知道今年怎么了到现在还没有好，反而越加严重，还起了水泡，奇痒无比！今年5、6、7月都在武汉第一人民医院就诊了，一直反反复复！说是湿疹，药也没少吃，身上都成激素反应体毛都变长了，还是不得好！好痛苦！我一直都不敢怀孕怕吃药带来副作用！帮帮我吧！",
+        "doctor": "这种疾病瘙痒厉害。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "咳嗽。孩子8岁，咳嗽断断续续2、3个月，期间吃过枇杷膏，做过雾化，用的令舒。最近，又开始脱鼻涕咳嗽。且身上出皮疹，叫光泽性苔藓。请问咳嗽是否与过敏有关？",
+        "doctor": "有关，需要门诊看看！",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "脚部湿疹，脚上长湿疹，连续复发2年。",
+        "doctor": "可以治愈，很难根除。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "宝宝脸上起疹子，热起来发红不热不会发红。第一次发现是给宝宝洗完澡，身上发红起疹子。每次洗完澡都会有一点，不严重，额头眼睛上也有一些，但是不红，吃奶热起来会红，不知是热疹还是湿疹。请问怎么治疗。",
+        "doctor": "注意润肤水多涂一些。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "皮肤病。身上有红色包，中间是白色点点周围是红色的，请问是过敏还是湿疹，纯母乳喂养。",
+        "doctor": "发张图片看一下好吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "手上湿疹四年了。一直起小水泡，以前就几个，后来就手上一直有，然后就流水丶裂口，现在扩展到脚心了，佷痒，工作生活都困难希望得到大夫救助。曾经治疗情况和效果：在烟台农博园暍了两年多草药还有西药，倍他米松吃过，现在好不容易戒掉了，现在就泡手，用大黄丶苦参丶明矾等，也没有什么效果，一直抹苗药百毒膏，能止痒。",
+        "doctor": "建议正规医院正规治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "皮肤，患者女，23岁。身体无其他疾病。鼻子下角两侧常年发红像是起湿疹，在睡眠、饮食、情绪不稳时鼻子上轻则会起像粉刺一样的胞，重则会起像疖子一样的胞。一直认为是青春期产生的，没去医院看过。这种症状已经持续3年了。",
+        "doctor": "建议到皮肤科查一下螨虫。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "耳朵。耳朵上也没有其他异状，要是湿疹的话怎么办？家里有曲咪新乳膏可以抹吗？",
+        "doctor": "是湿疹，曲咪新可以用的。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "湿疹，5年皮肤干燥有死皮结结。",
+        "doctor": "这得来看后才能提供方案。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "色素斑。教授您好，宝宝现在四个半月，两三个月时左脸颊出现一块青，现在越来越大，看着像脸赃脏的，一个多月时得过湿疹，用过婴宝，不知是否有影响，谢谢！",
+        "doctor": "看不清楚图片，无法诊断。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "患乙肝二十年，我属乙肝携带二十年的患者。现有轻度肝硬化，无力，皮肤痒。省，市，县都看过。",
+        "doctor": "情况不清楚， 不好对症下药。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "湿疹脂溢性皮炎还是什么。2014年7月中旬起初爆皮有突起，去医院看大夫确诊脂溢性皮炎，开的布特软膏，擦了八个月左右，皮肤变硬变黑，冒水，结痂，后换丹皮酚擦，反复冒水结痂，很痒其中服过罗红霉素、氯雷他定等消炎过敏药，起初不痒，现在有很痒。",
+        "doctor": "脂溢性皮炎，可以外用普特彼！",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "胳膊腿上起小红疹子，有点痒，擦了皮炎平。以前从来没有出现过，突然间胳膊上长出来的。",
+        "doctor": "再拍清晰好吗？其他部位还有吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "阴囊湿疹，我2年前患鼻咽癌，单纯放疗后，现在阴囊患湿疹，过程是：我冲凉时阴囊痒痒的，就用手抓，第二天就开始有个小小的口子，烂了，后来就用无极膏搽，越来越烂，口子越大了，又用治疗湿疹的膏药搽，还是口子越来越大，大到有一个硬币那么大，形状不是园的，不规则，好像是先长几个小泡泡，药膏一搽慢慢的就烂了。我想知道鼻咽癌预后会有可能转移到阴囊湿疹样癌症吗？这两种癌症细胞是不是一样的？谢谢，还有，我开始时是很多小小的水泡，一族的，后来烂了，就出水，没有见这种淡红色鳞屑斑片。",
+        "doctor": "湿疹的可能性大，建议你看中医。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "宝宝湿疹好了现在脸上起皮了怎么回事？宝宝四个月时长湿疹，史大夫看了给开的药，好了，现在脸上又起皮，怎么回事？",
+        "doctor": "还需要保湿剂持续护肤，一日2次。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "阴囊湿疹。得过牛皮癣吃过中药。",
+        "doctor": "可以外用肤疾洗剂治疗看效果如何。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "湿疹？皮炎？荨麻疹？还是结节性硬化？宝宝14个月，如今已患6个月，头皮，额头，眼睑，脸颊及鼻子两侧均有丘疹，皮肤热时红色，且有水泡，表皮比较硬，没有破损。冷时呈现黄色，水泡变回丘疹～现逐渐往下发展。曾经治疗情况和效果：曾以湿疹，荨麻疹，皮炎，结节性硬化治疗，效果不佳。",
+        "doctor": "你好！建议携带原病历资料来院现场诊察！",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "免疫性疾病？病情描述（发病时间、主要症状、就诊医院等）：全身关节疼痛两年，曾有雷诺现象，伴有全身淋巴结肿大六个月，曾有抗环瓜氨酸肽抗体阳性，ESR,CRP,RF,抗o均阴性，无贫血，血常规时有白细胞及分类升高，IgM升高，C3降低，腹痛。曾经治疗情况和效果：经用来氟米特，硫酸羟氯哇，醋酸泼尼松治疗，抗环瓜氨酸肽抗体阴性，但症状无缓解，IgM、IgA升高，C3、C4降低，淋巴结变大。想得到怎样的帮助：请大夫给予诊疗建议。这可能是什么问题呢？我还有皮疹现象，便秘与腹泻现象交替出现。曾在贵阳医学院附属医院诊断为未分化结蒂组织病，但有全身性淋巴结肿大，医生怀疑淋巴瘤，请问一下我这种情况有可能是淋巴瘤吗",
+        "doctor": "建议您化验心磷脂抗体，血管炎相关抗体。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "小儿湿疹。孩子六个多月时起湿疹，现在孩子九个多月，湿疹严重有流水，抹药后好点又反复。",
+        "doctor": "建议呋喃西林溶液湿敷，外擦炉甘石洗剂。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "湿疹医生说是湿热。4月3日左右发现主要症状就是整个上身长满了红色的疙瘩还非常痒。",
+        "doctor": "照张照片清楚些。可以在吃点。用中药外洗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "胃瘫，胃动力不足，胃动力紊乱。本人2005年发病，07年确诊为混合型结缔组织疾病，当时的症状有皮疹，皮肤发黑发硬，雷诺，食道扩张，肺纤维化。症状像硬皮病，但验血的指标又偏向干燥综合征，所以就确诊为MCTD。后常年吃激素治疗，配合使用环磷酰胺后改硫唑嘌呤后又改环胞素。用药后皮疹消失，皮肤变白变软，其他症状不变。2012年8月本人因肺纤维化控制不住做了肺移植手术。手术后产生了胃食管反流的症状，吃多了油腻的东西会反食呕吐，特别是夜晚躺下睡觉后，有出现胸部肋骨痛。做了胃镜和钡餐显示有胃食管反流，浅表性胃炎，食管炎。不过那时并不影响我正常饮食，即使吃粽子糯米也无大碍。后移植科的医生怕我经常胃食管反流会再",
+        "doctor": "建议来找我就诊，采用中西医结合方法治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "脾胃和皮肤及气血。头晕恶心，胸闷，肤色暗淡！皮肤局部有又湿疹。",
+        "doctor": "你好！你的症状有多长时间了？饮食，睡眠情况如何呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "胸部乳房湿疹。孩子乳房湿疹已经3年了，在小医院看过，总犯，现在又流水了，想问一下咱们这里怎么治。",
+        "doctor": "根据情况，确定具体治疗方案，一般是中药内服加外用药。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "喘息性咳嗽，过敏性皮炎湿疹。男宝宝一岁十一个月了，住院俩次喘憋性肺炎，感冒咳嗽后就会诱发气管过敏然后喘憋，七八个月大的时候第一次住院后湿疹严重，因遗传过敏体质湿疹比较顽固到现在还没有完全好，没有间断过对湿疹的治疗，但是一直没有查过过敏源却一直再忌口，牛羊肉虾没有吃过，鱼也不能吃，吃完湿疹就厉害。",
+        "doctor": "你奶粉吃得是普通奶粉还是水解奶粉？现在多长时间犯一次。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "嘴唇皮脂腺异位症。6月嘴唇发皮疹，皮疹退去后，产生皮脂腺异位症，经华山医院专家确认，推荐口服维E,但怕副作用，就建议随访。",
+        "doctor": "你好，这个具体情况要到门诊检查后作出判断，如何治疗最好。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "乙肝病毒相关性肾炎。已患病6年，全身乏力，身上起红点，头发无光泽发黄，水肿，想呕吐，偶有痛疼，降压不理想。",
+        "doctor": "请问您目前尿蛋白、血肌酐和血压情况。建议您配合中草药治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "怀孕三个月湿疹。怀孕12周，可能那天用了洗手液、洗衣液和沐浴露，晚上手上开始痒，后来脖子、腰背，一抓像蚊子包然后变成小水泡。去当地皮肤科诊为湿疹、过敏，有点皮炎，产科已排除肝内胆汁淤积症。现在痒了一周了，越来越严重，主要是手上，当地医院给开的炉甘石洗剂，别无它药。现在手臂弯、腋下和腿弯也长，不知道怎么办了？",
+        "doctor": "过敏性皮炎，在上海中医药大学龙华医院皮肤科看看，可以用中药。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "哮喘，小孩现在3岁多点，从去年10月份开始感冒咳嗽诊断哮喘，后来基本每个月都要感冒并引发哮喘，去年10月初一次，11月一次，12月初一次，12月底一次，今年2月中一次，4月初一次，5月初一次。5月初那次做了一次雾化就好了。来的快，去的也快，其它几次均需要住院输液。小孩每天早上起来要连续打几个喷嚏，白天好些，晚上偶尔也会。过敏源测试结果尘螨过敏，ige>200。中间用过顺而宁，只是服用断断续续。小时候生过湿疹。",
+        "doctor": "因技术原因，原定8月14日哮喘门诊，顺延一周，8月21日开诊。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "小儿湿疹。从出生到现在小孩3个月，1个月开始脸上出现红疹子，严重是结黄渣擦洗干净有水流出，在医院开些药膏涂抹又下去了，一热也起来，现在3个月了头上起皮身上也有。纯母乳喂养，晚上宝宝睡觉总是用手捞。",
+        "doctor": "瘙痒严重可以局部湿敷改善。也可以口服苯海拉明糖浆、扑尔敏止痒。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "一次骨科手术后腿上长湿疹。2009年一次交通事故做了小腿手术，夹了钢板，手术后就长湿疹，严重时还有过溃烂，2011年做了钢针取除手术也一样，一直反复性的没间段过，现在又出现脚部长脓包。在德阳做过验血，在本地皮肤科的诊断是创伤性神经性皮炎。有新资料上传。",
+        "doctor": "自体敏感性湿疹。诊断明确，建议:强的松，30mg 每天早上一次。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "艾滋病皮疹。高危3个月了今天脸上开始皮疹，小丘疹，小红点，不大，下巴上，脸峡，两侧都是。以前一直没长过这样的，不是青春豆那种，不痒。前几天疲倦，舌头白，麻不舒服缓解了。这样的皮疹是艾滋病皮疹么，艾滋病皮疹是什么样的，长脸上么，痒么？快速艾博I5.6.11周阴。",
+        "doctor": "朋友你好！根据你提供的资料，皮疹可能不是艾滋病的皮疹，不用担心。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "湿疹。孩子三个多月，湿疹反复，尤其是脸部，已经变成一片了，用肤乐霜擦了三次，感觉好点了，但今天洗完脸又严重了，请问医生需要继续擦吗？平时需要注意点什么？多久会好呢？多谢！",
+        "doctor": "湿疹容易反复发作，尽可能寻找诱发因素，如果没有感染很少引起疤痕。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "湿疹，一开始，是眼角下方对称有一些小豆豆，不是很痒，但出于破溃状态，有脓水渗出，黄色的，疼。一个月前，额部首先冒出一堆小豆豆，豆豆里面有水，瘙痒，有灼热感。看医生时说，是粉刺。继而是脸颊部长出很多痘痘，很痒，灼热感也很厉害。眼部和右脸颊肿。现在还是有时会痒，眼角处若有泪水会产生瘙痒。目前，脸上有皮屑脱落。",
+        "doctor": "你好，诊断疾病和治疗只能在医院进行，医生没见病人不能给与正确诊断。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "腿上出现红点状的东西，手臂上也有，痒。不知道这个红点是什么？会不会引起湿疹？",
+        "doctor": "你好，图片上考虑是丘疹性荨麻疹，过敏性的。建议外用炉甘石洗剂治疗。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "胆管癌以及心脏病，胆管肿瘤堵塞，全身发黄、眼睛发黄、皮肤痒，胆囊内有些许结石，并且患有很多年的心脏病，心率跳动缓慢，只有40多下。",
+        "doctor": "梗阻性黄疸治疗要根据梗阻部位不同而不同，不能一概而论，具体情况各不相同。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "皮肤过敏。最近脸上一块一块发红，热的时候尤为明显，还有点起皮，有时候有一点痒痒。一流泪风一吹眼下面也发红。抹了几天芦荟不见好转，也不敢用别的药怕色素沉着，平时脸就比较容易过敏，化妆品用不好就容易发红，但过几天就好了，不知道怎么回事曾患过皮肤湿疹。",
+        "doctor": "若皮损为高起起于皮面的考虑为荨麻疹，可以口服开瑞坦，维生素C及葡萄糖酸钙。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "宝宝睡眠和消化问题。医生您好，我家宝宝三个半月，总感觉一直不好带，问题不断，最近睡眠很不好，好不容易哄睡了又容易惊醒，多的要醒十来次，一直要到晚上十一二点才能入睡，睡觉时经常抬腿蹬腿、摇头抓脸，屁多，有时放屁很臭，大便两到三天一次，黄色糊状稍微发绿，是不是消化有问题胀气呢。另外最近掉头发比较厉害，后脑都有一圈枕秃了，是不是缺钙的症状，宝宝抬头不是很好。最近脸上湿疹也多，反复复发。曾经治疗情况和效果：一个月时大便有血，儿保医生建议换水解蛋白奶粉后好了。三个月时测过骨密度稍微偏低，保健医生说有点缺钙。胀气给吃过西甲硅油，只是暂时缓解。非常感谢您的回复，麻烦再问下，妈咪爱要怎么吃，吃多久，补钙吃哪种",
+        "doctor": "建议您查个血钙和碱性磷酸酶。正确的补。不要盲补。只要这两个正常，就只吃伊可新。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "阴囊湿疹。前半月有发现龟头下部有些发暗发青，阴囊左侧有些小红点点有时瘙痒，今天发现成了些类似小水泡泡红红的，医生说了些没用的话觉得小医院不可信。阴茎无红点或水泡，发病时间在20天前，有用避孕套，工作有时在无空调的室内很热大出汗，",
+        "doctor": "可以外用我院的硼锌糊，每晚睡前皮肤康洗剂1:20稀释后外洗一次。保持凉爽干燥。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "婴儿湿疹，过敏。宝宝快三个月了，湿疹一直反反复复，母乳喂养的我牛奶鸡蛋都没碰，给宝宝穿得很少，也盖得很薄～月子里带他去医院抽了血，出了一份食物检测报告，我上传了照片～如图，宝宝耳朵后面长的红色小疙瘩，身上全都有～请医生帮帮我！！您好。湿疹月子里就有了，竖抱着的时候老是在我肩上蹭～",
+        "doctor": "您好，根据您提供的照片和描述，宝宝情况首先考虑婴儿湿疹，其次考虑婴儿脂溢性皮炎。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "不知道。宝宝出生一个月，最近右边耳朵总是起一小块一小块的黄皮，搓掉还起，好像先是黏稠的，干了就结成黄色的皮，而且还很臭。耳朵外面一周耳廓里面都有。去医院耳科看了，医生说里面很干净不像是里面流出的，白天观察了下也不像是吐上的奶，就像是耳朵自己分泌的似的。头上没有，就是脸上起了湿疹，除了耳朵别的地方都没有鳞屑，家里也没有手足癣和体癣的病史。这个症状发现有一个星期了，刚开始有点不平滑，可是看着也不像小疙瘩，就是摸起来坑坑洼洼的，后来就开始蜕皮，还粘粘的，正反面都有，宝宝睡觉习惯偏向这边，有时睡觉会压着这只耳朵，另一只耳朵没事。还没有使用药物。他一使劲和热的时候脸通红就会很明显，脸不红的时候不明显。您",
+        "doctor": "对症治疗后一周左右即可治愈、一般不要紧的，但是不排除有病情加重对宝宝听力产生影响！",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "小儿拉稀黄鼻涕。孩子快三个月了，没满月的时候就发现有湿疹，去开的药膏，但是一直还有，现在更多了，有的红有的不红，之前起的有小水泡碰就破，现在是大面积不红但很密集很小，现在擦药膏好像也不太管用了。上个月开始拉的便便黄色，很稀很粘，像蛋花状，鼻子里还一直有鼻涕，黄绿色的粘鼻涕。倒是不闹还像以前一样，请问孩子是什么毛病，该怎么治，吃什么药，该去医院吗，去挂哪科曾经治疗情况和效果：摸过药膏，之前好使，现在不好使了。",
+        "doctor": "孩子有湿疹、消化不良、鼻炎，这些都与过敏有关，很可能是某种食物的过敏。建议查过敏原。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      },
+      {
+        "patient": "急：可以服用米非司酮片吗。43岁，昨天早晨性生活时发生意外，以为不要紧，但仔细一算，我每个月经提前四天，已经进入排卵期了。准备今天下午服用，还没服下，请大夫帮忙。虽然我在前天已经服下了，但看到你的回复，心里很温暖。谢谢彭医生。昨天出现了皮疹，胃痛，今天开始出血，这种出血，能不能视作是月经提前呢？",
+        "doctor": "一般米非司酮口服后不会有撤退性出血，如果量很少，可以观察或服用止血药，应该不会是月经。",
+        "is_first_doctor_turn": true,
+        "source": "meddialog"
+      }
+    ],
+    "fever": [
+      {
+        "patient": "三十那天发烧了，第二天开始就拉肚子。",
+        "doctor": "拉肚子吃药了吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "没有发热，精神今天还好，昨天很累。",
+        "doctor": "请问南洋什么药？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨天淋了点雨，今天早上起来全身酸痛，无食欲，中午下午发烧，肚子胀，里急后重，请问这是什么毛病（男，31岁）",
+        "doctor": "您好，有没有拉肚子？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生你好，请问发烧吃什么药啊？",
+        "doctor": "着凉感冒了还是其他？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "两天了，前天肚子痛加发烧，现在不发烧了，但肚子还痛！",
+        "doctor": "发烧是因为肚子痛吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "积食，发高烧。以前有点拉肚子后来吃了诺氟沙星后就不怎么拉了。现在是肚子痛，还有点烧。（女，30岁）",
+        "doctor": "你好，拉肚子多久了，",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "感冒发热。",
+        "doctor": "看见了，有白细胞减少。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "2.26流感发烧，挂水之后就断断续续出现这种情况。",
+        "doctor": "哦，还有没有其他症状？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生，我下腹部持续隐痛一个月了，中间有几天不痛，一直不严重，这几天痛的重了些，大小便正常，不发烧，排气，两年前做过阑尾炎手术，其中，主治医生说也做了肠粘连手术，这半年，只要饮食不注重，腹部总是痛，发作三次了，现在主要是下腹部痛，怎么回事，九月份做过泌尿系统彩超，正常，请问医生，我的情况怎么回事，之前2016年就是阑尾炎手术之前做过肠镜，胃镜，腹部ct都正常，做过阑尾炎手术后也没有腹痛，就是这半年饮食不规律，出现了两三次，每次都是三四个星期才自己好，怎么回事？（男，23岁）",
+        "doctor": "下腹部是左边还是右边？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "不发热。",
+        "doctor": "几个月？还是几个星期？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "没发烧。",
+        "doctor": "腹部是哪个部位有绞痛？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "没发烧。",
+        "doctor": "平时有过这样的症状么。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "大夫我3.24号和小姐戴套xj.第5天出现的腹泻水样而且出现了脖子负重的感觉喉咙左右.吃药不管用后我去医院检查白细胞****.淋巴细胞率高.现在住院一周了大便恢复成形可是肚子还有肠鸣和顶气.可好像左脖子淋巴结有点不舒服，也没有肿大只有偶尔的不舒服.也不知道是不是淋巴结炎，想问大夫我被感染的几率不大吧？今天第18天了没发烧没感冒也没出现过皮疹.，（男，19岁）",
+        "doctor": "这个我觉得没什么问题的。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃痛，两周前急性肠胃炎，吃药好了以后一周前开始胃痛，曲医院抽血做了ct没有问题，医生开了奥美拉措和匹维溴铵片，吃了以后好了，但是这周昨天又开始复发胃痛，再次吃上次的药没有好的像上次一样那么迅速。每次胃痛到直不起腰，怕冷，拉稀便，不发热。（女，22岁）",
+        "doctor": "请问您这种情况有多久了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "大夫我3.24号和小姐戴套xj.第5天出现的腹泻水样而且出现了脖子负重的感觉喉咙左右.吃药不管用后我去医院检查白细胞****.淋巴细胞率高.现在住院一周了大便恢复成形可是肚子还有肠鸣和顶气.可好像左脖子淋巴结有点不舒服，也没有肿大只有偶尔的不舒服.也不知道是不是淋巴结炎，想问大夫我被感染的几率不大吧？今天第18天了没发烧没感冒也没出现过皮疹.，（男，19岁）",
+        "doctor": "你好很高兴回答你的问题。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "高烧引起拉肚子怎么办（男，37岁）",
+        "doctor": "发热只是症状，不是病因。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "一周左右了，好像不发热，没实际量过体温。",
+        "doctor": "一般持续多久？怎么缓解？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃痛，两周前急性肠胃炎，吃药好了以后一周前开始胃痛，曲医院抽血做了ct没有问题，医生开了奥美拉措和匹维溴铵片，吃了以后好了，但是这周昨天又开始复发胃痛，再次吃上次的药没有好的像上次一样那么迅速。每次胃痛到直不起腰，怕冷，拉稀便，不发热。（女，22岁）",
+        "doctor": "疼的这么厉害，直不起腰。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "恶心，呕吐，腹泻，发烧38.8度（女，31岁）",
+        "doctor": "你好，你吃什么东西了吧？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "今天中午吃完东西突然又拉又吐，有点头晕，无发热。胃里一直响，一响就想拉。是急性肠胃炎吗（女，24岁）",
+        "doctor": "你好，是不是吃了不洁食物？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "腹泻一周，感觉有点胀气，经常打嗝，放屁，还有点厌食。每天傍晚会有头疼发热症状，到第二天早上好了。去医院验血只给我开了蒙脱石散（男，21岁）",
+        "doctor": "你好！请问每天大便几次呢？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "没有发烧。",
+        "doctor": "先把腹泻止住，不然会脱水。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "不反酸，也不发烧。",
+        "doctor": "这个疼痛持续了1天时间吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "好像还有一点发热。",
+        "doctor": "醒酒后好点没？现在还是这样？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "浑身无力，三天前晚上发高烧，头疼，无感冒症状。第二天高烧38.3喝了退烧药好了，昨日症状减轻。今天到了下午四点又开始相同症状重复。体温37.8，排便不畅。（男，29岁）",
+        "doctor": "可能感冒呀，感冒药可连吃两天。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "下午拉肚子，拉了五六次，肚子疼，现在发烧38.3，买的诺氟沙星和胃肠康，需要再吃点退烧药吗？现在感觉冷，肚子疼，腿软头晕（女，30岁）",
+        "doctor": "早注意饮食，先吃稀饭，烂面条。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "两个星期前拉肚子发烧38度5，白细胞****，输了三天液，不发烧了。但是每天都有一段时间脸红。前天复查白细胞****，而且最近三四天每天下午都会低烧，37度4左右，做了胸部ct平扫，医生说肺里很干净，一切正常。请问大夫这是怎么一回事？（男，20岁）",
+        "doctor": "你好，除了发烧，还有什么症状？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "胃疼，发烧一阵一阵儿的。已经有两天了。第一天主要是胃胀恶心。什么都没有吃。第二天简单吃了点面藕粉之类的。还吃了点樱桃，那是为几乎一直疼，断断续续的发烧。（女，42岁）",
+        "doctor": "你好，很高兴为你服务，发热多少。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "吃海蛎子拉肚子头疼恶心吃了肠炎宁和藿香正气水现在有点发烧38度还需要吃什么药（男，38岁）",
+        "doctor": "需要服用左氧氟沙星，和蒙脱石散。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "前天拉稀呕吐发烧晚上打吊瓶第二天好了就没有吃药，今天早起后又不舒服去医院打吊瓶，现在下午并没有好转，我该怎么办。",
+        "doctor": "你好很高兴为你解答。现在还发烧吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "22号吃了红油火锅，然后开始一直拉肚子，24号下午忽然开始发高烧，马上去校医院看了，打了针，退了烧，并且开始打点滴，一直打了两天，并且吃了医生的药，但到今天为止还一直拉肚子，现在该怎么办（男，22岁）",
+        "doctor": "红油火锅是啥？是又麻又辣的火锅吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "腹泻服药之后止泻了，高烧不退怎么回事（女，50岁）",
+        "doctor": "你好，请问除了发热还有其他症状吗？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "每个月都会发烧5到7天（女，19岁）",
+        "doctor": "发热多少度？有没有发热前冷的感觉？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "因为那晚下雨很热我踢被子，第二天就感觉身体冷痛四肢无力，然后发烧，昨晚吃了药出了好多汗，今早感觉好很多了，但是一直恶心反胃，拉肚子，喝了两瓶藿香正气水感觉都还没好，想上厕所又拉不出来，肚子老是咕噜咕噜的。（女，21岁）",
+        "doctor": "拉肚子是稀便还是不成形？一天几次？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "感觉快死了前天吃完饭半小时去玩了游乐场玩了下过山车下来我就感觉我那个胃翻江倒海的没多久都吐了今天早上吃完早餐睡到一点胃难受的醒来后有吐了现在整个人发晕发烧这是怎么了（男，22岁）",
+        "doctor": "你好，请问之前有没有吃刺激性食物？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "没有发烧。",
+        "doctor": "用过什么药物了吗？做个肠镜检查吗。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "腹泻服药之后止泻了，高烧不退怎么回事（女，50岁）",
+        "doctor": "证明感染还没有控制，止泻只是对症。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "昨晚胃痛，心窝还发热，后面严重呕吐带有血丝和痰块，怎么办。严重吗（女，23岁）",
+        "doctor": "您好，这两天喝过酒，吃过什么药吗。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "下午拉肚子，拉了五六次，肚子疼，现在发烧38.3，买的诺氟沙星和胃肠康，需要再吃点退烧药吗？现在感觉冷，肚子疼，腿软头晕（女，30岁）",
+        "doctor": "多喝温开水，水跟不上体温不好往下降。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "22号吃了红油火锅，然后开始一直拉肚子，24号下午忽然开始发高烧，马上去校医院看了，打了针，退了烧，并且开始打点滴，一直打了两天，并且吃了医生的药，但到今天为止还一直拉肚子，现在该怎么办（男，22岁）",
+        "doctor": "你好～吃过什么药了？一天拉多少次了？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "全身发软走路跌跌撞撞的前两天感冒发烧昨天还好好的一早上起来就控制不住自己起来上个厕所撞来撞去（女，17）",
+        "doctor": "你好，手上有体温计吗，量一量体温多少？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "有点腹胀，没有发烧。",
+        "doctor": "大便是稀水样还是糊状？有没有粘液及带血。",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "我不知道，我认为可能是发烧引起的。这种情况之前从未发生。",
+        "doctor": "有没有反酸烧心呢？吃了什么不干净东西吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "头晕，想吐，胃不舒服，老是感觉饿又没什么胃口，很冷。无发烧症状，有正常饮食。（女，27岁）",
+        "doctor": "您好，请问这种情况多长时间了？请问在吗。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "发低烧，35度多一点，不停吐，感觉有急性肠胃炎的症状（女，27岁）",
+        "doctor": "你好，很高兴为你解答。35度没有发烧呀？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "女性半夜左下腹突然绞痛，刚开始肚脐周围疼，大便也不管用，不拉稀不呕吐，下午刚打了狂犬，晚上的不良反应就是有点发热，还有就是昨天刚来月经（女，26岁）",
+        "doctor": "你好。还有其他伴随不适吗?被宠物咬伤了吗?",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "去年检查B超CT都没问题。没有呕吐。发热的。胃镜检查几个了。就是轻糜烂胃炎。",
+        "doctor": "你平时饮食和作息规律不规律？平时抽烟喝酒吗？",
+        "is_first_doctor_turn": false,
+        "source": "meddg"
+      },
+      {
+        "patient": "他说团里也很多人发烧感冒、不知道是否天气太冷、经常变化问题。",
+        "doctor": "你好，你先生有没有高烧？有没有全身肌肉酸痛？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "医生你好是这样的，1号得时候我病毒性感冒发烧，然后晚上就开始拉水，但是只拉了一次，二号就退烧了，也是拉一次，三号开始就觉得胃疼，然后恶心，一点东西吃不下，现在就觉得肚子不舒服，有时候有点疼但是犯恶心一点胃口都没有，吃一点点东西就想吐，每天还是只上一次，有时候疼起来就好想上厕所的样子，但是去上又上不出来（女，25岁）",
+        "doctor": "以前还有其他什么疾病没有？做过什么检查治疗没有？",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      },
+      {
+        "patient": "小腹一阵阵的痛，按肚子也会痛，又便秘，想拉粑粑拉不出来。昨天有点着凉了，然后有点头晕发热，然后喝了999就去睡觉了，第二天早上开始也不肚子痛，吃了点面包以后就开始这样了痛得不严重但是一阵阵的然后就想拉粑粑可是又拉不出来（女，18岁）",
+        "doctor": "你好，你这个应该是便秘引起来的，不完全性肠梗阻。",
+        "is_first_doctor_turn": true,
+        "source": "meddg"
+      }
+    ]
+  }
+}

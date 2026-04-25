@@ -28,7 +28,7 @@ async def generate_draft_reply(
     """
     from agent.prompt_composer import compose_messages
     from agent.prompt_config import FOLLOWUP_REPLY_LAYERS
-    from agent.llm import llm_call
+    from agent.style_guard import llm_call_with_guard
     from domain.knowledge.citation_parser import extract_citations, validate_citations
     from domain.knowledge.usage_tracking import log_citations
     from db.engine import AsyncSessionLocal
@@ -63,7 +63,17 @@ async def generate_draft_reply(
         from agent.llm import compute_prompt_hash
         _prompt_hash = compute_prompt_hash(messages)
 
-        response = await llm_call(messages=messages, op_name="draft_reply")
+        # Style-guard wrapper: 1 regen on hard-block phrase violation, then ship-with-warning
+        # (per locked plan latency budget — followup_reply ≤6s)
+        response, guard_meta = await llm_call_with_guard(
+            messages=messages,
+            op_name="draft_reply",
+            max_regens=1,
+        )
+        if guard_meta["initial_violations"]:
+            log(f"[draft_reply] style violations detected: initial={guard_meta['initial_violations']} "
+                f"final={guard_meta['final_violations']} regens={guard_meta['regens_used']} "
+                f"shipped_dirty={guard_meta['shipped_with_violations']}")
         if not response:
             log("[draft_reply] LLM returned empty response", level="warning")
             return None

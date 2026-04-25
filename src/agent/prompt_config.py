@@ -12,11 +12,18 @@ from dataclasses import dataclass
 class LayerConfig:
     """Which prompt layers a flow uses.
 
-    Layers: L1 Identity → L2 Specialty → L3 Task → L4 Doctor Rules → L6 Patient → L7 Input
+    Layers: L0 Style Guard → L1 Identity → L2 Specialty → L3 Task →
+            L4 Doctor Rules → L4p Persona → L6 Patient → L7 Input
 
     conversation_mode:
-      False (default) = Pattern 1 (single-turn): L1-L3 system, L4-L7 user with XML tags
-      True = Pattern 2 (conversation): L1-L3+Patient system, history, KB+input as user
+      False (default) = Pattern 1 (single-turn): L0-L3 system, L4-L7 user with XML tags
+      True = Pattern 2 (conversation): L0-L3+Patient system, history, KB+input as user
+
+    style_guard:
+      True  → prepend common/style_guard.md (anti-AI-smell, banned phrases,
+              escalation forms, listing prohibition). Use for any patient/
+              doctor-facing text generation.
+      False → skip (extraction/internal flows that don't generate prose).
 
     load_knowledge:
       True  → load doctor KB items (L4 Doctor Rules) for this flow
@@ -29,8 +36,11 @@ class LayerConfig:
     system: bool = True
     domain: bool = False
     intent: str = "general"
+    style_guard: bool = False
     load_knowledge: bool = False
     load_persona: bool = False
+    load_examples: bool = False
+    example_limit: int = 0
     patient_context: bool = False
     conversation_mode: bool = False
 
@@ -40,6 +50,7 @@ class LayerConfig:
 DOCTOR_INTERVIEW_LAYERS = LayerConfig(
     domain=False,
     intent="interview",
+    style_guard=False,  # doctor talks TO the AI to record; not patient-facing prose
     load_knowledge=False,
     load_persona=False,
     patient_context=True,
@@ -49,6 +60,7 @@ DOCTOR_INTERVIEW_LAYERS = LayerConfig(
 REVIEW_LAYERS = LayerConfig(
     domain=True,
     intent="diagnosis",
+    style_guard=True,  # doctor reads diagnosis cards; structured but evidence/risk text needs guard
     load_knowledge=True,
     load_persona=True,
     patient_context=True,
@@ -57,16 +69,22 @@ REVIEW_LAYERS = LayerConfig(
 FOLLOWUP_REPLY_LAYERS = LayerConfig(
     domain=True,
     intent="followup_reply",
+    style_guard=True,  # patient-facing
     load_knowledge=True,
     load_persona=True,
+    load_examples=True,  # L5: complaint-clustered MedDG/meddialog exemplars
+    example_limit=3,
     patient_context=True,
 )
 
 PATIENT_INTERVIEW_LAYERS = LayerConfig(
     domain=True,
     intent="patient-interview",
+    style_guard=True,  # patient-facing
     load_knowledge=True,
-    load_persona=False,
+    load_persona=True,  # 2026-04-25: was False — pre-visit chat could not sound like the doctor
+    load_examples=True,  # L5: complaint-clustered exemplars (interview register)
+    example_limit=2,
     patient_context=True,
     conversation_mode=True,
 )
@@ -74,6 +92,7 @@ PATIENT_INTERVIEW_LAYERS = LayerConfig(
 DAILY_SUMMARY_LAYERS = LayerConfig(
     domain=False,
     intent="daily_summary",
+    style_guard=True,  # doctor reads the summary; needs same anti-smell rules
     load_knowledge=True,
     load_persona=False,
     patient_context=False,

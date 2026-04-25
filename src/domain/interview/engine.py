@@ -258,6 +258,18 @@ class InterviewEngine:
         )
         reply = template.extractor.post_process_reply(reply, raw.collected, mode)
 
+        # Style guard (detect-only, max_regens=0 — latency budget for interview is ≤3s).
+        # We log violations but don't regenerate to avoid latency hit.
+        # Per locked plan: interview prefers latency over polish.
+        try:
+            from agent.style_guard import detect_hard_violations, detect_soft_chain
+            hard = detect_hard_violations(reply)
+            soft = detect_soft_chain(reply)
+            if hard:
+                log(f"[interview.{mode}] style violations detected (no regen): hard={hard} soft={soft}")
+        except Exception as exc:
+            log(f"[interview] style guard check failed (non-fatal): {exc}", level="warning")
+
         # Status transition if ready to review
         state = template.extractor.completeness(raw.collected, mode)
         # Patient-mode special: if ready, transition status
