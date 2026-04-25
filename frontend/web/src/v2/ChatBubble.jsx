@@ -11,7 +11,7 @@
 import ReactMarkdown from "react-markdown";
 import { APP, FONT, RADIUS } from "./theme";
 
-export default function ChatBubble({ role, content, timestamp }) {
+export default function ChatBubble({ role, content, timestamp, retracted }) {
   const isUser = role === "user";
 
   return (
@@ -33,6 +33,7 @@ export default function ChatBubble({ role, content, timestamp }) {
               : "18px 18px 18px 4px",  // bottom-left square
             alignSelf: isUser ? "flex-end" : "flex-start",
             boxShadow: isUser ? "none" : "0 1px 3px rgba(0,0,0,0.08)",
+            ...(retracted ? { textDecoration: "line-through", opacity: 0.5 } : {}),
           }}
         >
           {isUser ? (
@@ -52,6 +53,20 @@ export default function ChatBubble({ role, content, timestamp }) {
             }}
           >
             {timestamp}
+          </span>
+        )}
+
+        {retracted && (
+          <span
+            style={{
+              fontSize: FONT.xs,
+              color: APP.text4,
+              alignSelf: isUser ? "flex-end" : "flex-start",
+              marginLeft: isUser ? 0 : 8,
+              marginRight: isUser ? 8 : 0,
+            }}
+          >
+            已撤回 (危险信号触发)
           </span>
         )}
       </div>
