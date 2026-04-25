@@ -28,11 +28,11 @@ const NAV_GROUPS = [
     key: "overview",
     label: "概览",
     items: [
-      { key: "dashboard",  label: "仪表盘",      icon: "dashboard" },
-      { key: "doctors",    label: "全体医生",    icon: "stethoscope", href: "?v=3" },
-      { key: "patients",   label: "全体患者",    icon: "groups" },
-      { key: "chat",       label: "沟通中心",    icon: "forum" },
-      { key: "ai",         label: "知识 & AI",   icon: "network_intelligence" },
+      { key: "dashboard",  label: "仪表盘",      icon: "dashboard",            href: "?v=3&section=overview/dashboard" },
+      { key: "doctors",    label: "全体医生",    icon: "stethoscope",          href: "?v=3" },
+      { key: "patients",   label: "全体患者",    icon: "groups",               href: "?v=3&section=overview/patients" },
+      { key: "chat",       label: "沟通中心",    icon: "forum",                href: "?v=3&section=overview/chat" },
+      { key: "ai",         label: "知识 & AI",   icon: "network_intelligence", href: "?v=3&section=overview/ai" },
     ],
   },
   {

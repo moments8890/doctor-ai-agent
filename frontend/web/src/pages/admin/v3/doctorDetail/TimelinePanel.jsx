@@ -186,7 +186,7 @@ function yesterdayKey() {
   return `${y}-${m}-${d}`;
 }
 
-export default function TimelinePanel({ doctorId, doctorName }) {
+export default function TimelinePanel({ doctorId, doctorName, title }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -232,7 +232,9 @@ export default function TimelinePanel({ doctorId, doctorName }) {
 
   const today = todayKey();
   const yesterday = yesterdayKey();
-  const headerName = doctorName ? `${doctorName} · 近期足迹` : "近期足迹";
+  const headerName =
+    title ||
+    (doctorName ? `${doctorName} · 近期足迹` : doctorId ? "近期足迹" : "平台动态");
   const aside = items.length > 0 ? `${items.length} events` : "";
 
   return (

@@ -22,6 +22,11 @@ import AdminShellV3 from "./AdminShellV3";
 import AdminDoctorDetailV3 from "./doctorDetail/AdminDoctorDetailV3";
 import DoctorList from "./doctorDetail/DoctorList";
 import OpsPage from "./ops/OpsPage";
+import OverviewPlaceholder from "./overview/OverviewPlaceholder";
+import DashboardPage from "./overview/DashboardPage";
+import AllPatientsPage from "./overview/AllPatientsPage";
+import ChatCenterPage from "./overview/ChatCenterPage";
+import AiActivityPage from "./overview/AiActivityPage";
 import useDoctorDetail from "./hooks/useDoctorDetail";
 
 const OPS_SUBS = {
@@ -31,22 +36,34 @@ const OPS_SUBS = {
   export: "数据导出",
 };
 
+const OVERVIEW_SUBS = {
+  dashboard: "仪表盘",
+  patients:  "全体患者",
+  chat:      "沟通中心",
+  ai:        "知识 & AI",
+};
+
 function readRoute() {
   if (typeof window === "undefined") {
-    return { doctorId: null, opsSub: null, sidebarSection: "doctors" };
+    return { doctorId: null, opsSub: null, overviewSub: null, sidebarSection: "doctors" };
   }
   const params = new URLSearchParams(window.location.search);
   const doctorId = params.get("doctor");
   const sectionRaw = params.get("section") || "";
   let opsSub = null;
+  let overviewSub = null;
   let sidebarSection = "doctors";
   if (sectionRaw.startsWith("ops/")) {
     const sub = sectionRaw.slice(4);
     opsSub = sub in OPS_SUBS ? sub : "invites";
-    // Map ops subsection → sidebar item key (matches AdminSidebar NAV_GROUPS).
     sidebarSection = opsSub;
+  } else if (sectionRaw.startsWith("overview/")) {
+    const sub = sectionRaw.slice(9);
+    overviewSub = sub in OVERVIEW_SUBS ? sub : "dashboard";
+    // Map overview subsection → sidebar item key (matches AdminSidebar NAV_GROUPS).
+    sidebarSection = overviewSub;
   }
-  return { doctorId, opsSub, sidebarSection };
+  return { doctorId, opsSub, overviewSub, sidebarSection };
 }
 
 function useUrlRoute() {
@@ -78,7 +95,7 @@ function DoctorDetailWithBreadcrumb({ doctorId }) {
 }
 
 export default function AdminPageV3() {
-  const { doctorId, opsSub, sidebarSection } = useUrlRoute();
+  const { doctorId, opsSub, overviewSub, sidebarSection } = useUrlRoute();
 
   if (opsSub) {
     const breadcrumb = [
@@ -88,6 +105,28 @@ export default function AdminPageV3() {
     return (
       <AdminShellV3 section={sidebarSection} breadcrumb={breadcrumb}>
         <OpsPage subsection={opsSub} />
+      </AdminShellV3>
+    );
+  }
+
+  if (overviewSub) {
+    const breadcrumb = [
+      { label: "概览" },
+      { label: OVERVIEW_SUBS[overviewSub], here: true },
+    ];
+    return (
+      <AdminShellV3 section={sidebarSection} breadcrumb={breadcrumb}>
+        {overviewSub === "dashboard" ? (
+          <DashboardPage />
+        ) : overviewSub === "patients" ? (
+          <AllPatientsPage />
+        ) : overviewSub === "chat" ? (
+          <ChatCenterPage />
+        ) : overviewSub === "ai" ? (
+          <AiActivityPage />
+        ) : (
+          <OverviewPlaceholder sub={overviewSub} />
+        )}
       </AdminShellV3>
     );
   }
