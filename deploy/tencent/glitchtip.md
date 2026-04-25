@@ -254,14 +254,14 @@ location /glitchtip/ {
 
 Then flip `GLITCHTIP_DOMAIN` in `glitchtip.secrets`:
 ```
-GLITCHTIP_DOMAIN=https://api.doctoragentai.cn/glitchtip
+GLITCHTIP_DOMAIN=https://ops.doctoragentai.cn/glitchtip
 ```
 and `docker compose --env-file glitchtip.secrets up -d` so invite
 emails, DSN hostnames, and password-reset links use the public URL.
 
 #### Footgun — stale server blocks in sites-enabled/
 
-If `curl https://api.doctoragentai.cn/glitchtip/` returns the main
+If `curl https://ops.doctoragentai.cn/glitchtip/` returns the main
 frontend's HTML instead of GlitchTip, check `ls /etc/nginx/sites-enabled/`
 for stale backups (`.bak`, `.pre-*`, etc.). Nginx loads every file in
 sites-enabled/ and a later `server_name api.doctoragentai.cn` block

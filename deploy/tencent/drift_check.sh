@@ -17,7 +17,7 @@ set -euo pipefail
 
 APP_DIR="/home/ubuntu/doctor-ai-agent"
 THRESHOLD_MIN=10
-SENTRY_DSN="https://111de78357f04cdbbe9b1400c06815b8@api.doctoragentai.cn/glitchtip/1"
+SENTRY_DSN="https://111de78357f04cdbbe9b1400c06815b8@ops.doctoragentai.cn/glitchtip/1"
 
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 notify() {

@@ -5,7 +5,7 @@ Postgres, SQLite, etc.). We self-host on the Tencent CVM so we can
 inspect prod data, browse schema + FK relationships, and run ad-hoc
 queries from a browser without exposing MySQL to the internet.
 
-**URL**: `https://api.doctoragentai.cn/dbgate/` (subpath preserved from
+**URL**: `https://ops.doctoragentai.cn/dbgate/` (subpath preserved from
 the original DBGate deploy — see "Why not DBGate?" below).
 
 **Network shape**: service bound to `127.0.0.1:8101` only; public
@@ -135,7 +135,7 @@ chmod 600 ~/.config/doctor-ai-agent/dbgate.secrets
 
 ### 8. Log in
 
-1. Browser: <https://api.doctoragentai.cn/dbgate/>
+1. Browser: <https://ops.doctoragentai.cn/dbgate/>
 2. **First prompt (nginx basic auth)**: username `admin`, password from
    `DBGATE_PASSWORD` in dbgate.secrets.
 3. **Second screen (Adminer login form)**:

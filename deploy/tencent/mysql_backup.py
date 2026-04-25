@@ -45,7 +45,7 @@ BUCKET = "doctor-ai-backups-1408751198"
 REGION = "ap-shanghai"
 PREFIX = "mysql-daily"
 CONTAINER = "doctor-ai-mysql"
-SENTRY_DSN = "https://111de78357f04cdbbe9b1400c06815b8@api.doctoragentai.cn/glitchtip/1"
+SENTRY_DSN = "https://111de78357f04cdbbe9b1400c06815b8@ops.doctoragentai.cn/glitchtip/1"
 
 # Tencent CAM creds — same key tccli uses. Read from env if set, else
 # fall back to ~/.tccli/credential. Never write to disk inside this

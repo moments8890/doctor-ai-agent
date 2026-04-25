@@ -35,7 +35,7 @@ UPLOADS_DIR = "/home/ubuntu/doctor-ai-agent/uploads"
 BUCKET = "doctor-ai-backups-1408751198"
 REGION = "ap-shanghai"
 PREFIX = "uploads"
-SENTRY_DSN = "https://111de78357f04cdbbe9b1400c06815b8@api.doctoragentai.cn/glitchtip/1"
+SENTRY_DSN = "https://111de78357f04cdbbe9b1400c06815b8@ops.doctoragentai.cn/glitchtip/1"
 
 
 def ts() -> str:

@@ -19,7 +19,7 @@
 set -uo pipefail  # no -e — we want all checks to run even if one fails
 
 APP_DIR="/home/ubuntu/doctor-ai-agent"
-SENTRY_DSN="https://111de78357f04cdbbe9b1400c06815b8@api.doctoragentai.cn/glitchtip/1"
+SENTRY_DSN="https://111de78357f04cdbbe9b1400c06815b8@ops.doctoragentai.cn/glitchtip/1"
 TCCLI="$HOME/.local/bin/tccli"
 
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
