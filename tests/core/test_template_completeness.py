@@ -36,13 +36,30 @@ def test_completeness_required_filled_doctor(extractor):
 
 
 def test_completeness_required_filled_patient(extractor):
-    state = extractor.completeness(
+    # Patient mode requires every subjective field — filling only the two
+    # tier="required" specs is not enough.
+    partial = extractor.completeness(
         {"chief_complaint": "x", "present_illness": "y"}, "patient",
     )
-    assert state.can_complete is True
-    assert "past_history" in state.recommended_missing
-    assert "physical_exam" not in state.recommended_missing
-    assert "physical_exam" not in state.optional_missing
+    assert partial.can_complete is False
+    assert "past_history" in partial.required_missing
+    assert "marital_reproductive" in partial.required_missing
+    # Doctor-only fields must never leak into patient mode.
+    assert "physical_exam" not in partial.required_missing
+    assert "physical_exam" not in partial.recommended_missing
+    assert "physical_exam" not in partial.optional_missing
+
+    full = extractor.completeness(
+        {
+            "chief_complaint": "x", "present_illness": "y",
+            "past_history": "无", "allergy_history": "无",
+            "family_history": "无", "personal_history": "无",
+            "marital_reproductive": "无",
+        },
+        "patient",
+    )
+    assert full.can_complete is True
+    assert full.required_missing == []
 
 
 def test_completeness_next_focus_is_first_recommended_missing(extractor):

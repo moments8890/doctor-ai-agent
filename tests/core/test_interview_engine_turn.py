@@ -212,9 +212,14 @@ async def test_next_turn_applies_post_process_softening(engine):
     extractor's post_process_reply which softens blocking language."""
     session = await _seed_session(mode="patient")
 
-    # Seed required fields so can_complete=True after merge
+    # Seed every subjective field so patient-mode can_complete=True after merge.
     from domain.patients.interview_session import save_session
-    session.collected = {"chief_complaint": "头痛", "present_illness": "三天"}
+    session.collected = {
+        "chief_complaint": "头痛", "present_illness": "三天",
+        "past_history": "无", "allergy_history": "无",
+        "family_history": "无", "personal_history": "无",
+        "marital_reproductive": "无",
+    }
     await save_session(session)
 
     with patch(

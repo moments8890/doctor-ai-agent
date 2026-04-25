@@ -129,14 +129,16 @@ def _build_progress(collected: Dict[str, str], mode: str = "patient") -> dict:
                 phase = phase_name
                 break
 
-    can_complete = all(collected.get(f) for f in REQUIRED)
-
     if mode == "doctor":
         req_fields = list(REQUIRED)
         rec_fields = [f for f in DOCTOR_RECOMMENDED if f not in REQUIRED]
     else:
-        req_fields = list(REQUIRED)
-        rec_fields = [f for f in SUBJECTIVE_RECOMMENDED if f not in REQUIRED]
+        # Patient mode requires every subjective field — matches the
+        # interview-template completeness gate.
+        req_fields = list(_PATIENT_FIELDS)
+        rec_fields = []
+
+    can_complete = all(collected.get(f) for f in req_fields)
 
     required_count = sum(1 for f in req_fields if collected.get(f))
     required_total = len(req_fields)

@@ -86,9 +86,14 @@ def test_extract_metadata_skips_empty_values(extractor):
 # ---- post_process_reply ----------------------------------------------------
 
 def test_post_process_reply_softens_when_can_complete(extractor):
-    """When can_complete=True (required fields all set), blocking language
-    in reply gets rewritten."""
-    collected = {"chief_complaint": "头痛", "present_illness": "3天"}
+    """When can_complete=True (every subjective field set in patient mode),
+    blocking language in reply gets rewritten."""
+    collected = {
+        "chief_complaint": "头痛", "present_illness": "3天",
+        "past_history": "无", "allergy_history": "无",
+        "family_history": "无", "personal_history": "无",
+        "marital_reproductive": "无",
+    }
     reply = "还需要补充您的家族史。"
     out = extractor.post_process_reply(reply, collected, "patient")
     assert "还需要" not in out
@@ -102,10 +107,17 @@ def test_post_process_reply_leaves_alone_when_not_complete(extractor):
     assert out == reply
 
 
+_PATIENT_FULL = {
+    "chief_complaint": "x", "present_illness": "y",
+    "past_history": "无", "allergy_history": "无",
+    "family_history": "无", "personal_history": "无",
+    "marital_reproductive": "无",
+}
+
+
 def test_post_process_reply_strips_must_phrases(extractor):
-    collected = {"chief_complaint": "x", "present_illness": "y"}
     reply = "您必须提供家族史。这样我们可以更准确诊断。"
-    out = extractor.post_process_reply(reply, collected, "patient")
+    out = extractor.post_process_reply(reply, _PATIENT_FULL, "patient")
     assert "必须" not in out
 
 
@@ -113,9 +125,8 @@ def test_post_process_reply_fallback_when_empty(extractor):
     # "必须。还缺。" → both patterns reduce to "" → fallback triggers.
     # Note: "还需要补充X" → "如方便可再补充" (non-empty), so we need a reply
     # that uses only the purely-stripping patterns.
-    collected = {"chief_complaint": "x", "present_illness": "y"}
     reply = "必须。还缺。"
-    out = extractor.post_process_reply(reply, collected, "patient")
+    out = extractor.post_process_reply(reply, _PATIENT_FULL, "patient")
     # After stripping all blocking language, fallback kicks in
     assert out != ""
     assert "生成病历" in out or "记录" in out

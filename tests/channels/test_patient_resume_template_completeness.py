@@ -381,12 +381,11 @@ async def test_medical_general_v1_legacy_path_still_works():
 @pytest.mark.asyncio
 async def test_medical_general_v1_legacy_path_completes_when_required_filled():
     """Regression: filling all ``medical_general_v1`` patient-mode required
-    fields (``chief_complaint`` + ``present_illness``) really does mark the
-    session ready.
+    fields (every subjective field) really does mark the session ready.
 
-    This matches the pre-fix semantics for ``medical_general_v1`` so we
-    prove the route change didn't silently shrink coverage of the default
-    template.
+    Patient mode requires the full pre-consultation loop — ``chief_complaint``
+    + ``present_illness`` + 既往/过敏/家族/个人/婚育史 — to match the prompt's
+    stop condition. This proves the route still flips when all are filled.
     """
     active = _active_session(
         template_id="medical_general_v1",
@@ -394,6 +393,11 @@ async def test_medical_general_v1_legacy_path_completes_when_required_filled():
         collected={
             "chief_complaint": "头痛三天",
             "present_illness": "持续性头痛，无呕吐",
+            "past_history": "无",
+            "allergy_history": "无",
+            "family_history": "无",
+            "personal_history": "无",
+            "marital_reproductive": "无",
         },
     )
 

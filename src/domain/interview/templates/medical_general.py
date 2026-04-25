@@ -344,10 +344,16 @@ class GeneralMedicalExtractor:
 
         if mode == "patient":
             specs = [s for s in specs if s.name in _PATIENT_FIELDS]
-
-        required = [s.name for s in specs if s.tier == "required"]
-        recommended = [s.name for s in specs if s.tier == "recommended"]
-        optional = [s.name for s in specs if s.tier == "optional"]
+            # Patient interview drives the full pre-consultation loop: all
+            # subjective fields are required before the session is "ready
+            # to review". This matches patient-interview.md's stop condition.
+            required = [s.name for s in specs]
+            recommended = []
+            optional = []
+        else:
+            required = [s.name for s in specs if s.tier == "required"]
+            recommended = [s.name for s in specs if s.tier == "recommended"]
+            optional = [s.name for s in specs if s.tier == "optional"]
 
         required_missing = [f for f in required if not collected.get(f)]
         recommended_missing = [f for f in recommended if not collected.get(f)]
