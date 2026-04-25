@@ -36,6 +36,10 @@ services:
 
   web:
     image: docker.1ms.run/glitchtip/glitchtip:latest
+    # Explicit FQDN — Tencent SES (smtp.qcloudmail.com) rejects EHLO from
+    # unresolvable hostnames, and Docker's default container ID is not one.
+    # Without this, smtplib.login() disconnects after EHLO.
+    hostname: alerts.doctoragentai.cn
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,6 +65,7 @@ services:
 
   worker:
     image: docker.1ms.run/glitchtip/glitchtip:latest
+    hostname: alerts.doctoragentai.cn
     depends_on:
       postgres:
         condition: service_healthy
