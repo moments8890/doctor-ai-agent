@@ -66,11 +66,17 @@ export function usePatientTaskDetail(id) {
     enabled:  !!token && !!id,
     staleTime: 60_000,
     // Use the matching task from the cached list as initialData when present —
-    // gives instant render while the per-id endpoint refreshes in the background.
+    // gives instant render. initialDataUpdatedAt inherits the list's freshness
+    // timestamp so React Query treats this seed as stale when the list is stale,
+    // forcing a background refetch instead of trusting potentially-old data.
     initialData: () => {
       const list = qc.getQueryData(PK.patientTasks());
-      return list?.find((t) => String(t.id) === String(id));
+      return Array.isArray(list)
+        ? list.find((t) => String(t.id) === String(id))
+        : undefined;
     },
+    initialDataUpdatedAt: () =>
+      qc.getQueryState(PK.patientTasks())?.dataUpdatedAt,
   });
 }
 
