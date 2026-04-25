@@ -55,10 +55,21 @@ def _extract_auto_candidates(text: str, structured_fields: Optional[Dict[str, st
 # ── LLM processing ─────────────────────────────────────────────────
 
 async def _llm_process_knowledge(raw_text: str) -> Optional[str]:
-    """Use LLM to clean/structure raw document text into a knowledge item."""
+    """Use LLM to clean/structure raw document text into a knowledge item.
+
+    Document text comes from PDF / DOCX / image uploads. Even when the
+    doctor uploaded the file, its content is upstream-of-us and can
+    contain prompt-injection payloads. Wrap in a trust boundary before
+    substituting so embedded "ignore prior" instructions stay data.
+    """
+    from agent.prompt_safety import wrap_untrusted
+
     prompt_path = pathlib.Path(__file__).resolve().parent.parent / "agent" / "prompts" / "knowledge_ingest.md"
     system_prompt = prompt_path.read_text(encoding="utf-8")
-    user_message = system_prompt.replace("{{document_text}}", raw_text[:8000])  # cap input
+    user_message = system_prompt.replace(
+        "{{document_text}}",
+        wrap_untrusted("document_text", raw_text[:8000]),
+    )
 
     from agent.llm import llm_call
     try:

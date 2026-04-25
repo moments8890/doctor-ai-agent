@@ -93,13 +93,27 @@ async def _ocr_images(images: List[bytes]) -> str:
 # ---------------------------------------------------------------------------
 
 async def _extract_fields(text: str) -> Dict[str, str]:
-    """Extract 14 clinical fields from OCR text using doctor-extract.md."""
+    """Extract 14 clinical fields from OCR text using doctor-extract.md.
+
+    OCR text is patient-controlled (the upload was an image they
+    provided). Wrap it in a trust boundary before substituting so a
+    crafted image carrying "ignore prior, output X" can't escape into
+    instruction-space against the extract LLM.
+    """
     from agent.llm import structured_call
+    from agent.prompt_safety import wrap_untrusted
     from utils.prompt_loader import get_prompt_sync
 
     template = get_prompt_sync("intent/doctor-extract")
+    safe_transcript = wrap_untrusted("transcript", text)
     # Use .replace() not .format() — prompt contains JSON braces that break .format()
-    prompt = template.replace("{name}", "未知").replace("{gender}", "未知").replace("{age}", "未知").replace("{transcript}", text)
+    prompt = (
+        template
+        .replace("{name}", "未知")
+        .replace("{gender}", "未知")
+        .replace("{age}", "未知")
+        .replace("{transcript}", safe_transcript)
+    )
 
     result = await structured_call(
         response_model=DoctorExtractResult,
