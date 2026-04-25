@@ -462,7 +462,7 @@ export default function AdminPage() {
 		setStatus("locked");
 	}
 
-	useEffect(() => { setPageTitle("admin", "鲸鱼随行"); }, []);
+	useEffect(() => { setPageTitle("admin", ""); }, []);
 
 	useEffect(() => {
 		if (DEV_MODE) return;

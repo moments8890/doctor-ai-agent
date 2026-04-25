@@ -26,6 +26,9 @@ export function getEnvLabel() {
 export function buildTitle(role, label) {
   const env = getEnvLabel();
   const prefix = [env, role].filter(Boolean).map((s) => `[${s}]`).join("");
+  // For internal pages (role set), the prefix is the identifier — don't repeat
+  // the brand label in the tab. Empty / falsy labels collapse cleanly.
+  if (!label) return prefix || "";
   return prefix ? `${prefix} ${label}` : label;
 }
 
