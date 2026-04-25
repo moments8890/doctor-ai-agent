@@ -20,7 +20,7 @@ import { useFontScaleStore, saveFontScaleToServer } from "../../../store/fontSca
 import { useDoctorStore } from "../../../store/doctorStore";
 import { APP, FONT, RADIUS, ICON } from "../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
-import { NameAvatar } from "../../components";
+import { NameAvatar, Card, TintedIconRow } from "../../components";
 
 function SectionHeader({ Icon, iconColor, title }) {
   return (
@@ -37,63 +37,6 @@ function SectionHeader({ Icon, iconColor, title }) {
       <span style={{ fontSize: FONT.base, color: APP.text3, fontWeight: 500 }}>
         {title}
       </span>
-    </div>
-  );
-}
-
-function Card({ children }) {
-  return (
-    <div
-      style={{
-        background: APP.surface,
-        margin: "0 12px",
-        borderRadius: RADIUS.lg,
-        overflow: "hidden",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function SettingsRow({ Icon, iconColor, iconBg, title, subtitle, onClick, extra, isFirst }) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "14px 16px",
-        cursor: onClick ? "pointer" : "default",
-        borderTop: isFirst ? "none" : `0.5px solid ${APP.borderLight}`,
-      }}
-    >
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: RADIUS.md,
-          background: iconBg,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <Icon sx={{ fontSize: ICON.sm, color: iconColor }} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: FONT.base, fontWeight: 600, color: APP.text1 }}>
-          {title}
-        </div>
-        {subtitle && (
-          <div style={{ fontSize: FONT.sm, color: APP.text4, marginTop: 2 }}>
-            {subtitle}
-          </div>
-        )}
-      </div>
-      {extra ?? (onClick && <ChevronRightIcon sx={{ fontSize: ICON.sm, color: APP.text4 }} />)}
     </div>
   );
 }
@@ -161,7 +104,7 @@ export default function SettingsPage() {
         {/* AI 助手 */}
         <SectionHeader Icon={SmartToyOutlinedIcon} iconColor={APP.primary} title="AI 助手" />
         <Card>
-          <SettingsRow
+          <TintedIconRow
             Icon={PsychologyOutlinedIcon}
             iconColor={APP.primary}
             iconBg={APP.primaryLight}
@@ -170,7 +113,7 @@ export default function SettingsPage() {
             onClick={() => navigate("/doctor/settings/persona")}
             isFirst
           />
-          <SettingsRow
+          <TintedIconRow
             Icon={MenuBookOutlinedIcon}
             iconColor={APP.primary}
             iconBg={APP.primaryLight}
@@ -178,7 +121,7 @@ export default function SettingsPage() {
             subtitle="管理 AI 使用的医学知识"
             onClick={() => navigate("/doctor/settings/knowledge")}
           />
-          <SettingsRow
+          <TintedIconRow
             Icon={ChatBubbleOutlineIcon}
             iconColor={APP.primary}
             iconBg={APP.primaryLight}
@@ -191,7 +134,7 @@ export default function SettingsPage() {
         {/* 通用设置 */}
         <SectionHeader Icon={SettingsOutlinedIcon} iconColor={APP.accent} title="通用设置" />
         <Card>
-          <SettingsRow
+          <TintedIconRow
             Icon={FormatSizeOutlinedIcon}
             iconColor={APP.accent}
             iconBg={APP.accentLight}
@@ -200,7 +143,7 @@ export default function SettingsPage() {
             extra={<Switch checked={isLargeFont} onChange={handleFontToggle} />}
             isFirst
           />
-          <SettingsRow
+          <TintedIconRow
             Icon={InfoOutlinedIcon}
             iconColor={APP.accent}
             iconBg={APP.accentLight}

@@ -7,6 +7,7 @@ import { NavBar } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import { APP, FONT, ICON, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
+import { Card } from "../../../components";
 
 function SectionHeader({ title }) {
   return (
@@ -20,21 +21,6 @@ function SectionHeader({ title }) {
       }}
     >
       {title}
-    </div>
-  );
-}
-
-function Card({ children }) {
-  return (
-    <div
-      style={{
-        background: APP.surface,
-        margin: "0 12px",
-        borderRadius: RADIUS.lg,
-        overflow: "hidden",
-      }}
-    >
-      {children}
     </div>
   );
 }
