@@ -154,6 +154,41 @@ async def test_success_resets_failure_counter(session_factory):
 
 
 @pytest.mark.asyncio
+async def test_forget_me_requires_correct_passcode(session_factory):
+    """Wrong passcode → 401 and the user row is not deleted."""
+    from fastapi import HTTPException
+    from infra.auth.unified import forget_me
+    from sqlalchemy import select
+
+    factory = session_factory
+    out = await login(NICK, PASSCODE, role="doctor")
+
+    with pytest.raises(HTTPException) as exc:
+        await forget_me(role="doctor", doctor_id=out["doctor_id"], passcode="WRONG")
+    assert exc.value.status_code == 401
+
+    async with factory() as s:
+        d = (await s.execute(select(Doctor).where(Doctor.doctor_id == out["doctor_id"]))).scalar_one_or_none()
+        assert d is not None  # still there
+
+
+@pytest.mark.asyncio
+async def test_forget_me_deletes_with_correct_passcode(session_factory):
+    from infra.auth.unified import forget_me
+    from sqlalchemy import select
+
+    factory = session_factory
+    out = await login(NICK, PASSCODE, role="doctor")
+
+    result = await forget_me(role="doctor", doctor_id=out["doctor_id"], passcode=PASSCODE)
+    assert result == {"ok": True, "deleted_role": "doctor"}
+
+    async with factory() as s:
+        d = (await s.execute(select(Doctor).where(Doctor.doctor_id == out["doctor_id"]))).scalar_one_or_none()
+        assert d is None
+
+
+@pytest.mark.asyncio
 async def test_revoke_user_tokens_kills_old_jwts(session_factory):
     """Bumping passcode_version invalidates any token issued at the old version."""
     from fastapi import HTTPException

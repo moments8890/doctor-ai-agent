@@ -140,6 +140,51 @@ async def _enforce_passcode_version(payload: dict) -> None:
         raise HTTPException(401, "Token revoked")
 
 
+async def forget_me(role: str, doctor_id: Optional[str] = None, patient_id: Optional[int] = None, passcode: str = "") -> dict:
+    """Right-to-be-forgotten: hard-delete the calling user's row.
+
+    Requires the caller's current passcode as a re-confirmation gate, so an
+    XSS or stolen-token attack can't silently destroy an account. The MySQL
+    FK CASCADE rules clean up dependent rows (records, messages, suggestions,
+    drafts, etc.) — see migration ``a4b5c6d7e8f9``.
+
+    The audit_log row uses ``ondelete="SET NULL"`` on doctor_id, so the
+    history of actions stays intact for compliance, just unattributed.
+    """
+    from db.engine import AsyncSessionLocal
+    from db.models import Doctor, Patient
+    from sqlalchemy import select, delete
+
+    async with AsyncSessionLocal() as db:
+        if role == UserRole.doctor:
+            row = (await db.execute(
+                select(Doctor).where(Doctor.doctor_id == doctor_id)
+            )).scalar_one_or_none()
+        elif role == UserRole.patient:
+            row = (await db.execute(
+                select(Patient).where(Patient.id == patient_id)
+            )).scalar_one_or_none()
+        else:
+            raise HTTPException(400, "Invalid role")
+        if row is None:
+            raise HTTPException(404, "User not found")
+
+        # Re-verify passcode. Failed attempt counter is irrelevant here —
+        # we don't want a destructive action to also lock you out.
+        if not row.passcode_hash or not verify_passcode(passcode, row.passcode_hash):
+            raise HTTPException(401, "口令错误，操作已取消")
+
+        if role == UserRole.doctor:
+            log(f"[auth] doctor forget-me id={doctor_id}")
+            await db.execute(delete(Doctor).where(Doctor.doctor_id == doctor_id))
+        else:
+            log(f"[auth] patient forget-me id={patient_id} doctor={row.doctor_id}")
+            await db.execute(delete(Patient).where(Patient.id == patient_id))
+        await db.commit()
+
+    return {"ok": True, "deleted_role": role}
+
+
 async def revoke_user_tokens(role: str, doctor_id: Optional[str] = None, patient_id: Optional[int] = None) -> None:
     """Bump the user's passcode_version, killing all previously issued tokens."""
     from db.engine import AsyncSessionLocal

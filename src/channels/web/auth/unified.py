@@ -13,6 +13,7 @@ from db.engine import get_db
 from infra.auth.rate_limit import enforce_ip_rate_limit
 from infra.auth.unified import (
     authenticate,
+    forget_me,
     issue_token,
     login,
     login_with_role,
@@ -99,6 +100,30 @@ async def unified_login_with_role(body: LoginWithRoleRequest, request: Request):
     return await login_with_role(
         body.nickname, body.passcode, body.role,
         doctor_id=body.doctor_id, patient_id=body.patient_id,
+    )
+
+
+class ForgetMeRequest(BaseModel):
+    passcode: str  # current passcode, re-confirmation gate
+
+
+@router.post("/unified/forget-me")
+async def unified_forget_me(
+    body: ForgetMeRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+    """Right-to-be-forgotten — hard-delete the caller's account.
+
+    Requires the current passcode (so a stolen token alone cannot trigger
+    deletion). FK CASCADEs handle dependent rows; the audit_log keeps its
+    history with the doctor_id pointer set to NULL.
+    """
+    payload = await authenticate(authorization)
+    return await forget_me(
+        role=payload.get("role"),
+        doctor_id=payload.get("doctor_id"),
+        patient_id=payload.get("patient_id"),
+        passcode=body.passcode,
     )
 
 
