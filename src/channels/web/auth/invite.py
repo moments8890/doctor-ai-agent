@@ -28,6 +28,11 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 class InviteLoginInput(BaseModel):
     code: str
+    # Required since 2026-04-25: previously, doctors created via this path
+    # were left with `Doctor.name = invite.doctor_name` which was often NULL,
+    # producing "(未命名医生)" rows in admin listings. Forcing a non-empty
+    # name at registration eliminates the orphan class entirely.
+    name: str
     specialty: Optional[str] = None
     # Optional: WeChat mini app js_code to link this doctor's mini openid.
     js_code: Optional[str] = None
@@ -175,9 +180,21 @@ async def invite_login(body: InviteLoginInput):
     # brute-force enumeration of valid codes.
     enforce_doctor_rate_limit(code, scope="auth.invite_code", max_requests=5)
 
+    user_name = (body.name or "").strip()
+    if not user_name:
+        raise HTTPException(status_code=422, detail="name is required")
+    if len(user_name) > 64:
+        raise HTTPException(status_code=422, detail="name must be 64 characters or fewer")
+
     doctor_id, doctor_name, new_doctor_id = await _resolve_invite_doctor_id(code)
     enforce_doctor_rate_limit(doctor_id, scope="auth.login")
-    await _upsert_web_doctor(doctor_id, doctor_name, specialty=(body.specialty or "").strip() or None)
+    # User-provided name takes priority over the invite's preset doctor_name
+    # so the row is never created with NULL name.
+    await _upsert_web_doctor(
+        doctor_id,
+        user_name or doctor_name,
+        specialty=(body.specialty or "").strip() or None,
+    )
 
     if new_doctor_id:
         doctor_id = await _bind_new_doctor_to_invite(code, new_doctor_id)
