@@ -1,6 +1,6 @@
 """Red-flag retraction.
 
-When red_flag.detect fires within an intake segment, mark all prior AI whitelist
+When signal_flag.detect fires within an intake segment, mark all prior AI whitelist
 replies in that segment as retracted=True so they render struck-through with a
 "已撤回" tag in both patient and doctor views.
 

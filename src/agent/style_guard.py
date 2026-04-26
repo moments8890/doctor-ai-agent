@@ -6,11 +6,11 @@ Loads the corpus-validated banned-phrase artifact from
 
 Surface latency budgets (per locked plan project_ai_smell_plan_2026-04-25):
 - followup_reply:  1 regen on style violation, then ship-with-warning
-- patient-interview: 0 regens (latency > polish), detect and log only
+- patient-intake: 0 regens (latency > polish), detect and log only
 - diagnosis: 1-2 regens (async surface)
 
 Safety violations are out of scope here — the prompt-level safety rules
-in each intent prompt handle clinical red-flags. This module enforces
+in each intent prompt handle clinical signal-flags. This module enforces
 *style* only.
 """
 from __future__ import annotations
@@ -123,7 +123,7 @@ async def llm_call_with_guard(
       - shipped_with_violations: bool — True if final text still violates
 
     max_regens=0 means detect and log only (no regen). Used for low-latency
-    surfaces like patient-interview.
+    surfaces like patient-intake.
     """
     from agent.llm import llm_call
 

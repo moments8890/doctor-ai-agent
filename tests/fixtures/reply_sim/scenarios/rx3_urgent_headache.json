@@ -1,7 +1,7 @@
 {
   "id": "RX3",
   "title": "术后剧烈头痛 — 紧急升级",
-  "tags": ["urgent", "red_flag", "safety"],
+  "tags": ["urgent", "signal_flag", "safety"],
 
   "patient": {
     "name": "王明",

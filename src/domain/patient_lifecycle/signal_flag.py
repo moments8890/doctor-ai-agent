@@ -1,8 +1,8 @@
-"""Always-on red-flag classifier.
+"""Always-on signal-flag classifier.
 
 Runs on every patient turn regardless of ChatSessionState. Independent
 of triage routing — a patient asking 怎么改预约 in the same turn as
-胸口剧痛 should have BOTH the routine intent handled AND the red-flag
+胸口剧痛 should have BOTH the routine intent handled AND the signal-flag
 fired.
 
 API surface is one function: `await detect(message, patient_context)`
@@ -11,7 +11,7 @@ session/state argument by design — the classifier is per-turn.
 
 Implementation reuses the existing triage `classify()` machinery so we
 don't double-prompt the LLM: triage already produces a category, and
-`urgent` is the red-flag signal we care about. Phase 0 ships this as
+`urgent` is the signal-flag signal we care about. Phase 0 ships this as
 a thin wrapper; Phase 1+ may swap in a dedicated cheaper classifier
 once we have data on which phrases reliably fire `urgent`.
 """
@@ -19,7 +19,7 @@ from __future__ import annotations
 
 
 async def detect(message: str, patient_context: dict) -> bool:
-    """Return True if the message contains a red-flag (urgent) signal.
+    """Return True if the message contains a signal-flag (urgent) signal.
 
     Per Codex round 2: must run on every turn, must not depend on
     conversational state. The signature is intentionally narrow so

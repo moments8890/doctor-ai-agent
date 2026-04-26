@@ -36,7 +36,7 @@ async def main():
     from db.init_db import create_tables
     from db.models import Patient, MedicalRecordDB, DoctorTask
     from db.models.doctor import Doctor, DoctorKnowledgeItem
-    from db.models.interview_session import InterviewSessionDB, InterviewStatus
+    from db.models.intake_session import IntakeSessionDB, IntakeStatus
     from db.models.base import _utcnow
     from sqlalchemy import select, delete, func
 
@@ -48,7 +48,7 @@ async def main():
         # ── Reset ───────────────────────────────────────────────
         if RESET:
             print("Resetting test_doctor data...")
-            for model in [InterviewSessionDB, DoctorTask,
+            for model in [IntakeSessionDB, DoctorTask,
                           MedicalRecordDB, DoctorKnowledgeItem]:
                 await db.execute(delete(model).where(model.doctor_id == DOCTOR_ID))
             await db.execute(delete(Patient).where(Patient.doctor_id == DOCTOR_ID))
@@ -91,7 +91,7 @@ async def main():
         # ── Medical Records ─────────────────────────────────────
         records_data = [
             {
-                "patient": "周海涛", "record_type": "interview_summary",
+                "patient": "周海涛", "record_type": "intake_summary",
                 "content": "患者周海涛，男，55岁，主诉头痛2周，伴恶心呕吐，加重3天。",
                 "structured": {
                     "department": "神经外科", "chief_complaint": "头痛2周，加重3天",
@@ -104,7 +104,7 @@ async def main():
                 "hours_ago": 2,
             },
             {
-                "patient": "吴晓燕", "record_type": "interview_summary",
+                "patient": "吴晓燕", "record_type": "intake_summary",
                 "content": "患者吴晓燕，女，48岁，右上肢无力2天，伴言语不清。",
                 "structured": {
                     "department": "神经外科", "chief_complaint": "右上肢无力2天，伴言语不清",
@@ -116,7 +116,7 @@ async def main():
                 "hours_ago": 5,
             },
             {
-                "patient": "孙国庆", "record_type": "interview_summary",
+                "patient": "孙国庆", "record_type": "intake_summary",
                 "content": "患者孙国庆，男，63岁，腰痛伴左下肢放射痛1周，加重2天。",
                 "structured": {
                     "chief_complaint": "腰痛伴左下肢放射痛1周",
@@ -127,7 +127,7 @@ async def main():
                 "hours_ago": 24,
             },
             {
-                "patient": "何丽萍", "record_type": "interview_summary",
+                "patient": "何丽萍", "record_type": "intake_summary",
                 "content": "患者何丽萍，女，41岁，反复癫痫发作3月，近1周频率增加。",
                 "structured": {
                     "department": "神经外科", "chief_complaint": "反复癫痫发作3月，加重1周",
@@ -139,7 +139,7 @@ async def main():
                 "hours_ago": 48,
             },
             {
-                "patient": "马文斌", "record_type": "interview_summary",
+                "patient": "马文斌", "record_type": "intake_summary",
                 "content": "患者马文斌，男，68岁，动脉瘤夹闭术后2周复查。",
                 "structured": {
                     "chief_complaint": "动脉瘤夹闭术后2周复查",
@@ -150,7 +150,7 @@ async def main():
                 "hours_ago": 72,
             },
             {
-                "patient": "周海涛", "record_type": "interview_summary",
+                "patient": "周海涛", "record_type": "intake_summary",
                 "content": "周海涛复诊，头痛好转，MRI结果回报。",
                 "structured": {
                     "chief_complaint": "复诊，头痛好转",
@@ -226,9 +226,9 @@ async def main():
         # ── Knowledge Items (6 across categories) ───────────────
         knowledge = [
             {"text": "头痛问诊要点：先问发作方式（突发/渐进），突发→追问雷击样特征。持续性头痛+恶心+视乳头水肿→颅高压三联征。",
-             "category": "interview_guide", "source": "doctor"},
+             "category": "intake_guide", "source": "doctor"},
             {"text": "急性肢体无力问诊：首先区分急性（<24h）还是慢性。急性起病→卒中筛查：发病时间、言语障碍、面部不对称、房颤/高血压史。",
-             "category": "interview_guide", "source": "doctor"},
+             "category": "intake_guide", "source": "doctor"},
             {"text": "头痛+恶心+视乳头水肿三联征→颅内高压，需紧急CT/MRI排除占位。老年患者同时排除慢性硬膜下血肿。",
              "category": "diagnosis_rule", "source": "doctor"},
             {"text": "雷击样头痛（数秒内达峰值）→无论其他症状如何，必须立即排除SAH。先CT后腰穿，时间窗至关重要。",
@@ -248,7 +248,7 @@ async def main():
             db.add(item)
             print(f"  Knowledge [{kd['category']}]: {kd['text'][:40]}...")
 
-        # ── Interview Session (with conversation) ───────────────
+        # ── Intake Session (with conversation) ───────────────
         conversation = [
             {"role": "assistant", "content": "您好！请描述您的症状，我来帮您整理病情。"},
             {"role": "user", "content": "我头痛两个星期了，最近几天越来越严重"},
@@ -264,9 +264,9 @@ async def main():
             {"role": "user", "content": "我妈也有高血压"},
             {"role": "assistant", "content": "您的情况我都记下来了。主要是持续性头痛两周加重，伴恶心呕吐和视物模糊，有高血压和糖尿病病史。请确认后提交给医生。"},
         ]
-        sess = InterviewSessionDB(
+        sess = IntakeSessionDB(
             id=str(uuid.uuid4()), doctor_id=DOCTOR_ID,
-            patient_id=patients["周海涛"], status=InterviewStatus.confirmed, mode="patient",
+            patient_id=patients["周海涛"], status=IntakeStatus.confirmed, mode="patient",
             collected=json.dumps({
                 "chief_complaint": "头痛2周，加重3天",
                 "present_illness": "持续性前额头痛，逐渐加重，伴恶心呕吐数次，近日视物模糊",
@@ -278,10 +278,10 @@ async def main():
             turn_count=7, created_at=now - timedelta(hours=2), updated_at=now,
         )
         db.add(sess)
-        print("  Interview session: 周海涛 (13 messages)")
+        print("  Intake session: 周海涛 (13 messages)")
 
         await db.commit()
-        print(f"\n✅ Seed complete: 5 patients, 6 records, 5+3 tasks, 6 knowledge, 1 interview")
+        print(f"\n✅ Seed complete: 5 patients, 6 records, 5+3 tasks, 6 knowledge, 1 intake")
 
 
 if __name__ == "__main__":

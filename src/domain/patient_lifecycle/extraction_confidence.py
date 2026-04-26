@@ -1,7 +1,7 @@
 """Deterministic extraction_confidence — count of required history fields filled / 7.
 
 Replaces LLM self-reported confidence (Codex round 2 pushback in the
-chat-interview merge spec). The denominator (7) is the number of
+chat-intake merge spec). The denominator (7) is the number of
 required history fields in MedicalRecordDB. Doctor-facing display
 shows this as N/7, not as a percentage, so the meaning is
 unambiguous (and there's no temptation to interpret a 0.71 as "AI
