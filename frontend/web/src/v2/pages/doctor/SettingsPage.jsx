@@ -20,6 +20,7 @@ import { useDoctorStore } from "../../../store/doctorStore";
 import { APP, FONT, RADIUS, ICON } from "../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { NameAvatar, Card, TintedIconRow } from "../../components";
+import SubpageBackHome from "../../components/SubpageBackHome";
 
 function SectionHeader({ Icon, iconColor, title }) {
   return (
@@ -73,7 +74,7 @@ export default function SettingsPage() {
 
   return (
     <div style={pageContainer}>
-      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
+      <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>
         设置
       </NavBar>
 

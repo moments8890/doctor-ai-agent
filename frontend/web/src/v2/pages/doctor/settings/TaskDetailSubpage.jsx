@@ -17,6 +17,7 @@ import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 import { LoadingCenter, ActionFooter } from "../../../components";
+import SubpageBackHome from "../../../components/SubpageBackHome";
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -234,7 +235,7 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
   if (loading) {
     return (
       <div style={pageContainer}>
-        <NavBar onBack={() => navigate(-1)} style={navBarStyle}>任务详情</NavBar>
+        <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>任务详情</NavBar>
         <LoadingCenter />
       </div>
     );
@@ -243,7 +244,7 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
   if (!task) {
     return (
       <div style={pageContainer}>
-        <NavBar onBack={() => navigate(-1)} style={navBarStyle}>任务详情</NavBar>
+        <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>任务详情</NavBar>
         <div style={{ paddingTop: 64, textAlign: "center", color: APP.text4, fontSize: FONT.base }}>
           任务不存在
         </div>
@@ -257,7 +258,7 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
 
   return (
     <div style={pageContainer}>
-      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
+      <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>
         任务详情
       </NavBar>
 

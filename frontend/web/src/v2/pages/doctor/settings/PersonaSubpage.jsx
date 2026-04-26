@@ -15,6 +15,7 @@ import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 import { LoadingCenter } from "../../../components";
+import SubpageBackHome from "../../../components/SubpageBackHome";
 
 const PLACEHOLDER = `写下你希望 AI 如何工作，可以参考下面这几个方面：
 
@@ -134,7 +135,7 @@ export default function PersonaSubpage() {
 
   return (
     <div style={pageContainer}>
-      <NavBar
+      <NavBar backArrow={<SubpageBackHome />}
         onBack={() => navigate(-1)}
         right={
           editing ? (

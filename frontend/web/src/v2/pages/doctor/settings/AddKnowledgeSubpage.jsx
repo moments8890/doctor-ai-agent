@@ -15,6 +15,7 @@ import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, ICON, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 import { ActionFooter } from "../../../components";
+import SubpageBackHome from "../../../components/SubpageBackHome";
 
 
 export default function AddKnowledgeSubpage() {
@@ -159,7 +160,7 @@ export default function AddKnowledgeSubpage() {
   if (previewOpen) {
     return (
       <div style={pageContainer}>
-        <NavBar
+        <NavBar backArrow={<SubpageBackHome />}
           onBack={() => setPreviewOpen(false)}
           style={navBarStyle}
         >
@@ -222,7 +223,7 @@ export default function AddKnowledgeSubpage() {
         onChange={handleFileChange}
       />
 
-      <NavBar
+      <NavBar backArrow={<SubpageBackHome />}
         onBack={handleBack}
         style={navBarStyle}
       >

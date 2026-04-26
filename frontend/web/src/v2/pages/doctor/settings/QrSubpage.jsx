@@ -16,6 +16,7 @@ import { useDoctorStore } from "../../../../store/doctorStore";
 import { getDoctorAttachCode } from "../../../../api";
 import { APP, FONT, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
+import SubpageBackHome from "../../../components/SubpageBackHome";
 
 export default function QrSubpage() {
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ export default function QrSubpage() {
 
   return (
     <div style={pageContainer}>
-      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
+      <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>
         我的患者邀请码
       </NavBar>
 

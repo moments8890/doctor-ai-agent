@@ -10,6 +10,7 @@ import EmptyState from "../../../components/EmptyState";
 import { useNavigate } from "react-router-dom";
 import { usePersonaPending, useAcceptPendingItem, useRejectPendingItem } from "../../../../lib/doctorQueries";
 import { APP, FONT, RADIUS } from "../../../theme";
+import SubpageBackHome from "../../../components/SubpageBackHome";
 
 const FIELD_LABELS = {
   reply_style: "回复风格",
@@ -43,7 +44,7 @@ export default function PendingReviewSubpage() {
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: APP.surfaceAlt }}>
-      <NavBar
+      <NavBar backArrow={<SubpageBackHome />}
         onBack={() => navigate(-1)}
         style={{
           "--height": "44px",

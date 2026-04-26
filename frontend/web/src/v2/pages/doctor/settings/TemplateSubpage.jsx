@@ -14,6 +14,7 @@ import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS, ICON } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
+import SubpageBackHome from "../../../components/SubpageBackHome";
 
 const STANDARD_TEMPLATE_FIELDS = [
   { key: "department", label: "科别", desc: "就诊科室名称" },
@@ -205,7 +206,7 @@ export default function TemplateSubpage() {
 
   return (
     <div style={pageContainer}>
-      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
+      <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>
         报告模板
       </NavBar>
 

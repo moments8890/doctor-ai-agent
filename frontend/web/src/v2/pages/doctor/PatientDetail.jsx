@@ -47,6 +47,7 @@ import { APP, FONT, RADIUS, ICON, CATEGORY_COLOR } from "../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { LoadingCenter, NameAvatar } from "../../components";
 import { STRUCTURED_FIELD_LABELS } from "../../constants";
+import SubpageBackHome from "../../components/SubpageBackHome";
 
 // Fields to show inside an expanded record card, in reading order.
 const RECORD_DETAIL_FIELDS = [
@@ -994,7 +995,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
     <div style={pageContainer}>
       {/* NavBar */}
       <NavBar
-        backArrow={<LeftOutline />}
+        backArrow={<SubpageBackHome />}
         onBack={handleBack}
         right={
           <div

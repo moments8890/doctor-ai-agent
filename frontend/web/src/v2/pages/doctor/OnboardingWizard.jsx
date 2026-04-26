@@ -26,6 +26,7 @@ import { seedDemo, updateDoctorProfile } from "../../../api";
 import { markAllReleasesSeen } from "../../../store/releaseStore";
 import { dp } from "../../../utils/doctorBasePath";
 import { APP, FONT, RADIUS } from "../../theme";
+import SubpageBackHome from "../../components/SubpageBackHome";
 
 const TOTAL_STEPS = 3;
 
@@ -915,7 +916,7 @@ export default function OnboardingWizard() {
       {/* NavBar */}
       <NavBar
         onBack={step > 1 ? handleBack : undefined}
-        backArrow={step > 1}
+        backArrow={step > 1 ? <SubpageBackHome /> : false}
         style={{
           "--height": "44px",
           "--border-bottom": `0.5px solid ${APP.border}`,

@@ -15,6 +15,7 @@ import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../../theme";
+import SubpageBackHome from "../../../components/SubpageBackHome";
 
 const FIELD_LABELS = {
   reply_style: "回复风格",
@@ -96,7 +97,7 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
   if (loadError) {
     return (
       <div style={pageStyle}>
-        <NavBar onBack={() => navigate(-1)} style={navStyle}>
+        <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navStyle}>
           初始化风格
         </NavBar>
         <div style={{ padding: 24, textAlign: "center", color: APP.danger, fontSize: FONT.base }}>
@@ -109,7 +110,7 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
   if (!scenarios) {
     return (
       <div style={pageStyle}>
-        <NavBar onBack={() => navigate(-1)} style={navStyle}>
+        <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navStyle}>
           初始化风格
         </NavBar>
         <div style={{ display: "flex", justifyContent: "center", paddingTop: 48 }}>
@@ -135,7 +136,7 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
 
     return (
       <div style={pageStyle}>
-        <NavBar
+        <NavBar backArrow={<SubpageBackHome />}
           onBack={() => setStep(scenarios.length - 1)}
           style={navStyle}
         >
@@ -214,7 +215,7 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
 
   return (
     <div style={pageStyle}>
-      <NavBar
+      <NavBar backArrow={<SubpageBackHome />}
         onBack={step === 0 ? () => navigate(-1) : () => setStep(step - 1)}
         style={navStyle}
       >

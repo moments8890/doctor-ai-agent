@@ -17,6 +17,7 @@ import { useRuleHealth, useKnowledgeUsage } from "../../../../lib/doctorQueries"
 import { APP, FONT, RADIUS, CATEGORY_COLOR } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 import { LoadingCenter, ActionFooter } from "../../../components";
+import SubpageBackHome from "../../../components/SubpageBackHome";
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -174,7 +175,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
   if (editing) {
     return (
       <div style={pageContainer}>
-        <NavBar
+        <NavBar backArrow={<SubpageBackHome />}
           onBack={() => setEditing(false)}
           right={
             <Button size="small" color="primary" loading={saving} onClick={handleSaveEdit}>
@@ -217,7 +218,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
 
   return (
     <div style={pageContainer}>
-      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
+      <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>
         知识详情
       </NavBar>
 

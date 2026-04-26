@@ -23,6 +23,7 @@ import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { APP, FONT, RADIUS } from "../../theme";
 import { navBarStyle } from "../../layouts";
 import { LoadingCenter, CitationPopup, buildKnowledgeMap } from "../../components";
+import SubpageBackHome from "../../components/SubpageBackHome";
 
 // ── Message bubble ─────────────────────────────────────────────────
 
@@ -498,7 +499,7 @@ export default function PatientChatPage({ patientId: propPatientId, embedded = f
       {/* NavBar — hidden when embedded inside PatientDetail tabs */}
       {!embedded && (
         <NavBar
-          backArrow={<LeftOutline />}
+          backArrow={<SubpageBackHome />}
           onBack={handleBack}
           style={navBarStyle}
         >

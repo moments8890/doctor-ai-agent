@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { APP, FONT, ICON, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 import { Card } from "../../../components";
+import SubpageBackHome from "../../../components/SubpageBackHome";
 import { APP_VERSION } from "../../../version";
 
 function SectionHeader({ title }) {
@@ -52,7 +53,7 @@ export default function AboutSubpage() {
 
   return (
     <div style={pageContainer}>
-      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
+      <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>
         关于
       </NavBar>
 

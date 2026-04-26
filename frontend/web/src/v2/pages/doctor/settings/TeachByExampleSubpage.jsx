@@ -14,6 +14,7 @@ import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
+import SubpageBackHome from "../../../components/SubpageBackHome";
 
 const FIELD_LABELS = {
   reply_style: "回复风格",
@@ -56,7 +57,7 @@ export default function TeachByExampleSubpage() {
 
   return (
     <div style={pageContainer}>
-      <NavBar onBack={() => navigate(-1)} style={navBarStyle}>
+      <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>
         教AI新偏好
       </NavBar>
 
