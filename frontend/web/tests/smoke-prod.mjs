@@ -37,8 +37,10 @@ async function shot(page, name) {
 
     await shot(page, "01-myai");
 
-    console.log("患者 tab → 王大华 (has citation draft)");
-    await page.locator(".adm-tab-bar-item").filter({ hasText: "患者" }).click();
+    console.log("全部患者 → 王大华 (has citation draft)");
+    // Single-tab IA: no TabBar; navigate via the 全部患者 quick-action tile
+    // (or directly via URL — URL is faster and more reliable in smoke).
+    await page.goto("/doctor/patients");
     await page.waitForTimeout(1200);
     await shot(page, "02-patients");
 
