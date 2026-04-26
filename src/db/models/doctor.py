@@ -85,6 +85,13 @@ class Doctor(Base):
     # one-time deliberate review pass over every existing KB item.
     kb_curation_onboarding_done: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # Permanent per-doctor patient-attach code. Patients use this to bind to
+    # a doctor at registration. VARCHAR(8) leaves room to grow from the v0
+    # 4-char default to 6 or 8 without a schema migration.
+    patient_attach_code: Mapped[Optional[str]] = mapped_column(
+        String(8), nullable=True, unique=True, index=True,
+    )
+
     __table_args__ = (
         Index("ix_doctors_phone", "phone"),
         Index("ix_doctors_nickname", "nickname", unique=True),
