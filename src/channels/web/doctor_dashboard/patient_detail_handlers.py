@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.crud import (
     delete_patient_for_doctor,
 )
-from db.crud.patient import search_patients_nl
+from db.crud.patient import get_patient_for_doctor, search_patients_nl
 from domain.patients.nl_search import extract_criteria
 from db.engine import get_db
 from db.models import MedicalRecordDB
@@ -327,6 +327,7 @@ async def reply_to_patient(
     doctor_id: str = Query(default="web_doctor"),
     authorization: str | None = Header(default=None),
     body: dict = {},
+    db: AsyncSession = Depends(get_db),
 ):
     """Doctor sends a direct reply to a patient."""
     resolved = _resolve_ui_doctor_id(doctor_id, authorization)
@@ -335,7 +336,11 @@ async def reply_to_patient(
     if not text:
         raise HTTPException(status_code=422, detail="Reply text is required")
 
-    # Use unified reply logic
+    # Same response for "no such patient" and "patient owned by another doctor"
+    # so the caller cannot enumerate patient_ids across tenants.
+    if await get_patient_for_doctor(db, resolved, patient_id) is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
     from domain.patient_lifecycle.reply import send_doctor_reply
     msg_id = await send_doctor_reply(
         doctor_id=resolved,
