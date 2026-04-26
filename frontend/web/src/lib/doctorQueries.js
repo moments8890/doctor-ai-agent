@@ -137,6 +137,37 @@ export function useAIAttention() {
   });
 }
 
+// Count of patients new+unviewed in the last 24h. Drives the 今日关注 row,
+// the patient list per-row 新 badge, and the (optional) 患者 tab dot.
+// Polls every 30s (badge-critical staleness budget).
+export function useUnseenPatientCount() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.unseenPatientCount(doctorId),
+    queryFn:  () => api.getUnseenPatientCount(doctorId),
+    staleTime: STALE.counts,
+    refetchInterval: 30_000,
+    enabled:  !!doctorId,
+  });
+}
+
+// Mutation: stamp first_doctor_view_at on a patient (idempotent server-side).
+// Frontend should fire this after ~2s of foregrounded dwell on the patient
+// detail page, NOT on mount — Codex review point against accidental-tap clearing.
+export function useMarkPatientViewed() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patientId) => api.markPatientViewed(doctorId, patientId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.unseenPatientCount(doctorId) });
+      qc.invalidateQueries({ queryKey: QK.patients(doctorId) });
+    },
+  });
+}
+
 export function useTaskRecord(recordId) {
   const { doctorId } = useDoctorStore();
   const api = useApi();

@@ -20,6 +20,7 @@ export const QK = {
   knowledgeStats: (did, days) => ["doctor", did, "knowledgeStats", days],
   knowledgeUsage: (did, itemId) => ["doctor", did, "knowledgeUsage", itemId],
   feedbackDigest:    (did, days) => ["doctor", did, "feedbackDigest", days],
+  unseenPatientCount: (did) => ["doctor", did, "unseenPatientCount"],
   // supplementQueue removed 2026-04-25
 };
 

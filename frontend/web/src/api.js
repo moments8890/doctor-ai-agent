@@ -207,6 +207,22 @@ export async function getDoctorAttachCode(token, doctorId) {
   return res.json();
 }
 
+// Count of patients new+unviewed in the last 24h. Drives the 今日关注 row,
+// the patient list per-row 新 badge eligibility, and the (optional) tab dot.
+export async function getUnseenPatientCount(doctorId) {
+  return request(`/api/manage/patients/unseen-count?doctor_id=${encodeURIComponent(doctorId)}`);
+}
+
+// Idempotent — first call wins. Frontend should call this only AFTER the
+// patient detail page has been foregrounded for ~2s (Codex dwell-time fix
+// against accidental-tap clearing). Cross-doctor returns 404; treat as a
+// silent no-op (the patient list will refresh and the badge will clear).
+export async function markPatientViewed(doctorId, patientId) {
+  return request(`/api/manage/patients/${encodeURIComponent(patientId)}/mark-viewed?doctor_id=${encodeURIComponent(doctorId)}`, {
+    method: "POST",
+  });
+}
+
 // Open-ended platform feedback. Goes through `request()` so the JWT is
 // auto-attached, and the response is captured for surfacing in toasts.
 export async function submitPlatformFeedback({ content, pageUrl, userAgent }) {
