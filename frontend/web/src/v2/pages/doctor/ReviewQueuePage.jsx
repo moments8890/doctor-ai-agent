@@ -116,52 +116,61 @@ function PendingItem({ item, onNavigate }) {
 function DraftItem({ item, onNavigate }) {
   // 2026-04-25: priority comes from AI defer-pattern detection (locked plan r19).
   // critical = defer + after-hours; urgent = defer during office hours.
+  // Visual signal is a small dot on the avatar (upper-right), NOT a row tint —
+  // tinted rows overstated the AI's urgency claim and broke the design system.
+  // Sort order does the heavy lifting; the dot is just glanceable confirmation.
   const priority = item.priority || item.badge;
   const isCritical = priority === "critical";
   const isUrgent = priority === "urgent" || isCritical;
 
   const statusLabel = item.type === "undrafted"
     ? "需手动回复"
-    : isCritical ? "🔴 已转给医生 · 紧急（夜间）"
-    : isUrgent ? "🟠 已转给医生 · 待优先处理"
+    : isCritical ? "已转给医生 · 紧急（夜间）"
+    : isUrgent ? "已转给医生 · 待优先处理"
     : "AI已起草";
   const snippet = item.patient_message || item.content || "";
   const subtitle = snippet ? `"${snippet}" · ${statusLabel}` : statusLabel;
   const time = item.time || formatRelative(item.created_at);
 
+  // Notification-style dot on the avatar — 8px circle, white border, color
+  // by priority. Matches iOS/messaging conventions.
+  const dotColor = isCritical ? "#d92d2d" : isUrgent ? "#ff9100" : null;
+  const avatarWithDot = (
+    <span style={{ position: "relative", display: "inline-block", lineHeight: 0 }}>
+      <NameAvatar name={item.patient_name} size={36} />
+      {dotColor && (
+        <span
+          aria-label={isCritical ? "紧急" : "待优先处理"}
+          style={{
+            position: "absolute",
+            top: -1,
+            right: -1,
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            background: dotColor,
+            border: `2px solid ${APP.surface || "#fff"}`,
+            boxSizing: "border-box",
+          }}
+        />
+      )}
+    </span>
+  );
+
   return (
     <List.Item
-      prefix={<NameAvatar name={item.patient_name} size={36} />}
+      prefix={avatarWithDot}
       extra={<span style={{ fontSize: FONT.sm, color: APP.text4 }}>{time}</span>}
       description={
-        <Ellipsis
-          direction="end"
-          content={subtitle}
-          rows={1}
-        />
+        <Ellipsis direction="end" content={subtitle} rows={1} />
       }
       arrow
       onClick={() => onNavigate(item)}
-      style={{
-        "--align-items": "center",
-        // Subtle background tint for urgent / critical so the row stands out
-        // without screaming for attention. Critical = soft red, urgent = soft amber.
-        backgroundColor: isCritical
-          ? "rgba(217, 45, 45, 0.06)"
-          : isUrgent
-          ? "rgba(255, 145, 0, 0.06)"
-          : undefined,
-      }}
+      style={{ "--align-items": "center" }}
     >
       <div style={{ display: "flex", alignItems: "center" }}>
         <KindTag kind="reply" count={item._group_count || 1} />
-        <span
-          style={{
-            fontWeight: isUrgent ? 600 : 500,
-            fontSize: FONT.md,
-            color: isCritical ? (APP.danger || "#d92d2d") : undefined,
-          }}
-        >
+        <span style={{ fontWeight: 500, fontSize: FONT.md }}>
           {item.patient_name}
         </span>
       </div>
