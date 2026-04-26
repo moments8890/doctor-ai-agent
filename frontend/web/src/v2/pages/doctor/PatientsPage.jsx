@@ -130,6 +130,16 @@ function PatientSection({
               patient.created_at
           );
           const attn = attentionMap[patient.id];
+          // 新 badge: patient is unviewed AND created in the last 24h.
+          // The 24h window prevents a dropped mark-viewed POST from
+          // stranding the badge forever (Codex correctness fix).
+          const createdMs = patient.created_at
+            ? Date.parse(patient.created_at) || 0
+            : 0;
+          const isNewUnviewed =
+            !patient.first_doctor_view_at &&
+            createdMs > 0 &&
+            (Date.now() - createdMs) < 24 * 60 * 60 * 1000;
           return (
             <List.Item
               key={patient.id}
@@ -155,6 +165,22 @@ function PatientSection({
               <span style={{ fontWeight: 500, fontSize: FONT.md }}>
                 {patient.name || "未命名"}
               </span>
+              {isNewUnviewed && (
+                <span
+                  style={{
+                    marginLeft: 8,
+                    padding: "1px 6px",
+                    borderRadius: RADIUS.sm || 4,
+                    background: APP.primary,
+                    color: APP.white,
+                    fontSize: FONT.xs,
+                    fontWeight: 500,
+                    verticalAlign: "middle",
+                  }}
+                >
+                  新
+                </span>
+              )}
             </List.Item>
           );
         })}

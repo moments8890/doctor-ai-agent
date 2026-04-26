@@ -40,6 +40,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
+import { useMarkPatientViewed } from "../../../lib/doctorQueries";
 import { recordView } from "../../../hooks/useLastViewed";
 import { formatAge, relativeTime } from "../../../utils/time";
 import { APP, FONT, RADIUS, ICON } from "../../theme";
@@ -694,6 +695,31 @@ export default function PatientDetail({ patientId: propPatientId }) {
       })
       .catch(() => setPatient({ id: patientId, name: "患者" }));
   }, [patientId, doctorId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── First-view tracking (drives the 新 badge) ──────────────────────
+  // Fire mark-viewed only after ~2s of foregrounded dwell — Codex review
+  // pushed back on "route mount = viewed" because an accidental tap or
+  // 0.5s open shouldn't permanently clear the badge. Cancel on unmount or
+  // when the page is hidden so a quick back-nav also doesn't fire.
+  const markViewed = useMarkPatientViewed();
+  useEffect(() => {
+    if (!patientId || !patient || patient.first_doctor_view_at) return;
+    const DWELL_MS = 2000;
+    let timer = setTimeout(() => {
+      markViewed.mutate(patientId);
+    }, DWELL_MS);
+    const onVisibility = () => {
+      if (document.hidden && timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [patientId, patient]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load records ───────────────────────────────────────────────────
   const loadRecords = useCallback(async () => {

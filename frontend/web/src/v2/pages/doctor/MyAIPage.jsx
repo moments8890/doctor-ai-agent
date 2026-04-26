@@ -14,6 +14,7 @@ import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurned
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
@@ -30,6 +31,7 @@ import {
   useKbPending,
   useKnowledgeItems,
   usePatients,
+  useUnseenPatientCount,
 } from "../../../lib/doctorQueries";
 import { dp } from "../../../utils/doctorBasePath";
 import { formatAge } from "../../../utils/time";
@@ -427,6 +429,7 @@ export default function MyAIPage({ doctorId }) {
   const { doctorName } = useDoctorStore();
 
   const { data: reviewQueueData, isLoading: qLoading } = useReviewQueue();
+  const { data: unseenPatientData } = useUnseenPatientCount();
   const { data: personaData, isLoading: pLoading } = usePersona();
   const { data: summaryData, isLoading: sLoading } = useTodaySummary();
   const { data: kbPendingData } = useKbPending();
@@ -451,6 +454,7 @@ export default function MyAIPage({ doctorId }) {
   const displayName = doctorName || "医生";
   const pendingReview = qLoading ? 0 : (reviewQueue?.pending || []).length;
   const kbPendingCount = kbPendingData?.count || 0;
+  const unseenPatientCount = unseenPatientData?.count || 0;
   const knowledgeList = Array.isArray(knowledgeData)
     ? knowledgeData
     : knowledgeData?.items || [];
@@ -488,12 +492,14 @@ export default function MyAIPage({ doctorId }) {
     heroSummaryFull ||
     "基于您的知识库，提供专业的医疗决策支持";
 
-  // 今日关注 rows — stable structure; counts drive the "extra" badge.
+  // 今日关注 rows — only rows with count>0 are rendered. Empty list = the
+  // section disappears entirely (WeChat-unread style — absence communicates
+  // "nothing to do").
   const triageRows = [
     {
       key: "review",
       label: "待审核诊断建议",
-      description: pendingReview > 0 ? `${pendingReview} 位患者待确认` : "暂无待审核建议",
+      description: `${pendingReview} 位患者待确认`,
       count: pendingReview,
       icon: PersonOutlineIcon,
       bg: APP.primaryLight,
@@ -503,14 +509,24 @@ export default function MyAIPage({ doctorId }) {
     {
       key: "rules",
       label: "待采纳的规则",
-      description: kbPendingCount > 0 ? `从你的编辑中提取 ${kbPendingCount} 条` : "暂无新规则建议",
+      description: `从你的编辑中提取 ${kbPendingCount} 条`,
       count: kbPendingCount,
       icon: ArticleOutlinedIcon,
       bg: CATEGORY_COLOR.custom.bg,
       color: CATEGORY_COLOR.custom.fg,
       onClick: () => navigate(`${dp("settings/knowledge")}?tab=pending`),
     },
-  ];
+    {
+      key: "new_patients",
+      label: "新患者",
+      description: `${unseenPatientCount} 位刚刚加入`,
+      count: unseenPatientCount,
+      icon: PersonAddOutlinedIcon,
+      bg: APP.accentLight || APP.primaryLight,
+      color: APP.accent || APP.primary,
+      onClick: () => navigate(dp("patients")),
+    },
+  ].filter((r) => r.count > 0);
 
   const quickActions = [
     {
@@ -647,9 +663,11 @@ export default function MyAIPage({ doctorId }) {
         </Card>
 
         {/* ── 今日关注 OR new-doctor activation ─────────────────────── */}
+        {/* When triageRows is empty (nothing pending across all 3 categories),
+            the section is hidden entirely — absence communicates "nothing to do". */}
         {knowledgeCount === 0 ? (
           <ActivationCard onAdd={() => navigate(dp("settings/knowledge/add"))} />
-        ) : (
+        ) : triageRows.length === 0 ? null : (
           <>
             <SectionHeader
               title="今日关注"
