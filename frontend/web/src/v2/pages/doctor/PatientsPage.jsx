@@ -372,21 +372,18 @@ export default function PatientsPage() {
           navigate(-1);
         }}
         right={
-          <div
+          <span
             role="button"
             aria-label="新建病历"
             onClick={() => navigate("/doctor/patients?action=new")}
             style={{
-              padding: "8px 0 8px 12px",
-              marginRight: -4,
-              cursor: "pointer",
-              display: "flex",
+              display: "inline-flex",
               alignItems: "center",
-              justifyContent: "flex-end",
+              cursor: "pointer",
             }}
           >
             <AddCircleOutlineIcon sx={{ fontSize: ICON.md, color: APP.primary }} />
-          </div>
+          </span>
         }
         style={{
           "--height": "44px",
