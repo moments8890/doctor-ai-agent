@@ -1,16 +1,12 @@
-// AdminSidebar — left rail with brand, three nav groups, and user-menu trigger.
+// AdminSidebar — left rail with brand, two nav groups, and user-menu trigger.
 // Visual contract: docs/specs/2026-04-24-admin-modern-mockup-v3.html — `.sidebar`, `.nav-item`, `.user-row`, `.popover`.
 //
 // Active item motif: 2px brand-color rail at left:-12px (::before, rendered as
 // an absolutely-positioned div since this file uses inline styles).
 //
-// Role + dev-mode gating (Task 4.2):
-//   - viewer role → 系统 nav-group hidden, raw_db_view switch hidden in popover
-//   - super role + dev-mode off → 系统 nav-group hidden
-//   - super role + dev-mode on  → 系统 nav-group visible
-//   - role label in user-menu trigger:
-//       viewer → "合作伙伴 · 只读"
-//       super  → "管理员"
+// Role labels in user-menu trigger:
+//   viewer → "合作伙伴 · 只读"
+//   super  → "管理员"
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -21,10 +17,6 @@ import { isDevMode, toggleDevMode, useAdminRole, useDevMode } from "./devMode";
 // Each item carries an optional `href` — when present, clicking the item
 // pushes that URL and dispatches a synthetic popstate so the v3 entry
 // re-reads the URL (same pattern DoctorList rows use to jump to detail).
-//
-// 系统 items intentionally fall back to `?v=1` legacy admin until a v3
-// equivalent is built. Items without `href` stay non-functional with a
-// TODO so the sidebar still renders the full intended IA.
 const NAV_GROUPS = [
   {
     key: "overview",
@@ -34,7 +26,7 @@ const NAV_GROUPS = [
       { key: "doctors",    label: "全体医生",    icon: "stethoscope",          href: "?v=3" },
       { key: "patients",   label: "全体患者",    icon: "groups",               href: "?v=3&section=overview/patients" },
       { key: "chat",       label: "沟通中心",    icon: "forum",                href: "?v=3&section=overview/chat" },
-      { key: "ai",         label: "知识 & AI",   icon: "network_intelligence", href: "?v=3&section=overview/ai" },
+      { key: "ai",         label: "知识库",      icon: "menu_book",            href: "?v=3&section=overview/ai" },
     ],
   },
   {
@@ -45,15 +37,6 @@ const NAV_GROUPS = [
       { key: "pilot",      label: "试点进度",        icon: "deployed_code_history",   href: "?v=3&section=ops/pilot" },
       { key: "report",     label: "合作伙伴报表",    icon: "summarize",               href: "?v=3&section=ops/report" },
       { key: "export",     label: "数据导出",        icon: "download",                href: "?v=3&section=ops/export" },
-    ],
-  },
-  {
-    key: "system",
-    label: "系统",
-    items: [
-      // TODO(v3): build dedicated v3 audit/health pages; for now route to v1.
-      { key: "health",     label: "系统健康",        icon: "monitor_heart", href: "?v=1&section=health" },
-      { key: "audit",      label: "审计日志",        icon: "history",       href: "?v=1&section=audit_log" },
     ],
   },
 ];
@@ -345,14 +328,6 @@ function UserMenu({ role }) {
 
 export default function AdminSidebar({ activeSection }) {
   const role = useAdminRole();
-  const dev = useDevMode();
-
-  const visibleGroups = NAV_GROUPS.filter((group) => {
-    if (group.key !== "system") return true;
-    // 系统 group hidden for viewer regardless; for super, requires dev-mode.
-    if (role === "viewer") return false;
-    return dev;
-  });
 
   return (
     <aside
@@ -415,7 +390,7 @@ export default function AdminSidebar({ activeSection }) {
 
       {/* Nav groups */}
       <div style={{ flex: 1, overflowY: "auto" }}>
-        {visibleGroups.map((group) => (
+        {NAV_GROUPS.map((group) => (
           <div key={group.label} style={{ marginBottom: 12 }}>
             <div
               style={{

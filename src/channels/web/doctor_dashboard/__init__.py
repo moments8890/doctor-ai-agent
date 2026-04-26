@@ -34,6 +34,7 @@ from channels.web.doctor_dashboard.admin_ops import router as _admin_ops_router
 from channels.web.doctor_dashboard.admin_patients import router as _admin_patients_router
 from channels.web.doctor_dashboard.admin_messages import router as _admin_messages_router
 from channels.web.doctor_dashboard.admin_suggestions import router as _admin_suggestions_router
+from channels.web.doctor_dashboard.admin_knowledge import router as _admin_knowledge_router
 from channels.web.doctor_dashboard.preferences_handlers import router as _preferences_router
 from channels.web.doctor_dashboard.today_summary_handlers import router as _today_summary_router
 from channels.web.doctor_dashboard.feedback_handlers import router as _feedback_router
@@ -72,6 +73,7 @@ router.include_router(_admin_ops_router)
 router.include_router(_admin_patients_router)
 router.include_router(_admin_messages_router)
 router.include_router(_admin_suggestions_router)
+router.include_router(_admin_knowledge_router)
 router.include_router(_preferences_router)
 router.include_router(_today_summary_router)
 router.include_router(_feedback_router)

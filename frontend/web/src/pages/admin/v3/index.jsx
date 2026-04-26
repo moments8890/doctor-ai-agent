@@ -73,7 +73,7 @@ const OVERVIEW_SUBS = {
   dashboard: "仪表盘",
   patients:  "全体患者",
   chat:      "沟通中心",
-  ai:        "知识 & AI",
+  ai:        "知识库",
 };
 
 function readRoute() {
