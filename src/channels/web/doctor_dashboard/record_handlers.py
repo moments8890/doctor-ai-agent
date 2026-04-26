@@ -112,6 +112,9 @@ def _serialize_patient_item(p, count_map: dict, triage_map: Optional[dict] = Non
         "id": p.id, "name": p.name, "gender": p.gender,
         "year_of_birth": p.year_of_birth, "created_at": _fmt_ts(p.created_at),
         "last_activity_at": _fmt_ts(getattr(p, "last_activity_at", None)),
+        # Drives the "新" badge on the patient list. The frontend treats
+        # null/missing as "never viewed", so this MUST be projected.
+        "first_doctor_view_at": _fmt_ts(getattr(p, "first_doctor_view_at", None)),
         "record_count": int(count_map.get(p.id, 0)),
         "ai_summary": getattr(p, "ai_summary", None),
         "ai_summary_at": _fmt_ts(getattr(p, "ai_summary_at", None)),
