@@ -152,8 +152,7 @@ async def _intake_dispatch(
 ) -> ChatResponse:
     """State-machine path. Routes by ChatSessionState.state.
 
-    Replaces _legacy_triage_dispatch when PATIENT_CHAT_INTAKE_ENABLED is on.
-    Always-on signal-flag pass runs first and short-circuits.
+    Always-on signal-flag pass runs first and short-circuits on urgent.
     """
     patient = await _authenticate_patient(x_patient_token, authorization)
     text = (body.text or "").strip()
@@ -280,12 +279,43 @@ async def _intake_dispatch(
                 resource_type="patient_chat", resource_id=str(patient_id),
             ))
             return ChatResponse(reply="", triage_category="symptom_report", ai_handled=False)
-        # Not entering intake → legacy idle reply path. Snapshot first so the
-        # state transition log is anchored to this message even when the
-        # message also has whitelist KB-downgrade replies attached.
+        # Not entering intake → save inbound, schedule doctor draft via
+        # FOLLOWUP_REPLY_LAYERS, push a system ack to patient. Bridge-not-
+        # service: AI doesn't auto-reply; the doctor's reviewed reply is
+        # what patient eventually sees. System ack closes the "did my
+        # message send?" gap (option b from intake-redesign discussion).
         patient_msg.chat_state_snapshot = serialize_state(state)
         await db.commit()
-        return await _legacy_triage_dispatch(body, x_patient_token, authorization, db)
+
+        try:
+            patient_context = await load_patient_context(patient_id, doctor_id, db)
+            ctx_str = json.dumps(patient_context, ensure_ascii=False) if patient_context else ""
+        except Exception:
+            logger.exception("[PatientChat:idle] context load failed | patient_id=%s", patient_id)
+            ctx_str = ""
+        from domain.patient_lifecycle.triage_handlers import _generate_draft_for_escalated
+        safe_create_task(
+            _generate_draft_for_escalated(
+                doctor_id, patient_id, patient_msg.id, text, ctx_str,
+            ),
+            name=f"draft-reply-{patient_msg.id}",
+        )
+
+        ack_text = "您的医生将尽快查看并回复您，请稍候。"
+        ack_msg = PatientMessage(
+            patient_id=patient_id, doctor_id=doctor_id,
+            content=ack_text, direction="outbound", source="system",
+            ai_handled=True,
+            is_whitelist_reply=False, retracted=False,
+        )
+        db.add(ack_msg)
+        await db.commit()
+
+        safe_create_task(audit(
+            doctor_id, "WRITE",
+            resource_type="patient_chat", resource_id=str(patient_id),
+        ))
+        return ChatResponse(reply=ack_text, triage_category="other", ai_handled=True)
 
     if state.state == "intake":
         # Append fields, refresh last_intake_turn_at_iso
