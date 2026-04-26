@@ -285,19 +285,22 @@ def setup_middleware(app: FastAPI) -> None:
                 response = await call_next(request)
                 status_code = int(getattr(response, "status_code", 200))
             except Exception as exc:
-                latency_ms = (time.perf_counter() - start_clock) * 1000.0
+                # Convert the exception into a 500 Response here rather than
+                # re-raising. Re-raising lets the exception escape past
+                # CORSMiddleware (which sits inside this middleware in the
+                # ASGI stack), so the response synthesized by Starlette's
+                # outer ServerErrorMiddleware lands at the client without
+                # CORS headers. The browser then surfaces it as a generic
+                # "Failed to fetch" instead of the real 500, which is what
+                # masked the signal_flag schema drift on 2026-04-26.
                 logging.getLogger("app").exception(
                     "[UnhandledError] path=%s err=%s", request.url.path, exc
                 )
-                add_trace(
-                    trace_id=trace_id,
-                    started_at=started_at,
-                    method=request.method,
-                    path=request.url.path,
+                response = JSONResponse(
                     status_code=500,
-                    latency_ms=latency_ms,
+                    content={"detail": "internal_server_error"},
                 )
-                raise
+                status_code = 500
 
             latency_ms = (time.perf_counter() - start_clock) * 1000.0
             add_trace(

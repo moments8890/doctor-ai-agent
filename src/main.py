@@ -218,17 +218,27 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     _install_access_log_noise_filter()
-    setup_cors(_app)
     setup_exception_handlers(_app)
     setup_middleware(_app)
     _install_sentry_user_middleware(_app)
-    # NOTE on ordering: Starlette executes middleware in
-    # reverse-registration order (last added = outermost). We want the
-    # request_id tag set BEFORE the Sentry user middleware runs so that
-    # any event captured during auth has the id attached, so the
-    # request_context middleware is registered LAST here — making it
-    # the outermost wrapper that runs first at request time.
     install_request_context_middleware(_app)
+    # NOTE on ordering: Starlette executes middleware in
+    # reverse-registration order (last added = outermost). CORSMiddleware
+    # is registered LAST so it is the outermost user middleware, which
+    # means every response — including 500s synthesized when an
+    # exception escapes a downstream BaseHTTPMiddleware (this happens
+    # because BaseHTTPMiddleware's `call_next` re-raises through anyio
+    # streams and bypasses ExceptionMiddleware, see starlette#919) —
+    # passes through CORS on the way out. Without this, browsers see
+    # a naked 5xx with no Access-Control-Allow-Origin header and
+    # surface it as TypeError "Failed to fetch", which masked the
+    # signal_flag schema drift on 2026-04-26.
+    #
+    # request_context is registered just before CORS so the request_id
+    # tag is bound BEFORE the Sentry user middleware (which is inside
+    # request_context) runs — preserves the original ordering rationale
+    # for that middleware.
+    setup_cors(_app)
     include_routers(_app)
     register_health_and_utility_routes(
         _app,

@@ -49,9 +49,33 @@ ENVIRONMENT=production PYTHONPATH="$APP_DIR/src" "$VENV/bin/alembic" upgrade hea
 cd "$APP_DIR/frontend/web"
 npm ci --silent
 VITE_API_BASE_URL=https://api.doctoragentai.cn npm run build
-rm -rf "$APP_DIR/frontend/dist"
-cp -r "$APP_DIR/frontend/web/dist" "$APP_DIR/frontend/dist"
-chmod -R o+rX "$APP_DIR/frontend/dist"
+
+# Atomic swap of frontend/dist via stage-then-rename. Replaces the older
+# `rm -rf $APP_DIR/frontend/dist` + `cp -r` pattern, which left the
+# pipeline jammed for ~4 hours on 2026-04-26 after dist files ended up
+# root-owned (probably from a manual `sudo bash deploy.sh` recovery run):
+# every subsequent ubuntu-user deploy aborted at the rm step and never
+# reached `systemctl restart`, so prod ran stale code that was missing
+# the latest schema.
+#
+# Why this is robust: only the parent dir (`frontend/`) needs to be
+# ubuntu-writable, not the dist contents. The `mv` of an existing dir to
+# a new name only touches the parent's directory entry, so it works
+# regardless of whose UID owns the files inside. Any prior staging
+# dirs from earlier failed runs are cleaned up before the cp so a
+# half-finished previous run can't cause `cp -r` to nest.
+NEW_DIST="$APP_DIR/frontend/dist.new.$$"
+OLD_DIST="$APP_DIR/frontend/dist.old.$$"
+rm -rf "$NEW_DIST" "$OLD_DIST" 2>/dev/null || true
+cp -r "$APP_DIR/frontend/web/dist" "$NEW_DIST"
+chmod -R o+rX "$NEW_DIST"
+[ -e "$APP_DIR/frontend/dist" ] && mv "$APP_DIR/frontend/dist" "$OLD_DIST"
+mv "$NEW_DIST" "$APP_DIR/frontend/dist"
+# Best-effort cleanup of the old tree. Silently no-ops on root-owned
+# stragglers; those accumulate under `frontend/dist.old.*` for a human
+# (or a future privileged sweeper) to reap.
+rm -rf "$OLD_DIST" 2>/dev/null || true
+
 cd "$APP_DIR"
 
 # Nuke Python bytecode cache so a fresh import picks up the new code.
