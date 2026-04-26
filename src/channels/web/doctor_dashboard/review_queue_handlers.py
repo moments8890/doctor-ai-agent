@@ -69,6 +69,7 @@ def _map_urgency_label(urgency: str | None) -> str:
 @router.get("/api/manage/review/queue")
 async def review_queue(
     doctor_id: str = Query(...),
+    seed_source: Optional[str] = Query(default=None),  # 'chat_detected' | 'explicit_interview' | None=all
     authorization: Optional[str] = Header(default=None),
     session: AsyncSession = Depends(get_db),
 ):
@@ -102,6 +103,8 @@ async def review_queue(
             MedicalRecordDB.patient_id,
             MedicalRecordDB.chief_complaint.label("chief_complaint"),
             MedicalRecordDB.record_type.label("record_type"),
+            MedicalRecordDB.seed_source.label("record_seed_source"),
+            MedicalRecordDB.extraction_confidence.label("record_extraction_confidence"),
             Patient.name.label("patient_name"),
         )
         .join(MedicalRecordDB, MedicalRecordDB.id == AISuggestion.record_id)
@@ -118,8 +121,10 @@ async def review_queue(
             ),
             desc(AISuggestion.created_at),
         )
-        .limit(50)
     )
+    if seed_source:
+        pending_stmt = pending_stmt.where(MedicalRecordDB.seed_source == seed_source)
+    pending_stmt = pending_stmt.limit(50)
     pending_rows = (await session.execute(pending_stmt)).all()
 
     # Gather all KB citation IDs across pending suggestions for batch lookup
@@ -162,6 +167,8 @@ async def review_queue(
         patient_id = row.patient_id
         chief_complaint = row.chief_complaint or ""
         record_type = row.record_type or "visit"
+        rec_seed_source = row.record_seed_source
+        rec_extraction_confidence = row.record_extraction_confidence
 
         cited_ids = pending_citations.get(sug.id, [])
         rule_cited: str | None = None
@@ -177,6 +184,8 @@ async def review_queue(
             "patient_name": patient_name,
             "chief_complaint": chief_complaint,
             "record_type": record_type,
+            "seed_source": rec_seed_source,
+            "extraction_confidence": rec_extraction_confidence,
             "time": _relative_time(sug.created_at),
             "urgency": _map_urgency_label(sug.urgency),
             "section": sug.section,

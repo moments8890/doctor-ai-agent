@@ -4,7 +4,7 @@
  * v2 ReviewQueuePage — antd-mobile rewrite.
  * Shows pending diagnosis reviews, pending reply drafts, and completed items.
  */
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   JumboTabs,
@@ -19,6 +19,7 @@ import { dp } from "../../../utils/doctorBasePath";
 import { APP, FONT, RADIUS } from "../../theme";
 import { pageContainer, scrollable } from "../../layouts";
 import { NameAvatar, LoadingCenter } from "../../components";
+import ExtractionConfidenceRing from "../../components/ExtractionConfidenceRing";
 
 // Tab title with an inline (N) count shown when count > 0.
 function TabTitleWithCount({ label, count }) {
@@ -59,6 +60,59 @@ function KindTag({ kind, count = 1 }) {
   );
 }
 
+// Provenance filter chips — 全部 / 问诊完成 / 自动整理
+const PROVENANCE_OPTIONS = [
+  { label: "全部", value: null },
+  { label: "问诊完成", value: "explicit_interview" },
+  { label: "自动整理", value: "chat_detected" },
+];
+
+function ProvenanceChips({ value, onChange }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        padding: "8px 12px",
+        backgroundColor: APP.surface,
+        borderBottom: `0.5px solid ${APP.borderLight}`,
+        flexWrap: "wrap",
+      }}
+    >
+      {PROVENANCE_OPTIONS.map((opt) => {
+        const isSelected = value === opt.value;
+        return (
+          <button
+            key={String(opt.value)}
+            onClick={() => onChange(opt.value)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minWidth: 44,
+              minHeight: 44,
+              padding: "0 14px",
+              borderRadius: RADIUS.pill,
+              border: isSelected
+                ? `1.5px solid ${APP.primary}`
+                : `1px solid ${APP.border}`,
+              backgroundColor: isSelected ? APP.primaryLight : APP.surface,
+              color: isSelected ? APP.primary : APP.text2,
+              fontSize: FONT.sm,
+              fontWeight: isSelected ? 600 : 400,
+              cursor: "pointer",
+              outline: "none",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // Format ISO timestamp → "N 天前" / "刚刚" / "N 小时前" for the extra slot.
 function formatRelative(iso) {
   if (!iso) return "";
@@ -92,10 +146,20 @@ function PendingItem({ item, onNavigate }) {
         .join(" · ");
   const time = item.time || formatRelative(item.created_at);
 
+  const showRing =
+    item.seed_source === "chat_detected" && item.extraction_confidence != null;
+
   return (
     <List.Item
       prefix={<NameAvatar name={item.patient_name} size={36} />}
-      extra={<span style={{ fontSize: FONT.sm, color: APP.text4 }}>{time}</span>}
+      extra={
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {showRing && (
+            <ExtractionConfidenceRing confidence={item.extraction_confidence} />
+          )}
+          <span style={{ fontSize: FONT.sm, color: APP.text4 }}>{time}</span>
+        </div>
+      }
       description={<Ellipsis direction="end" content={subtitle} rows={1} />}
       arrow
       onClick={() => onNavigate(item)}
@@ -212,7 +276,10 @@ export default function ReviewQueuePage() {
   const navigate = useNavigate();
   const { doctorId } = useDoctorStore();
 
-  const { data: queueData, isLoading: qLoading, refetch: refetchQueue } = useReviewQueue();
+  // Provenance filter — null means "all", "chat_detected" or "explicit_interview" filters
+  const [seedSource, setSeedSource] = useState(null);
+
+  const { data: queueData, isLoading: qLoading, refetch: refetchQueue } = useReviewQueue({ seedSource });
   const { data: draftsData, isLoading: dLoading, refetch: refetchDrafts } = useDrafts({ includeSent: true });
 
   const loading = qLoading || dLoading;
@@ -340,6 +407,11 @@ export default function ReviewQueuePage() {
           />
         </JumboTabs>
       </div>
+
+      {/* Provenance filter chips — only shown on the pending tab */}
+      {activeTab === "pending" && (
+        <ProvenanceChips value={seedSource} onChange={setSeedSource} />
+      )}
 
       {/* Scrollable content — page bg is gray (pageContainer), list sits in a white card */}
       <div style={scrollable}>

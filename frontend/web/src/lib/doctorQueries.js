@@ -66,12 +66,12 @@ export function useDraftSummary() {
   });
 }
 
-export function useReviewQueue() {
+export function useReviewQueue({ seedSource = null } = {}) {
   const { doctorId } = useDoctorStore();
   const api = useApi();
   return useQuery({
-    queryKey: QK.reviewQueue(doctorId),
-    queryFn:  () => api.getReviewQueue(doctorId),
+    queryKey: [...QK.reviewQueue(doctorId), seedSource],
+    queryFn:  () => api.getReviewQueue(doctorId, { seedSource }),
     staleTime: STALE.queue,
     refetchInterval: POLL,
     enabled:  !!doctorId,

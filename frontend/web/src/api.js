@@ -444,6 +444,11 @@ export async function deleteRecord(doctorId, recordId) {
   return request(`/api/manage/records/${recordId}?${qs.toString()}`, { method: "DELETE" });
 }
 
+export async function getRecordEntries(doctorId, recordId) {
+  const qs = new URLSearchParams({ doctor_id: doctorId });
+  return request(`/api/manage/records/${recordId}/entries?${qs.toString()}`);
+}
+
 export async function getPatientTimeline({ doctorId, patientId, limit = 100 }) {
   const qs = new URLSearchParams({ doctor_id: doctorId, limit: String(limit) });
   return request(`/api/manage/patients/${patientId}/timeline?${qs.toString()}`);
@@ -1160,8 +1165,10 @@ export async function fetchAIAttention(doctorId) {
   return request(`/api/manage/patients/ai-attention?doctor_id=${encodeURIComponent(doctorId)}`);
 }
 
-export async function getReviewQueue(doctorId) {
-  return request(`/api/manage/review/queue?doctor_id=${encodeURIComponent(doctorId)}`);
+export async function getReviewQueue(doctorId, { seedSource = null } = {}) {
+  let url = `/api/manage/review/queue?doctor_id=${encodeURIComponent(doctorId)}`;
+  if (seedSource) url += `&seed_source=${encodeURIComponent(seedSource)}`;
+  return request(url);
 }
 
 export async function fetchDrafts(doctorId, { includeSent = false, patientId = null } = {}) {
