@@ -19,7 +19,8 @@ export const QK = {
   todaySummary:   (did) => ["doctor", did, "todaySummary"],
   knowledgeStats: (did, days) => ["doctor", did, "knowledgeStats", days],
   knowledgeUsage: (did, itemId) => ["doctor", did, "knowledgeUsage", itemId],
-  feedbackDigest: (did, days) => ["doctor", did, "feedbackDigest", days],
+  feedbackDigest:    (did, days) => ["doctor", did, "feedbackDigest", days],
+  supplementQueue:   (did)       => ["doctor", did, "supplementQueue"],
 };
 
 // Patient portal keys — parallel to QK (doctor)

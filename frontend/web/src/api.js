@@ -1227,3 +1227,27 @@ export async function seedDemo(doctorId) {
     body: JSON.stringify({ doctor_id: doctorId }),
   });
 }
+
+// ── Patient supplement queue ───────────────────────────────────────
+
+export async function listPendingSupplements(doctorId) {
+  return request(`/api/manage/supplements/pending?doctor_id=${encodeURIComponent(doctorId)}`);
+}
+
+export async function acceptSupplement(doctorId, supplementId) {
+  return request(`/api/manage/supplements/${supplementId}/accept?doctor_id=${encodeURIComponent(doctorId)}`, {
+    method: "POST",
+  });
+}
+
+export async function createNewFromSupplement(doctorId, supplementId) {
+  return request(`/api/manage/supplements/${supplementId}/create_new?doctor_id=${encodeURIComponent(doctorId)}`, {
+    method: "POST",
+  });
+}
+
+export async function ignoreSupplement(doctorId, supplementId) {
+  return request(`/api/manage/supplements/${supplementId}/ignore?doctor_id=${encodeURIComponent(doctorId)}`, {
+    method: "POST",
+  });
+}

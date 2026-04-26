@@ -316,3 +316,15 @@ export function useSuggestions(recordId) {
     enabled:  !!recordId && !!doctorId,
   });
 }
+
+export function useSupplementQueue() {
+  const { doctorId } = useDoctorStore();
+  const api = useApi();
+  return useQuery({
+    queryKey: QK.supplementQueue(doctorId),
+    queryFn:  () => api.listPendingSupplements(doctorId),
+    staleTime: STALE.queue,
+    refetchInterval: POLL,
+    enabled:  !!doctorId,
+  });
+}

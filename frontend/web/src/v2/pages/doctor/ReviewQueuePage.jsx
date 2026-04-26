@@ -5,6 +5,7 @@
  * Shows pending diagnosis reviews, pending reply drafts, and completed items.
  */
 import { useCallback, useState } from "react";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   JumboTabs,
@@ -13,7 +14,9 @@ import {
   PullToRefresh,
   Ellipsis,
 } from "antd-mobile";
-import { useReviewQueue, useDrafts } from "../../../lib/doctorQueries";
+import { useReviewQueue, useDrafts, useSupplementQueue } from "../../../lib/doctorQueries";
+import { acceptSupplement, createNewFromSupplement, ignoreSupplement } from "../../../api";
+import SupplementCard from "../../components/SupplementCard";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { dp } from "../../../utils/doctorBasePath";
 import { APP, FONT, RADIUS } from "../../theme";
@@ -279,8 +282,29 @@ export default function ReviewQueuePage() {
   // Provenance filter — null means "all", "chat_detected" or "explicit_interview" filters
   const [seedSource, setSeedSource] = useState(null);
 
+  const queryClient = useQueryClient();
+
   const { data: queueData, isLoading: qLoading, refetch: refetchQueue } = useReviewQueue({ seedSource });
   const { data: draftsData, isLoading: dLoading, refetch: refetchDrafts } = useDrafts({ includeSent: true });
+  const { data: supplementData } = useSupplementQueue();
+  const pendingSupplements = supplementData?.items || [];
+
+  function invalidateSupplements() {
+    queryClient.invalidateQueries({ queryKey: ["doctor", doctorId, "supplementQueue"] });
+  }
+
+  const acceptMutation = useMutation({
+    mutationFn: (id) => acceptSupplement(doctorId, id),
+    onSuccess: invalidateSupplements,
+  });
+  const createNewMutation = useMutation({
+    mutationFn: (id) => createNewFromSupplement(doctorId, id),
+    onSuccess: invalidateSupplements,
+  });
+  const ignoreMutation = useMutation({
+    mutationFn: (id) => ignoreSupplement(doctorId, id),
+    onSuccess: invalidateSupplements,
+  });
 
   const loading = qLoading || dLoading;
   const queue = queueData || { pending: [], completed: [] };
@@ -421,6 +445,38 @@ export default function ReviewQueuePage() {
           {/* Unified pending tab — diagnosis reviews + reply drafts */}
           {!loading && activeTab === "pending" && (
             <>
+              {/* Patient supplement submissions — shown above the main pending list */}
+              {pendingSupplements.length > 0 && (
+                <>
+                  <div
+                    style={{
+                      padding: "12px 16px 4px",
+                      fontSize: FONT.sm,
+                      color: APP.text4,
+                      fontWeight: 500,
+                    }}
+                  >
+                    患者补充信息
+                  </div>
+                  {pendingSupplements.map((sup) => {
+                    const isBusy =
+                      (acceptMutation.isPending && acceptMutation.variables === sup.id) ||
+                      (createNewMutation.isPending && createNewMutation.variables === sup.id) ||
+                      (ignoreMutation.isPending && ignoreMutation.variables === sup.id);
+                    return (
+                      <SupplementCard
+                        key={sup.id}
+                        supplement={sup}
+                        busy={isBusy}
+                        onAccept={() => acceptMutation.mutate(sup.id)}
+                        onCreateNew={() => createNewMutation.mutate(sup.id)}
+                        onIgnore={() => ignoreMutation.mutate(sup.id)}
+                      />
+                    );
+                  })}
+                </>
+              )}
+
               {pendingDedup.length > 0 ? (
                 <>
                   <List
