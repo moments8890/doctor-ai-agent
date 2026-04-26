@@ -115,8 +115,15 @@ function dayKey(d) {
   return d ? d.toDateString() : "";
 }
 
-function buildBubbleItems(messages) {
-  const bubbles = (messages || [])
+const DRAFT_STATUS_LABEL = {
+  generated: "草稿 · 待发送",
+  edited: "草稿 · 已编辑",
+  dismissed: "草稿 · 已忽略",
+  stale: "草稿 · 已超时",
+};
+
+function buildBubbleItems(messages, drafts) {
+  const sent = (messages || [])
     .filter((m) => m && (m.direction === "inbound" || m.direction === "outbound"))
     .map((m) => ({
       kind: "bubble",
@@ -128,11 +135,31 @@ function buildBubbleItems(messages) {
       source: m.source || null,
       text: m.content || "",
       ts: parseTs(m.created_at),
-      _id: m.id,
+      _id: `m-${m.id}`,
     }));
+
+  // Unsent drafts surface as ghost bubbles on the doctor (right) side so
+  // the auditor can see what AI proposed without reading the chat as if
+  // the patient saw it. Use edited_text when the doctor edited but
+  // never sent; fall back to the original AI draft.
+  const drafted = (drafts || []).map((d) => ({
+    kind: "draft",
+    role: "doctor",
+    status: d.status || "generated",
+    text: (d.edited_text && d.edited_text.trim()) || d.draft_text || "",
+    ts: parseTs(d.created_at),
+    _id: `d-${d.id}`,
+  }));
+
+  const merged = [...sent, ...drafted].sort((a, b) => {
+    if (!a.ts) return -1;
+    if (!b.ts) return 1;
+    return a.ts.getTime() - b.ts.getTime();
+  });
+
   const out = [];
   let last = null;
-  for (const b of bubbles) {
+  for (const b of merged) {
     const k = dayKey(b.ts);
     if (k !== last) {
       out.push({ kind: "day", label: fmtDayTag(b.ts), _key: `day-${k}` });
@@ -174,7 +201,7 @@ function Bubble({ role, source, text, stamp }) {
       >
         {isAi && (
           <span
-            title="该消息由 AI 起草"
+            title="AI 起草，已发送给患者"
             style={{
               fontFamily: FONT_STACK.mono,
               fontSize: 9.5,
@@ -195,6 +222,89 @@ function Bubble({ role, source, text, stamp }) {
               fontFamily: FONT_STACK.mono,
               fontSize: 10.5,
               color: isDoctor ? "rgba(255,255,255,0.75)" : COLOR.text3,
+            }}
+          >
+            {stamp}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Ghost bubble for unsent AI drafts. Right-aligned (doctor side), dashed
+// border, muted background, and a "草稿 · {状态}" pill so an auditor can
+// see what AI proposed but the doctor never sent. Status labels:
+//   generated → 待发送, edited → 已编辑 (still unsent), dismissed → 已忽略,
+//   stale → 已超时.
+function DraftBubble({ status, text, stamp }) {
+  const label = DRAFT_STATUS_LABEL[status] || "草稿";
+  const isDismissed = status === "dismissed" || status === "stale";
+  return (
+    <div
+      title={
+        status === "dismissed"
+          ? "AI 起草，医生忽略，未发送"
+          : status === "stale"
+          ? "AI 起草，超过有效期未发送"
+          : status === "edited"
+          ? "AI 起草，医生已编辑但尚未发送"
+          : "AI 起草，待医生审核发送"
+      }
+      style={{
+        alignSelf: "flex-end",
+        maxWidth: "70%",
+        padding: "10px 14px",
+        fontSize: 14,
+        lineHeight: 1.55,
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        background: COLOR.bgCardAlt || COLOR.bgPage,
+        color: isDismissed ? COLOR.text3 : COLOR.text2,
+        border: `1px dashed ${COLOR.borderDefault}`,
+        borderRadius: "12px 12px 4px 12px",
+        opacity: isDismissed ? 0.75 : 1,
+      }}
+    >
+      <div
+        style={{
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          textDecoration: isDismissed ? "line-through" : "none",
+        }}
+      >
+        {text || "（空草稿）"}
+      </div>
+      <div
+        style={{
+          alignSelf: "flex-end",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: FONT_STACK.mono,
+            fontSize: 9.5,
+            fontWeight: 600,
+            letterSpacing: "0.04em",
+            padding: "1px 6px",
+            borderRadius: 999,
+            background: COLOR.bgCard,
+            color: COLOR.text2,
+            border: `1px solid ${COLOR.borderSubtle}`,
+          }}
+        >
+          {label}
+        </span>
+        {stamp && (
+          <span
+            style={{
+              fontFamily: FONT_STACK.mono,
+              fontSize: 10.5,
+              color: COLOR.text3,
             }}
           >
             {stamp}
@@ -256,7 +366,10 @@ function ThreadBody({ patientId, doctorId, doctorName }) {
     };
   }, [patientId, doctorId]);
 
-  const items = useMemo(() => buildBubbleItems(data.items), [data.items]);
+  const items = useMemo(
+    () => buildBubbleItems(data.items, data.drafts),
+    [data.items, data.drafts],
+  );
 
   return (
     <div
@@ -314,6 +427,16 @@ function ThreadBody({ patientId, doctorId, doctorName }) {
         {!loading && !error &&
           items.map((it, idx) => {
             if (it.kind === "day") return <DayTag key={it._key || idx} label={it.label} />;
+            if (it.kind === "draft") {
+              return (
+                <DraftBubble
+                  key={it._id ?? idx}
+                  status={it.status}
+                  text={it.text}
+                  stamp={it.stamp}
+                />
+              );
+            }
             return (
               <Bubble
                 key={it._id ?? idx}

@@ -34,7 +34,7 @@ from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.engine import get_db
-from db.models import Doctor, Patient, PatientMessage
+from db.models import Doctor, MessageDraft, Patient, PatientMessage
 from channels.web.doctor_dashboard.deps import require_admin_role
 from channels.web.doctor_dashboard.filters import _fmt_ts, apply_exclude_test_doctors
 
@@ -299,6 +299,53 @@ async def admin_messages_thread(
             }
         )
 
+    # Unsent AI drafts for the same thread — surfaced as ghost bubbles so an
+    # auditor can see what the AI proposed but the doctor never sent. Drafts
+    # with status='sent' have a matching outbound row in patient_messages
+    # already (rendered above), so we exclude them. MessageDraft.patient_id
+    # is String(64) (ADR landmine vs Patient.id int), so cast to str.
+    draft_rows = (
+        await db.execute(
+            select(
+                MessageDraft.id,
+                MessageDraft.draft_text,
+                MessageDraft.edited_text,
+                MessageDraft.status,
+                MessageDraft.source_message_id,
+                MessageDraft.created_at,
+                MessageDraft.updated_at,
+            )
+            .where(
+                and_(
+                    MessageDraft.patient_id == str(patient_id),
+                    MessageDraft.doctor_id == doctor_id,
+                    MessageDraft.status != "sent",
+                )
+            )
+            .order_by(MessageDraft.created_at.asc(), MessageDraft.id.asc())
+        )
+    ).all()
+
+    drafts = []
+    for d in draft_rows:
+        c_at = d.created_at
+        if c_at and c_at.tzinfo is None:
+            c_at = c_at.replace(tzinfo=timezone.utc)
+        u_at = d.updated_at
+        if u_at and u_at.tzinfo is None:
+            u_at = u_at.replace(tzinfo=timezone.utc)
+        drafts.append(
+            {
+                "id": d.id,
+                "status": d.status,  # generated | edited | dismissed | stale
+                "draft_text": d.draft_text or "",
+                "edited_text": d.edited_text or "",
+                "source_message_id": d.source_message_id,
+                "created_at": _fmt_ts(c_at) if c_at else None,
+                "updated_at": _fmt_ts(u_at) if u_at else None,
+            }
+        )
+
     yob = pat_row.year_of_birth if pat_row else None
     age = (_now_utc().year - yob) if yob else None
 
@@ -314,5 +361,6 @@ async def admin_messages_thread(
             "name": (doc_row.name if doc_row else None) or "(未命名医生)",
         },
         "items": items,
+        "drafts": drafts,
         "total": len(items),
     }
