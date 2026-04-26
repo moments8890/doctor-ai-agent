@@ -105,16 +105,12 @@ export default function ChatTab({
   // does not yet return session_id or turn_count; we track turn count
   // client-side (incremented per successful intake response) and treat the
   // session as "active" while the most recent reply is symptom_report.
-  // TODO(backend): expose {session_id, turn_count, status} on POST /chat
-  // (or add GET /api/patient/intake/active) so banner state survives reloads
-  // and supports backend cancel.
+  // Intake banner state — driven by the chat response's collected dict.
+  // Banner shows progress 已完成 N/6 步 + expandable per-step detail.
   const [intakeActive, setIntakeActive] = useState(false);
-  const [intakeTurnCount, setIntakeTurnCount] = useState(0);
-  // suggestions[lastAiMsgId] = array of chip texts; rendered under the AI
-  // bubble whose id matches. Cleared when the patient sends another turn.
-  // Source: POST /chat response. The backend is in the process of forwarding
-  // IntakeEngine's TurnResult.suggestions through ChatResponse — until that
-  // ships, this stays empty (see TODO above).
+  const [intakeCollected, setIntakeCollected] = useState({});
+  // suggestions[lastAiMsgId] = chip text array; rendered above the
+  // composer. Cleared when the patient sends another turn.
   const [latestSuggestions, setLatestSuggestions] = useState([]);
   const chatEndRef = useRef(null);
   const pollingRef = useRef(null);
@@ -213,15 +209,14 @@ export default function ChatTab({
     try {
       const resp = await sendPatientChat(token, text);
       // Drive intake banner + chip rendering from the chat response.
-      // resp shape: { reply, triage_category, ai_handled, suggestions? }.
-      const isIntake = resp?.triage_category === "symptom_report";
-      if (isIntake) {
+      // resp shape: { reply, triage_category, ai_handled, suggestions,
+      // intake_active, collected, ... }
+      if (resp?.intake_active) {
         setIntakeActive(true);
-        setIntakeTurnCount((n) => n + 1);
+        setIntakeCollected(resp.collected || {});
       } else {
-        // A non-intake reply ends the active intake banner.
         setIntakeActive(false);
-        setIntakeTurnCount(0);
+        setIntakeCollected({});
       }
       // Suggestions ride on the response once backend wires them through.
       // Defensive: accept either an array or a comma-separated string.
@@ -244,12 +239,11 @@ export default function ChatTab({
   }
 
   function handleCancelIntake() {
-    // Without a session_id from the backend chat endpoint we can only hide
-    // the banner client-side. When the backend exposes session metadata on
-    // POST /chat (or a GET /api/patient/intake/active), wire intakeCancel
-    // here.
+    // Backend cancel endpoint is not yet exposed on the chat router (would
+    // need POST /chat/intake/cancel). For now this just hides the banner
+    // client-side; 24h decay closes any abandoned intake_session row.
     setIntakeActive(false);
-    setIntakeTurnCount(0);
+    setIntakeCollected({});
   }
 
   // Index of the last AI message in the list — the only AI bubble that
@@ -342,7 +336,7 @@ export default function ChatTab({
           intake is active. */}
       {intakeActive && (
         <IntakeBanner
-          turnCount={intakeTurnCount}
+          collected={intakeCollected}
           onCancel={handleCancelIntake}
         />
       )}

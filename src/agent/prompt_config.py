@@ -81,7 +81,11 @@ PATIENT_INTAKE_LAYERS = LayerConfig(
     domain=True,
     intent="patient-intake",
     style_guard=True,  # patient-facing
-    load_knowledge=True,
+    # 2026-04-26: load_knowledge → False. Intake is gather-only — the LLM
+    # must not cite KB items ([KB-N]) or suggest tests/treatments based on
+    # the doctor's KB. Clinical judgment happens later when the doctor
+    # reviews the medical_record (FOLLOWUP_REPLY_LAYERS keeps load_knowledge=True).
+    load_knowledge=False,
     load_persona=True,  # 2026-04-25: was False — pre-visit chat could not sound like the doctor
     load_examples=True,  # L5: complaint-clustered exemplars (intake register)
     example_limit=2,

@@ -71,6 +71,9 @@ class ChatResponse(BaseModel):
     session_id: Optional[str] = None
     turn_count: Optional[int] = None
     intake_active: bool = False
+    # Per-field collected state (after stripping engine metadata keys),
+    # so the IntakeBanner can render the progress bar + expanded panel.
+    collected: dict = {}
 
 
 class IntakeStatusResponse(BaseModel):
@@ -85,6 +88,19 @@ class IntakeStatusResponse(BaseModel):
     turn_count: Optional[int] = None
     status: Optional[str] = None
     suggestions: list[str] = []
+    collected: dict = {}
+
+
+def _strip_meta_keys(collected: dict) -> dict:
+    """Drop underscore-prefixed engine metadata before exposing to clients.
+
+    The engine stores _carry_forward_meta, _fields_updated_this_visit,
+    _patient_name, etc. inside collected. The frontend only needs the
+    user-facing 7 fields for the progress UI.
+    """
+    if not isinstance(collected, dict):
+        return {}
+    return {k: v for k, v in collected.items() if not k.startswith("_")}
 
 
 class ChatMessageOut(BaseModel):
@@ -326,8 +342,8 @@ async def _intake_dispatch(
     ))
 
     # Engine returns suggestions in result.suggestions (see engine.py).
-    # Re-load the session to get the authoritative turn_count and status
-    # post-engine (the engine bumps turn_count internally).
+    # Re-load the session to get the authoritative turn_count, status,
+    # and collected state post-engine.
     fresh = await load_session(session.id)
     return ChatResponse(
         reply=result.reply,
@@ -337,6 +353,7 @@ async def _intake_dispatch(
         session_id=session.id,
         turn_count=fresh.turn_count if fresh else None,
         intake_active=(fresh.status in ("active", "reviewing")) if fresh else True,
+        collected=_strip_meta_keys(fresh.collected) if fresh else {},
     )
 
 
@@ -422,6 +439,7 @@ async def get_intake_status(
         turn_count=session.turn_count,
         status=session.status,
         suggestions=[],
+        collected=_strip_meta_keys(session.collected),
     )
 
 
