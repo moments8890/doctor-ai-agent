@@ -5,10 +5,12 @@
  */
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { List, SearchBar, Button, ErrorBlock, DotLoading, Popup, PullToRefresh } from "antd-mobile";
+import { List, SearchBar, Button, ErrorBlock, DotLoading, Popup, PullToRefresh, NavBar, SafeArea } from "antd-mobile";
 import { Collapse } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import SubpageBackHome from "../../components/SubpageBackHome";
+import { markIntentionalBack } from "../../../hooks/useNavDirection";
 import { usePatients, useAIAttention } from "../../../lib/doctorQueries";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
@@ -362,6 +364,38 @@ export default function PatientsPage() {
 
   return (
     <div style={pageContainer}>
+      {/* Subpage NavBar — back+home cluster, 患者 title, "+" right action */}
+      <NavBar
+        backArrow={<SubpageBackHome />}
+        onBack={() => {
+          markIntentionalBack();
+          navigate(-1);
+        }}
+        right={
+          <div
+            role="button"
+            aria-label="新建病历"
+            onClick={() => navigate("/doctor/patients?action=new")}
+            style={{
+              padding: 8,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <AddCircleOutlineIcon sx={{ fontSize: ICON.md, color: APP.primary }} />
+          </div>
+        }
+        style={{
+          "--height": "44px",
+          "--border-bottom": `0.5px solid ${APP.border}`,
+          backgroundColor: APP.surface,
+          flexShrink: 0,
+        }}
+      >
+        患者
+      </NavBar>
+
       {/* Search bar */}
       <div style={styles.searchWrap}>
         <SearchBar
