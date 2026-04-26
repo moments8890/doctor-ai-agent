@@ -6,7 +6,7 @@
  */
 import { useState, useRef } from "react";
 import { NavBar, Button, TextArea, Input, Toast, SpinLoading, Dialog, Tabs } from "antd-mobile";
-import { LinkOutline } from "antd-mobile-icons";
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
@@ -341,7 +341,7 @@ export default function AddKnowledgeSubpage() {
                 <SpinLoading color="primary" />
               ) : (
                 <>
-                  <LinkOutline style={{ fontSize: ICON.xl, color: APP.text4 }} /> {/* 36 is empty-state illustration */}
+                  <LinkOutlinedIcon sx={{ fontSize: ICON.xl, color: APP.text4 }} /> {/* 36 is empty-state illustration */}
                   <div>支持 PDF / Word / 图片</div>
                   <Button
                     color="primary"

@@ -18,7 +18,9 @@ import {
   Popup,
   Tag,
 } from "antd-mobile";
-import { QuestionCircleOutline, CheckOutline, CloseOutline } from "antd-mobile-icons";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
+import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
 import { useApi } from "../../../api/ApiContext";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { isInMiniapp } from "../../../utils/miniappBridge";
@@ -756,8 +758,8 @@ export default function IntakePage({
       <NavBar
         onBack={handleBack}
         right={
-          <QuestionCircleOutline
-            style={{ fontSize: ICON.sm, color: APP.text3 }}
+          <HelpOutlineIcon
+            sx={{ fontSize: ICON.sm, color: APP.text3, cursor: "pointer" }}
             onClick={() =>
               Dialog.alert({
                 content:
@@ -799,7 +801,7 @@ export default function IntakePage({
             >
               必填 {session.progress?.required_count || 0}/
               {session.progress?.required_total || 0}
-              {session.progress?.can_complete ? <CheckOutline style={{ fontSize: FONT.sm, marginLeft: 4 }} /> : null}
+              {session.progress?.can_complete ? <CheckOutlinedIcon sx={{ fontSize: FONT.sm, marginLeft: "4px" }} /> : null}
             </span>
             <span style={statusStyles.other}>
               其他{" "}
@@ -891,7 +893,7 @@ export default function IntakePage({
         <div style={errStyles.bar}>
           <span style={errStyles.text}>{error}</span>
           <button style={errStyles.close} onClick={() => setError(null)}>
-            <CloseOutline style={{ fontSize: FONT.md }} />
+            <CloseOutlinedIcon sx={{ fontSize: FONT.md }} />
           </button>
         </div>
       )}

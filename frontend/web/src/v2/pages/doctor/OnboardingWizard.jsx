@@ -11,7 +11,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { NavBar, Button, Result, Dialog, SafeArea, Steps } from "antd-mobile";
-import { CheckCircleFill, FileOutline, GlobalOutline, EditSOutline, CheckOutline } from "antd-mobile-icons";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import PublicOutlinedIcon from "@mui/icons-material/PublicOutlined";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { useQueryClient } from "@tanstack/react-query";
@@ -253,7 +257,7 @@ function Step1Content({ doctorId, progress, updateProgress, setCanAdvance, api }
                   color: APP.primary,
                 }}
               >
-                {s.key === "file" ? <FileOutline style={{ fontSize: ICON.xs }} /> : s.key === "url" ? <GlobalOutline style={{ fontSize: ICON.xs }} /> : <EditSOutline style={{ fontSize: ICON.xs }} />}
+                {s.key === "file" ? <DescriptionOutlinedIcon sx={{ fontSize: ICON.xs }} /> : s.key === "url" ? <PublicOutlinedIcon sx={{ fontSize: ICON.xs }} /> : <EditOutlinedIcon sx={{ fontSize: ICON.xs }} />}
               </div>
 
               <div style={{ flex: 1 }}>
@@ -402,7 +406,7 @@ function Step2Content({ progress, setCanAdvance }) {
             }}
           >
             {diagConfirmed && (
-              <CheckOutline style={{ color: APP.white, fontSize: FONT.xs, lineHeight: 1 }} />
+              <CheckOutlinedIcon sx={{ color: APP.white, fontSize: FONT.xs, lineHeight: 1 }} />
             )}
           </div>
           <div style={{ flex: 1 }}>
@@ -729,8 +733,8 @@ function Step3Content({ doctorId, progress, updateProgress, setCanAdvance, api }
         padding: "32px 20px 16px",
       }}
     >
-      <CheckCircleFill
-        style={{ fontSize: 64, color: APP.primary, marginBottom: 16 }} // lint-ui-ignore: hero illustration
+      <CheckCircleIcon
+        sx={{ fontSize: 64, color: APP.primary, marginBottom: "16px" }} // lint-ui-ignore: hero illustration
       />
       <div
         style={{

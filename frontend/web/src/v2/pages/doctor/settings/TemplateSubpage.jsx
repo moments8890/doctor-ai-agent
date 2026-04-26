@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NavBar, Button, Dialog, SpinLoading, Toast } from "antd-mobile";
-import { FileOutline } from "antd-mobile-icons";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -215,7 +215,7 @@ export default function TemplateSubpage() {
         <SectionHeader title="当前模板" />
         <Card>
           <Row
-            Icon={FileOutline}
+            Icon={DescriptionOutlinedIcon}
             iconColor={APP.primary}
             iconBg={APP.primaryLight}
             title="门诊病历报告模板"

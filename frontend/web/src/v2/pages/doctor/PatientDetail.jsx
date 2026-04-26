@@ -24,7 +24,9 @@ import {
   Button,
   Ellipsis,
 } from "antd-mobile";
-import { MessageOutline, ContentOutline, MailOutline, MoreOutline, RedoOutline } from "antd-mobile-icons";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutlined";
 import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
@@ -281,7 +283,7 @@ function ChatNavCard({ messageCount, draftCount, onClick }) {
               justifyContent: "center",
             }}
           >
-            <MessageOutline style={{ fontSize: FONT.lg, color: APP.primary }} />
+            <ChatBubbleOutlineIcon sx={{ fontSize: FONT.lg, color: APP.primary }} />
           </div>
         }
         description={draftCount > 0 ? `${draftCount} 条待回复` : "查看聊天记录"}
@@ -1003,7 +1005,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
             style={{ padding: "4px 8px", cursor: "pointer" }}
             aria-label="更多操作"
           >
-            <MoreOutline style={{ fontSize: ICON.md, color: APP.text2 }} />
+            <MoreHorizIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
           </div>
         }
         style={navBarStyle}
@@ -1221,7 +1223,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
                 >
                   {refreshingSummary
                     ? <SpinLoading color="primary" style={{ "--size": "14px" }} />
-                    : <RedoOutline style={{ fontSize: ICON.xs }} />}
+                    : <RefreshOutlinedIcon sx={{ fontSize: ICON.xs }} />}
                 </span>
               </div>
               <div

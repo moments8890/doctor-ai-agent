@@ -8,7 +8,7 @@
  */
 import { useState } from "react";
 import { NavBar, Button, TextArea, Dialog } from "antd-mobile";
-import { CheckOutline } from "antd-mobile-icons";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import { useNavigate } from "react-router-dom";
 import { APP, FONT, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
@@ -213,8 +213,8 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
                   }}
                 >
                   {isConfirmed && (
-                    <CheckOutline
-                      style={{ color: APP.white, fontSize: FONT.xs, lineHeight: 1 }}
+                    <CheckOutlinedIcon
+                      sx={{ color: APP.white, fontSize: FONT.xs, lineHeight: 1 }}
                     />
                   )}
                 </div>

@@ -6,7 +6,8 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { NavBar, Button, TextArea, Dialog, Toast, Tag, Switch } from "antd-mobile";
-import { DeleteOutline, EditSOutline } from "antd-mobile-icons";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
@@ -429,7 +430,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
               onClick={handleDelete}
               style={{ minHeight: 48, minWidth: 120, whiteSpace: "nowrap" }}
             >
-              <DeleteOutline style={{ marginRight: 6, verticalAlign: "middle" }} />
+              <DeleteOutlineIcon sx={{ marginRight: "6px", verticalAlign: "middle", fontSize: 18 }} />
               <span style={{ verticalAlign: "middle" }}>删除</span>
             </Button>
           )}
@@ -439,7 +440,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
             onClick={() => { setEditText(text); setEditing(true); }}
             style={{ minHeight: 48, whiteSpace: "nowrap" }}
           >
-            <EditSOutline style={{ marginRight: 6, verticalAlign: "middle" }} />
+            <EditOutlinedIcon sx={{ marginRight: "6px", verticalAlign: "middle", fontSize: 18 }} />
             <span style={{ verticalAlign: "middle" }}>编辑</span>
           </Button>
         </ActionFooter>

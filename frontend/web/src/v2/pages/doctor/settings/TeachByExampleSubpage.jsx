@@ -6,7 +6,7 @@
  */
 import { useState } from "react";
 import { NavBar, TextArea, Button, Toast } from "antd-mobile";
-import { CheckOutline } from "antd-mobile-icons";
+import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
@@ -163,7 +163,7 @@ export default function TeachByExampleSubpage() {
                           lineHeight: 1.4,
                         }}
                       >
-                        <CheckOutline style={{ fontSize: FONT.md }} />
+                        <CheckOutlinedIcon sx={{ fontSize: FONT.md }} />
                       </span>
                       <div>
                         <div

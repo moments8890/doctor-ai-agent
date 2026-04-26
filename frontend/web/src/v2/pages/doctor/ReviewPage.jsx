@@ -23,7 +23,6 @@ import {
   ActionSheet,
   Ellipsis,
 } from "antd-mobile";
-import { MoreOutline } from "antd-mobile-icons";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { ActionFooter, ListSectionDivider, CitationPopup } from "../../components";
