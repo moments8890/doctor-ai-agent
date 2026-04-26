@@ -31,7 +31,7 @@ export default function EmptyState({
     >
       <Empty
         description={
-          <>
+          <div style={{ textAlign: "center" }}>
             {title && (
               <div style={{ fontSize: FONT.md, color: APP.text1, marginBottom: 4 }}>
                 {title}
@@ -42,7 +42,7 @@ export default function EmptyState({
                 {description}
               </div>
             )}
-          </>
+          </div>
         }
       />
       {action && onAction && (
