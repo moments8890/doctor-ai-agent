@@ -239,15 +239,9 @@ export function createAppThemeScaled() {
   });
 }
 
-/** Create the admin theme with current font scale applied. */
-export function createAdminThemeScaled() {
-  return createTheme({
-    ...buildSharedThemeOptions(),
-  });
-}
-
 // Default theme instances (for backward compat / initial render)
 export const appTheme = createAppThemeScaled();
 
-// Desktop theme for admin pages (standard MUI breakpoints)
-export const adminTheme = createAdminThemeScaled();
+// `adminTheme` / `createAdminThemeScaled` were removed alongside the
+// legacy GitHub-Dark v1 admin (2026-04-27). v3 admin uses inline-styled
+// tokens from src/pages/admin/v3/tokens.js instead of MUI's ThemeProvider.
