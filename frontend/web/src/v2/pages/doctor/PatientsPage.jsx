@@ -289,31 +289,27 @@ export default function PatientsPage() {
         : patients.filter((p) => (p.name || "").includes(q));
   }, [patients, search, nlResults]);
 
-  // Partition filtered list into 3 sections. Each patient appears in exactly
-  // one section; ordering inside each section is most-recent-activity first.
+  // Partition filtered list into 2 sections: 待处理 (any patient with an AI
+  // attention marker) and 全部患者 (everyone else). Both sorted by
+  // most-recent-activity first. The previous 7-day "最近互动" split was data-
+  // dependent — created confusing single-section views when all patients
+  // happened to be recent. Search handles name lookup; recency-sort surfaces
+  // active patients at the top.
   const groups = useMemo(() => {
     const pending = [];
-    const recent = [];
-    const others = [];
-    const sevenDaysAgo = Date.now() - 7 * 86400 * 1000;
+    const all = [];
     const sortByActivity = (a, b) => {
       const aDate = a.last_activity_at || a.created_at || "";
       const bDate = b.last_activity_at || b.created_at || "";
       return bDate.localeCompare(aDate);
     };
     for (const p of filtered) {
-      if (attentionMap[p.id]) {
-        pending.push(p);
-        continue;
-      }
-      const ts = new Date(p.last_activity_at || p.created_at || 0).getTime();
-      if (Number.isFinite(ts) && ts > sevenDaysAgo) recent.push(p);
-      else others.push(p);
+      if (attentionMap[p.id]) pending.push(p);
+      else all.push(p);
     }
     return {
       pending: pending.sort(sortByActivity),
-      recent: recent.sort(sortByActivity),
-      others: others.sort(sortByActivity),
+      all: all.sort(sortByActivity),
     };
   }, [filtered, attentionMap]);
 
@@ -488,18 +484,10 @@ export default function PatientsPage() {
                 onPatientClick={handlePatientClick}
               />
             )}
-            {groups.recent.length > 0 && (
-              <PatientSection
-                title="最近互动"
-                patients={groups.recent}
-                attentionMap={attentionMap}
-                onPatientClick={handlePatientClick}
-              />
-            )}
-            {groups.others.length > 0 && (
+            {groups.all.length > 0 && (
               <PatientSection
                 title="全部患者"
-                patients={groups.others}
+                patients={groups.all}
                 attentionMap={attentionMap}
                 onPatientClick={handlePatientClick}
                 collapsible={false}
