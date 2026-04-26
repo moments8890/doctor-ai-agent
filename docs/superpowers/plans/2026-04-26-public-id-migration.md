@@ -1163,7 +1163,28 @@ Add a paragraph under the data model section:
 
 ---
 
-## STATUS: DEFERRED to Q3 (≈ 2026-06)
+## STATUS: ROLLED BACK — 2026-04-26
+
+**Decision after attempting Phase 1 execution:** the cost-benefit doesn't justify this migration for a beta-stage product.
+
+- **Practical security benefit was already captured** by the two Q2 fixes that shipped earlier the same day:
+  - `MemoryRouter` for native/wrapper builds (`frontend/web/src/main.jsx`) — kills URL exposure in iOS, Android, and WeChat miniapp where the actual users are.
+  - Ownership check on `POST /api/manage/patients/{patient_id}/reply` (`src/channels/web/doctor_dashboard/patient_detail_handlers.py`) — closed the cross-tenant write gap.
+- **Cost is real and recurring.** Two rounds of `/codex review` kept finding new scope (patient-portal frontend, manual route parsers in `DoctorPage.jsx` / `PatientPage.jsx`, `MessageDraft.patient_id String(64)` landmine, integer-bearing `triage_category` in API responses, PDF filenames). Each fix exposed the next layer.
+- **Threat model doesn't justify it at this stage.** Sequential ID enumeration leaks "how many patients exist," not patient data. That's competitive intel, not patient privacy. The threat model that justifies UUID PKs (untrusted users probing arbitrary IDs from a public web URL bar) is mostly closed by `MemoryRouter`.
+
+**Rolled back:**
+- Dev DB downgraded one revision (back to `4d8e7a2c1f93`); `public_id` columns dropped from all 4 tables.
+- Migration file `alembic/versions/c0a7a80e22d5_add_public_id_columns.py` deleted.
+- Handler edits in 7 files reverted via `git checkout HEAD --`.
+- Test file `tests/test_public_id_models.py` deleted.
+- Scheduled remote agent (`trig_01PdJ3tpmvoDye5z6kQihVnZ`) disabled.
+
+**When to revisit:** if (a) the web build gets real adversarial traffic, or (b) the DB needs sharding/distribution and globally-unique IDs become a hard requirement.
+
+---
+
+## ~~STATUS: DEFERRED to Q3 (≈ 2026-06)~~ (superseded by ROLLED BACK above)
 
 **Decision (2026-04-26):** Public_id migration is genuinely a 3-week dedicated project, not a 1-week fix. Two rounds of codex review surfaced progressively deeper coupling — that's a sign of project-wide scope, not of a planning gap.
 
