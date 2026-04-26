@@ -37,54 +37,6 @@ function firstChar(name) {
   return trimmed ? trimmed.charAt(0) : "医";
 }
 
-function ActionButton({ icon, label, primary, ghost }) {
-  const baseStyle = {
-    height: 36,
-    fontSize: FONT.base,
-    fontWeight: 500,
-    padding: "0 14px",
-    borderRadius: RADIUS.md,
-    border: `1px solid ${COLOR.borderDefault}`,
-    background: COLOR.bgCard,
-    color: COLOR.text1,
-    cursor: "pointer",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    fontFamily: FONT_STACK.sans,
-    transition: "100ms",
-  };
-  let style = baseStyle;
-  if (primary) {
-    style = {
-      ...baseStyle,
-      background: COLOR.brand,
-      color: "#fff",
-      borderColor: COLOR.brand,
-    };
-  } else if (ghost) {
-    style = {
-      ...baseStyle,
-      background: "transparent",
-      border: "1px solid transparent",
-    };
-  }
-  return (
-    <button type="button" style={style}>
-      <span
-        className="material-symbols-outlined"
-        style={{
-          fontSize: 16,
-          color: primary ? "rgba(255,255,255,0.9)" : COLOR.text2,
-        }}
-      >
-        {icon}
-      </span>
-      {label}
-    </button>
-  );
-}
-
 export default function DoctorHeader({ doctor }) {
   if (!doctor) return null;
   const name = doctor.name || doctor.doctor_id || "—";
@@ -195,12 +147,10 @@ export default function DoctorHeader({ doctor }) {
         </div>
       </div>
 
-      {/* Actions */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <ActionButton icon="file_download" label="导出" ghost />
-        <ActionButton icon="forum" label="查看消息" />
-        <ActionButton icon="flag" label="设置随访目标" primary />
-      </div>
+      {/* Actions intentionally absent — 导出 / 查看消息 / 设置随访目标 were
+          placeholders. 查看消息 was redundant with the existing 沟通 tab,
+          and 导出 + 设置随访目标 don't have real backends yet. They'll
+          return as wired buttons once the underlying flows ship. */}
     </section>
   );
 }

@@ -125,65 +125,11 @@ export default function AdminTopbar({ breadcrumb = [] }) {
         })}
       </div>
 
-      {/* Right side */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            background: COLOR.bgCard,
-            border: `1px solid ${COLOR.borderDefault}`,
-            borderRadius: RADIUS.md,
-            padding: "7px 10px",
-            fontSize: 13,
-            color: COLOR.text3,
-            width: 240,
-            height: 36,
-          }}
-        >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 16, color: COLOR.text3 }}
-          >
-            search
-          </span>
-          <span>搜索患者、消息、知识…</span>
-          <span
-            style={{
-              marginLeft: "auto",
-              fontSize: 10.5,
-              color: COLOR.text3,
-              border: `1px solid ${COLOR.borderDefault}`,
-              borderRadius: 4,
-              padding: "0 4px",
-              fontFamily: FONT_STACK.mono,
-              background: COLOR.bgPage,
-            }}
-          >
-            ⌘K
-          </span>
-        </div>
-        <button
-          type="button"
-          title="通知"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: RADIUS.md,
-            border: "1px solid transparent",
-            background: "transparent",
-            color: COLOR.text2,
-            cursor: "pointer",
-            display: "grid",
-            placeItems: "center",
-          }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-            notifications
-          </span>
-        </button>
-      </div>
+      {/* Right side intentionally empty — the search box and notification
+          button were placeholders for features that haven't shipped yet,
+          and unwired clickable-looking elements train operators to ignore
+          the topbar. They'll come back when there's a real search index
+          and a real notification feed behind them. */}
     </header>
   );
 }

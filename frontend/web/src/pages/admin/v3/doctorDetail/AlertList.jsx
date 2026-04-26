@@ -117,26 +117,10 @@ function NeutralRow({ name, detail }) {
   );
 }
 
-function ViewAllLink({ count }) {
-  return (
-    <a
-      style={{
-        padding: "8px 4px",
-        fontSize: 12.5,
-        color: COLOR.info,
-        display: "flex",
-        justifyContent: "space-between",
-        cursor: "pointer",
-        fontWeight: 500,
-      }}
-    >
-      <span>查看全部 {count} 位标记患者</span>
-      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-        arrow_forward
-      </span>
-    </a>
-  );
-}
+// ViewAllLink removed — it had `cursor: pointer` but no destination.
+// When the cross-doctor 全体患者 page gains a danger/warn filter, the
+// natural target is `?v=3&section=overview/patients&filter=danger`,
+// at which point this link comes back wired.
 
 function deriveFlagged(patients) {
   // Heuristic: until /related exposes proper risk markers, treat any
@@ -203,7 +187,7 @@ export default function AlertList({ related }) {
               />
             );
           })}
-          {totalFlagged > 3 && <ViewAllLink count={totalFlagged} />}
+          {/* ViewAllLink removed — no wired destination yet. See note above. */}
         </div>
       )}
     </Panel>

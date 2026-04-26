@@ -53,31 +53,6 @@ function dayKey(d) {
 
 // ── header ─────────────────────────────────────────────────────────────────
 
-function IconButton({ icon }) {
-  return (
-    <button
-      type="button"
-      style={{
-        width: 32,
-        height: 32,
-        display: "grid",
-        placeItems: "center",
-        background: "transparent",
-        border: "none",
-        borderRadius: 6,
-        cursor: "pointer",
-        color: COLOR.text2,
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = COLOR.bgCanvas)}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-    >
-      <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
-        {icon}
-      </span>
-    </button>
-  );
-}
-
 function ThreadHeader({ patient }) {
   const initial = (patient?.name || "?").trim().charAt(0) || "?";
   const sub = [
@@ -145,10 +120,9 @@ function ThreadHeader({ patient }) {
           )}
         </div>
       </div>
-      <div style={{ display: "flex", gap: 4 }}>
-        <IconButton icon="search" />
-        <IconButton icon="more_horiz" />
-      </div>
+      {/* Right-side icon buttons (search / more_horiz) removed — they had
+          no onClick handlers and no destinations behind them. Restore once
+          message search and per-thread actions actually ship. */}
     </div>
   );
 }
