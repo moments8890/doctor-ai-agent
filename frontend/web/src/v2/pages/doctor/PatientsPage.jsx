@@ -27,8 +27,41 @@ function isNLQuery(q) {
   return /[的得了这那哪]{1}|姓|阿姨|叔叔|奶奶|大爷|多岁|中年|老年|男性|女性|上周|本周|最近|昨天/.test(q);
 }
 
+// Display order for attention chips. Matches the old priority (message →
+// task → suggestion) so the most urgent flag reads first.
+const CHIP_ORDER = ["unread_message", "due_task", "unreviewed_suggestion"];
+
+// Per-type tinted recipe. Muted tones — bg uses the *Light token, fg the
+// matching saturated token. Mirrors the ICON_BADGES pattern in constants.jsx
+// so the visual language stays consistent across the app.
+const CHIP_RECIPE = {
+  unread_message:        { label: "待回复",   bg: APP.primaryLight, fg: APP.primary },
+  unreviewed_suggestion: { label: "待审核",   bg: APP.accentLight,  fg: APP.accent  },
+  due_task:              { label: "任务到期", bg: "#fff3e0",        fg: "#E67E22"   },
+};
+
+function AttentionChip({ type }) {
+  const recipe = CHIP_RECIPE[type];
+  if (!recipe) return null;
+  return (
+    <span
+      style={{
+        padding: "1px 8px",
+        borderRadius: RADIUS.sm || 4,
+        background: recipe.bg,
+        color: recipe.fg,
+        fontSize: FONT.xs,
+        fontWeight: 500,
+        lineHeight: 1.6,
+      }}
+    >
+      {recipe.label}
+    </span>
+  );
+}
+
 // Row subtitle (vitals only): "男 · 70岁 · 0份病历".
-// Action items like "患者消息待处理" / "任务到期" render on their own green line below.
+// Action items render as small green chips on a line below (待回复 / 待审核 / 任务到期).
 function patientSubtitle(patient) {
   const genderStr = patient.gender
     ? { male: "男", female: "女" }[patient.gender] || patient.gender
@@ -131,7 +164,7 @@ function PatientSection({
               patient.updated_at ||
               patient.created_at
           );
-          const attn = attentionMap[patient.id];
+          const attnTypes = attentionMap[patient.id]?.types;
           // 新 badge: patient is unviewed AND created in the last 24h.
           // The 24h window prevents a dropped mark-viewed POST from
           // stranding the badge forever (Codex correctness fix).
@@ -146,16 +179,7 @@ function PatientSection({
             <List.Item
               key={patient.id}
               prefix={<NameAvatar name={patient.name} size={36} />}
-              description={
-                <>
-                  {patientSubtitle(patient)}
-                  {attn?.reason && (
-                    <div style={{ marginTop: 4, color: APP.primary, fontSize: FONT.sm }}>
-                      {attn.reason}
-                    </div>
-                  )}
-                </>
-              }
+              description={patientSubtitle(patient)}
               extra={
                 <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
                   {timeStr}
@@ -164,25 +188,28 @@ function PatientSection({
               onClick={() => onPatientClick(patient)}
               style={{ "--align-items": "center" }}
             >
-              <span style={{ fontWeight: 500, fontSize: FONT.md }}>
-                {patient.name || "未命名"}
-              </span>
-              {isNewUnviewed && (
-                <span
-                  style={{
-                    marginLeft: 8,
-                    padding: "1px 6px",
-                    borderRadius: RADIUS.sm || 4,
-                    background: APP.primary,
-                    color: APP.white,
-                    fontSize: FONT.xs,
-                    fontWeight: 500,
-                    verticalAlign: "middle",
-                  }}
-                >
-                  新
+              <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+                <span style={{ fontWeight: 500, fontSize: FONT.md }}>
+                  {patient.name || "未命名"}
                 </span>
-              )}
+                {isNewUnviewed && (
+                  <span
+                    style={{
+                      padding: "1px 6px",
+                      borderRadius: RADIUS.sm || 4,
+                      background: APP.primary,
+                      color: APP.white,
+                      fontSize: FONT.xs,
+                      fontWeight: 500,
+                    }}
+                  >
+                    新
+                  </span>
+                )}
+                {attnTypes?.map((t) => (
+                  <AttentionChip key={t} type={t} />
+                ))}
+              </span>
             </List.Item>
           );
         })}
@@ -229,28 +256,19 @@ export default function PatientsPage() {
     return items;
   }, [data]);
 
-  // AI attention → per-patient aggregate: primary reason text, shown as a
-  // green second line under the vitals. Unread messages win over due tasks
-  // and unreviewed suggestions when a patient has multiple flags.
-  const PRIORITY = { unread_message: 0, due_task: 1, unreviewed_suggestion: 2 };
+  // AI attention → per-patient aggregate: list of distinct flag types,
+  // rendered as small green chips below the vitals. Display order is fixed
+  // (CHIP_ORDER) so the chip row is stable across renders.
   const attentionMap = useMemo(() => {
     const out = {};
     const list = attentionData?.patients || [];
     for (const p of list) {
-      if (!p.patient_id) continue;
-      const incoming = {
-        type: p.type || "",
-        reason: p.reason || p.short_tag || "需关注",
-        urgency: p.urgency || "medium",
-      };
-      const cur = out[p.patient_id];
-      if (!cur) {
-        out[p.patient_id] = incoming;
-        continue;
-      }
-      const curPri = PRIORITY[cur.type] ?? 99;
-      const inPri = PRIORITY[incoming.type] ?? 99;
-      if (inPri < curPri) out[p.patient_id] = incoming;
+      if (!p.patient_id || !p.type) continue;
+      const cur = out[p.patient_id] || (out[p.patient_id] = { types: new Set() });
+      cur.types.add(p.type);
+    }
+    for (const id of Object.keys(out)) {
+      out[id].types = CHIP_ORDER.filter((t) => out[id].types.has(t));
     }
     return out;
   }, [attentionData]);
