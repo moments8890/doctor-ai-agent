@@ -2,8 +2,20 @@
 
 Spec §5c (next_turn), §5d (confirm). Phase 2.5 inlines the full turn loop
 using the template's extractor protocol methods.
+
+Bump CURRENT_INTAKE_PROMPT_VERSION whenever a prompt change should
+invalidate in-flight conversations (e.g., safety fix to patient-intake.md
+removing "立即去急诊" — old turns mimicking that style would otherwise
+poison the LLM's continuation under the new system prompt). Sessions
+with a different version reset conversation on the next turn but keep
+collected so the patient doesn't lose structured progress.
 """
 from __future__ import annotations
+
+# Bump this on substantive patient-intake.md changes. Format:
+# YYYY-MM-DD-short-slug. Sessions started under an older version get
+# their conversation truncated on the next turn.
+CURRENT_INTAKE_PROMPT_VERSION = "2026-04-26-defer-to-doctor"
 
 import asyncio
 import json
@@ -134,6 +146,20 @@ class IntakeEngine:
 
         if raw.status == IntakeStatus.reviewing:
             raw.status = IntakeStatus.active
+
+        # Self-heal stale sessions: if the prompt has changed since this
+        # session started accumulating turns, the conversation history
+        # would mimic the old style. Wipe conversation, keep collected
+        # (structured progress survives), bump version. Patient resumes
+        # from same field-completeness on the next turn.
+        if getattr(raw, "prompt_version", None) != CURRENT_INTAKE_PROMPT_VERSION:
+            log(
+                f"[intake] resetting stale conversation for session {session_id}: "
+                f"prompt version {getattr(raw, 'prompt_version', None)!r} → "
+                f"{CURRENT_INTAKE_PROMPT_VERSION!r}"
+            )
+            raw.conversation = []
+            raw.prompt_version = CURRENT_INTAKE_PROMPT_VERSION
 
         template = get_template(raw.template_id)
 

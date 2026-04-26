@@ -20,9 +20,13 @@ class IntakeSession:
     mode: str = "patient"
     status: str = IntakeStatus.active
     template_id: str = "medical_general_v1"
-    collected: Dict[str, str] = field(default_factory=dict)
+    collected: Dict[str, Any] = field(default_factory=dict)
     conversation: List[Dict[str, Any]] = field(default_factory=list)
     turn_count: int = 0
+    # Self-healing on prompt changes (alembic 4d8e7a2c1f93). Engine
+    # compares this against CURRENT_INTAKE_PROMPT_VERSION on each turn;
+    # mismatch → conversation reset + version bump (collected preserved).
+    prompt_version: Optional[str] = None
 
 
 async def create_session(
@@ -93,6 +97,11 @@ async def create_session(
             "content": f"以下字段已从导入数据中预提取，请医生确认或修改：{fields_summary}",
         })
 
+    # Tag new sessions with the current prompt version so the engine
+    # only triggers a conversation reset for sessions that pre-date the
+    # current prompt rules.
+    from domain.intake.engine import CURRENT_INTAKE_PROMPT_VERSION
+
     async with AsyncSessionLocal() as db:
         db_row = IntakeSessionDB(
             id=session_id,
@@ -106,6 +115,7 @@ async def create_session(
             turn_count=0,
             created_at=now,
             updated_at=now,
+            prompt_version=CURRENT_INTAKE_PROMPT_VERSION,
         )
         db.add(db_row)
         await db.commit()
@@ -120,6 +130,7 @@ async def create_session(
         template_id=template_id,
         collected=collected,
         conversation=conversation,
+        prompt_version=CURRENT_INTAKE_PROMPT_VERSION,
     )
 
 
@@ -146,6 +157,7 @@ async def load_session(session_id: str) -> Optional[IntakeSession]:
             collected=json.loads(row.collected or "{}"),
             conversation=json.loads(row.conversation or "[]"),
             turn_count=row.turn_count,
+            prompt_version=row.prompt_version,
         )
 
 
@@ -170,6 +182,7 @@ async def save_session(session: IntakeSession) -> None:
         row.collected = json.dumps(session.collected, ensure_ascii=False)
         row.conversation = json.dumps(session.conversation, ensure_ascii=False)
         row.turn_count = session.turn_count
+        row.prompt_version = session.prompt_version
         row.updated_at = datetime.now(timezone.utc)
         await db.commit()
 
@@ -201,4 +214,5 @@ async def get_active_session(patient_id: int, doctor_id: str) -> Optional[Intake
             collected=json.loads(row.collected or "{}"),
             conversation=json.loads(row.conversation or "[]"),
             turn_count=row.turn_count,
+            prompt_version=row.prompt_version,
         )

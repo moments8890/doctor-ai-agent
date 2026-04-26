@@ -44,6 +44,12 @@ class IntakeSessionDB(Base):
     # --- Intake redesign (alembic 6a5d3c2e1f47) ---
     medical_record_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     expired_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # --- Self-healing on prompt changes (alembic 4d8e7a2c1f93) ---
+    # Engine compares this against CURRENT_INTAKE_PROMPT_VERSION on each
+    # turn. Mismatch → conversation history wiped, prompt_version bumped,
+    # collected preserved. Patient resumes under new prompt with structured
+    # progress intact.
+    prompt_version: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     __table_args__ = (
         Index("ix_intake_patient", "patient_id", "status"),
