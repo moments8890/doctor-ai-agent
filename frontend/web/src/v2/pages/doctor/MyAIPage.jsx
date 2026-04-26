@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { Avatar, Skeleton, Ellipsis, ActionSheet, CenterPopup } from "antd-mobile";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
@@ -530,9 +530,9 @@ export default function MyAIPage({ doctorId }) {
 
   const quickActions = [
     {
-      label: "新建病历",
-      icon: <EditNoteOutlinedIcon sx={{ fontSize: ICON.xl, color: APP.primary }} />,
-      onClick: () => navigate(`${dp("patients")}?action=new`),
+      label: "全部患者",
+      icon: <PeopleAltOutlinedIcon sx={{ fontSize: ICON.xl, color: APP.primary }} />,
+      onClick: () => navigate(dp("patients")),
     },
     {
       label: "预问诊码",
