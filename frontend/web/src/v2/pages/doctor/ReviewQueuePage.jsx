@@ -114,7 +114,17 @@ function PendingItem({ item, onNavigate }) {
 // ── Reply draft row ────────────────────────────────────────────────
 
 function DraftItem({ item, onNavigate }) {
-  const statusLabel = item.type === "undrafted" ? "需手动回复" : "AI已起草";
+  // 2026-04-25: priority comes from AI defer-pattern detection (locked plan r19).
+  // critical = defer + after-hours; urgent = defer during office hours.
+  const priority = item.priority || item.badge;
+  const isCritical = priority === "critical";
+  const isUrgent = priority === "urgent" || isCritical;
+
+  const statusLabel = item.type === "undrafted"
+    ? "需手动回复"
+    : isCritical ? "🔴 已转给医生 · 紧急（夜间）"
+    : isUrgent ? "🟠 已转给医生 · 待优先处理"
+    : "AI已起草";
   const snippet = item.patient_message || item.content || "";
   const subtitle = snippet ? `"${snippet}" · ${statusLabel}` : statusLabel;
   const time = item.time || formatRelative(item.created_at);
@@ -123,14 +133,35 @@ function DraftItem({ item, onNavigate }) {
     <List.Item
       prefix={<NameAvatar name={item.patient_name} size={36} />}
       extra={<span style={{ fontSize: FONT.sm, color: APP.text4 }}>{time}</span>}
-      description={<Ellipsis direction="end" content={subtitle} rows={1} />}
+      description={
+        <Ellipsis
+          direction="end"
+          content={subtitle}
+          rows={1}
+        />
+      }
       arrow
       onClick={() => onNavigate(item)}
-      style={{ "--align-items": "center" }}
+      style={{
+        "--align-items": "center",
+        // Subtle background tint for urgent / critical so the row stands out
+        // without screaming for attention. Critical = soft red, urgent = soft amber.
+        backgroundColor: isCritical
+          ? "rgba(217, 45, 45, 0.06)"
+          : isUrgent
+          ? "rgba(255, 145, 0, 0.06)"
+          : undefined,
+      }}
     >
       <div style={{ display: "flex", alignItems: "center" }}>
         <KindTag kind="reply" count={item._group_count || 1} />
-        <span style={{ fontWeight: 500, fontSize: FONT.md }}>
+        <span
+          style={{
+            fontWeight: isUrgent ? 600 : 500,
+            fontSize: FONT.md,
+            color: isCritical ? (APP.danger || "#d92d2d") : undefined,
+          }}
+        >
           {item.patient_name}
         </span>
       </div>

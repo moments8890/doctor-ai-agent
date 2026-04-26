@@ -108,6 +108,18 @@ async def generate_draft_reply(
             confidence=confidence,
         )
 
+        # Detect defer-to-doctor pattern (locked plan rule 19, codex r5 review).
+        # When fires, draft is high-priority; the doctor must see it before
+        # normal drafts or the defer text is theatre.
+        from agent.style_guard import detect_defer_to_doctor
+        from domain.patient_lifecycle.priority import resolve_draft_priority
+
+        deferred = detect_defer_to_doctor(result.text)
+        priority = resolve_draft_priority(deferred_to_doctor=deferred)
+        if priority:
+            log(f"[draft_reply] priority={priority} (deferred to doctor, "
+                f"{'after-hours' if priority == 'critical' else 'office-hours'})")
+
         # Persist draft FIRST so we have draft.id for citation logging (non-fatal)
         draft_id: Optional[int] = None
         try:
@@ -123,6 +135,7 @@ async def generate_draft_reply(
                     confidence=result.confidence,
                     status=DraftStatus.generated.value,
                     prompt_hash=_prompt_hash,
+                    priority=priority,
                 )
                 draft_session.add(draft)
                 await draft_session.flush()

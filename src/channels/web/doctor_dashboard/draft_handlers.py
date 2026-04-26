@@ -122,7 +122,16 @@ async def list_pending_drafts(
     )
     if patient_id is not None:
         stmt = stmt.where(MessageDraft.patient_id == str(patient_id))
-    stmt = stmt.order_by(MessageDraft.created_at.desc()).limit(50)
+    # Sort: critical defers first, then urgent, then normal — within each
+    # priority bucket, newest first. SQLite/MySQL agree on NULL ordering with
+    # CASE so we don't need DB-specific NULLS FIRST/LAST hints.
+    from sqlalchemy import case as _case
+    _priority_order = _case(
+        (MessageDraft.priority == "critical", 0),
+        (MessageDraft.priority == "urgent", 1),
+        else_=2,
+    )
+    stmt = stmt.order_by(_priority_order, MessageDraft.created_at.desc()).limit(50)
     rows = (await db.execute(stmt)).all()
 
     # Collect all cited KB IDs across drafts and bulk-load titles
@@ -164,7 +173,10 @@ async def list_pending_drafts(
             "confidence": draft.confidence,
             "status": draft.status,
             "ai_disclosure": draft.ai_disclosure,
-            "badge": "urgent" if triage_cat == "urgent" else None,
+            # priority comes from AI defer-pattern detection (locked plan r19)
+            # and outranks the legacy triage_cat-based badge.
+            "priority": draft.priority,
+            "badge": draft.priority if draft.priority else ("urgent" if triage_cat == "urgent" else None),
             "triage_category": triage_cat,
             "created_at": draft.created_at.isoformat() if draft.created_at else None,
         }

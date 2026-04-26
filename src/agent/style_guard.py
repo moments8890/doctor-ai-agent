@@ -52,6 +52,33 @@ def detect_hard_violations(text: str) -> List[str]:
     return [p for p in artifact.get("hard_block", []) if p in text]
 
 
+_DEFER_PATTERNS = (
+    "转给医生",
+    "已转给医生",
+    "让医生看",
+    "让医生先看",
+    "医生很快回复",
+    "医生会尽快回复",
+    "医生马上联系",
+    "医生会尽快联系",
+    "请先等医生",
+    "等医生回复",
+)
+
+
+def detect_defer_to_doctor(text: str) -> bool:
+    """True if AI reply uses the defer-to-doctor pattern (locked plan rule 19).
+
+    When this fires, the draft should be marked priority="urgent" (or
+    "critical" if after-hours) so the doctor sees it before normal drafts.
+    Otherwise the defer pattern is theatre — patient waits silently while
+    the draft sits in a generic queue.
+    """
+    if not text:
+        return False
+    return any(p in text for p in _DEFER_PATTERNS)
+
+
 def detect_soft_chain(text: str, threshold: int = 3) -> List[str]:
     """Return soft-block phrases found if ≥ *threshold* co-occur (platitude chain).
 
