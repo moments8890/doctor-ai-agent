@@ -12,7 +12,7 @@
         var port = window.location.port;
         var env = "";
         if (host === "localhost" || host === "127.0.0.1" || port === "5173" || port === "5174") env = "dev";
-        else if (host.indexOf(".doctoragentai.cn") !== -1 && host.lastIndexOf(".doctoragentai.cn") === host.length - ".doctoragentai.cn".length) env = "tencent";
+        else if (host.indexOf(".doctoragentai.cn") !== -1 && host.lastIndexOf(".doctoragentai.cn") === host.length - ".doctoragentai.cn".length) env = "内测版";
         if (env) document.title = "[" + env + "] " + document.title;
       })();
     </script>

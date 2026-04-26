@@ -5,7 +5,7 @@
  *
  * env detection:
  *   - localhost / 127.0.0.1 / :5173 / :5174 → "dev"
- *   - *.doctoragentai.cn → "tencent"
+ *   - *.doctoragentai.cn → "内测版"
  *   - anything else → no env prefix (test harness, file://, unknown host)
  *
  * role: "wiki" | "admin" | null (main app — env prefix only)
@@ -18,7 +18,7 @@ export function getEnvLabel() {
     return "dev";
   }
   if (host.endsWith(".doctoragentai.cn")) {
-    return "tencent";
+    return "内测版";
   }
   return "";
 }
