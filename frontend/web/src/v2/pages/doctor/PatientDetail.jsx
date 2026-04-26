@@ -333,57 +333,12 @@ const HISTORY_FIELDS = [
   { key: "family_history",    label: "家族史" },
 ];
 
-/**
- * Per-field provenance badge (intake redesign 6a5d3c2e1f47).
- *
- * Three states:
- *   - "已沿用并确认"  — patient saw a prior value carried forward and confirmed it.
- *   - "本次更新"      — carry-forward field that the patient changed this visit.
- *   - "本次采集"      — first time this field was captured (no carry_forward).
- *
- * Inline next to the field label. Tinted pill, sized FONT.xs.
- */
-function FieldProvenanceBadge({ carryForward, updatedThisVisit }) {
-  let label;
-  let bg;
-  let fg;
-  if (updatedThisVisit) {
-    label = "本次更新";
-    // Followup palette = orange tones, semantically "needs attention"
-    bg = CATEGORY_COLOR.followup.bg;
-    fg = CATEGORY_COLOR.followup.fg;
-  } else if (carryForward && carryForward.confirmed_by_patient) {
-    label = "已沿用并确认";
-    bg = APP.primaryLight;
-    fg = APP.primary;
-  } else if (!carryForward) {
-    label = "本次采集";
-    bg = APP.accentLight;
-    fg = APP.accent;
-  } else {
-    // carry_forward present but not yet confirmed — show neutral hint.
-    label = "已沿用";
-    bg = APP.borderLight;
-    fg = APP.text3;
-  }
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        marginLeft: 6,
-        padding: "1px 6px",
-        borderRadius: RADIUS.xs,
-        background: bg,
-        color: fg,
-        fontSize: FONT.xs,
-        fontWeight: 500,
-        verticalAlign: "middle",
-      }}
-    >
-      {label}
-    </span>
-  );
-}
+// Per-field provenance badges removed 2026-04-26 — every field in a confirmed
+// medical record was either approved by the patient (new flow) or recorded by
+// the doctor (legacy). The doctor reads the values; provenance taxonomy
+// (本次采集 / 已沿用并确认 / 本次更新 / 历史档案) added noise without
+// actionable signal. carry_forward_meta + fields_updated_this_visit columns
+// on medical_records are still populated for future audit/analytics use.
 
 // Detect the post-redesign per-field shape returned by GET
 // /api/manage/records/{id}/entries: each value is an object with `text`,
@@ -412,10 +367,8 @@ function isProvenanceEntry(v) {
  *   - EMPTY: falls back to flat structured-column rendering.
  */
 function FieldEntriesSection({ entries, structured }) {
-  // Pull the record-level metadata flag (legacy records pre-date the
-  // intake redesign and have no per-field provenance to show).
-  const recordMeta = entries?._record_meta || null;
-  const isLegacy = Boolean(recordMeta?.is_legacy);
+  // Filter out the underscore-prefixed record-level meta key so it doesn't
+  // leak into the field iteration. We don't render the meta anywhere now.
   const hasFieldData = entries && Object.keys(entries).some((k) => k !== "_record_meta");
 
   if (!hasFieldData) {
@@ -470,30 +423,8 @@ function FieldEntriesSection({ entries, structured }) {
   });
   if (renderedFields.length === 0) return null;
 
-  // Single section-level "历史档案" tag for legacy records, instead of
-  // per-field "本次采集" badges (which would mislabel pre-redesign records
-  // as freshly-captured-this-visit).
-  const sectionHeader = isLegacy ? (
-    <div style={{ marginBottom: 6 }}>
-      <span
-        style={{
-          display: "inline-block",
-          padding: "1px 8px",
-          borderRadius: RADIUS.xs,
-          background: APP.borderLight,
-          color: APP.text3,
-          fontSize: FONT.xs,
-          fontWeight: 500,
-        }}
-      >
-        历史档案
-      </span>
-    </div>
-  ) : null;
-
   return (
     <>
-      {sectionHeader}
       {renderedFields.map(({ key, label }, fi) => {
         const v = entries[key];
 
@@ -516,12 +447,6 @@ function FieldEntriesSection({ entries, structured }) {
                 }}
               >
                 {label}
-                {!isLegacy && (
-                  <FieldProvenanceBadge
-                    carryForward={v.carry_forward}
-                    updatedThisVisit={v.updated_this_visit}
-                  />
-                )}
               </div>
               <div
                 style={{
