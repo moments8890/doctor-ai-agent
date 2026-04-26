@@ -64,6 +64,11 @@ class PatientMessage(Base):
     # signal fired in the same intake_segment. Front-end renders these
     # with strikethrough + a "已撤回" tag.
     retracted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # JSON-serialized ChatSessionState representing the state AFTER this
+    # message was processed. NULL on legacy-path messages and on
+    # retroactively-inserted messages. The most recent non-NULL row for
+    # a patient is the source of truth for `load_state(patient_id)`.
+    chat_state_snapshot: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         CheckConstraint(
