@@ -16,7 +16,7 @@
  * animation plays via useNavDirection.
  */
 import { useNavigate } from "react-router-dom";
-import ChevronLeftOutlinedIcon from "@mui/icons-material/ChevronLeft";
+import ChevronLeftOutlinedIcon from "@mui/icons-material/ChevronLeftOutlined";
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import { markIntentionalBack } from "../../hooks/useNavDirection";
 import { APP, ICON } from "../theme";
