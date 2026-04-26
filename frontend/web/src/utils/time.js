@@ -18,22 +18,26 @@ export function formatAge(yearOfBirth) {
 }
 
 /**
- * Unified relative timestamp for all list/feed views.
+ * Unified relative timestamp for all list/feed views — calendar-day buckets.
  *
- * Hybrid scheme: elapsed-time wins for the first 24h (so "23:00 last night"
- * viewed at "09:00 today" reads as "10 小时前", not "昨天" — fixes the
- * calendar-edge ambiguity). Calendar buckets take over after 24h.
+ * Doctors think in days ("did this happen today, yesterday, or earlier?"),
+ * not in elapsed hours. Calendar boundaries win over elapsed time. So an
+ * event at 23:00 last night viewed at 09:00 this morning reads as "昨天",
+ * even though only 10 hours elapsed.
  *
- * Past:
- *   < 60 min           → 刚刚
- *   1-23 hours         → N小时前
- *   ≥ 24h, prev day    → 昨天
- *   2-6 calendar days  → N天前
- *   7-27 days          → N周前
- *   ≥ 28 days          → 更早
+ *   < 1 hour AND same calendar day → 刚刚
+ *   same calendar day              → 今天
+ *   prev calendar day              → 昨天
+ *   2-6 calendar days              → N天前
+ *   7-27 days                      → N周前
+ *   ≥ 28 days                      → 更早
+ *
+ * Trade-off: same-day items don't distinguish "30 min ago" from "18 hours
+ * ago" — both read as "今天" (or "刚刚" if < 1 hour). If you need that
+ * precision later, append HH:MM ("今天 14:30").
  *
  * Future dates delegate to `relativeFuture` below.
- * For HH:MM precision (chat bubbles, etc.) use `nowTs()` instead.
+ * For HH:MM-only precision (chat bubbles), use `nowTs()`.
  */
 export function relativeDate(dateStr) {
   if (!dateStr) return "";
@@ -48,19 +52,15 @@ export function relativeDate(dateStr) {
   // Future dates → separate helper.
   if (diffMs < 0) return relativeFuture(dateStr);
 
-  // First 24h: use elapsed time, NOT calendar day. Avoids the 23:00 → 09:00
-  // edge case where calendar comparison would misleadingly say "昨天".
-  // Sub-hour granularity collapses to "刚刚" — minute precision is noise
-  // for a doctor scanning a list (8分钟前 vs 23分钟前 doesn't change action).
-  const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
-  if (diffHours < 1) return "刚刚";
-  if (diffHours < 24) return `${diffHours}小时前`;
-
-  // ≥ 24h: switch to calendar buckets — at this scale the day matters more
-  // than the hour, and elapsed-hours becomes hard to scan ("47 小时前").
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
   const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  if (dt.getTime() === today.getTime()) {
+    // Same calendar day. Sub-hour items get "刚刚" as a freshness cue;
+    // anything else just reads "今天".
+    return diffMs < 60 * 60 * 1000 ? "刚刚" : "今天";
+  }
   if (dt.getTime() === yesterday.getTime()) return "昨天";
   const diffDays = Math.floor((today - dt) / 86400000);
   if (diffDays < 7) return `${diffDays}天前`;
