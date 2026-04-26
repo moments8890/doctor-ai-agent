@@ -49,6 +49,10 @@ from domain.patient_lifecycle.triage import (
     load_patient_context,
 )
 from infra.auth.rate_limit import enforce_doctor_rate_limit
+from infra.feature_flags import (
+    FLAG_PATIENT_CHAT_INTAKE_ENABLED,
+    is_flag_enabled,
+)
 from infra.observability.audit import audit
 from utils.log import safe_create_task
 
@@ -123,12 +127,27 @@ async def post_chat(
     authorization: Optional[str] = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Save patient message and generate a draft reply for doctor review.
+    """Save patient message and dispatch via state machine or legacy path.
 
-    Thin wrapper. Currently always delegates to ``_legacy_triage_dispatch``.
-    Section F will add a feature-flag check that routes flag-on doctors to
-    the new ``_intake_dispatch`` (state-machine path) instead.
+    Routes by per-doctor feature flag PATIENT_CHAT_INTAKE_ENABLED:
+      - flag ON  → _intake_dispatch (state machine + dedup + red-flag)
+      - flag OFF → _legacy_triage_dispatch (kill-switch fallback)
+
+    The flag is authenticated against the patient's owning doctor. Auth
+    happens twice (once here, once inside the dispatch path) but the
+    cost is negligible — the second call hits the in-process Patient
+    cache when present and the duplicate is acceptable for the kill-
+    switch isolation it buys us.
     """
+    try:
+        patient = await _authenticate_patient(x_patient_token, authorization)
+    except HTTPException:
+        raise
+    enabled = await is_flag_enabled(
+        db, patient.doctor_id, FLAG_PATIENT_CHAT_INTAKE_ENABLED,
+    )
+    if enabled:
+        return await _intake_dispatch(body, x_patient_token, authorization, db)
     return await _legacy_triage_dispatch(body, x_patient_token, authorization, db)
 
 
