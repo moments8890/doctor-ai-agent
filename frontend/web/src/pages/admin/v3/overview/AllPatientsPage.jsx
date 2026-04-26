@@ -65,10 +65,17 @@ function formatGender(g) {
   return g || "—";
 }
 
+// Both navigateToDoctor and navigateToPatient PRESERVE the existing
+// section= param. v3/index.jsx will render the detail surface (because
+// doctor= / patient= now take precedence over section=) but the sidebar
+// stays highlighted on the originating list — so an operator drilling
+// down from 全体患者 sees the 全体患者 row stay active, even on the
+// patient detail page. Browser back from there returns them to the
+// same list with the same scroll position.
+
 function navigateToDoctor(doctorId) {
   if (!doctorId || typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
-  params.delete("section");
   params.delete("patient");
   params.set("v", "3");
   params.set("doctor", doctorId);
@@ -76,16 +83,9 @@ function navigateToDoctor(doctorId) {
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
-// Drill straight into the patient detail surface, preserving doctor context
-// so the topbar back arrow returns to that doctor's view (then back again
-// returns to this list via browser history). The cross-doctor 全体患者
-// table is the natural entry point for "show me everything about this
-// patient" — the doctor cell on the same row is wired separately for
-// "I want to see the doctor instead".
 function navigateToPatient(patientId, doctorId) {
   if (patientId == null || typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
-  params.delete("section");
   params.set("v", "3");
   if (doctorId) params.set("doctor", doctorId);
   params.set("patient", String(patientId));

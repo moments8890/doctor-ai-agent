@@ -130,11 +130,11 @@ function useUrlRoute() {
 // `window.history.back()` — returns to whichever list the operator
 // came from, regardless of which surface that was.
 
-function PatientDetailWithBreadcrumb({ patientId }) {
+function PatientDetailWithBreadcrumb({ patientId, sidebarSection }) {
   const patientName = usePatientName(patientId);
   return (
     <AdminShellV3
-      section="doctors"
+      section={sidebarSection}
       showBack
       breadcrumb={[{ label: patientName || `患者 ${patientId}`, here: true }]}
     >
@@ -143,11 +143,11 @@ function PatientDetailWithBreadcrumb({ patientId }) {
   );
 }
 
-function DoctorDetailWithBreadcrumb({ doctorId }) {
+function DoctorDetailWithBreadcrumb({ doctorId, sidebarSection }) {
   const { doctor } = useDoctorDetail(doctorId);
   return (
     <AdminShellV3
-      section="doctors"
+      section={sidebarSection}
       showBack
       breadcrumb={[{ label: doctor?.name || doctorId, here: true }]}
     >
@@ -183,6 +183,30 @@ export default function AdminPageV3() {
     return () => onAdminAuthError(null);
   }, [navigate]);
 
+  // Detail surfaces (patient / doctor) win over section because they're
+  // a "drill into a specific entity" — but the originating section is
+  // preserved in the URL by the navigation helpers, so the sidebar
+  // highlight still tracks where the operator came from.
+  // Default sidebar fall-back to "doctors" matches the historical
+  // behavior for direct deep-links without a section param.
+  if (patientId) {
+    return (
+      <PatientDetailWithBreadcrumb
+        patientId={patientId}
+        sidebarSection={sidebarSection || "doctors"}
+      />
+    );
+  }
+
+  if (doctorId) {
+    return (
+      <DoctorDetailWithBreadcrumb
+        doctorId={doctorId}
+        sidebarSection={sidebarSection || "doctors"}
+      />
+    );
+  }
+
   if (opsSub) {
     const breadcrumb = [
       { label: "运营" },
@@ -215,16 +239,6 @@ export default function AdminPageV3() {
         )}
       </AdminShellV3>
     );
-  }
-
-  if (patientId) {
-    return (
-      <PatientDetailWithBreadcrumb patientId={patientId} />
-    );
-  }
-
-  if (doctorId) {
-    return <DoctorDetailWithBreadcrumb doctorId={doctorId} />;
   }
 
   return (
