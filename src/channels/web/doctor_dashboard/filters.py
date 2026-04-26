@@ -66,6 +66,13 @@ def _apply_created_at_filters(stmt, model, dt_from: datetime | None, dt_to_exclu
 # so test noise never appears alongside real clinical data.
 E2E_DOCTOR_PREFIXES: tuple[str, ...] = (
     "inttest_", "chatlog_e2e_", "debug_", "intsim_", "clean_", "demo_",
+    # `doc_` is the prefix used by tests/core/test_neuro_sim_*, the
+    # integration patient_chat e2e, and scripts/seed_{mock,ui}_data.py.
+    # `reg_` is used by tests/regression/conftest.py's Cleanup helper.
+    # Real production doctors come in via invite codes and carry `inv_*`
+    # IDs, so excluding `doc_*` and `reg_*` is safe and keeps dashboard
+    # counts honest if a test run somehow leaves rows behind.
+    "doc_", "reg_",
 )
 
 

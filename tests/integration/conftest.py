@@ -34,6 +34,29 @@ DB_PATH = Path(
     os.environ.get("PATIENTS_DB_PATH", str(_RUNTIME_CONFIG.get("PATIENTS_DB_PATH") or (ROOT / "data" / "patients.db")))
 ).expanduser()
 SERVER = os.environ.get("INTEGRATION_SERVER_URL", "http://127.0.0.1:8001")
+
+# Tripwire: integration tests read DB assertions from PATIENTS_DB_PATH,
+# which must match the path the live :8001 server is bound to. If either
+# resolves to a protected dev DB (the :8000 server's file), refuse to run
+# rather than risk polluting it. tests/conftest.py already pins the env
+# to a test path; this is a second-line guard for ad-hoc invocations.
+_PROTECTED_DEV_DB_PATHS = frozenset(
+    {
+        str((ROOT / "patients.db").resolve()),
+        str((ROOT / "data" / "patients.db").resolve()),
+    }
+)
+try:
+    _resolved_db = str(DB_PATH.resolve())
+except OSError:
+    _resolved_db = str(DB_PATH)
+if _resolved_db in _PROTECTED_DEV_DB_PATHS:
+    raise SystemExit(
+        f"REFUSED: integration tests would target a protected dev DB:\n"
+        f"  {_resolved_db}\n"
+        f"Start the :8001 server with PATIENTS_DB_PATH pointing at a test DB "
+        f"(see docs/TESTING.md), then re-run pytest with the same env."
+    )
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", str(_RUNTIME_CONFIG.get("OLLAMA_BASE_URL") or "http://192.168.0.123:11434/v1"))
 
 

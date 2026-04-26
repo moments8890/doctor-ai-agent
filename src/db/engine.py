@@ -19,12 +19,57 @@ DB_PATH = Path(
 ).expanduser()
 
 DATABASE_URL = str(os.environ.get("DATABASE_URL") or _RUNTIME_CONFIG.get("DATABASE_URL") or "").strip()
-_is_dev = os.environ.get("ENVIRONMENT", "").strip().lower() in {"development", "dev", "test"}
+_environment = os.environ.get("ENVIRONMENT", "").strip().lower()
+_is_dev = _environment in {"development", "dev", "test"}
+_is_test = _environment == "test"
 _is_pytest = (
     bool(os.environ.get("PYTEST_CURRENT_TEST"))
     or "pytest" in sys.modules
     or any("pytest" in arg for arg in sys.argv)
 )
+
+# Backstop tripwire — when running under pytest or with ENVIRONMENT=test,
+# the engine must never bind to a path the dev server uses. tests/conftest.py
+# normally pins the env vars to a test-only DB before this module loads,
+# but a contributor may bypass that path (e.g. importing this module
+# directly from a script). This guard catches that case loudly instead of
+# silently writing into patients.db.
+_PROTECTED_DEV_DB_PATHS = frozenset(
+    {
+        str((ROOT / "patients.db").resolve()),
+        str((ROOT / "data" / "patients.db").resolve()),
+    }
+)
+
+
+def _resolve_sqlite_path_from_url(url: str) -> Path | None:
+    parsed = urlparse(url)
+    if not parsed.scheme.startswith("sqlite") or not parsed.path:
+        return None
+    return Path(parsed.path).expanduser()
+
+
+def _enforce_test_db_isolation(*candidates: Path | None) -> None:
+    if not (_is_test or _is_pytest):
+        return
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        try:
+            resolved = str(candidate.expanduser().resolve())
+        except OSError:
+            continue
+        if resolved in _PROTECTED_DEV_DB_PATHS:
+            sys.exit(
+                "ERROR: refusing to bind the test/pytest engine to a "
+                f"protected dev DB path: {resolved}\n"
+                "Tests must use a separate file (default: "
+                ".pytest-data/patients.test.db). Unset DATABASE_URL / "
+                "PATIENTS_DB_PATH or rely on tests/conftest.py to pin them."
+            )
+
+
+_enforce_test_db_isolation(DB_PATH, _resolve_sqlite_path_from_url(DATABASE_URL))
 
 if not DATABASE_URL:
     if not _is_dev and not _is_pytest:

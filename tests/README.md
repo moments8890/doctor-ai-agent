@@ -11,13 +11,25 @@
 
 **All tests requiring a live server MUST use port 8001** (test server), never 8000 (dev server with real data).
 
+The test server **must** also point at a throwaway DB — never the dev `patients.db`.
+`tests/conftest.py` pins `PATIENTS_DB_PATH` to `.pytest-data/patients.test.db` for the
+pytest process, and `src/db/engine.py` refuses to bind to the dev DB when
+`ENVIRONMENT=test`. To make the :8001 server obey the same constraint, set those
+env vars when starting it:
+
 ```bash
-# Start test server
+# Start test server (bound to test DB, refuses to touch patients.db)
+ENVIRONMENT=test \
+PATIENTS_DB_PATH="$PWD/.pytest-data/patients.test.db" \
 PYTHONPATH=src uvicorn main:app --host 127.0.0.1 --port 8001
 
-# Run regression suite
+# In a second terminal, run the regression suite
 RUN_REGRESSION=1 PYTHONPATH=src pytest tests/regression/ -v
 ```
+
+If the :8001 server is started without those env vars, the integration / regression
+conftests will detect the misconfiguration and abort with a clear error before any
+HTTP call is made.
 
 ---
 

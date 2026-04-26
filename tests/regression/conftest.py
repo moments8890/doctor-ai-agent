@@ -44,6 +44,28 @@ DB_PATH = Path(
     )
 ).expanduser()
 
+# Tripwire: regression tests assert against the live :8001 server's DB.
+# If that path resolves to a protected dev DB, refuse to run so a misconfigured
+# server doesn't pollute it. Mirrors the guard in tests/integration/conftest.py
+# and the engine backstop in src/db/engine.py.
+_PROTECTED_DEV_DB_PATHS = frozenset(
+    {
+        str((ROOT / "patients.db").resolve()),
+        str((ROOT / "data" / "patients.db").resolve()),
+    }
+)
+try:
+    _resolved_reg_db = str(DB_PATH.resolve())
+except OSError:
+    _resolved_reg_db = str(DB_PATH)
+if _resolved_reg_db in _PROTECTED_DEV_DB_PATHS:
+    raise SystemExit(
+        f"REFUSED: regression tests would target a protected dev DB:\n"
+        f"  {_resolved_reg_db}\n"
+        f"Start the :8001 server with PATIENTS_DB_PATH pointing at a test DB "
+        f"(see docs/TESTING.md), then re-run pytest with the same env."
+    )
+
 
 # --- Skip guard ---
 

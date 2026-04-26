@@ -165,7 +165,9 @@ For code touching clinical data, these assertion patterns apply:
 ## Runtime Notes
 
 - Config: `config/runtime.json` (gitignored; see `config/runtime.json.sample`)
-- Test server: `PYTHONPATH=src ENVIRONMENT=development uvicorn main:app --port 8001`
+- Test server: `ENVIRONMENT=test PATIENTS_DB_PATH="$PWD/.pytest-data/patients.test.db" PYTHONPATH=src uvicorn main:app --port 8001`
+  - `ENVIRONMENT=test` activates the engine tripwire that refuses to bind to the dev `patients.db`
+  - `PATIENTS_DB_PATH` must match what pytest uses (`tests/conftest.py` defaults to `.pytest-data/patients.test.db`); override both with `PYTEST_DATABASE_URL` for CI
 - Patient sim: always use `--server http://127.0.0.1:8001`
 
 ## Reports

@@ -23,6 +23,7 @@ data/*.db
 
 # Pytest
 .pytest_cache/
+.pytest-data/
 .coverage
 reports/
 logs/
