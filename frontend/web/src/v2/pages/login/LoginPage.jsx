@@ -23,7 +23,6 @@ import {
   unifiedLoginWithRole,
   unifiedRegisterDoctor,
   unifiedRegisterPatient,
-  unifiedListDoctors,
   setWebToken,
 } from "../../../api";
 import { useDoctorStore } from "../../../store/doctorStore";
@@ -159,15 +158,14 @@ export default function LoginPage() {
   // Register doctor
   const [inviteCode] = useState("WELCOME");
 
-  // Register patient
-  const [doctorId, setDoctorId] = useState("");
+  // Register patient — `attachCode` replaces the legacy public doctor picker.
+  // Pre-filled from `?code=XYZ` URL param when the patient arrives via the
+  // doctor's QR scan, otherwise the patient types it manually from a printed
+  // / forwarded code.
+  const [attachCode, setAttachCode] = useState("");
   const [gender, setGender] = useState("");
-  const [doctors, setDoctors] = useState([]);
 
-  // Picker visibility
-  const [doctorPickerVisible, setDoctorPickerVisible] = useState(false);
   const [genderPickerVisible, setGenderPickerVisible] = useState(false);
-  const [doctorSearch, setDoctorSearch] = useState("");
 
   // Role picker (multi-role login)
   const [roleChoices, setRoleChoices] = useState(null);
@@ -176,7 +174,16 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    unifiedListDoctors().then(setDoctors).catch(() => {});
+    // Pre-fill from QR deep-link (?code=XYZ). Normalize to uppercase to match
+    // server-side normalization. Once filled from the URL, the user can still
+    // edit the field if the QR scan picked up a wrong code (e.g., glare).
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const c = params.get("code");
+      if (c) setAttachCode(c.trim().toUpperCase());
+    } catch {
+      // ignore — server-render or odd browser
+    }
   }, []);
 
   function handleTabChange(key) {
@@ -311,8 +318,8 @@ export default function LoginPage() {
 
   async function handleRegisterPatient(e) {
     e?.preventDefault();
-    if (!doctorId) {
-      setError("请选择医生");
+    if (!attachCode.trim()) {
+      setError("请输入医生提供的邀请码");
       return;
     }
     if (!regNickname.trim()) {
@@ -333,7 +340,7 @@ export default function LoginPage() {
       const data = await unifiedRegisterPatient(
         regNickname.trim(),
         regPasscode.trim(),
-        doctorId,
+        attachCode.trim().toUpperCase(),
         gender || undefined,
       );
       handleLoginSuccess(data);
@@ -346,13 +353,6 @@ export default function LoginPage() {
 
   const isDoctor = tab === "doctor";
 
-  const filteredDoctors = doctors.filter((d) => {
-    const q = doctorSearch.trim().toLowerCase();
-    if (!q) return true;
-    const haystack = `${d.name || ""} ${d.department || ""}`.toLowerCase();
-    return haystack.includes(q);
-  });
-
   const genderColumns = [
     [
       { label: "不填", value: "" },
@@ -360,14 +360,6 @@ export default function LoginPage() {
       { label: "女", value: "女" },
     ],
   ];
-
-  const selectedDoctorLabel =
-    doctors.find((d) => d.doctor_id === doctorId)
-      ? doctors.find((d) => d.doctor_id === doctorId).name +
-        (doctors.find((d) => d.doctor_id === doctorId).department
-          ? ` · ${doctors.find((d) => d.doctor_id === doctorId).department}`
-          : "")
-      : null;
 
   return (
     <div style={styles.page}>
@@ -523,17 +515,22 @@ export default function LoginPage() {
         {mode === "register" && !isDoctor && (
           <div>
             <Form layout="vertical">
-              <Form.Item label="选择医生">
-                <div
-                  onClick={() => setDoctorPickerVisible(true)}
+              <Form.Item
+                label="医生邀请码"
+                help="向您的医生索取 4 位邀请码，或扫描医生提供的二维码"
+              >
+                <Input
+                  placeholder="例：AB2C"
+                  value={attachCode}
+                  onChange={(v) => setAttachCode(v.toUpperCase())}
+                  maxLength={8}
                   style={{
-                    padding: "8px 0",
-                    cursor: "pointer",
-                    ...(selectedDoctorLabel ? styles.pickerValue : styles.pickerPlaceholder),
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+                    letterSpacing: 4,
+                    fontSize: FONT.lg,
                   }}
-                >
-                  {selectedDoctorLabel || "请选择医生"}
-                </div>
+                  clearable
+                />
               </Form.Item>
               <Form.Item label="昵称" help="用于登录和显示">
                 <Input
@@ -566,59 +563,6 @@ export default function LoginPage() {
                 />
               </Form.Item>
             </Form>
-
-            {/* Doctor picker — searchable list */}
-            <Popup
-              visible={doctorPickerVisible}
-              onMaskClick={() => setDoctorPickerVisible(false)}
-              onClose={() => setDoctorPickerVisible(false)}
-              bodyStyle={{
-                height: "60vh",
-                display: "flex",
-                flexDirection: "column",
-                borderTopLeftRadius: RADIUS.lg,
-                borderTopRightRadius: RADIUS.lg,
-              }}
-            >
-              <div style={{ padding: "12px 12px 8px" }}>
-                <SearchBar
-                  placeholder="搜索医生姓名或科室"
-                  value={doctorSearch}
-                  onChange={setDoctorSearch}
-                />
-              </div>
-              <div style={{ flex: 1, overflowY: "auto" }}>
-                <List>
-                  {filteredDoctors.length === 0 && (
-                    <List.Item>
-                      <span style={{ color: APP.text4, fontSize: FONT.sm }}>
-                        没有匹配的医生
-                      </span>
-                    </List.Item>
-                  )}
-                  {filteredDoctors.map((d) => (
-                    <List.Item
-                      key={d.doctor_id}
-                      clickable
-                      arrow={false}
-                      onClick={() => {
-                        setDoctorId(d.doctor_id);
-                        setDoctorPickerVisible(false);
-                        setDoctorSearch("");
-                      }}
-                      description={d.department || undefined}
-                      extra={
-                        doctorId === d.doctor_id ? (
-                          <span style={{ color: APP.primary, fontSize: FONT.sm }}>已选</span>
-                        ) : null
-                      }
-                    >
-                      {d.name}
-                    </List.Item>
-                  ))}
-                </List>
-              </div>
-            </Popup>
 
             {/* Gender picker */}
             <Picker

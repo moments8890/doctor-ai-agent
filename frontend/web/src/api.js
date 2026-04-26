@@ -174,11 +174,16 @@ export async function unifiedRegisterDoctor(nickname, passcode, inviteCode, spec
   return res.json();
 }
 
-export async function unifiedRegisterPatient(nickname, passcode, doctorId, gender) {
+export async function unifiedRegisterPatient(nickname, passcode, attachCode, gender) {
   const res = await fetch(apiUrl("/api/auth/unified/register/patient"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ nickname, passcode: String(passcode), doctor_id: doctorId, gender }),
+    body: JSON.stringify({
+      nickname,
+      passcode: String(passcode),
+      attach_code: String(attachCode || "").trim().toUpperCase(),
+      gender,
+    }),
   });
   if (!res.ok) {
     const err = new Error(await readError(res));
@@ -188,8 +193,17 @@ export async function unifiedRegisterPatient(nickname, passcode, doctorId, gende
   return res.json();
 }
 
-export async function unifiedListDoctors() {
-  const res = await fetch(apiUrl("/api/auth/unified/doctors"));
+// Doctor-side: fetch the permanent patient-attach code + deep-link QR URL.
+// The code is permanent — no rotation endpoint by design.
+export async function getDoctorAttachCode(token, doctorId) {
+  const res = await fetch(apiUrl(`/api/manage/patient-attach-code?doctor_id=${encodeURIComponent(doctorId)}`), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const err = new Error(await readError(res));
+    err.status = res.status;
+    throw err;
+  }
   return res.json();
 }
 
