@@ -46,7 +46,7 @@ function calcAge(year_of_birth) {
 
 // ── Patient header ─────────────────────────────────────────────────────────
 
-function PatientHeader({ profile, doctorId }) {
+function PatientHeader({ profile }) {
   const initial = (profile.name || "?").trim().charAt(0);
   const age = calcAge(profile.year_of_birth);
   const meta = [
@@ -54,16 +54,6 @@ function PatientHeader({ profile, doctorId }) {
     age != null ? `${age} 岁` : null,
     profile.phone || null,
   ].filter(Boolean).join(" · ");
-
-  function backToDoctor() {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    params.delete("patient");
-    if (doctorId) params.set("doctor", doctorId);
-    const next = `${window.location.pathname}?${params.toString()}`;
-    window.history.pushState(null, "", next);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }
 
   return (
     <section
@@ -120,21 +110,6 @@ function PatientHeader({ profile, doctorId }) {
           patient_id={profile.id} · 注册 {fmtRelative(profile.created_at)}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={backToDoctor}
-        style={{
-          fontSize: FONT.sm,
-          color: COLOR.text2,
-          background: "transparent",
-          border: `1px solid ${COLOR.borderDefault}`,
-          borderRadius: RADIUS.md,
-          padding: "6px 12px",
-          cursor: "pointer",
-        }}
-      >
-        ← 返回医生
-      </button>
     </section>
   );
 }
@@ -603,7 +578,7 @@ export default function AdminPatientDetailV3({ patientId }) {
 
   return (
     <>
-      <PatientHeader profile={data.profile} doctorId={data.profile.doctor_id} />
+      <PatientHeader profile={data.profile} />
       <PatientKpiStrip data={data} />
       <RecordsSection items={data.records?.items || []} />
       <MessagesSection items={data.messages?.items || []} />

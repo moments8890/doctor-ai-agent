@@ -93,10 +93,40 @@ function useUrlRoute() {
 // Renders the doctor detail surface and forwards the resolved doctor name
 // into the topbar breadcrumb (calls useDoctorDetail at this level so the
 // breadcrumb has access to `doctor.name` without prop drilling).
+// Patient detail breadcrumb: resolves the doctor name (so the parent
+// crumb reads "李医生" instead of "inv_FTCkQZ7FDVts") and wires hrefs
+// for both the parent doctor and the top-level "医生" list.
+function PatientDetailWithBreadcrumb({ patientId, doctorId }) {
+  // Best-effort doctor-name lookup so the back arrow's title and the
+  // parent crumb both read humanely. If we don't have a doctorId in the
+  // URL (deep-link to a patient with no doctor context), fall back to
+  // just the patient label and let the back arrow target the list.
+  const { doctor } = useDoctorDetail(doctorId);
+  const breadcrumb = [
+    { label: "医生", href: "?v=3" },
+    ...(doctorId
+      ? [
+          {
+            label: doctor?.name || "医生",
+            href: `?v=3&doctor=${encodeURIComponent(doctorId)}`,
+          },
+        ]
+      : []),
+    { label: "患者详情", here: true },
+  ];
+  return (
+    <AdminShellV3 section="doctors" breadcrumb={breadcrumb}>
+      <AdminPatientDetailV3 patientId={patientId} />
+    </AdminShellV3>
+  );
+}
+
 function DoctorDetailWithBreadcrumb({ doctorId }) {
   const { doctor } = useDoctorDetail(doctorId);
   const breadcrumb = [
-    { label: "医生" },
+    // href on "医生" so the topbar back arrow + clicking the crumb both
+    // route to the doctor list. ?v=3 with no doctor/patient = list view.
+    { label: "医生", href: "?v=3" },
     { label: doctor?.name || doctorId, here: true },
   ];
   return (
@@ -168,15 +198,8 @@ export default function AdminPageV3() {
   }
 
   if (patientId) {
-    const breadcrumb = [
-      { label: "医生" },
-      ...(doctorId ? [{ label: doctorId }] : []),
-      { label: `患者 ${patientId}`, here: true },
-    ];
     return (
-      <AdminShellV3 section="doctors" breadcrumb={breadcrumb}>
-        <AdminPatientDetailV3 patientId={patientId} />
-      </AdminShellV3>
+      <PatientDetailWithBreadcrumb patientId={patientId} doctorId={doctorId} />
     );
   }
 
