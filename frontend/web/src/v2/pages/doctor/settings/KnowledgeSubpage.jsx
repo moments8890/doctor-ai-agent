@@ -21,7 +21,7 @@ import {
 } from "antd-mobile";
 import { markKbCurationOnboardingDone } from "../../../../api";
 import { useDoctorStore } from "../../../../store/doctorStore";
-import { AddCircleOutline } from "antd-mobile-icons";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   useKnowledgeItems,
@@ -31,7 +31,7 @@ import {
   useRejectKbPending,
 } from "../../../../lib/doctorQueries";
 import { dp } from "../../../../utils/doctorBasePath";
-import { APP, FONT, RADIUS, CATEGORY_COLOR } from "../../../theme";
+import { APP, FONT, ICON, RADIUS, CATEGORY_COLOR } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 import { LoadingCenter, EmptyState } from "../../../components";
 import SubpageBackHome from "../../../components/SubpageBackHome";
@@ -701,15 +701,20 @@ export default function KnowledgeSubpage() {
       <NavBar backArrow={<SubpageBackHome />}
         onBack={() => navigate(-1)}
         right={
-          <Button
-            size="small"
-            color="primary"
-            fill="none"
-            onClick={() => navigate("/doctor/settings/knowledge/add")}
+          <div
+            role="button"
             aria-label="添加知识规则"
+            onClick={() => navigate("/doctor/settings/knowledge/add")}
+            style={{
+              padding: 8,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+            }}
           >
-            <AddCircleOutline style={{ fontSize: FONT.md }} />
-          </Button>
+            <AddCircleOutlineIcon sx={{ fontSize: ICON.md, color: APP.primary }} />
+          </div>
         }
         style={navBarStyle}
       >
