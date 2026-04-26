@@ -25,9 +25,8 @@ export function formatAge(yearOfBirth) {
  * calendar-edge ambiguity). Calendar buckets take over after 24h.
  *
  * Past:
- *   < 5 min            → 刚刚
- *   < 60 min           → N分钟前
- *   < 24 hours         → N小时前
+ *   < 60 min           → 刚刚
+ *   1-23 hours         → N小时前
  *   ≥ 24h, prev day    → 昨天
  *   2-6 calendar days  → N天前
  *   7-27 days          → N周前
@@ -51,10 +50,10 @@ export function relativeDate(dateStr) {
 
   // First 24h: use elapsed time, NOT calendar day. Avoids the 23:00 → 09:00
   // edge case where calendar comparison would misleadingly say "昨天".
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 5) return "刚刚";
-  if (diffMin < 60) return `${diffMin}分钟前`;
-  const diffHours = Math.floor(diffMin / 60);
+  // Sub-hour granularity collapses to "刚刚" — minute precision is noise
+  // for a doctor scanning a list (8分钟前 vs 23分钟前 doesn't change action).
+  const diffHours = Math.floor(diffMs / (60 * 60 * 1000));
+  if (diffHours < 1) return "刚刚";
   if (diffHours < 24) return `${diffHours}小时前`;
 
   // ≥ 24h: switch to calendar buckets — at this scale the day matters more
