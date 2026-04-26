@@ -99,11 +99,24 @@ export async function registerPatient(
   const nickname = uniqueNickname("patient");
   const passcode = randomPasscode();
 
+  // Patient registration now requires a per-doctor `attach_code` (replaces
+  // the legacy `doctor_id` body field — that endpoint dropped 2026-04-26
+  // alongside the public `/unified/doctors` enumeration). Fetch the doctor's
+  // permanent code via the doctor-side endpoint first.
+  const codeRes = await request.get(
+    `${API_BASE_URL}/api/manage/patient-attach-code?doctor_id=${encodeURIComponent(doctorId)}`,
+  );
+  expect(
+    codeRes.ok(),
+    `attach code fetch failed: ${codeRes.status()} ${await codeRes.text()}`,
+  ).toBeTruthy();
+  const { code: attach_code } = await codeRes.json();
+
   const res = await request.post(`${API_BASE_URL}/api/auth/unified/register/patient`, {
     data: {
       nickname,
       passcode,
-      doctor_id: doctorId,
+      attach_code,
       gender,
     },
   });
