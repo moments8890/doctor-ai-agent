@@ -39,13 +39,26 @@ ENVIRONMENT=production PYTHONPATH="$APP_DIR/src" "$VENV/bin/alembic" upgrade hea
 # Frontend build (package.json is in frontend/web/). Note: the prebuild
 # script in package.json runs scripts/sync-internal-wiki-docs.sh first,
 # so wiki.* internal docs always reflect the latest committed .md.
+#
+# VITE_API_BASE_URL: app.doctoragentai.cn deliberately has no /api/ proxy
+# (see deploy/tencent/nginx/app.doctoragentai.cn.conf header), so the SPA
+# must hit api.* cross-origin. Without this var, every /api/* call falls
+# into the SPA fallback and POSTs return 405 Not Allowed from nginx.
+# Inlined here rather than in a .env.production file so the deploy
+# script remains the single source of truth for prod-build-time config.
 cd "$APP_DIR/frontend/web"
 npm ci --silent
-npm run build
+VITE_API_BASE_URL=https://api.doctoragentai.cn npm run build
 rm -rf "$APP_DIR/frontend/dist"
 cp -r "$APP_DIR/frontend/web/dist" "$APP_DIR/frontend/dist"
 chmod -R o+rX "$APP_DIR/frontend/dist"
 cd "$APP_DIR"
+
+# Nuke Python bytecode cache so a fresh import picks up the new code.
+# Python's mtime-based .pyc invalidation has been observed to miss the
+# update when git-pull + restart land within the same second; doing it
+# unconditionally is cheap and removes the failure mode.
+find "$APP_DIR/src" -type d -name __pycache__ -prune -exec rm -rf {} +
 
 # Restart backend (systemd uses cli.py start --prod)
 sudo systemctl restart doctor-ai-backend
