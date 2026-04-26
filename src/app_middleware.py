@@ -43,7 +43,16 @@ def setup_cors(app: FastAPI) -> None:
         allow_origins=_cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-Admin-Token", "X-Trace-Id"],
+        # X-Client-Channel: api.js sets this to "miniapp" when running inside
+        # the WeChat Mini Program web-view (window.__wxjs_environment check).
+        # Omitting it here was making every authenticated cross-origin call
+        # from the webview fail at the CORS preflight (login worked because
+        # unifiedLogin calls fetch directly, not through the request wrapper
+        # that adds the header).
+        allow_headers=[
+            "Authorization", "Content-Type",
+            "X-Admin-Token", "X-Trace-Id", "X-Client-Channel",
+        ],
         expose_headers=["X-Trace-Id", "X-API-Version"],
     )
 
