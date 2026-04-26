@@ -1,9 +1,33 @@
 // In mobile builds (Capacitor), set VITE_API_BASE_URL to the backend origin,
 // e.g. https://your-server.com — relative /api/... paths don't resolve in WebView.
-const _API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const _API_BASE_BUILD = import.meta.env.VITE_API_BASE_URL || "";
+
+// Hosts whose nginx already proxies /api/* to the backend on the SAME
+// vhost — the SPA should use RELATIVE URLs there. The build-time
+// _API_BASE_BUILD only kicks in for hosts WITHOUT a same-origin /api proxy
+// (notably app.doctoragentai.cn, which is pure-static + cross-origin to
+// api.* by design).
+//
+// Why this matters: api.doctoragentai.cn explicitly returns 404 for
+// /api/admin/* (admin lives only on admin.*). If the admin SPA used the
+// build-time cross-origin base, every /api/admin/* call would 404 at
+// api.* nginx before reaching FastAPI — that's the "Failed to fetch"
+// admin operators were hitting on 2026-04-27.
+const _SAME_ORIGIN_HOSTS = new Set([
+  "admin.doctoragentai.cn",
+  "api.doctoragentai.cn",
+  "localhost",
+  "127.0.0.1",
+]);
+
+function _resolveApiBase() {
+  if (typeof window === "undefined") return _API_BASE_BUILD;
+  if (_SAME_ORIGIN_HOSTS.has(window.location.hostname)) return "";
+  return _API_BASE_BUILD;
+}
 
 function apiUrl(path) {
-  return `${_API_BASE}${path}`;
+  return `${_resolveApiBase()}${path}`;
 }
 
 async function readError(response) {
@@ -1228,26 +1252,6 @@ export async function seedDemo(doctorId) {
   });
 }
 
-// ── Patient supplement queue ───────────────────────────────────────
-
-export async function listPendingSupplements(doctorId) {
-  return request(`/api/manage/supplements/pending?doctor_id=${encodeURIComponent(doctorId)}`);
-}
-
-export async function acceptSupplement(doctorId, supplementId) {
-  return request(`/api/manage/supplements/${supplementId}/accept?doctor_id=${encodeURIComponent(doctorId)}`, {
-    method: "POST",
-  });
-}
-
-export async function createNewFromSupplement(doctorId, supplementId) {
-  return request(`/api/manage/supplements/${supplementId}/create_new?doctor_id=${encodeURIComponent(doctorId)}`, {
-    method: "POST",
-  });
-}
-
-export async function ignoreSupplement(doctorId, supplementId) {
-  return request(`/api/manage/supplements/${supplementId}/ignore?doctor_id=${encodeURIComponent(doctorId)}`, {
-    method: "POST",
-  });
-}
+// 2026-04-25: patient supplement queue removed — record_supplements table dropped.
+// Patient submissions after a closed record now create their own pending_review
+// medical_record (the doctor reviews it as a new case).
