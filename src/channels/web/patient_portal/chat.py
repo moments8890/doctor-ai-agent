@@ -584,6 +584,196 @@ async def get_chat_messages(
     return [_msg_to_out(m) for m in messages]
 
 
+# ---------------------------------------------------------------------------
+# Confirm-gate / dedup-decision endpoints (Task 1.7 Section E)
+# ---------------------------------------------------------------------------
+
+
+class ConfirmDraftRequest(BaseModel):
+    draft_id: int
+    action: str  # "confirm" | "continue"
+
+
+class DedupDecisionRequest(BaseModel):
+    draft_id: int
+    action: str  # "merge" | "new" | "neither"
+
+
+@chat_router.post("/chat/confirm_draft")
+async def confirm_draft(
+    body: ConfirmDraftRequest,
+    x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Patient response to the confirm_gate system message.
+
+    - ``confirm``  → promote draft to pending_review, compute extraction_confidence,
+      reset session state to idle.
+    - ``continue`` → no server-side change; the draft stays in interview_active.
+    """
+    patient = await _authenticate_patient(x_patient_token, authorization)
+    rec = await db.get(MedicalRecordDB, body.draft_id)
+    if rec is None or rec.patient_id != patient.id:
+        raise HTTPException(status_code=404, detail="Draft not found")
+
+    if body.action == "confirm":
+        rec.status = "pending_review"
+        rec.patient_confirmed_at = datetime.utcnow()
+        fields_dict = await _build_fields_dict(db, rec.id)
+        rec.extraction_confidence = calc_confidence(fields_dict)
+        # Reset state to idle, anchored on a system marker message.
+        marker = PatientMessage(
+            patient_id=patient.id, doctor_id=rec.doctor_id,
+            content="confirm",
+            direction="outbound", source="system",
+            ai_handled=True,
+            chat_state_snapshot=serialize_state(ChatSessionState()),
+        )
+        db.add(marker)
+        await db.commit()
+        return {
+            "status": "promoted",
+            "record_id": rec.id,
+            "extraction_confidence": rec.extraction_confidence,
+        }
+    if body.action == "continue":
+        # Draft stays in interview_active. State is already intake.
+        return {"status": "continuing"}
+    raise HTTPException(status_code=400, detail="invalid action")
+
+
+@chat_router.post("/chat/dedup_decision")
+async def dedup_decision(
+    body: DedupDecisionRequest,
+    x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Patient response to the dedup_prompt system message.
+
+    Three actions:
+      - ``merge``   → merge into target (append-only for active drafts; create
+        a supplement for doctor-reviewed targets). Cancel the draft.
+      - ``new``     → keep the draft as a new record, mark dedup_skipped_by_patient.
+      - ``neither`` → cancel the draft.
+    """
+    patient = await _authenticate_patient(x_patient_token, authorization)
+    draft = await db.get(MedicalRecordDB, body.draft_id)
+    if draft is None or draft.patient_id != patient.id:
+        raise HTTPException(status_code=404, detail="Draft not found")
+
+    target_record_id, target_reviewed = await _latest_dedup_target(
+        db, patient.id, body.draft_id,
+    )
+    if target_record_id is None:
+        raise HTTPException(status_code=409, detail="no pending dedup decision")
+
+    if body.action == "merge":
+        new_fields = await _build_fields_dict(db, draft.id)
+        if target_reviewed:
+            await create_supplement(
+                db, target_record_id=target_record_id,
+                new_fields=new_fields, intake_segment_id=draft.intake_segment_id,
+            )
+            draft.status = "diagnosis_failed"
+            draft.cancellation_reason = "merged_into_existing"
+        else:
+            await merge_into_existing(
+                db, target_record_id=target_record_id,
+                new_fields=new_fields, intake_segment_id=draft.intake_segment_id,
+            )
+            target = await db.get(MedicalRecordDB, target_record_id)
+            if target is not None:
+                target.status = "pending_review"
+                target.patient_confirmed_at = datetime.utcnow()
+            draft.status = "diagnosis_failed"
+            draft.cancellation_reason = "merged_into_existing"
+        marker = PatientMessage(
+            patient_id=patient.id, doctor_id=draft.doctor_id,
+            content="merge",
+            direction="outbound", source="system",
+            ai_handled=True,
+            chat_state_snapshot=serialize_state(ChatSessionState()),
+        )
+        db.add(marker)
+        await db.commit()
+        return {"status": "merged"}
+
+    if body.action == "new":
+        draft.dedup_skipped_by_patient = True
+        draft.status = "pending_review"
+        draft.patient_confirmed_at = datetime.utcnow()
+        fields_dict = await _build_fields_dict(db, draft.id)
+        draft.extraction_confidence = calc_confidence(fields_dict)
+        marker = PatientMessage(
+            patient_id=patient.id, doctor_id=draft.doctor_id,
+            content="new",
+            direction="outbound", source="system",
+            ai_handled=True,
+            chat_state_snapshot=serialize_state(ChatSessionState()),
+        )
+        db.add(marker)
+        await db.commit()
+        return {"status": "new", "record_id": draft.id}
+
+    if body.action == "neither":
+        draft.status = "diagnosis_failed"
+        draft.cancellation_reason = "patient_cancel"
+        marker = PatientMessage(
+            patient_id=patient.id, doctor_id=draft.doctor_id,
+            content="cancel",
+            direction="outbound", source="system",
+            ai_handled=True,
+            chat_state_snapshot=serialize_state(ChatSessionState()),
+        )
+        db.add(marker)
+        await db.commit()
+        return {"status": "cancelled"}
+
+    raise HTTPException(status_code=400, detail="invalid action")
+
+
+async def _build_fields_dict(db: AsyncSession, record_id: int) -> dict:
+    """Reduce FieldEntryDB rows to {field_name: latest_text} for the merge/confidence calls."""
+    rows = (await db.execute(
+        select(FieldEntryDB)
+        .where(FieldEntryDB.record_id == record_id)
+        .order_by(FieldEntryDB.created_at)
+    )).scalars().all()
+    out: dict = {}
+    for r in rows:
+        out[r.field_name] = r.text  # latest wins (rows are time-ordered)
+    return out
+
+
+async def _latest_dedup_target(
+    db: AsyncSession, patient_id: int, draft_id: int,
+) -> tuple[Optional[int], bool]:
+    """Find the most recent dedup_prompt system message for this draft.
+
+    Returns (target_record_id, target_reviewed) or (None, False) if no
+    pending dedup prompt exists for the given draft.
+    """
+    rows = (await db.execute(
+        select(PatientMessage)
+        .where(
+            PatientMessage.patient_id == patient_id,
+            PatientMessage.source == "system",
+        )
+        .order_by(desc(PatientMessage.created_at))
+        .limit(20)
+    )).scalars().all()
+    for m in rows:
+        try:
+            payload = json.loads(m.content)
+        except Exception:
+            continue
+        if payload.get("kind") == "dedup_prompt" and payload.get("draft_id") == draft_id:
+            return payload.get("target_record_id"), bool(payload.get("target_reviewed"))
+    return None, False
+
+
 @chat_router.post("/messages/{message_id}/read")
 async def mark_message_read(
     message_id: int,
