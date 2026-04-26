@@ -10,7 +10,7 @@
 import { useState, useCallback, useRef, useMemo } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { usePageStack } from "../../usePageStack";
-import { NavBar, Popover, SafeArea, TabBar, Button, TextArea, Toast } from "antd-mobile";
+import { NavBar, Popover, Mask, SafeArea, TabBar, Button, TextArea, Toast } from "antd-mobile";
 import { usePatients } from "../../../lib/doctorQueries";
 import IntakePage from "./IntakePage";
 import MyAIPage from "./MyAIPage";
@@ -242,6 +242,62 @@ function FeedbackPopover({ children }) {
   );
 }
 
+// ── Add-to-desktop popover ────────────────────────────────────────
+// Controlled popover with a sibling Mask so the rest of the page dims
+// while the instructions are visible. Popover portals at z-index 1030,
+// Mask at 1000, so the popover stays bright above the dim layer.
+// Tapping the mask (or anywhere outside the popover) closes both.
+
+function AddToDesktopPopover() {
+  const [visible, setVisible] = useState(false);
+  return (
+    <>
+      <Mask
+        visible={visible}
+        onMaskClick={() => setVisible(false)}
+      />
+      <Popover
+        trigger="click"
+        placement="bottomRight"
+        visible={visible}
+        onVisibleChange={setVisible}
+        content={
+          <div style={{ maxWidth: 240, padding: "4px 2px" }}>
+            <div
+              style={{
+                fontSize: FONT.md,
+                fontWeight: 600,
+                color: APP.text1,
+                marginBottom: 8,
+              }}
+            >
+              添加到桌面，下次一键打开
+            </div>
+            <div style={{ fontSize: FONT.sm, color: APP.text2, lineHeight: 1.7 }}>
+              <div>1. 点击微信右上角「···」</div>
+              <div>2. 选择「添加到桌面」</div>
+              <div>3. 下次直接从桌面打开</div>
+            </div>
+          </div>
+        }
+      >
+        <div
+          role="button"
+          aria-label="添加到桌面"
+          style={{
+            padding: 8,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <AddToHomeScreenOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
+        </div>
+      </Popover>
+    </>
+  );
+}
+
 // ── Main shell ─────────────────────────────────────────────────────
 
 export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
@@ -431,42 +487,7 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
                     <FeedbackOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
                   </div>
                 </FeedbackPopover>
-                <Popover
-                  trigger="click"
-                  placement="bottomRight"
-                  content={
-                    <div style={{ maxWidth: 240, padding: "4px 2px" }}>
-                      <div
-                        style={{
-                          fontSize: FONT.md,
-                          fontWeight: 600,
-                          color: APP.text1,
-                          marginBottom: 8,
-                        }}
-                      >
-                        添加到桌面，下次一键打开
-                      </div>
-                      <div style={{ fontSize: FONT.sm, color: APP.text2, lineHeight: 1.7 }}>
-                        <div>1. 点击微信右上角「···」</div>
-                        <div>2. 选择「添加到桌面」</div>
-                        <div>3. 下次直接从桌面打开</div>
-                      </div>
-                    </div>
-                  }
-                >
-                  <div
-                    role="button"
-                    aria-label="添加到桌面"
-                    style={{
-                      padding: 8,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    <AddToHomeScreenOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
-                  </div>
-                </Popover>
+                <AddToDesktopPopover />
               </div>
             ) : null
           }
