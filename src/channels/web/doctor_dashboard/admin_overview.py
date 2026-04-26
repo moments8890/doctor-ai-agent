@@ -1717,15 +1717,35 @@ async def admin_patient_related(
     # Sentinel instead of raw doctor_id — see admin_patients.py.
     profile["doctor_name"] = doctor or "(未命名医生)"
 
-    # Medical records
+    # Medical records — emit the full clinical surface so the V3 patient
+    # detail page can render structured cards instead of a 200-char snippet.
+    # Truncation raised from 200 → 2000 to keep payloads bounded while still
+    # showing complete consult notes (typical interview summary < 800 chars).
+    def _trunc(value: str | None, n: int = 2000) -> str | None:
+        if value is None:
+            return None
+        return value if len(value) <= n else value[:n]
+
     records = (await db.execute(
         select(MedicalRecordDB).where(MedicalRecordDB.patient_id == patient_id)
         .order_by(MedicalRecordDB.created_at.desc()).limit(LIMIT)
     )).scalars().all()
     records_data = [
-        {"id": r.id, "record_type": r.record_type,
-         "content": (r.content or "")[:200], "status": r.status,
-         "diagnosis": (r.diagnosis or "")[:200],
+        {"id": r.id,
+         "record_type": r.record_type,
+         "status": r.status,
+         "department": r.department,
+         "chief_complaint": _trunc(r.chief_complaint, 600),
+         "present_illness": _trunc(r.present_illness),
+         "past_history": _trunc(r.past_history, 1000),
+         "allergy_history": _trunc(r.allergy_history, 400),
+         "physical_exam": _trunc(r.physical_exam, 1000),
+         "specialist_exam": _trunc(r.specialist_exam, 1000),
+         "auxiliary_exam": _trunc(r.auxiliary_exam, 1000),
+         "diagnosis": _trunc(r.diagnosis, 600),
+         "treatment_plan": _trunc(r.treatment_plan),
+         "orders_followup": _trunc(r.orders_followup, 600),
+         "content": _trunc(r.content),
          "created_at": _fmt_ts(r.created_at)}
         for r in records
     ]
@@ -1737,7 +1757,7 @@ async def admin_patient_related(
     )).scalars().all()
     messages_data = [
         {"id": m.id, "direction": m.direction, "source": m.source,
-         "content": (m.content or "")[:200],
+         "content": _trunc(m.content, 2000),
          "created_at": _fmt_ts(m.created_at)}
         for m in messages
     ]
@@ -1754,7 +1774,9 @@ async def admin_patient_related(
         for t in tasks
     ]
 
-    # AI suggestions (via records)
+    # AI suggestions (via records) — emit full detail + decision metadata
+    # so the patient detail page can show why the AI made each suggestion,
+    # not just a 200-char title.
     record_ids = [r.id for r in records]
     suggestions_data = []
     if record_ids:
@@ -1763,8 +1785,15 @@ async def admin_patient_related(
             .order_by(AISuggestion.created_at.desc()).limit(LIMIT)
         )).scalars().all()
         suggestions_data = [
-            {"id": s.id, "record_id": s.record_id, "section": s.section,
-             "content": (s.content or "")[:200], "decision": s.decision,
+            {"id": s.id, "record_id": s.record_id,
+             "section": s.section,
+             "content": _trunc(s.content, 600),
+             "detail": _trunc(s.detail, 2000),
+             "confidence": s.confidence,
+             "urgency": s.urgency,
+             "intervention": s.intervention,
+             "decision": s.decision,
+             "decided_at": _fmt_ts(s.decided_at),
              "created_at": _fmt_ts(s.created_at)}
             for s in suggestions
         ]

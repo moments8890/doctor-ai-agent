@@ -216,79 +216,189 @@ function EmptyRow({ label }) {
   );
 }
 
+// Display all populated clinical fields as labeled blocks. Skips fields that
+// are null/empty so a thin interview_summary record renders compactly while a
+// full visit note shows everything.
+function RecordField({ label, value }) {
+  if (!value) return null;
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontSize: FONT.xs, color: COLOR.text3, fontWeight: 500, letterSpacing: "0.02em" }}>
+        {label}
+      </div>
+      <div style={{ fontSize: FONT.sm, color: COLOR.text1, whiteSpace: "pre-wrap", marginTop: 2 }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+const RECORD_FIELDS = [
+  { key: "chief_complaint",   label: "主诉" },
+  { key: "present_illness",   label: "现病史" },
+  { key: "past_history",      label: "既往史" },
+  { key: "allergy_history",   label: "过敏史" },
+  { key: "physical_exam",     label: "体格检查" },
+  { key: "specialist_exam",   label: "专科检查" },
+  { key: "auxiliary_exam",    label: "辅助检查" },
+  { key: "diagnosis",         label: "诊断" },
+  { key: "treatment_plan",    label: "治疗方案" },
+  { key: "orders_followup",   label: "医嘱与随访" },
+];
+
 function RecordsSection({ items }) {
   return (
     <SectionCard title="病历" count={`${items.length} 条`}>
       {items.length === 0 ? (
         <EmptyRow label="暂无病历" />
       ) : (
-        items.map((r) => (
-          <div
-            key={r.id}
-            style={{
-              padding: "10px 16px",
-              borderTop: `1px solid ${COLOR.borderLight || COLOR.borderSubtle}`,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontSize: FONT.body, fontWeight: 500, color: COLOR.text1 }}>
-                {r.record_type || "病历"}
-                {r.diagnosis ? ` · ${r.diagnosis}` : ""}
-              </span>
-              <span style={{ fontSize: FONT.xs, color: COLOR.text3 }}>{fmtRelative(r.created_at)}</span>
-            </div>
-            {r.content && (
-              <div style={{ fontSize: FONT.sm, color: COLOR.text2, marginTop: 4, whiteSpace: "pre-wrap" }}>
-                {r.content}
+        items.map((r) => {
+          // Header line: type + status + date
+          const populatedFields = RECORD_FIELDS.filter((f) => r[f.key]);
+          const hasContent = !populatedFields.length && r.content;
+          return (
+            <div
+              key={r.id}
+              style={{
+                padding: "14px 16px",
+                borderTop: `1px solid ${COLOR.borderLight || COLOR.borderSubtle}`,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  flexWrap: "wrap",
+                  gap: 6,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ fontSize: FONT.body, fontWeight: 600, color: COLOR.text1 }}>
+                    {r.record_type || "病历"}
+                  </span>
+                  {r.department && (
+                    <span style={{ fontSize: FONT.xs, color: COLOR.text3 }}>
+                      {r.department}
+                    </span>
+                  )}
+                  {r.status && (
+                    <span
+                      style={{
+                        fontSize: FONT.xs,
+                        color: r.status === "completed" ? COLOR.brand : COLOR.text3,
+                        background: r.status === "completed" ? COLOR.brandTint : COLOR.bgCardAlt,
+                        padding: "2px 8px",
+                        borderRadius: RADIUS.pill,
+                      }}
+                    >
+                      {r.status}
+                    </span>
+                  )}
+                </div>
+                <span style={{ fontSize: FONT.xs, color: COLOR.text3 }}>
+                  {fmtRelative(r.created_at)}
+                </span>
               </div>
-            )}
-          </div>
-        ))
+              {populatedFields.map((f) => (
+                <RecordField key={f.key} label={f.label} value={r[f.key]} />
+              ))}
+              {hasContent && (
+                <RecordField label="内容" value={r.content} />
+              )}
+            </div>
+          );
+        })
       )}
     </SectionCard>
   );
 }
 
-function MessagesSection({ items }) {
+// Chat-bubble layout: patient on the left (gray bubble), doctor/AI on the
+// right (brand-tint bubble), label adjacent to bubble, time below. Backend
+// returns most recent first, so we reverse for chronological order — that's
+// how a real chatlog reads.
+function ChatBubble({ msg }) {
+  const isInbound = msg.direction === "inbound";
+  const senderLabel = isInbound
+    ? "患者"
+    : msg.source === "ai"
+    ? "AI"
+    : "医生";
+  const senderColor = isInbound
+    ? COLOR.info
+    : msg.source === "ai"
+    ? COLOR.brand
+    : COLOR.text1;
+  const bubbleBg = isInbound ? COLOR.bgCardAlt : COLOR.brandTint;
+  const bubbleColor = COLOR.text1;
   return (
-    <SectionCard title="消息" count={`${items.length} 条`}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: isInbound ? "flex-start" : "flex-end",
+        marginBottom: 14,
+      }}
+    >
+      <div style={{ maxWidth: "72%", display: "flex", flexDirection: "column", alignItems: isInbound ? "flex-start" : "flex-end" }}>
+        <div
+          style={{
+            fontSize: FONT.xs,
+            color: senderColor,
+            fontWeight: 500,
+            marginBottom: 4,
+          }}
+        >
+          {senderLabel}
+        </div>
+        <div
+          style={{
+            fontSize: FONT.sm,
+            color: bubbleColor,
+            background: bubbleBg,
+            padding: "10px 14px",
+            borderRadius: 14,
+            borderTopLeftRadius: isInbound ? 4 : 14,
+            borderTopRightRadius: isInbound ? 14 : 4,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            lineHeight: 1.55,
+          }}
+        >
+          {msg.content}
+        </div>
+        <div
+          style={{
+            fontSize: FONT.xs,
+            color: COLOR.text3,
+            marginTop: 4,
+          }}
+        >
+          {fmtRelative(msg.created_at)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MessagesSection({ items }) {
+  // Backend returns desc; flip so the conversation reads top-to-bottom.
+  const ordered = [...items].reverse();
+  return (
+    <SectionCard title="对话记录" count={`${items.length} 条`}>
       {items.length === 0 ? (
         <EmptyRow label="暂无消息" />
       ) : (
-        items.map((m) => {
-          const isInbound = m.direction === "inbound";
-          return (
-            <div
-              key={m.id}
-              style={{
-                padding: "10px 16px",
-                borderTop: `1px solid ${COLOR.borderLight || COLOR.borderSubtle}`,
-                display: "flex",
-                gap: 10,
-                background: isInbound ? "transparent" : COLOR.bgCardAlt,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: FONT.xs,
-                  color: isInbound ? COLOR.info : COLOR.brand,
-                  fontWeight: 500,
-                  minWidth: 36,
-                }}
-              >
-                {isInbound ? "患者" : m.source === "ai" ? "AI" : "医生"}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: FONT.sm, color: COLOR.text1, whiteSpace: "pre-wrap" }}>
-                  {m.content}
-                </div>
-                <div style={{ fontSize: FONT.xs, color: COLOR.text3, marginTop: 4 }}>
-                  {fmtRelative(m.created_at)}
-                </div>
-              </div>
-            </div>
-          );
-        })
+        <div
+          style={{
+            padding: "16px 16px 6px",
+            background: COLOR.bgPage,
+          }}
+        >
+          {ordered.map((m) => (
+            <ChatBubble key={m.id} msg={m} />
+          ))}
+        </div>
       )}
     </SectionCard>
   );
@@ -326,35 +436,121 @@ function TasksSection({ items }) {
   );
 }
 
+const URGENCY_LABEL = { high: "紧急", medium: "中等", low: "常规" };
+const URGENCY_COLOR = (lvl) =>
+  lvl === "high" ? COLOR.danger : lvl === "medium" ? COLOR.warning : COLOR.text3;
+const DECISION_LABEL = {
+  confirmed: "已采纳",
+  edited: "修改后采纳",
+  rejected: "已拒绝",
+};
+const DECISION_COLOR = (d) =>
+  d === "confirmed" ? COLOR.brand
+  : d === "edited" ? COLOR.warning
+  : d === "rejected" ? COLOR.danger
+  : COLOR.text3;
+
+function Tag({ children, color, bg }) {
+  return (
+    <span
+      style={{
+        fontSize: FONT.xs,
+        color,
+        background: bg,
+        padding: "2px 8px",
+        borderRadius: RADIUS.pill,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 function SuggestionsSection({ items }) {
   return (
     <SectionCard title="AI 建议" count={`${items.length} 条`}>
       {items.length === 0 ? (
         <EmptyRow label="暂无 AI 建议" />
       ) : (
-        items.map((s) => (
-          <div
-            key={s.id}
-            style={{
-              padding: "10px 16px",
-              borderTop: `1px solid ${COLOR.borderLight || COLOR.borderSubtle}`,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontSize: FONT.body, color: COLOR.text1 }}>
-                {s.section || "建议"}
-              </span>
-              <span style={{ fontSize: FONT.xs, color: s.decision ? COLOR.brand : COLOR.text3 }}>
-                {s.decision || "未决定"} · {fmtRelative(s.created_at)}
-              </span>
-            </div>
-            {s.content && (
-              <div style={{ fontSize: FONT.sm, color: COLOR.text2, marginTop: 4, whiteSpace: "pre-wrap" }}>
-                {s.content}
+        items.map((s) => {
+          const decisionColor = DECISION_COLOR(s.decision);
+          const decisionLabel = s.decision
+            ? DECISION_LABEL[s.decision] || s.decision
+            : "未决定";
+          const confidencePct = s.confidence != null
+            ? `${Math.round(s.confidence * 100)}%`
+            : null;
+          return (
+            <div
+              key={s.id}
+              style={{
+                padding: "14px 16px",
+                borderTop: `1px solid ${COLOR.borderLight || COLOR.borderSubtle}`,
+              }}
+            >
+              {/* Header: section + tags + decision */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  flexWrap: "wrap",
+                  gap: 6,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: FONT.body, fontWeight: 600, color: COLOR.text1 }}>
+                    {s.section || "建议"}
+                  </span>
+                  {s.urgency && (
+                    <Tag color={URGENCY_COLOR(s.urgency)} bg={COLOR.bgCardAlt}>
+                      {URGENCY_LABEL[s.urgency] || s.urgency}
+                    </Tag>
+                  )}
+                  {s.intervention && (
+                    <Tag color={COLOR.info} bg={COLOR.infoTint || COLOR.bgCardAlt}>
+                      {s.intervention}
+                    </Tag>
+                  )}
+                  {confidencePct && (
+                    <span style={{ fontSize: FONT.xs, color: COLOR.text3, fontFamily: FONT_STACK.mono }}>
+                      置信 {confidencePct}
+                    </span>
+                  )}
+                </div>
+                <Tag color={decisionColor} bg={COLOR.bgCardAlt}>
+                  {decisionLabel}
+                  {s.decided_at ? ` · ${fmtRelative(s.decided_at)}` : ""}
+                </Tag>
               </div>
-            )}
-          </div>
-        ))
+              {/* Headline content */}
+              {s.content && (
+                <div style={{ fontSize: FONT.sm, color: COLOR.text1, marginTop: 8, whiteSpace: "pre-wrap" }}>
+                  {s.content}
+                </div>
+              )}
+              {/* Detailed reasoning */}
+              {s.detail && s.detail !== s.content && (
+                <div
+                  style={{
+                    fontSize: FONT.sm,
+                    color: COLOR.text2,
+                    marginTop: 8,
+                    paddingLeft: 10,
+                    borderLeft: `2px solid ${COLOR.borderSubtle}`,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {s.detail}
+                </div>
+              )}
+              <div style={{ fontSize: FONT.xs, color: COLOR.text3, marginTop: 8 }}>
+                生成于 {fmtRelative(s.created_at)}
+              </div>
+            </div>
+          );
+        })
       )}
     </SectionCard>
   );
