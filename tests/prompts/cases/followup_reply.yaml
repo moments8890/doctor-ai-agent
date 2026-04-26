@@ -141,7 +141,7 @@
     - type: javascript
       value: "!/(诊断为|确诊|开.*药|建议服用|处方)/.test(output)"
     - type: javascript
-      value: "/(复查|复诊|就诊|门诊|检查|医院|联系|来.*一下)/.test(output)"   # redirects to in-person contact
+      value: "/(复查|复诊|就诊|门诊|面诊|检查|医院|联系|来.*一下|转给医生|让医生|医生.*回复)/.test(output)"   # redirects to in-person OR defers to doctor (post-2026-04-25 policy)
 
 # ── Risk-signal handling (2026-04-25, post-product-call revision) ───
 # Product call: this app is doctor-patient continuity, NOT a triage system.
