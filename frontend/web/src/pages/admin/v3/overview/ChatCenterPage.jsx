@@ -1,15 +1,16 @@
 // ChatCenterPage — admin v3 cross-doctor 沟通中心 (communication inbox).
 //
 // One row per (patient, doctor) thread, ordered by last message DESC.
-// Click a row → navigate to that doctor's profile (?v=3&doctor=<id>) and
-// let the user pick the 沟通 tab. We intentionally do NOT open a thread
-// modal here — the inbox is a router, not a chat UI.
+// Click a row → expands inline below it with the WeChat-style chat
+// history (mirrors the doctor-detail 沟通 tab style: filled brand
+// bubble for outbound, light card for inbound, day-tag separators,
+// in-bubble HH:MM stamp). Multiple rows can be expanded at once.
+// Closing collapses the body but keeps the row anchored.
 //
 // Visual reference: docs/specs/2026-04-24-admin-modern-mockup-v3.html
-//   `.chat-list`, `.cl-row`, `.cl-search` (adapted: each row also shows the
-//   主治医生 name in info color so the cross-doctor scope is visible).
+//   `.chat-list`, `.cl-row`, `.cl-search`.
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 import { COLOR, FONT, FONT_STACK, RADIUS, SHADOW } from "../tokens";
 import EmptyState from "../components/EmptyState";
@@ -18,6 +19,7 @@ import SectionError from "../components/SectionError";
 import useChatCenterList from "./useChatCenterList";
 
 const PAGE_SIZE = 50;
+const ADMIN_TOKEN_KEY = "adminToken";
 
 const FILTER_CHIPS = [
   { key: "all",    label: "全部",   icon: "forum" },
@@ -67,6 +69,261 @@ function navigateToDoctor(doctorId) {
   params.set("doctor", doctorId);
   window.history.pushState({}, "", `?${params.toString()}`);
   window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+async function fetchAdminJson(url) {
+  const token =
+    localStorage.getItem(ADMIN_TOKEN_KEY) ||
+    (import.meta.env.DEV ? "dev" : "");
+  const res = await fetch(url, {
+    headers: token ? { "X-Admin-Token": token } : {},
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+
+// ─── chat-bubble helpers (WeChat style) ───────────────────────────────────
+
+function parseTs(ts) {
+  if (!ts) return null;
+  const d = new Date(`${String(ts).replace(" ", "T")}Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function fmtStamp(d) {
+  if (!d) return "";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function fmtDayTag(d) {
+  if (!d) return "";
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = d.toDateString() === yesterday.toDateString();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+  if (sameDay) return `今天 · ${m} 月 ${dd} 日`;
+  if (isYesterday) return `昨天 · ${m} 月 ${dd} 日`;
+  return `${m} 月 ${dd} 日 · ${weekdays[d.getDay()]}`;
+}
+
+function dayKey(d) {
+  return d ? d.toDateString() : "";
+}
+
+function buildBubbleItems(messages) {
+  const bubbles = (messages || [])
+    .filter((m) => m && (m.direction === "inbound" || m.direction === "outbound"))
+    .map((m) => ({
+      kind: "bubble",
+      role: m.direction === "outbound" ? "doctor" : "patient",
+      text: m.content || "",
+      ts: parseTs(m.created_at),
+      _id: m.id,
+    }));
+  const out = [];
+  let last = null;
+  for (const b of bubbles) {
+    const k = dayKey(b.ts);
+    if (k !== last) {
+      out.push({ kind: "day", label: fmtDayTag(b.ts), _key: `day-${k}` });
+      last = k;
+    }
+    out.push({ ...b, stamp: fmtStamp(b.ts) });
+  }
+  return out;
+}
+
+function Bubble({ role, text, stamp }) {
+  const isDoctor = role === "doctor";
+  return (
+    <div
+      style={{
+        alignSelf: isDoctor ? "flex-end" : "flex-start",
+        maxWidth: "70%",
+        padding: "10px 14px",
+        fontSize: 14,
+        lineHeight: 1.55,
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        background: isDoctor ? COLOR.brand : COLOR.bgCard,
+        color: isDoctor ? "#fff" : COLOR.text1,
+        border: isDoctor ? "none" : `1px solid ${COLOR.borderSubtle}`,
+        borderRadius: isDoctor ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
+      }}
+    >
+      <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{text}</div>
+      {stamp && (
+        <span
+          style={{
+            fontFamily: FONT_STACK.mono,
+            fontSize: 10.5,
+            color: isDoctor ? "rgba(255,255,255,0.75)" : COLOR.text3,
+            alignSelf: "flex-end",
+          }}
+        >
+          {stamp}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function DayTag({ label }) {
+  return (
+    <span
+      style={{
+        alignSelf: "center",
+        fontSize: 11,
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        color: COLOR.text3,
+        background: COLOR.bgCard,
+        padding: "3px 12px",
+        borderRadius: 999,
+        border: `1px solid ${COLOR.borderSubtle}`,
+        fontWeight: 600,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+
+// ─── per-row thread body (fetches its own messages on mount) ──────────────
+
+function ThreadBody({ patientId, doctorId, doctorName }) {
+  const [data, setData] = useState({ items: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (patientId == null || !doctorId) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    const url = `/api/admin/messages/thread?patient_id=${encodeURIComponent(patientId)}&doctor_id=${encodeURIComponent(doctorId)}`;
+    fetchAdminJson(url)
+      .then((d) => {
+        if (cancelled) return;
+        setData(d);
+        setLoading(false);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e.message || String(e));
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [patientId, doctorId]);
+
+  const items = useMemo(() => buildBubbleItems(data.items), [data.items]);
+
+  return (
+    <div
+      style={{
+        background: COLOR.bgCardAlt || COLOR.bgPage,
+        borderTop: `1px solid ${COLOR.borderSubtle}`,
+        padding: "18px 22px",
+      }}
+    >
+      <div
+        style={{
+          maxHeight: 480,
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        {loading && (
+          <div
+            style={{
+              alignSelf: "center",
+              color: COLOR.text3,
+              fontSize: FONT.sm,
+              padding: "16px 0",
+            }}
+          >
+            正在加载会话…
+          </div>
+        )}
+        {!loading && error && (
+          <div
+            style={{
+              alignSelf: "center",
+              color: COLOR.danger,
+              fontSize: FONT.sm,
+              padding: "16px 0",
+            }}
+          >
+            加载失败：{error}
+          </div>
+        )}
+        {!loading && !error && items.length === 0 && (
+          <div
+            style={{
+              alignSelf: "center",
+              color: COLOR.text3,
+              fontSize: FONT.sm,
+              padding: "16px 0",
+            }}
+          >
+            暂无消息
+          </div>
+        )}
+        {!loading && !error &&
+          items.map((it, idx) => {
+            if (it.kind === "day") return <DayTag key={it._key || idx} label={it.label} />;
+            return (
+              <Bubble
+                key={it._id ?? idx}
+                role={it.role}
+                text={it.text}
+                stamp={it.stamp}
+              />
+            );
+          })}
+      </div>
+      <div
+        style={{
+          marginTop: 10,
+          paddingTop: 10,
+          borderTop: `1px solid ${COLOR.borderSubtle}`,
+          display: "flex",
+          justifyContent: "flex-end",
+        }}
+      >
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigateToDoctor(doctorId);
+          }}
+          style={{
+            border: `1px solid ${COLOR.borderDefault}`,
+            background: COLOR.bgCard,
+            color: COLOR.text1,
+            borderRadius: RADIUS.sm,
+            padding: "6px 14px",
+            fontSize: FONT.sm,
+            cursor: "pointer",
+          }}
+          title={doctorName ? `查看 ${doctorName} 的详情` : undefined}
+        >
+          查看医生详情 →
+        </button>
+      </div>
+    </div>
+  );
 }
 
 
@@ -165,7 +422,7 @@ function FilterBar({ filter, onFilterChange, q, onQChange }) {
   );
 }
 
-function ChatRow({ entry, onClick }) {
+function ChatRow({ entry, isOpen, onClick }) {
   const initial = (entry.patient_name || "?").trim().charAt(0) || "?";
   const time = formatRelative(entry?.last_message?.created_at);
   const unread = (entry.unread_count || 0) > 0;
@@ -181,19 +438,37 @@ function ChatRow({ entry, onClick }) {
           onClick?.();
         }
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = COLOR.bgCard)}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+      onMouseEnter={(e) => {
+        if (!isOpen) e.currentTarget.style.background = COLOR.bgCard;
+      }}
+      onMouseLeave={(e) => {
+        if (!isOpen) e.currentTarget.style.background = "transparent";
+      }}
+      title={isOpen ? "点击收起" : "点击展开会话"}
       style={{
         padding: "12px 14px",
         display: "grid",
-        gridTemplateColumns: "36px 1fr auto",
+        gridTemplateColumns: "20px 36px 1fr auto",
         gap: 12,
         alignItems: "center",
         cursor: "pointer",
         borderBottom: `1px solid ${COLOR.borderSubtle}`,
         transition: "120ms",
+        background: isOpen ? COLOR.bgPage : "transparent",
       }}
     >
+      <span
+        className="material-symbols-outlined"
+        style={{
+          fontSize: 18,
+          color: COLOR.text3,
+          transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+          transition: "transform 140ms",
+          display: "inline-block",
+        }}
+      >
+        chevron_right
+      </span>
       <div
         style={{
           width: 36,
@@ -300,9 +575,20 @@ export default function ChatCenterPage() {
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
+  // Set of expanded thread keys ("doctorId-patientId"). Multiple rows can
+  // be open at once for cross-thread comparison.
+  const [expandedKeys, setExpandedKeys] = useState(() => new Set());
 
-  // Reset to page 1 on filter / query change.
-  useEffect(() => setOffset(0), [filter, q]);
+  // Reset to page 1 + collapse on filter / query change.
+  useEffect(() => {
+    setOffset(0);
+    setExpandedKeys(new Set());
+  }, [filter, q]);
+
+  // Collapse all when paging — out-of-view rows shouldn't keep state.
+  useEffect(() => {
+    setExpandedKeys(new Set());
+  }, [offset]);
 
   const { items, total, loading, error, refetch } = useChatCenterList({
     limit: PAGE_SIZE,
@@ -315,6 +601,14 @@ export default function ChatCenterPage() {
     if (loading) return "…";
     return `共 ${total} 条会话`;
   }, [loading, total]);
+
+  const toggle = (key) =>
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   return (
     <div style={{ paddingTop: 24, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -389,15 +683,25 @@ export default function ChatCenterPage() {
         )}
 
         {!loading && !error && items.length > 0 && (
-          <div style={{ maxHeight: 640, overflow: "auto" }}>
+          <div>
             {items.map((entry) => {
               const key = `${entry.doctor_id}-${entry.patient_id}`;
+              const isOpen = expandedKeys.has(key);
               return (
-                <ChatRow
-                  key={key}
-                  entry={entry}
-                  onClick={() => navigateToDoctor(entry.doctor_id)}
-                />
+                <Fragment key={key}>
+                  <ChatRow
+                    entry={entry}
+                    isOpen={isOpen}
+                    onClick={() => toggle(key)}
+                  />
+                  {isOpen && (
+                    <ThreadBody
+                      patientId={entry.patient_id}
+                      doctorId={entry.doctor_id}
+                      doctorName={entry.doctor_name}
+                    />
+                  )}
+                </Fragment>
               );
             })}
           </div>

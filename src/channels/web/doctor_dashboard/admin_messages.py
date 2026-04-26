@@ -219,3 +219,94 @@ async def admin_messages_recent(
         "limit": limit,
         "offset": offset,
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /api/admin/messages/thread
+# ---------------------------------------------------------------------------
+
+
+_THREAD_LIMIT_DEFAULT = 500
+_THREAD_LIMIT_MAX = 1000
+
+
+@router.get("/api/admin/messages/thread")
+async def admin_messages_thread(
+    patient_id: int = Query(..., description="Patient row id"),
+    doctor_id: str = Query(..., description="Doctor id (string PK)"),
+    limit: int = Query(default=_THREAD_LIMIT_DEFAULT, ge=1, le=_THREAD_LIMIT_MAX),
+    db: AsyncSession = Depends(get_db),
+    role: str = Depends(require_admin_role),  # noqa: ARG001 — auth gate only
+) -> dict:
+    """Full message timeline for one (patient, doctor) thread, ascending by ts.
+
+    Powers the WeChat-style chat history modal on 沟通中心. Returns the patient
+    + doctor display names alongside the bubbles so the modal header doesn't
+    need a second round-trip.
+    """
+    pat_row = (
+        await db.execute(
+            select(
+                Patient.id,
+                Patient.name,
+                Patient.gender,
+                Patient.year_of_birth,
+            ).where(Patient.id == patient_id)
+        )
+    ).first()
+    doc_row = (
+        await db.execute(
+            select(Doctor.doctor_id, Doctor.name).where(Doctor.doctor_id == doctor_id)
+        )
+    ).first()
+
+    msgs = (
+        await db.execute(
+            select(
+                PatientMessage.id,
+                PatientMessage.direction,
+                PatientMessage.content,
+                PatientMessage.created_at,
+            )
+            .where(
+                and_(
+                    PatientMessage.patient_id == patient_id,
+                    PatientMessage.doctor_id == doctor_id,
+                )
+            )
+            .order_by(PatientMessage.created_at.asc(), PatientMessage.id.asc())
+            .limit(limit)
+        )
+    ).all()
+
+    items = []
+    for m in msgs:
+        created_at = m.created_at
+        if created_at and created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        items.append(
+            {
+                "id": m.id,
+                "direction": m.direction,
+                "content": m.content or "",
+                "created_at": _fmt_ts(created_at) if created_at else None,
+            }
+        )
+
+    yob = pat_row.year_of_birth if pat_row else None
+    age = (_now_utc().year - yob) if yob else None
+
+    return {
+        "patient": {
+            "id": pat_row.id if pat_row else patient_id,
+            "name": (pat_row.name if pat_row else None) or "",
+            "gender": pat_row.gender if pat_row else None,
+            "age": age,
+        },
+        "doctor": {
+            "doctor_id": doc_row.doctor_id if doc_row else doctor_id,
+            "name": (doc_row.name if doc_row else None) or "(未命名医生)",
+        },
+        "items": items,
+        "total": len(items),
+    }
