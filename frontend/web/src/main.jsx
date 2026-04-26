@@ -14,11 +14,21 @@ setLocale("zh-CN");
 document.documentElement.lang = "zh-CN";
 document.title = buildTitle(null, t("app.title"));
 
-// Default to MemoryRouter while we're in beta — paths never appear in any
-// address bar and deep-linking via URL is impossible across web, miniapp,
-// and Capacitor builds. To get URLs back (E2E tests, sharable dev links),
-// set VITE_ROUTER_MODE=browser.
-const Router = import.meta.env.VITE_ROUTER_MODE === "browser" ? BrowserRouter : MemoryRouter;
+// Router selection by build mode:
+//   - native (Capacitor iOS/Android, WeChat miniapp): MemoryRouter — no
+//     URL bar, no deep-linking, hide internal paths.
+//   - everything else (web dev, web prod): BrowserRouter — URLs work,
+//     refresh-to-route works, /login is reachable directly, E2E tests
+//     can navigate by path.
+//
+// Override either way with VITE_ROUTER_MODE=browser|memory if needed.
+const _OVERRIDE = import.meta.env.VITE_ROUTER_MODE;
+const _IS_NATIVE_BUILD = ["ios", "android", "miniapp"].includes(import.meta.env.MODE);
+const Router =
+  _OVERRIDE === "browser" ? BrowserRouter
+  : _OVERRIDE === "memory" ? MemoryRouter
+  : _IS_NATIVE_BUILD ? MemoryRouter
+  : BrowserRouter;
 
 // Apply persisted font scale immediately (before first render)
 applyFontScale(useFontScaleStore.getState().fontScale);
