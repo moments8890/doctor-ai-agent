@@ -39,6 +39,7 @@ from channels.web.doctor_dashboard.today_summary_handlers import router as _toda
 from channels.web.doctor_dashboard.feedback_handlers import router as _feedback_router
 from channels.web.doctor_dashboard.platform_feedback_handlers import router as _platform_feedback_router
 from channels.web.doctor_dashboard.attach_code_handlers import router as _attach_code_router
+from channels.web.doctor_dashboard.new_patient_handlers import router as _new_patient_router
 # supplement_handlers removed 2026-04-25 (record_supplements dropped)
 
 router = APIRouter(tags=["ui"])
@@ -76,4 +77,5 @@ router.include_router(_today_summary_router)
 router.include_router(_feedback_router)
 router.include_router(_platform_feedback_router)
 router.include_router(_attach_code_router)
+router.include_router(_new_patient_router)
 # router.include_router(_supplement_router)  # removed 2026-04-25

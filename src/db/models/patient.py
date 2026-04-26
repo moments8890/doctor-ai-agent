@@ -32,6 +32,12 @@ class Patient(Base):
     seed_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     # AI-generated 1-2 sentence patient summary. Regenerated after each new
     # record lands for this patient. See src/domain/briefing/patient_summary.py
+    # Set when the doctor first dwells (≥2s foregrounded) on this patient's
+    # detail page. Drives the "new patient" badge — paired with a 24h time
+    # bound on `created_at` so a dropped mark-viewed POST doesn't strand the
+    # badge forever. Composite-indexed with doctor_id for the unseen-count query.
+    first_doctor_view_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
     ai_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ai_summary_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     ai_summary_model: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
