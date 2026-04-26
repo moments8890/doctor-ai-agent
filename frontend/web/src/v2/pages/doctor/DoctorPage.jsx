@@ -29,7 +29,6 @@ import PendingReviewSubpage from "./settings/PendingReviewSubpage";
 import PersonaOnboardingSubpage from "./settings/PersonaOnboardingSubpage";
 import TemplateSubpage from "./settings/TemplateSubpage";
 import QrSubpage from "./settings/QrSubpage";
-import { AddCircleOutline } from "antd-mobile-icons";
 import AddToHomeScreenOutlinedIcon from "@mui/icons-material/AddToHomeScreenOutlined";
 import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
 import { submitPlatformFeedback } from "../../../api";
@@ -396,49 +395,37 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
       {/* Safe area top */}
       <SafeArea position="top" />
 
-      {/* Top NavBar — hidden when stack active to prevent flash-through */}
+      {/* Top NavBar — always shows my-ai title + my-ai action cluster.
+          Subpages render their own NavBar inside the page-stack overlay. */}
       <NavBar
           backArrow={false}
           right={
-            baseSection === "patients" ? (
-              <Button
-                fill="none"
-                color="primary"
-                size="small"
-                onClick={() => navigate("/doctor/patients?action=new")}
-                aria-label="新建病历"
-              >
-                <AddCircleOutline style={{ fontSize: ICON.md }} />
-              </Button>
-            ) : baseSection === "my-ai" ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <FeedbackPopover>
-                  <div
-                    role="button"
-                    aria-label="反馈"
-                    style={{
-                      padding: 8,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    <FeedbackOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
-                  </div>
-                </FeedbackPopover>
-                <AddToDesktopPopover />
-              </div>
-            ) : null
+            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <FeedbackPopover>
+                <div
+                  role="button"
+                  aria-label="反馈"
+                  style={{
+                    padding: 8,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <FeedbackOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
+                </div>
+              </FeedbackPopover>
+              <AddToDesktopPopover />
+            </div>
           }
           style={{
             "--height": "44px",
             "--border-bottom": `0.5px solid ${APP.border}`,
             backgroundColor: APP.surface,
             flexShrink: 0,
-
           }}
         >
-          {baseSection === "patients" ? "患者" : baseSection === "review" ? "审核" : "我的AI"}
+          我的AI
         </NavBar>
 
       {/* Content area — base section is always MyAIPage in single-tab IA */}
