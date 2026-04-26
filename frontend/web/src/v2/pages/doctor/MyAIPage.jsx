@@ -453,6 +453,7 @@ export default function MyAIPage({ doctorId }) {
 
   const displayName = doctorName || "医生";
   const pendingReview = qLoading ? 0 : (reviewQueue?.pending || []).length;
+  const firstPendingReviewId = (reviewQueue?.pending || [])[0]?.record_id;
   const kbPendingCount = kbPendingData?.count || 0;
   const unseenPatientCount = unseenPatientData?.count || 0;
   const knowledgeList = Array.isArray(knowledgeData)
@@ -504,7 +505,11 @@ export default function MyAIPage({ doctorId }) {
       icon: PersonOutlineIcon,
       bg: APP.primaryLight,
       color: APP.primary,
-      onClick: () => navigate(`${dp("review")}?tab=pending`),
+      onClick: () => {
+        if (firstPendingReviewId) {
+          navigate(`${dp("review")}/${firstPendingReviewId}`);
+        }
+      },
     },
     {
       key: "rules",
@@ -669,11 +674,7 @@ export default function MyAIPage({ doctorId }) {
           <ActivationCard onAdd={() => navigate(dp("settings/knowledge/add"))} />
         ) : triageRows.length === 0 ? null : (
           <>
-            <SectionHeader
-              title="今日关注"
-              actionLabel="全部事项"
-              onAction={() => navigate(`${dp("review")}?tab=pending`)}
-            />
+            <SectionHeader title="今日关注" />
             <Card>
               {triageRows.map((row, idx) => (
                 <div
