@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.crud.records import delete_record
 from db.engine import get_db
 from db.models import MedicalRecordDB
+from db.models.records import FieldEntryDB
 from infra.observability.audit import audit
 from utils.log import safe_create_task
 from channels.web.doctor_dashboard.deps import _resolve_ui_doctor_id, _require_ui_admin_access
@@ -168,3 +169,47 @@ async def admin_update_record(
         "created_at": _fmt_ts(rec.created_at),
         "updated_at": _fmt_ts(rec.updated_at),
     }
+
+
+# ── Field entries (append-only history) ──────────────────────────────────────
+
+@router.get("/api/manage/records/{record_id}/entries", include_in_schema=True)
+async def get_record_entries(
+    record_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return chronological FieldEntryDB rows for a record, grouped by field_name.
+
+    Response shape: { field_name: [{text, intake_segment_id, created_at}, ...] }
+
+    Only returns rows belonging to a record owned by the authenticated doctor.
+    Returns an empty dict for legacy records with no FieldEntryDB rows.
+    """
+    resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+
+    # Verify ownership — 404 if record doesn't belong to this doctor.
+    rec = (await db.execute(
+        select(MedicalRecordDB).where(
+            MedicalRecordDB.id == record_id,
+            MedicalRecordDB.doctor_id == resolved_doctor_id,
+        ).limit(1)
+    )).scalar_one_or_none()
+    if rec is None:
+        raise HTTPException(status_code=404, detail="Record not found")
+
+    rows = (await db.execute(
+        select(FieldEntryDB)
+        .where(FieldEntryDB.record_id == record_id)
+        .order_by(FieldEntryDB.created_at)
+    )).scalars().all()
+
+    out: dict[str, list] = {}
+    for r in rows:
+        out.setdefault(r.field_name, []).append({
+            "text": r.text,
+            "intake_segment_id": r.intake_segment_id,
+            "created_at": r.created_at.isoformat(),
+        })
+    return out

@@ -7,7 +7,7 @@
  *
  * antd-mobile only. No MUI, no src/components, no src/theme.js.
  */
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   NavBar,
@@ -41,7 +41,7 @@ import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { recordView } from "../../../hooks/useLastViewed";
-import { formatAge } from "../../../utils/time";
+import { formatAge, relativeTime } from "../../../utils/time";
 import { APP, FONT, RADIUS, ICON } from "../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { LoadingCenter, NameAvatar } from "../../components";
@@ -326,9 +326,169 @@ function ChatNavCard({ messageCount, draftCount, onClick }) {
   );
 }
 
+// ── Append-only field entries view ────────────────────────────────────
+
+// The 7 history fields tracked by FieldEntryDB, in reading order.
+const HISTORY_FIELDS = [
+  { key: "chief_complaint",   label: "主诉" },
+  { key: "present_illness",   label: "现病史" },
+  { key: "past_history",      label: "既往史" },
+  { key: "allergy_history",   label: "过敏史" },
+  { key: "personal_history",  label: "个人史" },
+  { key: "marital_reproductive", label: "婚育史" },
+  { key: "family_history",    label: "家族史" },
+];
+
+/**
+ * Renders the chronological FieldEntryDB view for a single record.
+ * - entries: {} means no FieldEntryDB rows exist (legacy record) → fall back to structured fields.
+ * - entries: { field_name: [{text, created_at}, ...] } for records with history.
+ */
+function FieldEntriesSection({ entries, structured }) {
+  const hasEntries = entries && Object.keys(entries).length > 0;
+
+  if (!hasEntries) {
+    // Legacy fallback: render from structured columns
+    const legacyFields = HISTORY_FIELDS.filter(({ key }) => structured?.[key]);
+    if (legacyFields.length === 0) return null;
+    return (
+      <>
+        {legacyFields.map(({ key, label }, i) => (
+          <div
+            key={key}
+            style={{
+              display: "flex",
+              gap: 10,
+              padding: "6px 0",
+              borderTop: i === 0 ? "none" : `0.5px solid ${APP.borderLight}`,
+            }}
+          >
+            <span
+              style={{
+                fontSize: FONT.sm,
+                color: APP.text4,
+                fontWeight: 500,
+                flexShrink: 0,
+                minWidth: 60,
+              }}
+            >
+              {label}
+            </span>
+            <span
+              style={{
+                flex: 1,
+                fontSize: FONT.sm,
+                color: APP.text2,
+                whiteSpace: "pre-wrap",
+                lineHeight: 1.6,
+              }}
+            >
+              {structured[key]}
+            </span>
+          </div>
+        ))}
+      </>
+    );
+  }
+
+  // FieldEntryDB path — chronological multi-entry view
+  const renderedFields = HISTORY_FIELDS.filter(({ key }) => entries[key]?.length > 0);
+  if (renderedFields.length === 0) return null;
+
+  return (
+    <>
+      {renderedFields.map(({ key, label }, fi) => {
+        const fieldEntries = entries[key];
+        const isMulti = fieldEntries.length > 1;
+        return (
+          <div
+            key={key}
+            style={{
+              padding: "8px 0 4px",
+              borderTop: fi === 0 ? "none" : `0.5px solid ${APP.borderLight}`,
+            }}
+          >
+            {/* Field label */}
+            <div
+              style={{
+                fontSize: FONT.sm,
+                color: APP.text4,
+                fontWeight: 500,
+                marginBottom: isMulti ? 6 : 4,
+              }}
+            >
+              {label}
+            </div>
+
+            {/* Single entry: compact, no meta header */}
+            {!isMulti && (
+              <div
+                style={{
+                  fontSize: FONT.sm,
+                  color: APP.text2,
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                }}
+              >
+                {fieldEntries[0].text}
+              </div>
+            )}
+
+            {/* Multiple entries: each with meta line */}
+            {isMulti && fieldEntries.map((entry, idx) => (
+              <div key={idx} style={{ marginBottom: idx < fieldEntries.length - 1 ? 8 : 0 }}>
+                <div
+                  style={{
+                    fontSize: FONT.xs,
+                    color: APP.text4,
+                    marginBottom: 2,
+                  }}
+                >
+                  {idx === 0 ? "初次描述" : "之后补充"} · {relativeTime(entry.created_at)}
+                </div>
+                <div
+                  style={{
+                    fontSize: FONT.sm,
+                    color: APP.text2,
+                    whiteSpace: "pre-wrap",
+                    lineHeight: 1.6,
+                    paddingLeft: 8,
+                    borderLeft: `2px solid ${idx === 0 ? APP.border : APP.primary}`,
+                  }}
+                >
+                  {entry.text}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/**
+ * Hook to lazily fetch FieldEntryDB entries for a record.
+ * Fetches once on mount; returns {} while loading or on error (graceful degradation).
+ */
+function useRecordEntries(api, doctorId, recordId, skip) {
+  const [entries, setEntries] = useState(null); // null = loading, {} = no entries
+  const fetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (skip || fetchedRef.current) return;
+    fetchedRef.current = true;
+    api.getRecordEntries(doctorId, recordId)
+      .then((data) => setEntries(data || {}))
+      .catch(() => setEntries({}));
+  }, [api, doctorId, recordId, skip]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return entries;
+}
+
 // ── Record row ────────────────────────────────────────────────────────
 
-function RecordCard({ record, onViewFull }) {
+function RecordCard({ record, onViewFull, api, doctorId }) {
   const dateStr = formatRecordDate(record.created_at || record.visit_date);
   const complaint =
     record.chief_complaint ||
@@ -339,6 +499,10 @@ function RecordCard({ record, onViewFull }) {
   const structured = record.structured || {};
   const filled = RECORD_DETAIL_FIELDS.filter((k) => structured[k]);
   const hasBody = filled.length > 0 || record.content;
+
+  // Fetch field entries for the chronological history view.
+  // Skip when the record has no body (navigates directly, no expansion needed).
+  const entries = useRecordEntries(api, doctorId, record.id, !hasBody);
 
   // No body → tap navigates straight to full detail (no empty expand)
   if (!hasBody) {
@@ -396,14 +560,19 @@ function RecordCard({ record, onViewFull }) {
           }
         >
           <div style={{ padding: "0 0 4px" }}>
-            {filled.map((k, i) => (
+            {/* Chronological field entries view (FieldEntryDB) with legacy fallback */}
+            {entries !== null && (
+              <FieldEntriesSection entries={entries} structured={structured} />
+            )}
+            {/* Non-history structured fields (diagnosis, treatment_plan, etc.) */}
+            {filled.filter((k) => !HISTORY_FIELDS.some((h) => h.key === k)).map((k) => (
               <div
                 key={k}
                 style={{
                   display: "flex",
                   gap: 10,
                   padding: "6px 0",
-                  borderTop: i === 0 ? "none" : `0.5px solid ${APP.borderLight}`,
+                  borderTop: `0.5px solid ${APP.borderLight}`,
                 }}
               >
                 <span
@@ -1088,6 +1257,8 @@ export default function PatientDetail({ patientId: propPatientId }) {
                   <RecordCard
                     key={record.id}
                     record={record}
+                    api={api}
+                    doctorId={doctorId}
                     onViewFull={() => goToRecord(record)}
                   />
                 ))}
