@@ -214,34 +214,41 @@ async def ai_flagged_patients(
             "type": "unread_message",
         })
 
-    # 3. Unreviewed AI suggestions
+    # 3. Unreviewed AI suggestions — join through MedicalRecordDB to resolve
+    # the patient_id so the suggestion attaches to its patient row instead of
+    # floating unattached.
     unreviewed = (
         await session.execute(
-            select(AISuggestion)
+            select(AISuggestion, MedicalRecordDB.patient_id)
+            .join(MedicalRecordDB, AISuggestion.record_id == MedicalRecordDB.id)
             .where(
                 AISuggestion.doctor_id == resolved,
                 AISuggestion.decision == None,  # noqa: E711
+                MedicalRecordDB.patient_id != None,  # noqa: E711
             )
             .limit(10)
         )
-    ).scalars().all()
-    for s in unreviewed:
+    ).all()
+    for s, pid in unreviewed:
         flagged.append({
-            "patient_id": None,
+            "patient_id": pid,
             "record_id": s.record_id,
             "reason": f"AI建议待审核：{s.content[:20]}",
             "urgency": "medium",
             "type": "unreviewed_suggestion",
         })
 
-    # Deduplicate by patient_id (or record_id), keep highest urgency
+    # Deduplicate by (patient_id, type) so a patient with multiple flag types
+    # (e.g. unread message + unreviewed suggestion) emits one row per type.
+    # Within a (patient, type) bucket, keep the highest urgency.
     # Normalize to str — patient_id can be int or str across tables.
-    seen: dict[str, dict] = {}
+    seen: dict[tuple[str, str], dict] = {}
     for f in flagged:
         raw_pid = f.get("patient_id") or f.get("record_id")
         pid = str(raw_pid) if raw_pid is not None else "_none"
-        if pid not in seen or _urgency_rank(f["urgency"]) > _urgency_rank(seen[pid]["urgency"]):
-            seen[pid] = f
+        key = (pid, f.get("type") or "")
+        if key not in seen or _urgency_rank(f["urgency"]) > _urgency_rank(seen[key]["urgency"]):
+            seen[key] = f
 
     result = sorted(seen.values(), key=lambda x: _urgency_rank(x["urgency"]), reverse=True)
 
