@@ -24,7 +24,7 @@ import {
   Button,
   Ellipsis,
 } from "antd-mobile";
-import { LeftOutline, MessageOutline, ContentOutline, MailOutline, MoreOutline, RedoOutline } from "antd-mobile-icons";
+import { MessageOutline, ContentOutline, MailOutline, MoreOutline, RedoOutline } from "antd-mobile-icons";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutlined";
 import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";

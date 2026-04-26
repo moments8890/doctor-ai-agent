@@ -13,7 +13,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { NavBar, Button, Toast, Dialog } from "antd-mobile";
-import { LeftOutline } from "antd-mobile-icons";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { useKnowledgeItems } from "../../../lib/doctorQueries";

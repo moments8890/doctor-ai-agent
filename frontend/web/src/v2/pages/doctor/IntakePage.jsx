@@ -18,7 +18,7 @@ import {
   Popup,
   Tag,
 } from "antd-mobile";
-import { LeftOutline, QuestionCircleOutline, AddCircleOutline, CheckOutline, CloseOutline } from "antd-mobile-icons";
+import { QuestionCircleOutline, CheckOutline, CloseOutline } from "antd-mobile-icons";
 import { useApi } from "../../../api/ApiContext";
 import { useAppNavigate } from "../../../hooks/useAppNavigate";
 import { isInMiniapp } from "../../../utils/miniappBridge";
