@@ -69,8 +69,26 @@ function navigateToDoctor(doctorId) {
   if (!doctorId || typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
   params.delete("section");
+  params.delete("patient");
   params.set("v", "3");
   params.set("doctor", doctorId);
+  window.history.pushState({}, "", `?${params.toString()}`);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+// Drill straight into the patient detail surface, preserving doctor context
+// so the topbar back arrow returns to that doctor's view (then back again
+// returns to this list via browser history). The cross-doctor 全体患者
+// table is the natural entry point for "show me everything about this
+// patient" — the doctor cell on the same row is wired separately for
+// "I want to see the doctor instead".
+function navigateToPatient(patientId, doctorId) {
+  if (patientId == null || typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  params.delete("section");
+  params.set("v", "3");
+  if (doctorId) params.set("doctor", doctorId);
+  params.set("patient", String(patientId));
   window.history.pushState({}, "", `?${params.toString()}`);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
@@ -342,21 +360,30 @@ function PatientTable({ items }) {
             return (
               <tr
                 key={`${p.doctor_id}-${p.id}-${idx}`}
-                onClick={() => navigateToDoctor(p.doctor_id)}
+                onClick={() => navigateToPatient(p.id, p.doctor_id)}
                 onMouseEnter={(e) =>
                   (e.currentTarget.style.background = COLOR.bgPage)
                 }
                 onMouseLeave={(e) =>
                   (e.currentTarget.style.background = "transparent")
                 }
+                title={`查看 ${p.name} 详情`}
                 style={{ cursor: "pointer", transition: "120ms" }}
               >
                 <td style={{ ...TD, fontWeight: 600 }}>{p.name}</td>
                 <td
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigateToDoctor(p.doctor_id);
+                  }}
+                  title={`查看 ${p.doctor_name} 的详情`}
                   style={{
                     ...TD,
                     color: COLOR.info,
                     fontWeight: 500,
+                    cursor: "pointer",
+                    textDecoration: "underline dotted",
+                    textUnderlineOffset: 3,
                   }}
                 >
                   {p.doctor_name}
