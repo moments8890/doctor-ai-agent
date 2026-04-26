@@ -55,4 +55,9 @@ describe("Single-tab IA — base section is always my-ai", () => {
     // HeroBanner title is the stable MyAIPage marker
     expect(screen.queryByText(/您的专属医疗AI助手/)).toBeInTheDocument();
   });
+
+  test("/mock/doctor/my-ai also mounts MyAIPage (mock prefix supported)", () => {
+    render(<Host initialPath="/mock/doctor/my-ai" />);
+    expect(screen.queryByText(/您的专属医疗AI助手/)).toBeInTheDocument();
+  });
 });
