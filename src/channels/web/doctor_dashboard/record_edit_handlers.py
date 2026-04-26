@@ -15,7 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.crud.records import delete_record
 from db.engine import get_db
 from db.models import MedicalRecordDB
-from db.models.records import FieldEntryDB
+# FieldEntryDB import removed 2026-04-26 (alembic 6a5d3c2e1f47) —
+# per-field provenance now lives on MedicalRecordDB.carry_forward_meta
+# and .fields_updated_this_visit; see get_record_entries below.
 from infra.observability.audit import audit
 from utils.log import safe_create_task
 from channels.web.doctor_dashboard.deps import _resolve_ui_doctor_id, _require_ui_admin_access
@@ -180,16 +182,28 @@ async def get_record_entries(
     authorization: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return chronological FieldEntryDB rows for a record, grouped by field_name.
+    """Return per-field provenance for a record (carry-forward + this-visit edits).
 
-    Response shape: { field_name: [{text, intake_segment_id, created_at}, ...] }
+    Replaces the historical FieldEntryDB-based per-segment timeline. The
+    intake redesign (alembic 6a5d3c2e1f47) consolidates record fields onto
+    inline columns of medical_records; provenance lives in
+    ``carry_forward_meta`` (which fields came from a prior record + when)
+    and ``fields_updated_this_visit`` (which carry-forward fields the
+    patient updated this visit). Frontend renders per-field badges from
+    this shape.
 
-    Only returns rows belonging to a record owned by the authenticated doctor.
-    Returns an empty dict for legacy records with no FieldEntryDB rows.
+    Response shape:
+      {
+        field_name: {
+          "text": str,
+          "carry_forward": {source_record_id, source_date, confirmed_by_patient} | None,
+          "updated_this_visit": bool,
+        },
+        ...
+      }
     """
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
 
-    # Verify ownership — 404 if record doesn't belong to this doctor.
     rec = (await db.execute(
         select(MedicalRecordDB).where(
             MedicalRecordDB.id == record_id,
@@ -199,17 +213,21 @@ async def get_record_entries(
     if rec is None:
         raise HTTPException(status_code=404, detail="Record not found")
 
-    rows = (await db.execute(
-        select(FieldEntryDB)
-        .where(FieldEntryDB.record_id == record_id)
-        .order_by(FieldEntryDB.created_at)
-    )).scalars().all()
+    cf_meta = rec.carry_forward_meta or {}
+    updated = set(rec.fields_updated_this_visit or [])
+    seven_fields = (
+        "chief_complaint", "present_illness", "past_history", "allergy_history",
+        "personal_history", "marital_reproductive", "family_history",
+    )
 
-    out: dict[str, list] = {}
-    for r in rows:
-        out.setdefault(r.field_name, []).append({
-            "text": r.text,
-            "intake_segment_id": r.intake_segment_id,
-            "created_at": r.created_at.isoformat(),
-        })
+    out: dict[str, dict] = {}
+    for field in seven_fields:
+        text = getattr(rec, field, None) or ""
+        if not text:
+            continue
+        out[field] = {
+            "text": text,
+            "carry_forward": cf_meta.get(field),
+            "updated_this_visit": field in updated,
+        }
     return out

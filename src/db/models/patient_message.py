@@ -55,6 +55,9 @@ class PatientMessage(Base):
     # retraction logic: when signal_flag.detect fires, all whitelist replies
     # in the same segment are marked retracted.
     intake_segment_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # Intake redesign (alembic 6a5d3c2e1f47) — links chat turn to the
+    # active IntakeSessionDB row when state machine is in `intake` state.
+    intake_session_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
     # True when this outbound AI message was generated from the whitelist
     # auto-reply path (as opposed to a doctor-authored or LLM draft).
     is_whitelist_reply: Mapped[bool] = mapped_column(

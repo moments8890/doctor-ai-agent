@@ -85,12 +85,13 @@ class MedicalRecordDB(Base):
     extraction_confidence: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True)
     patient_confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     cancellation_reason: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    # Tier B will replace this single bool with a signal_tags JSON list
-    # and drop the column entirely. See alembic f8b2c4e1a3d5 for the
-    # rename from the legacy "red_flag" column name.
-    signal_flag: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
     intake_segment_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     dedup_skipped_by_patient: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
+
+    # --- Intake redesign provenance (alembic 6a5d3c2e1f47) ---
+    template_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    carry_forward_meta: Mapped[Optional[dict]] = mapped_column(sa.JSON, nullable=True)
+    fields_updated_this_visit: Mapped[Optional[list]] = mapped_column(sa.JSON, nullable=True)
 
     patient: Mapped[Optional["Patient"]] = relationship("Patient", back_populates="records")
 
@@ -120,35 +121,11 @@ class MedicalRecordDB(Base):
         return f"{snippet} [{date}]"
 
 
-class FieldEntryDB(Base):
-    """Append-only history field entries.
-
-    Replaces direct mutation of the 7 string columns (chief_complaint /
-    present_illness / past_history / allergy_history / personal_history /
-    marital_reproductive / family_history) on MedicalRecordDB. Each new
-    patient turn that carries a field-level fact appends a row here,
-    keyed by (record_id, field_name); the doctor view collapses
-    timestamps + segments at render time.
-
-    The legacy string columns on MedicalRecordDB stay populated for
-    backward-compat reads; new writes go here. Phase 0 backfill copies
-    existing string values into single FieldEntryDB rows.
-    """
-    __tablename__ = "record_field_entries"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    record_id: Mapped[int] = mapped_column(Integer, ForeignKey("medical_records.id", ondelete="CASCADE"), index=True, nullable=False)
-    # field_name is one of the 7 history fields above. Free String(64)
-    # rather than Enum so adding a field doesn't require a migration.
-    field_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    text: Mapped[str] = mapped_column(Text, nullable=False)
-    intake_segment_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
-
-    __table_args__ = (
-        # ix_record_field_entries_record_id is auto-created by index=True on the column above.
-        Index("ix_record_field_entries_record_field", "record_id", "field_name"),
-    )
+# FieldEntryDB removed 2026-04-26 (alembic 6a5d3c2e1f47) — replaced by
+# intake_sessions.collected JSON as the single source of truth for
+# in-flight intake data. Confirmed records carry the final field values
+# directly on MedicalRecordDB inline columns; provenance lives in
+# carry_forward_meta + fields_updated_this_visit on the record itself.
 
 
 # RecordSupplementDB removed 2026-04-25 — replaced by "every patient submission

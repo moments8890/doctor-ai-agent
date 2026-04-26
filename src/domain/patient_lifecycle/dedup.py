@@ -139,75 +139,14 @@ async def _llm_chief_complaint_similarity(a: str, b: str) -> float:
         return 0.0
 
 
-# ── Append-only merge (§5b common case) ────────────────────────────
-
-
-# The 7 history fields tracked in FieldEntryDB. Same constant as
-# extraction_confidence.REQUIRED_FIELDS — kept local so dedup.py
-# doesn't reach across modules for it.
-# Public alias for field-name whitelist check.
-REQUIRED_FIELDS = _REQUIRED_FIELDS = (
-    "chief_complaint",
-    "present_illness",
-    "past_history",
-    "allergy_history",
-    "personal_history",
-    "marital_reproductive",
-    "family_history",
-)
-
-
-async def merge_into_existing(
-    session,
-    target_record_id: int,
-    new_fields: dict,
-    intake_segment_id: str | None,
-) -> None:
-    """Append new field entries onto an existing record. Never mutate prior.
-
-    Logic:
-      - For each history field, append a FieldEntryDB row if the new
-        text is non-empty.
-      - For chief_complaint specifically, skip if the same text already
-        exists for this record (dedup the dedup signal — there's no
-        point in stamping "头痛" 5 times).
-      - Provenance via intake_segment_id so the doctor view can group
-        entries by segment.
-    """
-    from datetime import datetime
-
-    from sqlalchemy import select
-
-    from db.models.records import FieldEntryDB
-
-    # Pull existing chief_complaint texts to dedup against.
-    existing_chief = (
-        await session.execute(
-            select(FieldEntryDB.text).where(
-                FieldEntryDB.record_id == target_record_id,
-                FieldEntryDB.field_name == "chief_complaint",
-            )
-        )
-    ).scalars().all()
-
-    now = datetime.utcnow()
-    for field in _REQUIRED_FIELDS:
-        text = new_fields.get(field)
-        if text is None or not str(text).strip():
-            continue
-        if field == "chief_complaint" and text in existing_chief:
-            continue
-        session.add(
-            FieldEntryDB(
-                record_id=target_record_id,
-                field_name=field,
-                text=text,
-                intake_segment_id=intake_segment_id,
-                created_at=now,
-            )
-        )
-    await session.flush()
-
+# merge_into_existing() removed 2026-04-26 (alembic 6a5d3c2e1f47).
+# The intake redesign accepts duplicate-case inflation rather than maintain
+# the FieldEntryDB-based merge path. Same-episode messages from the same
+# patient just become separate medical_records the doctor reviews; we revisit
+# continuity logic in a later phase if duplication volume causes friction.
+#
+# detect_same_episode() above is preserved — callers that want to flag
+# possible duplicates for the doctor UI can still use it as a read-only signal.
 
 # create_supplement() removed 2026-04-25 — replaced by "patient submissions
 # after a closed record become their own new medical_record" model. See

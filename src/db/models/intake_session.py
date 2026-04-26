@@ -15,14 +15,14 @@ from db.models.base import _utcnow
 class IntakeStatus(str, Enum):
     """Patient intake session lifecycle.
 
-    draft_created was retired in migration c9f8d2e14a20. It was set by a
-    legacy doctor-side save-as-draft flow that no longer exists; the
-    backfill flips any existing rows to 'confirmed'.
+    expired added 2026-04-26 (alembic 6a5d3c2e1f47) — set by 24h idle
+    decay; eligible for resume if no newer confirmed record exists.
     """
     active = "active"
     reviewing = "reviewing"
     confirmed = "confirmed"
     abandoned = "abandoned"
+    expired = "expired"
 
 
 class IntakeSessionDB(Base):
@@ -41,6 +41,9 @@ class IntakeSessionDB(Base):
     turn_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    # --- Intake redesign (alembic 6a5d3c2e1f47) ---
+    medical_record_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    expired_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     __table_args__ = (
         Index("ix_intake_patient", "patient_id", "status"),
