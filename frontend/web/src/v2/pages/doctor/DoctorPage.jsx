@@ -5,14 +5,14 @@
  * No MUI, no framer-motion, no complex subpage logic.
  * Placeholder content areas; real subpages wired in later tasks.
  *
- * InterviewPage overlay: rendered when path is /doctor/patients/new
+ * IntakePage overlay: rendered when path is /doctor/patients/new
  */
 import { useState, useCallback, useRef, useMemo } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { usePageStack } from "../../usePageStack";
 import { NavBar, Popover, SafeArea, TabBar, Button, TextArea, Toast } from "antd-mobile";
 import { usePatients } from "../../../lib/doctorQueries";
-import InterviewPage from "./InterviewPage";
+import IntakePage from "./IntakePage";
 import MyAIPage from "./MyAIPage";
 import PatientsPage from "./PatientsPage";
 import PatientDetail from "./PatientDetail";
@@ -256,21 +256,21 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
   // Badge counts — placeholder zeros; real data wired in later
   const [badges] = useState({ review: 0, patients: 0 });
 
-  // Interview overlay — active when navigated to /doctor/patients/new
-  const interviewActive = location.pathname.endsWith("/patients/new");
+  // Intake overlay — active when navigated to /doctor/patients/new
+  const intakeActive = location.pathname.endsWith("/patients/new");
 
   // Optional preselected patient passed via ?patient_id=<id> when the user
   // picks an existing patient from the "新建病历" picker on MyAIPage.
-  const interviewPatientIdParam = new URLSearchParams(location.search).get("patient_id");
-  const { data: patientsForInterview } = usePatients();
-  const interviewPatientContext = useMemo(() => {
-    if (!interviewActive || !interviewPatientIdParam) return null;
-    const list = Array.isArray(patientsForInterview)
-      ? patientsForInterview
-      : patientsForInterview?.items || [];
-    const p = list.find((x) => String(x.id) === String(interviewPatientIdParam));
+  const intakePatientIdParam = new URLSearchParams(location.search).get("patient_id");
+  const { data: patientsForIntake } = usePatients();
+  const intakePatientContext = useMemo(() => {
+    if (!intakeActive || !intakePatientIdParam) return null;
+    const list = Array.isArray(patientsForIntake)
+      ? patientsForIntake
+      : patientsForIntake?.items || [];
+    const p = list.find((x) => String(x.id) === String(intakePatientIdParam));
     return p ? { id: p.id, name: p.name } : null;
-  }, [interviewActive, interviewPatientIdParam, patientsForInterview]);
+  }, [intakeActive, intakePatientIdParam, patientsForIntake]);
 
   // Patient detail subpage — /doctor/patients/:id (any segment after /patients/ that isn't "new")
   const patientDetailMatch = (() => {
@@ -309,7 +309,7 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
 
   // Derive a unique route key for overlay subpages (null = tab root, no overlay)
   const overlayRouteKey = (() => {
-    if (interviewActive) return "interview";
+    if (intakeActive) return "intake";
     if (patientDetailMatch) {
       // Tab changes within patient detail use ?view= with replace — same overlay key
       return `patient-${patientDetailMatch}`;
@@ -334,11 +334,11 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
   // Render function for page stack — creates content for a given route key.
   // useCallback ensures stable reference so the stack doesn't re-render entries.
   const renderContent = useCallback((key) => {
-    if (key === "interview") {
+    if (key === "intake") {
       return (
-        <InterviewPage
+        <IntakePage
           doctorId={doctorId}
-          patientContext={interviewPatientContext}
+          patientContext={intakePatientContext}
           onComplete={() => navigate("/doctor/patients", { replace: true })}
           onCancel={() => navigate("/doctor/patients", { replace: true })}
         />
