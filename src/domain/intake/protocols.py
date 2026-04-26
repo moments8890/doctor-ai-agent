@@ -76,7 +76,11 @@ class SessionState(BaseModel):
     mode: Mode
     status: str
     template_id: str
-    collected: dict[str, str]
+    # User-facing fields are str-keyed strings, but the engine also stores
+    # underscore-prefixed metadata (e.g. _carry_forward_meta, _fields_updated_this_visit,
+    # _patient_name, _patient_gender). Those values can be nested dicts or lists,
+    # so the value type relaxes to Any. Templates iterate user fields only.
+    collected: dict[str, Any]
     conversation: list[dict[str, Any]]
     turn_count: int
 
