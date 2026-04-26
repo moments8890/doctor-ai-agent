@@ -201,6 +201,48 @@ After:
 - The `+` (新建病历) moves into `PatientsPage`'s own SubpageHeader as a
   right-side button.
 
+### Home-shortcut icon on every push subpage
+
+Every push subpage (PatientsPage, PatientDetail, ReviewPage, all settings
+subpages) renders a **home icon immediately after the back arrow** in its
+`NavBar` `backArrow` slot. Layout convention:
+
+```
+[← 🏠]    页面标题      [page-specific right action]
+```
+
+- Icon: `HomeOutlinedIcon` from `@mui/icons-material`, sized at
+  `ICON.sm` (20px), color `APP.text2`.
+- Tap behavior: call `markIntentionalBack()` then
+  `navigate("/doctor/my-ai")`. The intentional-back flag ensures the
+  slide-out animation plays correctly, even though we're navigating to a
+  specific path rather than calling `navigate(-1)`.
+- The home icon is shown on **all** push subpages, regardless of stack
+  depth. From a 1-level subpage it's redundant with the back arrow; from
+  a 2+ level deep page (home → patients → patient detail) it's a one-tap
+  shortcut.
+
+Implementation pattern — antd-mobile `NavBar` accepts a single `backArrow`
+prop. To render two icons, pass a fragment:
+
+```jsx
+<NavBar
+  backArrow={
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <LeftOutline />
+      <HomeOutlinedIcon
+        sx={{ fontSize: ICON.sm, color: APP.text2 }}
+        onClick={(e) => { e.stopPropagation(); markIntentionalBack(); navigate("/doctor/my-ai"); }}
+      />
+    </span>
+  }
+  onBack={() => navigate(-1)}
+>
+```
+
+The `e.stopPropagation()` is required so tapping the home icon doesn't
+also fire the NavBar's `onBack` handler.
+
 ## Component changes
 
 ### `MyAIPage.jsx`
@@ -242,10 +284,10 @@ After:
 
 ### `PatientsPage.jsx`
 
-1. **Add a `SubpageHeader`** at the top of the component, with title `患者`,
-   back arrow (using `markIntentionalBack` + `navigate(-1)` pattern via
-   `useBackWithAnimation`), and a right-side `+` button that navigates to
-   `?action=new`.
+1. **Add an antd-mobile `NavBar`** at the top of the component, with title
+   `患者`, the back+home cluster in the `backArrow` slot (see
+   "Home-shortcut icon on every push subpage" above), and a right-side `+`
+   button that navigates to `?action=new`.
 2. Verify the `pageContainer` / `scrollable` layout already includes a
    bottom safe-area inset; if not, add it.
 3. Otherwise unchanged — search state, NL results, popup, pull-to-refresh,
@@ -263,7 +305,10 @@ After:
    - If absent: navigate to `dp("my-ai")` with Toast `已处理完今日全部 N 项`.
    - Preserve the existing patient-detail / patient-list fallback ONLY for
      non-finalize navigation paths (e.g., if the user explicitly taps "查看患者").
-3. SubpageHeader already exists on this page (verify during implementation).
+3. **Update the existing NavBar's `backArrow` slot** to include the
+   home-shortcut icon (per "Home-shortcut icon on every push subpage").
+4. SubpageHeader / NavBar already exists on this page (verify during
+   implementation).
 
 ### `ReviewQueuePage.jsx`
 
@@ -274,10 +319,27 @@ After:
 Add the cold-start history seed effect (see "Cold-start deep-link history
 seed (B1)" above).
 
+### Settings subpages (sweep — home icon only)
+
+Each push subpage in the doctor app — `PersonaSubpage`, `KnowledgeSubpage`,
+`AddKnowledgeSubpage`, `KnowledgeDetailSubpage`, `AboutSubpage`,
+`TeachByExampleSubpage`, `PendingReviewSubpage`, `PersonaOnboardingSubpage`,
+`TemplateSubpage`, `QrSubpage`, `PatientChatPage`, `PatientDetail`,
+`OnboardingWizard`, plus `SettingsPage` — gets its existing `NavBar
+backArrow={<LeftOutline />}` updated to include the home-shortcut icon
+(see "Home-shortcut icon on every push subpage").
+
+No other behavior changes in these files.
+
+**Scope clarification:** This sweep applies to **doctor-app** subpages
+only. Patient-portal pages (`PatientPrivacySubpage`, `PatientTaskDetailPage`,
+`PatientRecordDetailPage`, etc.) are **not** in scope — those are a separate
+surface with their own IA.
+
 ### Other files
 
-- **No changes** to settings subpages, routing config beyond the deletions
-  above, `usePageStack`, or `useNavDirection`.
+- **No changes** to routing config beyond the deletions above,
+  `usePageStack`, or `useNavDirection`.
 
 ## Testing
 
@@ -308,6 +370,10 @@ Add a `frontend/web/src/v2/__tests__/` test file covering:
 8. **`/mock/doctor/*` path behavior:** verify `dp()` helper still produces
    correct paths after `DoctorPage` hardcoded `/doctor/...` references are
    updated to use `dp()` where they were tab-related.
+9. **Home-icon shortcut on subpage NavBars:** mount `PatientsPage` (or any
+   doctor subpage), simulate a click on the home icon inside `backArrow`,
+   assert pathname becomes `/doctor/my-ai` AND the back-arrow `onBack`
+   handler did not also fire.
 
 ### Manual verification checklist
 
@@ -321,8 +387,13 @@ After the PR:
 - [ ] On finalize, ReviewPage advances to next pending review item; on last item, returns to `/doctor/my-ai` with Toast
 - [ ] 今日关注 SectionHeader has no "全部事项 ›" link
 - [ ] 最近使用 row taps still open patient detail / knowledge detail
-- [ ] PatientsPage SubpageHeader shows back arrow + 患者 title + `+` button
+- [ ] PatientsPage NavBar shows `[← 🏠]` + 患者 title + `+` button
 - [ ] PatientsPage `+` opens the new-record picker
+- [ ] Home icon (🏠) on PatientsPage navigates to `/doctor/my-ai` with slide animation
+- [ ] Home icon on PatientDetail (2-level deep: home → patients → detail) returns to `/doctor/my-ai` in one tap, skipping the patient list
+- [ ] Home icon on ReviewPage navigates to `/doctor/my-ai` with slide animation
+- [ ] Home icon on every settings subpage (Persona, Knowledge, About, etc.) navigates to `/doctor/my-ai`
+- [ ] Tapping home icon does NOT also fire the back arrow (no double-nav)
 - [ ] Back from PatientsPage returns to `/doctor/my-ai` cleanly with slide animation
 - [ ] WeChat push deep link to `/doctor/review/:id` cold-start: tap back → lands on `/doctor/my-ai`, does not exit app
 - [ ] WeChat ← arrow / hardware back: still no slide animation (only in-app back arrow animates)
