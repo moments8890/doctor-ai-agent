@@ -196,8 +196,13 @@ async def _intake_dispatch(
     doctor_id = patient.doctor_id
     patient_id = patient.id
 
-    # 1. Save the inbound patient message immediately. intake_session_id is
-    #    patched after we know which session this turn belongs to (if any).
+    # 1. Save the inbound patient message and COMMIT immediately. We commit
+    #    here (rather than holding the transaction across triage + session
+    #    work) because subsequent steps open separate AsyncSessionLocal()
+    #    connections — on SQLite, two writers on the same DB deadlock with
+    #    "database is locked" if the request session keeps a write lock
+    #    pending. intake_session_id is patched in via a fresh session
+    #    further down once we know which session this turn belongs to.
     patient_msg = PatientMessage(
         patient_id=patient_id, doctor_id=doctor_id,
         content=text, direction="inbound", source="patient",
@@ -206,6 +211,8 @@ async def _intake_dispatch(
     )
     db.add(patient_msg)
     await db.flush()
+    patient_msg_id = patient_msg.id
+    await db.commit()
 
     # 2. Triage classify — used solely to decide is_intake vs. non-intake.
     try:
@@ -232,13 +239,12 @@ async def _intake_dispatch(
         except Exception:
             ctx_str = ""
 
-        await db.commit()  # commit the inbound row before scheduling work
-
+        # patient_msg already committed above; just schedule the draft.
         safe_create_task(
             _generate_draft_for_escalated(
-                doctor_id, patient_id, patient_msg.id, text, ctx_str,
+                doctor_id, patient_id, patient_msg_id, text, ctx_str,
             ),
-            name=f"draft-reply-{patient_msg.id}",
+            name=f"draft-reply-{patient_msg_id}",
         )
 
         # System ack — visible to the patient as a "we got your message" line.
@@ -264,6 +270,8 @@ async def _intake_dispatch(
         )
 
     # 3b. Intake path: find or create an active intake session, then turn.
+    # patient_msg already committed; create_session opens its own connection
+    # safely now (no SQLite deadlock).
     session = await get_active_session(patient_id, doctor_id)
     if session is None:
         session = await create_session(
@@ -274,9 +282,15 @@ async def _intake_dispatch(
             carry_forward=True,
         )
 
-    # Stamp the session id on the inbound message before committing.
-    patient_msg.intake_session_id = session.id
-    await db.commit()
+    # Stamp the session id on the inbound message via a fresh session so
+    # we don't reopen a transaction on the request `db` after committing.
+    async with AsyncSessionLocal() as link_db:
+        await link_db.execute(
+            update(PatientMessage)
+            .where(PatientMessage.id == patient_msg_id)
+            .values(intake_session_id=session.id)
+        )
+        await link_db.commit()
 
     # IntakeEngine owns the turn loop: it loads the session, calls the LLM,
     # merges fields, appends the assistant turn, and saves the session.
