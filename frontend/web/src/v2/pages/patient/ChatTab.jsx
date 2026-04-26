@@ -23,7 +23,6 @@ import ChatBubble from "../../ChatBubble";
 import ChatConfirmGate from "../../components/ChatConfirmGate";
 import ChatDedupPrompt from "../../components/ChatDedupPrompt";
 import IntakeBanner from "../../components/IntakeBanner";
-import SuggestionChips from "../../components/SuggestionChips";
 import ChatComposer from "../../ChatComposer";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { APP, FONT, RADIUS } from "../../theme";
@@ -316,9 +315,10 @@ export default function ChatTab({
     // AI message with optional triage enrichment
     const isUrgent = msg.triage_category === "urgent";
     const isDiagnosis = msg.triage_category === "diagnosis_confirmation";
-    // Suggestions render only under the LATEST AI bubble (older turns
-    // shouldn't keep stale chips after the conversation moved on).
-    const showChips = i === lastAiIndex && latestSuggestions.length > 0;
+    // Suggestion chips moved into ChatComposer (matches doctor IntakePage
+    // pattern). They render above the textarea where the patient's
+    // attention already is, and tapping toggles the chip text in/out of
+    // the textarea so multiple choices can be combined before sending.
     return (
       <div key={msg.id || i} style={{ marginBottom: 12 }}>
         {isDiagnosis ? (
@@ -332,13 +332,6 @@ export default function ChatTab({
         <div style={{ fontSize: FONT.xs, color: APP.text4, paddingLeft: 44, marginTop: 2 }}>
           {doctorName ? `${doctorName}的AI助手` : "AI健康助手"}
         </div>
-        {showChips && (
-          <SuggestionChips
-            suggestions={latestSuggestions}
-            disabled={sending}
-            onPick={(text) => handleSend(text)}
-          />
-        )}
       </div>
     );
   }
@@ -379,6 +372,7 @@ export default function ChatTab({
         disabled={sending}
         placeholder="请输入…"
         safeBottom={false}
+        suggestions={latestSuggestions}
       />
     </div>
   );
