@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>患者端聊天流程 + Tier B 计划</title>
+<style>
+  :root {
+    --bg: #fafaf8;
+    --surface: #ffffff;
+    --border: #e6e3dd;
+    --border-light: #f0ede7;
+    --text1: #1c1c1e;
+    --text2: #4a4a4f;
+    --text3: #8a8a92;
+    --primary: #07c160;
+    --primary-soft: #e8f7ee;
+    --accent: #2c7be5;
+    --accent-soft: #e7f0fc;
+    --warn: #d97706;
+    --warn-soft: #fef3c7;
+    --danger: #dc2626;
+    --danger-soft: #fee2e2;
+    --neutral-soft: #f3f3f1;
+    --code-bg: #f6f4ee;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text1);
+    margin: 0;
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px 80px; }
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 28px 24px;
+    margin-bottom: 0;
+  }
+  header h1 { margin: 0 0 4px; font-size: 24px; font-weight: 600; }
+  header p { margin: 0; color: var(--text3); font-size: 14px; }
+  h2 {
+    font-size: 19px;
+    font-weight: 600;
+    margin: 48px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 16px; font-weight: 600; margin: 28px 0 10px; }
+  h4 { font-size: 14px; font-weight: 600; margin: 18px 0 8px; color: var(--text2); }
+  p { margin: 8px 0; }
+  code {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    background: var(--code-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--text1);
+  }
+  pre { background: var(--code-bg); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+  pre code { background: transparent; padding: 0; }
+
+  .lede {
+    background: var(--surface);
+    border-left: 4px solid var(--primary);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0 24px;
+    color: var(--text2);
+  }
+
+  /* Pipeline flow boxes */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid var(--border-light);
+  }
+  .step {
+    border-radius: 10px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    position: relative;
+  }
+  .step.entry { background: var(--accent-soft); border-color: #b8d4f5; }
+  .step.llm { background: var(--warn-soft); border-color: #f5d699; }
+  .step.deterministic { background: var(--neutral-soft); border-color: var(--border); }
+  .step.bug { background: var(--danger-soft); border-color: #f5b8b8; }
+  .step.fix { background: var(--primary-soft); border-color: #a8dfc0; }
+  .step.exit { background: #efe9d9; border-color: #d9caa0; }
+  .step h4 { margin: 0 0 6px; }
+  .step .meta { font-size: 12px; color: var(--text3); font-family: "SF Mono", Menlo, monospace; margin-bottom: 4px; }
+  .step .body { font-size: 14px; color: var(--text2); margin: 0; }
+  .step .body strong { color: var(--text1); }
+  .arrow { text-align: center; color: var(--text3); font-size: 14px; line-height: 1; padding: 2px 0; }
+
+  /* Tag chips */
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 100px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .tag.llm { background: var(--warn-soft); color: var(--warn); }
+  .tag.det { background: var(--neutral-soft); color: var(--text2); }
+  .tag.bug { background: var(--danger-soft); color: var(--danger); }
+  .tag.fix { background: var(--primary-soft); color: var(--primary); }
+  .tag.new { background: var(--accent-soft); color: var(--accent); }
+
+  /* Layer stack */
+  .layers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .layer-card {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .layer-card h4 { margin: 0 0 4px; }
+  .layer-card .file { font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--accent); }
+  .layer-card p { margin: 6px 0 0; font-size: 13px; color: var(--text2); }
+
+  /* Two-column compare */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 14px 0;
+  }
+  .compare > div {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 16px 18px;
+    border: 1px solid var(--border-light);
+  }
+  .compare h4 { margin-top: 0; }
+  .compare .before { border-left: 3px solid var(--danger); }
+  .compare .after  { border-left: 3px solid var(--primary); }
+
+  /* Sequence steps */
+  .seq {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 16px;
+  }
+  .seq-step {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  .seq-step.prereq { border-left: 4px solid var(--danger); }
+  .seq-step.safety { border-left: 4px solid var(--warn); }
+  .seq-step.feature { border-left: 4px solid var(--accent); }
+  .seq-step .id {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text3);
+    line-height: 1;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .seq-step .id .effort { display:block; font-size:11px; font-weight:500; color:var(--text3); margin-top:6px; font-family:inherit; }
+  .seq-step h3 { margin: 0 0 6px; }
+  .seq-step .why { margin: 0 0 10px; color: var(--text2); }
+  .seq-step .what { font-size: 13px; color: var(--text2); }
+  .seq-step .what code { font-size: 12px; }
+  .seq-step .what ul { margin: 4px 0 0 18px; padding: 0; }
+  .seq-step .what li { margin: 3px 0; }
+
+  /* Data shape */
+  .schema {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 16px 20px;
+    border: 1px solid var(--border-light);
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .schema .field { color: var(--text1); }
+  .schema .type  { color: var(--accent); }
+  .schema .comment { color: var(--text3); }
+  .schema .new-field { background: var(--primary-soft); padding: 0 4px; border-radius: 3px; }
+
+  .legend { display: flex; gap: 14px; margin: 16px 0 8px; flex-wrap: wrap; font-size: 12px; }
+  .legend > span { display: inline-flex; align-items: center; gap: 6px; color: var(--text2); }
+  .legend .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  .todo-cb { display:inline-block; width:14px; height:14px; border:1.5px solid var(--text3); border-radius:3px; vertical-align:-2px; margin-right:6px; }
+  .todo-cb.done { background: var(--primary); border-color: var(--primary); position: relative; }
+  .todo-cb.done::after { content: "✓"; color: white; font-size: 11px; line-height: 14px; position: absolute; left: 1px; top: -1px; font-weight: bold; }
+
+  @media (max-width: 720px) {
+    .layers, .compare { grid-template-columns: 1fr; }
+    .seq-step { grid-template-columns: 1fr; }
+    .seq-step .id { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>患者端聊天工作流 — 现状 + Tier B 计划</h1>
+  <p>2026-04-26 · 基于 Codex 90% 一致后的设计 · /Volumes/ORICO/Code/doctor-ai-agent/docs/patient-chat-tier-b.html</p>
+</header>
+
+<div class="container">
+
+<!-- ============================================================ -->
+<!-- SECTION 1: ONE-LINE SUMMARY                                   -->
+<!-- ============================================================ -->
+<div class="lede">
+  患者发一条消息，系统决定：<strong>(1)</strong> 这是不是急症 <strong>(2)</strong> 应该走哪条处理路径 <strong>(3)</strong> 给医生生成什么样的草稿。患者本身几乎不会收到 AI 自动回复，<strong>所有内容都进医生的审核队列</strong>。这就是&ldquo;桥梁不是服务&rdquo;的产品定位。
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: WHERE THE LLM IS USED                              -->
+<!-- ============================================================ -->
+<h2>1. 患者端聊天里 LLM 在哪里被调用</h2>
+
+<p>每条患者消息进入 <code>POST /chat</code> 后，LLM 被调用的地方今天有三处：</p>
+
+<div class="legend">
+  <span><span class="swatch" style="background:#fef3c7"></span> LLM 调用</span>
+  <span><span class="swatch" style="background:#f3f3f1"></span> 确定性逻辑（无 LLM）</span>
+  <span><span class="swatch" style="background:#e7f0fc"></span> 入口/出口</span>
+  <span><span class="swatch" style="background:#fee2e2"></span> 已知 BUG（Codex 发现）</span>
+</div>
+
+<div class="flow">
+
+  <div class="step entry">
+    <div class="meta">POST /chat · src/channels/web/patient_portal/chat.py:122</div>
+    <h4>① 入口：保存患者消息 + 鉴权</h4>
+    <p class="body">读取 <code>PATIENT_CHAT_INTAKE_ENABLED</code> 开关。开关 ON 走新版 intake 路径，OFF 走 legacy fire-and-forget。</p>
+  </div>
+  <div class="arrow">↓</div>
+
+  <div class="step llm">
+    <div class="meta">signal_flag.detect() → triage.classify() · LLM 调用 #1</div>
+    <h4>② 信号标记检测 <span class="tag llm">LLM</span></h4>
+    <p class="body">用 <code>intent/triage-classify.md</code> 判断这条消息是不是急症。返回 5 类之一。如果是 <code>urgent</code> → 立刻 short-circuit，给患者发去&ldquo;您的医生将尽快查看并回复您，请稍候&rdquo;（Tier A 已修），同时给医生生成 <strong>priority=critical</strong> 草稿。</p>
+  </div>
+  <div class="arrow">↓ <span style="color:var(--danger);font-weight:600">非急症继续</span></div>
+
+  <div class="step llm">
+    <div class="meta">triage.classify() · LLM 调用 #2 <span class="tag bug">BUG</span></div>
+    <h4>③ 第二次分类 <span class="tag llm">LLM</span></h4>
+    <p class="body"><strong>这就是 Codex 发现的 bug</strong>：同一条消息被 <code>classify()</code> 又跑了一次。<code>signal_flag.py:12</code> 的注释写&ldquo;我们不双重调用 LLM&rdquo;，但 <code>chat.py:282</code> 和 <code>chat.py:342</code> 加起来确实调用了两次。每条消息多花一次 LLM token。</p>
+  </div>
+  <div class="arrow">↓</div>
+
+  <div class="step deterministic">
+    <div class="meta">chat_state.evaluate_entry() · 确定性</div>
+    <h4>④ 状态机决策 <span class="tag det">无 LLM</span></h4>
+    <p class="body">三种状态：<code>idle</code>（什么都没发生）/ <code>intake</code>（正在填问诊）/ <code>qa_window</code>（医生回复后 30 分钟答疑窗口）。是否进入 intake 取决于：分类是否 <code>symptom_report</code> + 置信度阈值（≥0.65）或词典命中（≥0.50）。</p>
+  </div>
+  <div class="arrow">↓ <span style="color:var(--text3)">如果进入 intake</span></div>
+
+  <div class="step deterministic">
+    <div class="meta">_extract_and_append_fields() · chat.py:437</div>
+    <h4>⑤ 字段抽取 <span class="tag det">无 LLM</span></h4>
+    <p class="body"><strong>第二个 bug</strong>：当前实现把<strong>整条消息无条件塞进 chief_complaint</strong>。所以&ldquo;我老婆腹泻&rdquo;会被存成患者本人的主诉。这是 Tier B 要修的核心问题之一。</p>
+  </div>
+  <div class="arrow">↓</div>
+
+  <div class="step llm">
+    <div class="meta">dedup._llm_chief_complaint_similarity() · LLM 调用 #3（条件性）</div>
+    <h4>⑥ 去重相似度（仅在阈值满足时）<span class="tag llm">LLM</span></h4>
+    <p class="body">主诉 + 现病史都填了 → 检查 24 小时内有没有相似主诉的旧记录。一条小 LLM 计算文本相似度，决定 auto_merge / patient_prompt / 新建。</p>
+  </div>
+  <div class="arrow">↓</div>
+
+  <div class="step llm">
+    <div class="meta">draft_reply.generate_draft_reply() · LLM 调用 #4（异步后台）</div>
+    <h4>⑦ 医生草稿生成 <span class="tag llm">LLM</span></h4>
+    <p class="body">最重的一次 LLM。用 <code>intent/followup_reply.md</code> + 完整的 L0-L7 层栈生成给医生的回复草稿。这条草稿患者看不到，只有医生在审核队列里能看到。</p>
+  </div>
+  <div class="arrow">↓</div>
+
+  <div class="step exit">
+    <div class="meta">MessageDraft 入库 + 优先级标注</div>
+    <h4>⑧ 出口：草稿落库</h4>
+    <p class="body">style_guard 检测 defer-to-doctor 用语 → priority 解析（urgent/critical）→ 医生在审核 tab 看到带优先级标的草稿。</p>
+  </div>
+
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: PROMPT LAYERS                                      -->
+<!-- ============================================================ -->
+<h2>2. 6 层 Prompt 系统是什么</h2>
+
+<p>项目里所有 LLM 调用都用一个统一的&ldquo;层组合&rdquo;系统。每个 intent（followup_reply / patient-intake / diagnosis 等）声明它需要哪些层，<code>prompt_composer.py</code> 按顺序拼起来。</p>
+
+<div class="layers">
+
+  <div class="layer-card">
+    <h4>L0 · Style Guard</h4>
+    <div class="file">prompts/common/style_guard.md</div>
+    <p>反 AI 味、禁词列表（&ldquo;立即去急诊&rdquo;、&ldquo;根据知识库&rdquo;等）、defer-to-doctor 模式。所有患者/医生可见的文字都要经过它。</p>
+  </div>
+
+  <div class="layer-card">
+    <h4>L1 · Identity</h4>
+    <div class="file">domain/system base prompt</div>
+    <p>&ldquo;你是某医生的 AI 助手&rdquo;之类的身份定义。所有 flow 都用。</p>
+  </div>
+
+  <div class="layer-card">
+    <h4>L2 · Specialty</h4>
+    <div class="file">domain config (神经外科 / 内科 etc.)</div>
+    <p>专科上下文。不同专科有不同的判断尺度。</p>
+  </div>
+
+  <div class="layer-card">
+    <h4>L3 · Task</h4>
+    <div class="file">prompts/intent/&lt;intent&gt;.md</div>
+    <p>具体任务说明。比如 <code>followup_reply.md</code>、<code>patient-intake.md</code>、<code>triage-classify.md</code>。</p>
+  </div>
+
+  <div class="layer-card">
+    <h4>L4 · Doctor Rules (KB)</h4>
+    <div class="file">doctor 自己写的 knowledge_items</div>
+    <p>这位医生的个人规则库。&ldquo;开浦兰副作用 1-2 周&rdquo;、&ldquo;术后 VAS≤6 正常&rdquo;之类。每位医生不一样。</p>
+  </div>
+
+  <div class="layer-card">
+    <h4>L4p · Persona</h4>
+    <div class="file">doctor_personas 表</div>
+    <p>医生的语言风格画像。让 AI 写出来&ldquo;像这位医生&rdquo;，不是&ldquo;像 AI&rdquo;。</p>
+  </div>
+
+  <div class="layer-card">
+    <h4>L5 · Examples</h4>
+    <div class="file">data/style/example_pool.json (564 条)</div>
+    <p>从 MedDG/meddialog 真实医患对话提取的范例，按主诉聚类。给当前消息选 2-3 条最相近的范例喂进去。</p>
+  </div>
+
+  <div class="layer-card">
+    <h4>L6 · Patient Context</h4>
+    <div class="file">patient_lifecycle/triage_context.py</div>
+    <p>这位患者的稳定史 + 最近一次记录（诊断、过敏史、随访计划）。用来让回复有患者背景，不是&ldquo;通用回复&rdquo;。</p>
+  </div>
+
+  <div class="layer-card">
+    <h4>L7 · Input</h4>
+    <div class="file">运行时拼装</div>
+    <p>当前这条消息本身。在 conversation_mode 下还包括对话历史。</p>
+  </div>
+
+</div>
+
+<h3>每个 chat 路径用哪些层？</h3>
+
+<div class="schema">
+<span class="comment"># 简化版：每个 LLM 调用使用的层</span><br>
+<br>
+<span class="field">triage.classify (#2 #3 信号标记+二次分类)</span> → 仅 L3 (intent/triage-classify.md, ~70 tokens)<br>
+<span class="field">dedup similarity (#6)</span>                  → 仅 inline prompt (硬编码 ~50 tokens)<br>
+<span class="field">draft_reply.generate (#7 草稿生成)</span>     → <strong>L0+L1+L2+L3+L4+L4p+L5+L6+L7</strong> (FOLLOWUP_REPLY_LAYERS)<br>
+<br>
+<span class="comment"># 这就是为什么 #7 是&ldquo;最重&rdquo;的一次：完整层栈，含 KB + persona + examples + patient context</span>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: THE BUG + DESIGN SHIFT                             -->
+<!-- ============================================================ -->
+<h2>3. Codex 发现的核心问题</h2>
+
+<p>把 Tier A 之前的 bugs 加上 Codex 这一轮发现，<strong>共 4 个</strong>必须修：</p>
+
+<div class="seq">
+  <div class="seq-step prereq">
+    <div class="id">①</div>
+    <div>
+      <h3>双重 LLM 分类（性能 + 一致性）</h3>
+      <p class="why"><code>signal_flag.detect</code> 调一次 <code>classify</code>，主分发又调一次。每条消息双倍 LLM token，且两次结果可能不一致（temperature 0.1 不是 0）。</p>
+      <p class="what">修法：合并成<strong>一次</strong>调用，返回更丰富的结果对象 <code>TriageAnalysis</code>。</p>
+    </div>
+  </div>
+
+  <div class="seq-step prereq">
+    <div class="id">②</div>
+    <div>
+      <h3>chief_complaint 被无条件污染</h3>
+      <p class="why"><code>chat.py:443</code> 把第一条消息直接塞进 <code>chief_complaint</code>。不管这条消息是患者本人的还是&ldquo;我老婆/我宝宝&rdquo;的，全都当成本人主诉存进医疗记录。</p>
+      <p class="what">修法：抽取前先做 subject 检测，proxy 情况下不写 chief_complaint，让医生核实。</p>
+    </div>
+  </div>
+
+  <div class="seq-step prereq">
+    <div class="id">③</div>
+    <div>
+      <h3>MessageDraft 没地方放标注</h3>
+      <p class="why">想给医生 UI 加&ldquo;用药决策 / 化验解读 / 代述 / 多问题&rdquo;的桶标，目前 schema 里没有任何字段能存。要么硬塞进 <code>seed_source</code> 字符串里（hack），要么不持久化（不可靠）。</p>
+      <p class="what">修法：迁移加 4 个列。</p>
+    </div>
+  </div>
+
+  <div class="seq-step prereq">
+    <div class="id">④</div>
+    <div>
+      <h3>Prompt 契约冲突</h3>
+      <p class="why"><code>triage-classify.md</code> 第 8 行明确说&ldquo;化验单解读&rdquo;归 <code>informational</code>，但我们想把它独立成 <code>interpretation</code> 桶。代码改了 prompt 不改，模型还是按老规矩分类。</p>
+      <p class="what">修法：先改 prompt，再改 enum/schema。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: BEFORE / AFTER ARCHITECTURE                        -->
+<!-- ============================================================ -->
+<h2>4. 设计前后对比：分类 vs 标注</h2>
+
+<p>Codex 最关键的建议：<strong>不要把新的语义往 TriageCategory 里塞</strong>。它今天既是&ldquo;分类标签&rdquo;又是&ldquo;路由开关&rdquo;。把这两件事拆开。</p>
+
+<div class="compare">
+  <div class="before">
+    <h4>❌ 我原来的方案</h4>
+    <pre><code>class TriageCategory(Enum):
+    informational
+    symptom_report
+    side_effect
+    general_question
+    urgent
+    med_decision      # ← 新增
+    interpretation    # ← 新增</code></pre>
+    <p style="font-size:13px;color:var(--text2)">问题：<br>
+    • 每个 <code>TriageCategory</code> 消费者都要处理新枚举<br>
+    • 置信度&lt;0.7 会被强制重写成 <code>general_question</code>，新枚举消失<br>
+    • 状态机只对 <code>symptom_report</code> 进入 intake，新枚举走 legacy</p>
+  </div>
+
+  <div class="after">
+    <h4>✅ Codex 建议的方案</h4>
+    <pre><code>class TriageAnalysis:
+    route_category: TriageCategory   # 5 路由类不变
+    confidence: float
+    review_bucket: str               # ← 新：标注层
+        # none | med_decision | interpretation
+    signal_tags: List[str]           # ← 新：副信号
+        # distress | proxy | multi_question
+    needs_disambiguation: bool       # ← 新：是否需要追问</code></pre>
+    <p style="font-size:13px;color:var(--text2)">优点：<br>
+    • 路由稳定，5 类不变<br>
+    • 标注独立，不被低置信度覆盖<br>
+    • 一次 LLM 调用产出全部信号<br>
+    • 多个 signal 可以共存（胸痛 + 自伤倾向 = urgent + distress）</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: PROPOSED SEQUENCE                                  -->
+<!-- ============================================================ -->
+<h2>5. 实施顺序（90% 与 Codex 一致）</h2>
+
+<p>共 5 步，约 1.5-2 天工作量。前 2 步是基础设施（必须先做），后 3 步是 Tier B 安全增强。<strong>B4（追问澄清）和 B5（多问题检测）从原计划砍出，单独排期</strong>—— B4 是首个&ldquo;非信号标记&rdquo;的 AI 主动回复，是产品策略而非工程优化，单独想清楚。</p>
+
+<div class="seq">
+
+  <div class="seq-step prereq">
+    <div class="id">P1<span class="effort">~半天</span></div>
+    <div>
+      <h3><span class="tag fix">前置</span> 合并双重 LLM 分类</h3>
+      <p class="why"><strong>为什么先做：</strong>没有 <code>TriageAnalysis</code> 这个新结构，B1/B2/B3 都没地方挂标注。同时省一半 LLM 成本。</p>
+      <div class="what">
+        <strong>改动：</strong>
+        <ul>
+          <li><code>triage.py</code> · 新 dataclass <code>TriageAnalysis</code>，<code>classify()</code> 返回它</li>
+          <li><code>signal_flag.py</code> · 改成纯 helper <code>is_signal_flag(analysis: TriageAnalysis) -&gt; bool</code>，不再调 LLM</li>
+          <li><code>chat.py:282</code> · 删掉第一次 <code>signal_flag_detect</code> 调用，只在 <code>chat.py:342</code> 调一次 <code>classify</code></li>
+          <li>更新 <code>signal_flag.py:12</code> 注释，让它和实现一致</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="seq-step prereq">
+    <div class="id">P2<span class="effort">~30 分钟</span></div>
+    <div>
+      <h3><span class="tag fix">前置</span> Alembic 迁移：MessageDraft 加 4 列</h3>
+      <p class="why"><strong>为什么先做：</strong>没有列就没法持久化标注，UI 桶就是&ldquo;空中楼阁&rdquo;。</p>
+      <div class="schema">
+        <span class="comment"># 加到 message_drafts 表</span><br>
+        <span class="field new-field">review_bucket</span>     <span class="type">String(32)</span>  <span class="comment"># none|med_decision|interpretation</span><br>
+        <span class="field new-field">patient_subject</span>   <span class="type">String(16)</span>  <span class="comment"># self|proxy</span><br>
+        <span class="field new-field">signal_tags</span>       <span class="type">JSON</span>        <span class="comment"># ["distress","multi_question"]</span><br>
+        <span class="field new-field">multi_question</span>    <span class="type">Boolean</span>     <span class="comment"># 冗余存一份方便 UI 索引</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="seq-step safety">
+    <div class="id">B1<br>+B6<span class="effort">~半天</span></div>
+    <div>
+      <h3><span class="tag new">Tier B 安全</span> Triage prompt 重写 + intake 词典扩展</h3>
+      <p class="why"><strong>为什么：</strong>用药决策（&ldquo;能不能停药&rdquo;）和化验解读（&ldquo;这个值什么意思&rdquo;）今天被 AI 自由发挥，是临床风险点。术后/孕期/伤口照片关键词在 intake 词典里没有，导致这些消息走不进结构化问诊。</p>
+      <div class="what">
+        <strong>改动：</strong>
+        <ul>
+          <li><code>triage-classify.md</code> · 重写为输出 <code>TriageAnalysis</code> JSON，明确 <code>review_bucket</code> 定义；删掉&ldquo;化验单归 informational&rdquo;那行</li>
+          <li><code>chat_state.py:25-27</code> · 词典扩展加术后/伤口/孕周/照片标记词</li>
+          <li><code>draft_reply.py</code> · 把 <code>review_bucket</code> 写到 MessageDraft</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="seq-step safety">
+    <div class="id">B2<span class="effort">~1-2 小时</span></div>
+    <div>
+      <h3><span class="tag new">Tier B 安全</span> 心理痛苦确定性扫描</h3>
+      <p class="why"><strong>为什么：</strong>语料里&ldquo;打针三天没好…现在想死的感觉都有&rdquo;这种消息，分类器会抓&ldquo;打针没好&rdquo;丢掉&ldquo;想死&rdquo;。心理信号要让医生第一眼就看到。</p>
+      <div class="what">
+        <strong>改动：</strong>
+        <ul>
+          <li>新模块 <code>distress_scan.py</code> · 关键词列表 {想死, 受不了, 活不下去, 绝望, 不想活, 没意思}</li>
+          <li><code>chat.py</code> 在 classify 后调用 → 把 <code>distress</code> 加进 <code>signal_tags</code></li>
+          <li><code>priority.py</code> · 任何 signal 含 <code>distress</code> → priority=critical（不覆盖原有 route，胸痛 + 想死 仍然 route=urgent）</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="seq-step safety">
+    <div class="id">B3<span class="effort">~1-2 小时</span></div>
+    <div>
+      <h3><span class="tag new">Tier B 安全</span> 代述检测 + 抽取保护</h3>
+      <p class="why"><strong>为什么：</strong>第 ② 个 bug 的修法。&ldquo;我宝宝拉肚子&rdquo;不应该被记录成&ldquo;患者本人主诉拉肚子&rdquo;。</p>
+      <div class="what">
+        <strong>改动：</strong>
+        <ul>
+          <li>新模块 <code>subject_detector.py</code> · 关键词扫 {宝宝, 孩子, 我妈, 我爸, 我老公, 我老婆, 家人, 我儿子, 我女儿}</li>
+          <li><code>_extract_and_append_fields()</code> · 检测到 proxy → <strong>不</strong>写 chief_complaint，只写 present_illness（保留原文）</li>
+          <li><code>_intake_threshold_met()</code> · 调整为 proxy 情况下 present_illness 单字段够阈值（避免永远卡住）</li>
+          <li>医生 UI 提示&ldquo;代述，请核实主诉对象&rdquo;</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: WHAT'S DEFERRED                                    -->
+<!-- ============================================================ -->
+<h2>6. 推迟到下次会话的项目</h2>
+
+<div class="compare">
+  <div>
+    <h4>B4 · 追问澄清回合</h4>
+    <p style="font-size:13px;color:var(--text2)">&ldquo;我不舒服&rdquo; → AI 回复&ldquo;您指的是哪里不舒服？大概多久了？&rdquo;</p>
+    <p style="font-size:13px;color:var(--text2)"><strong>为什么推迟：</strong>这是<strong>除信号标记外第一次 AI 主动给患者发文字</strong>。是产品策略变更，要单独想清楚循环防护、与 doctor 通知的关系等。需要在 <code>ChatSessionState</code> 加持久化标志。</p>
+  </div>
+  <div>
+    <h4>B5 · 多问题检测</h4>
+    <p style="font-size:13px;color:var(--text2)">一条消息有 3 个以上 &ldquo;吗/?&rdquo; → 标 <code>multi_question</code></p>
+    <p style="font-size:13px;color:var(--text2)"><strong>为什么推迟：</strong>UI 工效项不是安全项。&ldquo;吗&rdquo;在中文里太常见，简单计数会误报，需要更精细的句子切分逻辑。</p>
+  </div>
+</div>
+
+<h3>Tier C / D （之后）</h3>
+<ul style="margin-top:8px">
+  <li><strong>Tier C</strong>：图片输入支持。语料里术后伤口照、化验单照、孕检 B 超照高频出现，今天空文字消息直接 422 报错。</li>
+  <li><strong>Tier D</strong>：孕期 / 术后状态作为患者持久标志贯穿所有 triage 调用；&ldquo;上次您说&rdquo;的医生连续性记忆。</li>
+</ul>
+
+<!-- ============================================================ -->
+<!-- SECTION 8: CHECKLIST                                          -->
+<!-- ============================================================ -->
+<h2>7. 实施清单</h2>
+
+<div class="schema" style="line-height:2">
+<span class="todo-cb"></span> P1 — 合并双重 classify，新建 TriageAnalysis<br>
+<span class="todo-cb"></span> P2 — Alembic 迁移加 4 列<br>
+<span class="todo-cb"></span> B1 — 重写 triage-classify.md 输出新结构<br>
+<span class="todo-cb"></span> B6 — 词典扩展（术后/孕期/伤口/照片）<br>
+<span class="todo-cb"></span> B2 — distress_scan + priority 联动<br>
+<span class="todo-cb"></span> B3 — subject_detector + chief_complaint 保护<br>
+<span class="todo-cb"></span> 测试：triage 单元测 + intake 流程 e2e<br>
+<span class="todo-cb"></span> 部署：审核 → commit → 等用户说 push
+</div>
+
+<p style="margin-top:24px;color:var(--text3);font-size:13px;text-align:center">
+基于 Codex session <code>019dcab3-bc39-7903-8ce8-a8006f2a289f</code> · 后续可用 <code>/codex</code> 续问
+</p>
+
+</div>
+</body>
+</html>
