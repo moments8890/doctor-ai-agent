@@ -209,6 +209,10 @@ function RecordField({ label, value }) {
 }
 
 const RECORD_FIELDS = [
+  // `content` first — for interview_summary records this is the AI's
+  // extracted summary (the "original" record) and the operator wants to
+  // read it alongside the structured fields, not as a fallback.
+  { key: "content",           label: "记录摘要" },
   { key: "chief_complaint",   label: "主诉" },
   { key: "present_illness",   label: "现病史" },
   { key: "past_history",      label: "既往史" },
@@ -230,7 +234,9 @@ function RecordsSection({ items }) {
         items.map((r) => {
           // Header line: type + status + date
           const populatedFields = RECORD_FIELDS.filter((f) => r[f.key]);
-          const hasContent = !populatedFields.length && r.content;
+          // `content` is now part of RECORD_FIELDS, so the old fallback
+          // path is unreachable — kept the var for the empty-card guard.
+          const hasContent = false;
           return (
             <div
               key={r.id}
