@@ -1152,6 +1152,18 @@ export async function sendPatientChat(token, text) {
   });
 }
 
+/**
+ * Snapshot of the patient's active intake session, used by ChatTab on
+ * mount/reload to silently restore the IntakeBanner state without
+ * waiting for the next message turn.
+ *
+ * Returns { has_active: bool, session_id, turn_count, status, collected }.
+ * has_active=false → no banner; otherwise populate from collected.
+ */
+export async function getIntakeStatus(token) {
+  return patientRequest("/api/patient/chat/intake/status", token);
+}
+
 /** Respond to a confirm_gate prompt. action: "confirm" | "continue". */
 export async function confirmPatientChatDraft(token, draft_id, action) {
   return patientRequest("/api/patient/chat/confirm_draft", token, {

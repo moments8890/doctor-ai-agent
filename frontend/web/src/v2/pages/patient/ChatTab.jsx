@@ -90,7 +90,13 @@ export default function ChatTab({
   onUnreadCountChange,
 }) {
   const navigate = useNavigate();
-  const { getPatientChatMessages, sendPatientChat, confirmPatientChatDraft, dedupDecisionPatientChat } = usePatientApi();
+  const {
+    getPatientChatMessages,
+    sendPatientChat,
+    confirmPatientChatDraft,
+    dedupDecisionPatientChat,
+    getIntakeStatus,
+  } = usePatientApi();
 
   const welcomeMsg = {
     source: "ai",
@@ -116,6 +122,31 @@ export default function ChatTab({
   const pollingRef = useRef(null);
   const visibleRef = useRef(true);
   useScrollOnKeyboard(chatEndRef);
+
+  // On mount/reload, restore the IntakeBanner state from the backend so
+  // the patient sees their in-progress intake without having to send
+  // another message first. Silent restore — no modal, no "resume?" ask.
+  // The banner itself communicates the active state with progress + 取消.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!getIntakeStatus) return;
+        const status = await getIntakeStatus(token);
+        if (cancelled) return;
+        if (status?.has_active) {
+          setIntakeActive(true);
+          setIntakeCollected(status.collected || {});
+        }
+      } catch (err) {
+        if (err?.status === 401) return;
+        // Non-fatal — banner just won't restore. Patient still sees chat.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, getIntakeStatus]);
 
   // Polling
   useEffect(() => {

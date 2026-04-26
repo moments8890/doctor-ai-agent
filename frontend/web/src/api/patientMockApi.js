@@ -78,6 +78,13 @@ export async function getPatientChatMessages(token, sinceId) {
   return MOCK_CHAT_MESSAGES;
 }
 
+// Mock /chat/intake/status — returns no active session by default; the
+// mock chat doesn't simulate the intake state machine.
+export async function getIntakeStatus() {
+  await delay();
+  return { has_active: false };
+}
+
 export async function sendPatientChat(token, text) {
   await delay();
   return {
