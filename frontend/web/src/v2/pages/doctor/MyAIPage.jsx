@@ -5,7 +5,7 @@
  * quick actions, today's triage, and recently viewed items.
  */
 import { useEffect, useState } from "react";
-import { Avatar, Skeleton, Ellipsis, ActionSheet, CenterPopup } from "antd-mobile";
+import { Avatar, Skeleton, Ellipsis, ActionSheet, CenterPopup, SafeArea } from "antd-mobile";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
@@ -761,6 +761,7 @@ export default function MyAIPage({ doctorId }) {
             </Card>
           </>
         )}
+        <SafeArea position="bottom" />
       </div>
     </div>
   );
