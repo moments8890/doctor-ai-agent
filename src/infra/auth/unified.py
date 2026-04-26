@@ -582,3 +582,44 @@ async def register_patient(nickname: str, passcode: str, doctor_id: str, gender:
     log(f"[auth] patient registered id={patient.id} doctor={doctor_id}")
     token = issue_token(UserRole.patient, doctor_id, patient.id, nickname, passcode_version=1)
     return {"token": token, "role": UserRole.patient, "doctor_id": doctor_id, "patient_id": patient.id, "name": nickname}
+
+
+async def register_patient_by_attach_code(
+    nickname: str,
+    passcode: str,
+    attach_code: str,
+    gender: Optional[str] = None,
+) -> Optional[dict]:
+    """Register a patient under the doctor identified by ``attach_code``.
+
+    Returns the same dict shape as :func:`register_patient` on success, or
+    ``None`` on ANY failure (invalid code, doctor not found, duplicate
+    nickname, missing field, etc.). The route handler is responsible for
+    converting None into a generic oracle-safe error response — this helper
+    must never raise an HTTPException with a detail string that reveals
+    which failure mode fired.
+    """
+    from db.engine import AsyncSessionLocal
+    from db.models import Doctor
+    from sqlalchemy import select
+
+    if not attach_code or len(attach_code) < 4:
+        return None
+    async with AsyncSessionLocal() as db:
+        doctor = (await db.execute(
+            select(Doctor).where(Doctor.patient_attach_code == attach_code)
+        )).scalar_one_or_none()
+        if doctor is None:
+            log(f"[auth] patient register: invalid attach_code prefix={attach_code[:2]}**")
+            return None
+    # Hand off to the standard registration path. We swallow the HTTPException
+    # variants (duplicate nickname etc.) and convert them into None so the
+    # caller can return the generic oracle-safe envelope.
+    try:
+        return await register_patient(nickname, passcode, doctor.doctor_id, gender)
+    except HTTPException as exc:
+        log(f"[auth] patient register: failure code_prefix={attach_code[:2]}** status={exc.status_code}")
+        return None
+    except Exception as exc:
+        log(f"[auth] patient register: unexpected exception {type(exc).__name__}: {exc}")
+        return None

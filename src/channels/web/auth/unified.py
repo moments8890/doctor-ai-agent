@@ -1,7 +1,9 @@
 """Unified auth API endpoints — single login/register for doctors and patients."""
 from __future__ import annotations
 
+import asyncio
 import os
+import time
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -10,6 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.engine import get_db
+from infra.attach_code import normalize as normalize_attach_code
 from infra.auth.rate_limit import enforce_ip_rate_limit
 from infra.auth.unified import (
     authenticate,
@@ -18,9 +21,18 @@ from infra.auth.unified import (
     login,
     login_with_role,
     register_doctor,
-    register_patient,
+    register_patient_by_attach_code,
     revoke_user_tokens,
 )
+
+# Oracle defense: pad every patient-register response to >= this duration so an
+# attacker cannot use response timing to distinguish "valid code, other field
+# bad" from "invalid code". Set above the realistic full-success path latency
+# (passcode hash + DB write ≈ 200-300 ms on a warm host).
+_PATIENT_REGISTER_MIN_LATENCY_S = 0.4
+
+# Oracle defense: identical detail string for ALL patient-register failures.
+_PATIENT_REGISTER_GENERIC_FAIL = "无法完成注册"
 
 # Per-IP soft cap on unauthenticated login attempts. Layered with the per-account
 # lockout (LOGIN_FAIL_THRESHOLD) so distributed brute force can't sidestep the
@@ -60,7 +72,7 @@ class DoctorRegisterRequest(BaseModel):
 class PatientRegisterRequest(BaseModel):
     nickname: str
     passcode: str
-    doctor_id: str
+    attach_code: str  # 4-char code from the doctor; replaces public doctor_id binding
     gender: Optional[str] = None
 
 
@@ -163,11 +175,50 @@ async def unified_register_doctor(body: DoctorRegisterRequest):
 
 
 @router.post("/unified/register/patient")
-async def unified_register_patient(body: PatientRegisterRequest):
-    """Register as patient under a doctor."""
-    return await register_patient(
-        body.nickname, body.passcode, body.doctor_id, body.gender,
+async def unified_register_patient(body: PatientRegisterRequest, request: Request):
+    """Register as patient under a doctor identified by their permanent attach code.
+
+    Security model:
+    - Rate-limited per IP (3 attempts/hour) so distributed brute force is bounded.
+    - **Oracle-safe**: every failure path returns the same `HTTPException(422,
+      "无法完成注册")` and is padded to a minimum latency, so an attacker cannot
+      tell from status / body / timing whether the failure was "invalid code",
+      "valid code + duplicate nickname", or "missing field". This is the load-
+      bearing defense against the 4-char code space being enumerated via
+      response-shape oracles.
+    """
+    started = time.monotonic()
+    # Rate-limit BEFORE any work. The 429 response is a separately observable
+    # signal (the attacker sees "rate-limited" vs "anything else"), but it
+    # does not leak code validity — and being rate-limited is itself a
+    # detection signal we want to log.
+    enforce_ip_rate_limit(
+        request, scope="auth.unified.register.patient",
+        max_requests=3, window_seconds=3600,
     )
+
+    code = normalize_attach_code(body.attach_code)
+    result = None
+    try:
+        result = await register_patient_by_attach_code(
+            nickname=body.nickname,
+            passcode=body.passcode,
+            attach_code=code,
+            gender=body.gender,
+        )
+    except Exception:
+        # Swallow ALL exceptions — the response shape must not leak the
+        # underlying error type.
+        result = None
+
+    # Pad to a deterministic floor so timing cannot distinguish failure modes.
+    elapsed = time.monotonic() - started
+    if elapsed < _PATIENT_REGISTER_MIN_LATENCY_S:
+        await asyncio.sleep(_PATIENT_REGISTER_MIN_LATENCY_S - elapsed)
+
+    if not result:
+        raise HTTPException(status_code=422, detail=_PATIENT_REGISTER_GENERIC_FAIL)
+    return result
 
 
 @router.get("/unified/me")
@@ -182,23 +233,11 @@ async def unified_me(authorization: Optional[str] = Header(default=None)):
     }
 
 
-@router.get("/unified/doctors")
-async def list_doctors_for_registration(db: AsyncSession = Depends(get_db)):
-    """List doctors accepting patients (for patient registration)."""
-    from db.models import Doctor
-    from sqlalchemy import select
-
-    # accepting_patients column removed — all doctors are considered accepting
-    rows = (await db.execute(
-        select(Doctor).where(
-            ~Doctor.doctor_id.like("inttest_%"),
-        )
-    )).scalars().all()
-
-    return [
-        {"doctor_id": d.doctor_id, "name": d.name or d.doctor_id, "department": d.department or ""}
-        for d in rows
-    ]
+# Removed 2026-04-26: GET /unified/doctors. The public doctor-enumeration
+# endpoint was the load-bearing weakness in the legacy registration flow —
+# it made `doctor_id` trivially discoverable. Patient registration now
+# requires a per-doctor `patient_attach_code` (see `register_patient_by_
+# attach_code` and the doctor-side `/api/manage/patient-attach-code` endpoint).
 
 
 @router.post("/qr-token", response_model=QRTokenResponse)
