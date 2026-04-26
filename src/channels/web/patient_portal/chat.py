@@ -230,23 +230,37 @@ async def _intake_dispatch(
     patient_msg_id = patient_msg.id
     await db.commit()
 
-    # 2. Triage classify — used solely to decide is_intake vs. non-intake.
-    try:
-        patient_context = await load_patient_context(patient_id, doctor_id, db)
-        triage = await classify(
-            message=text,
-            patient_context=patient_context or {},
-            doctor_id=doctor_id,
-        )
-        category_value = triage.category.value
-        is_intake = triage.category == TriageCategory.symptom_report
-    except Exception:
-        logger.exception(
-            "[PatientChat] triage classify failed | patient_id=%s", patient_id,
-        )
-        # Safe fallback: treat as non-intake so the doctor still gets a draft.
-        category_value = "general_question"
-        is_intake = False
+    # 2. Active-session check FIRST. Once a patient is in an intake session,
+    #    every turn belongs to the engine — including responses like "没有",
+    #    "好的", "不知道" that triage would otherwise classify as
+    #    general_question. The triage gate is for IDLE-state entry only.
+    #    Intake ends three ways: engine→reviewing→confirm, 24h decay→expired,
+    #    or explicit 取消 button → abandoned.
+    session = await get_active_session(patient_id, doctor_id)
+    patient_context: dict | None = None
+
+    if session is not None:
+        # Mid-intake — skip triage, route straight to the engine.
+        is_intake = True
+        category_value = "symptom_report"
+    else:
+        # Idle — triage decides intake-or-not.
+        try:
+            patient_context = await load_patient_context(patient_id, doctor_id, db)
+            triage = await classify(
+                message=text,
+                patient_context=patient_context or {},
+                doctor_id=doctor_id,
+            )
+            category_value = triage.category.value
+            is_intake = triage.category == TriageCategory.symptom_report
+        except Exception:
+            logger.exception(
+                "[PatientChat] triage classify failed | patient_id=%s", patient_id,
+            )
+            # Safe fallback: treat as non-intake so the doctor still gets a draft.
+            category_value = "general_question"
+            is_intake = False
 
     # 3a. Non-intake path: queue a doctor draft, emit a system ack, return.
     if not is_intake:
@@ -285,10 +299,9 @@ async def _intake_dispatch(
             intake_active=False,
         )
 
-    # 3b. Intake path: find or create an active intake session, then turn.
+    # 3b. Intake path: ensure we have a session (create one if idle entry).
     # patient_msg already committed; create_session opens its own connection
     # safely now (no SQLite deadlock).
-    session = await get_active_session(patient_id, doctor_id)
     if session is None:
         session = await create_session(
             doctor_id=doctor_id,
