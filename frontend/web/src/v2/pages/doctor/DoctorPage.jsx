@@ -111,23 +111,70 @@ function SectionPlaceholder({ name }) {
 // Controlled antd-mobile Popover. Opens on icon tap, closes on submit
 // success or outside click. Posts to /api/platform/feedback (auth via
 // Authorization header from the existing api.js wrapper).
+//
+// Category chips are optional — selecting one prefixes the saved content
+// with `[bug] ` / `[ui] ` / `[missing] ` so admin grep can pull them
+// out without a schema migration. No category = naked content as before.
+
+const FEEDBACK_CATEGORIES = [
+  { key: "bug",     label: "Bug" },
+  { key: "ui",      label: "UI 体验" },
+  { key: "missing", label: "功能缺失" },
+];
+
+function CategoryChip({ active, label, onClick }) {
+  return (
+    <span
+      role="button"
+      onClick={onClick}
+      style={{
+        fontSize: FONT.sm,
+        padding: "4px 10px",
+        borderRadius: 12,
+        cursor: "pointer",
+        userSelect: "none",
+        border: `1px solid ${active ? APP.primary : APP.border}`,
+        color: active ? APP.primary : APP.text2,
+        background: active ? `${APP.primary}14` : "transparent",
+        transition: "all 100ms",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
 
 function FeedbackPopover({ children }) {
   const [visible, setVisible] = useState(false);
+  const [category, setCategory] = useState(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Reset internal state every time the popover closes so a half-typed
+  // draft doesn't surprise the user the next time they open it. (We
+  // intentionally don't preserve drafts — feedback is small enough that
+  // re-typing isn't a real cost.)
+  function handleVisibleChange(next) {
+    if (!next) {
+      setCategory(null);
+      setText("");
+    }
+    setVisible(next);
+  }
 
   async function handleSubmit() {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
     setBusy(true);
     try {
+      const tag = category ? `[${category}] ` : "";
       await submitPlatformFeedback({
-        content: trimmed,
+        content: tag + trimmed,
         pageUrl: typeof window !== "undefined" ? window.location.href : null,
         userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
       });
       Toast.show({ icon: "success", content: "已发送，谢谢你的反馈" });
+      setCategory(null);
       setText("");
       setVisible(false);
     } catch (err) {
@@ -143,16 +190,26 @@ function FeedbackPopover({ children }) {
   return (
     <Popover
       content={
-        <div style={{ width: 260, padding: "4px 2px" }}>
+        <div style={{ width: 280, padding: "4px 2px" }}>
           <div
             style={{
               fontSize: FONT.md,
               fontWeight: 600,
               color: APP.text1,
-              marginBottom: 8,
+              marginBottom: 10,
             }}
           >
             反馈给我们
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+            {FEEDBACK_CATEGORIES.map((c) => (
+              <CategoryChip
+                key={c.key}
+                active={category === c.key}
+                label={c.label}
+                onClick={() => setCategory(category === c.key ? null : c.key)}
+              />
+            ))}
           </div>
           <TextArea
             value={text}
@@ -178,7 +235,7 @@ function FeedbackPopover({ children }) {
       trigger="click"
       placement="bottomRight"
       visible={visible}
-      onVisibleChange={setVisible}
+      onVisibleChange={handleVisibleChange}
     >
       {children}
     </Popover>
