@@ -31,7 +31,7 @@ import { usePatientStore } from "../../../store/patientStore";
 import { APP, ICON } from "../../theme";
 import { pageContainer, navBarStyle } from "../../layouts";
 import ChatTab from "./ChatTab";
-import InterviewPage from "./InterviewPage";
+import IntakePage from "./IntakePage";
 import PatientOnboarding, { isOnboardingDone, markOnboardingDone } from "./PatientOnboarding";
 import RecordsTab from "./RecordsTab";
 import TasksTab from "./TasksTab";
@@ -132,10 +132,10 @@ export default function PatientPage() {
   const recordDetailId = detectRecordDetail(location.pathname);
   const taskDetailId = detectTaskDetail(location.pathname);
   const profileSubpage = detectProfileSubpage(location.pathname);
-  const inInterview = location.pathname === "/patient/records/interview";
+  const inIntake = location.pathname === "/patient/records/intake";
 
   const fullScreenActive =
-    inInterview || !!recordDetailId || !!taskDetailId || !!profileSubpage;
+    inIntake || !!recordDetailId || !!taskDetailId || !!profileSubpage;
 
   // ── Tab + navigation handlers ────────────────────────────────────
   const handleTabChange = useCallback(
@@ -143,12 +143,12 @@ export default function PatientPage() {
     [navigate]
   );
 
-  const startInterview = useCallback(
-    () => navigate("/patient/records/interview"),
+  const startIntake = useCallback(
+    () => navigate("/patient/records/intake"),
     [navigate]
   );
 
-  const exitInterview = useCallback(
+  const exitIntake = useCallback(
     () => navigate("/patient/records"),
     [navigate]
   );
@@ -179,11 +179,11 @@ export default function PatientPage() {
   }
 
   // ── Full-screen subpages ─────────────────────────────────────────
-  if (inInterview) {
+  if (inIntake) {
     return (
       <div style={pageContainer}>
         <SafeArea position="top" />
-        <InterviewPage token={token} onBack={exitInterview} />
+        <IntakePage token={token} onBack={exitIntake} />
       </div>
     );
   }
@@ -216,7 +216,7 @@ export default function PatientPage() {
               fill="none"
               color="primary"
               size="small"
-              onClick={startInterview}
+              onClick={startIntake}
               aria-label="新问诊"
             >
               <AddCircleOutline style={{ fontSize: ICON.md }} />
@@ -242,7 +242,7 @@ export default function PatientPage() {
           <ChatTab
             token={token}
             doctorName={doctorName}
-            onNewInterview={startInterview}
+            onNewIntake={startIntake}
             onViewRecords={() => handleTabChange("records")}
             onUnreadCountChange={setUnreadCount}
           />
