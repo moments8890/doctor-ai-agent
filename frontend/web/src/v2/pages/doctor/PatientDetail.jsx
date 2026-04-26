@@ -175,20 +175,13 @@ function buildAiSummary(patient, records) {
   return "";
 }
 
-// "N小时前更新" / "N天前更新" age indicator for the AI-summary card.
+// AI-summary age indicator. Defers to the unified relativeTime helper for
+// the bucket label, then appends the "更新" qualifier so it reads as
+// "刚刚更新" / "今天更新" / "3天前更新" / etc.
 function formatSummaryAge(ts) {
   if (!ts) return null;
-  const raw = ts.includes("Z") || ts.includes("+") ? ts : ts + "Z";
-  const then = new Date(raw);
-  if (isNaN(then.getTime())) return null;
-  const minutes = Math.floor((Date.now() - then.getTime()) / 60000);
-  if (minutes < 1) return "刚刚更新";
-  if (minutes < 60) return `${minutes}分钟前更新`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}小时前更新`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}天前更新`;
-  return `${then.getMonth() + 1}-${then.getDate()} 更新`;
+  const label = relativeTime(ts);
+  return label ? `${label}更新` : null;
 }
 
 // ── Patient profile helpers ───────────────────────────────────────────

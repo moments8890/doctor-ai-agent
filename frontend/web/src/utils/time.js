@@ -18,8 +18,23 @@ export function formatAge(yearOfBirth) {
 }
 
 /**
- * Unified relative timestamp for all list views.
- * Past: 今天, 昨天, N天前, N周前, N个月前, N年前
+ * Unified relative timestamp for all list/feed views.
+ *
+ * Hybrid scheme: elapsed-time wins for the first 24h (so "23:00 last night"
+ * viewed at "09:00 today" reads as "10 小时前", not "昨天" — fixes the
+ * calendar-edge ambiguity). Calendar buckets take over after 24h.
+ *
+ * Past:
+ *   < 5 min            → 刚刚
+ *   < 60 min           → N分钟前
+ *   < 24 hours         → N小时前
+ *   ≥ 24h, prev day    → 昨天
+ *   2-6 calendar days  → N天前
+ *   7-27 days          → N周前
+ *   ≥ 28 days          → 更早
+ *
+ * Future dates delegate to `relativeFuture` below.
+ * For HH:MM precision (chat bubbles, etc.) use `nowTs()` instead.
  */
 export function relativeDate(dateStr) {
   if (!dateStr) return "";
@@ -29,36 +44,40 @@ export function relativeDate(dateStr) {
   const d = new Date(normalized);
   if (isNaN(d.getTime())) return "";
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-  const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  if (dt.getTime() === today.getTime()) return "今天";
-  if (dt.getTime() === yesterday.getTime()) return "昨天";
-  const diffDays = Math.floor((today - dt) / 86400000);
-  if (diffDays < 0) return relativeFuture(dateStr);
-  if (diffDays < 7) return `${diffDays}天前`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}周前`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}个月前`;
-  return `${Math.floor(diffDays / 365)}年前`;
-}
-
-/**
- * Fine-grained relative time (includes minutes/hours).
- * 刚刚, N分钟前, N小时前, 今天, 昨天, N天前, N周前, N个月前, N年前
- */
-export function relativeTime(dateStr) {
-  if (!dateStr) return "";
-  const normalized = dateStr.includes("Z") || dateStr.includes("+") ? dateStr : dateStr + "Z";
-  const d = new Date(normalized);
-  if (isNaN(d.getTime())) return "";
-  const now = new Date();
   const diffMs = now - d;
-  if (diffMs < 0) return "刚刚";
+
+  // Future dates → separate helper.
+  if (diffMs < 0) return relativeFuture(dateStr);
+
+  // First 24h: use elapsed time, NOT calendar day. Avoids the 23:00 → 09:00
+  // edge case where calendar comparison would misleadingly say "昨天".
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "刚刚";
+  if (diffMin < 5) return "刚刚";
   if (diffMin < 60) return `${diffMin}分钟前`;
   const diffHours = Math.floor(diffMin / 60);
   if (diffHours < 24) return `${diffHours}小时前`;
+
+  // ≥ 24h: switch to calendar buckets — at this scale the day matters more
+  // than the hour, and elapsed-hours becomes hard to scan ("47 小时前").
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (dt.getTime() === yesterday.getTime()) return "昨天";
+  const diffDays = Math.floor((today - dt) / 86400000);
+  if (diffDays < 7) return `${diffDays}天前`;
+  if (diffDays < 28) return `${Math.floor(diffDays / 7)}周前`;
+  return "更早";
+}
+
+/**
+ * Alias for relativeDate. Historically `relativeTime` had finer-grained
+ * buckets (N分钟前 / N小时前) and `relativeDate` had day+ buckets; both now
+ * collapse to the same scheme: 刚刚 / 今天 / 昨天 / N天前 / N周前 / 更早.
+ *
+ * Kept as a separate export so call sites that currently import
+ * `relativeTime` don't need to be rewritten.
+ */
+export function relativeTime(dateStr) {
   return relativeDate(dateStr);
 }
 

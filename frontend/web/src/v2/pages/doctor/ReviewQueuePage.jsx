@@ -18,6 +18,7 @@ import { useReviewQueue, useDrafts } from "../../../lib/doctorQueries";
 // 2026-04-25: SupplementCard + supplement APIs removed (record_supplements dropped)
 import { useDoctorStore } from "../../../store/doctorStore";
 import { dp } from "../../../utils/doctorBasePath";
+import { relativeTime } from "../../../utils/time";
 import { APP, FONT, RADIUS } from "../../theme";
 import { pageContainer, scrollable } from "../../layouts";
 import { NameAvatar, LoadingCenter } from "../../components";
@@ -67,21 +68,8 @@ function KindTag({ kind, count = 1 }) {
 // want to triage chat-derived vs explicit records separately. Backend filter
 // param `seed_source` still accepted; frontend just always passes null.
 
-// Format ISO timestamp → "N 天前" / "刚刚" / "N 小时前" for the extra slot.
-function formatRelative(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const diffMs = Date.now() - d.getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "刚刚";
-  if (mins < 60) return `${mins} 分钟前`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} 小时前`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} 天前`;
-  return d.toLocaleDateString("zh-CN");
-}
+// Use the unified `relativeTime` from utils/time.js for consistent
+// 刚刚 / 今天 / 昨天 / N天前 / N周前 / 更早 buckets across the app.
 
 // ── Pending item row (AI diagnosis review) ────────────────────────
 
@@ -98,7 +86,7 @@ function PendingItem({ item, onNavigate }) {
     : [sourceLabel, sectionLabel && item.content ? `${sectionLabel}：${item.content}` : ""]
         .filter(Boolean)
         .join(" · ");
-  const time = item.time || formatRelative(item.created_at);
+  const time = item.time || relativeTime(item.created_at);
 
   const showRing =
     item.seed_source === "chat_detected" && item.extraction_confidence != null;
@@ -148,7 +136,7 @@ function DraftItem({ item, onNavigate }) {
     : "AI已起草";
   const snippet = item.patient_message || item.content || "";
   const subtitle = snippet ? `"${snippet}" · ${statusLabel}` : statusLabel;
-  const time = item.time || formatRelative(item.created_at);
+  const time = item.time || relativeTime(item.created_at);
 
   // Notification-style dot on the avatar — 8px circle, white border, color
   // by priority. Matches iOS/messaging conventions.
