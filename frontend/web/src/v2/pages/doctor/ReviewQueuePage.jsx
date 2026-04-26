@@ -14,9 +14,8 @@ import {
   PullToRefresh,
   Ellipsis,
 } from "antd-mobile";
-import { useReviewQueue, useDrafts, useSupplementQueue } from "../../../lib/doctorQueries";
-import { acceptSupplement, createNewFromSupplement, ignoreSupplement } from "../../../api";
-import SupplementCard from "../../components/SupplementCard";
+import { useReviewQueue, useDrafts } from "../../../lib/doctorQueries";
+// 2026-04-25: SupplementCard + supplement APIs removed (record_supplements dropped)
 import { useDoctorStore } from "../../../store/doctorStore";
 import { dp } from "../../../utils/doctorBasePath";
 import { APP, FONT, RADIUS } from "../../theme";
@@ -286,25 +285,8 @@ export default function ReviewQueuePage() {
 
   const { data: queueData, isLoading: qLoading, refetch: refetchQueue } = useReviewQueue({ seedSource });
   const { data: draftsData, isLoading: dLoading, refetch: refetchDrafts } = useDrafts({ includeSent: true });
-  const { data: supplementData } = useSupplementQueue();
-  const pendingSupplements = supplementData?.items || [];
-
-  function invalidateSupplements() {
-    queryClient.invalidateQueries({ queryKey: ["doctor", doctorId, "supplementQueue"] });
-  }
-
-  const acceptMutation = useMutation({
-    mutationFn: (id) => acceptSupplement(doctorId, id),
-    onSuccess: invalidateSupplements,
-  });
-  const createNewMutation = useMutation({
-    mutationFn: (id) => createNewFromSupplement(doctorId, id),
-    onSuccess: invalidateSupplements,
-  });
-  const ignoreMutation = useMutation({
-    mutationFn: (id) => ignoreSupplement(doctorId, id),
-    onSuccess: invalidateSupplements,
-  });
+  // 2026-04-25: supplement queue removed — patient submissions after closed
+  // records become their own pending_review medical_records, no separate queue.
 
   const loading = qLoading || dLoading;
   const queue = queueData || { pending: [], completed: [] };
@@ -445,37 +427,9 @@ export default function ReviewQueuePage() {
           {/* Unified pending tab — diagnosis reviews + reply drafts */}
           {!loading && activeTab === "pending" && (
             <>
-              {/* Patient supplement submissions — shown above the main pending list */}
-              {pendingSupplements.length > 0 && (
-                <>
-                  <div
-                    style={{
-                      padding: "12px 16px 4px",
-                      fontSize: FONT.sm,
-                      color: APP.text4,
-                      fontWeight: 500,
-                    }}
-                  >
-                    患者补充信息
-                  </div>
-                  {pendingSupplements.map((sup) => {
-                    const isBusy =
-                      (acceptMutation.isPending && acceptMutation.variables === sup.id) ||
-                      (createNewMutation.isPending && createNewMutation.variables === sup.id) ||
-                      (ignoreMutation.isPending && ignoreMutation.variables === sup.id);
-                    return (
-                      <SupplementCard
-                        key={sup.id}
-                        supplement={sup}
-                        busy={isBusy}
-                        onAccept={() => acceptMutation.mutate(sup.id)}
-                        onCreateNew={() => createNewMutation.mutate(sup.id)}
-                        onIgnore={() => ignoreMutation.mutate(sup.id)}
-                      />
-                    );
-                  })}
-                </>
-              )}
+              {/* 2026-04-25: patient supplement submissions block removed —
+                  closed-record patient submissions now flow into pendingDedup
+                  as their own pending_review records. */}
 
               {pendingDedup.length > 0 ? (
                 <>
