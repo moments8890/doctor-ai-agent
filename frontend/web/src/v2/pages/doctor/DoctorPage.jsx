@@ -395,29 +395,28 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
       {/* Safe area top */}
       <SafeArea position="top" />
 
-      {/* Top NavBar — always shows my-ai title + my-ai action cluster.
+      {/* Top NavBar — feedback on the left, add-to-desktop on the right.
           Subpages render their own NavBar inside the page-stack overlay. */}
       <NavBar
-          backArrow={false}
-          right={
-            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <FeedbackPopover>
-                <div
-                  role="button"
-                  aria-label="反馈"
-                  style={{
-                    padding: 8,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  <FeedbackOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
-                </div>
-              </FeedbackPopover>
-              <AddToDesktopPopover />
-            </div>
+          backArrow={
+            <FeedbackPopover>
+              <div
+                role="button"
+                aria-label="反馈"
+                style={{
+                  padding: 8,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-start",
+                }}
+              >
+                <FeedbackOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
+              </div>
+            </FeedbackPopover>
           }
+          onBack={() => { /* no-op — left slot is feedback, not back nav */ }}
+          right={<AddToDesktopPopover />}
           style={{
             "--height": "44px",
             "--border-bottom": `0.5px solid ${APP.border}`,
