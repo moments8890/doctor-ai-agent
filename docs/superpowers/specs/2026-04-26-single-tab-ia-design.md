@@ -2,202 +2,312 @@
 
 **Date:** 2026-04-26
 **Author:** Jim (with Claude)
-**Status:** Approved design, awaiting implementation plan
+**Status:** Approved design (post-codex review revision), awaiting implementation plan
+**Revision:** v2 — expanded scope after codex review surfaced shell-routing,
+back-stack, NavBar ownership, safe-area, and "+" affordance issues that the v1
+spec hand-waved.
 
 ## Why
 
 The doctor app currently has a 3-tab bottom navigation (我的AI / 患者 / 审核).
 Two of those tabs are already reachable from `MyAIPage` as cards/links:
 
-- 今日关注 rows → `/doctor/review?tab=...`
+- 今日关注 rows → `/doctor/review?tab=pending`, `/doctor/settings/knowledge?tab=pending`, `/doctor/patients`
 - 最近使用 "查看更多" → `/doctor/patients`
 
-The TabBar is therefore a duplicate entry point with chrome cost (vertical
-space, visual weight) but no exclusive content. The user's working hypothesis
-for doctor behavior is **"glance and triage"** — open app, scan today's flags,
-act on 1–2, close — which fits a single-surface home better than tab-switching.
-
-Per the durable design rule **"simple by default — added chrome must earn its
-keep"** ([memory](../../../../.claude/projects/-Volumes-ORICO-Code-doctor-ai-agent/memory/feedback_simple_by_default.md)),
-the TabBar fails the bar: it adds a layer without adding capability the home
-doesn't already provide.
+The TabBar duplicates entry points without adding capability. Per the durable
+"simple by default" rule, it doesn't earn its keep. The user's working
+hypothesis for doctor behavior is **"glance and triage"** — open app, scan
+today's flags, act on 1–2, close — which fits a single-surface home better
+than tab-switching.
 
 ## Goal
 
-Collapse to one tab — `/doctor/my-ai` — and remove the bottom TabBar entirely.
-Other routes (`/doctor/patients`, `/doctor/review`, `/doctor/settings/*`)
-remain as push-navigated subpages reachable from cards/tiles on home.
+Collapse to one tab — `/doctor/my-ai` — and remove the bottom TabBar.
+Restructure shell routing so `/doctor/patients` and the review-detail flow
+behave as **true push subpages** (own NavBar, own back arrow, slide-over
+animation) rather than section-swaps inside the shell. Delete
+`ReviewQueuePage` (the queue-list page) entirely; review work happens by
+drilling from the home triage row directly into the first pending item's
+detail (`ReviewPage`), which auto-advances to the next pending item on
+action or returns home when the queue is empty.
 
 ## Non-goals
 
-- **Restructuring home content.** `MyAIPage` keeps its current shape: identity
-  card, hero AI summary banner, 3-tile quick-action card, 今日关注, 最近使用.
-- **New instrumentation.** Ship blind. Iterate on user reports.
+- **Restructuring home content.** `MyAIPage` keeps its current shape:
+  identity card, hero AI summary banner, 3-tile quick-action card,
+  今日关注, 最近使用.
+- **New instrumentation.** Ship blind.
 - **Search-first promotion.** No header search added to home.
-- **Migrating `/doctor/patients` or `/doctor/review` page contents.** Only
-  their entry points change; the pages themselves are untouched.
-- **Feature-flagging or phased rollout.** Single PR, hard cut, revertible if
-  it doesn't feel right.
+- **Migrating `/doctor/settings/*`.** Settings stay as today.
+- **Touching the AI suggestion / rules review surface.** "待采纳的规则" row
+  still routes to `/doctor/settings/knowledge?tab=pending`, unchanged.
+- **Feature flag, rollout phasing, instrumentation.** Hard cut, single PR.
+  (See "Risk acceptance" below — codex flagged this as risky for the radius;
+  user accepted the risk.)
 
-## Decisions captured during brainstorm
+## Decisions captured during brainstorm + codex review
 
 | # | Question | Decision | Rationale |
 |---|----------|----------|-----------|
-| 1 | What drives single-tab? | Simple-by-default heuristic; user's general design philosophy | Saved as durable feedback memory |
+| 1 | What drives single-tab? | Simple-by-default heuristic | Saved as durable feedback memory |
 | 2 | Dominant doctor flow? | "Glance and triage" hypothesis (B); behavior not measured (E) | Optimize home for triage-at-a-glance |
-| 3 | Strip home content? | Keep current content (A) | Smallest change; existing structure already fits |
-| 3a | 最近使用 keep / cut? | Keep as-is | Knowledge re-find earns its keep; patient re-find is mild value but no real cost |
-| 4 | Patient list entry point? | Persistent home entry (B), not just bottom-link or search-only | New doctors with empty 最近使用 still see it |
-| 5 | Where does 全部患者 sit? | Replace one of the 3 quick-action tiles | No new card; uses existing pattern |
+| 3 | Strip home content? | Keep current content (A) | Smallest change to home |
+| 3a | 最近使用 keep / cut? | Keep as-is | Knowledge re-find earns its keep |
+| 4 | Patient list entry point? | Persistent home entry (B) | New doctors with empty 最近使用 still see it |
+| 5 | Where does 全部患者 sit? | Replace one of the 3 quick-action tiles | No new card |
 | 6 | Which tile gets replaced? | 新建病历 → 全部患者 | New-record creation moves into PatientsPage's "+" |
-| 7 | Migration & instrumentation? | Hard cut (A) + ship blind (N) | Low reversal cost; trust the call |
+| 7 | Migration & instrumentation? | Hard cut (C1), ship blind (D-N) | Codex flagged risk, user accepted |
+| 8 | `/patients` push-subpage migration? | Yes — true push subpage (A1) | Codex's review made the section-swap-vs-subpage distinction explicit |
+| 9 | `/review` symmetric treatment? | A-2 — drop queue list, keep `/review/:id` with auto-advance | Triage-actor model: "stream of work" replaces "browse the queue" |
+| 10 | "全部事项 ›" link in 今日关注 SectionHeader? | α — delete | Rows themselves are the drill-in; link is redundant |
+| 11 | Cold-start deep-link fix? | B1 — synthetic history seed at app boot | Single point of change, uniform back-stack |
+| 12 | Rollout (revisited after codex)? | C1 — still hard-cut, no flag | Risk acknowledged |
+| 13 | Test coverage? | D — adopt codex's full list verbatim | See Testing section |
 
-## Architecture
+## Architecture changes
 
-### Routes (unchanged)
-
-```
-/doctor/my-ai                    home (only "tab")
-/doctor/patients                 push subpage
-/doctor/patients/new             intake overlay
-/doctor/patients/:id             detail subpage
-/doctor/review                   push subpage
-/doctor/review/:id               review detail
-/doctor/settings/*               settings subpages
-```
-
-All routes continue to render through the same `DoctorPage` shell. What
-changes: no TabBar visible at the bottom; navigation between sections is
-push-only (via cards/tiles/links from home).
-
-### Navigation flow
+### Routes after the change
 
 ```
-home (/doctor/my-ai)
-  ├─ tap 今日关注 row → /doctor/review?tab=...   (push)
-  ├─ tap 全部事项 link → /doctor/review?tab=pending (push)
-  ├─ tap 全部患者 tile → /doctor/patients         (push)
-  ├─ tap 预问诊码 tile → /doctor/settings/qr      (push)
-  ├─ tap 知识库 tile  → /doctor/settings/knowledge (push)
-  ├─ tap 最近使用 row → /doctor/patients/:id OR /doctor/settings/knowledge/:id
-  ├─ tap 设置 gear     → /doctor/settings        (push)
-  └─ NavBar popovers (添加到桌面, 反馈)            (overlay, not navigation)
+/doctor                       → redirects to /doctor/my-ai
+/doctor/my-ai                 home (only base section)
+/doctor/patients              push subpage (PatientsPage as overlay over home)
+/doctor/patients/new          intake overlay (unchanged routing)
+/doctor/patients/:id          push subpage (PatientDetail)
+/doctor/review                DELETED — no route, no component
+/doctor/review/:id            push subpage (ReviewPage detail; reached via
+                              key.startsWith("review-") in usePageStack)
+/doctor/settings/*            push subpages (unchanged)
 ```
 
-Push-notification deep links continue to land on specific routes and back
-unwinds through the natural URL hierarchy back to `/doctor/my-ai`.
+### Section model: from "3 base sections" to "1 base section + push subpages"
 
-### Back-stack behavior
+Today, `DoctorPage` has a `baseSection` concept — `my-ai`, `patients`, or
+`review` — and the shell renders one of three component trees while the
+TabBar provides the entry point. NavBar title and right-action are derived
+from `baseSection`.
 
-| From | Back button → |
-|------|---------------|
-| `/doctor/patients/:id` | `/doctor/patients` |
-| `/doctor/patients` | `/doctor/my-ai` |
-| `/doctor/review/:id` | `/doctor/review` |
-| `/doctor/review` | `/doctor/my-ai` |
-| `/doctor/settings/*` | `/doctor/settings` (or home, depending on entry) |
+After the change:
+- `baseSection` always equals `my-ai`. The shell renders `MyAIPage` as the
+  only base section.
+- `/doctor/patients` and `/doctor/review/:id` reach the user via
+  `usePageStack` overlay entries (the same mechanism that already handles
+  `patient-{id}`, `review-{id}`, `settings-*` keys today).
+- Shell NavBar simplifies: title is always `我的AI`, right action is the
+  `my-ai` cluster (FeedbackPopover + AddToDesktopPopover).
+- Each push subpage (`PatientsPage`, `PatientDetail`, `ReviewPage`,
+  `SettingsPage` and friends) renders its **own** NavBar/SubpageHeader with
+  back arrow and any page-specific right-actions. Most already do; the
+  exceptions are `PatientsPage` (currently relies on shell NavBar for title
+  + "+" affordance) and `ReviewQueuePage` (deleted).
 
-`useBackWithAnimation` / `useNavigationType` handle direction-based slide
-animation already; no tab-specific logic exists in that path, so back-stack
-unwinding is unchanged by tab removal.
+### `PatientsPage` migration to true subpage
+
+| Concern | Today | After |
+|---------|-------|-------|
+| NavBar title | Shell renders `患者` from TABS | PatientsPage renders own SubpageHeader with title `患者` and back arrow |
+| `+` (new record) | Shell button when `baseSection === "patients"` (DoctorPage.jsx:464) | Moves into PatientsPage's SubpageHeader as a right-action button, navigates to `?action=new` (same destination) |
+| Back behavior | Tap a TabBar item or use browser back | SubpageHeader back arrow → `useBackWithAnimation` → home |
+| Local state (search text, NL results, section collapse) | Persists because PatientsPage stays mounted as a base section | **Resets on each push.** Acceptable per Q-A discussion: "glance and triage" doctors don't park inside the patient list; reopening from home is the expected flow |
+| `?action=new` cleanup effect | Already exists | Unchanged |
+| Pull-to-refresh | Existing | Unchanged |
+
+### `/review/:id` auto-advance (replaces the deleted queue list)
+
+`ReviewPage` already navigates after a finalize action (today: to the
+patient detail page or the patient list — see ReviewPage.jsx:1300-1308).
+The change:
+
+1. Add a `useReviewQueue(doctorId)` lookup in `ReviewPage` (the hook already
+   exists and is used by `MyAIPage`).
+2. After finalize, before falling through to "navigate to patient detail,"
+   compute `nextPendingId = queue.find(item => item.id !== currentId && item.status === "pending")?.id`.
+3. If `nextPendingId` exists: `navigate(dp(\`review-${nextPendingId}\`))`
+   so the same `ReviewPage` component remounts with the next record. Toast:
+   `继续下一项 (剩余 N 项)`.
+4. If `nextPendingId` is null (queue empty): `navigate(dp("my-ai"))` and
+   Toast `已处理完今日全部 N 项`.
+5. The legacy "navigate to patient detail" branch is preserved as a fallback
+   when the user explicitly chooses to view the patient (a separate button
+   on the review screen, not the finalize button).
+
+### Home triage rows — re-targeting
+
+`MyAIPage` `triageRows` array (MyAIPage.jsx:498-529) gets one edit:
+
+| Row | Today | After |
+|-----|-------|-------|
+| "待审核诊断建议" | `navigate(\`${dp("review")}?tab=pending\`)` | `navigate(dp(\`review-${firstPendingReviewId}\`))` — drill straight into first pending item |
+| "待采纳的规则" | `navigate(\`${dp("settings/knowledge")}?tab=pending\`)` | unchanged |
+| "新患者" | `navigate(dp("patients"))` | unchanged in target; lands on push subpage now |
+
+The `firstPendingReviewId` comes from the same `useReviewQueue` hook
+already in scope. If queue is empty, the row already self-hides (count
+filter at MyAIPage.jsx:529).
+
+### "全部事项 ›" SectionHeader link
+
+Deleted entirely (α decision). Today it routes to
+`/review?tab=pending` (the queue list we're removing). The 3 triage rows
+themselves are the drill-in affordance.
+
+### Cold-start deep-link history seed (B1)
+
+A WeChat push or shared URL that opens `/doctor/review/abc123` cold (no
+prior in-app history) currently makes the back-tap exit the app. Fix:
+
+In `App.jsx` boot effect (or wherever the doctor route tree mounts), after
+auth resolves, check if the current pathname is anything other than
+`/doctor/my-ai` AND `window.history.length <= 1`. If so, perform a synthetic
+seed:
+
+```js
+const target = location.pathname + location.search;
+navigate("/doctor/my-ai", { replace: true });   // becomes the entry
+navigate(target, { replace: false });           // current view, with home behind it
+```
+
+After seeding, back-tap from the deep-linked detail page lands on
+`/doctor/my-ai` (the synthetic root) instead of exiting. Net cost: ~10
+lines, single point of change, applies uniformly to every cold-start
+deep link.
+
+### Bottom safe-area handling
+
+The TabBar's `<SafeArea position="bottom" />` (DoctorPage.jsx:540) provides
+the bottom inset on home-indicator devices today. After removal, the inset
+must be rendered by each base section that's the last visible thing on
+screen.
+
+Implementation: `MyAIPage` (the only base section) renders its own
+`<SafeArea position="bottom" />` at the end of its scroll container. Push
+subpages (PatientsPage, etc.) already include their own bottom inset via
+their `pageContainer`/`scrollable` layout helpers — verify each during
+implementation; add `<SafeArea position="bottom" />` to any that doesn't.
+
+### NavBar ownership migration
+
+Today's shell NavBar is conditional on `baseSection`:
+
+- `baseSection === "patients"` → shows `+` button
+- `baseSection === "my-ai"` → shows FeedbackPopover + AddToDesktopPopover
+- (review section had no special right-action, just the title)
+
+After:
+- Shell NavBar always shows `我的AI` title + my-ai right-action cluster
+  (Feedback + AddToDesktop). The conditional branch on `patients` /
+  `review` is deleted.
+- The `+` (新建病历) moves into `PatientsPage`'s own SubpageHeader as a
+  right-side button.
 
 ## Component changes
 
 ### `MyAIPage.jsx`
 
-**Single edit: the `quickActions` array** (currently lines 531–547).
-
-Before:
-
-```js
-const quickActions = [
-  { label: "新建病历", icon: <EditNoteOutlinedIcon />,        onClick: () => navigate(`${dp("patients")}?action=new`) },
-  { label: "预问诊码", icon: <QrCodeScannerOutlinedIcon />,   onClick: () => navigate(dp("settings/qr")) },
-  { label: "知识库",   icon: <MenuBookOutlinedIcon />,        onClick: () => navigate(dp("settings/knowledge")) },
-];
-```
-
-After:
-
-```js
-const quickActions = [
-  { label: "全部患者", icon: <PeopleAltOutlinedIcon />,       onClick: () => navigate(dp("patients")) },
-  { label: "预问诊码", icon: <QrCodeScannerOutlinedIcon />,   onClick: () => navigate(dp("settings/qr")) },
-  { label: "知识库",   icon: <MenuBookOutlinedIcon />,        onClick: () => navigate(dp("settings/knowledge")) },
-];
-```
-
-**Import changes:** drop `EditNoteOutlinedIcon`, add
-`PeopleAltOutlinedIcon` (already imported from MUI in `DoctorPage.jsx` —
-new import added to `MyAIPage.jsx`).
-
-No other changes to `MyAIPage`. Hero banner, 今日关注, 最近使用, identity
-card, NavBar (gear icon, popovers) all untouched.
+1. **`quickActions` array**: replace 新建病历 with 全部患者:
+   ```js
+   { label: "全部患者", icon: <PeopleAltOutlinedIcon ... />, onClick: () => navigate(dp("patients")) }
+   ```
+   Drop `EditNoteOutlinedIcon` import; add `PeopleAltOutlinedIcon` import.
+2. **`triageRows`**: change "待审核诊断建议" row's `onClick` to drill into
+   first pending review item (see "Home triage rows" above).
+3. **Delete the "全部事项 ›" `actionLabel` from the 今日关注 SectionHeader**
+   (MyAIPage.jsx:672-676 — drop the `actionLabel` and `onAction` props).
+4. **Add `<SafeArea position="bottom" />`** at the end of the scroll
+   container.
 
 ### `DoctorPage.jsx`
 
-**Removals:**
-1. `<TabBar>` JSX block at the bottom of the shell render.
-2. `TABS` array (line ~48) — three entries, no longer consumed.
-3. `badges` state (`useState({ review: 0, patients: 0 })`) — no consumer.
-4. Icon imports in `DoctorPage.jsx` that were only consumed by the `TABS`
-   array: `PeopleAltIcon`, `PeopleAltOutlinedIcon`, `MailIcon`,
-   `MailOutlinedIcon`, `AutoAwesomeIcon`, `AutoAwesomeOutlinedIcon`.
-   For each, grep `DoctorPage.jsx` to confirm zero remaining usages in
-   *that file* before deleting the import — usage in other files
-   (e.g. `MyAIPage.jsx` imports `AutoAwesomeIcon` for its hero banner) is
-   independent and unaffected.
+1. **Delete `<TabBar>`** block.
+2. **Delete `TABS` array** and any references.
+3. **Delete `badges` state** (placeholder zeros, no consumer).
+4. **Simplify `baseSection` detection** — always `my-ai`.
+5. **Remove the conditional in NavBar `right` prop** for `patients` /
+   `review` branches; keep only the my-ai right-action cluster.
+6. **Remove the `baseSection === "patients" ? <PatientsPage /> :
+   baseSection === "review" ? <ReviewQueuePage /> : ...` branches** —
+   home always renders `<MyAIPage />` as the base; PatientsPage and
+   ReviewPage are reached only via `usePageStack` overlays.
+7. **Delete the `<SafeArea position="bottom" />`** that was inside the
+   TabBar block.
+8. **Drop tab-only icon imports** (`PeopleAltIcon`, `MailIcon`,
+   `MailOutlinedIcon`, `AutoAwesomeIcon`, `AutoAwesomeOutlinedIcon`,
+   `PeopleAltOutlinedIcon`) **after grepping `DoctorPage.jsx` to confirm
+   each has zero remaining usages in this file**. `PeopleAltOutlinedIcon`
+   is independently imported by `MyAIPage` for the new quick-action tile;
+   the two import declarations are unrelated.
+9. **Remove the `handleTabChange` function** (DoctorPage.jsx:441-444),
+   no longer used.
 
-   *Note: `PeopleAltOutlinedIcon` becomes a NEW import in `MyAIPage.jsx`
-   for the 全部患者 tile. The two import declarations are independent.*
-5. Any safe-area / padding compensation tied to the TabBar height.
+### `PatientsPage.jsx`
 
-**Kept:**
-- `detectSection()` — still used to switch which subpage component to render
-  for a given pathname. Return values unchanged.
-- All route handling, nested route rendering, intake-overlay logic.
-- `FeedbackPopover`, `AddToDesktopPopover`, NavBar.
+1. **Add a `SubpageHeader`** at the top of the component, with title `患者`,
+   back arrow (using `markIntentionalBack` + `navigate(-1)` pattern via
+   `useBackWithAnimation`), and a right-side `+` button that navigates to
+   `?action=new`.
+2. Verify the `pageContainer` / `scrollable` layout already includes a
+   bottom safe-area inset; if not, add it.
+3. Otherwise unchanged — search state, NL results, popup, pull-to-refresh,
+   `?action=new` cleanup all stay. Acceptable that local state resets on
+   each push from home; the user is expected to drill in from home, not
+   park here.
+
+### `ReviewPage.jsx`
+
+1. **Add `useReviewQueue(doctorId)`** lookup at the top.
+2. **Modify the post-finalize navigation block** (ReviewPage.jsx:1296-1310):
+   - Compute `nextPendingId` from the queue (excluding current record).
+   - If present: navigate to `dp(\`review-${nextPendingId}\`)` with Toast
+     `继续下一项 (剩余 N 项)`.
+   - If absent: navigate to `dp("my-ai")` with Toast `已处理完今日全部 N 项`.
+   - Preserve the existing patient-detail / patient-list fallback ONLY for
+     non-finalize navigation paths (e.g., if the user explicitly taps "查看患者").
+3. SubpageHeader already exists on this page (verify during implementation).
+
+### `ReviewQueuePage.jsx`
+
+**Delete the file.** Remove its import from `DoctorPage.jsx`.
+
+### `App.jsx` (or doctor route boot)
+
+Add the cold-start history seed effect (see "Cold-start deep-link history
+seed (B1)" above).
 
 ### Other files
 
-- **No changes** to `PatientsPage.jsx`, `ReviewPage.jsx`, settings subpages,
-  routing config, or `usePageStack`.
-- **Each subpage's NavBar must already render its own title** (它们已经在做
-  this via `SubpageHeader`). Confirm during implementation; if any was
-  relying on `DoctorPage`'s shell to set the title, it must be updated to
-  set its own.
+- **No changes** to settings subpages, routing config beyond the deletions
+  above, `usePageStack`, or `useNavDirection`.
 
 ## Testing
 
-### Existing test impact
+### New Vitest tests (adopt codex's list verbatim)
 
-- **Vitest frontend (3 baseline tests)** — none target the TabBar, no edits
-  expected.
-- **Playwright E2E** — selectors should be checked. Most use route +
-  `getByText`, which won't break. Any test that explicitly clicks a TabBar
-  item (e.g., `page.getByRole('tab', { name: '审核' })`) needs to be
-  rewritten to navigate via the home card or directly via URL.
+Add a `frontend/web/src/v2/__tests__/` test file covering:
 
-### New tests
-
-Add one Vitest contract test under `frontend/web/src/v2/__tests__/`:
-
-```js
-// DoctorPage.singleTab.test.jsx
-test("renders no TabBar — single-tab IA", () => {
-  // Mount DoctorPage with a memory router at /doctor/my-ai
-  // Assert: no element with role="tablist" or class "adm-tab-bar" in the DOM
-});
-
-test("each historical tab route still mounts its subpage", () => {
-  // Mount at /doctor/patients → assert PatientsPage rendered
-  // Mount at /doctor/review → assert ReviewPage rendered
-  // Mount at /doctor/my-ai → assert MyAIPage rendered
-});
-```
-
-These two tests give us a regression net for both directions: the tab is
-truly gone, and the routes still work.
+1. **TabBar absence:** mount `DoctorPage` at `/doctor/my-ai`; assert no
+   `.adm-tab-bar` element in the DOM.
+2. **Each historical tab route still mounts a subpage:**
+   - `/doctor/patients` → renders `PatientsPage` content
+   - `/doctor/review/:id` → renders `ReviewPage` content (use a fixture
+     record id)
+3. **Home → patients → back returns to home (not browser exit).**
+   Programmatic test using MemoryRouter; verify history length and
+   final pathname after back.
+4. **Home → review/:id → detail → back chain.** Same mechanism.
+5. **Cold-start deep link to `/doctor/review/:id`** with empty history
+   (`window.history.length === 1`): assert the seed effect runs and back
+   unwinds to `/doctor/my-ai` instead of exiting.
+6. **`?action=new` replace semantics** preserved after removing the home
+   shortcut: navigate to `/doctor/patients?action=new` directly, verify
+   the picker opens and the URL is cleaned (existing useEffect in
+   PatientsPage).
+7. **iOS swipe vs in-app back:** mock `markIntentionalBack` flag; verify
+   slide-out animation only runs when intentional, and is suppressed for
+   gesture/browser back. (May require fixture mocking of `useNavDirection`.)
+8. **`/mock/doctor/*` path behavior:** verify `dp()` helper still produces
+   correct paths after `DoctorPage` hardcoded `/doctor/...` references are
+   updated to use `dp()` where they were tab-related.
 
 ### Manual verification checklist
 
@@ -207,35 +317,67 @@ After the PR:
 - [ ] First quick-action tile reads "全部患者" with people icon, taps → `/doctor/patients`
 - [ ] Second tile "预问诊码" → `/doctor/settings/qr`
 - [ ] Third tile "知识库" → `/doctor/settings/knowledge`
-- [ ] 今日关注 row taps still navigate to review/knowledge/patients as before
+- [ ] 今日关注 row "待审核诊断建议" drills into first pending review item directly (not list)
+- [ ] On finalize, ReviewPage advances to next pending review item; on last item, returns to `/doctor/my-ai` with Toast
+- [ ] 今日关注 SectionHeader has no "全部事项 ›" link
 - [ ] 最近使用 row taps still open patient detail / knowledge detail
-- [ ] Back from any subpage returns to `/doctor/my-ai` cleanly with slide animation
-- [ ] Deep-link to `/doctor/review/:id` directly opens that page; back unwinds to `/doctor/review` then `/doctor/my-ai`
-- [ ] WeChat ← arrow / hardware back behaves identically to before
+- [ ] PatientsPage SubpageHeader shows back arrow + 患者 title + `+` button
+- [ ] PatientsPage `+` opens the new-record picker
+- [ ] Back from PatientsPage returns to `/doctor/my-ai` cleanly with slide animation
+- [ ] WeChat push deep link to `/doctor/review/:id` cold-start: tap back → lands on `/doctor/my-ai`, does not exit app
+- [ ] WeChat ← arrow / hardware back: still no slide animation (only in-app back arrow animates)
+- [ ] Bottom inset visible on iPhone X-class devices on home, patient list, review detail
+- [ ] No clipped last rows on any scrollable surface
 - [ ] Run `scripts/lint-ui.sh` — passes
 - [ ] No console warnings about removed icon imports
 
-## Risks
+### E2E selectors to audit
 
-| Risk | Mitigation |
-|------|------------|
-| Doctors miss the at-a-glance 审核 badge on the TabBar | 今日关注 already shows the same count on home — same data, different surface |
-| New-record creation now requires 2 taps instead of 1 (home → 全部患者 → "+") | Accepted per Q6 decision; revisit if user reports it as friction |
-| Some subpage was relying on `DoctorPage`'s NavBar title and breaks | Verify each subpage NavBar during manual checklist; cheap to fix if found |
-| E2E selectors targeting TabBar break CI | Pre-fix during implementation by grepping `.adm-tab-bar` / role="tab" in tests |
-| Reversibility | Hard cut, but each removal (TabBar, TABS array, badges state, tile swap) is one chunk — single revert returns to today's state |
+Grep `frontend/web/tests/` (Playwright) for:
+- `getByRole('tab', ...)` → must be replaced with route-based or button-based locators
+- `.adm-tab-bar` → no longer exists
+- Any explicit click on a TabBar item to switch sections → replace with `goto('/doctor/<route>')` or click on the corresponding home tile
+
+## Risk acceptance
+
+Codex flagged the hard-cut/no-flag rollout as unsafe for this radius — the
+change touches root IA, browser history, push-subpage migration, deep-link
+seeding, NavBar ownership migration, and platform-specific back gestures.
+Regressions on WeChat/iOS are subtle and history-dependent.
+
+User explicitly chose to proceed with the hard cut anyway. Mitigations:
+
+- Test coverage expansion (codex's list verbatim, including cold-start
+  deep-link, back-swipe, `?action=new`, `/mock/doctor/*`).
+- Manual verification checklist explicitly includes WeChat push deep-link
+  cold-start back behavior — this is the test that matters most.
+- Single revert restores prior state (the dropped `ReviewQueuePage` file
+  comes back via revert; no DB or API surface changed).
+
+If the WeChat regression appears after ship, the fastest path is `git
+revert` + manual fix forward, not a hotfix patch on top.
 
 ## Rollback
 
-If the simplification feels wrong after a few days of dogfooding: revert the
-single PR. No DB changes, no API changes, no migration. Routes stayed the
-same, so URLs from notifications / WeChat redirects keep working in either
-state.
+A single `git revert` of the implementation PR returns the app to its prior
+state. No DB migrations, no API changes, no router schema migration. URLs
+that were valid before (`/doctor/patients`, `/doctor/review`,
+`/doctor/review/:id`) remain valid afterward — `/doctor/review` (the
+deleted queue) becomes invalid and 404s during the single-tab era; revert
+restores it.
+
+WeChat shared URLs and notification deep links that point to specific
+patient/review detail records remain functional in either state.
 
 ## Open questions for the implementation plan
 
-- Whether to add the 2 Vitest tests in the same PR or a follow-up
-- Whether to also kill the `subpageKey` PageSkeleton plumbing for the
-  former tab routes (probably no — they're now subpages, the same
-  AnimatePresence handling works)
-- Whether the `dp()` (doctor-base-path) helper needs any update — likely no
+- Whether `useReviewQueue`'s shape gives us "next pending excluding current"
+  cleanly or we need a small helper.
+- Whether the cold-start seed should also handle `/doctor/patients/:id`
+  deep links (probably yes — same logic, just generalize the "if not home,
+  seed home behind"). Implementation plan should generalize.
+- Whether `PatientsPage`'s SubpageHeader needs any new icon import (likely
+  reuses existing `AddCircleOutline` from antd-mobile-icons).
+- Confirm `ReviewPage` is the only consumer of `useReviewQueue` other than
+  `MyAIPage` after `ReviewQueuePage` is deleted, so no unexpected query
+  invalidation gaps.
