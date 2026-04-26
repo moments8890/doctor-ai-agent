@@ -5,7 +5,8 @@
  * antd-mobile only, no MUI.
  */
 import { useState } from "react";
-import { NavBar, Button, Tag, SpinLoading, ErrorBlock } from "antd-mobile";
+import { NavBar, Button, Tag, SpinLoading } from "antd-mobile";
+import EmptyState from "../../../components/EmptyState";
 import { useNavigate } from "react-router-dom";
 import { usePersonaPending, useAcceptPendingItem, useRejectPendingItem } from "../../../../lib/doctorQueries";
 import { APP, FONT, RADIUS } from "../../../theme";
@@ -60,7 +61,7 @@ export default function PendingReviewSubpage() {
             <SpinLoading color="primary" />
           </div>
         ) : items.length === 0 ? (
-          <ErrorBlock status="empty" title="暂无待确认的发现" description="" />
+          <EmptyState title="暂无待确认的发现" />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {items.map((item) => {
