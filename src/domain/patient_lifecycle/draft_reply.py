@@ -21,8 +21,13 @@ async def generate_draft_reply(
     message_id: int,
     patient_message_text: str,
     patient_context: str = "",
+    force_priority: Optional[str] = None,
 ) -> Optional[DraftReplyResult]:
     """Generate a draft reply using doctor's personal knowledge.
+
+    ``force_priority`` overrides the defer-to-doctor detector. Set to
+    ``"critical"`` from the signal-flag path so urgency does not depend on
+    the LLM happening to emit a defer phrase.
 
     Returns None if generation fails.
     """
@@ -115,10 +120,13 @@ async def generate_draft_reply(
         from domain.patient_lifecycle.priority import resolve_draft_priority
 
         deferred = detect_defer_to_doctor(result.text)
-        priority = resolve_draft_priority(deferred_to_doctor=deferred)
+        priority = force_priority or resolve_draft_priority(deferred_to_doctor=deferred)
         if priority:
-            log(f"[draft_reply] priority={priority} (deferred to doctor, "
-                f"{'after-hours' if priority == 'critical' else 'office-hours'})")
+            if force_priority:
+                log(f"[draft_reply] priority={priority} (forced by caller)")
+            else:
+                log(f"[draft_reply] priority={priority} (deferred to doctor, "
+                    f"{'after-hours' if priority == 'critical' else 'office-hours'})")
 
         # Persist draft FIRST so we have draft.id for citation logging (non-fatal)
         draft_id: Optional[int] = None

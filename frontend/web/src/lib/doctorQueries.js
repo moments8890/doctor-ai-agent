@@ -317,14 +317,6 @@ export function useSuggestions(recordId) {
   });
 }
 
-export function useSupplementQueue() {
-  const { doctorId } = useDoctorStore();
-  const api = useApi();
-  return useQuery({
-    queryKey: QK.supplementQueue(doctorId),
-    queryFn:  () => api.listPendingSupplements(doctorId),
-    staleTime: STALE.queue,
-    refetchInterval: POLL,
-    enabled:  !!doctorId,
-  });
-}
+// 2026-04-25: useSupplementQueue removed — record_supplements table dropped.
+// Patient submissions after closed records now appear as regular pending_review
+// medical_records in the standard queue.

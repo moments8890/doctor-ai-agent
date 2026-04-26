@@ -241,31 +241,31 @@ export async function revokeAdminInviteCode(code) {
 }
 
 
-// sendChat removed — routing layer deleted, use interview/diagnosis APIs directly
+// sendChat removed — routing layer deleted, use intake/diagnosis APIs directly
 
 // ---------------------------------------------------------------------------
-// Doctor-side interview API (ADR 0016 — doctor mode)
+// Doctor-side intake API (ADR 0016 — doctor mode)
 // ---------------------------------------------------------------------------
 
-export async function doctorInterviewGetSession(sessionId, doctorId) {
+export async function doctorIntakeGetSession(sessionId, doctorId) {
   const params = new URLSearchParams({ doctor_id: doctorId || "" });
-  return request(`/api/records/interview/session/${sessionId}?${params}`);
+  return request(`/api/records/intake/session/${sessionId}?${params}`);
 }
 
-export async function doctorInterviewTurn(formData) {
-  return request("/api/records/interview/turn", {
+export async function doctorIntakeTurn(formData) {
+  return request("/api/records/intake/turn", {
     method: "POST",
     body: formData,
     _timeout: 120000,
   });
 }
 
-export async function doctorInterviewConfirm(sessionId, doctorId, patientName) {
+export async function doctorIntakeConfirm(sessionId, doctorId, patientName) {
   const formData = new FormData();
   formData.append("session_id", sessionId);
   if (doctorId) formData.append("doctor_id", doctorId);
   if (patientName) formData.append("patient_name", patientName);
-  return request("/api/records/interview/confirm", {
+  return request("/api/records/intake/confirm", {
     method: "POST",
     body: formData,
     _timeout: 120000,
@@ -273,28 +273,28 @@ export async function doctorInterviewConfirm(sessionId, doctorId, patientName) {
 }
 
 export async function confirmCarryForward(sessionId, doctorId, field, action = "confirm") {
-  return request("/api/records/interview/carry-forward-confirm", {
+  return request("/api/records/intake/carry-forward-confirm", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId, doctor_id: doctorId, field, action }),
   });
 }
 
-export async function doctorInterviewCancel(sessionId, doctorId) {
+export async function doctorIntakeCancel(sessionId, doctorId) {
   const formData = new FormData();
   formData.append("session_id", sessionId);
   if (doctorId) formData.append("doctor_id", doctorId);
-  return request("/api/records/interview/cancel", {
+  return request("/api/records/intake/cancel", {
     method: "POST",
     body: formData,
   });
 }
 
 /**
- * Upload image/PDF → OCR + LLM extract → create interview session with pre-populated fields.
+ * Upload image/PDF → OCR + LLM extract → create intake session with pre-populated fields.
  * Returns: { session_id, mode, source, pre_populated: { field: value, ... } }
  */
-export async function importToInterview(file, doctorId, patientId) {
+export async function importToIntake(file, doctorId, patientId) {
   const form = new FormData();
   form.append("file", file, file.name);
   form.append("doctor_id", doctorId || "");
@@ -303,10 +303,10 @@ export async function importToInterview(file, doctorId, patientId) {
 }
 
 /**
- * Send text (paste/voice) → LLM extract → create interview session with pre-populated fields.
+ * Send text (paste/voice) → LLM extract → create intake session with pre-populated fields.
  * Returns: { session_id, mode, source, pre_populated: { field: value, ... } }
  */
-export async function textToInterview(text, doctorId, patientId) {
+export async function textToIntake(text, doctorId, patientId) {
   return request("/api/records/from-text", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -316,10 +316,10 @@ export async function textToInterview(text, doctorId, patientId) {
 }
 
 /**
- * Update a single field value in an interview session (for inline-edit in import review).
+ * Update a single field value in an intake session (for inline-edit in import review).
  */
-export async function updateInterviewField(sessionId, doctorId, field, value) {
-  return request("/api/records/interview/field", {
+export async function updateIntakeField(sessionId, doctorId, field, value) {
+  return request("/api/records/intake/field", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId, doctor_id: doctorId, field, value }),
@@ -921,31 +921,31 @@ export async function sendPatientMessage(patientToken, text) {
 }
 
 // ---------------------------------------------------------------------------
-// Patient interview API (ADR 0016)
+// Patient intake API (ADR 0016)
 // ---------------------------------------------------------------------------
 
-export async function interviewStart(token) {
-  return patientRequest("/api/patient/interview/start", token, { method: "POST" });
+export async function intakeStart(token) {
+  return patientRequest("/api/patient/intake/start", token, { method: "POST" });
 }
 
-export async function interviewTurn(token, sessionId, text) {
-  return patientRequest("/api/patient/interview/turn", token, {
+export async function intakeTurn(token, sessionId, text) {
+  return patientRequest("/api/patient/intake/turn", token, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId, text }),
   });
 }
 
-export async function interviewConfirm(token, sessionId) {
-  return patientRequest("/api/patient/interview/confirm", token, {
+export async function intakeConfirm(token, sessionId) {
+  return patientRequest("/api/patient/intake/confirm", token, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId }),
   });
 }
 
-export async function interviewCancel(token, sessionId) {
-  return patientRequest("/api/patient/interview/cancel", token, {
+export async function intakeCancel(token, sessionId) {
+  return patientRequest("/api/patient/intake/cancel", token, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ session_id: sessionId }),
@@ -970,7 +970,7 @@ export async function deleteKnowledgeItem(doctorId, itemId) {
   return request(`/api/manage/knowledge/${itemId}?doctor_id=${doctorId}`, { method: "DELETE" });
 }
 
-// ── Phase 0.5: KB curation onboarding (chat-interview merge) ────────
+// ── Phase 0.5: KB curation onboarding (chat-intake merge) ────────
 // Server gates patient-facing autonomous replies on TWO flags:
 //  - per-item `patient_safe`
 //  - per-doctor `kb_curation_onboarding_done`

@@ -10,7 +10,7 @@ import asyncio
 import json
 import os
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -165,12 +165,17 @@ async def _generate_draft_for_escalated(
     message_id: int,
     message_text: str,
     patient_context: str = "",
+    force_priority: Optional[str] = None,
 ) -> None:
     """Generate a draft reply after a delay (batches rapid-fire messages).
 
     If a newer message arrives for the same patient within the delay window,
     the previous pending draft is cancelled and replaced. When the timer fires,
     collects ALL unresponded inbound messages for a comprehensive reply.
+
+    ``force_priority`` flows through to the draft persistence so signal-flag
+    callers can pin priority="critical" without depending on the LLM emitting
+    a defer-to-doctor phrase.
     """
     # Cancel any pending draft for this patient (newer message supersedes)
     if patient_id in _pending_drafts:
@@ -185,6 +190,7 @@ async def _generate_draft_for_escalated(
 
             await generate_draft_reply(
                 doctor_id, patient_id, message_id, message_text, patient_context,
+                force_priority=force_priority,
             )
             log(f"[escalation] draft generated for message {message_id}")
         except Exception as e:

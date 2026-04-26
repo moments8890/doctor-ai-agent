@@ -3,26 +3,34 @@ import { APP, FONT, RADIUS } from "../theme";
 
 /**
  * ChatDedupPrompt — inline prompt shown when the AI dispatcher detects that a
- * patient's new message closely matches an existing record, and asks whether
- * to merge, open a new record, or discard.
+ * patient's new message closely matches an existing record.
+ *
+ * 2026-04-25: when the matched record is already doctor-reviewed (targetReviewed=true),
+ * the merge action is no longer offered — the new submission becomes its own
+ * pending_review record (record_supplements table was dropped). UI hides the
+ * "并入上一次" button in that case.
  *
  * Props:
  *   targetReviewed  — bool. true → the matched record has already been seen by the doctor.
- *   onMerge         — called when patient taps "并入上一次".
+ *   onMerge         — called when patient taps "并入上一次" (only shown when targetReviewed=false).
  *   onNew           — called when patient taps "新开一条".
  *   onNeither       — called when patient taps "都不要".
  */
 export default function ChatDedupPrompt({ targetReviewed, onMerge, onNew, onNeither }) {
   const prompt = targetReviewed
-    ? "您之前提到过类似的情况，医生已经看过那条记录。要把刚才的内容并入还是新开一条?"
+    ? "您之前提到过类似的情况，医生已经看过那条记录。这次的内容会作为新的一条记录处理。"
     : "您之前提到过类似的情况。要把刚才的内容并入上一次记录，还是新开一条?";
 
   return (
     <div style={styles.wrap}>
       <p style={styles.text}>{prompt}</p>
       <div style={styles.row}>
-        <Button color="primary" size="middle" onClick={onMerge}>并入上一次</Button>
-        <Button size="middle" onClick={onNew}>新开一条</Button>
+        {!targetReviewed && (
+          <Button color="primary" size="middle" onClick={onMerge}>并入上一次</Button>
+        )}
+        <Button color={targetReviewed ? "primary" : undefined} size="middle" onClick={onNew}>
+          新开一条
+        </Button>
         <Button size="middle" onClick={onNeither}>都不要</Button>
       </div>
     </div>

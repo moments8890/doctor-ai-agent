@@ -30,7 +30,6 @@ from domain.patient_lifecycle.chat_state import (
 from domain.patient_lifecycle.chat_state_store import load_state, serialize_state
 from domain.patient_lifecycle.dedup import (
     EpisodeSignals,
-    create_supplement,
     detect_same_episode,
     merge_into_existing,
 )
@@ -38,7 +37,7 @@ from domain.patient_lifecycle.extraction_confidence import (
     REQUIRED_FIELDS as _CONFIDENCE_REQUIRED_FIELDS,
 )
 from domain.patient_lifecycle.extraction_confidence import calculate as calc_confidence
-from domain.patient_lifecycle.red_flag import detect as red_flag_detect
+from domain.patient_lifecycle.signal_flag import detect as signal_flag_detect
 from domain.patient_lifecycle.retraction import retract_recent_whitelist_replies
 from domain.patient_lifecycle.triage import (
     TriageCategory,
@@ -49,10 +48,6 @@ from domain.patient_lifecycle.triage import (
     load_patient_context,
 )
 from infra.auth.rate_limit import enforce_doctor_rate_limit
-from infra.feature_flags import (
-    FLAG_PATIENT_CHAT_INTAKE_ENABLED,
-    is_flag_enabled,
-)
 from infra.observability.audit import audit
 from utils.log import safe_create_task
 
@@ -127,105 +122,12 @@ async def post_chat(
     authorization: Optional[str] = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Save patient message and dispatch via state machine or legacy path.
-
-    Routes by per-doctor feature flag PATIENT_CHAT_INTAKE_ENABLED:
-      - flag ON  → _intake_dispatch (state machine + dedup + red-flag)
-      - flag OFF → _legacy_triage_dispatch (kill-switch fallback)
-
-    The flag is authenticated against the patient's owning doctor. Auth
-    happens twice (once here, once inside the dispatch path) but the
-    cost is negligible — the second call hits the in-process Patient
-    cache when present and the duplicate is acceptable for the kill-
-    switch isolation it buys us.
-    """
+    """Save patient message and dispatch through the state-machine pipeline."""
     try:
-        patient = await _authenticate_patient(x_patient_token, authorization)
+        await _authenticate_patient(x_patient_token, authorization)
     except HTTPException:
         raise
-    enabled = await is_flag_enabled(
-        db, patient.doctor_id, FLAG_PATIENT_CHAT_INTAKE_ENABLED,
-    )
-    if enabled:
-        return await _intake_dispatch(body, x_patient_token, authorization, db)
-    return await _legacy_triage_dispatch(body, x_patient_token, authorization, db)
-
-
-async def _legacy_triage_dispatch(
-    body: ChatRequest,
-    x_patient_token: Optional[str],
-    authorization: Optional[str],
-    db: AsyncSession,
-) -> ChatResponse:
-    """Original chat handler — saves inbound, generates draft via background task.
-
-    Kill-switch fallback path: when the PATIENT_CHAT_INTAKE_ENABLED flag is
-    off (or for any doctor explicitly opted out), incoming messages route
-    here and behave exactly as they did pre-Task-1.7. Behavior verbatim.
-    """
-    patient = await _authenticate_patient(x_patient_token, authorization)
-    text = (body.text or "").strip()
-    if not text:
-        raise HTTPException(status_code=422, detail="消息内容不能为空")
-
-    enforce_doctor_rate_limit(
-        str(patient.id), scope="patient_portal.chat", max_requests=10,
-    )
-
-    doctor_id = patient.doctor_id
-
-    try:
-        # Save inbound message
-        from db.crud.patient_message import save_patient_message
-        saved_msg = await save_patient_message(
-            db, patient_id=patient.id, doctor_id=doctor_id,
-            content=text, direction="inbound", source="patient",
-            ai_handled=False,
-        )
-
-        # Load patient context for draft generation
-        patient_context = await load_patient_context(patient.id, doctor_id, db)
-        context_str = json.dumps(patient_context, ensure_ascii=False) if patient_context else ""
-
-        # Generate draft reply for doctor (fire-and-forget)
-        from domain.patient_lifecycle.triage_handlers import _generate_draft_for_escalated
-        safe_create_task(
-            _generate_draft_for_escalated(
-                doctor_id, patient.id, saved_msg.id, text, context_str,
-            ),
-            name=f"draft-reply-{saved_msg.id}",
-        )
-
-        # Update last_activity_at
-        try:
-            from db.crud.patient import touch_patient_activity
-            async with AsyncSessionLocal() as _act_db:
-                await touch_patient_activity(_act_db, patient.id)
-        except Exception:
-            pass
-
-        logger.info("[PatientChat] message saved, draft scheduled | patient_id=%s", patient.id)
-
-    except Exception:
-        logger.exception("[PatientChat] failed | patient_id=%s", patient.id)
-        from db.crud.patient_message import save_patient_message
-        async with AsyncSessionLocal() as fallback_db:
-            await save_patient_message(
-                fallback_db, patient_id=patient.id, doctor_id=doctor_id,
-                content=text, direction="inbound", source="patient",
-            )
-            await fallback_db.commit()
-
-    safe_create_task(audit(
-        doctor_id, "WRITE",
-        resource_type="patient_chat", resource_id=str(patient.id),
-    ))
-
-    return ChatResponse(
-        reply="",
-        triage_category="pending",
-        ai_handled=False,
-    )
+    return await _intake_dispatch(body, x_patient_token, authorization, db)
 
 
 # ---------------------------------------------------------------------------
@@ -251,7 +153,7 @@ async def _intake_dispatch(
     """State-machine path. Routes by ChatSessionState.state.
 
     Replaces _legacy_triage_dispatch when PATIENT_CHAT_INTAKE_ENABLED is on.
-    Always-on red-flag pass runs first and short-circuits.
+    Always-on signal-flag pass runs first and short-circuits.
     """
     patient = await _authenticate_patient(x_patient_token, authorization)
     text = (body.text or "").strip()
@@ -280,16 +182,16 @@ async def _intake_dispatch(
     db.add(patient_msg)
     await db.flush()
 
-    # 3. Always-on red-flag pass (Codex round 2: must run on every turn)
+    # 3. Always-on signal-flag pass (Codex round 2: must run on every turn)
     try:
-        red_flag_fired = await red_flag_detect(
+        signal_flag_fired = await signal_flag_detect(
             message=text, patient_context={"patient_id": patient_id},
         )
     except Exception:
-        logger.exception("[PatientChat:intake] red_flag_detect failed | patient_id=%s", patient_id)
-        red_flag_fired = False
+        logger.exception("[PatientChat:intake] signal_flag_detect failed | patient_id=%s", patient_id)
+        signal_flag_fired = False
 
-    if red_flag_fired:
+    if signal_flag_fired:
         if state.intake_segment_id:
             try:
                 await retract_recent_whitelist_replies(
@@ -300,8 +202,12 @@ async def _intake_dispatch(
         if state.record_id:
             rec = await db.get(MedicalRecordDB, state.record_id)
             if rec:
-                rec.red_flag = True
-        ai_reply_text = "请立即联系您的医生，或评估是否需要急诊就医。"
+                rec.signal_flag = True
+        # Defer-to-doctor: per bridge-not-service product policy, AI never
+        # directs the patient to 急诊/120. Urgency is surfaced to the doctor
+        # via medical_record.signal_flag + a critical-priority draft in the
+        # review queue (see priority.py + draft_reply.force_priority).
+        ai_reply_text = "您的医生将尽快查看并回复您，请稍候。"
         ai_msg = PatientMessage(
             patient_id=patient_id, doctor_id=doctor_id,
             content=ai_reply_text, direction="outbound", source="ai",
@@ -313,6 +219,23 @@ async def _intake_dispatch(
         # Snapshot stays on patient_msg as-is (state didn't transition)
         patient_msg.chat_state_snapshot = serialize_state(state)
         await db.commit()
+        # Critical-priority draft for the doctor. Forced — does not depend
+        # on the LLM emitting a defer-to-doctor phrase that the detector
+        # picks up.
+        try:
+            patient_context = await load_patient_context(patient_id, doctor_id, db)
+            context_str = json.dumps(patient_context, ensure_ascii=False) if patient_context else ""
+        except Exception:
+            logger.exception("[PatientChat:intake] signal-flag context load failed | patient_id=%s", patient_id)
+            context_str = ""
+        from domain.patient_lifecycle.triage_handlers import _generate_draft_for_escalated
+        safe_create_task(
+            _generate_draft_for_escalated(
+                doctor_id, patient_id, patient_msg.id, text, context_str,
+                force_priority="critical",
+            ),
+            name=f"draft-reply-{patient_msg.id}",
+        )
         safe_create_task(audit(
             doctor_id, "WRITE",
             resource_type="patient_chat", resource_id=str(patient_id),
@@ -337,8 +260,8 @@ async def _intake_dispatch(
             seg_id = str(uuid.uuid4())
             rec = MedicalRecordDB(
                 patient_id=patient_id, doctor_id=doctor_id,
-                status="interview_active", seed_source="chat_detected",
-                intake_segment_id=seg_id, red_flag=False,
+                status="intake_active", seed_source="chat_detected",
+                intake_segment_id=seg_id, signal_flag=False,
                 record_type="visit",
             )
             db.add(rec)
@@ -502,14 +425,14 @@ async def _maybe_dedup(db: AsyncSession, patient_id: int, draft_record_id: int):
     signals = EpisodeSignals(
         hours_since_last=hours_since,
         treatment_event_since_last=False,  # TODO v1: query AISuggestion since target.created_at
-        status_change_since_last=(target.status != "interview_active"),
+        status_change_since_last=(target.status != "intake_active"),
     )
     decision = await detect_same_episode(draft_chief, target_chief, signals)
     if not decision.same_episode:
         return None
     # Augment with target metadata (callers need both id + reviewed-state)
     decision.target_record_id = target.id  # type: ignore[attr-defined]
-    decision.target_reviewed = target.status != "interview_active"  # type: ignore[attr-defined]
+    decision.target_reviewed = target.status != "intake_active"  # type: ignore[attr-defined]
     return decision
 
 
@@ -629,7 +552,7 @@ async def confirm_draft(
 
     - ``confirm``  → promote draft to pending_review, compute extraction_confidence,
       reset session state to idle.
-    - ``continue`` → no server-side change; the draft stays in interview_active.
+    - ``continue`` → no server-side change; the draft stays in intake_active.
     """
     patient = await _authenticate_patient(x_patient_token, authorization)
     rec = await db.get(MedicalRecordDB, body.draft_id)
@@ -657,7 +580,7 @@ async def confirm_draft(
             "extraction_confidence": rec.extraction_confidence,
         }
     if body.action == "continue":
-        # Draft stays in interview_active. State is already intake.
+        # Draft stays in intake_active. State is already intake.
         return {"status": "continuing"}
     raise HTTPException(status_code=400, detail="invalid action")
 
@@ -689,15 +612,21 @@ async def dedup_decision(
         raise HTTPException(status_code=409, detail="no pending dedup decision")
 
     if body.action == "merge":
-        new_fields = await _build_fields_dict(db, draft.id)
         if target_reviewed:
-            await create_supplement(
-                db, target_record_id=target_record_id,
-                new_fields=new_fields, intake_segment_id=draft.intake_segment_id,
-            )
-            draft.status = "diagnosis_failed"
-            draft.cancellation_reason = "merged_into_existing"
+            # Doctor already reviewed the target. Decline the merge — closed
+            # records are not mutated. The draft survives as its own
+            # pending_review case (matches the e7c4f9a1b2d3 migration intent;
+            # frontend hides the "并入上一次" button in this state, this branch
+            # defends against direct API callers).
+            draft.dedup_skipped_by_patient = True
+            draft.status = "pending_review"
+            draft.patient_confirmed_at = datetime.utcnow()
+            fields_dict = await _build_fields_dict(db, draft.id)
+            draft.extraction_confidence = calc_confidence(fields_dict)
+            marker_content = "new"
+            response = {"status": "new", "record_id": draft.id, "merge_declined": True}
         else:
+            new_fields = await _build_fields_dict(db, draft.id)
             await merge_into_existing(
                 db, target_record_id=target_record_id,
                 new_fields=new_fields, intake_segment_id=draft.intake_segment_id,
@@ -708,16 +637,18 @@ async def dedup_decision(
                 target.patient_confirmed_at = datetime.utcnow()
             draft.status = "diagnosis_failed"
             draft.cancellation_reason = "merged_into_existing"
+            marker_content = "merge"
+            response = {"status": "merged"}
         marker = PatientMessage(
             patient_id=patient.id, doctor_id=draft.doctor_id,
-            content="merge",
+            content=marker_content,
             direction="outbound", source="system",
             ai_handled=True,
             chat_state_snapshot=serialize_state(ChatSessionState()),
         )
         db.add(marker)
         await db.commit()
-        return {"status": "merged"}
+        return response
 
     if body.action == "new":
         draft.dedup_skipped_by_patient = True

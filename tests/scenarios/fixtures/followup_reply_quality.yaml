@@ -59,7 +59,9 @@ steps:
     expect:
       hard:
         status: generated
-        # Emergency reply should tell patient to go to hospital
-        text.contains_any: ["急诊", "医院", "就医", "120"]
+        # 2026-04-25 defer-to-doctor policy: AI never directs patient to ER.
+        # For risk signals, AI defers — doctor decides escalation on review.
+        text.contains_any: ["医生", "转", "稍候", "查看", "回复"]
+        text.not_contains_any: ["立即去急诊", "立即打120", "马上去急诊"]
         text.not_contains: "根据"
         text.not_contains: "知识库"

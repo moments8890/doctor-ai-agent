@@ -15,7 +15,7 @@ from db.models.base import _utcnow
 
 
 class RecordStatus(str, Enum):
-    interview_active = "interview_active"
+    intake_active = "intake_active"
     pending_review = "pending_review"
     diagnosis_failed = "diagnosis_failed"
     insufficient_data = "insufficient_data"  # 2026-04-25: sufficiency rule fired, LLM skipped
@@ -79,13 +79,16 @@ class MedicalRecordDB(Base):
     treatment_outcome: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     key_symptoms: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # --- Chat–interview merge (Phase 0) ---
+    # --- Chat–intake merge (Phase 0) ---
     # Schema added in alembic d3d865309344. ORM declarations here so
     # callers can read/write via the standard ORM path.
     extraction_confidence: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True)
     patient_confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     cancellation_reason: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    red_flag: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
+    # Tier B will replace this single bool with a signal_tags JSON list
+    # and drop the column entirely. See alembic f8b2c4e1a3d5 for the
+    # rename from the legacy "red_flag" column name.
+    signal_flag: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
     intake_segment_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
     dedup_skipped_by_patient: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
 
@@ -148,31 +151,8 @@ class FieldEntryDB(Base):
     )
 
 
-class RecordSupplementDB(Base):
-    """Patient-supplied supplement to a doctor-reviewed record.
-
-    When a patient adds new info about a complaint after the doctor has
-    already reviewed/decided the record, we never silently mutate the
-    doctor's clinical work product. Instead a row lands here, status =
-    pending_doctor_review, and the doctor explicitly accepts (merges
-    field entries into the record) / creates a new record / ignores.
-
-    field_entries_json is a JSON list of {field_name, text,
-    intake_segment_id, created_at} dicts — one per supplemented field
-    in this supplement event.
-    """
-    __tablename__ = "record_supplements"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    record_id: Mapped[int] = mapped_column(Integer, ForeignKey("medical_records.id", ondelete="CASCADE"), index=True, nullable=False)
-    # status: pending_doctor_review | accepted | rejected_create_new | rejected_ignored
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending_doctor_review")
-    field_entries_json: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
-    doctor_decision_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    doctor_decision_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-
-    __table_args__ = (
-        # ix_record_supplements_record_id is auto-created by index=True on the column above.
-        Index("ix_record_supplements_status", "status"),
-    )
+# RecordSupplementDB removed 2026-04-25 — replaced by "every patient submission
+# is its own medical_record" model. Closed records are no longer mutated
+# (preserves doctor review semantic) AND no separate supplement queue is needed
+# (the new submission becomes its own pending_review case the doctor reviews
+# normally). See alembic e7c4f9a1b2d3 for the table drop.

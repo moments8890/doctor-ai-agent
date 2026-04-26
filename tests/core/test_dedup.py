@@ -264,62 +264,8 @@ async def _seed_completed_record(session):
     return record
 
 
-@pytest.mark.asyncio
-async def test_create_supplement_writes_pending_row(db_session):
-    import json
-    from sqlalchemy import select
-
-    from db.models.records import RecordSupplementDB
-    from domain.patient_lifecycle.dedup import create_supplement
-
-    record = await _seed_completed_record(db_session)
-
-    sup = await create_supplement(
-        db_session,
-        target_record_id=record.id,
-        new_fields={"chief_complaint": "头痛复发", "present_illness": "停药后又痛"},
-        intake_segment_id="segment_3",
-    )
-
-    persisted = (
-        await db_session.execute(
-            select(RecordSupplementDB).where(RecordSupplementDB.record_id == record.id)
-        )
-    ).scalar_one()
-    assert persisted.status == "pending_doctor_review"
-    entries = json.loads(persisted.field_entries_json)
-    assert any(
-        e["field_name"] == "chief_complaint" and e["text"] == "头痛复发"
-        for e in entries
-    )
-
-
-@pytest.mark.asyncio
-async def test_create_supplement_does_not_mutate_target(db_session):
-    from sqlalchemy import select
-
-    from db.models.records import FieldEntryDB
-    from domain.patient_lifecycle.dedup import create_supplement
-
-    record = await _seed_completed_record(db_session)
-
-    before = (
-        await db_session.execute(
-            select(FieldEntryDB).where(FieldEntryDB.record_id == record.id)
-        )
-    ).scalars().all()
-    before_count = len(before)
-
-    await create_supplement(
-        db_session,
-        target_record_id=record.id,
-        new_fields={"chief_complaint": "新症状"},
-        intake_segment_id="segment_3",
-    )
-
-    after = (
-        await db_session.execute(
-            select(FieldEntryDB).where(FieldEntryDB.record_id == record.id)
-        )
-    ).scalars().all()
-    assert len(after) == before_count, "create_supplement must not write FieldEntryDB rows"
+# test_create_supplement_* removed 2026-04-25 — record_supplements table dropped.
+# Patient submissions to closed records now create their own pending_review
+# medical_record (the doctor reviews it as a new case). See chat.py:691 for
+# the new behavior — the merge action with target_reviewed=True declines
+# the merge and leaves the draft as-is.

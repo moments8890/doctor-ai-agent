@@ -65,7 +65,7 @@ function KindTag({ kind, count = 1 }) {
 // Provenance filter chips — 全部 / 问诊完成 / 自动整理
 const PROVENANCE_OPTIONS = [
   { label: "全部", value: null },
-  { label: "问诊完成", value: "explicit_interview" },
+  { label: "问诊完成", value: "explicit_intake" },
   { label: "自动整理", value: "chat_detected" },
 ];
 
@@ -136,7 +136,7 @@ function formatRelative(iso) {
 function PendingItem({ item, onNavigate }) {
   const sectionLabel = SECTION_LABEL[item.section] || item.section || "";
   const sourceLabel =
-    item.record_type === "interview_summary"
+    item.record_type === "intake_summary"
       ? "预问诊"
       : item.record_type === "import"
       ? "导入"
@@ -278,7 +278,7 @@ export default function ReviewQueuePage() {
   const navigate = useNavigate();
   const { doctorId } = useDoctorStore();
 
-  // Provenance filter — null means "all", "chat_detected" or "explicit_interview" filters
+  // Provenance filter — null means "all", "chat_detected" or "explicit_intake" filters
   const [seedSource, setSeedSource] = useState(null);
 
   const queryClient = useQueryClient();

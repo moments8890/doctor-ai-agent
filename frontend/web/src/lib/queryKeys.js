@@ -20,7 +20,7 @@ export const QK = {
   knowledgeStats: (did, days) => ["doctor", did, "knowledgeStats", days],
   knowledgeUsage: (did, itemId) => ["doctor", did, "knowledgeUsage", itemId],
   feedbackDigest:    (did, days) => ["doctor", did, "feedbackDigest", days],
-  supplementQueue:   (did)       => ["doctor", did, "supplementQueue"],
+  // supplementQueue removed 2026-04-25
 };
 
 // Patient portal keys — parallel to QK (doctor)
