@@ -225,71 +225,161 @@ const RECORD_FIELDS = [
   { key: "orders_followup",   label: "医嘱与随访" },
 ];
 
-function RecordsSection({ items }) {
+// Single record card with collapse-by-default + attached AI suggestions.
+// Clicking the header row toggles expansion. Header always shows
+// record_type + status + date + a one-line gist (diagnosis or summary)
+// so the operator can decide which records to drill into without
+// expanding everything.
+function RecordCard({ r, suggestions }) {
+  const [expanded, setExpanded] = useState(false);
+  const populatedFields = RECORD_FIELDS.filter((f) => r[f.key]);
+  // Gist line in the collapsed header — diagnosis if available, else
+  // the content/summary first sentence, else fall back to record_type.
+  const gist = (r.diagnosis || r.content || "").split("\n")[0].slice(0, 80) || null;
+  const attached = suggestions || [];
+  return (
+    <div
+      style={{
+        borderTop: `1px solid ${COLOR.borderLight || COLOR.borderSubtle}`,
+      }}
+    >
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setExpanded((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded((v) => !v);
+          }
+        }}
+        style={{
+          padding: "12px 16px",
+          cursor: "pointer",
+          transition: "background 100ms",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = COLOR.bgPage)}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            flexWrap: "wrap",
+            gap: 6,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <span
+              className="material-symbols-outlined"
+              style={{
+                fontSize: 16,
+                color: COLOR.text3,
+                transition: "transform 120ms",
+                transform: expanded ? "rotate(90deg)" : "none",
+                lineHeight: 1,
+              }}
+            >
+              chevron_right
+            </span>
+            <span style={{ fontSize: FONT.body, fontWeight: 600, color: COLOR.text1 }}>
+              {r.record_type || "病历"}
+            </span>
+            {r.department && (
+              <span style={{ fontSize: FONT.xs, color: COLOR.text3 }}>
+                {r.department}
+              </span>
+            )}
+            {r.status && (
+              <span
+                style={{
+                  fontSize: FONT.xs,
+                  color: r.status === "completed" ? COLOR.brand : COLOR.text3,
+                  background: r.status === "completed" ? COLOR.brandTint : COLOR.bgCardAlt,
+                  padding: "2px 8px",
+                  borderRadius: RADIUS.pill,
+                }}
+              >
+                {r.status}
+              </span>
+            )}
+            {attached.length > 0 && (
+              <span
+                style={{
+                  fontSize: FONT.xs,
+                  color: COLOR.info,
+                  background: COLOR.infoTint || COLOR.bgCardAlt,
+                  padding: "2px 8px",
+                  borderRadius: RADIUS.pill,
+                }}
+              >
+                AI 建议 {attached.length}
+              </span>
+            )}
+          </div>
+          <span style={{ fontSize: FONT.xs, color: COLOR.text3 }}>
+            {fmtRelative(r.created_at)}
+          </span>
+        </div>
+        {!expanded && gist && (
+          <div
+            style={{
+              marginTop: 6,
+              marginLeft: 24,
+              fontSize: FONT.sm,
+              color: COLOR.text2,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {gist}
+          </div>
+        )}
+      </div>
+      {expanded && (
+        <div style={{ padding: "0 16px 14px", marginLeft: 24 }}>
+          {populatedFields.map((f) => (
+            <RecordField key={f.key} label={f.label} value={r[f.key]} />
+          ))}
+          {attached.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div
+                style={{
+                  fontSize: FONT.xs,
+                  color: COLOR.text3,
+                  fontWeight: 500,
+                  letterSpacing: "0.02em",
+                  marginBottom: 6,
+                }}
+              >
+                AI 建议（{attached.length}）
+              </div>
+              {attached.map((s) => (
+                <AttachedSuggestion key={s.id} s={s} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecordsSection({ items, suggestionsByRecord }) {
   return (
     <SectionCard title="病历" count={`${items.length} 条`}>
       {items.length === 0 ? (
         <EmptyRow label="暂无病历" />
       ) : (
-        items.map((r) => {
-          // Header line: type + status + date
-          const populatedFields = RECORD_FIELDS.filter((f) => r[f.key]);
-          // `content` is now part of RECORD_FIELDS, so the old fallback
-          // path is unreachable — kept the var for the empty-card guard.
-          const hasContent = false;
-          return (
-            <div
-              key={r.id}
-              style={{
-                padding: "14px 16px",
-                borderTop: `1px solid ${COLOR.borderLight || COLOR.borderSubtle}`,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "baseline",
-                  flexWrap: "wrap",
-                  gap: 6,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                  <span style={{ fontSize: FONT.body, fontWeight: 600, color: COLOR.text1 }}>
-                    {r.record_type || "病历"}
-                  </span>
-                  {r.department && (
-                    <span style={{ fontSize: FONT.xs, color: COLOR.text3 }}>
-                      {r.department}
-                    </span>
-                  )}
-                  {r.status && (
-                    <span
-                      style={{
-                        fontSize: FONT.xs,
-                        color: r.status === "completed" ? COLOR.brand : COLOR.text3,
-                        background: r.status === "completed" ? COLOR.brandTint : COLOR.bgCardAlt,
-                        padding: "2px 8px",
-                        borderRadius: RADIUS.pill,
-                      }}
-                    >
-                      {r.status}
-                    </span>
-                  )}
-                </div>
-                <span style={{ fontSize: FONT.xs, color: COLOR.text3 }}>
-                  {fmtRelative(r.created_at)}
-                </span>
-              </div>
-              {populatedFields.map((f) => (
-                <RecordField key={f.key} label={f.label} value={r[f.key]} />
-              ))}
-              {hasContent && (
-                <RecordField label="内容" value={r.content} />
-              )}
-            </div>
-          );
-        })
+        items.map((r) => (
+          <RecordCard
+            key={r.id}
+            r={r}
+            suggestions={suggestionsByRecord?.get(r.id) || []}
+          />
+        ))
       )}
     </SectionCard>
   );
@@ -448,9 +538,93 @@ function Tag({ children, color, bg }) {
   );
 }
 
-function SuggestionsSection({ items }) {
+// Compact suggestion row rendered inline inside a record's expanded body
+// (record-attached path). Uses the same vocabulary/colors as the
+// standalone SuggestionsSection so the visual language stays consistent.
+function AttachedSuggestion({ s }) {
+  const decisionColor = DECISION_COLOR(s.decision);
+  const decisionLabel = s.decision
+    ? DECISION_LABEL[s.decision] || s.decision
+    : "未决定";
+  let confidencePct = null;
+  if (typeof s.confidence === "number" && !Number.isNaN(s.confidence)) {
+    confidencePct = `${Math.round(s.confidence * 100)}%`;
+  } else if (typeof s.confidence === "string" && s.confidence.trim()) {
+    confidencePct = s.confidence.trim();
+  }
   return (
-    <SectionCard title="AI 建议" count={`${items.length} 条`}>
+    <div
+      style={{
+        marginTop: 8,
+        padding: "10px 12px",
+        background: COLOR.bgPage,
+        borderRadius: RADIUS.md,
+        borderLeft: `2px solid ${COLOR.info}`,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          flexWrap: "wrap",
+          gap: 6,
+          marginBottom: s.content || s.detail ? 6 : 0,
+        }}
+      >
+        <span style={{ fontSize: FONT.sm, fontWeight: 600, color: COLOR.text1 }}>
+          {s.section || "建议"}
+        </span>
+        {s.urgency && (
+          <Tag color={URGENCY_COLOR(s.urgency)} bg={COLOR.bgCardAlt}>
+            {URGENCY_LABEL[s.urgency] || s.urgency}
+          </Tag>
+        )}
+        {s.intervention && (
+          <Tag color={COLOR.info} bg={COLOR.infoTint || COLOR.bgCardAlt}>
+            {s.intervention}
+          </Tag>
+        )}
+        {confidencePct && (
+          <span style={{ fontSize: FONT.xs, color: COLOR.text3, fontFamily: FONT_STACK.mono }}>
+            置信 {confidencePct}
+          </span>
+        )}
+        <span style={{ marginLeft: "auto" }}>
+          <Tag color={decisionColor} bg={COLOR.bgCardAlt}>
+            {decisionLabel}
+          </Tag>
+        </span>
+      </div>
+      {s.content && (
+        <div style={{ fontSize: FONT.sm, color: COLOR.text1, whiteSpace: "pre-wrap" }}>
+          {s.content}
+        </div>
+      )}
+      {s.detail && s.detail !== s.content && (
+        <div
+          style={{
+            fontSize: FONT.sm,
+            color: COLOR.text2,
+            marginTop: 6,
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {s.detail}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Standalone section renders only orphan suggestions — those whose
+// record_id couldn't be matched to a returned record (or that have no
+// record_id at all). Suggestions tied to a record render inline inside
+// that record's expanded body. Hide the section entirely if no orphans
+// so the page doesn't carry an empty card.
+function SuggestionsSection({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <SectionCard title="AI 建议（未关联病历）" count={`${items.length} 条`}>
       {items.length === 0 ? (
         <EmptyRow label="暂无 AI 建议" />
       ) : (
@@ -582,14 +756,32 @@ export default function AdminPatientDetailV3({ patientId }) {
     );
   }
 
+  // Group AI suggestions by their parent record_id so each record card can
+  // render its own attached suggestions. Suggestions without a matching
+  // record_id (orphans) flow into the bottom standalone section.
+  const records = data.records?.items || [];
+  const allSuggestions = data.suggestions?.items || [];
+  const recordIdSet = new Set(records.map((r) => r.id));
+  const suggestionsByRecord = new Map();
+  const orphanSuggestions = [];
+  for (const s of allSuggestions) {
+    if (s.record_id != null && recordIdSet.has(s.record_id)) {
+      const list = suggestionsByRecord.get(s.record_id) || [];
+      list.push(s);
+      suggestionsByRecord.set(s.record_id, list);
+    } else {
+      orphanSuggestions.push(s);
+    }
+  }
+
   return (
     <>
       <PatientHeader profile={data.profile} />
       <PatientKpiStrip data={data} />
-      <RecordsSection items={data.records?.items || []} />
+      <RecordsSection items={records} suggestionsByRecord={suggestionsByRecord} />
       <MessagesSection items={data.messages?.items || []} />
       <TasksSection items={data.tasks?.items || []} />
-      <SuggestionsSection items={data.suggestions?.items || []} />
+      <SuggestionsSection items={orphanSuggestions} />
     </>
   );
 }
