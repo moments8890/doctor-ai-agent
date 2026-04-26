@@ -377,10 +377,12 @@ export default function PatientsPage() {
             aria-label="新建病历"
             onClick={() => navigate("/doctor/patients?action=new")}
             style={{
-              padding: 8,
+              padding: "8px 0 8px 12px",
+              marginRight: -4,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
+              justifyContent: "flex-end",
             }}
           >
             <AddCircleOutlineIcon sx={{ fontSize: ICON.md, color: APP.primary }} />
