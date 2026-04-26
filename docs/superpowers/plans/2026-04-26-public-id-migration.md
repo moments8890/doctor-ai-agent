@@ -1,100 +1,158 @@
-# Public ID Migration Implementation Plan
+# Public ID Migration Implementation Plan (v2 — post-codex-review)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace auto-increment integer IDs with opaque UUIDv4 `public_id` strings in all user-visible URLs (frontend routes + API paths) for `patients`, `medical_records`, `message_drafts`, and `doctor_tasks`, eliminating ID enumeration and weakening any future IDOR vulnerabilities.
+> **v2 changelog:** Rewrote to address all `/codex review` findings on the v1 plan. Major changes:
+> 1. Alembic parent revision is now resolved at execution time, not hardcoded (head moves between sessions).
+> 2. Migration backfill is idempotent (`WHERE public_id IS NULL`) and tolerant of new rows arriving during the window.
+> 3. Explicit file inventory replaces every "audit/sweep" step.
+> 4. Lookup helpers live in `src/channels/web/doctor_dashboard/public_id_resolver.py` (HTTP layer), not `src/db/crud/`.
+> 5. Tests fixed: `MessageDraft` requires `source_message_id`, `DoctorTask` type is `follow_up` (not `followup`), task list endpoint is `/api/tasks` (not `/api/manage/tasks`).
+> 6. `CHAR(36)` everywhere (was inconsistently `VARCHAR(36)`).
+> 7. Per-phase rollback sections.
+> 8. No auto-commits between tasks; commit only when the user asks.
+> 9. Selective `pytest -k` over full-suite runs.
+> 10. Acknowledges `MessageDraft.patient_id String(64)` landmine — plan must not regress this.
 
-**Architecture:** Additive-then-cutover migration. Phase 1 adds nullable `public_id` columns, backfills with UUIDv4, makes them NOT NULL + UNIQUE, and exposes them in API JSON responses alongside the existing `id`. Phase 2 changes API path params from `{id:int}` to `{public_id:str}` and adds lookup helpers that resolve public_id → internal int row, scoped by `doctor_id`. Phase 3 updates the frontend to navigate using `public_id`. Internal foreign keys keep using integer `id` for join performance — only the externally-visible surface changes.
+**Goal:** Replace auto-increment integer IDs with opaque UUIDv4 `public_id` strings in all user-visible URLs and API path params for `patients`, `medical_records`, `message_drafts`, and `doctor_tasks`. Eliminates ID enumeration and weakens any future IDOR vulnerabilities.
 
-**Tech Stack:** SQLAlchemy 2.0 async, Alembic, FastAPI, React Router v6, SQLite (dev) / MySQL (prod), pytest, vitest.
+**Architecture:** Three phases, additive then cutover. Phase 1 adds `public_id` columns (nullable → backfill → NOT NULL + UNIQUE), wires the field on each model, and exposes `public_id` in API JSON responses alongside the existing integer `id`. Phase 2 introduces a doctor-scoped `public_id` resolver in the HTTP layer and switches every URL-exposed route from `{int_id}` path params to `{public_id}` (string). Phase 3 updates the frontend so every `navigate()` call and every `api.js` URL builder forwards `public_id` from the API response. Internal foreign keys keep using integer `id` for join performance.
+
+**Tech Stack:** SQLAlchemy 2.0 async, Alembic, FastAPI, React Router v6, SQLite (dev) / MySQL (prod), pytest, vitest, Playwright.
 
 ---
 
 ## Scope
 
 **In scope (4 tables):**
-- `patients` — used in `/doctor/patients/{id}` and `/api/manage/patients/{id}/...`
-- `medical_records` (model: `MedicalRecordDB`) — used in `/doctor/review/{id}` and `/api/manage/records/{id}` family
-- `message_drafts` — used in `/api/manage/drafts/{id}/send|edit|dismiss|...`
-- `doctor_tasks` — used in `/api/manage/tasks/{id}` family and task detail subpages
 
-**Out of scope:**
-- `doctors` table — `doctor_id` is already an opaque string (`web_doctor`, etc.); no change.
-- `patient_messages`, `ai_suggestions`, `doctor_personas`, etc. — these never appear in URLs.
-- Foreign-key columns — internal joins continue to use integer `id`.
+| Table | Model | URL surface |
+|-------|-------|-------------|
+| `patients` | `db.models.patient.Patient` | `/doctor/patients/{id}`, `/api/manage/patients/{id}/...`, `/api/admin/patients/{id}/...`, `/api/patients/{id}/form_responses`, PDF export endpoints |
+| `medical_records` | `db.models.records.MedicalRecordDB` | `/doctor/review/{id}`, `/api/manage/records/{id}`, `/api/admin/records/{id}`, `/api/doctor/records/{id}/...`, `/api/tasks/record/{id}`, `/api/patient/records/{id}` |
+| `message_drafts` | `db.models.message_draft.MessageDraft` | `/api/manage/drafts/{id}/{send,edit,dismiss,send-confirmation,save-as-rule}` |
+| `doctor_tasks` | `db.models.tasks.DoctorTask` | `/api/tasks/{id}/...`, `/api/patient/tasks/{id}/...`, `/patient/tasks/{id}` |
+
+**Explicitly out of scope:**
+
+- `doctors` — `doctor_id` is already an opaque string.
+- `patient_messages`, `ai_suggestions`, `doctor_personas`, `doctor_knowledge_items`, `audit_log`, `intake_sessions` — not in URLs.
+- `knowledge_items` — `/doctor/settings/knowledge/{id}` exists but is not part of this plan.
 - WeChat / WeCom channels — they don't use REST URL params for these entities.
+- Internal foreign-key columns — `medical_records.patient_id`, `doctor_tasks.patient_id`, `message_drafts.patient_id|source_message_id`, etc. all keep integer `id` for join performance.
+- PDF download filenames that embed integer IDs (user's local Downloads folder, not a URL surface).
+- `audit_log.resource_id` (internal, never rendered).
+- `patient_messages.triage_category` even when it embeds `task.id` (internal label, not a URL).
 
 ## Design Decisions
 
-1. **UUIDv4, not hashids.** UUIDv4 is sufficient (122 bits of randomness, collision probability ~10⁻³⁶ per row). Hashids reverse to integer; not actually opaque.
-2. **VARCHAR(36) string column, not native UUID type.** MySQL 8 and SQLite both lack native UUID. Storing as `CHAR(36)` (with dashes) keeps schema portable. The cross-engine cost is ~16 bytes vs binary UUID — negligible at our scale.
-3. **Client-side default (`default=lambda: str(uuid4())`)**, not server-side. SQLAlchemy default fires on insert; works identically across engines.
-4. **Three deployable phases.** Each phase ships independently and is reversible. Phase 1 cannot break the app (additive only). Phase 2 + 3 ship in one coordinated deploy because frontend stops generating int-ID URLs and backend stops accepting them at the same time.
-5. **No backwards-compatibility for old int URLs after cutover.** After Phase 2/3, `/api/manage/patients/42` returns 404. Rationale: leaving dual-accept routes alive defeats the purpose (attackers still enumerate). Brief 410-Gone window is acceptable for the few seconds of in-flight requests during deploy.
-6. **Lookup helpers enforce ownership at the same layer.** `get_patient_by_public_id(db, public_id, doctor_id)` returns 404 if the public_id doesn't exist OR belongs to another doctor — same response either way (no enumeration via timing or error message).
+1. **UUIDv4, not hashids.** UUIDv4 has 122 bits of randomness; collision probability is ~10⁻³⁶ per row. Hashids reverse to integer and aren't actually opaque.
+2. **`CHAR(36)` (UUID with dashes) everywhere.** Both SQLite and MySQL accept it. Cross-engine portable. ~16 bytes more per row than binary UUID, negligible at our scale.
+3. **Client-side default (`default=lambda: str(uuid4())`)**, not server-side. SQLAlchemy default fires on every insert; works identically across SQLite and MySQL.
+4. **Idempotent backfill.** All `UPDATE ... SET public_id = :pid WHERE public_id IS NULL` so the migration can be retried after partial failure. New rows inserted between `ADD COLUMN` and `ALTER COLUMN NOT NULL` are filled by the same statement.
+5. **No write freeze required for beta.** Write volume is low. The migration runs in seconds. If ever deployed at higher scale, prepend a brief read-only window via the application layer.
+6. **Three deployable phases.** Phase 1 is independently shippable (zero behavior change). Phase 2 + 3 must deploy together — backend stops accepting integer-id paths the same moment the frontend stops generating them.
+7. **No backwards-compatibility for old int URLs after cutover.** Stale clients hit 404 at the API. Acceptable in beta. (`React Router :public_id` will happily match `"42"` on the route; the API call fails and the page renders an error state — that's the correct UX for a stale bookmark.)
+8. **Lookup helpers live in the HTTP layer (`src/channels/web/doctor_dashboard/public_id_resolver.py`)**, not in `src/db/crud/`. Raising `HTTPException` from CRUD couples the data layer to FastAPI; the resolver is the right place.
+9. **Resolver returns identical 404 for "not found" and "wrong doctor"** so the caller can't enumerate via differential errors.
+10. **`MessageDraft.patient_id` is `String(64)` (existing landmine).** Plan must not regress this — `draft.patient_id` is already coerced to int at every call site. We propagate the existing pattern; no new coercions added.
 
 ---
 
-## File Structure
+## Concrete File Inventory (verified at planning time)
 
-**New files:**
-- `alembic/versions/<rev>_add_public_id_columns.py` — schema migration + backfill
-- `src/db/crud/public_id_lookup.py` — `get_*_by_public_id` helpers (one per of 4 entity types)
-- `tests/test_public_id_migration.py` — migration sanity checks (default population, uniqueness, model wiring)
-- `tests/test_public_id_routes.py` — API route tests for the new path-param shape
+This replaces every "audit/sweep" or "grep for X" step in v1.
 
-**Modified files (Phase 1):**
-- `src/db/models/patient.py` — add `public_id` mapped column
-- `src/db/models/records.py` — add `public_id` to `MedicalRecordDB`
-- `src/db/models/message_draft.py` — add `public_id` to `MessageDraft`
-- `src/db/models/tasks.py` — add `public_id` to `DoctorTask`
-- All handlers under `src/channels/web/doctor_dashboard/` that serialize these entities — add `public_id` field to JSON responses (read-only).
+### Backend — handlers with `{patient_id|record_id|draft_id|task_id}` path params (all must convert in Phase 2)
 
-**Modified files (Phase 2):**
-- `src/channels/web/doctor_dashboard/patient_detail_handlers.py` — convert `patient_id: int` path params to `public_id: str`
-- `src/channels/web/doctor_dashboard/record_handlers.py` — same for record endpoints
-- `src/channels/web/doctor_dashboard/draft_handlers.py` — same for draft endpoints
-- `src/channels/web/doctor_dashboard/today_summary_handlers.py`, `review_queue_handlers.py`, `new_patient_handlers.py`, `onboarding_handlers.py` — sweep for any patient_id/record_id/draft_id/task_id path params
+| File | Lines | Endpoints |
+|------|-------|-----------|
+| `src/channels/web/form_responses.py` | 53 | `GET /api/patients/{patient_id}/form_responses` |
+| `src/channels/web/tasks.py` | 138, 247, 275, 296, 324 | `/api/tasks/{task_id}`, `/notes`, `/due`, `/api/tasks/record/{record_id}` |
+| `src/channels/web/patient_portal/tasks.py` | 120, 154, 197, 314 | patient-portal task endpoints |
+| `src/channels/web/doctor_dashboard/patient_detail_handlers.py` | 131, 197, 294, 324 | `/api/manage/patients/{patient_id}/{timeline,'',chat,reply}` (delete is on line 197) |
+| `src/channels/web/doctor_dashboard/record_edit_handlers.py` | 39, 118, 133, 178 | `/api/manage/records/{record_id}` PATCH/DELETE/entries, `/api/admin/records/{record_id}` |
+| `src/channels/web/doctor_dashboard/diagnosis_handlers.py` | 164, 207, 371, 415 | `/api/doctor/records/{record_id}/{diagnose,suggestions,review/finalize}` |
+| `src/channels/web/doctor_dashboard/draft_handlers.py` | 358, 408, 473, 501, 581 | `/api/manage/drafts/{draft_id}/{send,edit,dismiss,send-confirmation,save-as-rule}` |
+| `src/channels/web/doctor_dashboard/admin_overview.py` | 1689 | `/api/admin/patients/{patient_id}/related` |
+| `src/channels/web/export/patient.py` | 138, 208, 240 | `/api/export/...` (PDF endpoints — URLs only; filenames stay int per "out of scope") |
+| `src/channels/web/doctor_dashboard/feedback_handlers.py` | 71 | record_id (verify path at execution) |
 
-**Modified files (Phase 3):**
-- `frontend/web/src/v2/App.jsx` — route paths
-- `frontend/web/src/v2/pages/doctor/*.jsx` (~20 files) — `navigate()` callsites
-- `frontend/web/src/v2/api/*.js` — API client wrappers if any encode IDs
-- E2E specs under `frontend/web/tests/`
+### Backend — handlers that take patient_id/record_id as Query/body (NOT path) — review for whether they should accept public_id too
+
+| File | Lines | Notes |
+|------|-------|-------|
+| `src/channels/web/doctor_dashboard/admin_messages.py` | 235 | `?patient_id=...` Query — keep int? It's an admin route. **Decision:** keep int for admin-only routes. |
+| `src/channels/web/doctor_dashboard/admin_overview.py` | 1255 | Same — admin route, keep int. |
+| `src/channels/web/doctor_dashboard/new_patient_handlers.py` | 65 | Inspect at execution; if it constructs URLs the frontend hits, convert. |
+| `src/channels/web/doctor_dashboard/onboarding_handlers.py` | 46, 158, 275, 353 | Inspect at execution. |
+| `src/channels/web/patient_portal/registration.py` | 37, 41 | Inspect at execution. |
+| `src/channels/web/patient_portal/auth.py` | 52 | Internal auth helper, keep int. |
+
+### Frontend — `navigate()` callsites that use entity `.id` (Phase 3)
+
+| File | Lines | Pattern |
+|------|-------|---------|
+| `frontend/web/src/v2/pages/doctor/PatientDetail.jsx` | 848, 852 | `/doctor/review/${pending.id\|record.id}` |
+| `frontend/web/src/v2/pages/doctor/PatientsPage.jsx` | 253, 337 | `/doctor/patients/${patient.id}`, `?patient_id=${patient.id}` |
+| `frontend/web/src/v2/pages/doctor/MyAIPage.jsx` | 754 | `dp(\`patients/${item.id}\`)` |
+| `frontend/web/src/v2/pages/doctor/ReviewQueuePage.jsx` | 307, 311, 316, 319, 321 | `item.patient_id`, `item.record_id` |
+| `frontend/web/src/v2/pages/doctor/settings/TaskDetailSubpage.jsx` | 84, 309, 310, 362 | `task.patient_id`, `task.record_id` |
+| `frontend/web/src/v2/pages/doctor/settings/KnowledgeDetailSubpage.jsx` | 281 | `usage.patient_id` |
+| `frontend/web/src/v2/pages/doctor/settings/KnowledgeSubpage.jsx` | 537, 541 | `link.record_id`, `link.patient_id` |
+| `frontend/web/src/v2/pages/doctor/IntakePage.jsx` | 710 | `recordId` (verify at execution) |
+| `frontend/web/src/v2/pages/patient/TasksTab.jsx` | 199 | `/patient/tasks/${item.id}` |
+
+### Frontend — `api.js` URL builders that take entity IDs (Phase 3)
+
+| Group | Lines |
+|-------|-------|
+| Patient endpoints | 221, 508, 514, 520, 550, 1187, 1191 |
+| Record endpoints | 489, 498, 503, 670, 1123, 1201, 1209, 1221, 1321 |
+| Draft endpoints | 1286, 1290, 1298, 1302 |
+| Task endpoints | 613, 622, 646, 651, 1131, 1135, 1139 |
+
+Every function in these line ranges currently accepts an integer ID parameter and embeds it in a path. Each must be updated to accept and forward `public_id` instead. The function names and signatures change; every caller (≈ all the files in the navigate table above) must update.
 
 ---
 
-# PHASE 1 — Additive Schema + API Response Changes
+# PHASE 1 — Additive Schema + Model + API Response Changes
 
-Goal: ship a backend that has `public_id` populated everywhere and exposes it in responses. Frontend ignores it. App behavior unchanged.
+Goal: ship a backend that has `public_id` populated everywhere and exposes it in JSON responses. No URL changes yet. App behavior unchanged. Independently deployable.
 
-## Task 1: Schema migration — add `public_id` columns + backfill
+## Task 1: Schema migration — add `public_id` columns + idempotent backfill + UNIQUE
 
 **Files:**
-- Create: `alembic/versions/a1b2c3d4e5f6_add_public_id_columns.py` (use `alembic revision -m "add public_id columns"` to generate the real revision id; replace `a1b2c3d4e5f6` below with what alembic produces)
+- Create: `alembic/versions/<rev>_add_public_id_columns.py` (alembic generates the rev id)
 
-- [ ] **Step 1: Generate the migration file**
+- [ ] **Step 1: Resolve current head**
+
+```bash
+/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/alembic heads
+```
+
+Note the printed revision id. **Use whatever alembic prints**; do not hardcode. (As of this writing it was `4d8e7a2c1f93`, but it changes with every merged migration.)
+
+- [ ] **Step 2: Generate the migration file**
 
 ```bash
 /Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/alembic revision -m "add public_id columns"
 ```
 
-Note the generated filename. The revision id is the prefix before `_add_public_id_columns.py`.
+Note the generated filename and its `revision = "..."` line. Confirm `down_revision` is set to the head from Step 1.
 
-- [ ] **Step 2: Write the migration body**
-
-Replace the generated file's contents with:
+- [ ] **Step 3: Replace the migration body**
 
 ```python
 """add public_id columns
 
-Adds VARCHAR(36) public_id (UUIDv4) to four tables that appear in user-visible
+Adds CHAR(36) public_id (UUIDv4) to four tables that appear in user-visible
 URLs: patients, medical_records, message_drafts, doctor_tasks. Backfills
-existing rows with fresh UUIDs, then enforces NOT NULL + UNIQUE.
+existing rows with fresh UUIDs (idempotent — only fills WHERE public_id IS
+NULL), then enforces NOT NULL + UNIQUE.
 
-Revision ID: <REPLACE_WITH_GENERATED>
-Revises: f8b2c4e1a3d5
-Create Date: 2026-04-26
+Revision ID: <leave whatever alembic generated>
+Revises: <whatever Step 1 returned>
 """
 from __future__ import annotations
 
@@ -104,8 +162,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "<REPLACE_WITH_GENERATED>"
-down_revision = "f8b2c4e1a3d5"
+revision = "<as generated>"
+down_revision = "<from Step 1>"
 branch_labels = None
 depends_on = None
 
@@ -116,19 +174,35 @@ _TABLES = ("patients", "medical_records", "message_drafts", "doctor_tasks")
 def upgrade() -> None:
     bind = op.get_bind()
     for table in _TABLES:
-        op.add_column(table, sa.Column("public_id", sa.String(36), nullable=True))
+        op.add_column(table, sa.Column("public_id", sa.CHAR(36), nullable=True))
+        # Idempotent backfill — fills any row missing a public_id, including
+        # rows that arrived between ADD COLUMN and this UPDATE.
         rows = bind.execute(
             sa.text(f"SELECT id FROM {table} WHERE public_id IS NULL")
         ).all()
         for (row_id,) in rows:
             bind.execute(
                 sa.text(
-                    f"UPDATE {table} SET public_id = :pid WHERE id = :rid"
+                    f"UPDATE {table} SET public_id = :pid "
+                    f"WHERE id = :rid AND public_id IS NULL"
+                ),
+                {"pid": str(uuid.uuid4()), "rid": row_id},
+            )
+        # Re-check: anything still NULL means a row arrived after our SELECT.
+        # Fill again before the NOT NULL flip.
+        leftover = bind.execute(
+            sa.text(f"SELECT id FROM {table} WHERE public_id IS NULL")
+        ).all()
+        for (row_id,) in leftover:
+            bind.execute(
+                sa.text(
+                    f"UPDATE {table} SET public_id = :pid "
+                    f"WHERE id = :rid AND public_id IS NULL"
                 ),
                 {"pid": str(uuid.uuid4()), "rid": row_id},
             )
         with op.batch_alter_table(table) as batch:
-            batch.alter_column("public_id", existing_type=sa.String(36), nullable=False)
+            batch.alter_column("public_id", existing_type=sa.CHAR(36), nullable=False)
         op.create_index(
             f"ix_{table}_public_id", table, ["public_id"], unique=True,
         )
@@ -140,43 +214,43 @@ def downgrade() -> None:
         op.drop_column(table, "public_id")
 ```
 
-- [ ] **Step 3: Run the migration on the dev DB and verify**
+- [ ] **Step 4: Run the migration on the dev DB and verify**
 
 ```bash
 /Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/alembic upgrade head
 sqlite3 dev.db "SELECT id, public_id FROM patients LIMIT 3; SELECT id, public_id FROM medical_records LIMIT 3; SELECT id, public_id FROM message_drafts LIMIT 3; SELECT id, public_id FROM doctor_tasks LIMIT 3;"
 ```
 
-Expected: every row shows a 36-char UUID. No NULLs.
+Expected: each row shows a 36-character UUID. No NULLs.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Verify uniqueness was enforced**
 
 ```bash
-git add alembic/versions/<generated>_add_public_id_columns.py
-git commit -m "feat(db): add public_id columns to URL-exposed tables"
+sqlite3 dev.db "SELECT public_id, COUNT(*) c FROM patients GROUP BY public_id HAVING c>1; SELECT public_id, COUNT(*) c FROM medical_records GROUP BY public_id HAVING c>1; SELECT public_id, COUNT(*) c FROM message_drafts GROUP BY public_id HAVING c>1; SELECT public_id, COUNT(*) c FROM doctor_tasks GROUP BY public_id HAVING c>1;"
 ```
+
+Expected: no rows returned. **Do not commit.** Wait for user instruction.
 
 ---
 
-## Task 2: Model wiring — add `public_id` mapped column to each model
+## Task 2: Wire `public_id` field on each of the four models
 
 **Files:**
 - Modify: `src/db/models/patient.py`
 - Modify: `src/db/models/records.py`
 - Modify: `src/db/models/message_draft.py`
 - Modify: `src/db/models/tasks.py`
-- Test: `tests/test_public_id_migration.py`
+- Test: `tests/test_public_id_models.py`
 
 - [ ] **Step 1: Write the failing test**
 
-Create `tests/test_public_id_migration.py`:
+Create `tests/test_public_id_models.py`:
 
 ```python
-"""Sanity tests for public_id wiring on the four URL-exposed tables."""
+"""Phase 1 contract: every URL-exposed model gets a UUIDv4 public_id by default."""
 from __future__ import annotations
 
 import re
-import uuid
 
 import pytest
 from sqlalchemy import select
@@ -185,6 +259,7 @@ from db.engine import AsyncSessionLocal
 from db.models.patient import Patient
 from db.models.records import MedicalRecordDB
 from db.models.message_draft import MessageDraft
+from db.models.patient_message import PatientMessage
 from db.models.tasks import DoctorTask
 
 
@@ -210,9 +285,11 @@ async def test_patient_default_public_id():
 @pytest.mark.asyncio
 async def test_record_default_public_id():
     async with AsyncSessionLocal() as db:
-        r = MedicalRecordDB(doctor_id="web_doctor", patient_id=1, record_type="visit")
-        db.add(r)
-        await db.flush()
+        # MedicalRecordDB requires patient_id; seed a patient first.
+        p = Patient(doctor_id="web_doctor", name="Rec-Test-Patient")
+        db.add(p); await db.flush()
+        r = MedicalRecordDB(doctor_id="web_doctor", patient_id=p.id, record_type="visit")
+        db.add(r); await db.flush()
         assert _is_uuid_v4(r.public_id)
         await db.rollback()
 
@@ -220,9 +297,21 @@ async def test_record_default_public_id():
 @pytest.mark.asyncio
 async def test_draft_default_public_id():
     async with AsyncSessionLocal() as db:
-        d = MessageDraft(doctor_id="web_doctor", patient_id=1, draft_text="hi")
-        db.add(d)
-        await db.flush()
+        p = Patient(doctor_id="web_doctor", name="Draft-Test-Patient")
+        db.add(p); await db.flush()
+        # MessageDraft requires source_message_id; seed an inbound message first.
+        msg = PatientMessage(
+            patient_id=p.id, doctor_id="web_doctor",
+            content="hi", direction="inbound", source="patient",
+        )
+        db.add(msg); await db.flush()
+        d = MessageDraft(
+            doctor_id="web_doctor",
+            patient_id=str(p.id),  # pre-existing String(64) landmine — see Design Decision 10
+            source_message_id=msg.id,
+            draft_text="reply",
+        )
+        db.add(d); await db.flush()
         assert _is_uuid_v4(d.public_id)
         await db.rollback()
 
@@ -230,9 +319,9 @@ async def test_draft_default_public_id():
 @pytest.mark.asyncio
 async def test_task_default_public_id():
     async with AsyncSessionLocal() as db:
-        t = DoctorTask(doctor_id="web_doctor", task_type="followup", title="t")
-        db.add(t)
-        await db.flush()
+        # DoctorTask valid types are general | follow_up (NOT followup).
+        t = DoctorTask(doctor_id="web_doctor", task_type="follow_up", title="t")
+        db.add(t); await db.flush()
         assert _is_uuid_v4(t.public_id)
         await db.rollback()
 ```
@@ -240,24 +329,24 @@ async def test_task_default_public_id():
 - [ ] **Step 2: Run the test — confirm it fails**
 
 ```bash
-/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_public_id_migration.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
+/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_public_id_models.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
-Expected: 4 FAIL with `AttributeError: 'Patient' object has no attribute 'public_id'` (or similar).
+Expected: 4 FAIL with `AttributeError: ... no attribute 'public_id'`.
 
 - [ ] **Step 3: Add `public_id` to `Patient`**
 
-In `src/db/models/patient.py`, add at the top:
+In `src/db/models/patient.py`, add at module top (near the other imports):
 
 ```python
 import uuid as _uuid
 ```
 
-In the `Patient` class body, add immediately after the `id` column (line 19):
+In the `Patient` class body, immediately after the `id` column (currently line 19):
 
 ```python
     public_id: Mapped[str] = mapped_column(
-        String(36),
+        sa.CHAR(36),
         nullable=False,
         unique=True,
         default=lambda: str(_uuid.uuid4()),
@@ -266,11 +355,11 @@ In the `Patient` class body, add immediately after the `id` column (line 19):
 
 - [ ] **Step 4: Add `public_id` to `MedicalRecordDB`**
 
-In `src/db/models/records.py`, add `import uuid as _uuid` if not already present, then add immediately after the `id` column on `MedicalRecordDB`:
+In `src/db/models/records.py`, ensure `import uuid as _uuid` and `import sqlalchemy as sa` are present. In the `MedicalRecordDB` class, immediately after the `id` column:
 
 ```python
     public_id: Mapped[str] = mapped_column(
-        String(36),
+        sa.CHAR(36),
         nullable=False,
         unique=True,
         default=lambda: str(_uuid.uuid4()),
@@ -279,11 +368,11 @@ In `src/db/models/records.py`, add `import uuid as _uuid` if not already present
 
 - [ ] **Step 5: Add `public_id` to `MessageDraft`**
 
-In `src/db/models/message_draft.py`, add `import uuid as _uuid` if not already present, then add immediately after the `id` column (line 29):
+In `src/db/models/message_draft.py`, ensure `import uuid as _uuid` and `import sqlalchemy as sa`. Immediately after the `id` column:
 
 ```python
     public_id: Mapped[str] = mapped_column(
-        String(36),
+        sa.CHAR(36),
         nullable=False,
         unique=True,
         default=lambda: str(_uuid.uuid4()),
@@ -292,46 +381,50 @@ In `src/db/models/message_draft.py`, add `import uuid as _uuid` if not already p
 
 - [ ] **Step 6: Add `public_id` to `DoctorTask`**
 
-In `src/db/models/tasks.py`, add `import uuid as _uuid` if not already present, then add immediately after the `id` column (line 32):
+In `src/db/models/tasks.py`, ensure `import uuid as _uuid` and `import sqlalchemy as sa`. Immediately after the `id` column:
 
 ```python
     public_id: Mapped[str] = mapped_column(
-        String(36),
+        sa.CHAR(36),
         nullable=False,
         unique=True,
         default=lambda: str(_uuid.uuid4()),
     )
 ```
 
-- [ ] **Step 7: Run the test — confirm it passes**
+- [ ] **Step 7: Run only the new tests — confirm they pass**
 
 ```bash
-/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_public_id_migration.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
+/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_public_id_models.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
 Expected: 4 PASS.
 
-- [ ] **Step 8: Run the full unit test suite to confirm no regressions**
+- [ ] **Step 8: Run the model-related test subset (selective, not full suite)**
 
 ```bash
-/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/ -q --rootdir=/Volumes/ORICO/Code/doctor-ai-agent -x
+/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/ -k "model or patient or record or draft or task" -q --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
-Expected: all green. If any model-construction tests fail because they rely on positional args, fix by passing `public_id` explicitly OR confirming the default kicks in.
+Expected: all green. Fix any test that constructs these models with positional args by either (a) confirming the default still kicks in, or (b) passing `public_id` explicitly.
 
-- [ ] **Step 9: Commit**
-
-```bash
-git add src/db/models/patient.py src/db/models/records.py src/db/models/message_draft.py src/db/models/tasks.py tests/test_public_id_migration.py
-git commit -m "feat(db): wire public_id field on Patient/MedicalRecordDB/MessageDraft/DoctorTask"
-```
+**Do not commit.** Stop and report.
 
 ---
 
 ## Task 3: Expose `public_id` in API responses (additive)
 
-**Files:**
-- Modify: every handler in `src/channels/web/doctor_dashboard/` that returns serialized patient/record/draft/task JSON
+**Files (response sites — every dict returned from these handlers must add `"public_id"` next to `"id"`):**
+- `src/channels/web/doctor_dashboard/patient_detail_handlers.py`
+- `src/channels/web/doctor_dashboard/record_handlers.py`
+- `src/channels/web/doctor_dashboard/draft_handlers.py`
+- `src/channels/web/doctor_dashboard/today_summary_handlers.py`
+- `src/channels/web/doctor_dashboard/review_queue_handlers.py`
+- `src/channels/web/doctor_dashboard/new_patient_handlers.py`
+- `src/channels/web/doctor_dashboard/onboarding_handlers.py`
+- `src/channels/web/tasks.py` — `TaskOut` Pydantic model and any dict construction
+- `src/channels/web/patient_portal/tasks.py`
+- `src/channels/web/patient_portal/routes.py` — `PatientRecordOut`
 - Test: `tests/test_public_id_in_responses.py`
 
 - [ ] **Step 1: Write the failing test**
@@ -340,14 +433,13 @@ Create `tests/test_public_id_in_responses.py`:
 
 ```python
 """Phase 1 contract: every list/detail endpoint that returns these entities
-must include `public_id` alongside `id`. Frontend will pivot to public_id
-in Phase 3; until then it's read-only and additive."""
+includes `public_id` alongside `id`."""
 from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient
 
-from main import app  # adjust import path if needed
+from main import app
 
 
 @pytest.mark.asyncio
@@ -394,18 +486,19 @@ async def test_drafts_list_includes_public_id(seeded_doctor_token, seeded_draft)
 
 @pytest.mark.asyncio
 async def test_tasks_list_includes_public_id(seeded_doctor_token, seeded_task):
+    # Task router is mounted at /api/tasks (not /api/manage/tasks).
     async with AsyncClient(app=app, base_url="http://test") as ac:
         r = await ac.get(
-            "/api/manage/tasks",
+            "/api/tasks",
             headers={"Authorization": f"Bearer {seeded_doctor_token}"},
         )
     assert r.status_code == 200
-    items = r.json().get("tasks") or r.json().get("items") or []
+    items = r.json() if isinstance(r.json(), list) else (r.json().get("tasks") or [])
     for t in items:
         assert "public_id" in t
 ```
 
-(Adjust fixtures to match the project's existing pytest fixture naming. If fixtures don't exist, add minimal ones that issue a JWT for `web_doctor` and seed one row of each entity.)
+(Adjust fixtures to match the project's existing pytest fixture naming. If fixtures don't exist, add minimal ones that issue a JWT for `web_doctor` and seed one row of each entity. Note: `seeded_task` requires `task_type="follow_up"`.)
 
 - [ ] **Step 2: Run the test — confirm it fails**
 
@@ -415,19 +508,20 @@ async def test_tasks_list_includes_public_id(seeded_doctor_token, seeded_task):
 
 Expected: 4 FAIL with `assert "public_id" in p`.
 
-- [ ] **Step 3: Audit which handlers serialize these entities**
+- [ ] **Step 3: Audit serialization sites**
 
 ```bash
-grep -rn '"id":\s*[a-zA-Z_.]*\.id' src/channels/web/doctor_dashboard/ --include="*.py" | grep -vE "patient_id|record_id|draft_id|task_id|doctor_id"
+grep -rn '"id":\s*[a-zA-Z_.]*\.id' src/channels/web/ --include="*.py" \
+  | grep -vE "patient_id|record_id|draft_id|task_id|doctor_id|message_id|knowledge_id|edit_id|usage_id"
 ```
 
-Each line is a place where a row's int `id` is serialized into a response. For each line, the same dict must also include `"public_id": <row>.public_id`.
+Each match is a place where a row's int `id` is serialized. Cluster matches into 4 groups (patient / record / draft / task) and edit each.
 
-Cluster results into 4 groups (patient / record / draft / task) and edit each handler.
+For Pydantic models (`TaskOut`, `PatientRecordOut`, etc.) add `public_id: str` to the schema and ensure the `from_orm`/dict construction includes it.
 
-- [ ] **Step 4: For each serialization site, add `public_id`**
+- [ ] **Step 4: Edit each serialization site**
 
-Pattern for each Edit:
+Pattern:
 
 ```python
 # BEFORE
@@ -437,53 +531,56 @@ return {"id": p.id, "name": p.name, ...}
 return {"id": p.id, "public_id": p.public_id, "name": p.name, ...}
 ```
 
-Apply across `patient_detail_handlers.py`, `record_handlers.py`, `draft_handlers.py`, `today_summary_handlers.py`, `review_queue_handlers.py`, `new_patient_handlers.py`, `onboarding_handlers.py`, and any task handler files. Touch only response dicts; leave internal logic alone.
+For Pydantic schemas:
 
-- [ ] **Step 5: Run the test — confirm it passes**
+```python
+class TaskOut(BaseModel):
+    id: int
+    public_id: str   # <-- add
+    title: str
+    ...
+```
+
+Confirm coverage by re-running the grep from Step 3 and checking each match has been updated.
+
+- [ ] **Step 5: Run only the new test — confirm it passes**
 
 ```bash
 /Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_public_id_in_responses.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
-Expected: 4 PASS.
-
-- [ ] **Step 6: Run the full backend test suite**
+- [ ] **Step 6: Run the API-related test subset (selective)**
 
 ```bash
-/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/ -q --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
+/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/ -k "api or response or endpoint" -q --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
-Expected: all green.
+**Do not commit.** Stop and report. Phase 1 is now ready for the user to commit and deploy independently if they wish.
 
-- [ ] **Step 7: Commit**
+### Phase 1 Rollback
 
-```bash
-git add src/channels/web/doctor_dashboard/ tests/test_public_id_in_responses.py
-git commit -m "feat(api): expose public_id in patient/record/draft/task responses"
-```
-
-**Phase 1 complete. Backend can be deployed independently.**
+- Application code: revert the model + handler edits with `git revert` or branch reset.
+- Schema: `alembic downgrade -1` drops the `public_id` columns and indexes. Safe — no other code reads `public_id` yet.
 
 ---
 
-# PHASE 2 — Backend Path Param Cutover
+# PHASE 2 — Backend Path-Param Cutover
 
-Goal: API routes accept `public_id` (string UUID) instead of integer `id`. Internal code resolves to int row at the request boundary.
+Goal: every URL-exposed route accepts `{public_id}` (string UUID) instead of `{int_id}`. A doctor-scoped resolver enforces ownership at the request boundary. **Phase 2 must deploy together with Phase 3.**
 
-## Task 4: Lookup helpers (public_id → row, doctor-scoped)
+## Task 4: Public-ID resolver (HTTP layer)
 
 **Files:**
-- Create: `src/db/crud/public_id_lookup.py`
-- Test: `tests/test_public_id_lookup.py`
+- Create: `src/channels/web/doctor_dashboard/public_id_resolver.py`
+- Test: `tests/test_public_id_resolver.py`
 
 - [ ] **Step 1: Write the failing test**
 
-Create `tests/test_public_id_lookup.py`:
+Create `tests/test_public_id_resolver.py`:
 
 ```python
-"""Lookup helpers must enforce both existence AND doctor ownership.
-Cross-doctor lookups must raise the same exception as missing rows
-(no enumeration via differential errors)."""
+"""Resolver returns identical 404 for not-found AND wrong-doctor — the caller
+must not be able to enumerate via differential errors."""
 from __future__ import annotations
 
 import pytest
@@ -491,67 +588,74 @@ from fastapi import HTTPException
 
 from db.engine import AsyncSessionLocal
 from db.models.patient import Patient
-from db.crud.public_id_lookup import (
-    get_patient_by_public_id,
-    get_record_by_public_id,
-    get_draft_by_public_id,
-    get_task_by_public_id,
+from db.models.records import MedicalRecordDB
+from db.models.message_draft import MessageDraft
+from db.models.patient_message import PatientMessage
+from db.models.tasks import DoctorTask
+from channels.web.doctor_dashboard.public_id_resolver import (
+    resolve_patient,
+    resolve_record,
+    resolve_draft,
+    resolve_task,
 )
 
 
 @pytest.mark.asyncio
-async def test_patient_lookup_owner_match():
+async def test_resolve_patient_owner_match():
     async with AsyncSessionLocal() as db:
         p = Patient(doctor_id="doctor_a", name="Owner-Match")
-        db.add(p)
-        await db.flush()
-        found = await get_patient_by_public_id(db, p.public_id, "doctor_a")
+        db.add(p); await db.flush()
+        found = await resolve_patient(db, p.public_id, "doctor_a")
         assert found.id == p.id
         await db.rollback()
 
 
 @pytest.mark.asyncio
-async def test_patient_lookup_wrong_doctor_raises_404():
+async def test_resolve_patient_wrong_doctor_404():
     async with AsyncSessionLocal() as db:
         p = Patient(doctor_id="doctor_a", name="Wrong-Doctor")
-        db.add(p)
-        await db.flush()
+        db.add(p); await db.flush()
         with pytest.raises(HTTPException) as exc:
-            await get_patient_by_public_id(db, p.public_id, "doctor_b")
+            await resolve_patient(db, p.public_id, "doctor_b")
         assert exc.value.status_code == 404
         await db.rollback()
 
 
 @pytest.mark.asyncio
-async def test_patient_lookup_missing_raises_404():
+async def test_resolve_patient_missing_404():
     async with AsyncSessionLocal() as db:
         with pytest.raises(HTTPException) as exc:
-            await get_patient_by_public_id(
-                db, "00000000-0000-4000-8000-000000000000", "doctor_a"
-            )
+            await resolve_patient(db, "00000000-0000-4000-8000-000000000000", "doctor_a")
         assert exc.value.status_code == 404
+
+
+# Repeat the three cases (owner match / wrong doctor / missing) for record,
+# draft, task. For draft fixture: seed Patient + PatientMessage first, then
+# MessageDraft with patient_id=str(p.id), source_message_id=msg.id.
+# For task fixture: task_type="follow_up".
 ```
 
-(Add analogous tests for record, draft, task — same three cases each.)
-
-- [ ] **Step 2: Run the test — confirm it fails**
+- [ ] **Step 2: Run — confirm fails**
 
 ```bash
-/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_public_id_lookup.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
+/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_public_id_resolver.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
-Expected: ImportError because `public_id_lookup.py` doesn't exist yet.
+Expected: ImportError (resolver module doesn't exist).
 
-- [ ] **Step 3: Implement the lookup helpers**
+- [ ] **Step 3: Implement the resolver**
 
-Create `src/db/crud/public_id_lookup.py`:
+Create `src/channels/web/doctor_dashboard/public_id_resolver.py`:
 
 ```python
-"""Doctor-scoped public_id → row lookups.
+"""Doctor-scoped public_id → row resolvers (HTTP-layer).
 
-Every helper raises HTTPException(404) for both 'not found' and 'wrong doctor'.
+Every helper raises HTTPException(404) for both "not found" and "wrong doctor".
 Same response shape for both cases so the caller cannot distinguish them
 (prevents enumeration via differential errors).
+
+Lives in the HTTP layer (channels/web/) rather than in db/crud/ because it
+returns HTTP exceptions. CRUD code stays HTTP-agnostic and reusable in jobs.
 """
 from __future__ import annotations
 
@@ -568,7 +672,7 @@ from db.models.tasks import DoctorTask
 _NOT_FOUND = HTTPException(status_code=404, detail="Not found")
 
 
-async def get_patient_by_public_id(
+async def resolve_patient(
     db: AsyncSession, public_id: str, doctor_id: str
 ) -> Patient:
     stmt = select(Patient).where(
@@ -580,7 +684,7 @@ async def get_patient_by_public_id(
     return row
 
 
-async def get_record_by_public_id(
+async def resolve_record(
     db: AsyncSession, public_id: str, doctor_id: str
 ) -> MedicalRecordDB:
     stmt = select(MedicalRecordDB).where(
@@ -593,11 +697,12 @@ async def get_record_by_public_id(
     return row
 
 
-async def get_draft_by_public_id(
+async def resolve_draft(
     db: AsyncSession, public_id: str, doctor_id: str
 ) -> MessageDraft:
     stmt = select(MessageDraft).where(
-        MessageDraft.public_id == public_id, MessageDraft.doctor_id == doctor_id
+        MessageDraft.public_id == public_id,
+        MessageDraft.doctor_id == doctor_id,
     )
     row = (await db.execute(stmt)).scalar_one_or_none()
     if row is None:
@@ -605,11 +710,12 @@ async def get_draft_by_public_id(
     return row
 
 
-async def get_task_by_public_id(
+async def resolve_task(
     db: AsyncSession, public_id: str, doctor_id: str
 ) -> DoctorTask:
     stmt = select(DoctorTask).where(
-        DoctorTask.public_id == public_id, DoctorTask.doctor_id == doctor_id
+        DoctorTask.public_id == public_id,
+        DoctorTask.doctor_id == doctor_id,
     )
     row = (await db.execute(stmt)).scalar_one_or_none()
     if row is None:
@@ -617,46 +723,69 @@ async def get_task_by_public_id(
     return row
 ```
 
-- [ ] **Step 4: Run the test — confirm it passes**
+- [ ] **Step 4: Run — confirm passes**
 
 ```bash
-/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_public_id_lookup.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
+/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_public_id_resolver.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
-Expected: all PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/db/crud/public_id_lookup.py tests/test_public_id_lookup.py
-git commit -m "feat(db): doctor-scoped public_id lookup helpers"
-```
+**Do not commit.** Stop and report.
 
 ---
 
-## Task 5: Convert patient endpoints to public_id path params
+## Task 5: Convert patient endpoints
 
-**Files:**
-- Modify: `src/channels/web/doctor_dashboard/patient_detail_handlers.py`
-- Modify: `src/channels/web/doctor_dashboard/admin_messages.py`
-- Modify: `src/channels/web/doctor_dashboard/onboarding_handlers.py`
-- Modify: `src/channels/web/doctor_dashboard/new_patient_handlers.py`
-- Test: `tests/test_patient_routes_use_public_id.py`
+**Files (one entry per route line from the inventory above):**
+- `src/channels/web/doctor_dashboard/patient_detail_handlers.py:131,197,294,324`
+- `src/channels/web/doctor_dashboard/admin_overview.py:1689` (admin route — convert)
+- `src/channels/web/form_responses.py:53`
 
-- [ ] **Step 1: Enumerate the patient_id path params to convert**
+For each route: rename path param `{patient_id}` → `{public_id}`, change Python signature `patient_id: int` → `public_id: str`, add `db: AsyncSession = Depends(get_db)` if not present, and call `resolve_patient(db, public_id, resolved)` to get the `Patient` row. Use `patient.id` (the integer) for any internal CRUD or domain calls.
 
-```bash
-grep -n "patients/{patient_id}\|patient_id: int" src/channels/web/doctor_dashboard/*.py
+Worked example for `/api/manage/patients/{patient_id}/timeline`:
+
+```python
+# BEFORE — patient_detail_handlers.py:131
+@router.get("/api/manage/patients/{patient_id}/timeline")
+async def manage_patient_timeline(
+    patient_id: int,
+    doctor_id: str = Query(default="web_doctor"),
+    limit: int = Query(default=100, ge=1, le=500),
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.patient_timeline")
+    data = await build_patient_timeline(db, doctor_id=doctor_id, patient_id=patient_id, limit=limit)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return {"doctor_id": doctor_id, **data}
+
+# AFTER
+from channels.web.doctor_dashboard.public_id_resolver import resolve_patient
+
+@router.get("/api/manage/patients/{public_id}/timeline")
+async def manage_patient_timeline(
+    public_id: str,
+    doctor_id: str = Query(default="web_doctor"),
+    limit: int = Query(default=100, ge=1, le=500),
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(doctor_id, scope="ui.patient_timeline")
+    patient = await resolve_patient(db, public_id, doctor_id)
+    data = await build_patient_timeline(db, doctor_id=doctor_id, patient_id=patient.id, limit=limit)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return {"doctor_id": doctor_id, **data}
 ```
 
-Each match is a route handler that takes `patient_id: int` from the URL path. Build a checklist; expect ~6-8 handlers.
-
-- [ ] **Step 2: Write the failing route test**
+- [ ] **Step 1: Write the failing route test**
 
 Create `tests/test_patient_routes_use_public_id.py`:
 
 ```python
-"""Phase 2: patient endpoints accept public_id (UUID) and reject int IDs."""
 from __future__ import annotations
 
 import pytest
@@ -686,9 +815,7 @@ async def test_timeline_rejects_integer_id(seeded_doctor_token, seeded_patient):
 
 
 @pytest.mark.asyncio
-async def test_timeline_cross_doctor_returns_404(
-    seeded_doctor_token_a, seeded_patient_b
-):
+async def test_timeline_cross_doctor_404(seeded_doctor_token_a, seeded_patient_b):
     async with AsyncClient(app=app, base_url="http://test") as ac:
         r = await ac.get(
             f"/api/manage/patients/{seeded_patient_b.public_id}/timeline",
@@ -697,202 +824,88 @@ async def test_timeline_cross_doctor_returns_404(
     assert r.status_code == 404
 ```
 
-- [ ] **Step 3: Run the test — confirm it fails**
+- [ ] **Step 2: Run — confirm fails**
+
+- [ ] **Step 3: Convert each route in the file list above**
+
+Apply the worked-example pattern to every line in the inventory. Do not leave dual-accept variants.
+
+- [ ] **Step 4: Run — confirm passes**
 
 ```bash
 /Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_patient_routes_use_public_id.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
-Expected: tests fail because route still accepts int.
+- [ ] **Step 5: Run patient-related test subset**
 
-- [ ] **Step 4: Convert each patient_id-keyed route**
+```bash
+/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/ -k "patient" -q --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
+```
 
-For each route in the checklist from Step 1, transform:
+Existing patient tests will need fixture updates (URLs change from int to UUID). Update them; do not loosen the route.
+
+**Do not commit.** Stop and report.
+
+---
+
+## Task 6: Convert record endpoints
+
+**Files:**
+- `src/channels/web/doctor_dashboard/record_edit_handlers.py:39,118,133,178`
+- `src/channels/web/doctor_dashboard/diagnosis_handlers.py:164,207,371,415`
+- `src/channels/web/tasks.py:324` — `/api/tasks/record/{record_id}`
+
+Pattern: `{record_id}: int` → `{public_id}: str` + `record = await resolve_record(db, public_id, doctor_id)`.
+
+- [ ] **Step 1: Write failing tests** (mirror the patient route test pattern for `/api/manage/records/{public_id}`)
+
+- [ ] **Step 2: Convert each route**
+
+- [ ] **Step 3: Run record-related test subset**
+
+```bash
+/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/ -k "record or diagnosis" -q --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
+```
+
+**Do not commit.** Stop and report.
+
+---
+
+## Task 7: Convert draft endpoints
+
+**Files:**
+- `src/channels/web/doctor_dashboard/draft_handlers.py:358,408,473,501,581`
+
+Five routes: `/send`, `/edit`, `/dismiss`, `/send-confirmation`, `/save-as-rule`. Each currently does its own `draft.doctor_id == resolved` check; replace that with the resolver call which does the same work in one line.
+
+Worked example:
 
 ```python
 # BEFORE
-@router.get("/api/manage/patients/{patient_id}/timeline")
-async def manage_patient_timeline(
-    patient_id: int,
+@router.post("/api/manage/drafts/{draft_id}/send")
+async def send_draft(
+    draft_id: int,
     doctor_id: str = Query(default="web_doctor"),
-    authorization: str | None = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    enforce_doctor_rate_limit(doctor_id, scope="ui.patient_timeline")
-    data = await build_patient_timeline(db, doctor_id=doctor_id, patient_id=patient_id, limit=limit)
+    resolved = _resolve_ui_doctor_id(doctor_id, authorization)
+    enforce_doctor_rate_limit(resolved, scope="ui.drafts.send")
+    draft = await db.get(MessageDraft, draft_id)
+    if draft is None or draft.doctor_id != resolved:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    if draft.status not in (DraftStatus.generated.value, DraftStatus.edited.value):
+        raise HTTPException(status_code=409, detail="Draft is not in a sendable state")
     ...
-```
+    msg_id = await send_doctor_reply(
+        doctor_id=resolved,
+        patient_id=int(draft.patient_id),  # String(64) → int — pre-existing landmine
+        text=reply_text,
+        draft_id=draft.id,
+        ai_disclosure=disclosure,
+    )
 
-Into:
-
-```python
 # AFTER
-from db.crud.public_id_lookup import get_patient_by_public_id
-
-@router.get("/api/manage/patients/{public_id}/timeline")
-async def manage_patient_timeline(
-    public_id: str,
-    doctor_id: str = Query(default="web_doctor"),
-    authorization: str | None = Header(default=None),
-    db: AsyncSession = Depends(get_db),
-):
-    doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
-    enforce_doctor_rate_limit(doctor_id, scope="ui.patient_timeline")
-    patient = await get_patient_by_public_id(db, public_id, doctor_id)
-    data = await build_patient_timeline(db, doctor_id=doctor_id, patient_id=patient.id, limit=limit)
-    ...
-```
-
-Key rules:
-- Path param renamed `patient_id: int` → `public_id: str`.
-- One lookup at the top of the handler (`patient = await get_patient_by_public_id(...)`).
-- Internal helpers (CRUD, domain logic) keep using `patient.id` (int).
-- Never reuse the variable name `patient_id` for both — pick one.
-
-Apply to **every** match from Step 1. Common ones:
-- `GET /api/manage/patients/{patient_id}/timeline`
-- `DELETE /api/manage/patients/{patient_id}`
-- `POST /api/manage/patients/{patient_id}/ai-summary/refresh`
-- `GET /api/manage/patients/{patient_id}/chat`
-- `POST /api/manage/patients/{patient_id}/reply` ← also fix the ownership gap from the audit by virtue of using `get_patient_by_public_id`
-- Any in `onboarding_handlers.py`, `new_patient_handlers.py`, `admin_messages.py`
-
-- [ ] **Step 5: Run the test — confirm it passes**
-
-```bash
-/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_patient_routes_use_public_id.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
-```
-
-Expected: all PASS.
-
-- [ ] **Step 6: Run the full backend suite**
-
-```bash
-/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/ -q --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
-```
-
-Any test that hits `/api/manage/patients/<int>/...` will start failing — those are existing fixtures that need to switch to `public_id`. Update fixtures one by one. Do not loosen the route to accept both.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add src/channels/web/doctor_dashboard/ tests/
-git commit -m "feat(api): patient endpoints use public_id path params"
-```
-
----
-
-## Task 6: Convert record endpoints to public_id path params
-
-**Files:**
-- Modify: `src/channels/web/doctor_dashboard/record_handlers.py`
-- Modify: `src/channels/web/doctor_dashboard/record_edit_handlers.py`
-- Modify: `src/channels/web/doctor_dashboard/review_queue_handlers.py`
-- Test: extend `tests/test_patient_routes_use_public_id.py` with record cases
-
-- [ ] **Step 1: Enumerate**
-
-```bash
-grep -n "records/{record_id}\|record_id: int" src/channels/web/doctor_dashboard/*.py
-```
-
-- [ ] **Step 2: Write the failing record-route tests**
-
-Add to `tests/test_patient_routes_use_public_id.py`:
-
-```python
-@pytest.mark.asyncio
-async def test_record_detail_accepts_public_id(seeded_doctor_token, seeded_record):
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        r = await ac.get(
-            f"/api/manage/records/{seeded_record.public_id}",
-            headers={"Authorization": f"Bearer {seeded_doctor_token}"},
-        )
-    assert r.status_code == 200
-
-
-@pytest.mark.asyncio
-async def test_record_detail_rejects_integer_id(seeded_doctor_token, seeded_record):
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        r = await ac.get(
-            f"/api/manage/records/{seeded_record.id}",
-            headers={"Authorization": f"Bearer {seeded_doctor_token}"},
-        )
-    assert r.status_code in (404, 422)
-```
-
-- [ ] **Step 3: Run — confirm fails**
-
-```bash
-/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_patient_routes_use_public_id.py::test_record_detail_accepts_public_id -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
-```
-
-- [ ] **Step 4: Convert each record_id-keyed route**
-
-Same transformation as Task 5, using `get_record_by_public_id` for the lookup. Sites include record detail, record edit, record delete, review-queue item fetch.
-
-- [ ] **Step 5: Run — confirm passes**
-
-```bash
-/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/test_patient_routes_use_public_id.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
-```
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add src/channels/web/doctor_dashboard/ tests/
-git commit -m "feat(api): record endpoints use public_id path params"
-```
-
----
-
-## Task 7: Convert draft endpoints to public_id path params
-
-**Files:**
-- Modify: `src/channels/web/doctor_dashboard/draft_handlers.py`
-- Test: extend `tests/test_patient_routes_use_public_id.py`
-
-- [ ] **Step 1: Enumerate**
-
-```bash
-grep -n "drafts/{draft_id}\|draft_id: int" src/channels/web/doctor_dashboard/draft_handlers.py
-```
-
-Expect 5 routes: `/send`, `/edit`, `/dismiss`, `/send-confirmation`, `/save-as-rule`.
-
-- [ ] **Step 2: Write the failing draft tests**
-
-Add to `tests/test_patient_routes_use_public_id.py`:
-
-```python
-@pytest.mark.asyncio
-async def test_draft_send_accepts_public_id(seeded_doctor_token, seeded_draft):
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        r = await ac.post(
-            f"/api/manage/drafts/{seeded_draft.public_id}/send",
-            headers={"Authorization": f"Bearer {seeded_doctor_token}"},
-        )
-    assert r.status_code == 200
-
-
-@pytest.mark.asyncio
-async def test_draft_send_rejects_integer_id(seeded_doctor_token, seeded_draft):
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        r = await ac.post(
-            f"/api/manage/drafts/{seeded_draft.id}/send",
-            headers={"Authorization": f"Bearer {seeded_doctor_token}"},
-        )
-    assert r.status_code in (404, 422)
-```
-
-- [ ] **Step 3: Run — confirm fails**
-
-- [ ] **Step 4: Convert all 5 draft routes**
-
-Same transformation as Task 5, using `get_draft_by_public_id`. Pattern reminder for `send_draft`:
-
-```python
 @router.post("/api/manage/drafts/{public_id}/send")
 async def send_draft(
     public_id: str,
@@ -902,160 +915,152 @@ async def send_draft(
 ):
     resolved = _resolve_ui_doctor_id(doctor_id, authorization)
     enforce_doctor_rate_limit(resolved, scope="ui.drafts.send")
-    draft = await get_draft_by_public_id(db, public_id, resolved)
+    draft = await resolve_draft(db, public_id, resolved)
     if draft.status not in (DraftStatus.generated.value, DraftStatus.edited.value):
         raise HTTPException(status_code=409, detail="Draft is not in a sendable state")
-    reply_text = draft.edited_text or draft.draft_text
-    patient_id = int(draft.patient_id)
-    disclosure = draft.ai_disclosure
-
-    from domain.patient_lifecycle.reply import send_doctor_reply
+    ...
     msg_id = await send_doctor_reply(
         doctor_id=resolved,
-        patient_id=patient_id,
+        patient_id=int(draft.patient_id),  # KEEP — pre-existing String(64) coercion, not regressed
         text=reply_text,
         draft_id=draft.id,
         ai_disclosure=disclosure,
     )
-    ...
 ```
 
-The internal call to `send_doctor_reply(draft_id=draft.id, ...)` keeps using the integer id — that's a domain-layer signature, not exposed to URLs.
+**Do not "fix" `int(draft.patient_id)` — it's an existing landmine documented in `feedback/project_patient_id_type_mismatch.md`. Out of scope here.**
 
-- [ ] **Step 5: Run — confirm passes**
+- [ ] **Step 1: Write failing tests**
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 2: Convert all five routes**
+
+- [ ] **Step 3: Run draft test subset**
 
 ```bash
-git add src/channels/web/doctor_dashboard/draft_handlers.py tests/
-git commit -m "feat(api): draft endpoints use public_id path params"
+/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/ -k "draft" -q --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
+
+**Do not commit.** Stop and report.
 
 ---
 
-## Task 8: Convert task endpoints to public_id path params
+## Task 8: Convert task endpoints
 
 **Files:**
-- Modify: `src/channels/web/doctor_dashboard/today_summary_handlers.py` and any other handler with `tasks/{task_id}` paths
+- `src/channels/web/tasks.py:138,247,275,296` (doctor task endpoints; router prefix `/api/tasks`)
+- `src/channels/web/patient_portal/tasks.py:120,154,197,314` (patient task endpoints; router prefix `/api/patient/tasks`)
 
-- [ ] **Step 1: Enumerate**
+Note: patient-portal task endpoints are reached via patient JWT, not doctor JWT. The resolver helper takes a `doctor_id` argument; for patient-portal calls, pass `patient.doctor_id` (already extracted by `_authenticate_patient`).
 
-```bash
-grep -rn "tasks/{task_id}\|task_id: int" src/channels/web/doctor_dashboard/*.py
-```
+- [ ] **Step 1: Write failing tests** for both doctor-side and patient-portal task endpoints
 
-- [ ] **Step 2: Write tests, convert routes, run, commit**
+- [ ] **Step 2: Convert each route**
 
-Same shape as Tasks 5–7 using `get_task_by_public_id`.
-
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Run task test subset**
 
 ```bash
-git commit -m "feat(api): task endpoints use public_id path params"
+/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/ -k "task" -q --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
-**Phase 2 complete.** Backend rejects integer IDs in URL paths. Frontend will break until Phase 3 ships — these two phases must deploy together in production.
+**Do not commit.** Stop and report.
+
+### Phase 2 Rollback
+
+- Application code: revert all edits in Tasks 4–8. The resolver module can stay (it's harmless if unused).
+- Schema: no rollback needed (Phase 2 makes no schema changes).
+- **Caution:** if Phase 3 has already been deployed, rolling back Phase 2 alone leaves the frontend sending UUIDs to int-only routes. Always roll back Phases 2+3 together.
 
 ---
 
 # PHASE 3 — Frontend Cutover
 
-Goal: every navigate / link / API call uses `public_id` from the API response, never the integer `id`.
+Goal: every `navigate()` and every `api.js` URL builder forwards `public_id` from the API response. **Phase 3 must deploy together with Phase 2.**
 
-## Task 9: Switch React Router routes and navigation calls
+## Task 9: `api.js` URL builders
 
-**Files:**
-- Modify: `frontend/web/src/v2/App.jsx`
-- Modify: `frontend/web/src/v2/pages/doctor/PatientsPage.jsx`
-- Modify: `frontend/web/src/v2/pages/doctor/PatientDetail.jsx`
-- Modify: `frontend/web/src/v2/pages/doctor/ReviewQueuePage.jsx`
-- Modify: `frontend/web/src/v2/pages/doctor/DoctorPage.jsx`
-- Modify: `frontend/web/src/v2/pages/doctor/MyAIPage.jsx`
-- Modify: `frontend/web/src/v2/pages/doctor/IntakePage.jsx`
-- Modify: `frontend/web/src/v2/pages/doctor/settings/TaskDetailSubpage.jsx`
-- Modify: `frontend/web/src/v2/pages/doctor/settings/KnowledgeDetailSubpage.jsx`
-- Modify: `frontend/web/src/v2/pages/doctor/settings/KnowledgeSubpage.jsx`
-- Test: existing vitest + Playwright suites must pass
+**File:** `frontend/web/src/api.js`
 
-- [ ] **Step 1: Audit navigate callsites**
+For each line in the api.js inventory above, change the function signature from `(patientId, ...)` to `(patientPublicId, ...)` (and similar for records/drafts/tasks). The function rename is for clarity — the actual URL string substitutes the new value.
+
+- [ ] **Step 1: Find all callers of each function**
 
 ```bash
-grep -rn "navigate(\`\|navigate(\"" frontend/web/src/v2 --include="*.jsx" | grep -E "patient\.id|record\.id|draft\.id|task\.id|/\\\${.*\\.id}"
+grep -rn -E "(getPatient|deletePatient|fetchTimeline|refreshAiSummary|getPatientChat|sendPatientReply|getRecord|deleteRecord|getRecordEntries|getAdminRecord|diagnoseRecord|getRecordSuggestions|saveRecordSuggestions|finalizeReview|sendDraft|editDraft|dismissDraft|sendDraftConfirmation|saveDraftAsRule|getTask|patchTask|patchTaskNotes|patchTaskDue|completeTask|uncompleteTask|getPatientTask)\(" frontend/web/src --include="*.jsx" --include="*.js"
 ```
 
-Each match is a callsite that constructs a URL from an integer `id`. Convert each to use `public_id`.
+(Replace function names with whatever they actually are in api.js; the inventory has line numbers, not names.)
 
-- [ ] **Step 2: Convert each callsite**
+- [ ] **Step 2: Convert one entity-group at a time**
 
-Pattern:
+Patient functions first (api.js lines 221, 508, 514, 520, 550, 1187, 1191). Update each function. Then update all callers found in Step 1 to read `patient.public_id` instead of `patient.id`.
 
-```jsx
-// BEFORE
-navigate(`/doctor/patients/${patient.id}`);
+Repeat for record, draft, task groups.
 
-// AFTER
-navigate(`/doctor/patients/${patient.public_id}`);
-```
-
-Repeat for record, draft, task uses. The list/detail API responses already include `public_id` (Phase 1).
-
-- [ ] **Step 3: Update useParams() consumers**
+- [ ] **Step 3: Run vitest**
 
 ```bash
-grep -rn "useParams()" frontend/web/src/v2 --include="*.jsx"
+cd /Volumes/ORICO/Code/doctor-ai-agent/frontend/web && npm test -- --run
 ```
 
-Each match destructures route params. The semantic meaning hasn't changed (it's still the patient/record/draft/task identifier), but the value is now a UUID string. Rename local variables for clarity:
+Fix any frontend unit test that asserts on integer IDs in URL params.
+
+**Do not commit.** Stop and report.
+
+---
+
+## Task 10: `navigate()` callsites and route params
+
+**Files:** every entry from the navigate inventory table above.
+
+For each callsite, change `${something.id}` → `${something.public_id}`. For routes that carry an entity id in `useParams()`, rename the destructured param for clarity:
 
 ```jsx
 // BEFORE
 const { patient_id } = useParams();
-const { data } = useQuery(["patient", patient_id], () => api.getPatient(patient_id));
 
 // AFTER
 const { public_id: patientPublicId } = useParams();
-const { data } = useQuery(["patient", patientPublicId], () => api.getPatient(patientPublicId));
 ```
 
-- [ ] **Step 4: Update API client wrappers**
+The route definition in `frontend/web/src/v2/App.jsx` uses `:patient_id` as the URL param name. Either:
+(a) Rename to `:public_id` everywhere (cleaner), OR
+(b) Keep `:patient_id` and treat the value as a UUID string at the consumer (less churn but misleading variable name).
+
+**Decision: rename to `:public_id`** — fewer surprises.
+
+- [ ] **Step 1: Update route definitions in `App.jsx`**
+
+Find every `<Route path="/doctor/patients/:patient_id" ...>` etc. and rename to `:public_id`. Same for record, task routes.
+
+- [ ] **Step 2: Update every `navigate()` callsite** from the inventory.
+
+- [ ] **Step 3: Update every `useParams()` consumer**
 
 ```bash
-grep -rn "patients/\${\|records/\${\|drafts/\${\|tasks/\${" frontend/web/src --include="*.js" --include="*.jsx"
+grep -rn "useParams()" frontend/web/src --include="*.jsx"
 ```
 
-Anywhere a URL is built from an entity field, ensure it reads `.public_id` from the response object, not `.id`.
-
-- [ ] **Step 5: Run vitest**
+- [ ] **Step 4: Run vitest + Playwright**
 
 ```bash
-cd frontend/web && npm test -- --run
+cd /Volumes/ORICO/Code/doctor-ai-agent/frontend/web && npm test -- --run
+cd /Volumes/ORICO/Code/doctor-ai-agent/frontend/web && rm -rf test-results && npx playwright test
 ```
 
-Expected: all green. Fix any frontend unit tests that asserted on integer IDs in URL params.
+Both servers must be running (backend on :8000, frontend on :5173). E2E will need `VITE_ROUTER_MODE=browser` set so URL navigation in tests still works.
 
-- [ ] **Step 6: Run Playwright E2E**
+**Do not commit.** Stop and report.
 
-```bash
-cd frontend/web && rm -rf test-results && npx playwright test
-```
+### Phase 3 Rollback
 
-Two servers must be running: backend on :8000, frontend on :5173. All specs should pass; failures here usually mean a navigate site was missed.
-
-- [ ] **Step 7: Commit**
-
-```bash
-cd /Volumes/ORICO/Code/doctor-ai-agent
-git add frontend/web
-git commit -m "feat(ui): navigate by public_id everywhere"
-```
+- Frontend: revert all edits. Pair this revert with a Phase 2 revert (frontend sending UUIDs to int-only routes won't work; old int IDs to UUID-only routes won't work either).
+- The dual-revert sequence is: revert Phase 3 + Phase 2 application code together, deploy, leave Phase 1 schema in place.
 
 ---
 
-## Task 10: Manual verification + cleanup
+## Task 11: Manual verification + docs
 
 - [ ] **Step 1: Manual smoke test in dev**
-
-Start both servers:
 
 ```bash
 ./dev.sh
@@ -1063,61 +1068,63 @@ Start both servers:
 
 In a browser:
 1. Log in as test doctor.
-2. Open patient list → click a patient → URL shows `/doctor/patients/<uuid>`, not an integer.
+2. Open patient list → click a patient → URL shows `/doctor/patients/<uuid>`.
 3. Open a record → URL shows `/doctor/review/<uuid>`.
-4. Send a draft reply → succeeds.
+4. Send a draft reply → succeeds, no console errors.
 5. Open a task → URL shows `<uuid>`.
-6. Try `/doctor/patients/1` directly → app should render an empty / not-found state (router won't match `:public_id` if it's a UUID-shaped param OR backend lookup returns 404).
+6. Visit `/doctor/patients/1` directly → page renders, then API returns 404, UI shows "patient not found".
 
-- [ ] **Step 2: Confirm no integer IDs leak in URL or DOM links**
+- [ ] **Step 2: Verify no integer IDs leak in URL or DOM**
 
-Grep the running dev page DOM (or use browser DevTools network tab). API requests should be `/api/manage/patients/<uuid>/...`. If any request shows an integer in the path, find the missed callsite.
+In DevTools network tab, confirm every `/api/manage/...`, `/api/doctor/...`, `/api/tasks/...` request uses a UUID, not an integer.
 
-- [ ] **Step 3: Update README / architecture docs**
+- [ ] **Step 3: Update `docs/architecture.md`**
 
-In `docs/architecture.md`, add a one-paragraph note under the data model section:
+Add a paragraph under the data model section:
 
-> **Public IDs.** Tables that appear in user-visible URLs (`patients`, `medical_records`, `message_drafts`, `doctor_tasks`) carry a `public_id` UUIDv4 column used for routing. Internal foreign keys still use integer `id` for join performance. Any new table that surfaces in the API should follow the same pattern. Lookup helpers in `src/db/crud/public_id_lookup.py` enforce doctor-scoped ownership at the request boundary.
+> **Public IDs.** Tables that appear in user-visible URLs (`patients`, `medical_records`, `message_drafts`, `doctor_tasks`) carry a `public_id` UUIDv4 column used for routing and as the canonical identifier in API path params. Internal foreign keys still use integer `id` for join performance. Lookup helpers in `src/channels/web/doctor_dashboard/public_id_resolver.py` enforce doctor-scoped ownership at the request boundary and return identical 404s for "not found" and "wrong doctor" so callers cannot enumerate via differential errors.
 
-- [ ] **Step 4: Final commit**
-
-```bash
-git add docs/architecture.md
-git commit -m "docs: public_id pattern for URL-exposed tables"
-```
+- [ ] **Step 4: Stop and report.** Wait for the user to commit.
 
 ---
 
-## Self-Review Checklist (post-execution)
+## Self-Review Checklist (run before reporting completion)
 
-- [ ] All 4 tables have `public_id` populated, NOT NULL, UNIQUE.
-- [ ] Every `@router.get/post/put/delete` path that previously took `{patient_id}|{record_id}|{draft_id}|{task_id}` now takes `{public_id}` and resolves via a `get_*_by_public_id` helper.
-- [ ] `grep -rn "patient_id: int" src/channels/web/doctor_dashboard/` returns ONLY query-param uses (e.g. `Query(default=None)`), never path-param.
-- [ ] `grep -rn "navigate.*\\.id" frontend/web/src/v2/` returns zero hits.
-- [ ] All backend tests pass.
-- [ ] Vitest + Playwright pass.
-- [ ] Manual smoke test verified URLs in browser show UUIDs.
+- [ ] All four tables have `public_id` populated, NOT NULL, UNIQUE.
+- [ ] Every `@router.{get,post,put,patch,delete}` path that previously took a `{patient_id|record_id|draft_id|task_id}` int now takes `{public_id}` and resolves via the resolver.
+- [ ] `grep -rn "patient_id: int\|record_id: int\|draft_id: int\|task_id: int" src/channels/web/` returns ONLY query-param uses (e.g. `Query(default=None)`), not path-param.
+- [ ] `grep -rn "navigate.*\\.id" frontend/web/src/v2/` returns zero hits for patient/record/draft/task entities.
+- [ ] `grep -rn "/\\\${.*\\.id}" frontend/web/src/api.js` returns zero hits in the patient/record/draft/task URL builders.
+- [ ] All Phase 1 tests pass.
+- [ ] All Phase 2 route tests pass.
+- [ ] Vitest + Playwright (with `VITE_ROUTER_MODE=browser`) pass.
+- [ ] Manual smoke test verified UUIDs in URL and network tab.
+- [ ] No new auto-commits (commit only when user asks).
+- [ ] `int(draft.patient_id)` coercions still present (pre-existing landmine, not regressed).
 
 ---
 
 ## Open Questions / Risks
 
-1. **WeChat miniapp bundles a separate frontend.** This plan covers `frontend/web/`. If `frontend/wechat-miniprogram/` (or wherever the miniapp lives) makes API calls with integer IDs from cached state, those calls will start 404ing post-Phase-2. Audit before deploy.
+1. **WeChat miniapp.** This plan targets `frontend/web/`. If a separate miniapp codebase makes API calls with cached integer IDs from local storage, those calls will start 404ing post-Phase-2 deploy. Audit before deploy.
 
-2. **Cached deep links.** A user with a bookmarked `/doctor/patients/42` URL gets a "not found" page after Phase 3. Acceptable for an early-stage product, but worth a single sentry log line so we can quantify how often it happens.
+2. **Cached deep links / bookmarks.** A user with a bookmarked `/doctor/patients/42` URL gets a "patient not found" page after Phase 3. Acceptable for beta. Consider a single sentry log line on these to quantify.
 
-3. **Database size impact.** ~36 bytes per row × 4 tables × n rows = trivial at our current scale. At 100k patients it's ~3.6 MB. Not a concern.
+3. **Database size impact.** ~36 bytes per row × 4 tables × n rows. At 100k patients ≈ 3.6 MB extra. Negligible.
 
-4. **Should the migration be reviewed by Codex before execution?** Per project convention (`Discuss with Codex on big tasks`), yes — run `/codex` over this plan after self-review and before kicking off Task 1.
+4. **`MessageDraft.patient_id` is `String(64)`** (existing landmine, plan does not regress). Search the codebase for `int(draft.patient_id)` and `str(p.id)` after the migration to confirm nothing was accidentally touched.
+
+5. **Re-run `/codex review` after this plan is implemented in a worktree** — but before final merge. The current revision is significantly more concrete than v1; should clear cleanly.
 
 ---
 
 ## Execution Notes
 
-- This plan should be executed in a dedicated worktree, not on `main` directly.
-- Phases 2 and 3 must deploy together in production. Phase 1 is independently shippable.
-- Each task ends in a commit so progress is recoverable.
-- If anything in Phase 2 or 3 breaks unexpectedly, the rollback is `alembic downgrade -1` only AFTER reverting application code — never the other way around.
+- This plan should be executed in a dedicated worktree, not on `main`.
+- Phases 2 and 3 must deploy together. Phase 1 ships independently.
+- Each task ends in **stop and report** — never auto-commit. The user commits when satisfied.
+- All test runs are selective (`pytest -k`) per project rules; no full-suite runs unless explicitly requested.
+- If a phase breaks unexpectedly, see the per-phase rollback section above.
 
 ---
 
@@ -1126,38 +1133,49 @@ git commit -m "docs: public_id pattern for URL-exposed tables"
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
-| Codex Review | `/codex review` | Independent 2nd opinion | 1 | FAIL | 12 findings, 0 fixed |
+| Codex Review (v1) | `/codex review` | Independent 2nd opinion | 1 | FAIL | 12 findings — partially addressed in v2 |
+| Codex Review (v2) | `/codex review` | Re-review of revised plan | 1 | **FAIL** | 5 fixed, 7 still broken, 3 new issues |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 0 | — | — |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
-| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | n/a | No UI surface change |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | n/a | Internal migration |
 
-**CODEX:** flagged migration safety, scope undercount, broken tests, wrong alembic parent, layering issues, cutover hazards. Plan must be revised before execution.
+**v2 codex re-review verdict (2026-04-26):** **FAIL** — plan still not ready for execution.
 
-**VERDICT:** PLAN BLOCKED — codex review identified critical issues. Eng review still required after revisions.
+| # | Finding | Verdict | Notes |
+|---|---|---|---|
+| 1 | Wrong Alembic parent | FIXED | resolved at execution time |
+| 2 | Concurrent-write race | **STILL BROKEN** | model defaults wired in Task 2 (after the migration runs in Task 1); inserts during the window have no default |
+| 3 | Scope undercount | **STILL BROKEN** | missing patient-portal frontend (`PatientPage.jsx`, `RecordsTab.jsx`, `PatientTaskDetailPage.jsx`, `ChatTab.jsx`); `new_patient_handlers` flow not enumerated |
+| 4 | Test scaffolding bugs | FIXED | |
+| 5 | Phase 3 routing pointing at wrong file | **STILL BROKEN** | doctor/patient subroutes are NOT in `App.jsx` — they live in `DoctorPage.jsx:263` and `PatientPage.jsx:130` with manual pathname parsing |
+| 6 | Lookup helpers layer | FIXED | |
+| 7 | `MessageDraft.patient_id String(64)` | **STILL BROKEN** | acknowledged but not solved; drafts-per-patient filter (`MessageDraft.patient_id == str(patient_id)`) breaks when frontend starts passing UUIDs |
+| 8 | "Audit/sweep" too vague | **STILL BROKEN** | several entries still say "inspect at execution" |
+| 9 | Integer leaks beyond URL paths | **STILL BROKEN** | PDF filenames are user-visible (saved to Downloads); `triage_category` is returned in API responses |
+| 10 | `VARCHAR(36)` vs `CHAR(36)` | FIXED | |
+| 11 | Rollback story | FIXED | |
+| 12 | Repo fit | **STILL BROKEN** | tests cadence still conflicts with project rules |
 
-### Codex findings to address before re-running
+**New issues found in v2:**
+- `App.jsx` does not own doctor/patient entity sub-routes; manual pathname parsing in `DoctorPage.jsx` / `PatientPage.jsx`.
+- `new_patient_handlers` user flow omitted from concrete migration set despite being wired end-to-end.
+- Patient portal local storage stores int IDs (`patient_portal_patient_id`, `unified_auth_patient_id`); plan doesn't say if these need migration hygiene.
 
-1. **Wrong Alembic parent revision.** Plan hardcodes `down_revision = "f8b2c4e1a3d5"` but real head is `6a5d3c2e1f47`. Use `alembic heads` at execution time.
-2. **Migration not safe under concurrent writes.** Add-nullable → backfill → flip-NOT-NULL has a write-window where new rows land with `public_id=NULL` and break the alter. Need either a write freeze, server-side default, or idempotent retry.
-3. **Scope undercount.** Plan misses:
-   - `src/channels/web/doctor_dashboard/diagnosis_handlers.py` (record paths)
-   - `src/channels/web/tasks.py` (router prefix is `/api/tasks`, not `/api/manage/tasks`)
-   - `src/channels/web/export/patient.py` (PDF exports leak int IDs in URLs and filenames)
-   - `src/channels/web/patient_portal/tasks.py` (patient portal still exposes int task/record IDs)
-   - `src/channels/web/doctor_dashboard/record_edit_handlers.py`
-   - `frontend/web/src/api.js` (the main API client)
-4. **Tests are broken before they test public_id.** `MessageDraft` requires `source_message_id`. `DoctorTask` valid type is `follow_up` not `followup`. Phase 1 response test hits `/api/manage/tasks` which doesn't exist.
-5. **Phase 2+3 cutover is rosier than reality.** Cached clients hold int IDs in memory/localStorage/query-params. React Router `:public_id` matches `"1"` — old int URLs do NOT 404 at the route level. Need a route-side validator (UUID regex constraint) plus telemetry on int-shaped public_id values.
-6. **Lookup helpers in wrong layer.** `HTTPException` in `src/db/crud/` couples HTTP into CRUD. Move helpers to a route-deps module.
-7. **Existing type landmine ignored.** `MessageDraft.patient_id` is `String(64)`, joined to `Patient.id` (int). Already known issue. Plan must not regress this.
-8. **"Audit/sweep" steps are underspecified.** Replace every "grep for matches" step with an explicit checklist of files derived during planning, not at execution.
-9. **Integer leaks beyond URL paths:**
-   - PDF download filenames embed int patient/record IDs
-   - Audit rows store int `resource_id`
-   - `triage_category` embeds `task.id`
-10. **VARCHAR(36) vs CHAR(36) inconsistency** within the plan. Pick CHAR(36).
-11. **No rollback story.** MySQL DDL autocommit means an interrupted migration leaves inconsistent state. Backfill loop not resumable.
-12. **Repo fit issues.** Plan calls for full-suite runs and auto-commits which conflict with this project's "no auto-commit" and selective-test-running rules.
+---
 
-Until these are addressed and a re-run of `/codex review` returns a cleaner verdict, the plan is not ready for execution.
+## STATUS: DEFERRED to Q3 (≈ 2026-06)
 
+**Decision (2026-04-26):** Public_id migration is genuinely a 3-week dedicated project, not a 1-week fix. Two rounds of codex review surfaced progressively deeper coupling — that's a sign of project-wide scope, not of a planning gap.
+
+**What we shipped instead (Q2 quick wins, ≈ 2 hours of work):**
+- `MemoryRouter` for native/wrapper builds (`frontend/web/src/main.jsx`) — kills URL enumeration in iOS/Android/miniapp wrappers, the original concern.
+- Ownership check on `POST /api/manage/patients/{patient_id}/reply` (`src/channels/web/doctor_dashboard/patient_detail_handlers.py:330`) — closes the cross-tenant write gap.
+
+These cover ~80% of the practical security benefit of public_id at ~5% of the engineering cost.
+
+**Before resuming this plan:**
+1. Address the 7 still-broken findings, especially #2 (migration sequencing) and #3 (scope).
+2. Audit `DoctorPage.jsx` / `PatientPage.jsx` route parsers and add them to the inventory.
+3. Decide whether `MessageDraft.patient_id String(64)` gets fixed in this migration or kept frozen.
+4. Re-run `/codex review` until verdict is PASS.
+5. Run `/plan-eng-review` before execution.
