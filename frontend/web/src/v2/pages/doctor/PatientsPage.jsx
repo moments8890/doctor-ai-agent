@@ -5,13 +5,15 @@
  */
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { List, SearchBar, Button, ErrorBlock, DotLoading, Popup } from "antd-mobile";
+import { List, SearchBar, Button, ErrorBlock, DotLoading, Popup, PullToRefresh } from "antd-mobile";
 import { Collapse } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { usePatients, useAIAttention } from "../../../lib/doctorQueries";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "../../../lib/queryKeys";
 import { relativeDate, formatAge } from "../../../utils/time";
 import { APP, FONT, ICON, RADIUS } from "../../theme";
 import { pageContainer, scrollable } from "../../layouts";
@@ -197,6 +199,7 @@ export default function PatientsPage() {
   const location = useLocation();
   const { doctorId } = useDoctorStore();
   const api = useApi();
+  const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch } = usePatients();
   const { data: attentionData } = useAIAttention();
 
@@ -452,8 +455,22 @@ export default function PatientsPage() {
         </div>
       </Popup>
 
-      {/* Patient list */}
+      {/* Patient list — pull-to-refresh refetches both the patients list and
+          the unseen-patient count so the 新 badges and 今日关注 row update
+          together. Doctor doesn't have to wait for the 10s/30s polling. */}
       <div style={scrollable}>
+        <PullToRefresh
+          onRefresh={async () => {
+            await Promise.all([
+              refetch(),
+              queryClient.invalidateQueries({ queryKey: QK.unseenPatientCount(doctorId) }),
+            ]);
+          }}
+          pullingText="下拉刷新"
+          canReleaseText="松开刷新"
+          refreshingText="正在刷新…"
+          completeText="已刷新"
+        >
         {filtered.length === 0 && !isLoading && (
           search
             ? <EmptyState title="无匹配患者" description="试试其他关键词" />
@@ -500,6 +517,7 @@ export default function PatientsPage() {
             </div>
           </>
         )}
+        </PullToRefresh>
       </div>
     </div>
   );
