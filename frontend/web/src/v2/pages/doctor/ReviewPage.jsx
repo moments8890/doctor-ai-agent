@@ -27,7 +27,9 @@ import { MoreOutline } from "antd-mobile-icons";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { ActionFooter, ListSectionDivider, CitationPopup } from "../../components";
-import { useTaskRecord, useSuggestions } from "../../../lib/doctorQueries";
+import { useTaskRecord, useSuggestions, useReviewQueue } from "../../../lib/doctorQueries";
+import { computeNextNav } from "./reviewAutoAdvance";
+import SubpageBackHome from "../../components/SubpageBackHome";
 import { QK } from "../../../lib/queryKeys";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
@@ -1166,6 +1168,7 @@ export default function ReviewPage({ recordId }) {
   // React Query
   const { data: recordData, isLoading: recordLoading } = useTaskRecord(recordId);
   const { data: suggestionsData, isLoading: sugLoading } = useSuggestions(recordId);
+  const { data: reviewQueueData } = useReviewQueue();
   const loading = recordLoading || sugLoading;
 
   useEffect(() => {
@@ -1302,10 +1305,18 @@ export default function ReviewPage({ recordId }) {
           );
           return;
         }
-        if (record?.patient_id) {
-          navigate(dp(`patients/${record.patient_id}`));
+        // Single-tab IA: auto-advance to next pending review item, or
+        // return to home when the queue is empty.
+        const decision = computeNextNav(reviewQueueData, recordId);
+        if (decision.kind === "next") {
+          Toast.show({
+            content: `继续下一项 (剩余 ${decision.remaining} 项)`,
+            position: "bottom",
+          });
+          navigate(`${dp("review")}/${decision.nextId}`, { replace: true });
         } else {
-          navigate(dp("patients"));
+          Toast.show({ content: "已处理完今日全部事项", position: "bottom" });
+          navigate(dp("my-ai"));
         }
       }, 600);
     } catch {
@@ -1452,8 +1463,9 @@ export default function ReviewPage({ recordId }) {
     <div style={{ ...pageContainer, ...keyboardAwareStyle }}>
       <SafeArea position="top" />
 
-      {/* NavBar */}
+      {/* NavBar with back+home cluster */}
       <NavBar
+        backArrow={<SubpageBackHome />}
         onBack={() => navigate(-1)}
         style={navBarStyle}
       >
