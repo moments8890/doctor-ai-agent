@@ -54,6 +54,12 @@ def setup_cors(app: FastAPI) -> None:
             "X-Admin-Token", "X-Trace-Id", "X-Client-Channel",
         ],
         expose_headers=["X-Trace-Id", "X-API-Version"],
+        # iOS WKWebView (Capacitor builds, iOS 17+) sends
+        # `Access-Control-Request-Private-Network: true` on cross-origin
+        # preflights. Without this flag, Starlette's CORSMiddleware returns
+        # 400 "Disallowed CORS private-network" and every API call from the
+        # native iOS app fails with "load failed".
+        allow_private_network=True,
     )
 
 
