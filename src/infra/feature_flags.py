@@ -1,15 +1,15 @@
 """
 Feature flag helpers — per-doctor boolean flags.
 
-Default behavior: most flags are OFF (opt-in). Beta-stage flags listed in
-_DEFAULTS are ON by default (opt-out kill-switch): insert a row with
-enabled=False to disable for a specific doctor.
+Default behavior: flags default OFF (opt-in) unless listed in ``_DEFAULTS``,
+which holds beta-stage flags that default ON (opt-out kill-switch). Insert a
+row with the desired ``enabled`` value to override per doctor.
 
 Usage::
 
-    from infra.feature_flags import is_flag_enabled, FLAG_PATIENT_CHAT_INTAKE_ENABLED
+    from infra.feature_flags import is_flag_enabled
 
-    if await is_flag_enabled(session, doctor_id, FLAG_PATIENT_CHAT_INTAKE_ENABLED):
+    if await is_flag_enabled(session, doctor_id, "MY_FLAG"):
         ...
 """
 
@@ -20,13 +20,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models.feature_flag import DoctorFeatureFlag
 
-FLAG_PATIENT_CHAT_INTAKE_ENABLED = "PATIENT_CHAT_INTAKE_ENABLED"
-
-# Per-flag default. Beta-stage features default ON (opt-out kill-switch);
-# everything else defaults OFF (opt-in). To kill switch: insert a row with enabled=False.
-_DEFAULTS: dict[str, bool] = {
-    FLAG_PATIENT_CHAT_INTAKE_ENABLED: True,
-}
+# Per-flag defaults. Beta-stage features default ON (opt-out kill-switch);
+# everything else defaults OFF (opt-in). Insert a row with enabled=False to
+# disable a defaulted-on flag for a specific doctor.
+_DEFAULTS: dict[str, bool] = {}
 
 
 async def is_flag_enabled(
@@ -34,10 +31,7 @@ async def is_flag_enabled(
     doctor_id: str,
     flag_name: str,
 ) -> bool:
-    """Per-doctor feature flag. If no row exists, falls back to _DEFAULTS for the flag,
-    or False if the flag has no default. To override per doctor, insert a row with the
-    desired enabled value.
-    """
+    """Per-doctor feature flag. Falls back to ``_DEFAULTS`` then to ``False``."""
     row = (
         await session.execute(
             select(DoctorFeatureFlag).where(
