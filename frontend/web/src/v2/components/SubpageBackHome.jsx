@@ -34,7 +34,14 @@ export default function SubpageBackHome() {
   }
 
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 14 }}>
+    <span
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        gap: 14,
+      }}
+    >
       <ChevronLeftOutlinedIcon aria-label="返回" sx={ICON_SX} />
       <HomeOutlinedIcon
         aria-label="回到首页"

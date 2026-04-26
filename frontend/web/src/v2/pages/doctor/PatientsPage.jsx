@@ -381,7 +381,7 @@ export default function PatientsPage() {
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
+              justifyContent: "flex-end",
             }}
           >
             <AddCircleOutlineIcon sx={{ fontSize: ICON.md, color: APP.primary }} />
