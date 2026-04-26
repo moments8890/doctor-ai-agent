@@ -121,6 +121,11 @@ function buildBubbleItems(messages) {
     .map((m) => ({
       kind: "bubble",
       role: m.direction === "outbound" ? "doctor" : "patient",
+      // Surfaces the AI-vs-doctor distinction on outbound bubbles so an
+      // auditor can tell which replies were drafted by the AI on the
+      // doctor's behalf vs. typed by the doctor. null for legacy rows
+      // — those render as plain doctor bubbles (no pill).
+      source: m.source || null,
       text: m.content || "",
       ts: parseTs(m.created_at),
       _id: m.id,
@@ -138,8 +143,9 @@ function buildBubbleItems(messages) {
   return out;
 }
 
-function Bubble({ role, text, stamp }) {
+function Bubble({ role, source, text, stamp }) {
   const isDoctor = role === "doctor";
+  const isAi = isDoctor && source === "ai";
   return (
     <div
       style={{
@@ -158,18 +164,43 @@ function Bubble({ role, text, stamp }) {
       }}
     >
       <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{text}</div>
-      {stamp && (
-        <span
-          style={{
-            fontFamily: FONT_STACK.mono,
-            fontSize: 10.5,
-            color: isDoctor ? "rgba(255,255,255,0.75)" : COLOR.text3,
-            alignSelf: "flex-end",
-          }}
-        >
-          {stamp}
-        </span>
-      )}
+      <div
+        style={{
+          alignSelf: "flex-end",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        {isAi && (
+          <span
+            title="该消息由 AI 起草"
+            style={{
+              fontFamily: FONT_STACK.mono,
+              fontSize: 9.5,
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              padding: "1px 6px",
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.22)",
+              color: "rgba(255,255,255,0.95)",
+            }}
+          >
+            AI
+          </span>
+        )}
+        {stamp && (
+          <span
+            style={{
+              fontFamily: FONT_STACK.mono,
+              fontSize: 10.5,
+              color: isDoctor ? "rgba(255,255,255,0.75)" : COLOR.text3,
+            }}
+          >
+            {stamp}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -287,6 +318,7 @@ function ThreadBody({ patientId, doctorId, doctorName }) {
               <Bubble
                 key={it._id ?? idx}
                 role={it.role}
+                source={it.source}
                 text={it.text}
                 stamp={it.stamp}
               />

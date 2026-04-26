@@ -267,6 +267,7 @@ async def admin_messages_thread(
                 PatientMessage.direction,
                 PatientMessage.content,
                 PatientMessage.created_at,
+                PatientMessage.source,
             )
             .where(
                 and_(
@@ -288,6 +289,11 @@ async def admin_messages_thread(
             {
                 "id": m.id,
                 "direction": m.direction,
+                # source: "patient" | "ai" | "doctor" | None (legacy rows
+                # before ADR 0020). Drives the AI-pill marker on the admin
+                # chat-log so an auditor can tell AI replies from doctor-
+                # typed ones at a glance.
+                "source": m.source,
                 "content": m.content or "",
                 "created_at": _fmt_ts(created_at) if created_at else None,
             }
