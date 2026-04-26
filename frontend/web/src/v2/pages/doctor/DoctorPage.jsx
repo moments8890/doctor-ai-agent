@@ -17,7 +17,6 @@ import MyAIPage from "./MyAIPage";
 import PatientsPage from "./PatientsPage";
 import PatientDetail from "./PatientDetail";
 import PatientChatPage from "./PatientChatPage";
-import ReviewQueuePage from "./ReviewQueuePage";
 import ReviewPage from "./ReviewPage";
 import SettingsPage from "./SettingsPage";
 import PersonaSubpage from "./settings/PersonaSubpage";
@@ -39,35 +38,10 @@ import { useDoctorStore } from "../../../store/doctorStore";
 
 // ── Section detection ──────────────────────────────────────────────
 
-function detectSection(pathname) {
-  // /doctor or /doctor/ → my-ai
-  if (pathname === "/doctor" || pathname === "/doctor/") return "my-ai";
-  const segment = pathname.split("/")[2];
-  if (segment === "my-ai" || segment === "patients" || segment === "review") return segment;
-  if (segment === "settings") return "settings";
+function detectSection() {
+  // Single-tab IA: my-ai is always the base section. Other doctor routes
+  // (/patients, /review/:id, /settings/*) render via overlayRouteKey.
   return "my-ai";
-}
-
-// ── Placeholder content ────────────────────────────────────────────
-
-function SectionPlaceholder({ name }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100%",
-        gap: 12,
-        color: APP.text4,
-        fontFamily: "system-ui, sans-serif",
-        fontSize: FONT.md,
-      }}
-    >
-      <span>{name} — 即将上线</span>
-    </div>
-  );
 }
 
 // ── Feedback popover ───────────────────────────────────────────────
@@ -269,7 +243,7 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const activeSection = detectSection(location.pathname);
+  const activeSection = detectSection();
 
   // Intake overlay — active when navigated to /doctor/patients/new
   const intakeActive = location.pathname.endsWith("/patients/new");
@@ -297,6 +271,13 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
     return null;
   })();
 
+  // Patients list — /doctor/patients (no id, no /new). Pushed as overlay
+  // since /my-ai is the only base section after the single-tab IA cut.
+  const patientsListMatch = (() => {
+    const parts = location.pathname.split("/");
+    return parts[2] === "patients" && !parts[3];
+  })();
+
   // Review detail subpage — /doctor/review/:recordId
   const reviewDetailMatch = (() => {
     const parts = location.pathname.split("/");
@@ -322,7 +303,7 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
   })();
   const settingsActive = !!settingsMatch;
 
-  // Derive a unique route key for overlay subpages (null = tab root, no overlay)
+  // Derive a unique route key for overlay subpages (null = base only, no overlay)
   const overlayRouteKey = (() => {
     if (intakeActive) return "intake";
     if (patientDetailMatch) {
@@ -334,6 +315,7 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
       const { sub, sub2 } = settingsMatch;
       return `settings-${sub || "main"}${sub2 ? `-${sub2}` : ""}`;
     }
+    if (patientsListMatch) return "patients";
     return null;
   })();
 
@@ -365,6 +347,9 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
     }
     if (key.startsWith("review-")) {
       return <ReviewPage recordId={key.replace("review-", "")} />;
+    }
+    if (key === "patients") {
+      return <PatientsPage />;
     }
     if (key.startsWith("settings-")) {
       const parts = key.replace("settings-", "").split("-");
@@ -456,24 +441,14 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
           {baseSection === "patients" ? "患者" : baseSection === "review" ? "审核" : "我的AI"}
         </NavBar>
 
-      {/* Content area */}
+      {/* Content area — base section is always MyAIPage in single-tab IA */}
       <div
         style={{
           flex: 1,
           overflow: "hidden",
         }}
       >
-        {/* Tab content — uses frozen section when overlay is active to prevent
-            the base tab from switching while a subpage slides in on top */}
-        {baseSection === "my-ai" ? (
-          <MyAIPage doctorId={doctorId} />
-        ) : baseSection === "patients" ? (
-          <PatientsPage />
-        ) : baseSection === "review" ? (
-          <ReviewQueuePage />
-        ) : (
-          <SectionPlaceholder name="未知" />
-        )}
+        <MyAIPage doctorId={doctorId} />
       </div>
 
       {/* Page stack — positioned over the ENTIRE page */}

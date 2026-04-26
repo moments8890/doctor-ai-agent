@@ -16,6 +16,13 @@ vi.mock("../../lib/doctorQueries", () => ({
 vi.mock("../../store/doctorStore", () => ({
   useDoctorStore: () => ({ doctorId: "doc1" }),
 }));
+vi.mock("../../api/ApiContext", () => ({
+  useApi: () => ({
+    fetchPatients: () => Promise.resolve([]),
+    searchPatientsNL: () => Promise.resolve([]),
+  }),
+  ApiProvider: ({ children }) => children,
+}));
 
 import DoctorPage from "../pages/doctor/DoctorPage";
 
@@ -39,5 +46,13 @@ describe("Single-tab IA — TabBar absence", () => {
   test("DoctorPage renders no element with role=tablist", () => {
     render(<Host />);
     expect(screen.queryByRole("tablist")).toBeNull();
+  });
+});
+
+describe("Single-tab IA — base section is always my-ai", () => {
+  test("at /doctor/patients, MyAIPage renders as base (hero banner present)", () => {
+    render(<Host initialPath="/doctor/patients" />);
+    // HeroBanner title is the stable MyAIPage marker
+    expect(screen.queryByText(/您的专属医疗AI助手/)).toBeInTheDocument();
   });
 });
