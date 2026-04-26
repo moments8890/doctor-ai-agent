@@ -104,12 +104,28 @@ function OutcomeBadge({ variant }) {
   );
 }
 
+// Navigate to the patient detail page, preserving the current doctor= URL
+// param so the back arrow lands the operator back on this doctor view.
+function navigateToPatientDetail(patientId) {
+  if (typeof window === "undefined" || patientId == null) return;
+  const params = new URLSearchParams(window.location.search);
+  params.set("v", "3");
+  params.set("patient", String(patientId));
+  // doctor= is already in the URL when this card is rendered (DecisionCard
+  // only appears inside a doctor's AI tab); leaving it intact.
+  const next = `${window.location.pathname}?${params.toString()}${window.location.hash || ""}`;
+  window.history.pushState(null, "", next);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
 export default function DecisionCard({ card }) {
   if (!card) return null;
   const railColor = RAIL_BY_KIND[card.kind] || COLOR.info;
   const avStyle = PAT_AV_BY_KIND[card.kind] || PAT_AV_BY_KIND.reply_suggestion;
   const ctaLabel =
     card.kind === "reply_suggestion" ? "对比历史决策" : "查看完整决策链";
+  const ctaPatientId = card.patient?.id ?? null;
+  const ctaClickable = ctaPatientId != null;
 
   return (
     <article
@@ -275,10 +291,13 @@ export default function DecisionCard({ card }) {
           )}
         </div>
         <a
+          role={ctaClickable ? "button" : undefined}
+          onClick={ctaClickable ? () => navigateToPatientDetail(ctaPatientId) : undefined}
+          title={ctaClickable ? `查看 ${card.patient?.name || "该患者"} 详情` : undefined}
           style={{
             fontSize: 12.5,
-            color: COLOR.info,
-            cursor: "pointer",
+            color: ctaClickable ? COLOR.info : COLOR.text4,
+            cursor: ctaClickable ? "pointer" : "default",
             display: "inline-flex",
             alignItems: "center",
             gap: 4,
