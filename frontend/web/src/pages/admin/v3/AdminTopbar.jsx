@@ -5,13 +5,16 @@
 // 22px / weight 600 / letter-spacing -0.015em.
 //
 // Back navigation:
-// - Each non-`.here` breadcrumb item should carry an `href` so clicking it
-//   navigates up. The topbar renders a `←` arrow on the left whenever any
-//   breadcrumb item carries an href — that arrow targets the LAST href
-//   (i.e., the immediate parent), giving operators a one-tap "go up" that
-//   matches WeChat / iOS conventions.
-// - Items without href render as plain text (top-level "医生" / "概览"
-//   labels that have no parent target).
+// - `showBack` prop controls whether the ←arrow renders. When true the
+//   arrow calls `window.history.back()` — operator returns to whatever
+//   page navigated them here, regardless of structural hierarchy. This
+//   matters because patient detail can be reached from a doctor's
+//   patient list AND from the cross-doctor 全体患者 list; tying back to
+//   one fixed parent loses context for the other path.
+// - Crumbs with `href` are still clickable jumps to named places (e.g.
+//   the operator wants to skip the entity hierarchy and go directly to
+//   全体医生). Crumbs without href render as plain text. The arrow and
+//   the crumb hrefs are independent affordances now.
 
 import { COLOR, FONT, FONT_STACK, RADIUS } from "./tokens";
 
@@ -27,11 +30,14 @@ function navigateToHref(href) {
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
-export default function AdminTopbar({ breadcrumb = [] }) {
-  // Pick the LAST breadcrumb item with an href as the parent target — that's
-  // the immediate ancestor. e.g. patient detail's breadcrumb is
-  // `医生 / <doctor> / <patient,here>`; parent = the doctor item.
-  const parent = [...breadcrumb].reverse().find((c) => c.href);
+function navigateBack() {
+  if (typeof window === "undefined") return;
+  // history.back() naturally returns to whichever push got us here
+  // (doctor detail → patient OR 全体患者 → patient — both work).
+  window.history.back();
+}
+
+export default function AdminTopbar({ breadcrumb = [], showBack = false }) {
 
   return (
     <header
@@ -61,12 +67,12 @@ export default function AdminTopbar({ breadcrumb = [] }) {
           color: COLOR.text2,
         }}
       >
-        {parent && (
+        {showBack && (
           <button
             type="button"
-            onClick={() => navigateToHref(parent.href)}
-            title={`返回 ${parent.label}`}
-            aria-label={`返回 ${parent.label}`}
+            onClick={navigateBack}
+            title="返回"
+            aria-label="返回"
             style={{
               width: 32,
               height: 32,

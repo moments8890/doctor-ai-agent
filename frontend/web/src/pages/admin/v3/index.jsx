@@ -34,6 +34,34 @@ import ChatCenterPage from "./overview/ChatCenterPage";
 import AiActivityPage from "./overview/AiActivityPage";
 import useDoctorDetail from "./hooks/useDoctorDetail";
 
+// Tiny patient-profile fetcher just for the breadcrumb name. Doesn't
+// duplicate AdminPatientDetailV3's internal /related fetch — both share
+// the browser's HTTP cache so the second call is free.
+const ADMIN_TOKEN_KEY = "adminToken";
+function usePatientName(patientId) {
+  const [name, setName] = useState(null);
+  useEffect(() => {
+    if (!patientId) return;
+    let cancelled = false;
+    const token =
+      localStorage.getItem(ADMIN_TOKEN_KEY) ||
+      (import.meta.env.DEV ? "dev" : "");
+    fetch(`/api/admin/patients/${encodeURIComponent(patientId)}/related`, {
+      headers: token ? { "X-Admin-Token": token } : {},
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled) return;
+        setName(d?.profile?.name || null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [patientId]);
+  return name;
+}
+
 const OPS_SUBS = {
   invites: "邀请码",
   pilot: "试点进度",
@@ -93,29 +121,23 @@ function useUrlRoute() {
 // Renders the doctor detail surface and forwards the resolved doctor name
 // into the topbar breadcrumb (calls useDoctorDetail at this level so the
 // breadcrumb has access to `doctor.name` without prop drilling).
-// Patient detail breadcrumb: resolves the doctor name (so the parent
-// crumb reads "李医生" instead of "inv_FTCkQZ7FDVts") and wires hrefs
-// for both the parent doctor and the top-level "医生" list.
-function PatientDetailWithBreadcrumb({ patientId, doctorId }) {
-  // Best-effort doctor-name lookup so the back arrow's title and the
-  // parent crumb both read humanely. If we don't have a doctorId in the
-  // URL (deep-link to a patient with no doctor context), fall back to
-  // just the patient label and let the back arrow target the list.
-  const { doctor } = useDoctorDetail(doctorId);
-  const breadcrumb = [
-    { label: "医生", href: "?v=3" },
-    ...(doctorId
-      ? [
-          {
-            label: doctor?.name || "医生",
-            href: `?v=3&doctor=${encodeURIComponent(doctorId)}`,
-          },
-        ]
-      : []),
-    { label: "患者详情", here: true },
-  ];
+// Patient and doctor detail surfaces are PEERS now, not parent/child.
+// Each shows just the entity name as the breadcrumb (no parent crumb to
+// suggest a structural hierarchy that doesn't actually exist — patient
+// can be reached from EITHER the doctor's patient list OR the
+// cross-doctor 全体患者 list, so picking one as "the parent" is wrong).
+// Back navigation lives on the topbar arrow and uses
+// `window.history.back()` — returns to whichever list the operator
+// came from, regardless of which surface that was.
+
+function PatientDetailWithBreadcrumb({ patientId }) {
+  const patientName = usePatientName(patientId);
   return (
-    <AdminShellV3 section="doctors" breadcrumb={breadcrumb}>
+    <AdminShellV3
+      section="doctors"
+      showBack
+      breadcrumb={[{ label: patientName || `患者 ${patientId}`, here: true }]}
+    >
       <AdminPatientDetailV3 patientId={patientId} />
     </AdminShellV3>
   );
@@ -123,14 +145,12 @@ function PatientDetailWithBreadcrumb({ patientId, doctorId }) {
 
 function DoctorDetailWithBreadcrumb({ doctorId }) {
   const { doctor } = useDoctorDetail(doctorId);
-  const breadcrumb = [
-    // href on "医生" so the topbar back arrow + clicking the crumb both
-    // route to the doctor list. ?v=3 with no doctor/patient = list view.
-    { label: "医生", href: "?v=3" },
-    { label: doctor?.name || doctorId, here: true },
-  ];
   return (
-    <AdminShellV3 section="doctors" breadcrumb={breadcrumb}>
+    <AdminShellV3
+      section="doctors"
+      showBack
+      breadcrumb={[{ label: doctor?.name || doctorId, here: true }]}
+    >
       <AdminDoctorDetailV3 doctorId={doctorId} />
     </AdminShellV3>
   );
@@ -199,7 +219,7 @@ export default function AdminPageV3() {
 
   if (patientId) {
     return (
-      <PatientDetailWithBreadcrumb patientId={patientId} doctorId={doctorId} />
+      <PatientDetailWithBreadcrumb patientId={patientId} />
     );
   }
 

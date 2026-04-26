@@ -70,7 +70,7 @@ function injectMobileStyles() {
   document.head.appendChild(style);
 }
 
-export default function AdminShellV3({ section, breadcrumb, children }) {
+export default function AdminShellV3({ section, breadcrumb, showBack = false, children }) {
   useEffect(() => {
     injectMobileStyles();
     document.body.classList.add("admin-v3-mounted");
@@ -94,7 +94,7 @@ export default function AdminShellV3({ section, breadcrumb, children }) {
     >
       <AdminSidebar activeSection={section} />
       <main style={{ background: COLOR.bgPage, minWidth: 0 }}>
-        <AdminTopbar breadcrumb={breadcrumb} />
+        <AdminTopbar breadcrumb={breadcrumb} showBack={showBack} />
         <div data-v3-content style={{ padding: "20px 24px 80px", maxWidth: 1320 }}>
           {children}
         </div>
