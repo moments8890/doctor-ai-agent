@@ -10,7 +10,7 @@
 import { useState, useCallback, useRef, useMemo } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { usePageStack } from "../../usePageStack";
-import { NavBar, Popover, SafeArea, TabBar, Button } from "antd-mobile";
+import { NavBar, Popover, SafeArea, TabBar, Button, TextArea, Toast } from "antd-mobile";
 import { usePatients } from "../../../lib/doctorQueries";
 import InterviewPage from "./InterviewPage";
 import MyAIPage from "./MyAIPage";
@@ -38,6 +38,8 @@ import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
 import MailIcon from "@mui/icons-material/Mail";
 import AddToHomeScreenOutlinedIcon from "@mui/icons-material/AddToHomeScreenOutlined";
+import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
+import { submitPlatformFeedback } from "../../../api";
 import { APP, FONT, ICON } from "../../theme";
 import { useDoctorStore } from "../../../store/doctorStore";
 
@@ -102,6 +104,84 @@ function SectionPlaceholder({ name }) {
     >
       <span>{name} — 即将上线</span>
     </div>
+  );
+}
+
+// ── Feedback popover ───────────────────────────────────────────────
+// Controlled antd-mobile Popover. Opens on icon tap, closes on submit
+// success or outside click. Posts to /api/platform/feedback (auth via
+// Authorization header from the existing api.js wrapper).
+
+function FeedbackPopover({ children }) {
+  const [visible, setVisible] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function handleSubmit() {
+    const trimmed = text.trim();
+    if (!trimmed || busy) return;
+    setBusy(true);
+    try {
+      await submitPlatformFeedback({
+        content: trimmed,
+        pageUrl: typeof window !== "undefined" ? window.location.href : null,
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+      });
+      Toast.show({ icon: "success", content: "已发送，谢谢你的反馈" });
+      setText("");
+      setVisible(false);
+    } catch (err) {
+      Toast.show({
+        icon: "fail",
+        content: err?.message || "提交失败，请稍后再试",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Popover
+      content={
+        <div style={{ width: 260, padding: "4px 2px" }}>
+          <div
+            style={{
+              fontSize: FONT.md,
+              fontWeight: 600,
+              color: APP.text1,
+              marginBottom: 8,
+            }}
+          >
+            反馈给我们
+          </div>
+          <TextArea
+            value={text}
+            onChange={setText}
+            placeholder="哪里有问题？想看到什么功能？任何想说的都可以"
+            rows={4}
+            maxLength={2000}
+            autoSize={{ minRows: 4, maxRows: 8 }}
+          />
+          <Button
+            color="primary"
+            block
+            size="small"
+            loading={busy}
+            disabled={!text.trim()}
+            onClick={handleSubmit}
+            style={{ marginTop: 8 }}
+          >
+            提交
+          </Button>
+        </div>
+      }
+      trigger="click"
+      placement="bottomRight"
+      visible={visible}
+      onVisibleChange={setVisible}
+    >
+      {children}
+    </Popover>
   );
 }
 
@@ -279,42 +359,58 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
                 <AddCircleOutline style={{ fontSize: ICON.md }} />
               </Button>
             ) : baseSection === "my-ai" ? (
-              <Popover
-                trigger="click"
-                placement="bottomRight"
-                content={
-                  <div style={{ maxWidth: 240, padding: "4px 2px" }}>
-                    <div
-                      style={{
-                        fontSize: FONT.md,
-                        fontWeight: 600,
-                        color: APP.text1,
-                        marginBottom: 8,
-                      }}
-                    >
-                      添加到桌面，下次一键打开
-                    </div>
-                    <div style={{ fontSize: FONT.sm, color: APP.text2, lineHeight: 1.7 }}>
-                      <div>1. 点击微信右上角「···」</div>
-                      <div>2. 选择「添加到桌面」</div>
-                      <div>3. 下次直接从桌面打开</div>
-                    </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <FeedbackPopover>
+                  <div
+                    role="button"
+                    aria-label="反馈"
+                    style={{
+                      padding: 8,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <FeedbackOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
                   </div>
-                }
-              >
-                <div
-                  role="button"
-                  aria-label="添加到桌面"
-                  style={{
-                    padding: 8,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
+                </FeedbackPopover>
+                <Popover
+                  trigger="click"
+                  placement="bottomRight"
+                  content={
+                    <div style={{ maxWidth: 240, padding: "4px 2px" }}>
+                      <div
+                        style={{
+                          fontSize: FONT.md,
+                          fontWeight: 600,
+                          color: APP.text1,
+                          marginBottom: 8,
+                        }}
+                      >
+                        添加到桌面，下次一键打开
+                      </div>
+                      <div style={{ fontSize: FONT.sm, color: APP.text2, lineHeight: 1.7 }}>
+                        <div>1. 点击微信右上角「···」</div>
+                        <div>2. 选择「添加到桌面」</div>
+                        <div>3. 下次直接从桌面打开</div>
+                      </div>
+                    </div>
+                  }
                 >
-                  <AddToHomeScreenOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
-                </div>
-              </Popover>
+                  <div
+                    role="button"
+                    aria-label="添加到桌面"
+                    style={{
+                      padding: 8,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <AddToHomeScreenOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
+                  </div>
+                </Popover>
+              </div>
             ) : null
           }
           style={{

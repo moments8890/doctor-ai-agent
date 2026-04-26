@@ -169,6 +169,20 @@ export async function unifiedListDoctors() {
   return res.json();
 }
 
+// Open-ended platform feedback. Goes through `request()` so the JWT is
+// auto-attached, and the response is captured for surfacing in toasts.
+export async function submitPlatformFeedback({ content, pageUrl, userAgent }) {
+  return request("/api/platform/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content,
+      page_url: pageUrl,
+      user_agent: userAgent,
+    }),
+  });
+}
+
 export async function getAdminInviteCodes() {
   return adminRequest("/api/admin/invite-codes");
 }

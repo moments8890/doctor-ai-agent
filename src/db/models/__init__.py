@@ -31,6 +31,7 @@ from db.models.message_draft import MessageDraft, DraftStatus
 from db.models.user_preferences import UserPreferences, DEFAULT_PREFERENCES
 from db.models.form_response import FormResponseDB
 from db.models.feature_flag import DoctorFeatureFlag
+from db.models.platform_feedback import PlatformFeedback
 
 __all__ = [
     "_utcnow",
@@ -58,4 +59,5 @@ __all__ = [
     "UserPreferences", "DEFAULT_PREFERENCES",
     "FormResponseDB",
     "DoctorFeatureFlag",
+    "PlatformFeedback",
 ]

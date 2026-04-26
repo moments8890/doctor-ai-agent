@@ -37,6 +37,7 @@ from channels.web.doctor_dashboard.admin_suggestions import router as _admin_sug
 from channels.web.doctor_dashboard.preferences_handlers import router as _preferences_router
 from channels.web.doctor_dashboard.today_summary_handlers import router as _today_summary_router
 from channels.web.doctor_dashboard.feedback_handlers import router as _feedback_router
+from channels.web.doctor_dashboard.platform_feedback_handlers import router as _platform_feedback_router
 from channels.web.doctor_dashboard.supplement_handlers import router as _supplement_router
 
 router = APIRouter(tags=["ui"])
@@ -72,4 +73,5 @@ router.include_router(_admin_suggestions_router)
 router.include_router(_preferences_router)
 router.include_router(_today_summary_router)
 router.include_router(_feedback_router)
+router.include_router(_platform_feedback_router)
 router.include_router(_supplement_router)
