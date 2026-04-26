@@ -3,22 +3,22 @@
  *
  * Ported from src/pages/patient/ChatTab.jsx.
  * Key behaviours preserved:
- *   - QuickActions row ("新问诊", "查看病历")
  *   - Message polling (10s visible / 60s hidden)
  *   - Optimistic patient messages with de-duplication on poll
  *   - Unread count tracking via LAST_SEEN_CHAT_KEY
  *   - Doctor / AI / patient / system message rendering
  *   - keyboardAwareStyle + useScrollOnKeyboard
  *   - ChatBubble + ChatComposer from v2
+ *
+ * 2026-04-26: removed in-chat QuickActions card. New-intake CTA lives in
+ * the navbar (PatientPage right slot, "+ 新问诊"), records access via
+ * the tab nav. The card was duplicating both affordances.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SpinLoading } from "antd-mobile";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import { usePatientApi } from "../../../api/PatientApiContext";
-import { Card, TintedIconRow } from "../../components";
 import ChatBubble from "../../ChatBubble";
 import ChatConfirmGate from "../../components/ChatConfirmGate";
 import ChatDedupPrompt from "../../components/ChatDedupPrompt";
@@ -29,34 +29,6 @@ import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { APP, FONT, RADIUS } from "../../theme";
 
 const LAST_SEEN_CHAT_KEY = "patient_last_seen_chat";
-
-// ---------------------------------------------------------------------------
-// QuickActions
-// ---------------------------------------------------------------------------
-
-function QuickActions({ onNewIntake, onViewRecords }) {
-  return (
-    <Card style={{ marginTop: 8, marginBottom: 8 }}>
-      <TintedIconRow
-        Icon={AddCircleOutlineIcon}
-        iconColor={APP.primary}
-        iconBg={APP.primaryLight}
-        title="新问诊"
-        subtitle="开始 AI 预问诊"
-        onClick={onNewIntake}
-        isFirst
-      />
-      <TintedIconRow
-        Icon={FolderOutlinedIcon}
-        iconColor={APP.accent}
-        iconBg={APP.accentLight}
-        title="查看病历"
-        subtitle="历史记录与诊断"
-        onClick={onViewRecords}
-      />
-    </Card>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Message renderers
@@ -116,8 +88,6 @@ function SystemMessage({ msg, onTap }) {
 export default function ChatTab({
   token,
   doctorName,
-  onNewIntake,
-  onViewRecords,
   onUnreadCountChange,
 }) {
   const navigate = useNavigate();
@@ -375,8 +345,6 @@ export default function ChatTab({
 
   return (
     <div style={keyboardAwareStyle}>
-      <QuickActions onNewIntake={onNewIntake} onViewRecords={onViewRecords} />
-
       {/* Active-intake banner sits above the message list. Hidden when no
           intake is active. */}
       {intakeActive && (

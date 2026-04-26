@@ -207,19 +207,20 @@ export default function PatientPage() {
     <div style={pageContainer}>
       <SafeArea position="top" />
 
-      {/* Top NavBar */}
+      {/* Top NavBar — "+ 新问诊" CTA visible on chat + records tabs.
+          Patient profile / tasks tabs hide it (irrelevant context). */}
       <NavBar
         backArrow={false}
         right={
-          section === "records" ? (
+          (section === "chat" || section === "records") ? (
             <Button
               fill="none"
               color="primary"
               size="small"
               onClick={startIntake}
-              aria-label="新问诊"
             >
-              <AddCircleOutline style={{ fontSize: ICON.md }} />
+              <AddCircleOutline style={{ fontSize: ICON.sm, marginRight: 4, verticalAlign: "middle" }} />
+              新问诊
             </Button>
           ) : null
         }
@@ -242,8 +243,6 @@ export default function PatientPage() {
           <ChatTab
             token={token}
             doctorName={doctorName}
-            onNewIntake={startIntake}
-            onViewRecords={() => handleTabChange("records")}
             onUnreadCountChange={setUnreadCount}
           />
         )}
