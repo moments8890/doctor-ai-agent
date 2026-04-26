@@ -478,9 +478,14 @@ function SuggestionsSection({ items }) {
           const decisionLabel = s.decision
             ? DECISION_LABEL[s.decision] || s.decision
             : "未决定";
-          const confidencePct = s.confidence != null
-            ? `${Math.round(s.confidence * 100)}%`
-            : null;
+          // Confidence may be either a 0-1 float or a Chinese string ("高"/"中"/"低")
+          // depending on which extractor produced it. Show whichever shape is real.
+          let confidencePct = null;
+          if (typeof s.confidence === "number" && !Number.isNaN(s.confidence)) {
+            confidencePct = `${Math.round(s.confidence * 100)}%`;
+          } else if (typeof s.confidence === "string" && s.confidence.trim()) {
+            confidencePct = s.confidence.trim();
+          }
           return (
             <div
               key={s.id}
