@@ -2,7 +2,7 @@
 
 > Date: 2026-03-22 | Feature: Post-Visit Patient Portal
 > Prerequisite: Seed data with at least 1 patient (李明), 1 doctor (张三),
-> 1 interview record, 1 confirmed diagnosis with approved workup + treatment
+> 1 intake record, 1 confirmed diagnosis with approved workup + treatment
 
 ---
 
@@ -82,7 +82,7 @@
 | E5 | Tap a record with confirmed diagnosis | Detail view shows structured fields + diagnosis card + treatment plan | |
 | E6 | Verify diagnosis card has "已确认" StatusBadge | Green badge with diagnosis name | |
 | E7 | Verify treatment plan shows medications | "用药：" section with drug names | |
-| E8 | Verify red flag warning card | Red-bordered card with "注意事项" if red flags exist | |
+| E8 | Verify signal flag warning card | Red-bordered card with "注意事项" if signal flags exist | |
 | E9 | Tap a record with failed diagnosis | "诊断失败" red badge, no treatment plan | |
 
 ---
@@ -120,7 +120,7 @@
 | H1 | Patient sends clinical message → escalated | Doctor gets notification | |
 | H2 | Patient sends 3 more clinical messages in same 6h window | 4th message saved but NO notification sent | |
 | H3 | Patient gets "医生将在查看时一并处理您的问题" | Rate limit message shown | |
-| H4 | Patient sends urgent message (red flag) | Doctor notified immediately, bypasses rate limit | |
+| H4 | Patient sends urgent message (signal flag) | Doctor notified immediately, bypasses rate limit | |
 | H5 | Doctor confirms diagnosis | Patient sees "张三医生已确认您的诊断结果" in chat | |
 
 ---

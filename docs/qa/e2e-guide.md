@@ -113,7 +113,7 @@ Common pitfalls:
 ```typescript
 addKnowledgeText(request, doctor, content)           // category defaults to "custom"
 addPersonaRule(request, doctor, field, text)          // field: reply_style|closing|structure|avoid|edits
-completePatientInterview(request, patient, messages)  // returns { recordId }
+completePatientIntake(request, patient, messages)  // returns { recordId }
 sendPatientMessage(request, patient, text)
 sendDoctorReply(request, doctor, patientId, text)
 ```

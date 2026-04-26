@@ -29,16 +29,16 @@ const RECORD_TYPE_LABEL = {
   visit: "门诊记录",
   dictation: "语音记录",
   import: "导入记录",
-  interview_summary: "预问诊",
+  intake_summary: "预问诊",
 };
 
 // Type tag color mapping — green for medical encounters, blue/accent for
-// interview summaries, gray fallback for unknown.
+// intake summaries, gray fallback for unknown.
 const RECORD_TYPE_COLOR = {
   visit: { bg: APP.primaryLight, fg: APP.primary },
   dictation: { bg: APP.primaryLight, fg: APP.primary },
   import: { bg: APP.primaryLight, fg: APP.primary },
-  interview_summary: { bg: APP.accentLight, fg: APP.accent },
+  intake_summary: { bg: APP.accentLight, fg: APP.accent },
 };
 
 const DEFAULT_TYPE_COLOR = { bg: APP.borderLight, fg: APP.text3 };

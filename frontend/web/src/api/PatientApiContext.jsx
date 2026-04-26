@@ -12,10 +12,10 @@ import {
   confirmPatientChatDraft,
   dedupDecisionPatientChat,
   sendPatientMessage,
-  interviewStart,
-  interviewTurn,
-  interviewConfirm,
-  interviewCancel,
+  intakeStart,
+  intakeTurn,
+  intakeConfirm,
+  intakeCancel,
 } from "../api";
 
 export const PatientApiContext = createContext(null);
@@ -33,10 +33,10 @@ const realApi = {
   confirmPatientChatDraft,
   dedupDecisionPatientChat,
   sendPatientMessage,
-  interviewStart,
-  interviewTurn,
-  interviewConfirm,
-  interviewCancel,
+  intakeStart,
+  intakeTurn,
+  intakeConfirm,
+  intakeCancel,
 };
 
 // Stable reference — avoids new-object-per-render when no value prop is passed

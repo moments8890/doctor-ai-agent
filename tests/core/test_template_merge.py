@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.templates.medical_general import (
+from domain.intake.templates.medical_general import (
     GeneralMedicalExtractor, MEDICAL_FIELDS,
 )
 

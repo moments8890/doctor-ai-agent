@@ -178,7 +178,7 @@
         const obj = JSON.parse(output);
         return obj.category === 'side_effect' || obj.category === 'symptom_report';
 
-# --- post-surgical neurological red flags ---
+# --- post-surgical neurological signal flags ---
 
 - description: "triage: postop headache + vomiting + high BP → urgent"
   options:

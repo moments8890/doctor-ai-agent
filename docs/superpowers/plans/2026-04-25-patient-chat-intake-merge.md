@@ -1,10 +1,10 @@
-# Patient Chat–Interview Merge Implementation Plan
+# Patient Chat–Intake Merge Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
 > **Project rules in force:** never push, work on main branch (no feature branches), commit per task only when the task instructions say to commit, e2e on :8001 only.
 
-**Goal:** Implement Phases 0, 0.5, and 1 of `docs/superpowers/specs/2026-04-25-patient-chat-interview-merge-design.md` v1.2 — backend safety floor, KB curation onboarding, and dual-mode chat with sticky state machine, append-only dedup, and supplement workflow for reviewed records.
+**Goal:** Implement Phases 0, 0.5, and 1 of `docs/superpowers/specs/2026-04-25-patient-chat-intake-merge-design.md` v1.2 — backend safety floor, KB curation onboarding, and dual-mode chat with sticky state machine, append-only dedup, and supplement workflow for reviewed records.
 
 **Architecture:** Reuse existing `triage.classify()` as the mode signal for a new sticky `ChatSessionState` machine. Reuse `MedicalRecordDB` (no new model for records) but switch the 7 history fields to a new `FieldEntryDB` table for append-only provenance. New `RecordSupplementDB` for patient supplements to doctor-reviewed records. Phase 1 is feature-flagged per doctor; Phase 0 + 0.5 are unconditional safety + onboarding.
 
@@ -20,8 +20,8 @@
 - `src/db/models/doctor.py` — add `patient_safe` column to `DoctorKnowledgeItem`; add `kb_curation_onboarding_done` flag to `Doctor`.
 - `src/db/models/patient_message.py` — add `retracted` boolean column.
 - `src/domain/patient_lifecycle/triage.py` — extend `TriageResult` with optional `intake_cancel_signal` and `qa_resume_signal` fields (folded into main classify call per v1.2 Q1 lean); no new categories.
-- `src/domain/patient_lifecycle/triage_handlers.py` — extract red-flag detection from `handle_urgent` into a standalone `red_flag_pass()` that runs on every turn regardless of state.
-- `src/domain/interview/templates/medical_general.py` — `MedicalRecordWriter.persist` writes to `FieldEntryDB` instead of mutating string columns.
+- `src/domain/patient_lifecycle/triage_handlers.py` — extract signal-flag detection from `handle_urgent` into a standalone `signal_flag_pass()` that runs on every turn regardless of state.
+- `src/domain/intake/templates/medical_general.py` — `MedicalRecordWriter.persist` writes to `FieldEntryDB` instead of mutating string columns.
 - `src/channels/web/patient_portal/chat.py` — `post_chat` dispatches to new state-machine pipeline.
 - `src/channels/web/doctor_dashboard/review_queue_handlers.py` — provenance filter + extraction_confidence in response; mount supplement queue routes.
 
@@ -29,18 +29,18 @@
 
 - `src/domain/patient_lifecycle/chat_state.py` — `ChatSessionState` model + transitions (idle / intake / qa_window).
 - `src/domain/patient_lifecycle/dedup.py` — §5a detection (similarity + episode signals), §5b merge logic, §5c same-segment auto-merge.
-- `src/domain/patient_lifecycle/red_flag.py` — standalone always-on red-flag classifier (extracted from triage_handlers).
+- `src/domain/patient_lifecycle/signal_flag.py` — standalone always-on signal-flag classifier (extracted from triage_handlers).
 - `src/domain/patient_lifecycle/extraction_confidence.py` — deterministic calculator (filled fields / 7).
 - `src/domain/knowledge/curation_gate.py` — server-side gate that honors `patient_safe=true` only when doctor's `kb_curation_onboarding_done=true`.
 - `src/channels/web/doctor_dashboard/supplement_handlers.py` — accept / create-new / ignore actions on `RecordSupplementDB`.
-- `alembic/versions/<uuid>_chat_interview_merge_phase0.py` — single Alembic migration for all Phase 0 schema changes.
-- `alembic/versions/<uuid>_chat_interview_merge_backfill.py` — data-only migration: copy existing string fields into `FieldEntryDB` single-entry rows.
+- `alembic/versions/<uuid>_chat_intake_merge_phase0.py` — single Alembic migration for all Phase 0 schema changes.
+- `alembic/versions/<uuid>_chat_intake_merge_backfill.py` — data-only migration: copy existing string fields into `FieldEntryDB` single-entry rows.
 
 ### Frontend — modify
 
 - `frontend/web/src/v2/pages/patient/ChatTab.jsx` — render confirm gate, dedup prompt, retracted-message strikethrough, supplement chip.
 - `frontend/web/src/v2/pages/patient/RecordsTab.jsx` — render append-only field entries chronologically when present.
-- `frontend/web/src/v2/pages/patient/InterviewPage.jsx` — keep but no UI change in this plan (Phase 3 demotes the CTA).
+- `frontend/web/src/v2/pages/patient/IntakePage.jsx` — keep but no UI change in this plan (Phase 3 demotes the CTA).
 - `frontend/web/src/v2/pages/doctor/...` — review queue: provenance filter chip, extraction_confidence ring, supplement section. (Exact filename verified during implementation; admin/doctor review surface lives under `frontend/web/src/v2/pages/doctor/` per existing convention.)
 - `frontend/web/src/api.js` — add fetchers for new endpoints (confirm gate, dedup prompts, supplement actions).
 
@@ -55,7 +55,7 @@
 
 - `tests/core/test_chat_state.py` — entry rule, sticky exit, qa_window transitions.
 - `tests/core/test_dedup.py` — §5a detection (similarity + episode signals), §5b common case + edge case 2, §5c same-segment.
-- `tests/core/test_red_flag.py` — always-on per-turn pass.
+- `tests/core/test_signal_flag.py` — always-on per-turn pass.
 - `tests/core/test_extraction_confidence.py` — deterministic calculator.
 - `tests/core/test_curation_gate.py` — patient_safe honored only with onboarding done.
 - `tests/api/test_patient_chat_state_machine.py` — end-to-end `POST /chat` exercising state transitions, confirm gate, dedup, supplement creation.
@@ -67,22 +67,22 @@ Existing `tests/core/test_triage_pure.py` extended where needed; do not reorgani
 
 ## Phase 0 — Backend Safety Floor
 
-Goal: schema landed, red-flag classifier always-on, extraction_confidence calculator available. **Independently shippable** — no UX change. Phase 1 cannot start until this is merged.
+Goal: schema landed, signal-flag classifier always-on, extraction_confidence calculator available. **Independently shippable** — no UX change. Phase 1 cannot start until this is merged.
 
 ### Task 0.1: Alembic migration — schema additions to existing tables
 
 **Files:**
-- Create: `alembic/versions/<auto-uuid>_chat_interview_merge_phase0.py`
+- Create: `alembic/versions/<auto-uuid>_chat_intake_merge_phase0.py`
 
 - [ ] **Step 1: Generate empty migration**
 
-Run: `/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/alembic revision -m "chat_interview_merge_phase0"`
+Run: `/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/alembic revision -m "chat_intake_merge_phase0"`
 Expected: new file created under `alembic/versions/` with auto-generated UUID prefix.
 
 - [ ] **Step 2: Write the upgrade()**
 
 ```python
-"""chat_interview_merge_phase0
+"""chat_intake_merge_phase0
 
 Adds dedup/provenance/safety columns to medical_records, doctor_knowledge_items,
 doctors, and patient_messages. Schema for the new FieldEntryDB and RecordSupplementDB
@@ -97,7 +97,7 @@ def upgrade():
     op.add_column("medical_records", sa.Column("extraction_confidence", sa.Float, nullable=True))
     op.add_column("medical_records", sa.Column("patient_confirmed_at", sa.DateTime, nullable=True))
     op.add_column("medical_records", sa.Column("cancellation_reason", sa.String(64), nullable=True))
-    op.add_column("medical_records", sa.Column("red_flag", sa.Boolean, nullable=False, server_default=sa.false()))
+    op.add_column("medical_records", sa.Column("signal_flag", sa.Boolean, nullable=False, server_default=sa.false()))
     op.add_column("medical_records", sa.Column("intake_segment_id", sa.String(64), nullable=True))
     op.add_column("medical_records", sa.Column("dedup_skipped_by_patient", sa.Boolean, nullable=False, server_default=sa.false()))
     op.create_index("ix_medical_records_intake_segment_id", "medical_records", ["intake_segment_id"])
@@ -117,7 +117,7 @@ def downgrade():
     op.drop_column("doctors", "kb_curation_onboarding_done")
     op.drop_column("doctor_knowledge_items", "patient_safe")
     op.drop_index("ix_medical_records_intake_segment_id", table_name="medical_records")
-    for col in ("dedup_skipped_by_patient", "intake_segment_id", "red_flag",
+    for col in ("dedup_skipped_by_patient", "intake_segment_id", "signal_flag",
                 "cancellation_reason", "patient_confirmed_at", "extraction_confidence"):
         op.drop_column("medical_records", col)
 ```
@@ -132,8 +132,8 @@ Expected: success. Run `/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/alembic cu
 - [ ] **Step 4: Commit**
 
 ```bash
-git add alembic/versions/*chat_interview_merge_phase0*.py
-git commit -m "feat(db): phase0 schema additions for chat-interview merge"
+git add alembic/versions/*chat_intake_merge_phase0*.py
+git commit -m "feat(db): phase0 schema additions for chat-intake merge"
 ```
 
 ---
@@ -142,7 +142,7 @@ git commit -m "feat(db): phase0 schema additions for chat-interview merge"
 
 **Files:**
 - Modify: `src/db/models/records.py` (add new ORM classes at end)
-- Create: `alembic/versions/<auto-uuid>_chat_interview_merge_new_tables.py`
+- Create: `alembic/versions/<auto-uuid>_chat_intake_merge_new_tables.py`
 
 - [ ] **Step 1: Add ORM classes to records.py**
 
@@ -174,7 +174,7 @@ Verify imports at the top of the file include `from datetime import datetime` an
 
 - [ ] **Step 2: Generate the table-creation migration**
 
-Run: `/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/alembic revision -m "chat_interview_merge_new_tables"`
+Run: `/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/alembic revision -m "chat_intake_merge_new_tables"`
 
 - [ ] **Step 3: Write upgrade/downgrade**
 
@@ -222,7 +222,7 @@ Run: `/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/alembic upgrade head`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/db/models/records.py alembic/versions/*chat_interview_merge_new_tables*.py
+git add src/db/models/records.py alembic/versions/*chat_intake_merge_new_tables*.py
 git commit -m "feat(db): add FieldEntryDB and RecordSupplementDB tables"
 ```
 
@@ -243,7 +243,7 @@ In `src/db/models/records.py`, inside the `class MedicalRecordDB(Base):` block, 
 extraction_confidence: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True)
 patient_confirmed_at: Mapped[Optional[datetime]] = mapped_column(sa.DateTime, nullable=True)
 cancellation_reason: Mapped[Optional[str]] = mapped_column(sa.String(64), nullable=True)
-red_flag: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
+signal_flag: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
 intake_segment_id: Mapped[Optional[str]] = mapped_column(sa.String(64), nullable=True, index=True)
 dedup_skipped_by_patient: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
 ```
@@ -279,7 +279,7 @@ Expected: `ok` — no import errors.
 
 ```bash
 git add src/db/models/records.py src/db/models/doctor.py src/db/models/patient_message.py
-git commit -m "feat(db): ORM columns for chat-interview merge phase 0"
+git commit -m "feat(db): ORM columns for chat-intake merge phase 0"
 ```
 
 ---
@@ -287,11 +287,11 @@ git commit -m "feat(db): ORM columns for chat-interview merge phase 0"
 ### Task 0.4: Backfill existing history strings into FieldEntryDB
 
 **Files:**
-- Create: `alembic/versions/<auto-uuid>_chat_interview_merge_backfill.py`
+- Create: `alembic/versions/<auto-uuid>_chat_intake_merge_backfill.py`
 
 - [ ] **Step 1: Generate migration**
 
-Run: `/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/alembic revision -m "chat_interview_merge_backfill"`
+Run: `/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/alembic revision -m "chat_intake_merge_backfill"`
 
 - [ ] **Step 2: Write data-only upgrade**
 
@@ -367,7 +367,7 @@ Expected: backfilled count >= records count (≥ because we may have multiple fi
 - [ ] **Step 5: Commit**
 
 ```bash
-git add alembic/versions/*chat_interview_merge_backfill*.py
+git add alembic/versions/*chat_intake_merge_backfill*.py
 git commit -m "feat(db): backfill existing history strings into FieldEntryDB"
 ```
 
@@ -469,36 +469,36 @@ git commit -m "feat(extraction): deterministic confidence (filled fields / 7)"
 
 ---
 
-### Task 0.6: Standalone always-on red-flag classifier
+### Task 0.6: Standalone always-on signal-flag classifier
 
 **Files:**
-- Create: `src/domain/patient_lifecycle/red_flag.py`
-- Test: `tests/core/test_red_flag.py`
-- Modify: `src/domain/patient_lifecycle/triage_handlers.py` (delegate to red_flag.detect)
+- Create: `src/domain/patient_lifecycle/signal_flag.py`
+- Test: `tests/core/test_signal_flag.py`
+- Modify: `src/domain/patient_lifecycle/triage_handlers.py` (delegate to signal_flag.detect)
 
 - [ ] **Step 1: Write failing tests**
 
 ```python
-# tests/core/test_red_flag.py
+# tests/core/test_signal_flag.py
 import pytest
 from unittest.mock import patch, AsyncMock
-from src.domain.patient_lifecycle.red_flag import detect
+from src.domain.patient_lifecycle.signal_flag import detect
 
 @pytest.mark.asyncio
 async def test_obvious_emergency_returns_true():
-    with patch("src.domain.patient_lifecycle.red_flag._classify_urgent", AsyncMock(return_value=True)):
+    with patch("src.domain.patient_lifecycle.signal_flag._classify_urgent", AsyncMock(return_value=True)):
         result = await detect("我现在胸口剧痛喘不上气", patient_context={})
     assert result is True
 
 @pytest.mark.asyncio
 async def test_routine_question_returns_false():
-    with patch("src.domain.patient_lifecycle.red_flag._classify_urgent", AsyncMock(return_value=False)):
+    with patch("src.domain.patient_lifecycle.signal_flag._classify_urgent", AsyncMock(return_value=False)):
         result = await detect("怎么改预约时间", patient_context={})
     assert result is False
 
 @pytest.mark.asyncio
 async def test_runs_independently_of_state():
-    """red_flag.detect must not require any session/state arg — it's per-turn."""
+    """signal_flag.detect must not require any session/state arg — it's per-turn."""
     import inspect
     sig = inspect.signature(detect)
     assert "session" not in sig.parameters
@@ -507,25 +507,25 @@ async def test_runs_independently_of_state():
 
 - [ ] **Step 2: Run, verify they fail**
 
-Run: `/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/core/test_red_flag.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent`
+Run: `/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest tests/core/test_signal_flag.py -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent`
 
-- [ ] **Step 3: Extract red-flag detection**
+- [ ] **Step 3: Extract signal-flag detection**
 
-Create `src/domain/patient_lifecycle/red_flag.py`:
+Create `src/domain/patient_lifecycle/signal_flag.py`:
 
 ```python
-"""Always-on red-flag classifier. Runs on every patient turn regardless of ChatSessionState.
+"""Always-on signal-flag classifier. Runs on every patient turn regardless of ChatSessionState.
 
 Returns True if the message indicates an urgent clinical situation requiring immediate
 doctor escalation. Independent of triage classification — a patient asking "怎么改预约"
 in the same conversation as "胸口剧痛" should have BOTH the routine intent handled AND
-the red-flag fired.
+the signal-flag fired.
 """
 from src.agent.llm.structured_call import structured_call
 
 
 async def detect(message: str, patient_context: dict) -> bool:
-    """Returns True if message contains a red-flag (urgent clinical) signal."""
+    """Returns True if message contains a signal-flag (urgent clinical) signal."""
     return await _classify_urgent(message, patient_context)
 
 
@@ -545,15 +545,15 @@ Run the same pytest. All 3 should pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/domain/patient_lifecycle/red_flag.py tests/core/test_red_flag.py
-git commit -m "feat(red_flag): standalone always-on red-flag classifier"
+git add src/domain/patient_lifecycle/signal_flag.py tests/core/test_signal_flag.py
+git commit -m "feat(signal_flag): standalone always-on signal-flag classifier"
 ```
 
 ---
 
 ### Phase 0 wrap
 
-After Tasks 0.1–0.6, the backend has: schema for all dedup/provenance/safety columns, FieldEntryDB and RecordSupplementDB tables with backfilled historical data, deterministic extraction_confidence helper, and a standalone red_flag.detect function that can be wired into the chat pipeline. **Nothing is wired into the user-facing flow yet** — Phase 0 ships independently as a safety floor that does not change patient or doctor behavior.
+After Tasks 0.1–0.6, the backend has: schema for all dedup/provenance/safety columns, FieldEntryDB and RecordSupplementDB tables with backfilled historical data, deterministic extraction_confidence helper, and a standalone signal_flag.detect function that can be wired into the chat pipeline. **Nothing is wired into the user-facing flow yet** — Phase 0 ships independently as a safety floor that does not change patient or doctor behavior.
 
 ---
 
@@ -1381,7 +1381,7 @@ async def test_retract_marks_recent_whitelist_replies_in_segment(async_session, 
 
 ```python
 # src/domain/patient_lifecycle/retraction.py
-"""Red-flag retraction — when red_flag.detect fires within an intake segment, mark all
+"""Red-flag retraction — when signal_flag.detect fires within an intake segment, mark all
 prior AI whitelist replies in that segment as retracted=True so they render struck
 through in both patient and doctor views.
 """
@@ -1411,7 +1411,7 @@ If `PatientMessage` has no `is_whitelist_reply` and no `intake_segment_id`, add 
 
 ```bash
 git add src/domain/patient_lifecycle/retraction.py tests/core/test_retraction.py
-git commit -m "feat(safety): retract whitelist replies when red-flag fires same segment"
+git commit -m "feat(safety): retract whitelist replies when signal-flag fires same segment"
 ```
 
 ---
@@ -1432,15 +1432,15 @@ Replace the body of the existing `post_chat` handler with a flow that — at min
 
 triage_result = await classify(message=body.text, patient_context=ctx)
 
-# Always run red-flag check first; can fire in any state.
-red_flag_fired = await red_flag.detect(message=body.text, patient_context=ctx)
-if red_flag_fired:
+# Always run signal-flag check first; can fire in any state.
+signal_flag_fired = await signal_flag.detect(message=body.text, patient_context=ctx)
+if signal_flag_fired:
     if state.intake_segment_id:
         await retract_recent_whitelist_replies(session, state.intake_segment_id)
     await emit_static_urgent_safety_message(...)
     await notify_doctor_urgent(...)
     if state.record_id:
-        await session.execute(update(MedicalRecordDB).where(MedicalRecordDB.id == state.record_id).values(red_flag=True))
+        await session.execute(update(MedicalRecordDB).where(MedicalRecordDB.id == state.record_id).values(signal_flag=True))
     return ChatResponse(...)
 
 # Dispatch on state.
@@ -1470,7 +1470,7 @@ if state.state == "qa_window":
 
 `load_state` — read or initialize per-patient state. v0 can store state in a small `chat_session_state` table (1 row per patient_id) — add via Alembic if needed. Or in-memory keyed by patient_id for prototype with a TODO. Pilot needs persistence.
 
-`begin_intake` — create `MedicalRecordDB(status='interview_active', seed_source='chat_detected', intake_segment_id=new_uuid())`, return updated state.
+`begin_intake` — create `MedicalRecordDB(status='intake_active', seed_source='chat_detected', intake_segment_id=new_uuid())`, return updated state.
 
 `handle_intake_message` — append the parsed message into `FieldEntryDB` rows for the active record, recompute extraction_confidence; if `chief_complaint AND present_illness AND (duration OR severity) signals all present`, return a `ChatResponse` containing a `confirm_gate` payload the frontend renders as the special chat message.
 
@@ -1484,7 +1484,7 @@ Start backend on :8001. POST `/api/patient/chat` with messages exercising: idle 
 
 ```bash
 git add src/channels/web/patient_portal/chat.py src/db/models/* alembic/versions/*chat_session_state*.py
-git commit -m "feat(chat): wire state machine + dedup + red-flag into patient chat dispatcher"
+git commit -m "feat(chat): wire state machine + dedup + signal-flag into patient chat dispatcher"
 ```
 
 ---
@@ -1636,7 +1636,7 @@ git commit -m "feat(chat): retracted-message strikethrough + reason annotation"
 @router.get("/api/manage/review/queue")
 async def review_queue(
     doctor_id: str = Query(...),
-    seed_source: Optional[str] = Query(default=None),  # 'chat_detected' | 'explicit_interview' | None=all
+    seed_source: Optional[str] = Query(default=None),  # 'chat_detected' | 'explicit_intake' | None=all
     authorization: Optional[str] = Header(default=None),
     session: AsyncSession = Depends(get_db),
 ):
@@ -1942,13 +1942,13 @@ git commit -m "feat(chat): PATIENT_CHAT_INTAKE_ENABLED feature flag, defaults of
 
 ### Phase 1 wrap
 
-ChatTab now supports the unified flow for any doctor with the feature flag on. Records are draft-first, merges are append-only with provenance, reviewed-record changes go through doctor-confirmed supplements, red-flag fires retract whitelist replies, and the doctor-side surfaces show provenance, confidence, and supplements clearly. Phases 2 (pilot) and 3 (default-on) are operations on top of this codebase, not coding.
+ChatTab now supports the unified flow for any doctor with the feature flag on. Records are draft-first, merges are append-only with provenance, reviewed-record changes go through doctor-confirmed supplements, signal-flag fires retract whitelist replies, and the doctor-side surfaces show provenance, confidence, and supplements clearly. Phases 2 (pilot) and 3 (default-on) are operations on top of this codebase, not coding.
 
 ---
 
 ## Self-Review (controller-side, before shipping the plan)
 
-**Spec coverage:** every safety-floor checklist item from spec §6 has a task. Phase 0 covers schema + red-flag + extraction_confidence. Phase 0.5 covers KB curation onboarding. Phase 1 covers state machine, dedup detection, append-only merge, supplement workflow, red-flag retraction, all frontend gates, doctor-side surfaces, feature flag.
+**Spec coverage:** every safety-floor checklist item from spec §6 has a task. Phase 0 covers schema + signal-flag + extraction_confidence. Phase 0.5 covers KB curation onboarding. Phase 1 covers state machine, dedup detection, append-only merge, supplement workflow, signal-flag retraction, all frontend gates, doctor-side surfaces, feature flag.
 
 **Placeholders:** the only `TODO`-shaped item is in Task 1.13 `create_new` endpoint, which intentionally defers actual new-record creation to a follow-up because it requires careful coordination with the existing record-creation flow. This is called out in code comment.
 
@@ -1961,6 +1961,6 @@ ChatTab now supports the unified flow for any doctor with the feature flag on. R
 **What this plan deliberately defers to v1.1+:**
 - The `create_new` endpoint full implementation (Task 1.13 stub).
 - Pilot dashboards and metrics aggregation (logs are emitted; aggregation is operations).
-- The Phase 3 default-on flip and the explicit InterviewPage CTA demotion.
+- The Phase 3 default-on flip and the explicit IntakePage CTA demotion.
 - `medication_timing_faq` whitelist intent (out of scope per spec).
 - Multi-doctor patient semantics.

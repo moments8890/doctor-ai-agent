@@ -233,7 +233,7 @@ Keep all data, filter, and view-toggle (list / timeline) logic. Visual chrome on
 
 - Polling, send, optimistic update, unread side effects, `ChatBubble` itself: all unchanged.
 - The "QuickActions" row above the messages becomes a `<Card>` containing two `<TintedIconRow>` entries:
-  - `新问诊` → primaryLight, `onClick={onNewInterview}` (existing prop, navigates to `/patient/records/interview`)
+  - `新问诊` → primaryLight, `onClick={onNewIntake}` (existing prop, navigates to `/patient/records/intake`)
   - `查看病历` → accentLight, `onClick={onViewRecords}` (existing prop, navigates to `/patient/records`)
 - Empty state → shared `EmptyState`.
 

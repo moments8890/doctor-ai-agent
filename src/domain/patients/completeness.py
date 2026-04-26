@@ -1,6 +1,6 @@
 """Field completeness — DEPRECATED shim.
 
-Phase 2 moved this logic into domain.interview.templates.medical_general.
+Phase 2 moved this logic into domain.intake.templates.medical_general.
 Re-exports derivations for legacy callers. Deletes one release after Phase 2.
 """
 from __future__ import annotations
@@ -10,12 +10,12 @@ from typing import Dict, List
 
 warnings.warn(
     "domain.patients.completeness is deprecated; import from "
-    "domain.interview.templates.medical_general instead.",
+    "domain.intake.templates.medical_general instead.",
     DeprecationWarning,
     stacklevel=2,
 )
 
-from domain.interview.templates.medical_general import (
+from domain.intake.templates.medical_general import (
     GeneralMedicalExtractor,
     MEDICAL_FIELDS,
 )

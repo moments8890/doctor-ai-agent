@@ -16,11 +16,11 @@ prompts/
 ├── common/                  ← L1 Identity: universal (every LLM call)
 │   └── base.md                 role, safety rules, {current_date}
 ├── domain/                  ← L2 Specialty: domain knowledge (when LayerConfig.domain=True)
-│   └── neurology.md            conditions, red flags, key tests
+│   └── neurology.md            conditions, signal flags, key tests
 ├── intent/                  ← L3 Task: action-specific rules + output format
 │   ├── routing.md              intent classification (7 intents)
-│   ├── interview.md            doctor dictation → field extraction
-│   ├── patient-interview.md    patient pre-consultation interview
+│   ├── intake.md            doctor dictation → field extraction
+│   ├── patient-intake.md    patient pre-consultation intake
 │   ├── query.md                query results → Chinese summary
 │   ├── general.md              greetings, off-topic handling
 │   ├── diagnosis.md            differential diagnosis generation
@@ -76,7 +76,7 @@ block-beta
 ```mermaid
 flowchart LR
   IN["Web / WeChat"] --> R{"routing.md"}
-  R -->|create_record| INT["interview.md"]
+  R -->|create_record| INT["intake.md"]
   R -->|query_*| QRY["query.md"]
   R -->|general| GEN["general.md"]
   R -->|create_task| CTK["params only"]
@@ -94,7 +94,7 @@ flowchart LR
   OCR --> EXT2["doctor-extract.md"]
   DIC["Voice / Paste"] --> EXT2
   EXT2 -->|pre-populate| INT
-  TXT["Doctor types"] --> INT["interview.md<br/>review + fill gaps"]
+  TXT["Doctor types"] --> INT["intake.md<br/>review + fill gaps"]
   INT -->|confirm| EXT["doctor-extract.md"]
   EXT --> REC["MedicalRecord"]
   REC --> DX["diagnosis.md"]
@@ -111,7 +111,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  PAT["Patient Portal"] --> PI["patient-interview.md"]
+  PAT["Patient Portal"] --> PI["patient-intake.md"]
   PI -->|loop| PAT
   PI -->|done| EXT["patient-extract.md"]
   EXT --> REC["MedicalRecord"] --> TASK["Review task"]
@@ -127,7 +127,7 @@ flowchart LR
 | Pattern | System msg | User msg | Used by |
 |---------|-----------|----------|---------|
 | **A** single-turn | base + intent | KB + context + msg | routing, query, general, diagnosis, followup_reply |
-| **B** conversation | base + domain + intent + KB + ctx | history turns | interview, patient-interview |
+| **B** conversation | base + domain + intent + KB + ctx | history turns | intake, patient-intake |
 | **C** direct | prompt only (or none) | template.format(vars) | doctor-extract, patient-extract, vision-ocr |
 
 ## Assembly Patterns
@@ -151,7 +151,7 @@ history = user/assistant turns (full multi-turn conversation)
 user    = (latest turn or empty)
 ```
 
-Used by: interview, patient-interview
+Used by: intake, patient-intake
 
 ### Pattern C: Direct (no composer)
 
@@ -167,16 +167,16 @@ Used by: doctor-extract, patient-extract, vision-ocr
 | # | Prompt | Trigger | Pattern | LLM Input | Model | Output |
 |---|--------|---------|---------|-----------|-------|--------|
 | 1 | common/base.md | Every call | L1 Identity | Always first in system msg | All | N/A (foundation) |
-| 2 | domain/neurology.md | create_record, review, patient-interview | L2 Specialty | Appended after base.md | All | N/A (knowledge ref) |
+| 2 | domain/neurology.md | create_record, review, patient-intake | L2 Specialty | Appended after base.md | All | N/A (knowledge ref) |
 | 3 | routing.md | Every doctor message | A | `sys: base+routing` → `user: msg` + 5 history turns | ROUTING_LLM | `RoutingResult` |
-| 4 | interview.md | Doctor dictation session | B | `sys: base+domain+interview+KB+ctx` → full history | CONVERSATION_LLM | `InterviewLLMResponse` |
-| 5 | patient-interview.md | Patient pre-consult | B | `sys: base+domain+patient-interview+KB+ctx` → full history | CONVERSATION_LLM | `InterviewLLMResponse` |
+| 4 | intake.md | Doctor dictation session | B | `sys: base+domain+intake+KB+ctx` → full history | CONVERSATION_LLM | `IntakeLLMResponse` |
+| 5 | patient-intake.md | Patient pre-consult | B | `sys: base+domain+patient-intake+KB+ctx` → full history | CONVERSATION_LLM | `IntakeLLMResponse` |
 | 6 | query.md | "查病历" / "我的任务" / "所有患者" | A | `sys: base+query` → `user: KB + records_json + msg` | ROUTING_LLM | Plain text |
 | 7 | general.md | Greetings / off-topic | A | `sys: base+general` → `user: msg` | ROUTING_LLM | Plain text |
 | 8 | diagnosis.md | "Review & AI" button | A | `sys: base+domain+diagnosis+KB` → `user: record_fields` | ROUTING_LLM | `DiagnosisResponse` |
 | 9 | vision-ocr.md | Photo upload (OCR step) | C | `sys: vision-ocr.md` → `user: [image] + request` | VISION_LLM | Plain text |
-| 10 | doctor-extract.md | Interview confirm, voice/paste, photo OCR | C | `user: prompt.format(name,gender,age,transcript)` | ROUTING_LLM | `DoctorExtractResult` |
-| 11 | patient-extract.md | Patient interview confirm | C | `user: prompt.format(name,gender,age,transcript)` | ROUTING_LLM | `PatientExtractResult` |
+| 10 | doctor-extract.md | Intake confirm, voice/paste, photo OCR | C | `user: prompt.format(name,gender,age,transcript)` | ROUTING_LLM | `DoctorExtractResult` |
+| 11 | patient-extract.md | Patient intake confirm | C | `user: prompt.format(name,gender,age,transcript)` | ROUTING_LLM | `PatientExtractResult` |
 | 12 | triage-classify.md | Patient message received | C | `user: message + patient_context` | ROUTING_LLM | `TriageResult` |
 | 13 | followup_reply.md | Patient escalation → draft | A | `sys: base+domain+followup_reply+KB` → `user: ctx+msg` | ROUTING_LLM | Draft text or empty (no-draft when no KB citation) |
 
@@ -185,7 +185,7 @@ Used by: doctor-extract, patient-extract, vision-ocr
 | Env Var | Default | Used By |
 |---------|---------|---------|
 | `ROUTING_LLM` | groq (qwen3-32b) | routing, query, general, diagnosis, extract |
-| `CONVERSATION_LLM` | falls back to ROUTING_LLM | interview, patient-interview |
+| `CONVERSATION_LLM` | falls back to ROUTING_LLM | intake, patient-intake |
 | `STRUCTURING_LLM` | groq (qwen3-32b) | voice/paste extraction (uses doctor-extract.md) |
 | `VISION_LLM` | ollama (qwen3-vl:8b) | vision-ocr |
 
@@ -196,7 +196,7 @@ All structured outputs use `instructor` (`structured_call` + Pydantic model). Pl
 | Model | Method | Fields | Used By |
 |-------|--------|--------|---------|
 | `RoutingResult` | instructor | intent, patient_name, params, deferred | routing |
-| `InterviewLLMResponse` | instructor | reply, extracted (ExtractedClinicalFields), suggestions | interview, patient-interview |
+| `IntakeLLMResponse` | instructor | reply, extracted (ExtractedClinicalFields), suggestions | intake, patient-intake |
 | `DoctorExtractResult` | instructor | 14 clinical fields (all Optional[str]) | doctor-extract |
 | `PatientExtractResult` | instructor | 7 history fields (all Optional[str]) | patient-extract |
 | `DiagnosisResponse` | instructor | differentials, workup, treatment | diagnosis |

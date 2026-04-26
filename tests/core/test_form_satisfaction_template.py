@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.templates import TEMPLATES, get_template
-from domain.interview.templates.form_satisfaction import (
+from domain.intake.templates import TEMPLATES, get_template
+from domain.intake.templates.form_satisfaction import (
     FormSatisfactionExtractor, FormSatisfactionTemplate,
 )
-from domain.interview.writers import FormResponseWriter
+from domain.intake.writers import FormResponseWriter
 
 
 def test_form_satisfaction_v1_registered():

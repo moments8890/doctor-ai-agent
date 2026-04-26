@@ -310,10 +310,10 @@ This audit is Phase 1 work, not deferred to page rewrites.
    is only loaded when `/admin/*` is hit. This must happen before v2 goes live.
 8. Build `LoginPage` — proves auth flow + antd-mobile Form/Button pattern
 9. Build Doctor shell (`DoctorPage` — NavBar + TabBar + route outlet)
-10. Build `InterviewPage` (chat) inside the shell — **prove keyboard, TextArea
+10. Build `IntakePage` (chat) inside the shell — **prove keyboard, TextArea
    autoSize, SafeArea, and chat scroll all work on real WeChat WebView device**
 
-**Gate:** LoginPage → DoctorPage shell → InterviewPage all work correctly in
+**Gate:** LoginPage → DoctorPage shell → IntakePage all work correctly in
 WeChat WebView on iOS + Android before proceeding to Phase 2.
 
 ### Phase 2 — Remaining Pages
@@ -328,7 +328,7 @@ WeChat WebView on iOS + Android before proceeding to Phase 2.
 | 6 | `OnboardingWizard` | Low |
 | 7 | Patient `PatientPage` (shell + tabs) | Medium |
 | 8 | Patient `ChatTab` | Medium |
-| 9 | Patient `InterviewPage` | Medium |
+| 9 | Patient `IntakePage` | Medium |
 
 ### Phase 3 — Cleanup
 

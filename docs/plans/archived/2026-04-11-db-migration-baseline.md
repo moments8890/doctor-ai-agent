@@ -259,14 +259,14 @@ def upgrade() -> None:
     op.create_index("ix_doctor_chat_log_doctor", "doctor_chat_log", ["doctor_id", "created_at"])
 
     # -----------------------------------------------------------------
-    # interview_sessions
+    # intake_sessions
     # -----------------------------------------------------------------
     op.create_table(
-        "interview_sessions",
+        "intake_sessions",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("doctor_id", sa.String(64), sa.ForeignKey("doctors.doctor_id", ondelete="CASCADE"), nullable=False),
         sa.Column("patient_id", sa.Integer, sa.ForeignKey("patients.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("status", sa.String(16), nullable=False, server_default="interviewing"),
+        sa.Column("status", sa.String(16), nullable=False, server_default="active"),
         sa.Column("mode", sa.String(16), nullable=False, server_default="patient"),
         sa.Column("collected", sa.Text, nullable=True),
         sa.Column("conversation", sa.Text, nullable=True),
@@ -274,8 +274,8 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("updated_at", sa.DateTime, nullable=False),
     )
-    op.create_index("ix_interview_patient", "interview_sessions", ["patient_id", "status"])
-    op.create_index("ix_interview_doctor", "interview_sessions", ["doctor_id", "status"])
+    op.create_index("ix_intake_patient", "intake_sessions", ["patient_id", "status"])
+    op.create_index("ix_intake_doctor", "intake_sessions", ["doctor_id", "status"])
 
     # -----------------------------------------------------------------
     # ai_suggestions
@@ -486,7 +486,7 @@ def downgrade() -> None:
     op.drop_table("doctor_edits")
     op.drop_table("knowledge_usage_log")
     op.drop_table("ai_suggestions")
-    op.drop_table("interview_sessions")
+    op.drop_table("intake_sessions")
     op.drop_table("doctor_chat_log")
     op.drop_table("patient_auth")
     op.drop_table("doctor_wechat")

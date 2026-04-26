@@ -3,7 +3,7 @@ import {
   MOCK_RECORDS,
   MOCK_TASKS,
   MOCK_CHAT_MESSAGES,
-  MOCK_INTERVIEW_STATE,
+  MOCK_INTAKE_STATE,
 } from "../pages/patient/debug/MockData";
 
 const delay = () => new Promise((r) => setTimeout(r, 100));
@@ -94,16 +94,16 @@ export async function sendPatientMessage(token, text) {
   };
 }
 
-// ── Interview ──
+// ── Intake ──
 
-export async function interviewStart(token) {
+export async function intakeStart(token) {
   await delay();
   return {
-    session_id: MOCK_INTERVIEW_STATE.session_id,
-    reply: MOCK_INTERVIEW_STATE.conversation[0].content,
+    session_id: MOCK_INTAKE_STATE.session_id,
+    reply: MOCK_INTAKE_STATE.conversation[0].content,
     collected: {},
     progress: { filled: 0, total: 7 },
-    status: "interviewing",
+    status: "active",
     resumed: false,
   };
 }
@@ -117,27 +117,27 @@ const MOCK_TURN_SEQUENCE = [
 ];
 let _mockTurnIndex = 0;
 
-export async function interviewTurn(token, sessionId, text) {
+export async function intakeTurn(token, sessionId, text) {
   await delay();
   const step = MOCK_TURN_SEQUENCE[Math.min(_mockTurnIndex, MOCK_TURN_SEQUENCE.length - 1)];
   _mockTurnIndex++;
   return {
     reply: step.reply,
-    collected: { ...MOCK_INTERVIEW_STATE.collected },
+    collected: { ...MOCK_INTAKE_STATE.collected },
     progress: { filled: step.filled, total: 7 },
-    status: step.complete ? "confirming" : "interviewing",
-    suggestions: MOCK_INTERVIEW_STATE.suggestions,
+    status: step.complete ? "confirming" : "active",
+    suggestions: MOCK_INTAKE_STATE.suggestions,
     missing_fields: step.missing,
     complete: step.complete || false,
   };
 }
 
-export async function interviewConfirm(token, sessionId) {
+export async function intakeConfirm(token, sessionId) {
   await delay();
   return { message: "病历已保存", record_id: 999 };
 }
 
-export async function interviewCancel(token, sessionId) {
+export async function intakeCancel(token, sessionId) {
   await delay();
   return { status: "cancelled" };
 }

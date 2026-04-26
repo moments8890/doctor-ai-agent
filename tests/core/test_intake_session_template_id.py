@@ -1,4 +1,4 @@
-"""Template id threading: Doctor.preferred_template_id + InterviewSession CRUD.
+"""Template id threading: Doctor.preferred_template_id + IntakeSession CRUD.
 
 The first two tests (Task 3) run against the `db_session` in-memory fixture.
 The next three (Task 5) exercise the CRUD helpers which are hardwired to the
@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from db.engine import AsyncSessionLocal
 from db.models.doctor import Doctor
-from domain.patients.interview_session import (
+from domain.patients.intake_session import (
     create_session,
     load_session,
     save_session,
@@ -110,10 +110,10 @@ async def test_prompt_composer_accepts_template_id_kwarg():
     selection yet, but the signature must accept it so Phase 1 can plumb
     it without another churn."""
     from agent.prompt_composer import (
-        compose_for_doctor_interview, compose_for_patient_interview,
+        compose_for_doctor_intake, compose_for_patient_intake,
     )
 
-    for fn in (compose_for_doctor_interview, compose_for_patient_interview):
+    for fn in (compose_for_doctor_intake, compose_for_patient_intake):
         sig = inspect.signature(fn)
         assert "template_id" in sig.parameters
         assert sig.parameters["template_id"].default == "medical_general_v1"

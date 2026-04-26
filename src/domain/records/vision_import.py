@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from domain.patients.interview_summary import (
+from domain.patients.intake_summary import (
     DoctorExtractResult,
 )
 from domain.records.schema import FIELD_KEYS
@@ -156,14 +156,14 @@ async def extract_from_images(images: List[bytes]) -> Dict[str, str]:
     return fields
 
 
-async def import_to_interview(
+async def import_to_intake(
     file_bytes: bytes,
     filename: str,
     content_type: str,
     doctor_id: str,
     patient_id: Optional[int] = None,
 ) -> dict:
-    """Import pipeline: file → images → OCR → extract → create interview session.
+    """Import pipeline: file → images → OCR → extract → create intake session.
 
     Returns dict with session_id and pre-populated fields for doctor review.
     Raises ValueError (413/415/422 prefix) or RuntimeError on LLM failure.
@@ -179,8 +179,8 @@ async def import_to_interview(
         log(f"[vision-import] extraction failed: {exc}")
         raise RuntimeError(f"502:Vision LLM 不可用: {exc}") from exc
 
-    # Create interview session pre-populated with extracted fields
-    from domain.patients.interview_session import create_session
+    # Create intake session pre-populated with extracted fields
+    from domain.patients.intake_session import create_session
 
     session = await create_session(
         doctor_id=doctor_id,

@@ -7,15 +7,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from domain.interview.hooks.medical import (
+from domain.intake.hooks.medical import (
     GenerateFollowupTasksHook, NotifyDoctorHook, TriggerDiagnosisPipelineHook,
 )
-from domain.interview.hooks.safety import SafetyScreenHook
-from domain.interview.protocols import (
+from domain.intake.hooks.safety import SafetyScreenHook
+from domain.intake.protocols import (
     BatchExtractor, CompletenessState, EngineConfig, FieldExtractor, FieldSpec,
     Mode, Phase, PostConfirmHook, SessionState, Writer,
 )
-from domain.interview.templates.medical_general import (
+from domain.intake.templates.medical_general import (
     GeneralMedicalExtractor, MEDICAL_FIELDS, MedicalBatchExtractor,
     MedicalRecordWriter,
 )

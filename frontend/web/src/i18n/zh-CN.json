@@ -210,7 +210,7 @@
         "visit": "门诊",
         "dictation": "口述",
         "import": "导入",
-        "interview_summary": "问诊小结",
+        "intake_summary": "问诊小结",
         "referral": "转诊",
         "surgery": "手术",
         "lab": "检验",
@@ -298,7 +298,7 @@
         "audit_log": "操作审计日志",
         "doctor_knowledge_items": "医生知识库",
         "system_prompt_versions": "提示词版本表",
-        "interview_sessions": "预问诊会话表",
+        "intake_sessions": "预问诊会话表",
         "patient_messages": "患者消息表"
       },
       "config": {

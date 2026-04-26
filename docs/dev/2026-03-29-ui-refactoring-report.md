@@ -44,7 +44,7 @@ These are the issues your users will notice.
 | Pattern | Where Used | Button Order |
 |---------|-----------|--------------|
 | `ConfirmDialog` | ChatPage, SettingsPage, PatientDetail | cancel-left, confirm-right |
-| `CancelConfirm` (wraps ConfirmDialog) | InterviewPage (partial) | cancel-left, confirm-right |
+| `CancelConfirm` (wraps ConfirmDialog) | IntakePage (partial) | cancel-left, confirm-right |
 | Custom SheetDialog footer | PatientPreviewPage, ExportSelector | varies per page |
 
 **User impact:** "Discard unsaved work" behaves differently depending on which
@@ -80,7 +80,7 @@ full-page states. Rule: skeleton for content, spinner for actions.
 
 | Pattern | Where Used | Behavior |
 |---------|-----------|----------|
-| MUI `Alert` | InterviewPage, ChatPage | In-page, dismissible |
+| MUI `Alert` | IntakePage, ChatPage | In-page, dismissible |
 | `Snackbar`/toast | ReviewPage, TaskPage, AdminPage | Auto-dismiss 2s |
 | Inline `Typography` | SettingsPage, DoctorPage | Below input, hardcoded `#FA5151` |
 
@@ -176,7 +176,7 @@ Components defined inside page files instead of extracted to `components/`.
 | SettingsPage.jsx | `NameDialog`, `SpecialtyDialog` |
 
 **Fix:** Extract only where the same shape appears 2-3+ times. ChatPage,
-InterviewPage, and PatientPreviewPage share the most patterns. Leave
+IntakePage, and PatientPreviewPage share the most patterns. Leave
 truly page-specific helpers inline.
 
 ### 4B. Avatar Component Sprawl
@@ -371,7 +371,7 @@ Code snaps to existing tokens (no new values):
 Extract proven inline patterns:
 
 1. Shared dialog footer action row (from SheetDialog consumers)
-2. Chat/message primitives (from ChatPage, InterviewPage, PatientPreviewPage)
+2. Chat/message primitives (from ChatPage, IntakePage, PatientPreviewPage)
 3. Filter/stat header (from ReviewQueuePage, TaskPage)
 4. Settings dialog pattern (from SettingsPage inline dialogs)
 

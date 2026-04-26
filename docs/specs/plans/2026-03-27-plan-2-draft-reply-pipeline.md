@@ -5,7 +5,7 @@
 The plan covers 8 tasks corresponding to spec sections 3D, 3E, 3F, and build steps 6-11:
 
 1. **Task 1** (step 6): `MessageDraft` model + `followup_reply.md` prompt + `generate_draft_reply` domain function
-2. **Task 2** (step 7): Medical safety constraints -- red-flag blocker, content guardrails, AI disclosure
+2. **Task 2** (step 7): Medical safety constraints -- signal-flag blocker, content guardrails, AI disclosure
 3. **Task 3** (step 8): Draft approve/send/dismiss API endpoints + send confirmation data
 4. **Task 4** (step 9): Stale draft invalidation on new patient message
 5. **Task 5** (step 10): Teaching loop for draft edits (4E-drafts)
@@ -322,7 +322,7 @@ Expected: All PASS
 
 #### Step 6: Add FOLLOWUP_REPLY_LAYERS config
 
-In `src/agent/prompt_config.py`, add after `PATIENT_INTERVIEW_LAYERS`:
+In `src/agent/prompt_config.py`, add after `PATIENT_INTAKE_LAYERS`:
 
 ```python
 FOLLOWUP_REPLY_LAYERS = LayerConfig(
@@ -364,28 +364,28 @@ async def async_session():
     await engine.dispose()
 
 
-class TestRedFlagDetection:
+class TestSignalFlagDetection:
     """Red-flag symptoms must trigger escalation template, not conversational reply."""
 
     def test_detects_fever(self):
-        from domain.patient_lifecycle.draft_reply import _contains_red_flags
-        assert _contains_red_flags("我今天发烧了，体温38.5") is True
+        from domain.patient_lifecycle.draft_reply import _contains_signal_flags
+        assert _contains_signal_flags("我今天发烧了，体温38.5") is True
 
     def test_detects_neuro_deficit(self):
-        from domain.patient_lifecycle.draft_reply import _contains_red_flags
-        assert _contains_red_flags("我的左手突然没力气了") is True
+        from domain.patient_lifecycle.draft_reply import _contains_signal_flags
+        assert _contains_signal_flags("我的左手突然没力气了") is True
 
     def test_detects_postop_deterioration(self):
-        from domain.patient_lifecycle.draft_reply import _contains_red_flags
-        assert _contains_red_flags("术后头痛越来越厉害，吐了3次") is True
+        from domain.patient_lifecycle.draft_reply import _contains_signal_flags
+        assert _contains_signal_flags("术后头痛越来越厉害，吐了3次") is True
 
     def test_normal_message_not_flagged(self):
-        from domain.patient_lifecycle.draft_reply import _contains_red_flags
-        assert _contains_red_flags("医生，我下次什么时候复查？") is False
+        from domain.patient_lifecycle.draft_reply import _contains_signal_flags
+        assert _contains_signal_flags("医生，我下次什么时候复查？") is False
 
     def test_wound_itch_not_flagged(self):
-        from domain.patient_lifecycle.draft_reply import _contains_red_flags
-        assert _contains_red_flags("伤口有点痒，正常吗？") is False
+        from domain.patient_lifecycle.draft_reply import _contains_signal_flags
+        assert _contains_signal_flags("伤口有点痒，正常吗？") is False
 
 
 class TestContentGuardrails:
@@ -504,7 +504,7 @@ _ESCALATION_TEMPLATE = (
 
 # ── Red-flag symptom patterns ────────────────────────────────────
 
-_RED_FLAG_PATTERNS = [
+_SIGNAL_FLAG_PATTERNS = [
     re.compile(r"发[烧热]|体温\s*[>≥]?\s*3[89]"),
     re.compile(r"(没力气|无力|瘫|偏瘫|肢体.*力|麻木)"),
     re.compile(r"(说不出话|言语.*障碍|口齿不清|失语)"),
@@ -520,9 +520,9 @@ _RED_FLAG_PATTERNS = [
 ]
 
 
-def _contains_red_flags(message: str) -> bool:
-    """Check if patient message contains red-flag symptoms."""
-    for pattern in _RED_FLAG_PATTERNS:
+def _contains_signal_flags(message: str) -> bool:
+    """Check if patient message contains signal-flag symptoms."""
+    for pattern in _SIGNAL_FLAG_PATTERNS:
         if pattern.search(message):
             return True
     return False
@@ -585,7 +585,7 @@ class DraftResult:
     draft_text: str
     cited_knowledge_ids: List[int]
     confidence: float
-    is_red_flag: bool = False
+    is_signal_flag: bool = False
 
 
 # ── Core generation function ─────────────────────────────────────
@@ -601,7 +601,7 @@ async def generate_draft_reply(
 
     Steps:
     1. Load the source message
-    2. Check for red-flag symptoms → use escalation template
+    2. Check for signal-flag symptoms → use escalation template
     3. Load doctor knowledge (communication + followup categories)
     4. Load patient context
     5. Call LLM with followup_reply prompt
@@ -631,12 +631,12 @@ async def generate_draft_reply(
     patient_message = msg_row.content
 
     # 2. Red-flag check
-    is_red_flag = _contains_red_flags(patient_message)
-    if is_red_flag:
+    is_signal_flag = _contains_signal_flags(patient_message)
+    if is_signal_flag:
         draft_text = _ESCALATION_TEMPLATE
         cited_ids: List[int] = []
         confidence = 1.0
-        log(f"[draft] red-flag detected in message {message_id}, using escalation template")
+        log(f"[draft] signal-flag detected in message {message_id}, using escalation template")
     else:
         # 3. Load patient context
         patient_context = await load_patient_context(patient_id, doctor_id, session)
@@ -721,7 +721,7 @@ async def generate_draft_reply(
 
     await session.commit()
     log(f"[draft] generated draft {draft.id} for message {message_id} "
-        f"(red_flag={is_red_flag}, citations={len(cited_ids)}, confidence={confidence})")
+        f"(signal_flag={is_signal_flag}, citations={len(cited_ids)}, confidence={confidence})")
     return draft
 ```
 
@@ -741,7 +741,7 @@ git commit -m "feat: add MessageDraft model, followup_reply prompt, and generate
 
 Stream B step 6: Core draft reply pipeline.
 - MessageDraft model (separate table with generated/edited/sent/dismissed/stale lifecycle)
-- followup_reply.md prompt with red-flag detection, citation instructions, safety constraints
+- followup_reply.md prompt with signal-flag detection, citation instructions, safety constraints
 - generate_draft_reply domain function with content guardrails
 - Red-flag symptom patterns trigger escalation template
 - Stale draft invalidation when new drafts are generated
@@ -752,7 +752,7 @@ Stream B step 6: Core draft reply pipeline.
 
 ### Task 2: Medical Safety Constraints (Build Step 7)
 
-**Goal:** Harden the safety checks -- red-flag blocker and content guardrails are already implemented in Task 1's domain function. This task adds the AI disclosure label injection and strengthens the guardrail with a secondary LLM-based validation pass for edge cases.
+**Goal:** Harden the safety checks -- signal-flag blocker and content guardrails are already implemented in Task 1's domain function. This task adds the AI disclosure label injection and strengthens the guardrail with a secondary LLM-based validation pass for edge cases.
 
 **Files:**
 - Modify: `src/domain/patient_lifecycle/draft_reply.py` (add LLM safety validator)
@@ -768,28 +768,28 @@ from __future__ import annotations
 import pytest
 from domain.patient_lifecycle.draft_reply import (
     AI_DISCLOSURE_LABEL,
-    _contains_red_flags,
+    _contains_signal_flags,
     _violates_content_guardrails,
 )
 
 
-class TestRedFlagEdgeCases:
-    """Edge cases for red-flag detection."""
+class TestSignalFlagEdgeCases:
+    """Edge cases for signal-flag detection."""
 
     def test_fever_with_number(self):
-        assert _contains_red_flags("体温39.2度") is True
+        assert _contains_signal_flags("体温39.2度") is True
 
     def test_mild_headache_not_flagged(self):
-        assert _contains_red_flags("有点轻微头痛") is False
+        assert _contains_signal_flags("有点轻微头痛") is False
 
     def test_seizure_detected(self):
-        assert _contains_red_flags("今天抽搐了一次") is True
+        assert _contains_signal_flags("今天抽搐了一次") is True
 
     def test_bleeding_detected(self):
-        assert _contains_red_flags("伤口出血了") is True
+        assert _contains_signal_flags("伤口出血了") is True
 
     def test_breathing_difficulty(self):
-        assert _contains_red_flags("喘不上气") is True
+        assert _contains_signal_flags("喘不上气") is True
 
 
 class TestContentGuardrailEdgeCases:
@@ -1922,7 +1922,7 @@ Final integration verification for Stream B draft reply pipeline."
 |------|--------|---------|
 | `src/db/models/message_draft.py` | NEW | MessageDraft model with DraftStatus enum |
 | `src/agent/prompts/intent/followup_reply.md` | NEW | Draft reply prompt template with safety rules |
-| `src/domain/patient_lifecycle/draft_reply.py` | NEW | Core domain: generate_draft_reply, red-flag detection, guardrails, stale invalidation, batching |
+| `src/domain/patient_lifecycle/draft_reply.py` | NEW | Core domain: generate_draft_reply, signal-flag detection, guardrails, stale invalidation, batching |
 | `src/channels/web/ui/draft_handlers.py` | NEW | API: list/get/send/edit/dismiss drafts |
 | `src/db/models/patient_message.py` | MODIFY | Add `read_at` column |
 | `src/db/models/__init__.py` | MODIFY | Register MessageDraft, DraftStatus |

@@ -114,7 +114,7 @@ from db.models import (
     Doctor,
     DoctorKnowledgeItem,
     DoctorTask, TaskStatus,
-    InterviewSessionDB,
+    IntakeSessionDB,
     MedicalRecordDB,
     MessageDraft,
     Patient,

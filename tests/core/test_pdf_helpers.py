@@ -92,7 +92,7 @@ def test_allowed_fields_basic_section_not_in_map_returns_empty():
         ("visit", "门诊"),
         ("dictation", "口述"),
         ("import", "导入"),
-        ("interview_summary", "问诊总结"),
+        ("intake_summary", "问诊总结"),
     ],
 )
 def test_record_type_label_known_types(record_type, expected):

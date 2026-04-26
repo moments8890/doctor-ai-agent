@@ -22,8 +22,8 @@
 
 - Authentication & unified login (doctor + patient)
 - Patient management (CRUD, search, grouped list, timeline)
-- Doctor interview (multi-turn session, carry-forward, confirm/cancel)
-- Patient pre-consultation interview
+- Doctor intake (multi-turn session, carry-forward, confirm/cancel)
+- Patient pre-consultation intake
 - Medical record creation (chat, image OCR, PDF extract, voice transcribe)
 - Clinical decision support (diagnosis pipeline, suggestion review, finalize)
 - Task management (CRUD, scheduling, APScheduler notifications)
@@ -87,7 +87,7 @@
 
 ### Moderate issues
 
-- **Code duplication** across interview handlers (`doctor_interview_turn.py`, `_confirm.py`, `_shared.py`).
+- **Code duplication** across intake handlers (`doctor_intake_turn.py`, `_confirm.py`, `_shared.py`).
 - **Inconsistent error messages** — some snake_case English, some Chinese, no standard error code enum.
 - **Only 3 Pydantic validators** across 59+ models — phone, date range, cross-field validation missing.
 - **N+1 query risk** in `search_patients_nl()` — relationship loading not specified.
@@ -102,7 +102,7 @@
 | Component | Protection |
 |-----------|-----------|
 | LLM routing/intent calls | Exponential backoff retry (2-3 attempts) + circuit breaker per model |
-| Interview LLM | 3-attempt retry with 1s/2s backoff, graceful fallback message |
+| Intake LLM | 3-attempt retry with 1s/2s backoff, graceful fallback message |
 | WeChat intent processing | Hard 4.5s timeout (`asyncio.wait_for`) |
 | Background tasks | `safe_create_task()` logs all unhandled exceptions |
 | Health checks | `/healthz` monitors DB, scheduler, background workers |
@@ -114,7 +114,7 @@
 |------------------|-------------|----------|
 | DB query hangs | Request blocks **indefinitely** — no query timeout set | **Critical** |
 | DB pool exhausted (30 connections) | Immediate 500, no queuing or backpressure | High |
-| Two concurrent `interview_turn` on same session | Data race — second request silently overwrites first turn | **Critical** |
+| Two concurrent `intake_turn` on same session | Data race — second request silently overwrites first turn | **Critical** |
 | WeChat message send fails | Message **silently lost** — no retry, no dead-letter queue | High |
 | Alembic migration error in production | App **refuses to start entirely** | **Critical** |
 | `session.commit()` throws | No rollback in most call sites — partial data saved | High |
@@ -217,7 +217,7 @@ trace_id → HTTP layer (method, path, status, latency)
 |---|--------|-----|--------|
 | 1 | **Fix hardcoded JWT secret** — fail-fast in prod, don't default | All tokens forgeable if this reaches production | 1 hour |
 | 2 | **Add DB query timeouts** — wrap `session.execute()` | Requests can hang indefinitely on slow DB | 2 hours |
-| 3 | **Add optimistic locking to interview sessions** — version column | Concurrent turns silently overwrite each other | 4 hours |
+| 3 | **Add optimistic locking to intake sessions** — version column | Concurrent turns silently overwrite each other | 4 hours |
 | 4 | **Add WeChat message retry queue** | Failed sends are permanently lost | 4 hours |
 | 5 | **Add transaction rollback** — `try/finally` on all commit paths | Partial data saved on commit failure | 3 hours |
 
@@ -252,7 +252,7 @@ Key files mentioned in this audit:
 | JWT secret issue | `src/infra/auth/unified.py:28` |
 | Session management | `src/db/engine.py` (pool config), all `channels/web/*.py` (44 usages) |
 | LLM resilience | `src/infra/llm/resilience.py` (circuit breaker), `src/agent/llm.py` (calls) |
-| Interview race condition | `src/domain/patients/interview_turn.py` |
+| Intake race condition | `src/domain/patients/intake_turn.py` |
 | Observability | `src/infra/observability/` (7 files) |
 | Health checks | `src/app_routes.py:159-165` |
 | WeChat message send | `src/channels/wechat/router.py:212` |

@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "id": "registration_rejects_mismatched_yob",
-  "scenario_type": "patient_interview",
+  "scenario_type": "patient_intake",
   "title": "Registration rejects mismatched YOB",
   "tags": [
     "regression",
@@ -19,10 +19,10 @@
     "phone": "13800000008"
   },
   "input": {
-    "mode": "patient_interview"
+    "mode": "patient_intake"
   },
   "execution": {
-    "entrypoint": "patient.interview.chat",
+    "entrypoint": "patient.intake.chat",
     "auto_confirm": false,
     "timeout_seconds": 60
   },

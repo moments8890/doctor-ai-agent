@@ -39,7 +39,7 @@ The MD file is the source of truth. The spec is the automation.
 | 09 | Draft reply send (审核 待回复) | [09-draft-reply.md](09-draft-reply.md) | `09-draft-reply.spec.ts` | `ReviewQueuePage.jsx`, `patients/PatientDetail.jsx` |
 | 10 | Tasks browse + complete | [10-tasks.md](10-tasks.md) | `10-tasks.spec.ts` | `TaskPage.jsx`, `TaskDetailSubpage.jsx` |
 | 11 | Settings (font / about / logout) | [11-settings.md](11-settings.md) | `11-settings.spec.ts` | `SettingsListSubpage.jsx`, `fontScaleStore.js` |
-| 12 | New record creation (doctor interview) | [12-new-record.md](12-new-record.md) | `12-new-record.spec.ts` | `InterviewPage.jsx`, `PatientsPage.jsx` |
+| 12 | New record creation (doctor intake) | [12-new-record.md](12-new-record.md) | `12-new-record.spec.ts` | `IntakePage.jsx`, `PatientsPage.jsx` |
 | 13 | Persona pending review (AI discoveries) | [13-persona-pending.md](13-persona-pending.md) | `13-persona-pending.spec.ts` | `PendingReviewSubpage.jsx` |
 | 14 | Persona onboarding (first-time style) | [14-persona-onboarding.md](14-persona-onboarding.md) | `14-persona-onboarding.spec.ts` | `PersonaOnboardingSubpage.jsx` |
 | 15 | Persona teach-by-example | [15-persona-teach.md](15-persona-teach.md) | `15-persona-teach.spec.ts` | `TeachByExampleSubpage.jsx` |
@@ -118,7 +118,7 @@ Re-running on a dirty DB will hit "phone already registered" (400) — use
 | Any change to draft reply / send flow | 09 |
 | Any change to task queue | 10 |
 | Any change to settings / theme / fontScale | 11 |
-| Any change to doctor interview / record creation | 12 |
+| Any change to doctor intake / record creation | 12 |
 | Any change to persona onboarding / pending / teach | 13, 14, 15 |
 | Any change to template upload / export format | 16 |
 | Any change to QR generation / patient preview / onboarding entry | 17 |

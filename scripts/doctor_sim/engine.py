@@ -1,11 +1,11 @@
-"""Simulation engine — runs one doctor persona through the doctor interview pipeline.
+"""Simulation engine — runs one doctor persona through the doctor intake pipeline.
 
 Doctor personas use either:
   - scripted ``turn_plan`` (styles: verbose, multi_turn, template_fill, etc.)
   - LLM-generated turns (style: ``interactive``) via ``doctor_llm``
 
-Each turn is sent as Form data to POST /api/records/interview/turn.
-After all turns, calls POST /api/records/interview/confirm.
+Each turn is sent as Form data to POST /api/records/intake/turn.
+After all turns, calls POST /api/records/intake/confirm.
 """
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ async def _run_scripted_turns(
             form_data["session_id"] = session_id
 
         resp = await http.post(
-            f"{server}/api/records/interview/turn",
+            f"{server}/api/records/intake/turn",
             data=form_data,
         )
         resp.raise_for_status()
@@ -176,7 +176,7 @@ async def _run_interactive_turns(
         previous_inputs.append(text)
         dynamic_turn_plan.append({"turn": turn_num, "text": text})
 
-        # --- Send to the interview API ---
+        # --- Send to the intake API ---
         form_data = {
             "text": text,
             "doctor_id": doctor_id,
@@ -190,7 +190,7 @@ async def _run_interactive_turns(
             form_data["session_id"] = session_id
 
         resp = await http.post(
-            f"{server}/api/records/interview/turn",
+            f"{server}/api/records/intake/turn",
             data=form_data,
         )
         resp.raise_for_status()
@@ -229,7 +229,7 @@ async def run_persona(
     server_url: str,
     db_path: str,
 ) -> dict:
-    """Run a single doctor persona end-to-end through the doctor interview API.
+    """Run a single doctor persona end-to-end through the doctor intake API.
 
     Parameters
     ----------
@@ -286,10 +286,10 @@ async def run_persona(
             )
 
         # ------------------------------------------------------------------
-        # 3. Confirm interview
+        # 3. Confirm intake
         # ------------------------------------------------------------------
         confirm_resp = await http.post(
-            f"{server}/api/records/interview/confirm",
+            f"{server}/api/records/intake/confirm",
             data={
                 "session_id": session_id,
                 "doctor_id": doctor_id,
@@ -326,7 +326,7 @@ async def run_persona(
 def cleanup_sim_data(db_path: str) -> int:
     """Delete all rows with doctor_id LIKE 'docsim_%'. Returns count deleted."""
     tables = [
-        "doctor_tasks", "medical_records", "interview_sessions",
+        "doctor_tasks", "medical_records", "intake_sessions",
         "patients", "doctor_contexts", "doctor_conversation_turns",
         "chat_archive", "doctors",
     ]

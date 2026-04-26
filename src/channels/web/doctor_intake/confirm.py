@@ -1,4 +1,4 @@
-"""Doctor interview — confirm and cancel endpoints."""
+"""Doctor intake — confirm and cancel endpoints."""
 from __future__ import annotations
 
 from typing import Optional
@@ -10,7 +10,7 @@ from db.engine import get_db
 from utils.log import log
 
 from .shared import (
-    InterviewConfirmResponse,
+    IntakeConfirmResponse,
     _resolve_doctor_id,
     _verify_session,
     _build_clinical_text,
@@ -19,7 +19,7 @@ from .shared import (
 router = APIRouter()
 
 # Lazy singleton — deferred to avoid a circular import chain:
-#   engine → templates → medical_general → channels.web.doctor_interview.shared
+#   engine → templates → medical_general → channels.web.doctor_intake.shared
 #   → __init__ → routes → confirm → engine
 _ENGINE = None
 
@@ -27,25 +27,25 @@ _ENGINE = None
 def _get_engine():
     global _ENGINE
     if _ENGINE is None:
-        from domain.interview.engine import InterviewEngine
-        _ENGINE = InterviewEngine()
+        from domain.intake.engine import IntakeEngine
+        _ENGINE = IntakeEngine()
     return _ENGINE
 
 
 # ── POST /confirm ────────────────────────────────────────────────
 
-@router.post("/confirm", response_model=InterviewConfirmResponse)
-async def interview_confirm_endpoint(
+@router.post("/confirm", response_model=IntakeConfirmResponse)
+async def intake_confirm_endpoint(
     session_id: str = Form(...),
     doctor_id: str = Form(default=""),
     patient_name: Optional[str] = Form(default=None),
     authorization: Optional[str] = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Confirm interview and save to medical_records.
+    """Confirm intake and save to medical_records.
 
     Delegates all business logic (batch re-extraction, patient resolution,
-    record insertion, follow-up task generation) to InterviewEngine.confirm().
+    record insertion, follow-up task generation) to IntakeEngine.confirm().
     The endpoint retains only auth, HTTP guards, and response shaping.
     """
     resolved_doctor = await _resolve_doctor_id(doctor_id, authorization)
@@ -53,7 +53,7 @@ async def interview_confirm_endpoint(
         session_id, resolved_doctor, candidate_doctor_id=doctor_id,
     )
 
-    if session.status not in ("interviewing",):
+    if session.status not in ("active",):
         raise HTTPException(
             400, f"Session status is '{session.status}', cannot confirm",
         )
@@ -79,7 +79,7 @@ async def interview_confirm_endpoint(
         )
     }) if record else None
 
-    return InterviewConfirmResponse(
+    return IntakeConfirmResponse(
         status=record.status if record else "confirmed",
         preview=(preview[:200] if preview else None),
         pending_id=str(ref.id),
@@ -89,7 +89,7 @@ async def interview_confirm_endpoint(
 # ── POST /cancel ─────────────────────────────────────────────────
 
 @router.post("/cancel")
-async def interview_cancel_endpoint(
+async def intake_cancel_endpoint(
     session_id: str = Form(...),
     doctor_id: str = Form(default=""),
     authorization: Optional[str] = Header(default=None),
@@ -99,13 +99,13 @@ async def interview_cancel_endpoint(
         session_id, resolved_doctor, candidate_doctor_id=doctor_id,
     )
 
-    from domain.patients.interview_session import save_session
-    from db.models.interview_session import InterviewStatus
+    from domain.patients.intake_session import save_session
+    from db.models.intake_session import IntakeStatus
 
-    session.status = InterviewStatus.abandoned
+    session.status = IntakeStatus.abandoned
     await save_session(session)
 
-    from domain.patients.interview_turn import release_session_lock
+    from domain.patients.intake_turn import release_session_lock
     release_session_lock(session_id)
 
     return {"status": "abandoned"}

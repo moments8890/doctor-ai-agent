@@ -18,7 +18,7 @@ from db.models import (
     DoctorChatLog,
     DoctorKnowledgeItem,
     DoctorTask,
-    InterviewSessionDB,
+    IntakeSessionDB,
     MedicalRecordDB,
     Patient,
 )
@@ -175,10 +175,10 @@ async def _rows_doctor_chat_log(db, doctor_id: Optional[str], limit: int, offset
     ]
 
 
-async def _rows_interview_sessions(db, doctor_id: Optional[str], limit: int, offset: int) -> list:
-    stmt = select(InterviewSessionDB).order_by(InterviewSessionDB.created_at.desc()).limit(limit).offset(offset)
+async def _rows_intake_sessions(db, doctor_id: Optional[str], limit: int, offset: int) -> list:
+    stmt = select(IntakeSessionDB).order_by(IntakeSessionDB.created_at.desc()).limit(limit).offset(offset)
     if doctor_id:
-        stmt = stmt.where(InterviewSessionDB.doctor_id == doctor_id)
+        stmt = stmt.where(IntakeSessionDB.doctor_id == doctor_id)
     return [
         {"id": s.id[:8], "doctor_id": s.doctor_id, "patient_id": s.patient_id,
          "status": s.status, "turn_count": s.turn_count,
@@ -211,8 +211,8 @@ async def _fetch_table_rows(
         return await _rows_knowledge_items(db, doctor_id, limit, offset)
     if table_key == "doctor_chat_log":
         return await _rows_doctor_chat_log(db, doctor_id, limit, offset)
-    if table_key == "interview_sessions":
-        return await _rows_interview_sessions(db, doctor_id, limit, offset)
+    if table_key == "intake_sessions":
+        return await _rows_intake_sessions(db, doctor_id, limit, offset)
     raise HTTPException(status_code=404, detail="Unknown table")
 
 

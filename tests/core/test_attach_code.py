@@ -1,5 +1,5 @@
 """Tests for the patient attach code generator + normalizer."""
-from src.infra.attach_code import generate_code, normalize, ALPHABET
+from infra.attach_code import generate_code, normalize, ALPHABET
 
 
 def test_generate_code_default_length_is_4():

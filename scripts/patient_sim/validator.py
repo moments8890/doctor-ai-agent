@@ -176,7 +176,7 @@ def validate_tier1(
             checks["record_created"] = {"pass": False, "detail": f"record id={record_id} not found"}
         else:
             content_ok = bool(row["content"] and row["content"].strip())
-            type_ok = row["record_type"] == "interview_summary"
+            type_ok = row["record_type"] == "intake_summary"
             ok = content_ok and type_ok
             checks["record_created"] = {"pass": ok, "detail": "OK" if ok else "content empty or wrong type"}
 
@@ -189,7 +189,7 @@ def validate_tier1(
             checks["clinical_fields"] = {"pass": False, "detail": "skipped"}
 
         # 3. Session confirmed
-        sess = conn.execute("SELECT status FROM interview_sessions WHERE id = ?", (session_id,)).fetchone()
+        sess = conn.execute("SELECT status FROM intake_sessions WHERE id = ?", (session_id,)).fetchone()
         if sess is None:
             checks["session_confirmed"] = {"pass": False, "detail": "session not found"}
         else:
@@ -389,7 +389,7 @@ async def _axis1_elicitation(
     conversation: list,
     coverage_expectation: dict,
 ) -> dict:
-    """Axis 1: Elicitation Completeness — did the interview ask about the right topics?"""
+    """Axis 1: Elicitation Completeness — did the intake ask about the right topics?"""
     must_elicit: List[str] = coverage_expectation.get("must_elicit", [])
     if not must_elicit:
         return {"score": 1.0, "topics": {}}

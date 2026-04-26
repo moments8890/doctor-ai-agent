@@ -1,8 +1,8 @@
-# Interview Pipeline Extensibility — Phase 4 r2 (Neuro-Only + Foundation Fixes)
+# Intake Pipeline Extensibility — Phase 4 r2 (Neuro-Only + Foundation Fixes)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development.
 
-**Supersedes:** `2026-04-23-interview-pipeline-phase4.md` (r1). r1 tried to ship two templates and used `project_extras` as a schema-silent shortcut. Independent review by Claude + Codex surfaced 3 blockers and 5 pre-existing integration bugs that r1 would drag into production. r2 drops the therapy intake template (re-scoped into a future Phase 5 with dedicated safety design), does a proper Alembic migration for neuro fields, and fixes 4 of the 5 pre-existing bugs that neuro actually trips.
+**Supersedes:** `2026-04-23-intake-pipeline-phase4.md` (r1). r1 tried to ship two templates and used `project_extras` as a schema-silent shortcut. Independent review by Claude + Codex surfaced 3 blockers and 5 pre-existing integration bugs that r1 would drag into production. r2 drops the therapy intake template (re-scoped into a future Phase 5 with dedicated safety design), does a proper Alembic migration for neuro fields, and fixes 4 of the 5 pre-existing bugs that neuro actually trips.
 
 **Goal:** Ship `medical_neuro_v1` on a clean foundation.
 
@@ -13,7 +13,7 @@
 - Doctor inline-edit validation widened to active template's field set.
 - Resume/current readiness runs through `template.extractor.completeness`, not legacy helpers.
 
-**Explicitly deferred (Phase 5):** `form_therapy_intake_v1`, `CrisisAlertHook`, form-kind review queue, `confirm_interview` return contract for `PersistRef(kind="form_response")`. Therapy intake needs a proper safety design pass (tiered alerts, keyword + LLM backstop, structured alert payload, audit trail, therapist paging UI) that doesn't fit a blocker-fix sprint.
+**Explicitly deferred (Phase 5):** `form_therapy_intake_v1`, `CrisisAlertHook`, form-kind review queue, `confirm_intake` return contract for `PersistRef(kind="form_response")`. Therapy intake needs a proper safety design pass (tiered alerts, keyword + LLM backstop, structured alert payload, audit trail, therapist paging UI) that doesn't fit a blocker-fix sprint.
 
 **§8 resolution (final):** per-template hook lists. `medical_general_v1` stays asymmetric (patient fires diagnosis, doctor does not). `medical_neuro_v1` adds a `SafetyScreenHook` that runs on **both** modes — not an overloaded diagnosis trigger. Doctor-mode diagnosis remains off for neuro too; if product wants to turn it on, that's a one-line hook-list change later.
 
@@ -36,8 +36,8 @@
 
 **Create:**
 - `alembic/versions/NNNN_neuro_medical_record_columns.py` — adds `onset_time`, `neuro_exam`, `vascular_risk_factors` to `medical_records`.
-- `src/domain/interview/templates/medical_neuro.py` — `GeneralNeuroExtractor`, `GeneralNeuroTemplate`, `NEURO_EXTRA_FIELDS`.
-- `src/domain/interview/hooks/safety.py` — `SafetyScreenHook`.
+- `src/domain/intake/templates/medical_neuro.py` — `GeneralNeuroExtractor`, `GeneralNeuroTemplate`, `NEURO_EXTRA_FIELDS`.
+- `src/domain/intake/hooks/safety.py` — `SafetyScreenHook`.
 - `tests/core/test_medical_neuro_fields.py`
 - `tests/core/test_medical_neuro_extractor.py`
 - `tests/core/test_medical_neuro_template.py`
@@ -49,18 +49,18 @@
 
 **Modify:**
 - `src/db/models/records.py` — add 3 nullable columns to `MedicalRecordDB`.
-- `src/channels/web/doctor_interview/shared.py` — extend `FIELD_LABELS` with 3 neuro entries; `_build_clinical_text` gains neuro rendering.
-- `src/domain/interview/engine.py` — fix `confirm` to save reconciled `collected` back to session row (bug E).
-- `src/domain/interview/templates/medical_general.py` — `MedicalRecordWriter` reads all `MEDICAL_FIELDS` + subclass's extras from `collected` generically (no hardcoded column list); `GeneralMedicalExtractor.prompt_partial` takes template id from `session_state.template_id` not a hardcoded literal.
-- `src/channels/web/patient_interview_routes.py` — accepts `template_id` on session create; resume/current use `template.extractor.completeness` (bug A + bug B).
-- `src/domain/patients/interview_session.py` — `create_session()` threads `template_id`.
-- `src/channels/web/doctor_interview/turn.py` — inline-edit validation uses active template's field names (bug C).
-- `src/domain/interview/templates/__init__.py` — register `medical_neuro_v1`.
+- `src/channels/web/doctor_intake/shared.py` — extend `FIELD_LABELS` with 3 neuro entries; `_build_clinical_text` gains neuro rendering.
+- `src/domain/intake/engine.py` — fix `confirm` to save reconciled `collected` back to session row (bug E).
+- `src/domain/intake/templates/medical_general.py` — `MedicalRecordWriter` reads all `MEDICAL_FIELDS` + subclass's extras from `collected` generically (no hardcoded column list); `GeneralMedicalExtractor.prompt_partial` takes template id from `session_state.template_id` not a hardcoded literal.
+- `src/channels/web/patient_intake_routes.py` — accepts `template_id` on session create; resume/current use `template.extractor.completeness` (bug A + bug B).
+- `src/domain/patients/intake_session.py` — `create_session()` threads `template_id`.
+- `src/channels/web/doctor_intake/turn.py` — inline-edit validation uses active template's field names (bug C).
+- `src/domain/intake/templates/__init__.py` — register `medical_neuro_v1`.
 - `tests/core/test_template_registry.py` — assert 3 templates registered.
 
 **Not touched (deferred):**
 - `form_therapy_intake_v1` — Phase 5.
-- `confirm_interview` return contract for `PersistRef(kind="form_response")` (bug D) — Phase 5; neuro persists as `medical_record` so the current contract works.
+- `confirm_intake` return contract for `PersistRef(kind="form_response")` (bug D) — Phase 5; neuro persists as `medical_record` so the current contract works.
 - Therapist form-kind review queue / confirm mutation — Phase 5.
 
 ---
@@ -68,10 +68,10 @@
 ## Task 0: Fix engine.confirm persistence (bug E)
 
 **Files:**
-- Modify: `src/domain/interview/engine.py`
+- Modify: `src/domain/intake/engine.py`
 - Create: `tests/core/test_engine_confirm_persistence.py`
 
-**Why first:** this is a pre-existing integrity bug that predates Phase 4. `InterviewEngine.confirm()` currently merges doctor edits and runs batch re-extraction, but never saves the reconciled `collected` back to the session row. The session JSON diverges from the persisted record from that moment forward. Neuro triggers a fresh regression test for this, but the fix applies equally to `medical_general_v1`.
+**Why first:** this is a pre-existing integrity bug that predates Phase 4. `IntakeEngine.confirm()` currently merges doctor edits and runs batch re-extraction, but never saves the reconciled `collected` back to the session row. The session JSON diverges from the persisted record from that moment forward. Neuro triggers a fresh regression test for this, but the fix applies equally to `medical_general_v1`.
 
 - [ ] **Step 1: Regression test proves the bug**
 
@@ -88,7 +88,7 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.engine import InterviewEngine
+from domain.intake.engine import IntakeEngine
 # ... fixtures for a session with mocked batch extractor that returns
 # a dict different from the session's current collected
 
@@ -108,12 +108,12 @@ async def test_confirm_persists_reconciled_collected_to_session():
 
 In `engine.py` `confirm()`, after batch extraction and before hook dispatch, write `sess.collected = collected` and call `_save_session_state(sess)`. The save must happen before hooks so hook failures don't roll back the persisted reconciled state.
 
-- [ ] **Step 4: Run, expect pass.** Also run the full interview test suite — no regressions.
+- [ ] **Step 4: Run, expect pass.** Also run the full intake test suite — no regressions.
 
 - [ ] **Step 5: Commit**
 
 ```
-git commit -m "fix(interview): engine.confirm persists reconciled collected to session (bug E)"
+git commit -m "fix(intake): engine.confirm persists reconciled collected to session (bug E)"
 ```
 
 ---
@@ -123,7 +123,7 @@ git commit -m "fix(interview): engine.confirm persists reconciled collected to s
 **Files:**
 - Create: `alembic/versions/NNNN_neuro_medical_record_columns.py`
 - Modify: `src/db/models/records.py`
-- Modify: `src/channels/web/doctor_interview/shared.py`
+- Modify: `src/channels/web/doctor_intake/shared.py`
 
 Migration adds three nullable `TEXT` columns. All existing rows get NULL — no backfill. Template at `medical_general_v1` never writes these columns.
 
@@ -147,7 +147,7 @@ def downgrade():
 
 - [ ] **Step 3: Extend `FIELD_LABELS` and `_build_clinical_text`**
 
-`src/channels/web/doctor_interview/shared.py`:
+`src/channels/web/doctor_intake/shared.py`:
 - `FIELD_LABELS` gains `onset_time → "发病时间"`, `neuro_exam → "神经系统查体"`, `vascular_risk_factors → "血管危险因素"`.
 - `_build_clinical_text` iterates `FIELD_LABELS` as today; new fields render in dictionary order. Ordering tweak if we want `onset_time` right after `chief_complaint`: insertion order in the dict literal.
 
@@ -170,7 +170,7 @@ git commit -m "feat(db): add neuro-specific columns to medical_records (onset_ti
 ## Task 2: Generic `MedicalRecordWriter` column mapping
 
 **Files:**
-- Modify: `src/domain/interview/templates/medical_general.py` (MedicalRecordWriter)
+- Modify: `src/domain/intake/templates/medical_general.py` (MedicalRecordWriter)
 
 Today `MedicalRecordWriter.persist` hand-names every column in the INSERT. That was fine for 14 fields but now we want specialty variants to append extras without writer changes. Refactor to build column kwargs from `MEDICAL_FIELDS` + the active extractor's extras.
 
@@ -210,7 +210,7 @@ Collect column names from `inspect(MedicalRecordDB).c` ∩ keys in `collected`. 
 - [ ] **Step 4: Commit**
 
 ```
-git commit -m "refactor(interview): MedicalRecordWriter maps collected keys to columns generically"
+git commit -m "refactor(intake): MedicalRecordWriter maps collected keys to columns generically"
 ```
 
 ---
@@ -218,7 +218,7 @@ git commit -m "refactor(interview): MedicalRecordWriter maps collected keys to c
 ## Task 3: `GeneralNeuroExtractor` + `NEURO_FIELDS`
 
 **Files:**
-- Create: `src/domain/interview/templates/medical_neuro.py` (extractor + fields only)
+- Create: `src/domain/intake/templates/medical_neuro.py` (extractor + fields only)
 - Create: `tests/core/test_medical_neuro_fields.py`
 - Create: `tests/core/test_medical_neuro_extractor.py`
 
@@ -228,7 +228,7 @@ git commit -m "refactor(interview): MedicalRecordWriter maps collected keys to c
 
 - [ ] **Step 2: Implement**
 
-`src/domain/interview/templates/medical_neuro.py`:
+`src/domain/intake/templates/medical_neuro.py`:
 
 ```python
 """medical_neuro_v1 — 神外 cerebrovascular variant."""
@@ -237,15 +237,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from domain.interview.hooks.medical import (
+from domain.intake.hooks.medical import (
     GenerateFollowupTasksHook, NotifyDoctorHook, TriggerDiagnosisPipelineHook,
 )
-from domain.interview.hooks.safety import SafetyScreenHook
-from domain.interview.protocols import (
+from domain.intake.hooks.safety import SafetyScreenHook
+from domain.intake.protocols import (
     BatchExtractor, CompletenessState, EngineConfig, FieldExtractor, FieldSpec,
     Mode, Phase, PostConfirmHook, SessionState, Writer,
 )
-from domain.interview.templates.medical_general import (
+from domain.intake.templates.medical_general import (
     GeneralMedicalExtractor, MEDICAL_FIELDS, MedicalBatchExtractor,
     MedicalRecordWriter,
 )
@@ -306,14 +306,14 @@ class GeneralNeuroExtractor(GeneralMedicalExtractor):
         return messages
 ```
 
-**Parent prompt_partial must pass session_state.template_id through:** in the same task, change `GeneralMedicalExtractor.prompt_partial` so its `compose_for_patient_interview` / `compose_for_doctor_interview` calls use `template_id=session_state.template_id` instead of the hardcoded `"medical_general_v1"`. This is a one-line change, required so neuro sessions log as neuro.
+**Parent prompt_partial must pass session_state.template_id through:** in the same task, change `GeneralMedicalExtractor.prompt_partial` so its `compose_for_patient_intake` / `compose_for_doctor_intake` calls use `template_id=session_state.template_id` instead of the hardcoded `"medical_general_v1"`. This is a one-line change, required so neuro sessions log as neuro.
 
 - [ ] **Step 3: Run, expect tests pass**
 
 - [ ] **Step 4: Commit**
 
 ```
-git commit -m "feat(interview): add GeneralNeuroExtractor + NEURO_FIELDS, thread template_id through prompt_partial"
+git commit -m "feat(intake): add GeneralNeuroExtractor + NEURO_FIELDS, thread template_id through prompt_partial"
 ```
 
 ---
@@ -321,7 +321,7 @@ git commit -m "feat(interview): add GeneralNeuroExtractor + NEURO_FIELDS, thread
 ## Task 4: `SafetyScreenHook`
 
 **Files:**
-- Create: `src/domain/interview/hooks/safety.py`
+- Create: `src/domain/intake/hooks/safety.py`
 - Create: `tests/core/test_safety_screen_hook.py`
 
 Keyword-based danger-signal screener for neuro records. Runs in BOTH patient-mode and doctor-mode post-confirm. Logs a structured alert and sends a doctor notification with a `【危险信号】` prefix (distinct from the therapy `【危机预警】`; safety_screen = clinical danger signals, crisis_alert = suicidality risk).
@@ -347,7 +347,7 @@ fields. Hook is best-effort — failures log and don't unwind persist.
 """
 from __future__ import annotations
 
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.protocols import PersistRef, SessionState
 from domain.tasks.notifications import (
     send_doctor_notification as _send_doctor_notification,
 )
@@ -403,7 +403,7 @@ class SafetyScreenHook:
 - [ ] **Step 4: Commit**
 
 ```
-git commit -m "feat(interview): add SafetyScreenHook — neuro danger-signal keyword screener"
+git commit -m "feat(intake): add SafetyScreenHook — neuro danger-signal keyword screener"
 ```
 
 ---
@@ -411,8 +411,8 @@ git commit -m "feat(interview): add SafetyScreenHook — neuro danger-signal key
 ## Task 5: Patient-portal template_id routing (bug A)
 
 **Files:**
-- Modify: `src/domain/patients/interview_session.py` — `create_session` accepts optional `template_id`.
-- Modify: `src/channels/web/patient_interview_routes.py` — `/start` endpoint accepts `template_id` query param OR reads from doctor's `preferred_template_id`; threads into `create_session`.
+- Modify: `src/domain/patients/intake_session.py` — `create_session` accepts optional `template_id`.
+- Modify: `src/channels/web/patient_intake_routes.py` — `/start` endpoint accepts `template_id` query param OR reads from doctor's `preferred_template_id`; threads into `create_session`.
 - Create: `tests/channels/test_patient_portal_template_routing.py`
 
 **Why:** a patient can't reach `medical_neuro_v1` from the patient portal today — `create_session()` hardcodes the default. Neuro supports patient mode (patient-side intake), so this path must work.
@@ -426,7 +426,7 @@ must fall back to the doctor's preferred_template_id when omitted.
 
 @pytest.mark.asyncio
 async def test_start_session_with_explicit_template_id():
-    # doctor_id + invite, POST /api/patient/interview/start?template_id=medical_neuro_v1
+    # doctor_id + invite, POST /api/patient/intake/start?template_id=medical_neuro_v1
     # assert created session has template_id = medical_neuro_v1
 
 @pytest.mark.asyncio
@@ -455,7 +455,7 @@ git commit -m "fix(patient-portal): thread template_id through /start (bug A)"
 ## Task 6: Patient resume/current readiness via template extractor (bug B)
 
 **Files:**
-- Modify: `src/channels/web/patient_interview_routes.py` — `/current` and the completeness check in `/turn` use `template.extractor.completeness(session.collected, "patient")` instead of the legacy `get_completeness_state`.
+- Modify: `src/channels/web/patient_intake_routes.py` — `/current` and the completeness check in `/turn` use `template.extractor.completeness(session.collected, "patient")` instead of the legacy `get_completeness_state`.
 - Create: `tests/channels/test_patient_resume_template_completeness.py`
 
 **Why:** without this, a neuro patient session will be judged complete using the `medical_general_v1` required-field set — `onset_time` won't be required at the patient route layer, and transitions to `reviewing` will fire at the wrong moment.
@@ -486,7 +486,7 @@ git commit -m "fix(patient-portal): resume readiness routed through template ext
 ## Task 7: Doctor inline-edit widening (bug C)
 
 **Files:**
-- Modify: `src/channels/web/doctor_interview/turn.py` — replace hardcoded `FIELD_LABELS` check with `template.extractor.fields()` field-name membership check.
+- Modify: `src/channels/web/doctor_intake/turn.py` — replace hardcoded `FIELD_LABELS` check with `template.extractor.fields()` field-name membership check.
 - Create: `tests/channels/test_doctor_inline_edit_neuro.py`
 
 **Why:** doctor editing `onset_time` / `neuro_exam` / `vascular_risk_factors` returns 422 today.
@@ -507,7 +507,7 @@ async def test_inline_edit_onset_time_on_neuro_session_succeeds():
 - [ ] **Step 4: Commit**
 
 ```
-git commit -m "fix(doctor-interview): inline-edit validates against active template fields (bug C)"
+git commit -m "fix(doctor-intake): inline-edit validates against active template fields (bug C)"
 ```
 
 ---
@@ -515,8 +515,8 @@ git commit -m "fix(doctor-interview): inline-edit validates against active templ
 ## Task 8: `GeneralNeuroTemplate` + registry
 
 **Files:**
-- Modify: `src/domain/interview/templates/medical_neuro.py` (append template binding)
-- Modify: `src/domain/interview/templates/__init__.py` (register)
+- Modify: `src/domain/intake/templates/medical_neuro.py` (append template binding)
+- Modify: `src/domain/intake/templates/__init__.py` (register)
 - Create: `tests/core/test_medical_neuro_template.py`
 - Modify: `tests/core/test_template_registry.py` (3 templates now)
 
@@ -582,7 +582,7 @@ TEMPLATES: dict[str, Template] = {
 - [ ] **Step 5: Commit**
 
 ```
-git commit -m "feat(interview): register medical_neuro_v1 (diagnosis patient-only, safety screen both modes)"
+git commit -m "feat(intake): register medical_neuro_v1 (diagnosis patient-only, safety screen both modes)"
 ```
 
 ---
@@ -653,7 +653,7 @@ When we come back to therapy intake, it should include all of:
 - Chinese keyword backstop over the transcript as a false-negative safety net.
 - Structured alert payload (code / severity / source / evidence / session_id) — not a string prefix.
 - Therapist form-kind review queue. New API: `POST /api/form_responses/{id}/confirm`, list filter on `form_responses.status`, UI surface.
-- `confirm_interview` return-contract fix for `PersistRef(kind="form_response")` (bug D).
+- `confirm_intake` return-contract fix for `PersistRef(kind="form_response")` (bug D).
 - Audit trail schema — all crisis-related decisions logged with immutable timestamp + acting user.
 - Legal/compliance review sign-off. (Out of scope for engineering alone.)
 

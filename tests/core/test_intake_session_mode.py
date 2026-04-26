@@ -1,16 +1,16 @@
-"""Interview session mode field — doctor vs patient mode."""
+"""Intake session mode field — doctor vs patient mode."""
 import pytest
 from unittest.mock import AsyncMock, patch
-from db.models.interview_session import InterviewStatus
+from db.models.intake_session import IntakeStatus
 
 
 @pytest.mark.asyncio
 async def test_create_session_with_doctor_mode():
-    with patch("domain.patients.interview_session.AsyncSessionLocal") as mock_cls:
+    with patch("domain.patients.intake_session.AsyncSessionLocal") as mock_cls:
         mock_db = AsyncMock()
         mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
         mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
-        from domain.patients.interview_session import create_session
+        from domain.patients.intake_session import create_session
         session = await create_session("dr_test", 1, mode="doctor")
     assert session.mode == "doctor"
     assert session.doctor_id == "dr_test"
@@ -19,17 +19,17 @@ async def test_create_session_with_doctor_mode():
 
 @pytest.mark.asyncio
 async def test_create_session_defaults_to_patient_mode():
-    with patch("domain.patients.interview_session.AsyncSessionLocal") as mock_cls:
+    with patch("domain.patients.intake_session.AsyncSessionLocal") as mock_cls:
         mock_db = AsyncMock()
         mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_db)
         mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
-        from domain.patients.interview_session import create_session
+        from domain.patients.intake_session import create_session
         session = await create_session("dr_test", 1)
     assert session.mode == "patient"
 
 
-def test_interview_status_does_not_have_draft_created():
+def test_intake_status_does_not_have_draft_created():
     """draft_created was retired by the c9f8d2e14a20 migration. The enum
     must not re-expose it or stale callsites will silently insert a value
     the DB no longer understands."""
-    assert not hasattr(InterviewStatus, "draft_created")
+    assert not hasattr(IntakeStatus, "draft_created")

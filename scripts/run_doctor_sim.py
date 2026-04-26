@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Doctor simulation CLI — run scripted doctor personas against the interview pipeline.
+"""Doctor simulation CLI — run scripted doctor personas against the intake pipeline.
 
 Usage:
     PYTHONPATH=src python scripts/run_doctor_sim.py --personas all

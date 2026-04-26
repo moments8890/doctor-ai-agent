@@ -27,8 +27,8 @@ describe("detectRecordDetail", () => {
   it("returns id for /patient/records/42", () => {
     expect(detectRecordDetail("/patient/records/42")).toBe("42");
   });
-  it("returns null for /patient/records/interview", () => {
-    expect(detectRecordDetail("/patient/records/interview")).toBeNull();
+  it("returns null for /patient/records/intake", () => {
+    expect(detectRecordDetail("/patient/records/intake")).toBeNull();
   });
   it("returns null for /patient/records", () => {
     expect(detectRecordDetail("/patient/records")).toBeNull();

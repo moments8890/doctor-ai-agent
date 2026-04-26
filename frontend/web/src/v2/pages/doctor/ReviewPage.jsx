@@ -68,7 +68,7 @@ const SECTIONS = [
 // ── Helpers ────────────────────────────────────────────────────────
 
 function sourceLabel(recordType) {
-  if (recordType === "interview_summary") return "患者预问诊摘要";
+  if (recordType === "intake_summary") return "患者预问诊摘要";
   if (recordType === "import") return "导入病历";
   return "医生病历记录";
 }

@@ -7,7 +7,7 @@ import { test, expect } from "./fixtures/doctor-auth";
 import {
   addKnowledgeText,
   addPersonaRule,
-  completePatientInterview,
+  completePatientIntake,
 } from "./fixtures/seed";
 
 test.describe("工作流 03 — AI助手概览", () => {
@@ -18,12 +18,12 @@ test.describe("工作流 03 — AI助手概览", () => {
     request,
     steps,
   }) => {
-    // Seed: 2 knowledge items, 1 persona rule, 1 completed interview.
+    // Seed: 2 knowledge items, 1 persona rule, 1 completed intake.
     // category must be a valid enum: custom|diagnosis|followup|medication.
     await addKnowledgeText(request, doctor, "高血压头痛需先排除高血压脑病");
     await addKnowledgeText(request, doctor, "回访48小时血压记录");
     await addPersonaRule(request, doctor, "reply_style", "口语化回复，像微信聊天");
-    await completePatientInterview(request, patient);
+    await completePatientIntake(request, patient);
 
     await doctorPage.goto("/doctor/my-ai");
 

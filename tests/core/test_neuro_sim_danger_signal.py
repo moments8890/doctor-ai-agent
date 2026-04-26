@@ -1,12 +1,12 @@
 """Neuro sim — danger-signal triggered.
 
-Patient volunteers a neuro red-flag phrase ("突发剧烈头痛") as the chief
+Patient volunteers a neuro signal-flag phrase ("突发剧烈头痛") as the chief
 complaint. On confirm the ``SafetyScreenHook`` must fire a doctor
 notification prefixed with ``【危险信号】`` and listing the matched
 keyword.
 
 This is a sim scenario, not an HTTP integration test — it drives the
-real ``InterviewEngine`` with a mocked ``structured_call`` and a mocked
+real ``IntakeEngine`` with a mocked ``structured_call`` and a mocked
 writer / batch extractor so the scenario is deterministic. The real
 ``SafetyScreenHook`` runs; only its downstream
 ``send_doctor_notification`` is stubbed to capture the alert.
@@ -22,9 +22,9 @@ import pytest
 
 from db.engine import AsyncSessionLocal
 from db.models.doctor import Doctor
-from domain.interview.engine import InterviewEngine
-from domain.interview.protocols import PersistRef
-from domain.patients.interview_session import create_session, load_session
+from domain.intake.engine import IntakeEngine
+from domain.intake.protocols import PersistRef
+from domain.patients.intake_session import create_session, load_session
 
 
 async def _seed_neuro_session(mode: str = "patient"):
@@ -71,9 +71,9 @@ async def test_safety_screen_fires_on_danger_signal_in_chief_complaint():
         "onset_time": "今日14:00，约2小时前",
     }
 
-    engine = InterviewEngine()
+    engine = IntakeEngine()
     with patch(
-        "domain.interview.engine.structured_call",
+        "domain.intake.engine.structured_call",
         new=AsyncMock(
             return_value=_mock_llm_response(
                 "明白了，请稍等，我已记录主要信息。",
@@ -84,7 +84,7 @@ async def test_safety_screen_fires_on_danger_signal_in_chief_complaint():
         await engine.next_turn(session.id, "我妈妈今天突然剧烈头痛，感觉要裂开")
 
     loaded = await load_session(session.id)
-    # Sanity — the red-flag phrase landed in chief_complaint.
+    # Sanity — the signal-flag phrase landed in chief_complaint.
     assert "剧烈头痛" in loaded.collected.get("chief_complaint", "")
     # can_complete flipped; status is reviewing (patient-mode auto-transition).
     assert loaded.status == "reviewing"
@@ -92,19 +92,19 @@ async def test_safety_screen_fires_on_danger_signal_in_chief_complaint():
     fake_ref = PersistRef(kind="medical_record", id=7777)
 
     with patch(
-        "domain.interview.templates.medical_general.MedicalRecordWriter.persist",
+        "domain.intake.templates.medical_general.MedicalRecordWriter.persist",
         new=AsyncMock(return_value=fake_ref),
     ), patch(
-        "domain.interview.templates.medical_general.MedicalBatchExtractor.extract",
+        "domain.intake.templates.medical_general.MedicalBatchExtractor.extract",
         new=AsyncMock(return_value=dict(loaded.collected)),
     ), patch(
-        "domain.interview.hooks.medical.TriggerDiagnosisPipelineHook.run",
+        "domain.intake.hooks.medical.TriggerDiagnosisPipelineHook.run",
         new_callable=AsyncMock,
     ), patch(
-        "domain.interview.hooks.medical.NotifyDoctorHook.run",
+        "domain.intake.hooks.medical.NotifyDoctorHook.run",
         new_callable=AsyncMock,
     ), patch(
-        "domain.interview.hooks.safety._send_doctor_notification",
+        "domain.intake.hooks.safety._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_safety_notify:
         await engine.confirm(session_id=session.id)

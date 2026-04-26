@@ -18,10 +18,10 @@ export function detectSection(pathname) {
   return "chat";
 }
 
-/** /patient/records/:id → id (excluding "interview"). Returns null otherwise. */
+/** /patient/records/:id → id (excluding "intake"). Returns null otherwise. */
 export function detectRecordDetail(pathname) {
   const parts = pathname.split("/").filter(Boolean);
-  if (parts[1] !== "records" || !parts[2] || parts[2] === "interview") return null;
+  if (parts[1] !== "records" || !parts[2] || parts[2] === "intake") return null;
   return parts[2];
 }
 

@@ -275,7 +275,7 @@ async def _wipe_tables(session) -> None:
     """Delete all rows from data tables (preserves schema)."""
     for tbl in [
         "audit_log", "doctor_chat_log", "patient_messages",
-        "doctor_tasks", "medical_records", "interview_sessions",
+        "doctor_tasks", "medical_records", "intake_sessions",
         "patients", "invite_codes", "doctor_knowledge_items",
         "doctors",
     ]:

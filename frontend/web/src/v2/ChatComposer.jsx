@@ -36,7 +36,7 @@ export default function ChatComposer({
   placeholder = "输入消息…",
   doctorId,
   suggestions = [],
-  // True when composer sits directly on the viewport bottom (e.g. InterviewPage
+  // True when composer sits directly on the viewport bottom (e.g. IntakePage
   // full-screen). False when a TabBar below already handles the home-indicator
   // inset — doubling up leaves dead space above the TabBar.
   safeBottom = true,

@@ -18,8 +18,8 @@ The doctor's #1 ask — "希望能够有初步的诊断，鉴别诊断以及进�
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Trigger | Doctor chooses "保存并诊断" on interview complete | Not every case needs AI; routine follow-ups don't |
-| Interview confirm UX | Rename "确认生成" → "完成"; popup with NHC fields + two buttons | Doctor reviews extracted fields before saving |
+| Trigger | Doctor chooses "保存并诊断" on intake complete | Not every case needs AI; routine follow-ups don't |
+| Intake confirm UX | Rename "确认生成" → "完成"; popup with NHC fields + two buttons | Doctor reviews extracted fields before saving |
 | Review navigation | Subpage `/doctor/review/:recordId` | Reachable from record tap or task tap |
 | Review card layout | Collapsed by default, tap to expand | Mobile-friendly; ~10 items fit on one screen |
 | Per-item actions | ✓ confirm, ✗ reject (optional reason), ✎ edit (inline) | Doctor can also add custom entries per section |
@@ -31,10 +31,10 @@ The doctor's #1 ask — "希望能够有初步的诊断，鉴别诊断以及进�
 
 ## User Flow
 
-### Flow 1: Doctor Interview → Diagnosis
+### Flow 1: Doctor Intake → Diagnosis
 
 ```
-Doctor conducts interview (chat-style, filling NHC fields)
+Doctor conducts intake (chat-style, filling NHC fields)
   → clicks "完成"
   → popup dialog shows extracted NHC fields (主诉、现病史、既往史...)
     ┌──────────────────────────────┐
@@ -52,10 +52,10 @@ Doctor conducts interview (chat-style, filling NHC fields)
                    push to /doctor/review/:recordId
 ```
 
-### Flow 2: Patient Interview → Doctor Review
+### Flow 2: Patient Intake → Doctor Review
 
 ```
-Patient completes pre-consultation interview
+Patient completes pre-consultation intake
   → record saved (status = "completed")
   → review task created for doctor
   → doctor sees task in task list: "李复诊 · 预问诊完成"
@@ -75,9 +75,9 @@ Doctor opens patient → sees record with status badge
   → if no diagnosis yet: shows record only + "诊断建议" trigger button
 ```
 
-## Interview Confirm Popup
+## Intake Confirm Popup
 
-### Changes to existing interview
+### Changes to existing intake
 
 1. **Rename button:** "确认生成" → "完成"
 2. **Carry-forward section:** Make collapsible (▾/▴ toggle). Auto-collapse
@@ -272,7 +272,7 @@ class AISuggestion(Base):
 
 ### Columns retained on `medical_records`
 
-- `status` (RecordStatus enum: `interview_active`, `pending_review`, `completed`)
+- `status` (RecordStatus enum: `intake_active`, `pending_review`, `completed`)
 - `diagnosis` (clinical diagnosis text field — doctor's own, separate from AI)
 - `final_diagnosis` (outcome tracking — separate concern)
 
@@ -404,14 +404,14 @@ Sets record status to `completed`, marks review task as done.
 |-----------|------|---------|
 | `ReviewPage.jsx` | `pages/doctor/ReviewPage.jsx` | Full review subpage: record summary + diagnosis cards |
 | `DiagnosisCard.jsx` | `pages/doctor/DiagnosisCard.jsx` | Single collapsible review card with actions |
-| `InterviewCompleteDialog.jsx` | `pages/doctor/InterviewCompleteDialog.jsx` | NHC fields preview + two-button popup |
+| `IntakeCompleteDialog.jsx` | `pages/doctor/IntakeCompleteDialog.jsx` | NHC fields preview + two-button popup |
 
 ### Modified
 
 | Component | Change |
 |-----------|--------|
-| `InterviewView.jsx` | Rename "确认生成" → "完成"; on click show `InterviewCompleteDialog` |
-| `InterviewView.jsx` | Make carry-forward section collapsible |
+| `IntakeView.jsx` | Rename "确认生成" → "完成"; on click show `IntakeCompleteDialog` |
+| `IntakeView.jsx` | Make carry-forward section collapsible |
 | `DoctorPage.jsx` / `App.jsx` | Add route `/doctor/review/:recordId` |
 | `TasksSection.jsx` | Review tasks navigate to `/doctor/review/:recordId` |
 | `PatientDetail.jsx` | Records with `pending_review` show badge; tap navigates to review |
@@ -453,14 +453,14 @@ Sets record status to `completed`, marks review task as done.
 - `SubpageHeader` — review page header
 - `PageSkeleton` — loading skeleton
 - `RecordFields` — NHC field rendering in popup
-- `Dialog` (MUI) — interview complete popup
+- `Dialog` (MUI) — intake complete popup
 - `AppButton` — 保存/保存并诊断/完成审核 buttons
 
 ### New components introduced
 
 - `ReviewPage` — page-level component
 - `DiagnosisCard` — collapsible card with confirm/reject/edit
-- `InterviewCompleteDialog` — NHC preview + two buttons
+- `IntakeCompleteDialog` — NHC preview + two buttons
 
 ## UX Reference
 

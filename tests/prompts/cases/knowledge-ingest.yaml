@@ -38,12 +38,12 @@
         // Must clean up noise (page numbers, copyright)
         return !output.includes('页码：3/8') && !output.includes('版权所有');
 
-- description: "ingest: red flag symptoms → preserved as red flags"
+- description: "ingest: signal flag symptoms → preserved as signal flags"
   options:
     prompts: [knowledge-ingest]
   vars:
     document_text: |
-      神经外科术后红旗征象
+      神经外科术后信号标记征象
 
       以下情况需立即处理：
       - 术后新发肢体无力或麻木
@@ -55,8 +55,8 @@
   assert:
     - type: javascript
       value: |
-        // Must include red flag section
-        return output.includes('红旗') || output.includes('立即处理');
+        // Must include signal flag section
+        return output.includes('信号标记') || output.includes('立即处理');
     - type: javascript
       value: |
         // Must preserve GCS threshold exactly

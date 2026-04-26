@@ -1,7 +1,7 @@
 /**
- * InterviewPage — full-screen pre-consultation interview (v2, antd-mobile).
+ * IntakePage — full-screen pre-consultation intake (v2, antd-mobile).
  *
- * Ported from src/pages/patient/InterviewPage.jsx.
+ * Ported from src/pages/patient/IntakePage.jsx.
  * Key behaviours preserved:
  *   - Session lifecycle: start → turns → confirm/cancel
  *   - Suggestion chips (ChatComposer built-in support)
@@ -150,18 +150,18 @@ const summaryStyles = {
 };
 
 // ---------------------------------------------------------------------------
-// InterviewPage — main export
+// IntakePage — main export
 // ---------------------------------------------------------------------------
 
-export default function InterviewPage({ token, onBack }) {
-  const { interviewStart, interviewTurn, interviewConfirm, interviewCancel } =
+export default function IntakePage({ token, onBack }) {
+  const { intakeStart, intakeTurn, intakeConfirm, intakeCancel } =
     usePatientApi();
 
   const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState([]);
   const [collected, setCollected] = useState({});
   const [progress, setProgress] = useState({ filled: 0, total: 7 });
-  const [status, setStatus] = useState("interviewing");
+  const [status, setStatus] = useState("active");
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
@@ -184,13 +184,13 @@ export default function InterviewPage({ token, onBack }) {
   useScrollOnKeyboard(chatEndRef);
 
   const canSupplement = reviewReady && status !== "confirmed";
-  const canInput = status === "interviewing" || canSupplement;
+  const canInput = status === "active" || canSupplement;
 
   // Start session
   useEffect(() => {
     (async () => {
       try {
-        const data = await interviewStart(token);
+        const data = await intakeStart(token);
         setSessionId(data.session_id);
         setCollected(data.collected || {});
         setProgress(data.progress);
@@ -241,7 +241,7 @@ export default function InterviewPage({ token, onBack }) {
     setSending(true);
 
     try {
-      const data = await interviewTurn(token, sessionId, text);
+      const data = await intakeTurn(token, sessionId, text);
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
       setCollected(data.collected || {});
       setProgress(data.progress);
@@ -268,7 +268,7 @@ export default function InterviewPage({ token, onBack }) {
   async function handleConfirm() {
     setConfirming(true);
     try {
-      const data = await interviewConfirm(token, sessionId);
+      const data = await intakeConfirm(token, sessionId);
       setStatus("confirmed");
       setShowSummary(false);
       setMessages((prev) => [
@@ -297,7 +297,7 @@ export default function InterviewPage({ token, onBack }) {
     // Dialog.confirm resolves true=confirm (放弃重来), false/catch=cancel (保存退出)
     if (result) {
       try {
-        await interviewCancel(token, sessionId);
+        await intakeCancel(token, sessionId);
       } catch {}
     }
     onBack();
@@ -305,7 +305,7 @@ export default function InterviewPage({ token, onBack }) {
 
   function handleResumeInput() {
     setShowSummary(false);
-    setStatus("interviewing");
+    setStatus("active");
   }
 
   const progressPct = progress.total

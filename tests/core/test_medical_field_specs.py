@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.templates.medical_general import MEDICAL_FIELDS
+from domain.intake.templates.medical_general import MEDICAL_FIELDS
 from domain.patients.completeness import APPENDABLE, REQUIRED
-from domain.patients.interview_models import (
+from domain.patients.intake_models import (
     ExtractedClinicalFields, FIELD_LABELS, FIELD_META,
 )
-from channels.web.doctor_interview.shared import _CARRY_FORWARD_FIELDS
+from channels.web.doctor_intake.shared import _CARRY_FORWARD_FIELDS
 
 
 def test_every_extracted_field_has_a_spec():

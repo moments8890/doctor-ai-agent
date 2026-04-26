@@ -53,7 +53,7 @@ def test_draft_result_allows_empty_citations():
         text="恢复情况不错，继续观察。",
         cited_knowledge_ids=[],
         confidence=0.9,
-        is_red_flag=False,
+        is_signal_flag=False,
     )
     assert result.text == "恢复情况不错，继续观察。"
     assert result.cited_knowledge_ids == []
@@ -65,7 +65,7 @@ def test_draft_result_with_citations():
         text="头痛是正常的。 [KB-3]",
         cited_knowledge_ids=[3],
         confidence=0.9,
-        is_red_flag=False,
+        is_signal_flag=False,
     )
     assert result.cited_knowledge_ids == [3]
 ```
@@ -81,8 +81,8 @@ In `src/domain/patient_lifecycle/draft_reply.py`, remove lines 115-119. The curr
 
 ```python
         # Red-flag messages always get a draft (emergency guidance is critical).
-        # Non-red-flag messages require KB citation — skip if AI couldn't ground the reply.
-        if not validation.valid_ids and not is_red_flag:
+        # Non-signal-flag messages require KB citation — skip if AI couldn't ground the reply.
+        if not validation.valid_ids and not is_signal_flag:
             log("[draft_reply] no KB citation found — skipping draft (AI无法引用知识库)", level="info")
             return None
 ```

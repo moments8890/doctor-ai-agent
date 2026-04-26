@@ -1,7 +1,7 @@
 """Tests for the deterministic extraction_confidence calculator.
 
 Replaces LLM self-reported confidence — see Codex round 2 pushback in
-the chat-interview merge spec. Denominator is the count of required
+the chat-intake merge spec. Denominator is the count of required
 history fields (7); doctor UI displays this as N/7, not as a percent.
 """
 from domain.patient_lifecycle.extraction_confidence import calculate

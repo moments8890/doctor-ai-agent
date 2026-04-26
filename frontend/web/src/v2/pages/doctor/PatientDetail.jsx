@@ -70,7 +70,7 @@ const RECORD_TYPE_LABEL = {
   imaging: "影像",
   dictation: "语音录入",
   import: "导入",
-  interview_summary: "问诊总结",
+  intake_summary: "问诊总结",
 };
 
 // ── Tab config (v2: 3 tabs — 总览 / 病历 / 聊天) ────────────────────
@@ -110,7 +110,7 @@ function recordStatusBadge(status) {
       </span>
     );
   }
-  if (status === "interview_active") {
+  if (status === "intake_active") {
     return (
       <span
         style={{
@@ -706,7 +706,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
       // Sort: actionable first, then by date desc
       items.sort((a, b) => {
         const actionable = (r) =>
-          r.status === "pending_review" || r.status === "interview_active" ? 1 : 0;
+          r.status === "pending_review" || r.status === "intake_active" ? 1 : 0;
         const diff = actionable(b) - actionable(a);
         if (diff !== 0) return diff;
         return (b.created_at || "").localeCompare(a.created_at || "");
@@ -779,8 +779,8 @@ export default function PatientDetail({ patientId: propPatientId }) {
     }
   }
 
-  function handleStartInterview() {
-    // Route to the interview flow for an existing patient; InterviewPage can
+  function handleStartIntake() {
+    // Route to the intake flow for an existing patient; IntakePage can
     // read these params to prefill patient context.
     const qs = new URLSearchParams({
       patient_id: String(patient.id),
@@ -1042,7 +1042,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
             )}
           </div>
           <span
-            onClick={handleStartInterview}
+            onClick={handleStartIntake}
             style={{
               fontSize: FONT.sm,
               color: APP.primary,

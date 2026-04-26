@@ -1,4 +1,4 @@
-"""Shared writers for interview templates.
+"""Shared writers for intake templates.
 
 Form templates all persist to the form_responses table — share one writer
 across any template with kind="form". Medical templates have their own
@@ -11,7 +11,7 @@ from fastapi import HTTPException
 from db.engine import AsyncSessionLocal
 from db.crud.doctor import _ensure_doctor_exists
 from db.models.form_response import FormResponseDB
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.protocols import PersistRef, SessionState
 
 
 class FormResponseWriter:

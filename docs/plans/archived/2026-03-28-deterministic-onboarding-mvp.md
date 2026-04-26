@@ -18,7 +18,7 @@
 - `frontend/web/src/components/QRDialog.jsx` — add explanatory copy and patient preview actions
 - `frontend/web/src/pages/doctor/ChatPage.jsx` — add doctor-chat patient record creation shortcut before intake link generation
 - `frontend/web/src/pages/doctor/PatientPreviewPage.jsx` — NEW: doctor-side mini patient page that acts like patient intake preview
-- `frontend/web/src/pages/patient/InterviewPage.jsx` — extract or adapt reusable intake UI for doctor-side preview shell
+- `frontend/web/src/pages/patient/IntakePage.jsx` — extract or adapt reusable intake UI for doctor-side preview shell
 - `frontend/web/src/pages/doctor/ReviewQueuePage.jsx` — highlight seeded diagnosis/reply examples and patient-submit case
 - `frontend/web/src/pages/doctor/ReviewPage.jsx` — surface input provenance and post-finalize task bridge
 - `frontend/web/src/pages/doctor/TaskPage.jsx` — highlight generated tasks from just-finalized review
@@ -41,7 +41,7 @@ flowchart LR
     E --> F[Diagnosis proof screen]
     F --> G[Reply proof screen]
     G --> H[QR dialog or doctor-chat record creation]
-    H --> I[Patient preview enters InterviewPage intro]
+    H --> I[Patient preview enters IntakePage intro]
     I --> J[Patient submits intake]
     J --> K[Review queue highlights new case]
     K --> L[Doctor finalizes review]
@@ -134,7 +134,7 @@ flowchart LR
 ### Step 7: Replace patient-shell preview with a doctor-side mini patient page
 
 1. Add `PatientPreviewPage.jsx` under doctor routes instead of previewing through the real patient shell.
-2. Reuse `InterviewPage.jsx` UI where possible, but keep preview-specific navigation in the doctor app.
+2. Reuse `IntakePage.jsx` UI where possible, but keep preview-specific navigation in the doctor app.
 3. The preview page should simulate the patient-first experience without polluting real patient local storage or auth state.
 4. After submit, show `去医生端看审核结果`.
 5. That CTA should return to a highlighted review item, not a generic landing page.
@@ -145,7 +145,7 @@ flowchart LR
 2. The doctor-side bridge should highlight:
    - the new pending-review record
    - the linked review task
-3. This uses the current patient interview confirm behavior and does not require new task logic.
+3. This uses the current patient intake confirm behavior and does not require new task logic.
 
 ### Step 9: Bridge review completion to approved follow-up tasks
 
@@ -173,7 +173,7 @@ flowchart LR
 2. `AddKnowledgeSubpage.jsx`
 3. `ReviewPage.jsx` / `ReviewQueuePage.jsx`
 4. doctor-chat onboarding helper + `QRDialog.jsx` + `ChatPage.jsx`
-5. `PatientPreviewPage.jsx` + `InterviewPage.jsx`
+5. `PatientPreviewPage.jsx` + `IntakePage.jsx`
 6. `diagnosis_handlers.py` finalize task contract + `TaskPage.jsx`
 7. Seeded demo data contract
 
@@ -197,7 +197,7 @@ knowledge -> diagnosis -> reply -> patient intake -> review -> task.
    MVP now explicitly includes this. It should use a small deterministic backend helper, not LLM chat routing.
 
 5. **Doctor-side mini patient page**
-   Reusing patient UI inside doctor routes is safer, but the component boundary may need cleanup if `InterviewPage.jsx` is tightly coupled to patient auth/context.
+   Reusing patient UI inside doctor routes is safer, but the component boundary may need cleanup if `IntakePage.jsx` is tightly coupled to patient auth/context.
 
 6. **Approved follow-up task generation on review finalize**
    This is not supported by the current backend contract. MVP now requires a small backend change in `review/finalize`.

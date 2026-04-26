@@ -1,11 +1,11 @@
-"""Patient interview extraction quality tests.
+"""Patient intake extraction quality tests.
 
 Replays the exact conversation from a real production session (2026-04-08)
 where qwen-turbo failed to extract fields — patient gave clear answers but
 extracted dict came back mostly null.
 
 These tests call the real LLM (no mocks) to verify extraction quality.
-Run with: CONVERSATION_LLM=siliconflow pytest tests/scenarios/test_patient_interview_extraction.py -x -v
+Run with: CONVERSATION_LLM=siliconflow pytest tests/scenarios/test_patient_intake_extraction.py -x -v
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import json
 import os
 import pytest
 
-from domain.patients.interview_models import InterviewLLMResponse, FIELD_LABELS, FIELD_META
+from domain.patients.intake_models import IntakeLLMResponse, FIELD_LABELS, FIELD_META
 from domain.patients.completeness import (
     get_completeness_state,
     check_completeness,
@@ -99,7 +99,7 @@ FINAL_EXPECTED_CONTENTS = {
 
 
 # ---------------------------------------------------------------------------
-# Helper: build context string the same way _call_interview_llm does
+# Helper: build context string the same way _call_intake_llm does
 # ---------------------------------------------------------------------------
 
 def _build_patient_context(collected: dict, patient_info: dict, mode: str = "patient") -> str:
@@ -145,9 +145,9 @@ def _build_patient_context(collected: dict, patient_info: dict, mode: str = "pat
 @pytest.mark.asyncio
 @pytest.mark.timeout(120)
 async def test_full_conversation_extraction():
-    """Replay 9-turn headache interview, assert all key fields extracted."""
+    """Replay 9-turn headache intake, assert all key fields extracted."""
     from agent.llm import structured_call
-    from agent.prompt_composer import compose_for_patient_interview
+    from agent.prompt_composer import compose_for_patient_intake
 
     collected = {}
     conversation = []
@@ -171,7 +171,7 @@ async def test_full_conversation_extraction():
             latest_msg = history[-1]["content"]
             prior_history = history[:-1]
 
-        messages = await compose_for_patient_interview(
+        messages = await compose_for_patient_intake(
             doctor_id="test_doctor",
             patient_context=patient_context,
             doctor_message=latest_msg,
@@ -181,9 +181,9 @@ async def test_full_conversation_extraction():
         env_var = "CONVERSATION_LLM" if os.environ.get("CONVERSATION_LLM") else "ROUTING_LLM"
 
         result = await structured_call(
-            response_model=InterviewLLMResponse,
+            response_model=IntakeLLMResponse,
             messages=messages,
-            op_name=f"test.interview.turn{i+1}",
+            op_name=f"test.intake.turn{i+1}",
             env_var=env_var,
             temperature=0.1,
             max_tokens=2048,
@@ -229,7 +229,7 @@ async def test_full_conversation_extraction():
     # short negation answers — that's a known prompt limitation, not a model bug
     for req in ("chief_complaint", "present_illness"):
         assert collected.get(req), (
-            f"Required field '{req}' must be filled after full interview. "
+            f"Required field '{req}' must be filled after full intake. "
             f"Collected: {json.dumps(collected, ensure_ascii=False, indent=2)}"
         )
 
@@ -243,7 +243,7 @@ async def test_full_conversation_extraction():
 async def test_past_history_extraction_single_turn():
     """Given prior conversation about symptoms, '有高血压，有糖尿病' must extract past_history."""
     from agent.llm import structured_call
-    from agent.prompt_composer import compose_for_patient_interview
+    from agent.prompt_composer import compose_for_patient_intake
 
     # Simulate state after 4 turns (chief_complaint + present_illness filled)
     collected = {
@@ -262,7 +262,7 @@ async def test_past_history_extraction_single_turn():
     ]
 
     patient_context = _build_patient_context(collected, PATIENT_INFO)
-    messages = await compose_for_patient_interview(
+    messages = await compose_for_patient_intake(
         doctor_id="test_doctor",
         patient_context=patient_context,
         doctor_message="有高血压，有糖尿病",
@@ -272,9 +272,9 @@ async def test_past_history_extraction_single_turn():
     env_var = "CONVERSATION_LLM" if os.environ.get("CONVERSATION_LLM") else "ROUTING_LLM"
 
     result = await structured_call(
-        response_model=InterviewLLMResponse,
+        response_model=IntakeLLMResponse,
         messages=messages,
-        op_name="test.interview.past_history",
+        op_name="test.intake.past_history",
         env_var=env_var,
         temperature=0.1,
         max_tokens=2048,
@@ -301,7 +301,7 @@ async def test_past_history_extraction_single_turn():
 async def test_allergy_negation_extraction():
     """'没有过敏' should extract allergy_history = '无'."""
     from agent.llm import structured_call
-    from agent.prompt_composer import compose_for_patient_interview
+    from agent.prompt_composer import compose_for_patient_intake
 
     collected = {
         "chief_complaint": "头痛3天",
@@ -314,7 +314,7 @@ async def test_allergy_negation_extraction():
     ]
 
     patient_context = _build_patient_context(collected, PATIENT_INFO)
-    messages = await compose_for_patient_interview(
+    messages = await compose_for_patient_intake(
         doctor_id="test_doctor",
         patient_context=patient_context,
         doctor_message="没有过敏",
@@ -324,9 +324,9 @@ async def test_allergy_negation_extraction():
     env_var = "CONVERSATION_LLM" if os.environ.get("CONVERSATION_LLM") else "ROUTING_LLM"
 
     result = await structured_call(
-        response_model=InterviewLLMResponse,
+        response_model=IntakeLLMResponse,
         messages=messages,
-        op_name="test.interview.allergy",
+        op_name="test.intake.allergy",
         env_var=env_var,
         temperature=0.1,
         max_tokens=2048,

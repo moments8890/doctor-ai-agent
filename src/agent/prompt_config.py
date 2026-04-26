@@ -47,9 +47,9 @@ class LayerConfig:
 
 # ── Flow configs (explicit-action-driven) ────────────────────────
 
-DOCTOR_INTERVIEW_LAYERS = LayerConfig(
+DOCTOR_INTAKE_LAYERS = LayerConfig(
     domain=False,
-    intent="interview",
+    intent="intake",
     style_guard=False,  # doctor talks TO the AI to record; not patient-facing prose
     load_knowledge=False,
     load_persona=False,
@@ -77,13 +77,13 @@ FOLLOWUP_REPLY_LAYERS = LayerConfig(
     patient_context=True,
 )
 
-PATIENT_INTERVIEW_LAYERS = LayerConfig(
+PATIENT_INTAKE_LAYERS = LayerConfig(
     domain=True,
-    intent="patient-interview",
+    intent="patient-intake",
     style_guard=True,  # patient-facing
     load_knowledge=True,
     load_persona=True,  # 2026-04-25: was False — pre-visit chat could not sound like the doctor
-    load_examples=True,  # L5: complaint-clustered exemplars (interview register)
+    load_examples=True,  # L5: complaint-clustered exemplars (intake register)
     example_limit=2,
     patient_context=True,
     conversation_mode=True,

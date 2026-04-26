@@ -1,4 +1,4 @@
-# Interview Pipeline Extensibility — Design
+# Intake Pipeline Extensibility — Design
 
 **Date:** 2026-04-22
 **Status:** Draft (revision 3.1, FieldSpec swap)
@@ -17,9 +17,9 @@
 
 ### Goals
 
-- One conversational engine drives multiple interview variants: specialty-specific medical intakes (神外 / 骨科 / 心内科 / 眼科) and curated non-medical forms (术前筛查, 满意度调查).
+- One conversational engine drives multiple intake variants: specialty-specific medical intakes (神外 / 骨科 / 心内科 / 眼科) and curated non-medical forms (术前筛查, 满意度调查).
 - Isolate domain-specific concerns (field schema, prompts, persistence, post-confirm side effects) from engine-level concerns (turn mechanics, completeness evaluation, phase transitions).
-- Behavior-preserving migration of the current medical interview with **no regression in the existing `reply_sim` / `interview` sim suites** and no user-visible change until a second template ships.
+- Behavior-preserving migration of the current medical intake with **no regression in the existing `reply_sim` / `intake` sim suites** and no user-visible change until a second template ships.
 - Leave clean seams so future work (doctor-authored templates, non-medical tenants, new output sinks, multi-tenant SaaS) can land without re-architecting.
 
 ### Non-goals (for this spec)
@@ -39,18 +39,18 @@ This section replaces r1's §2; two factual errors corrected.
 
 | Concern | File / symbol | Notes |
 |---|---|---|
-| Pydantic schema of extracted fields | `src/domain/patients/interview_models.py` → `ExtractedClinicalFields`, `FIELD_LABELS`, `FIELD_META`, `_FIELD_PRIORITY` | 17 medical fields hardcoded as class attributes. |
+| Pydantic schema of extracted fields | `src/domain/patients/intake_models.py` → `ExtractedClinicalFields`, `FIELD_LABELS`, `FIELD_META`, `_FIELD_PRIORITY` | 17 medical fields hardcoded as class attributes. |
 | Completeness tiers + next-focus logic | `src/domain/patients/completeness.py` → `REQUIRED`, `SUBJECTIVE_RECOMMENDED`, `OBJECTIVE`, `ASSESSMENT`, `PLAN`, `check_completeness`, `get_completeness_state` | Mode-aware. Patient = subjective only (7 fields). Doctor = all 14. Two recommended lists. |
 | Append-vs-overwrite per field | `completeness.py` → `APPENDABLE` frozenset | 11 fields accumulate across turns; 3 overwrite (`chief_complaint`, `diagnosis`, `patient_*`). |
-| Carry-forward from last record | `src/channels/web/doctor_interview/shared.py:61` → `_CARRY_FORWARD_FIELDS` = (`allergy_history`, `past_history`, `family_history`, `personal_history`) | Doctor-mode only. Populates seed from prior record at session start. |
+| Carry-forward from last record | `src/channels/web/doctor_intake/shared.py:61` → `_CARRY_FORWARD_FIELDS` = (`allergy_history`, `past_history`, `family_history`, `personal_history`) | Doctor-mode only. Populates seed from prior record at session start. |
 | Underscore-prefixed metadata | `_patient_name`, `_patient_gender`, `_patient_age` in `collected` | Engine-level, not medical. Used by `resolve()` for deferred patient creation. |
 | Turn-level LLM call + prompt stack | `src/agent/prompt_composer.py:79`, `src/agent/prompt_config.py:40` | Composed as `base + (domain) + intent + patient_context + history + (KB/persona)`. **Patient mode** loads domain + KB; **doctor mode** skips KB. |
-| Prompt files | `src/agent/prompts/intent/patient-interview.md`, `interview.md` | Two separate intent-layer prompts. Semantics diverge materially. |
-| Per-turn state machine | `src/domain/patients/interview_turn.py` | Wraps LLM call, updates `collected`, appends to `conversation`, increments `turn_count`, decides status. |
-| Per-turn field patch validation | `src/channels/web/doctor_interview/turn.py:202` | Only `_CARRY_FORWARD_FIELDS` can be patched via the field-edit endpoint. |
-| Doctor-mode confirm path | `src/channels/web/doctor_interview/confirm.py` | Does: (1) batch re-extract from full transcript (LLM call #2); (2) preserve underscore metadata; (3) deferred patient creation via `resolve()`; (4) record insert; (5) follow-up task generation. **Does NOT fire diagnosis pipeline.** |
-| Patient-mode confirm path | `src/domain/patients/interview_summary.py:280` | Inserts record, then fires `run_diagnosis()` via `safe_create_task`. This is where the diagnosis trigger lives. |
-| Batch re-extraction LLM call | `src/domain/patients/interview_summary.py` → `batch_extract_from_transcript` | A second LLM call at confirm time that re-parses the full conversation. Used by both confirm paths. |
+| Prompt files | `src/agent/prompts/intent/patient-intake.md`, `intake.md` | Two separate intent-layer prompts. Semantics diverge materially. |
+| Per-turn state machine | `src/domain/patients/intake_turn.py` | Wraps LLM call, updates `collected`, appends to `conversation`, increments `turn_count`, decides status. |
+| Per-turn field patch validation | `src/channels/web/doctor_intake/turn.py:202` | Only `_CARRY_FORWARD_FIELDS` can be patched via the field-edit endpoint. |
+| Doctor-mode confirm path | `src/channels/web/doctor_intake/confirm.py` | Does: (1) batch re-extract from full transcript (LLM call #2); (2) preserve underscore metadata; (3) deferred patient creation via `resolve()`; (4) record insert; (5) follow-up task generation. **Does NOT fire diagnosis pipeline.** |
+| Patient-mode confirm path | `src/domain/patients/intake_summary.py:280` | Inserts record, then fires `run_diagnosis()` via `safe_create_task`. This is where the diagnosis trigger lives. |
+| Batch re-extraction LLM call | `src/domain/patients/intake_summary.py` → `batch_extract_from_transcript` | A second LLM call at confirm time that re-parses the full conversation. Used by both confirm paths. |
 
 ### 2b. Summary
 
@@ -60,12 +60,12 @@ The session DB row is already schema-agnostic (JSON `collected` + `conversation`
 
 ## 3. Core abstractions (expanded)
 
-All new code lives under `src/domain/interview/`.
+All new code lives under `src/domain/intake/`.
 
 ### 3a. Protocols
 
 ```python
-# domain/interview/protocols.py
+# domain/intake/protocols.py
 
 class FieldSpec(BaseModel):
     """Declarative per-field metadata. Constrained vocabulary — do not extend
@@ -122,7 +122,7 @@ class Template(Protocol):
     post_confirm_hooks: dict[Mode, list[PostConfirmHook]]   # per-mode; repeat same list for both modes if asymmetry isn't needed
     config: EngineConfig
 
-class InterviewEngine:
+class IntakeEngine:
     """Template-agnostic. One instance serves every template."""
     def __init__(self, llm: LLMClient): ...
     async def next_turn(self, session: SessionState, user_input: str) -> TurnResult: ...
@@ -133,8 +133,8 @@ class InterviewEngine:
 
 | Concern | Owner |
 |---|---|
-| Turn budget, append `conversation`, status transitions | `InterviewEngine` |
-| Turn-level anti-repetition rules | `InterviewEngine` shared system text |
+| Turn budget, append `conversation`, status transitions | `IntakeEngine` |
+| Turn-level anti-repetition rules | `IntakeEngine` shared system text |
 | Field declarations (schema, tiers, append, carry-forward, labels, examples) | `FieldExtractor.fields() -> list[FieldSpec]` — single source of truth |
 | LLM structured-output contract synthesis from `fields()` | Engine helper `build_response_schema()` (see §3e) |
 | Completeness evaluation (`can_complete`, `missing`, `next_focus`) | `FieldExtractor.completeness()` |
@@ -161,7 +161,7 @@ base (engine-agnostic system text)
   + optional KB / persona
 ```
 
-What changes: `intent-layer prompt partial` stops being a hardcoded file path (`patient-interview.md`) and becomes `template.extractor.prompt_partial(collected, history, phase, mode)`. Mode selects the right prompt file inside the extractor — for `medical_general_v1` that's still two files, just now owned by the extractor class.
+What changes: `intent-layer prompt partial` stops being a hardcoded file path (`patient-intake.md`) and becomes `template.extractor.prompt_partial(collected, history, phase, mode)`. Mode selects the right prompt file inside the extractor — for `medical_general_v1` that's still two files, just now owned by the extractor class.
 
 What does **not** change: `base`, `domain`, `patient_context`, history, KB/persona injection. The engine's shared turn mechanics live in `base`, not in a new `shared_rules()` helper.
 
@@ -171,24 +171,24 @@ What does **not** change: `base`, `domain`, `patient_context`, history, KB/perso
 
 ```mermaid
 flowchart TB
-    API[REST API<br/>POST /interview/turn, /confirm]
+    API[REST API<br/>POST /intake/turn, /confirm]
 
     subgraph TurnToday["Turn loop — hardwired to medical schema"]
-        Turn[interview_turn.py<br/>imports ExtractedClinicalFields directly]
+        Turn[intake_turn.py<br/>imports ExtractedClinicalFields directly]
     end
 
     subgraph Medical["Medical concerns scattered across 5 files"]
         direction LR
-        A[interview_models.py<br/>ExtractedClinicalFields<br/>FIELD_LABELS / FIELD_META]
+        A[intake_models.py<br/>ExtractedClinicalFields<br/>FIELD_LABELS / FIELD_META]
         B[completeness.py<br/>REQUIRED / RECOMMENDED<br/>APPENDABLE<br/>check_completeness]
-        C[doctor_interview/shared.py<br/>_CARRY_FORWARD_FIELDS]
-        D[patient-interview.md<br/>interview.md]
+        C[doctor_intake/shared.py<br/>_CARRY_FORWARD_FIELDS]
+        D[patient-intake.md<br/>intake.md]
     end
 
     subgraph ConfirmPaths["Two confirm paths — grew separately, behave differently"]
         direction LR
-        CD["doctor_interview/confirm.py<br/>─────────────<br/>1. batch re-extract<br/>2. deferred patient resolve<br/>3. insert record<br/>4. generate followup tasks<br/>❌ no diagnosis trigger"]
-        CP["interview_summary.py<br/>─────────────<br/>1. insert record<br/>2. ✓ fire run_diagnosis"]
+        CD["doctor_intake/confirm.py<br/>─────────────<br/>1. batch re-extract<br/>2. deferred patient resolve<br/>3. insert record<br/>4. generate followup tasks<br/>❌ no diagnosis trigger"]
+        CP["intake_summary.py<br/>─────────────<br/>1. insert record<br/>2. ✓ fire run_diagnosis"]
     end
 
     API --> Turn
@@ -205,8 +205,8 @@ flowchart TB
 
 **What the diagram makes visible:**
 
-- "Medical" isn't one module — it's *scattered* across `interview_models.py`, `completeness.py`, `doctor_interview/shared.py`, and two prompt files. Any new template would have to fork or monkey-patch five places.
-- The turn loop in `interview_turn.py` imports `ExtractedClinicalFields` directly. There's no abstraction boundary.
+- "Medical" isn't one module — it's *scattered* across `intake_models.py`, `completeness.py`, `doctor_intake/shared.py`, and two prompt files. Any new template would have to fork or monkey-patch five places.
+- The turn loop in `intake_turn.py` imports `ExtractedClinicalFields` directly. There's no abstraction boundary.
 - Two confirm paths live in different files and do *different things*. The asymmetry (no diagnosis trigger on doctor confirm) is archaeological, not designed — captured as the §8 open product question.
 - Patient-mode (green) fires diagnosis. Doctor-mode (orange) does not. Both insert records, but with different side-effect graphs.
 
@@ -214,9 +214,9 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    API[REST API<br/>/interview/sessions, /turn, /confirm]
+    API[REST API<br/>/intake/sessions, /turn, /confirm]
 
-    subgraph Engine["InterviewEngine (shared, template-agnostic)"]
+    subgraph Engine["IntakeEngine (shared, template-agnostic)"]
         direction TB
         Create[create_session<br/>+ seed carry-forward]
         Turn[next_turn loop]
@@ -254,7 +254,7 @@ flowchart TB
 sequenceDiagram
     autonumber
     participant Caller as HTTP handler
-    participant Engine as InterviewEngine
+    participant Engine as IntakeEngine
     participant Extractor as FieldExtractor
     participant Batch as BatchExtractor<br/>(optional)
     participant Writer as Writer
@@ -294,7 +294,7 @@ sequenceDiagram
 Templates declare fields; they do **not** own a Pydantic class. The engine centralizes the "turn `fields()` into whatever this LLM provider needs" logic in exactly one helper:
 
 ```python
-# domain/interview/contract.py
+# domain/intake/contract.py
 
 def build_response_schema(fields: list[FieldSpec]) -> type[BaseModel]:
     """Build a throwaway Pydantic class for validating an LLM structured-output
@@ -325,15 +325,15 @@ def build_response_schema(fields: list[FieldSpec]) -> type[BaseModel]:
 ### 4a. Alembic migration (SQLite + MySQL compatible)
 
 ```python
-# alembic/versions/NNNN_interview_template_id.py
+# alembic/versions/NNNN_intake_template_id.py
 def upgrade():
-    # interview_sessions.template_id — default fills existing rows, then NOT NULL
+    # intake_sessions.template_id — default fills existing rows, then NOT NULL
     op.add_column(
-        "interview_sessions",
+        "intake_sessions",
         sa.Column("template_id", sa.String(64), nullable=False,
                   server_default="medical_general_v1"),
     )
-    op.create_index("ix_interview_template", "interview_sessions", ["template_id"])
+    op.create_index("ix_intake_template", "intake_sessions", ["template_id"])
 
     # doctors.preferred_template_id — nullable
     op.add_column(
@@ -353,7 +353,7 @@ def upgrade():
                   nullable=False),
         sa.Column("template_id", sa.String(64), nullable=False),
         sa.Column("session_id", sa.String(36),
-                  sa.ForeignKey("interview_sessions.id", ondelete="SET NULL"),
+                  sa.ForeignKey("intake_sessions.id", ondelete="SET NULL"),
                   nullable=True),
         sa.Column("payload", sa.JSON, nullable=False),
         sa.Column("status", sa.String(16), nullable=False, server_default="draft"),
@@ -370,8 +370,8 @@ def downgrade():
     op.drop_index("ix_form_response_doctor_patient_template", "form_responses")
     op.drop_table("form_responses")
     op.drop_column("doctors", "preferred_template_id")
-    op.drop_index("ix_interview_template", "interview_sessions")
-    op.drop_column("interview_sessions", "template_id")
+    op.drop_index("ix_intake_template", "intake_sessions")
+    op.drop_column("intake_sessions", "template_id")
 ```
 
 Using `server_default` + `NOT NULL` in a single `add_column` collapses the "add nullable → backfill → alter to not null" dance into one atomic step for both SQLite and MySQL. Existing rows get `medical_general_v1` automatically.
@@ -381,7 +381,7 @@ Using `server_default` + `NOT NULL` in a single `add_column` collapses the "add 
 ### 4b. Template registry
 
 ```python
-# domain/interview/templates/__init__.py
+# domain/intake/templates/__init__.py
 TEMPLATES: dict[str, Template] = {
     "medical_general_v1":   GeneralMedicalTemplate(),
     # "medical_neuro_v1":     NeuroTemplate(),
@@ -411,7 +411,7 @@ Templates have two change magnitudes. Hard-versioned identity (`_v<n>` suffix on
 | Extractor logic change (field add/remove/rename, merge rule, appendable set) | **Yes** | Schema change. |
 | `EngineConfig.phases` change | **Yes** | Alters state machine. |
 | `post_confirm_hooks` list change | **Yes** | Alters side effects per session. |
-| Bug fix in shared engine paths (`InterviewEngine`, `prompt_composer`) | No | Engine is not versioned; fixes land once. |
+| Bug fix in shared engine paths (`IntakeEngine`, `prompt_composer`) | No | Engine is not versioned; fixes land once. |
 
 **Operational rule:** if a change would make two sessions with the same `template_id` produce materially different behavior, bump the id. Prompt word-smithing with no behavior shift gets a `prompt_hash` log entry — not a new version.
 
@@ -441,22 +441,22 @@ Onboarding MUST write `NULL` unless the doctor actively picks a non-default temp
 ### 5a. Session lifecycle
 
 ```
-create → interviewing → (optional) reviewing → confirmed
+create → active → (optional) reviewing → confirmed
                              ↑ skipped when requires_doctor_review=False
-         interviewing → abandoned   (user cancels; terminal, no hooks fire)
+         active → abandoned   (user cancels; terminal, no hooks fire)
 ```
 
-The current enum has 5 values: `interviewing, reviewing, confirmed, abandoned, draft_created`. Treatment in the new engine:
+The current enum has 5 values: `active, reviewing, confirmed, abandoned, draft_created`. Treatment in the new engine:
 
-- `interviewing`, `reviewing`, `confirmed` — primary lifecycle (above).
-- `abandoned` — kept. Set by `confirm.py:201` and `patient_interview_routes.py:214` when the user cancels. Terminal state. The new engine treats it read-only: no turns, no hooks, can be listed but not mutated.
-- `draft_created` — **retired**. It was set by a legacy doctor-side "save as draft" flow that no longer exists; the only live reader is `admin_overview.py:145` (`_completed_statuses = ("confirmed", "draft_created")` for the 7-day hero metric). The Phase 0 Alembic migration backfills `UPDATE interview_sessions SET status='confirmed' WHERE status='draft_created'`, and the Python enum drops the value. `admin_overview.py:145` is updated in the same PR to `_completed_statuses = ("confirmed",)`.
+- `active`, `reviewing`, `confirmed` — primary lifecycle (above).
+- `abandoned` — kept. Set by `confirm.py:201` and `patient_intake_routes.py:214` when the user cancels. Terminal state. The new engine treats it read-only: no turns, no hooks, can be listed but not mutated.
+- `draft_created` — **retired**. It was set by a legacy doctor-side "save as draft" flow that no longer exists; the only live reader is `admin_overview.py:145` (`_completed_statuses = ("confirmed", "draft_created")` for the 7-day hero metric). The Phase 0 Alembic migration backfills `UPDATE intake_sessions SET status='confirmed' WHERE status='draft_created'`, and the Python enum drops the value. `admin_overview.py:145` is updated in the same PR to `_completed_statuses = ("confirmed",)`.
 
 ### 5b. Session creation seeds carry-forward
 
 At session create, engine:
 
-1. Creates `InterviewSessionDB` row with `template_id`, empty `collected`/`conversation`, `mode`.
+1. Creates `IntakeSessionDB` row with `template_id`, empty `collected`/`conversation`, `mode`.
 2. If template has `requires_doctor_review` (medical) and patient has prior records, engine iterates `template.extractor.fields()` for fields where `mode in carry_forward_modes` and pre-populates `collected` with those field values from the patient's latest record.
 3. Returns session_id + first AI greeting (engine drives an initial LLM turn with empty user input).
 
@@ -511,7 +511,7 @@ async def confirm(session, doctor_edits):
     collected = template.extractor.merge(session.collected, doctor_edits)
 
     # 2. Batch re-extraction seam (currently at confirm.py:52 for doctor mode,
-    #    interview_summary.py for patient mode). Templates without it skip this step.
+    #    intake_summary.py for patient mode). Templates without it skip this step.
     if template.batch_extractor:
         context = {
             "name": collected.get("_patient_name", ""),
@@ -555,7 +555,7 @@ Phase 2 preserves the current asymmetry (doctor-mode does NOT fire diagnosis, ma
 
 ### 5e. Field patch endpoint
 
-Current: `doctor_interview/turn.py:202` allows patches only for `_CARRY_FORWARD_FIELDS`. New: the route asks `template.extractor.is_patchable_field(field)`, which defaults to returning only the carry-forward set for medical templates and can be overridden per template.
+Current: `doctor_intake/turn.py:202` allows patches only for `_CARRY_FORWARD_FIELDS`. New: the route asks `template.extractor.is_patchable_field(field)`, which defaults to returning only the carry-forward set for medical templates and can be overridden per template.
 
 ### 5f. Failure modes
 
@@ -571,35 +571,35 @@ Current: `doctor_interview/turn.py:202` allows patches only for `_CARRY_FORWARD_
 
 ## 6. Migration path
 
-**Principle:** behavior-preserving refactor. Existing `reply_sim` and interview sim scenarios pass **with pass-rate delta ≤ 2%** at each phase. `reply_sim` is the backstop, not a byte-identical prompt snapshot.
+**Principle:** behavior-preserving refactor. Existing `reply_sim` and intake sim scenarios pass **with pass-rate delta ≤ 2%** at each phase. `reply_sim` is the backstop, not a byte-identical prompt snapshot.
 
 ### 6a. Phases (revised — Phase 0 expanded)
 
 | Phase | Ships | Risk | Est. |
 |---|---|---|---|
-| **0. Skeleton + plumbing** | Alembic (from §4a) — also backfills `draft_created` → `confirmed` and updates `admin_overview.py:145`. `InterviewSessionDB.template_id` ORM field. `InterviewStatus` enum drops `draft_created`. `InterviewSession` dataclass field. `create_session` / `load_session` / `save_session` updated to read/write `template_id`. `prompt_composer` accepts a `template_id` param (default `"medical_general_v1"`). Session-create API accepts optional `template_id`. Onboarding wizard writes `preferred_template_id = NULL` (not a literal). Empty `domain/interview/` package. Still **zero** code path uses the protocols. | Low — additive but touches every session read/write. | 2–3d |
-| **1. Engine extraction** | Move state machine from `interview_turn.py` into `InterviewEngine`. Introduce protocol shapes under `domain/interview/protocols.py`. Medical logic still lives in its current files, but engine now calls through typed stubs that forward to current code. | Low-medium — internal rename behind a thin indirection layer. | 3–4d |
-| **2. Medical template extraction** | `GeneralMedicalExtractor` owns the Pydantic model, prompt partials for both modes, completeness logic (moved from `completeness.py`), appendable set, carry-forward set. `MedicalBatchExtractor` wraps `batch_extract_from_transcript`. `MedicalRecordWriter.persist` does the minimal record insert, calls private `_ensure_patient()` before insert (absorbs deferred patient creation from `confirm.py:72`). Existing post-confirm effects become individual hooks: `TriggerDiagnosisPipelineHook`, `GenerateFollowupTasksHook`, `NotifyDoctorHook`. Register `TEMPLATES["medical_general_v1"]`. Engine dispatches all work through the protocols. `completeness.py` and `doctor_interview/shared.py` become thin shims that re-export from the template. | **High** — simultaneously untangles `completeness.py`, `confirm.py`, `interview_models.py`; absorbs two asymmetric confirm paths with different underscore-metadata handling; sim tests (LLM-backed, noisy at ±2%) are the only safety net. | **8–12d** |
+| **0. Skeleton + plumbing** | Alembic (from §4a) — also backfills `draft_created` → `confirmed` and updates `admin_overview.py:145`. `IntakeSessionDB.template_id` ORM field. `IntakeStatus` enum drops `draft_created`. `IntakeSession` dataclass field. `create_session` / `load_session` / `save_session` updated to read/write `template_id`. `prompt_composer` accepts a `template_id` param (default `"medical_general_v1"`). Session-create API accepts optional `template_id`. Onboarding wizard writes `preferred_template_id = NULL` (not a literal). Empty `domain/intake/` package. Still **zero** code path uses the protocols. | Low — additive but touches every session read/write. | 2–3d |
+| **1. Engine extraction** | Move state machine from `intake_turn.py` into `IntakeEngine`. Introduce protocol shapes under `domain/intake/protocols.py`. Medical logic still lives in its current files, but engine now calls through typed stubs that forward to current code. | Low-medium — internal rename behind a thin indirection layer. | 3–4d |
+| **2. Medical template extraction** | `GeneralMedicalExtractor` owns the Pydantic model, prompt partials for both modes, completeness logic (moved from `completeness.py`), appendable set, carry-forward set. `MedicalBatchExtractor` wraps `batch_extract_from_transcript`. `MedicalRecordWriter.persist` does the minimal record insert, calls private `_ensure_patient()` before insert (absorbs deferred patient creation from `confirm.py:72`). Existing post-confirm effects become individual hooks: `TriggerDiagnosisPipelineHook`, `GenerateFollowupTasksHook`, `NotifyDoctorHook`. Register `TEMPLATES["medical_general_v1"]`. Engine dispatches all work through the protocols. `completeness.py` and `doctor_intake/shared.py` become thin shims that re-export from the template. | **High** — simultaneously untangles `completeness.py`, `confirm.py`, `intake_models.py`; absorbs two asymmetric confirm paths with different underscore-metadata handling; sim tests (LLM-backed, noisy at ±2%) are the only safety net. | **8–12d** |
 | **3. First form template** | `form_satisfaction_v1` end-to-end: extractor, prompt partial, `FormResponseWriter.persist` + list/detail API, minimal doctor-side UI to view responses. Proves the seams hold. | Low — isolated. | 3–5d |
 | **4. Specialty variants** | `medical_neuro_v1`, `medical_ortho_v1`, … subclasses of `GeneralMedicalExtractor` overriding fields/prompt deltas. | Per-template. | 0.5–1d each |
 
 ### 6b. Backwards-compat shim
 
-Direct references to `ExtractedClinicalFields`, `FIELD_LABELS`, `FIELD_META`, `check_completeness`, `get_completeness_state`, `_CARRY_FORWARD_FIELDS` exist in: diagnosis pipeline, record handlers, `doctor_interview/turn.py`, various serializers. During Phase 2:
+Direct references to `ExtractedClinicalFields`, `FIELD_LABELS`, `FIELD_META`, `check_completeness`, `get_completeness_state`, `_CARRY_FORWARD_FIELDS` exist in: diagnosis pipeline, record handlers, `doctor_intake/turn.py`, various serializers. During Phase 2:
 
 ```python
-# src/domain/patients/interview_models.py (thin shim, deleted after one release)
+# src/domain/patients/intake_models.py (thin shim, deleted after one release)
 import warnings
-from domain.interview.templates.medical_general import GeneralMedicalTemplate
+from domain.intake.templates.medical_general import GeneralMedicalTemplate
 
 warnings.warn(
-    "interview_models symbols are re-exported from medical_general template; "
-    "import from domain.interview.templates.medical_general directly.",
+    "intake_models symbols are re-exported from medical_general template; "
+    "import from domain.intake.templates.medical_general directly.",
     DeprecationWarning,
     stacklevel=2,
 )
 
-from domain.interview.contract import build_response_schema
+from domain.intake.contract import build_response_schema
 
 _t = GeneralMedicalTemplate()
 _fields = _t.extractor.fields()
@@ -610,12 +610,12 @@ FIELD_META   = {f.name: {"hint": f.description,
                          "tier": f.tier} for f in _fields}
 ```
 
-Same pattern for `completeness.py` and `doctor_interview/shared.py` (carry-forward). Shims deleted after one release.
+Same pattern for `completeness.py` and `doctor_intake/shared.py` (carry-forward). Shims deleted after one release.
 
 ### 6c. What stays untouched
 
-- Patient-side UX (InterviewPage, ChatTab).
-- Doctor-side interview review UI (Phase 3 adds a lightweight form-response view).
+- Patient-side UX (IntakePage, ChatTab).
+- Doctor-side intake review UI (Phase 3 adds a lightweight form-response view).
 - `reply_sim` / `run_reply_sim` scripts — keep running against `medical_general_v1`.
 - WeCom / WeChat mini-app handlers.
 
@@ -630,7 +630,7 @@ Replace the byte-identical-snapshot claim with **semantic-equivalence via sim pa
 - Tier-2 reply_sim scenarios: baseline pass rate captured on main before Phase 1 lands.
 - Every phase must keep pass-rate delta within ±2% of baseline.
 - Diagnosis prompt sniff tests (existing `test_diagnosis_prompt_sniff.py`) must stay green.
-- Patient-interview eval scenarios (if any) must stay green.
+- Patient-intake eval scenarios (if any) must stay green.
 
 ### 7b. Template-level tests
 
@@ -673,7 +673,7 @@ Runs as part of `parametrize_templates`. Failures are fail-gate for shipping a n
 
 ## 8. Open risks and deferred items
 
-- **DOCTOR-MODE DIAGNOSIS TRIGGER (OPEN PRODUCT DECISION).** Today's doctor confirm path does not fire the diagnosis pipeline; patient confirm does. This asymmetry is archaeological — the two paths grew separately in `confirm.py` and `interview_summary.py`, not by design. Phase 2 preserves it. Before Phase 4 (specialty variants ship), the product owner must decide: (a) keep as-is (doctor records are "trusted" and don't need AI diagnosis), (b) unify (both modes fire diagnosis), or (c) make it template-configurable (some specialties want it, others don't). Defaulting to (a) by inaction is how archaeology accumulates; flagged here to force a decision.
+- **DOCTOR-MODE DIAGNOSIS TRIGGER (OPEN PRODUCT DECISION).** Today's doctor confirm path does not fire the diagnosis pipeline; patient confirm does. This asymmetry is archaeological — the two paths grew separately in `confirm.py` and `intake_summary.py`, not by design. Phase 2 preserves it. Before Phase 4 (specialty variants ship), the product owner must decide: (a) keep as-is (doctor records are "trusted" and don't need AI diagnosis), (b) unify (both modes fire diagnosis), or (c) make it template-configurable (some specialties want it, others don't). Defaulting to (a) by inaction is how archaeology accumulates; flagged here to force a decision.
 - **Template retirement window** — 90-day zero-sessions rule needs an abandoned-session janitor. Spec commits to adding it as part of Phase 2.
 - **Phase config expressivity** — linear phase lists. No branching ("if pregnant → pregnancy phase"). Defer until needed.
 - **Prompt duplication across specialty variants** — once 2+ specialty variants exist, consider a prompt-fragment library. Defer.
@@ -708,6 +708,6 @@ Runs as part of `parametrize_templates`. Failures are fail-gate for shipping a n
 | Behavior-preservation proof | sim pass-rate delta ≤ 2% (not byte-identical snapshot) |
 | Versioning policy | Patch-versioning for prompt wording changes that don't alter extraction (tracked via `prompt_hash` on session rows — infra from commit `8367a4a4`). Major bump (`_v<n>`) for schema / phases / hooks / extraction-behavior changes. |
 | `preferred_template_id` resolution | NULL-as-sentinel: NULL = follow current default; concrete value = locked. Onboarding wizard must write NULL unless the doctor actively picks. Auto-migration happens via resolution, not via bulk UPDATE. |
-| Session statuses | `interviewing / reviewing / confirmed / abandoned` kept. `draft_created` retired — Phase 0 migration backfills to `confirmed`, drops enum value, updates `admin_overview.py:145`. |
+| Session statuses | `active / reviewing / confirmed / abandoned` kept. `draft_created` retired — Phase 0 migration backfills to `confirmed`, drops enum value, updates `admin_overview.py:145`. |
 | SQL migration style | Alembic ops with SQLAlchemy generic types (no MySQL-specific MODIFY/ENUM/JSON) |
-| Phase 2 realism | **8–12 working days** (not 4–6d). Biggest untangle of the project — completeness, confirm paths, and `interview_models.py` move simultaneously with only sim tests as safety net. |
+| Phase 2 realism | **8–12 working days** (not 4–6d). Biggest untangle of the project — completeness, confirm paths, and `intake_models.py` move simultaneously with only sim tests as safety net. |

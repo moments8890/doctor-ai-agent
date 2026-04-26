@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "id": "ds_lung_nodule_interview",
+  "id": "ds_lung_nodule_intake",
   "scenario_type": "doctor_chat",
-  "title": "Lung nodule interview summary",
+  "title": "Lung nodule intake summary",
   "tags": [
     "regression",
     "create_save"
@@ -44,7 +44,7 @@
         "expected": 1
       },
       {
-        "target": "db.interview_sessions.count",
+        "target": "db.intake_sessions.count",
         "matcher": "min",
         "expected": 1
       }

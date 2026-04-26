@@ -10,7 +10,7 @@ suicidality, not clinical danger signals).
 """
 from __future__ import annotations
 
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.protocols import PersistRef, SessionState
 from domain.tasks.notifications import (
     send_doctor_notification as _send_doctor_notification,
 )

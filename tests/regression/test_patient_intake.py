@@ -1,6 +1,6 @@
-"""Kind B: Patient interview workflow tests.
+"""Kind B: Patient intake workflow tests.
 
-Tests patient registration, interview flow (start → turns → confirm),
+Tests patient registration, intake flow (start → turns → confirm),
 session management (resume, cancel/restart), and auth rejection.
 
 Requires: running server on port 8001 with a test doctor that accepts patients.
@@ -16,11 +16,11 @@ from tests.regression.helpers import db_count, db_patient, db_record_fields
 from tests.regression.helpers_patient import (
     patient_register,
     patient_login,
-    patient_interview_start,
-    patient_interview_turn,
-    patient_interview_confirm,
-    patient_interview_cancel,
-    patient_interview_current,
+    patient_intake_start,
+    patient_intake_turn,
+    patient_intake_confirm,
+    patient_intake_cancel,
+    patient_intake_current,
 )
 
 pytestmark = [pytest.mark.regression, pytest.mark.workflow]
@@ -64,7 +64,7 @@ def _register_and_get_token(server_url, doctor_id, name="测试患者", gender="
 
 
 # ---------------------------------------------------------------------------
-# Full interview flow
+# Full intake flow
 # ---------------------------------------------------------------------------
 
 class TestFullFlow:
@@ -74,12 +74,12 @@ class TestFullFlow:
             server_url, test_doctor, name="头痛患者", year_of_birth=1985,
         )
 
-        # Start interview
-        start = patient_interview_start(server_url, token)
+        # Start intake
+        start = patient_intake_start(server_url, token)
         sid = start["session_id"]
-        assert start["status"] in ("interviewing", "InterviewStatus.interviewing")
+        assert start["status"] in ("active", "IntakeStatus.active")
 
-        # Interview turns
+        # Intake turns
         turns = [
             "我头疼",
             "大概三天了",
@@ -88,7 +88,7 @@ class TestFullFlow:
             "不吸烟不喝酒，没有家族病史",
         ]
         for text in turns:
-            resp = patient_interview_turn(server_url, token, sid, text)
+            resp = patient_intake_turn(server_url, token, sid, text)
             assert "reply" in resp
 
         # Check collected has content
@@ -97,7 +97,7 @@ class TestFullFlow:
         assert len(filled) >= 3, f"Expected ≥3 filled fields, got {filled}"
 
         # Confirm
-        status_code, body = patient_interview_confirm(server_url, token, sid)
+        status_code, body = patient_intake_confirm(server_url, token, sid)
         assert status_code == 200, f"Confirm failed: {body}"
         assert body.get("record_id"), "No record_id returned"
 
@@ -110,7 +110,7 @@ class TestFullFlow:
             server_url, test_doctor, name="腹痛患者", year_of_birth=1978,
         )
 
-        start = patient_interview_start(server_url, token)
+        start = patient_intake_start(server_url, token)
         sid = start["session_id"]
 
         turns = [
@@ -123,13 +123,13 @@ class TestFullFlow:
         ]
         resp = None
         for text in turns:
-            resp = patient_interview_turn(server_url, token, sid, text)
+            resp = patient_intake_turn(server_url, token, sid, text)
 
         collected = resp.get("collected", {})
         filled = [k for k, v in collected.items() if v and not k.startswith("_")]
         assert len(filled) >= 4, f"Expected ≥4 filled fields, got {filled}"
 
-        status_code, body = patient_interview_confirm(server_url, token, sid)
+        status_code, body = patient_intake_confirm(server_url, token, sid)
         assert status_code == 200
 
 
@@ -145,14 +145,14 @@ class TestSessionManagement:
         )
 
         # First session
-        start1 = patient_interview_start(server_url, token)
+        start1 = patient_intake_start(server_url, token)
         sid1 = start1["session_id"]
 
-        patient_interview_turn(server_url, token, sid1, "腰疼")
-        patient_interview_turn(server_url, token, sid1, "一周了")
+        patient_intake_turn(server_url, token, sid1, "腰疼")
+        patient_intake_turn(server_url, token, sid1, "一周了")
 
         # "Resume" — start again should return same session
-        start2 = patient_interview_start(server_url, token)
+        start2 = patient_intake_start(server_url, token)
         sid2 = start2["session_id"]
         assert sid2 == sid1, f"Expected same session, got {sid2} vs {sid1}"
         assert start2.get("resumed") is True
@@ -168,15 +168,15 @@ class TestSessionManagement:
             server_url, test_doctor, name="取消患者", year_of_birth=1975,
         )
 
-        start1 = patient_interview_start(server_url, token)
+        start1 = patient_intake_start(server_url, token)
         sid1 = start1["session_id"]
-        patient_interview_turn(server_url, token, sid1, "头晕")
+        patient_intake_turn(server_url, token, sid1, "头晕")
 
         # Cancel
-        patient_interview_cancel(server_url, token, sid1)
+        patient_intake_cancel(server_url, token, sid1)
 
         # Start again — should be NEW session
-        start2 = patient_interview_start(server_url, token)
+        start2 = patient_intake_start(server_url, token)
         sid2 = start2["session_id"]
         assert sid2 != sid1, f"Expected new session after cancel, got same {sid1}"
 
@@ -188,10 +188,10 @@ class TestSessionManagement:
 class TestRegistration:
     def test_register_links_existing_patient(self, server_url, db_path, test_doctor):
         """If doctor already has a patient with that name, registration links to it."""
-        # Pre-create patient via doctor interview
-        from tests.regression.helpers import interview_turn, interview_confirm
-        r = interview_turn(server_url, f"注册测试 女 45岁 体检", doctor_id=test_doctor)
-        interview_confirm(server_url, r["session_id"], test_doctor)
+        # Pre-create patient via doctor intake
+        from tests.regression.helpers import intake_turn, intake_confirm
+        r = intake_turn(server_url, f"注册测试 女 45岁 体检", doctor_id=test_doctor)
+        intake_confirm(server_url, r["session_id"], test_doctor)
         time.sleep(0.5)
 
         # Now patient registers with same name
@@ -240,7 +240,7 @@ class TestPatientExtraction:
             server_url, test_doctor, name="否认患者", year_of_birth=1988,
         )
 
-        start = patient_interview_start(server_url, token)
+        start = patient_intake_start(server_url, token)
         sid = start["session_id"]
 
         turns = [
@@ -252,9 +252,9 @@ class TestPatientExtraction:
             "没有家族病史",
         ]
         for text in turns:
-            patient_interview_turn(server_url, token, sid, text)
+            patient_intake_turn(server_url, token, sid, text)
 
-        status_code, _ = patient_interview_confirm(server_url, token, sid)
+        status_code, _ = patient_intake_confirm(server_url, token, sid)
         assert status_code == 200
         time.sleep(0.5)
 
@@ -268,7 +268,7 @@ class TestPatientExtraction:
             server_url, test_doctor, name="综合患者", year_of_birth=1982,
         )
 
-        start = patient_interview_start(server_url, token)
+        start = patient_intake_start(server_url, token)
         sid = start["session_id"]
 
         turns = [
@@ -280,9 +280,9 @@ class TestPatientExtraction:
             "就这些了",
         ]
         for text in turns:
-            patient_interview_turn(server_url, token, sid, text)
+            patient_intake_turn(server_url, token, sid, text)
 
-        status_code, _ = patient_interview_confirm(server_url, token, sid)
+        status_code, _ = patient_intake_confirm(server_url, token, sid)
         assert status_code == 200
         time.sleep(0.5)
 
@@ -296,7 +296,7 @@ class TestPatientExtraction:
             server_url, test_doctor, name="过敏患者", year_of_birth=1995,
         )
 
-        start = patient_interview_start(server_url, token)
+        start = patient_intake_start(server_url, token)
         sid = start["session_id"]
 
         turns = [
@@ -308,9 +308,9 @@ class TestPatientExtraction:
             "没有家族病史",
         ]
         for text in turns:
-            patient_interview_turn(server_url, token, sid, text)
+            patient_intake_turn(server_url, token, sid, text)
 
-        status_code, _ = patient_interview_confirm(server_url, token, sid)
+        status_code, _ = patient_intake_confirm(server_url, token, sid)
         assert status_code == 200
         time.sleep(0.5)
 

@@ -11,9 +11,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from domain.interview.engine import InterviewEngine
-from domain.interview.protocols import PersistRef
-from domain.patients.interview_session import create_session, load_session
+from domain.intake.engine import IntakeEngine
+from domain.intake.protocols import PersistRef
+from domain.patients.intake_session import create_session, load_session
 
 
 @pytest.mark.asyncio
@@ -43,23 +43,23 @@ async def test_confirm_persists_reconciled_collected_to_session():
     # Mock the doctor-mode hook (best-effort — isolate from engine save).
     with patch.object(
         __import__(
-            "domain.interview.templates.medical_general",
+            "domain.intake.templates.medical_general",
             fromlist=["MedicalBatchExtractor"],
         ).MedicalBatchExtractor,
         "extract",
         new=AsyncMock(return_value={"chief_complaint": "newer"}),
     ), patch.object(
         __import__(
-            "domain.interview.templates.medical_general",
+            "domain.intake.templates.medical_general",
             fromlist=["MedicalRecordWriter"],
         ).MedicalRecordWriter,
         "persist",
         new=AsyncMock(return_value=fake_ref),
     ), patch(
-        "domain.interview.hooks.medical.GenerateFollowupTasksHook.run",
+        "domain.intake.hooks.medical.GenerateFollowupTasksHook.run",
         new=AsyncMock(),
     ):
-        engine = InterviewEngine()
+        engine = IntakeEngine()
         ref = await engine.confirm(
             session_id=sess.id,
             doctor_edits={"chief_complaint": "new"},
@@ -98,23 +98,23 @@ async def test_confirm_persists_collected_before_hook_dispatch():
 
     with patch.object(
         __import__(
-            "domain.interview.templates.medical_general",
+            "domain.intake.templates.medical_general",
             fromlist=["MedicalBatchExtractor"],
         ).MedicalBatchExtractor,
         "extract",
         new=AsyncMock(return_value={"chief_complaint": "newer"}),
     ), patch.object(
         __import__(
-            "domain.interview.templates.medical_general",
+            "domain.intake.templates.medical_general",
             fromlist=["MedicalRecordWriter"],
         ).MedicalRecordWriter,
         "persist",
         new=AsyncMock(return_value=fake_ref),
     ), patch(
-        "domain.interview.hooks.medical.GenerateFollowupTasksHook.run",
+        "domain.intake.hooks.medical.GenerateFollowupTasksHook.run",
         new=AsyncMock(side_effect=RuntimeError("boom")),
     ):
-        engine = InterviewEngine()
+        engine = IntakeEngine()
         # Hook failure is best-effort; confirm must NOT raise.
         await engine.confirm(
             session_id=sess.id,

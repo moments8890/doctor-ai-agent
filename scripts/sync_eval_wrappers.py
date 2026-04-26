@@ -97,8 +97,8 @@ WRAPPERS: dict[str, WrapperSpec] = {
             "患者消息：{{patient_message}}\n"
         ),
     ),
-    "interview": WrapperSpec(
-        source="intent/interview.md",
+    "intake": WrapperSpec(
+        source="intent/intake.md",
         convention="replace",
         vars=frozenset({"collected", "doctor_input"}),
         append=(
@@ -129,8 +129,8 @@ WRAPPERS: dict[str, WrapperSpec] = {
             "{{transcript}}\n"
         ),
     ),
-    "patient-interview": WrapperSpec(
-        source="intent/patient-interview.md",
+    "patient-intake": WrapperSpec(
+        source="intent/patient-intake.md",
         convention="replace",
         vars=frozenset({"collected", "patient_input"}),
         append=(

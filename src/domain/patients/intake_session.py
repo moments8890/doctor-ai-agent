@@ -1,4 +1,4 @@
-"""Interview session persistence (ADR 0016)."""
+"""Intake session persistence (ADR 0016)."""
 from __future__ import annotations
 
 import json
@@ -8,17 +8,17 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from db.engine import AsyncSessionLocal
-from db.models.interview_session import InterviewStatus
+from db.models.intake_session import IntakeStatus
 from utils.log import log
 
 
 @dataclass
-class InterviewSession:
+class IntakeSession:
     id: str
     doctor_id: str
     patient_id: Optional[int]
     mode: str = "patient"
-    status: str = InterviewStatus.interviewing
+    status: str = IntakeStatus.active
     template_id: str = "medical_general_v1"
     collected: Dict[str, str] = field(default_factory=dict)
     conversation: List[Dict[str, Any]] = field(default_factory=list)
@@ -31,15 +31,15 @@ async def create_session(
     mode: str = "patient",
     initial_fields: Optional[Dict[str, str]] = None,
     template_id: str = "medical_general_v1",
-) -> InterviewSession:
-    """Create a new interview session in the DB.
+) -> IntakeSession:
+    """Create a new intake session in the DB.
 
     Args:
         initial_fields: Pre-extracted fields (from OCR, voice/paste, etc.)
             to pre-populate the session. Doctor reviews and fills gaps
-            via the interview flow.
+            via the intake flow.
     """
-    from db.models.interview_session import InterviewSessionDB
+    from db.models.intake_session import IntakeSessionDB
 
     session_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
@@ -61,7 +61,7 @@ async def create_session(
         except Exception:
             pass  # Non-critical — doctor can fill it manually
 
-    # If pre-populated, add a system message so the interview LLM knows
+    # If pre-populated, add a system message so the intake LLM knows
     if initial_fields:
         fields_summary = "、".join(
             f"{k}" for k, v in initial_fields.items() if v
@@ -72,11 +72,11 @@ async def create_session(
         })
 
     async with AsyncSessionLocal() as db:
-        db_row = InterviewSessionDB(
+        db_row = IntakeSessionDB(
             id=session_id,
             doctor_id=doctor_id,
             patient_id=patient_id,
-            status=InterviewStatus.interviewing,
+            status=IntakeStatus.active,
             mode=mode,
             template_id=template_id,
             collected=json.dumps(collected, ensure_ascii=False),
@@ -89,8 +89,8 @@ async def create_session(
         await db.commit()
 
     pre = f" pre-populated={len(collected)} fields" if collected else ""
-    log(f"[interview] session created id={session_id} patient={patient_id} doctor={doctor_id} mode={mode}{pre}")
-    return InterviewSession(
+    log(f"[intake] session created id={session_id} patient={patient_id} doctor={doctor_id} mode={mode}{pre}")
+    return IntakeSession(
         id=session_id,
         doctor_id=doctor_id,
         patient_id=patient_id,
@@ -101,20 +101,20 @@ async def create_session(
     )
 
 
-async def load_session(session_id: str) -> Optional[InterviewSession]:
-    """Load an interview session from DB. Returns None if not found."""
-    from db.models.interview_session import InterviewSessionDB
+async def load_session(session_id: str) -> Optional[IntakeSession]:
+    """Load an intake session from DB. Returns None if not found."""
+    from db.models.intake_session import IntakeSessionDB
     from sqlalchemy import select
 
     async with AsyncSessionLocal() as db:
         row = (await db.execute(
-            select(InterviewSessionDB).where(InterviewSessionDB.id == session_id)
+            select(IntakeSessionDB).where(IntakeSessionDB.id == session_id)
         )).scalar_one_or_none()
 
         if row is None:
             return None
 
-        return InterviewSession(
+        return IntakeSession(
             id=row.id,
             doctor_id=row.doctor_id,
             patient_id=row.patient_id,
@@ -127,18 +127,18 @@ async def load_session(session_id: str) -> Optional[InterviewSession]:
         )
 
 
-async def save_session(session: InterviewSession) -> None:
-    """Persist interview session state to DB."""
-    from db.models.interview_session import InterviewSessionDB
+async def save_session(session: IntakeSession) -> None:
+    """Persist intake session state to DB."""
+    from db.models.intake_session import IntakeSessionDB
     from sqlalchemy import select
 
     async with AsyncSessionLocal() as db:
         row = (await db.execute(
-            select(InterviewSessionDB).where(InterviewSessionDB.id == session.id)
+            select(IntakeSessionDB).where(IntakeSessionDB.id == session.id)
         )).scalar_one_or_none()
 
         if row is None:
-            log(f"[interview] save_session: session {session.id} not found", level="error")
+            log(f"[intake] save_session: session {session.id} not found", level="error")
             return
 
         row.status = session.status
@@ -152,24 +152,24 @@ async def save_session(session: InterviewSession) -> None:
         await db.commit()
 
 
-async def get_active_session(patient_id: int, doctor_id: str) -> Optional[InterviewSession]:
-    """Find an active (interviewing or reviewing) session for this patient+doctor."""
-    from db.models.interview_session import InterviewSessionDB
+async def get_active_session(patient_id: int, doctor_id: str) -> Optional[IntakeSession]:
+    """Find an active (active or reviewing) session for this patient+doctor."""
+    from db.models.intake_session import IntakeSessionDB
     from sqlalchemy import select
 
     async with AsyncSessionLocal() as db:
         row = (await db.execute(
-            select(InterviewSessionDB).where(
-                InterviewSessionDB.patient_id == patient_id,
-                InterviewSessionDB.doctor_id == doctor_id,
-                InterviewSessionDB.status.in_([InterviewStatus.interviewing, InterviewStatus.reviewing]),
-            ).order_by(InterviewSessionDB.created_at.desc()).limit(1)
+            select(IntakeSessionDB).where(
+                IntakeSessionDB.patient_id == patient_id,
+                IntakeSessionDB.doctor_id == doctor_id,
+                IntakeSessionDB.status.in_([IntakeStatus.active, IntakeStatus.reviewing]),
+            ).order_by(IntakeSessionDB.created_at.desc()).limit(1)
         )).scalar_one_or_none()
 
         if row is None:
             return None
 
-        return InterviewSession(
+        return IntakeSession(
             id=row.id,
             doctor_id=row.doctor_id,
             patient_id=row.patient_id,

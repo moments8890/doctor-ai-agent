@@ -69,7 +69,7 @@ def _map_urgency_label(urgency: str | None) -> str:
 @router.get("/api/manage/review/queue")
 async def review_queue(
     doctor_id: str = Query(...),
-    seed_source: Optional[str] = Query(default=None),  # 'chat_detected' | 'explicit_interview' | None=all
+    seed_source: Optional[str] = Query(default=None),  # 'chat_detected' | 'explicit_intake' | None=all
     authorization: Optional[str] = Header(default=None),
     session: AsyncSession = Depends(get_db),
 ):

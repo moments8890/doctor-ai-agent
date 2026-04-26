@@ -14,7 +14,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, create_model
 
-from domain.interview.protocols import FieldSpec
+from domain.intake.protocols import FieldSpec
 
 # Frozen mapping. Widen only via PR + tests.
 _SPEC_TO_PY_TYPE: dict[str, type] = {

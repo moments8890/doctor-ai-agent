@@ -32,7 +32,7 @@ const LAST_SEEN_CHAT_KEY = "patient_last_seen_chat";
 // QuickActions
 // ---------------------------------------------------------------------------
 
-function QuickActions({ onNewInterview, onViewRecords }) {
+function QuickActions({ onNewIntake, onViewRecords }) {
   return (
     <Card style={{ marginTop: 8, marginBottom: 8 }}>
       <TintedIconRow
@@ -41,7 +41,7 @@ function QuickActions({ onNewInterview, onViewRecords }) {
         iconBg={APP.primaryLight}
         title="新问诊"
         subtitle="开始 AI 预问诊"
-        onClick={onNewInterview}
+        onClick={onNewIntake}
         isFirst
       />
       <TintedIconRow
@@ -114,7 +114,7 @@ function SystemMessage({ msg, onTap }) {
 export default function ChatTab({
   token,
   doctorName,
-  onNewInterview,
+  onNewIntake,
   onViewRecords,
   onUnreadCountChange,
 }) {
@@ -305,7 +305,7 @@ export default function ChatTab({
 
   return (
     <div style={keyboardAwareStyle}>
-      <QuickActions onNewInterview={onNewInterview} onViewRecords={onViewRecords} />
+      <QuickActions onNewIntake={onNewIntake} onViewRecords={onViewRecords} />
 
       {/* Message list */}
       <div style={styles.msgList}>

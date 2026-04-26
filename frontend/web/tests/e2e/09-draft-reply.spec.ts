@@ -8,7 +8,7 @@
  */
 import { test, expect } from "./fixtures/doctor-auth";
 import {
-  completePatientInterview,
+  completePatientIntake,
   sendPatientMessage,
   sendDoctorReply,
   addKnowledgeText,
@@ -31,7 +31,7 @@ test.describe("工作流 09 — 草稿回复", () => {
       doctor,
       "回访常规咨询时先确认血压记录再给建议",
     );
-    await completePatientInterview(request, patient);
+    await completePatientIntake(request, patient);
     await sendPatientMessage(request, patient, "医生，我今天血压还是有点高，怎么办？");
     await waitForDraft(request, doctor, patient.patientId);
 
@@ -84,7 +84,7 @@ test.describe("工作流 09 — 草稿回复", () => {
     await expect(doctorPage.getByText(/AI辅助生成，经医生审核/)).toBeVisible();
   });
 
-  // Preseed creates a demo interview + draft on registration, so the 待回复
+  // Preseed creates a demo intake + draft on registration, so the 待回复
   // tab is never empty for a fresh doctor. Skip until preseed is configurable.
   test.skip("1.3 — 新医生待回复标签为空", async ({ doctorPage, steps }) => {
     // Fresh doctor = no seeded drafts, so empty state MUST render. Drop the
@@ -114,8 +114,8 @@ test.describe("工作流 09 — 草稿回复", () => {
     const replyText =
       "（E2E测试）请继续监测血压并记录读数，有任何变化随时告诉我。";
 
-    // Seed a completed interview so the patient has a non-empty portal state.
-    await completePatientInterview(request, patient);
+    // Seed a completed intake so the patient has a non-empty portal state.
+    await completePatientIntake(request, patient);
 
     // Fire the reply as the doctor — hits POST /api/manage/patients/{id}/reply.
     await sendDoctorReply(request, doctor, patient.patientId, replyText);

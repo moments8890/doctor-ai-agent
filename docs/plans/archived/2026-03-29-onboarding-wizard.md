@@ -1299,7 +1299,7 @@ case 5: return <Step5Content doctorId={doctorId} progress={progress} updateProgr
 
 ```bash
 git add frontend/web/src/pages/doctor/OnboardingWizard.jsx
-git commit -m "feat(onboarding): implement Step 5 — patient pre-interview"
+git commit -m "feat(onboarding): implement Step 5 — patient pre-intake"
 ```
 
 ---

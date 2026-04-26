@@ -149,7 +149,7 @@ var PAGES = [
   { id: 'patients', label: '患者', comps: ['SubpageHeader','ListCard','NameAvatar','SectionLabel','StatusBadge','NewItemCard','PageSkeleton','EmptyState','SectionLoading','AskAIBar','BarButton'] },
   { id: 'patient-detail', label: '患者详情', comps: ['RecordCard','RecordEditDialog','MessageTimeline','ExportSelectorDialog','ConfirmDialog','EmptyState','FilterBar','QRDialog'] },
   { id: 'chat', label: 'AI对话', comps: ['SubpageHeader','MsgAvatar','VoiceInput','ActionPanel','ConfirmDialog','SheetDialog','DialogFooter','AppButton','PatientPickerDialog','ImportChoiceDialog','RecordFields','BarButton'] },
-  { id: 'interview', label: '新建病历', comps: ['SubpageHeader','MsgAvatar','VoiceInput','ConfirmDialog','SuggestionChips','ActionPanel','ImportChoiceDialog','FieldReviewCard','InterviewCompleteDialog'] },
+  { id: 'intake', label: '新建病历', comps: ['SubpageHeader','MsgAvatar','VoiceInput','ConfirmDialog','SuggestionChips','ActionPanel','ImportChoiceDialog','FieldReviewCard','IntakeCompleteDialog'] },
   { id: 'review-queue', label: '审核队列', comps: ['SubpageHeader','NameAvatar','ActionRow','SectionLabel','FilterBar','SheetDialog','DialogFooter','EmptyState','SectionLoading','ReplyCard','CitationPopover'] },
   { id: 'review-detail', label: '诊断审核', comps: ['AppButton','Toast','DiagnosisCard','SubpageHeader','BarButton','CollapsibleSection','InlineEditor'] },
   { id: 'tasks', label: '任务', comps: ['SubpageHeader','ActionRow','FilterBar','SectionLabel','SheetDialog','AppButton','EmptyState','SectionLoading'] },
@@ -164,7 +164,7 @@ var PAGES = [
   { id: 'patient-records', label: '患者·病历', comps: ['ListCard','NewItemCard','IconBadge','DateAvatar','StatusBadge','EmptyState','SectionLoading'] },
   { id: 'patient-tasks', label: '患者·任务', comps: ['TaskChecklist','SectionLabel','EmptyState','SectionLoading'] },
   { id: 'patient-chat', label: '患者·聊天', comps: ['VoiceInput','DoctorBubble','ListCard','IconBadge'] },
-  { id: 'patient-interview', label: '患者·问诊', comps: ['SubpageHeader','VoiceInput','SuggestionChips','SheetDialog','ConfirmDialog','AppButton'] },
+  { id: 'patient-intake', label: '患者·问诊', comps: ['SubpageHeader','VoiceInput','SuggestionChips','SheetDialog','ConfirmDialog','AppButton'] },
 ];
 
 // Component catalog with visual mockups and metadata
@@ -258,7 +258,7 @@ var CATALOG = [
       html: '<div class="m-diag"><div><div class="m-diag-title">高血压2级</div><div style="margin-top:2px"><span class="m-badge" style="color:#D65745;border-color:#D65745;font-size:8px">高</span></div></div><div class="m-diag-status">待处理</div></div>' },
     { name: 'FieldReviewCard', file: 'doctor/FieldReviewCard.jsx',
       html: '<div style="background:#fff;border-radius:4px;padding:6px 8px;width:100%"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px"><span style="font-weight:600">病史沿用</span><span style="color:#07C160;font-size:9px">展开 &#9662;</span></div><div style="font-size:9px;color:#666">主诉: 头痛3天 <span style="color:#07C160">&#10003; 沿用</span></div></div>' },
-    { name: 'InterviewCompleteDialog', file: 'doctor/InterviewCompleteDialog.jsx',
+    { name: 'IntakeCompleteDialog', file: 'doctor/IntakeCompleteDialog.jsx',
       html: '<div class="m-dialog"><div class="m-dialog-title">病历预览</div><div style="font-size:9px;color:#666;margin:4px 0">主诉: 头痛3天<br>现病史: 3天前无明显诱因...</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px"><div class="m-btn m-btn-secondary" style="font-size:9px">返回</div><div class="m-btn m-btn-secondary" style="font-size:9px">保存</div></div><div class="m-btn m-btn-primary" style="width:100%;margin-top:4px;font-size:9px">保存并诊断 &#8594;</div></div>' },
     { name: 'MessageItem', file: 'doctor/MessageItem.jsx',
       html: '<div style="background:#fff;border-radius:4px;padding:6px 8px;width:100%"><div style="display:flex;align-items:center;gap:4px;margin-bottom:3px"><div style="width:6px;height:6px;border-radius:50%;background:#576B95"></div><div style="font-size:9px;color:#576B95">患者 03/27</div></div><div style="font-size:10px;color:#333;margin-bottom:3px">头痛加重，需要急诊吗？</div><div style="background:#f7f7f7;border-radius:4px;padding:4px 6px;font-size:9px;color:#07C160">AI草稿: 建议做CT检查...</div></div>' },

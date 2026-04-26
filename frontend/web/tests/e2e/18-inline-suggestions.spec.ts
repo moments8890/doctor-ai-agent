@@ -10,7 +10,7 @@
 import { test, expect } from "./fixtures/doctor-auth";
 import {
   addKnowledgeText,
-  completePatientInterview,
+  completePatientIntake,
   waitForSuggestions,
 } from "./fixtures/seed";
 
@@ -30,8 +30,8 @@ test.describe("工作流 18 — 内联 AI 建议（inline_v2）", () => {
       "高血压患者头痛需排除高血压脑病与颅内出血",
     );
 
-    // Complete a pre-interview so a reviewable record exists.
-    const { recordId } = await completePatientInterview(request, patient);
+    // Complete a pre-intake so a reviewable record exists.
+    const { recordId } = await completePatientIntake(request, patient);
 
     // Wait for the async suggestion pipeline to produce rows — otherwise the
     // inline branch will not render (gated on hasSuggestions).

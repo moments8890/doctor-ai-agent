@@ -112,8 +112,8 @@ def _normalize_d1d8(data: dict, path: Path) -> ScenarioSpec:
             gender=pinfo.get("gender", ""),
             age=pinfo.get("age", 0),
         ),
-        input=InputSpec(mode="doctor_interview", turns=turns),
-        execution=ExecutionSpec(entrypoint="records.interview.turn", auto_confirm=True),
+        input=InputSpec(mode="doctor_intake", turns=turns),
+        execution=ExecutionSpec(entrypoint="records.intake.turn", auto_confirm=True),
         expectations=ExpectationsSpec(extraction=extraction),
     )
 
@@ -165,7 +165,7 @@ def _normalize_mvp(data: dict, path: Path) -> ScenarioSpec:
             Assertion(target=f"db.{table}.count", matcher="max", expected=max_v)
         )
 
-    # MVP scenarios use the chat pipeline, not interview pipeline
+    # MVP scenarios use the chat pipeline, not intake pipeline
     return ScenarioSpec(
         id=case_id,
         scenario_type="doctor_chat",
@@ -240,9 +240,9 @@ def _parse_v2(data: dict) -> ScenarioSpec:
             gender=patient.get("gender", ""),
             age=patient.get("age", 0),
         ),
-        input=InputSpec(mode=inp.get("mode", "doctor_interview"), turns=turns),
+        input=InputSpec(mode=inp.get("mode", "doctor_intake"), turns=turns),
         execution=ExecutionSpec(
-            entrypoint=exe.get("entrypoint", "records.interview.turn"),
+            entrypoint=exe.get("entrypoint", "records.intake.turn"),
             auto_confirm=exe.get("auto_confirm", True),
             timeout_seconds=exe.get("timeout_seconds", 60),
         ),

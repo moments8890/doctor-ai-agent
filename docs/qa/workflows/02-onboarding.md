@@ -32,7 +32,7 @@ first 5 minutes with the product fail silently.
 **Out of scope**
 
 - Full knowledge CRUD — see [05-knowledge](05-knowledge.md).
-- The embedded patient interview UX — covered in the patient portal QA.
+- The embedded patient intake UX — covered in the patient portal QA.
 - Account registration itself — see [01-auth](01-auth.md).
 
 ---
@@ -100,7 +100,7 @@ Then log in at `http://127.0.0.1:5173/login` and navigate to
 |---|--------|--------|
 | 4.1 | Land on step 3 | Header "确认并开始"; ✓ icon; title "设置完成"; subtitle about trying patient flow |
 | 4.2 | Observe optional patient preview card | "可选：体验患者端预问诊" card with "体验患者端 →" button |
-| 4.3 | Tap `体验患者端 →` (once `ready` state true) | Bottom sheet opens "患者预问诊体验"; embedded InterviewPage renders with AI greeting |
+| 4.3 | Tap `体验患者端 →` (once `ready` state true) | Bottom sheet opens "患者预问诊体验"; embedded IntakePage renders with AI greeting |
 | 4.4 | Close sheet (tap close or outside) | Returns to step 3 without advancing |
 | 4.5 | Tap `完成引导` | `markWizardDone(doctorId, "completed")` called; navigates to `/doctor`; `seedDemo` fires in background; 我的AI tab visible |
 | 4.6 | Reload after completion | Wizard is NOT re-shown (done flag persisted); 我的AI tab shows seeded demo patients after seed completes |
@@ -163,6 +163,6 @@ merge time.
   or target by role. The MD step says to tap the text — make sure the
   spec selector matches.
 - **Step 4.3 sheet is empty / crashes** — `usePatientApi` requires
-  `PatientApiProvider`. The lazy mount (`showInterview && interviewToken`)
-  is the existing fix. If the sheet is blank, check `interviewToken` in
+  `PatientApiProvider`. The lazy mount (`showIntake && intakeToken`)
+  is the existing fix. If the sheet is blank, check `intakeToken` in
   progress state.

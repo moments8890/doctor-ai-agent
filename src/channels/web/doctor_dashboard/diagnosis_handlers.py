@@ -173,7 +173,7 @@ async def trigger_diagnosis(
     await _get_record_or_404(db, record_id, resolved)
 
     # Guard: skip re-run if suggestions already exist for this record.
-    # Auto-trigger fires on interview confirm; this endpoint allows manual
+    # Auto-trigger fires on intake confirm; this endpoint allows manual
     # re-trigger. Without the guard each call stacks a new set of suggestions.
     if await has_suggestions(db, record_id):
         return {"status": "already_ran", "record_id": record_id}

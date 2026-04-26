@@ -1,7 +1,7 @@
 // AdminPatientDetailV3 — patient drill-down inside the V3 admin shell.
 // Mirrors AdminDoctorDetailV3's pattern (header + sections), backed by
 // /api/admin/patients/{patient_id}/related which already returns records,
-// messages, tasks, suggestions, interviews, drafts.
+// messages, tasks, suggestions, intakes, drafts.
 //
 // Routing contract: ?v=3&patient=<id>. v3/index.jsx detects `patient` and
 // renders this component instead of the doctor or doctor-list view.
@@ -192,7 +192,7 @@ function EmptyRow({ label }) {
 }
 
 // Display all populated clinical fields as labeled blocks. Skips fields that
-// are null/empty so a thin interview_summary record renders compactly while a
+// are null/empty so a thin intake_summary record renders compactly while a
 // full visit note shows everything.
 function RecordField({ label, value }) {
   if (!value) return null;
@@ -209,7 +209,7 @@ function RecordField({ label, value }) {
 }
 
 const RECORD_FIELDS = [
-  // `content` first — for interview_summary records this is the AI's
+  // `content` first — for intake_summary records this is the AI's
   // extracted summary (the "original" record) and the operator wants to
   // read it alongside the structured fields, not as a fallback.
   { key: "content",           label: "记录摘要" },

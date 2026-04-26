@@ -131,7 +131,7 @@ export function useKeyboardSafeArea() {
 
 /**
  * SX props for full-page containers that need to shrink when the keyboard opens
- * (chat pages, interview pages). Apply via: <Box sx={KEYBOARD_AWARE_CONTAINER}>
+ * (chat pages, intake pages). Apply via: <Box sx={KEYBOARD_AWARE_CONTAINER}>
  *
  * Uses --keyboard-height (set by useKeyboardSafeArea) to reduce the container
  * height so the flex chat content area absorbs the keyboard, keeping headers

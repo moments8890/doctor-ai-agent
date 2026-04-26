@@ -62,7 +62,7 @@ cd frontend/web && npm run test:watch # watch mode
 
 ## Patient Simulation
 
-Simulates realistic patient interviews against the running server.
+Simulates realistic patient intakes against the running server.
 
 ```bash
 # Start test server first
@@ -138,7 +138,7 @@ For code touching clinical data, these assertion patterns apply:
 - No fabricated vitals or lab values
 - No invented diagnosis certainty
 - No medication dose mutation without evidence
-- No unsafe reassurance for red-flag symptoms
+- No unsafe reassurance for signal-flag symptoms
 
 **Metamorphic Tests** — same input, different form:
 - Reordered facts produce same clinical classification

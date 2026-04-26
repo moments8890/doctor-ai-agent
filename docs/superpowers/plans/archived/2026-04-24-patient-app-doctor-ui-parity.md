@@ -1787,7 +1787,7 @@ import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
     iconBg={APP.primaryLight}
     title="新问诊"
     subtitle="开始 AI 预问诊"
-    onClick={onNewInterview}
+    onClick={onNewIntake}
     isFirst
   />
   <TintedIconRow
@@ -1809,7 +1809,7 @@ If the chat empty state was inline ("还没有消息..."), replace with the shar
 
 Navigate to `/patient/chat`. Confirm:
 - Card with 2 tinted-icon rows above the message list (新问诊 green, 查看病历 blue)
-- Tapping 新问诊 → navigates to `/patient/records/interview`
+- Tapping 新问诊 → navigates to `/patient/records/intake`
 - Tapping 查看病历 → navigates to `/patient/records`
 - Polling, sending messages, unread badge clearing on tab visit: all unchanged
 
@@ -1906,7 +1906,7 @@ const TYPE_LABEL = {
   visit: "门诊记录",
   dictation: "语音记录",
   import: "导入记录",
-  interview_summary: "预问诊",
+  intake_summary: "预问诊",
 };
 
 const STATUS_LABEL = {

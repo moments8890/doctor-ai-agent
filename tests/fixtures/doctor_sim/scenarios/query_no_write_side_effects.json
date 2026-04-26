@@ -48,7 +48,7 @@
         "expected": 1
       },
       {
-        "target": "db.interview_sessions.count",
+        "target": "db.intake_sessions.count",
         "matcher": "min",
         "expected": 1
       },

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Patient simulation CLI — run LLM-simulated patients against the interview pipeline.
+"""Patient simulation CLI — run LLM-simulated patients against the intake pipeline.
 
 Usage:
     PYTHONPATH=src python scripts/run_patient_sim.py --patients all --patient-llm groq --no-quality-score

@@ -235,7 +235,7 @@ persona_usage_log
 ├── id             (Integer, PK)
 ├── doctor_id      (String 64, FK → doctors)
 ├── rule_id        (String — e.g., "ps_1", matches rule.id in persona fields)
-├── flow_type      (String: followup_reply / diagnosis / interview / etc.)
+├── flow_type      (String: followup_reply / diagnosis / intake / etc.)
 ├── entity_id      (Integer — the draft/diagnosis/record ID)
 ├── created_at     (DateTime)
 ```
@@ -329,7 +329,7 @@ Add `load_persona: bool` to `LayerConfig`. Explicitly set per intent:
 |------|-------------|--------|
 | followup_reply | true | Expression flow — style matters |
 | diagnosis | true | Narrative output — style matters |
-| interview | false | Structured extraction — style distorts |
+| intake | false | Structured extraction — style distorts |
 | create_record | false | Data entry — no style needed |
 | query_record | false | Data retrieval — no style needed |
 | daily_summary | true | Narrative output — style matters |

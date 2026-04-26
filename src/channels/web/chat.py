@@ -53,7 +53,7 @@ async def create_record_from_text(
     patient_id: Optional[int] = None,
     authorization: Optional[str] = Header(default=None),
 ):
-    """Extract fields from text → create interview session for doctor review."""
+    """Extract fields from text → create intake session for doctor review."""
     resolved = resolve_doctor_id_from_auth_or_fallback(
         doctor_id, authorization,
         fallback_env_flag="RECORDS_CHAT_ALLOW_BODY_DOCTOR_ID",
@@ -63,8 +63,8 @@ async def create_record_from_text(
     if not body.text.strip():
         raise HTTPException(status_code=422, detail="Text input cannot be empty.")
     try:
-        from domain.records.structuring import text_to_interview
-        return await text_to_interview(body.text, doctor_id=resolved, patient_id=patient_id)
+        from domain.records.structuring import text_to_intake
+        return await text_to_intake(body.text, doctor_id=resolved, patient_id=patient_id)
     except ValueError as e:
         log(f"[Records] from-text validation failed: {e}")
         raise HTTPException(status_code=422, detail="Invalid medical record content")

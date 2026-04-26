@@ -108,10 +108,10 @@
 <table>
   <thead><tr><th>Prompt</th><th>Structure</th><th>Clarity</th><th>Few-shot</th><th>Safety</th><th>Tokens</th><th>Chinese NLP</th><th>Context Eng</th></tr></thead>
   <tbody>
-    <tr><td class="mono">interview.md</td><td><span class="score-dot s-ok">6</span></td><td><span class="score-dot s-mid">5</span></td><td><span class="score-dot s-mid">4</span></td><td><span class="score-dot s-mid">4</span></td><td><span class="score-dot s-ok">7</span></td><td><span class="score-dot s-mid">5</span></td><td><span class="score-dot s-mid">4</span></td></tr>
+    <tr><td class="mono">intake.md</td><td><span class="score-dot s-ok">6</span></td><td><span class="score-dot s-mid">5</span></td><td><span class="score-dot s-mid">4</span></td><td><span class="score-dot s-mid">4</span></td><td><span class="score-dot s-ok">7</span></td><td><span class="score-dot s-mid">5</span></td><td><span class="score-dot s-mid">4</span></td></tr>
     <tr><td class="mono">doctor-extract.md</td><td><span class="score-dot s-ok">7</span></td><td><span class="score-dot s-mid">4</span></td><td><span class="score-dot s-mid">5</span></td><td><span class="score-dot s-mid">4</span></td><td><span class="score-dot s-ok">6</span></td><td><span class="score-dot s-mid">4</span></td><td><span class="score-dot s-mid">4</span></td></tr>
     <tr><td class="mono">patient-extract.md</td><td><span class="score-dot s-ok">7</span></td><td><span class="score-dot s-ok">6</span></td><td><span class="score-dot s-mid">4</span></td><td><span class="score-dot s-mid">4</span></td><td><span class="score-dot s-ok">7</span></td><td><span class="score-dot s-mid">5</span></td><td><span class="score-dot s-mid">4</span></td></tr>
-    <tr><td class="mono">patient-interview.md</td><td><span class="score-dot s-mid">5</span></td><td><span class="score-dot s-low">3</span></td><td><span class="score-dot s-low">3</span></td><td><span class="score-dot s-low">2</span></td><td><span class="score-dot s-ok">7</span></td><td><span class="score-dot s-mid">5</span></td><td><span class="score-dot s-low">3</span></td></tr>
+    <tr><td class="mono">patient-intake.md</td><td><span class="score-dot s-mid">5</span></td><td><span class="score-dot s-low">3</span></td><td><span class="score-dot s-low">3</span></td><td><span class="score-dot s-low">2</span></td><td><span class="score-dot s-ok">7</span></td><td><span class="score-dot s-mid">5</span></td><td><span class="score-dot s-low">3</span></td></tr>
     <tr><td class="mono">diagnosis.md</td><td><span class="score-dot s-mid">4</span></td><td><span class="score-dot s-mid">4</span></td><td><span class="score-dot s-mid">4</span></td><td><span class="score-dot s-mid">5</span></td><td><span class="score-dot s-mid">5</span></td><td><span class="score-dot s-ok">6</span></td><td><span class="score-dot s-mid">4</span></td></tr>
   </tbody>
 </table>
@@ -139,9 +139,9 @@
 </div>
 
 <!-- Fix 2 -->
-<h2>Fix 2: Patient interview triage escalation <span class="priority-tag p-critical">Critical</span></h2>
+<h2>Fix 2: Patient intake triage escalation <span class="priority-tag p-critical">Critical</span></h2>
 <div class="fix-card">
-  <div class="fix-file">src/agent/prompts/intent/patient-interview.md:62 — replace Constraints section</div>
+  <div class="fix-file">src/agent/prompts/intent/patient-intake.md:62 — replace Constraints section</div>
   <div class="fix-why">
     <strong>Problem:</strong> Line 62 says "所有症状均按常规病史采集流程处理，不做紧急分诊判断". This explicitly disables triage in a patient-facing flow. A patient describing chest pain + dyspnea gets the same casual treatment as a headache.<br>
     <strong>Fix:</strong> Keep the general non-diagnosis stance but add a minimal escalation rule for life-threatening presentations.
@@ -165,11 +165,11 @@
 </div>
 
 <!-- Fix 3 -->
-<h2>Fix 3: interview.md missing `department` field <span class="priority-tag p-high">High</span></h2>
+<h2>Fix 3: intake.md missing `department` field <span class="priority-tag p-high">High</span></h2>
 <div class="fix-card">
-  <div class="fix-file">src/agent/prompts/intent/interview.md:47</div>
+  <div class="fix-file">src/agent/prompts/intent/intake.md:47</div>
   <div class="fix-why">
-    <strong>Problem:</strong> Field list omits <code>department</code> but <code>interview_models.py:17</code> accepts it. Doctor says "神经外科" and the model has no slot for it.
+    <strong>Problem:</strong> Field list omits <code>department</code> but <code>intake_models.py:17</code> accepts it. Doctor says "神经外科" and the model has no slot for it.
   </div>
   <div class="diff">
 <span class="hdr">## 可用字段</span>
@@ -232,11 +232,11 @@
 </div>
 
 <!-- Fix 6 -->
-<h2>Fix 6: interview.md diagnostic anchoring in example <span class="priority-tag p-high">High</span></h2>
+<h2>Fix 6: intake.md diagnostic anchoring in example <span class="priority-tag p-high">High</span></h2>
 <div class="fix-card">
-  <div class="fix-file">src/agent/prompts/intent/interview.md:69</div>
+  <div class="fix-file">src/agent/prompts/intent/intake.md:69</div>
   <div class="fix-why">
-    <strong>Problem:</strong> Example suggests "考虑急性胃肠炎" from just "肚子疼，3天了". This teaches the model to prematurely anchor on diagnoses during data collection. The interview assistant should never suggest diagnoses.
+    <strong>Problem:</strong> Example suggests "考虑急性胃肠炎" from just "肚子疼，3天了". This teaches the model to prematurely anchor on diagnoses during data collection. The intake assistant should never suggest diagnoses.
   </div>
   <div class="diff">
 <span class="hdr">示例1 suggestions:</span>
@@ -260,9 +260,9 @@
 </div>
 
 <!-- Fix 8 -->
-<h2>Fix 8: patient-interview.md — rule contradictions <span class="priority-tag p-medium">Medium</span></h2>
+<h2>Fix 8: patient-intake.md — rule contradictions <span class="priority-tag p-medium">Medium</span></h2>
 <div class="fix-card">
-  <div class="fix-file">src/agent/prompts/intent/patient-interview.md:18, 42-44</div>
+  <div class="fix-file">src/agent/prompts/intent/patient-intake.md:18, 42-44</div>
   <div class="fix-why">
     <strong>Problem:</strong> Rule 4 ("不在回复中复述已收集的信息") contradicts rules 16-17 ("必��说出具体内容���患者确认"). The model oscillates between repeating and not repeating.
   </div>
@@ -274,9 +274,9 @@
 </div>
 
 <!-- Fix 9 -->
-<h2>Fix 9: patient-interview.md — jargon in lay-language prompt <span class="priority-tag p-medium">Medium</span></h2>
+<h2>Fix 9: patient-intake.md — jargon in lay-language prompt <span class="priority-tag p-medium">Medium</span></h2>
 <div class="fix-card">
-  <div class="fix-file">src/agent/prompts/intent/patient-interview.md:33-39</div>
+  <div class="fix-file">src/agent/prompts/intent/patient-intake.md:33-39</div>
   <div class="fix-why">
     <strong>Problem:</strong> The prompt demands lay language (line 16), then the past-history checklist uses "��法林", "氯吡格雷", "抗凝/抗血小板". Most patients won't understand these terms.
   </div>
@@ -291,11 +291,11 @@
 </div>
 
 <!-- Fix 10 -->
-<h2>Fix 10: patient-interview.md — dead `complete` instruction <span class="priority-tag p-medium">Medium</span></h2>
+<h2>Fix 10: patient-intake.md — dead `complete` instruction <span class="priority-tag p-medium">Medium</span></h2>
 <div class="fix-card">
-  <div class="fix-file">src/agent/prompts/intent/patient-interview.md:53</div>
+  <div class="fix-file">src/agent/prompts/intent/patient-intake.md:53</div>
   <div class="fix-why">
-    <strong>Problem:</strong> Prompt says "设置 complete: true", but runtime schema (<code>interview_models.py</code>) doesn't accept this field. Readiness is computed server-side. Dead instruction wastes model attention.
+    <strong>Problem:</strong> Prompt says "设置 complete: true", but runtime schema (<code>intake_models.py</code>) doesn't accept this field. Readiness is computed server-side. Dead instruction wastes model attention.
   </div>
   <div class="diff">
 <span class="hdr">### ���束条件</span>
@@ -329,15 +329,15 @@
   <thead><tr><th>#</th><th>Fix</th><th>File</th><th>Priority</th><th>Effort</th><th>Impact</th></tr></thead>
   <tbody>
     <tr><td>1</td><td>Trust boundary</td><td class="mono">base.md</td><td><span class="priority-tag p-critical">Critical</span></td><td>5 min</td><td>All 5 prompts protected</td></tr>
-    <tr><td>2</td><td>Triage escalation</td><td class="mono">patient-interview.md</td><td><span class="priority-tag p-critical">Critical</span></td><td>10 min</td><td>Patient safety</td></tr>
-    <tr><td>3</td><td>Missing department</td><td class="mono">interview.md</td><td><span class="priority-tag p-high">High</span></td><td>1 min</td><td>Silent extraction fix</td></tr>
+    <tr><td>2</td><td>Triage escalation</td><td class="mono">patient-intake.md</td><td><span class="priority-tag p-critical">Critical</span></td><td>10 min</td><td>Patient safety</td></tr>
+    <tr><td>3</td><td>Missing department</td><td class="mono">intake.md</td><td><span class="priority-tag p-high">High</span></td><td>1 min</td><td>Silent extraction fix</td></tr>
     <tr><td>4</td><td>Normalize contradictions</td><td class="mono">doctor-extract.md</td><td><span class="priority-tag p-high">High</span></td><td>15 min</td><td>Extraction consistency</td></tr>
     <tr><td>5</td><td>Duplicate Background</td><td class="mono">diagnosis.md</td><td><span class="priority-tag p-high">High</span></td><td>2 min</td><td>Structure + tokens</td></tr>
-    <tr><td>6</td><td>Diagnostic anchoring</td><td class="mono">interview.md</td><td><span class="priority-tag p-high">High</span></td><td>1 min</td><td>Stop teaching bad pattern</td></tr>
+    <tr><td>6</td><td>Diagnostic anchoring</td><td class="mono">intake.md</td><td><span class="priority-tag p-high">High</span></td><td>1 min</td><td>Stop teaching bad pattern</td></tr>
     <tr><td>7</td><td>Patient question extraction</td><td class="mono">patient-extract.md</td><td><span class="priority-tag p-medium">Medium</span></td><td>5 min</td><td>Symptom capture</td></tr>
-    <tr><td>8</td><td>Rule contradiction</td><td class="mono">patient-interview.md</td><td><span class="priority-tag p-medium">Medium</span></td><td>2 min</td><td>Consistent behavior</td></tr>
-    <tr><td>9</td><td>Jargon in lay prompt</td><td class="mono">patient-interview.md</td><td><span class="priority-tag p-medium">Medium</span></td><td>5 min</td><td>Patient comprehension</td></tr>
-    <tr><td>10</td><td>Dead complete instruction</td><td class="mono">patient-interview.md</td><td><span class="priority-tag p-medium">Medium</span></td><td>2 min</td><td>Remove noise</td></tr>
+    <tr><td>8</td><td>Rule contradiction</td><td class="mono">patient-intake.md</td><td><span class="priority-tag p-medium">Medium</span></td><td>2 min</td><td>Consistent behavior</td></tr>
+    <tr><td>9</td><td>Jargon in lay prompt</td><td class="mono">patient-intake.md</td><td><span class="priority-tag p-medium">Medium</span></td><td>5 min</td><td>Patient comprehension</td></tr>
+    <tr><td>10</td><td>Dead complete instruction</td><td class="mono">patient-intake.md</td><td><span class="priority-tag p-medium">Medium</span></td><td>2 min</td><td>Remove noise</td></tr>
     <tr><td>11</td><td>Textbook prose examples</td><td class="mono">diagnosis.md</td><td><span class="priority-tag p-low">Low</span></td><td>10 min</td><td>Output quality</td></tr>
   </tbody>
 </table>

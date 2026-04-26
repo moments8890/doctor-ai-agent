@@ -3,7 +3,7 @@
 > Updated: 2026-03-17 | Based on stakeholder conversation + codebase audit
 >
 > **⚠️ CORRECTIONS (2026-03-27):**
-> - ADR 0016 (Patient Interview): **✅ Implemented** — multi-turn interview with session state machine
+> - ADR 0016 (Patient Intake): **✅ Implemented** — multi-turn intake with session state machine
 > - ADR 0017 (Patient Onboarding): **✅ Implemented** — QR token endpoint + unified auth + QRDialog
 > - ADR 0018 (Clinical Decision Support): **✅ Implemented** — full diagnosis pipeline + review UI
 > - ADR 0022 (Knowledge Base): **✅ Implemented** — manual KB CRUD + document upload + LLM processing + citation
@@ -20,7 +20,7 @@ with preliminary diagnostic suggestions; the system manages the full
 patient lifecycle from intake through follow-up.
 
 ```
-Patient → AI Interview → Structured Record → Doctor → AI Diagnosis → Decision
+Patient → AI Intake → Structured Record → Doctor → AI Diagnosis → Decision
 (pre-consult)  (voice Q&A)    (主诉/现病史/      (review,   (differential,
                                既往史/...)        modify)    treatment plan)
        ↑                                                          ↓
@@ -59,15 +59,15 @@ All features below are working end-to-end on `main`.
 The system currently has no way for patients to input clinical information
 themselves. The doctor must manually dictate everything.
 
-### F1.1 — AI-Guided Patient Interview
+### F1.1 — AI-Guided Patient Intake
 
-The AI conducts a structured clinical interview with the patient, acting as
+The AI conducts a structured clinical intake with the patient, acting as
 a junior doctor. Conversation is voice-primary (with text fallback).
 
 **Input:** Patient speaks/types symptoms.
 **Output:** Structured record with 主诉, 现病史, 既往史, 个人史, 婚育史, 家族史.
 
-Interview flow:
+Intake flow:
 1. Collect demographics (name, gender, age, phone — minimal)
 2. "你有什么不舒服？" → chief complaint
 3. Follow-up questions based on symptoms → present illness
@@ -77,8 +77,8 @@ Interview flow:
 5. Personal history (smoking, alcohol), family history
 6. Patient reviews generated summary → confirms → submits to doctor
 
-**ADR needed:** Yes — ADR 0016: Patient Pre-Consultation Interview Pipeline
-- Interview state machine (multi-turn, session-based)
+**ADR needed:** Yes — ADR 0016: Patient Pre-Consultation Intake Pipeline
+- Intake state machine (multi-turn, session-based)
 - How structured output maps to existing MedicalRecord schema
 - Voice input handling (STT provider, latency, error recovery)
 - Patient identity binding (no doctor_id at this stage)
@@ -241,7 +241,7 @@ Specialty-specific clinical knowledge:
 
 **ADR needed:** Yes — ADR 0022: Specialty Knowledge Base Architecture
 - Knowledge representation (graph? rules? embeddings?)
-- How it drives the patient interview (F1.1)
+- How it drives the patient intake (F1.1)
 - How it feeds diagnostic suggestions (F2.1)
 - Extensibility model for adding new specialties
 
@@ -260,7 +260,7 @@ After neurology is validated, replicate to:
 
 | ADR | Feature | Phase | Dependency |
 |-----|---------|-------|------------|
-| 0016 | Patient Pre-Consultation Interview Pipeline | 1 | None |
+| 0016 | Patient Pre-Consultation Intake Pipeline | 1 | None |
 | 0017 | Patient Onboarding & Identity | 1 | None |
 | 0018 | Clinical Decision Support Pipeline | 2 | F1.1 (needs structured input) |
 | 0019 | External Clinical AI Integration | 2 | ADR 0018 |
@@ -269,7 +269,7 @@ After neurology is validated, replicate to:
 | 0022 | Specialty Knowledge Base Architecture | 4 | F1.1, F2.1 |
 
 **Suggested implementation order:**
-1. ADR 0016 + 0017 (patient entry + interview) — unblocks everything
+1. ADR 0016 + 0017 (patient entry + intake) — unblocks everything
 2. ADR 0018 (diagnostic support) — highest value-add
 3. ADR 0022 (knowledge base) — drives quality of 0016 and 0018
 4. ADR 0019, 0020, 0021 — incremental additions

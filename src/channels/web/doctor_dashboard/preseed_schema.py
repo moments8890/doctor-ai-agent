@@ -17,7 +17,7 @@ class SeedSuggestion(BaseModel):
 
 class SeedRecord(BaseModel):
     key: str
-    record_type: str  # visit | interview_summary
+    record_type: str  # visit | intake_summary
     status: str  # completed | pending_review
     days_ago: int  # relative timestamp
     department: Optional[str] = None

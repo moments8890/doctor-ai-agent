@@ -1,4 +1,4 @@
-"""Simulation engine — runs one persona through the patient interview pipeline."""
+"""Simulation engine — runs one persona through the patient intake pipeline."""
 from __future__ import annotations
 
 import sqlite3
@@ -40,7 +40,7 @@ async def run_persona(
     patient_llm_provider: str,
     db_path: str,
 ) -> dict:
-    """Run a single persona end-to-end through the patient interview API.
+    """Run a single persona end-to-end through the patient intake API.
 
     Parameters
     ----------
@@ -93,10 +93,10 @@ async def run_persona(
         auth_headers = {"Authorization": f"Bearer {token}"}
 
         # ------------------------------------------------------------------
-        # 4. Start interview
+        # 4. Start intake
         # ------------------------------------------------------------------
         start_resp = await http.post(
-            f"{server}/api/patient/interview/start",
+            f"{server}/api/patient/intake/start",
             headers=auth_headers,
         )
         start_resp.raise_for_status()
@@ -106,7 +106,7 @@ async def run_persona(
         system_reply: str = start_data["reply"]
         collected: dict = start_data.get("collected", {})
         progress: dict = start_data.get("progress", {"filled": 0, "total": 0})
-        status: str = start_data.get("status", "interviewing")
+        status: str = start_data.get("status", "active")
 
         # Track the full conversation for the result
         conversation: list[dict] = [
@@ -114,7 +114,7 @@ async def run_persona(
         ]
 
         # ------------------------------------------------------------------
-        # 5. Interview loop
+        # 5. Intake loop
         # ------------------------------------------------------------------
         # Stress-test personas get higher turn limits
         max_turns = 50 if persona_id.startswith("STRESS") else 20
@@ -126,7 +126,7 @@ async def run_persona(
             # --- Stop conditions: respect the system's own completeness ---
             if complete:
                 break
-            if status != "interviewing":
+            if status != "active":
                 break
 
             # --- Generate patient response ---
@@ -141,7 +141,7 @@ async def run_persona(
 
             # --- Send turn to server ---
             turn_resp = await http.post(
-                f"{server}/api/patient/interview/turn",
+                f"{server}/api/patient/intake/turn",
                 headers=auth_headers,
                 json={
                     "session_id": session_id,
@@ -166,10 +166,10 @@ async def run_persona(
             conversation.append({"role": "system", "text": system_reply})
 
         # ------------------------------------------------------------------
-        # 6. Confirm interview
+        # 6. Confirm intake
         # ------------------------------------------------------------------
         confirm_resp = await http.post(
-            f"{server}/api/patient/interview/confirm",
+            f"{server}/api/patient/intake/confirm",
             headers=auth_headers,
             json={"session_id": session_id},
         )
@@ -216,7 +216,7 @@ async def run_persona(
 def cleanup_sim_data(db_path: str) -> int:
     """Delete all rows with doctor_id LIKE 'intsim_%'. Returns count deleted."""
     tables = [
-        "doctor_tasks", "medical_records", "interview_sessions",
+        "doctor_tasks", "medical_records", "intake_sessions",
         "patients", "doctor_contexts", "doctor_conversation_turns",
         "chat_archive", "doctors",
     ]

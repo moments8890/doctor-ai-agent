@@ -17,7 +17,7 @@ from db.models import (
     DoctorChatLog,
     DoctorKnowledgeItem,
     DoctorTask,
-    InterviewSessionDB,
+    IntakeSessionDB,
     MedicalRecordDB,
     Patient,
 )
@@ -191,7 +191,7 @@ async def _count_generic_tables(db, doctor_id: Optional[str]) -> dict:
         (AuditLog, "audit_log", AuditLog.doctor_id),
         (DoctorKnowledgeItem, "doctor_knowledge_items", DoctorKnowledgeItem.doctor_id),
         (DoctorChatLog, "doctor_chat_log", DoctorChatLog.doctor_id),
-        (InterviewSessionDB, "interview_sessions", InterviewSessionDB.doctor_id),
+        (IntakeSessionDB, "intake_sessions", IntakeSessionDB.doctor_id),
     ]:
         s = select(func.count()).select_from(model)
         if doctor_id:
@@ -204,7 +204,7 @@ async def _count_generic_tables(db, doctor_id: Optional[str]) -> dict:
 
 _TABLES_ORDER = [
     "doctors", "patients", "medical_records",
-    "doctor_tasks", "interview_sessions",
+    "doctor_tasks", "intake_sessions",
     "audit_log",
     "doctor_knowledge_items",
     "doctor_chat_log",

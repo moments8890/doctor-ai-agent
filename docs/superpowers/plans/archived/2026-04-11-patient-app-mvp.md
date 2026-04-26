@@ -606,10 +606,10 @@ git commit -m "feat(patient): add font scale picker and onboarding replay to MyP
 
 ---
 
-### Task 8: InterviewPage cleanup
+### Task 8: IntakePage cleanup
 
 **Files:**
-- Modify: `frontend/web/src/pages/patient/InterviewPage.jsx:138,179,192`
+- Modify: `frontend/web/src/pages/patient/IntakePage.jsx:138,179,192`
 
 - [ ] **Step 1: Replace native alert with ConfirmDialog**
 
@@ -647,8 +647,8 @@ Line 192: Replace `borderRadius: 2` with `borderRadius: RADIUS.sm`.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/web/src/pages/patient/InterviewPage.jsx
-git commit -m "fix(patient): replace native alert with ConfirmDialog, fix hardcoded borderRadius in InterviewPage"
+git add frontend/web/src/pages/patient/IntakePage.jsx
+git commit -m "fix(patient): replace native alert with ConfirmDialog, fix hardcoded borderRadius in IntakePage"
 ```
 
 ---
@@ -952,14 +952,14 @@ test.describe("Workflow 21 — Patient chat", () => {
  * Workflow 22 — Patient records
  */
 import { test, expect, authenticatePatientPage, registerDoctor, registerPatient } from "./fixtures/doctor-auth";
-import { completePatientInterview, addKnowledgeText } from "./fixtures/seed";
+import { completePatientIntake, addKnowledgeText } from "./fixtures/seed";
 
 test.describe("Workflow 22 — Patient records", () => {
-  test("completed interview shows in records list", async ({ page, request }) => {
+  test("completed intake shows in records list", async ({ page, request }) => {
     const doctor = await registerDoctor(request);
     const patient = await registerPatient(request, doctor.doctorId);
     await addKnowledgeText(request, doctor, "高血压患者头痛需排除高血压脑病");
-    await completePatientInterview(request, patient);
+    await completePatientIntake(request, patient);
 
     await authenticatePatientPage(page, patient, doctor.name);
     await page.goto("/patient/records");
@@ -973,7 +973,7 @@ test.describe("Workflow 22 — Patient records", () => {
     const doctor = await registerDoctor(request);
     const patient = await registerPatient(request, doctor.doctorId);
     await addKnowledgeText(request, doctor, "高血压患者头痛需排除高血压脑病");
-    await completePatientInterview(request, patient);
+    await completePatientIntake(request, patient);
 
     await authenticatePatientPage(page, patient, doctor.name);
     await page.goto("/patient/records");
@@ -1082,7 +1082,7 @@ Task 1 (fake reply) → Task 2 (dedup) → Task 3 (backend) → Task 4 (persona)
                                                                                     ↓
 Task 6 (onboarding) → Task 7 (MyPage)                                    Task 10 (fixture)
                                                                           Task 11 (seed helpers)
-Task 8 (InterviewPage) ────────────────────────────────────────────────→ Task 12 (E2E specs)
+Task 8 (IntakePage) ────────────────────────────────────────────────→ Task 12 (E2E specs)
 Task 9 (RecordsTab)
 ```
 

@@ -1,7 +1,7 @@
 """Regression: every /api/admin/* read endpoint must require an admin token.
 
 Production incident 2026-04-25: `https://api.doctoragentai.cn/api/admin/overview`
-was leaking the dashboard (doctor list, interview counts, AI acceptance rates)
+was leaking the dashboard (doctor list, intake counts, AI acceptance rates)
 to the public internet. Root cause: every endpoint in
 ``channels.web.doctor_dashboard.admin_overview`` was registered without any
 ``Depends(require_admin_role)`` or header-based token check. The existing

@@ -113,7 +113,7 @@ async def test_log_citations_multiple_ids(async_session):
         session=async_session,
         doctor_id="doc_1",
         cited_kb_ids=[item1.id, item2.id],
-        usage_context="interview",
+        usage_context="intake",
     )
     assert count == 2
 

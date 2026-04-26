@@ -1,15 +1,15 @@
 """medical_neuro_v1 — template binding + hook composition (Phase 4 r2 Task 8)."""
 from __future__ import annotations
 
-from domain.interview.hooks.medical import (
+from domain.intake.hooks.medical import (
     GenerateFollowupTasksHook, NotifyDoctorHook, TriggerDiagnosisPipelineHook,
 )
-from domain.interview.hooks.safety import SafetyScreenHook
-from domain.interview.templates import get_template
-from domain.interview.templates.medical_general import (
+from domain.intake.hooks.safety import SafetyScreenHook
+from domain.intake.templates import get_template
+from domain.intake.templates.medical_general import (
     MedicalBatchExtractor, MedicalRecordWriter,
 )
-from domain.interview.templates.medical_neuro import (
+from domain.intake.templates.medical_neuro import (
     GeneralNeuroExtractor, GeneralNeuroTemplate,
 )
 

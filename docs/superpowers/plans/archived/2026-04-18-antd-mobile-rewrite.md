@@ -816,17 +816,17 @@ git commit -m "feat(v2): add ChatComposer and ChatBubble shared components"
 
 ---
 
-### Task 9: Build InterviewPage (Chat) — Phase 1 Gate
+### Task 9: Build IntakePage (Chat) — Phase 1 Gate
 
 **Files:**
-- Create: `frontend/web/src/v2/pages/doctor/InterviewPage.jsx`
+- Create: `frontend/web/src/v2/pages/doctor/IntakePage.jsx`
 - Modify: `frontend/web/src/v2/pages/doctor/DoctorPage.jsx` (wire subpage)
 
-Reference: `frontend/web/src/pages/doctor/InterviewPage.jsx` (all business logic, API calls, state)
+Reference: `frontend/web/src/pages/doctor/IntakePage.jsx` (all business logic, API calls, state)
 
 This is the **Phase 1 gate** — must work in WeChat WebView on real device.
 
-- [ ] **Step 1: Create InterviewPage**
+- [ ] **Step 1: Create IntakePage**
 
 Build from scratch using:
 - `NavBar` for header ("新建病历" + back + help)
@@ -837,15 +837,15 @@ Build from scratch using:
 - `keyboardAwareStyle` from keyboard.js on the outer container
 - `useScrollOnKeyboard(bottomRef)` for scroll-to-bottom
 
-Port ALL business logic from old InterviewPage:
-- `doctorInterviewTurn`, `doctorInterviewConfirm`, `doctorInterviewCancel`
+Port ALL business logic from old IntakePage:
+- `doctorIntakeTurn`, `doctorIntakeConfirm`, `doctorIntakeCancel`
 - Session state, progress tracking, carry-forward, import items
-- Field review, interview complete dialog
+- Field review, intake complete dialog
 - All error handling
 
 - [ ] **Step 2: Wire into DoctorPage**
 
-Add InterviewPage as a subpage route inside DoctorPage.
+Add IntakePage as a subpage route inside DoctorPage.
 
 - [ ] **Step 3: Build and test**
 
@@ -867,8 +867,8 @@ Verify:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/web/src/v2/pages/doctor/InterviewPage.jsx
-git commit -m "feat(v2): rewrite InterviewPage with antd-mobile — Phase 1 gate"
+git add frontend/web/src/v2/pages/doctor/IntakePage.jsx
+git commit -m "feat(v2): rewrite IntakePage with antd-mobile — Phase 1 gate"
 ```
 
 ---
@@ -886,7 +886,7 @@ Each task follows the same pattern: create the page from scratch using antd-mobi
 **antd-mobile components:** `List`, `List.Item`, `SearchBar`, `NavBar`, `Card`, `Dialog.confirm()`, `Popup`, `TextArea`, `Button`, `Tag`, `SpinLoading`, `ErrorBlock`
 
 **Business logic to port from:**
-- `frontend/web/src/pages/doctor/PatientsPage.jsx` — patient list, search, import, interview launch
+- `frontend/web/src/pages/doctor/PatientsPage.jsx` — patient list, search, import, intake launch
 - `frontend/web/src/pages/doctor/patients/PatientDetail.jsx` — message timeline, reply input, draft editing, teach flow
 
 **Chat features:** PatientDetail uses ChatComposer for reply input + ChatBubble for messages.
@@ -978,14 +978,14 @@ Each task follows the same pattern: create the page from scratch using antd-mobi
 
 ---
 
-### Task 18: Patient InterviewPage
+### Task 18: Patient IntakePage
 
 **Files:**
-- Create: `frontend/web/src/v2/pages/patient/InterviewPage.jsx`
+- Create: `frontend/web/src/v2/pages/patient/IntakePage.jsx`
 
 **antd-mobile components:** Uses `ChatComposer` + `ChatBubble` + `NavBar`, `Button`, `Dialog.confirm()`, `Popup`
 
-**Business logic from:** `frontend/web/src/pages/patient/InterviewPage.jsx` — interview session, suggestions, summary, confirm
+**Business logic from:** `frontend/web/src/pages/patient/IntakePage.jsx` — intake session, suggestions, summary, confirm
 
 ---
 

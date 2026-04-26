@@ -290,9 +290,9 @@ async def patient_upload(
     file_bytes = await file.read()
 
     try:
-        from domain.records.vision_import import import_to_interview
+        from domain.records.vision_import import import_to_intake
 
-        result = await import_to_interview(
+        result = await import_to_intake(
             file_bytes=file_bytes,
             filename=file.filename or "upload",
             content_type=file.content_type or "",

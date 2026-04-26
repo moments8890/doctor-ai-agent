@@ -8,7 +8,7 @@ is populated. On confirm the full patient-mode hook list (diagnosis +
 doctor notification + safety screen) dispatches.
 
 This is a sim scenario, not an HTTP integration test — it drives the
-real ``InterviewEngine`` with a mocked ``structured_call`` so the
+real ``IntakeEngine`` with a mocked ``structured_call`` so the
 scenario is deterministic and fast. The post-confirm writer is mocked
 too (we don't need to write a ``medical_records`` row to verify hook
 dispatch). The real hooks run, with their side-effectful dependencies
@@ -26,9 +26,9 @@ import pytest
 
 from db.engine import AsyncSessionLocal
 from db.models.doctor import Doctor
-from domain.interview.engine import InterviewEngine
-from domain.interview.protocols import PersistRef
-from domain.patients.interview_session import create_session, load_session
+from domain.intake.engine import IntakeEngine
+from domain.intake.protocols import PersistRef
+from domain.patients.intake_session import create_session, load_session
 
 
 # ── helpers ──────────────────────────────────────────────────────────────
@@ -114,10 +114,10 @@ async def test_neuro_happy_path_full_conversation_and_confirm():
         ),
     ]
 
-    engine = InterviewEngine()
+    engine = IntakeEngine()
     for user_input, reply, extracted in turns:
         with patch(
-            "domain.interview.engine.structured_call",
+            "domain.intake.engine.structured_call",
             new=AsyncMock(
                 return_value=_mock_llm_response(reply, extracted),
             ),
@@ -142,21 +142,21 @@ async def test_neuro_happy_path_full_conversation_and_confirm():
     fake_ref = PersistRef(kind="medical_record", id=12345)
 
     with patch(
-        "domain.interview.templates.medical_general.MedicalRecordWriter.persist",
+        "domain.intake.templates.medical_general.MedicalRecordWriter.persist",
         new=AsyncMock(return_value=fake_ref),
     ), patch(
-        "domain.interview.templates.medical_general.MedicalBatchExtractor.extract",
+        "domain.intake.templates.medical_general.MedicalBatchExtractor.extract",
         # Batch re-extract returns the already-merged collected verbatim so
         # the final state equals what the per-turn extractor produced.
         new=AsyncMock(return_value=dict(loaded.collected)),
     ), patch(
-        "domain.interview.hooks.medical.TriggerDiagnosisPipelineHook.run",
+        "domain.intake.hooks.medical.TriggerDiagnosisPipelineHook.run",
         new_callable=AsyncMock,
     ) as mock_dx, patch(
-        "domain.interview.hooks.medical.NotifyDoctorHook.run",
+        "domain.intake.hooks.medical.NotifyDoctorHook.run",
         new_callable=AsyncMock,
     ) as mock_notify_hook, patch(
-        "domain.interview.hooks.safety._send_doctor_notification",
+        "domain.intake.hooks.safety._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_safety_notify:
         ref = await engine.confirm(session_id=session.id)
@@ -170,7 +170,7 @@ async def test_neuro_happy_path_full_conversation_and_confirm():
     mock_notify_hook.assert_awaited_once()
 
     # SafetyScreenHook fires too — this "happy path" case clinically
-    # presents with stroke-like red flags ("言语不清" is a literal keyword
+    # presents with stroke-like signal flags ("言语不清" is a literal keyword
     # in ``_DANGER_KEYWORDS``). A neuro happy-path E2E therefore SHOULD
     # produce a 【危险信号】 alert; the hook running correctly is part of
     # what "happy" means for medical_neuro_v1. Pins that the alert fires

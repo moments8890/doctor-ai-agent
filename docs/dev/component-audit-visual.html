@@ -452,7 +452,7 @@
       <div class="finding-number high">2</div>
       <div style="flex:1">
         <div class="finding-title">MsgAvatar &rarr; new shared component</div>
-        <div class="finding-meta">ChatPage + InterviewPage + DoctorPage all build the same avatar</div>
+        <div class="finding-meta">ChatPage + IntakePage + DoctorPage all build the same avatar</div>
       </div>
       <span class="confidence-badge high">HIGH</span>
       <span class="toggle-icon open">&#9662;</span>
@@ -460,7 +460,7 @@
     <div class="finding-body">
       <div class="tag-row">
         <span class="file-tag">ChatPage.jsx:41-50</span>
-        <span class="file-tag">InterviewPage.jsx:32-46</span>
+        <span class="file-tag">IntakePage.jsx:32-46</span>
         <span class="file-tag">DoctorPage.jsx:171-192</span>
       </div>
 
@@ -482,7 +482,7 @@
                 <div class="mock-avatar user">&#9877;</div>
                 <div class="mock-bubble user">查一下张阿姨的检验结果</div>
               </div>
-              <div style="font-size:10px;color:var(--text4);margin-top:12px;font-weight:600;">InterviewPage version:</div>
+              <div style="font-size:10px;color:var(--text4);margin-top:12px;font-weight:600;">IntakePage version:</div>
               <div class="mock-msg-row" style="margin-top:4px;">
                 <div class="mock-avatar ai" style="width:32px;height:32px;font-size:14px;">&#129302;</div>
                 <div class="mock-bubble ai" style="font-size:13px;">请输入患者信息</div>
@@ -551,7 +551,7 @@
       <div class="finding-number high">3</div>
       <div style="flex:1">
         <div class="finding-title">nowTs() &rarr; shared utility</div>
-        <div class="finding-meta">Identical function in ChatPage + InterviewPage</div>
+        <div class="finding-meta">Identical function in ChatPage + IntakePage</div>
       </div>
       <span class="confidence-badge high">HIGH</span>
       <span class="toggle-icon open">&#9662;</span>
@@ -559,7 +559,7 @@
     <div class="finding-body">
       <div class="tag-row">
         <span class="file-tag">ChatPage.jsx:310</span>
-        <span class="file-tag">InterviewPage.jsx:27</span>
+        <span class="file-tag">IntakePage.jsx:27</span>
       </div>
 
       <div class="compare-grid">
@@ -572,7 +572,7 @@
   <span class="kw">return</span> <span class="str">`${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`</span>;
 }
 
-<span class="cm">// InterviewPage.jsx:27 &mdash; EXACT SAME</span>
+<span class="cm">// IntakePage.jsx:27 &mdash; EXACT SAME</span>
 <span class="kw">function</span> <span class="fn">nowTs</span>() {
   <span class="kw">const</span> d = <span class="kw">new</span> Date();
   <span class="kw">return</span> <span class="str">`${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`</span>;
@@ -592,7 +592,7 @@
 <span class="cm">// ChatPage.jsx</span>
 <span class="add">import { nowTs } from "../../utils/time";</span>
 
-<span class="cm">// InterviewPage.jsx</span>
+<span class="cm">// IntakePage.jsx</span>
 <span class="add">import { nowTs } from "../../utils/time";</span></div>
           </div>
         </div>

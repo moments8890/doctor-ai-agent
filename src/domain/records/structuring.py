@@ -10,7 +10,7 @@ import os
 from typing import Optional
 
 from db.models.medical_record import MedicalRecord
-from domain.patients.interview_summary import (
+from domain.patients.intake_summary import (
     DoctorExtractResult,
     generate_content,
     extract_tags,
@@ -153,18 +153,18 @@ async def extract_fields_from_text(text: str) -> dict:
     return collected
 
 
-async def text_to_interview(
+async def text_to_intake(
     text: str,
     doctor_id: str,
     patient_id: Optional[int] = None,
 ) -> dict:
-    """Extract fields from text → create interview session for doctor review.
+    """Extract fields from text → create intake session for doctor review.
 
     Returns dict with session_id and pre-populated fields.
     """
     fields = await extract_fields_from_text(text)
 
-    from domain.patients.interview_session import create_session
+    from domain.patients.intake_session import create_session
 
     session = await create_session(
         doctor_id=doctor_id,

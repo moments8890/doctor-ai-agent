@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fix the 5 highest-priority issues from the QA/dogfood backlog, ordered by Codex's recommended priority: review finalize gating (ship-blocker), knowledge onboarding bug, interview error resilience, onboarding completion semantics, and diagnosis proof data cleanup.
+**Goal:** Fix the 5 highest-priority issues from the QA/dogfood backlog, ordered by Codex's recommended priority: review finalize gating (ship-blocker), knowledge onboarding bug, intake error resilience, onboarding completion semantics, and diagnosis proof data cleanup.
 
 **Architecture:** Each fix is isolated to 1-2 files. No cross-task dependencies except Task 5 (proof data) depends on Task 2 (onboarding state) sharing the same state shape. All fixes are backend+frontend pairs or frontend-only.
 
@@ -131,31 +131,31 @@ Open as clean doctor. Go through onboarding step 2. Confirm:
 
 ---
 
-## Task 3: Interview "系统繁忙" — Add Retry Hint + Better Error
+## Task 3: Intake "系统繁忙" — Add Retry Hint + Better Error
 
 **Problem:** After 3 LLM failures, the patient sees "系统暂时繁忙，请稍后再试" with no way to retry. The frontend also has its own generic fallback. This is a transient error that usually resolves on retry.
 
 **Files:**
-- Modify: `src/domain/patients/interview_turn.py:263-275`
-- Modify: `frontend/web/src/pages/patient/InterviewPage.jsx:124` (error handler)
+- Modify: `src/domain/patients/intake_turn.py:263-275`
+- Modify: `frontend/web/src/pages/patient/IntakePage.jsx:124` (error handler)
 
 - [ ] **Step 1: Backend — return a retryable status in the response**
 
-In `interview_turn.py`, update the error branch (lines 263-275). Replace:
+In `intake_turn.py`, update the error branch (lines 263-275). Replace:
 
 ```python
     if llm_response is None:
         if isinstance(last_error, (json.JSONDecodeError, KeyError, TypeError, ValueError)):
             reply = "抱歉，我没有理解，请再说一次。"
         else:
-            log(f"[interview] LLM call failed after 3 attempts: {last_error}", level="error")
+            log(f"[intake] LLM call failed after 3 attempts: {last_error}", level="error")
             reply = "系统暂时繁忙，请稍后再试。"
         session.conversation.append({"role": "assistant", "content": reply})
         await save_session(session)
-        return InterviewResponse(
+        return IntakeResponse(
             reply=reply, collected=session.collected,
             progress=_build_progress(session.collected, mode), status=session.status,
-            ready_to_review=session.status == InterviewStatus.reviewing,
+            ready_to_review=session.status == IntakeStatus.reviewing,
         )
 ```
 
@@ -167,32 +167,32 @@ with:
             reply = "抱歉，我没有理解，请再说一次。"
             is_retryable = False
         else:
-            log(f"[interview] LLM call failed after 3 attempts: {last_error}", level="error")
+            log(f"[intake] LLM call failed after 3 attempts: {last_error}", level="error")
             reply = "系统暂时繁忙，请重新发送您的回答。"
             is_retryable = True
         session.conversation.append({"role": "assistant", "content": reply})
         await save_session(session)
-        return InterviewResponse(
+        return IntakeResponse(
             reply=reply, collected=session.collected,
             progress=_build_progress(session.collected, mode), status=session.status,
-            ready_to_review=session.status == InterviewStatus.reviewing,
+            ready_to_review=session.status == IntakeStatus.reviewing,
             retryable=is_retryable,
         )
 ```
 
-- [ ] **Step 2: Add retryable field to InterviewResponse if not present**
+- [ ] **Step 2: Add retryable field to IntakeResponse if not present**
 
-Check `InterviewResponse` model. If `retryable` field doesn't exist, add it:
+Check `IntakeResponse` model. If `retryable` field doesn't exist, add it:
 
 ```python
-class InterviewResponse(BaseModel):
+class IntakeResponse(BaseModel):
     # ... existing fields ...
     retryable: bool = False
 ```
 
 - [ ] **Step 3: Frontend — show retry button on transient errors**
 
-In `InterviewPage.jsx`, update the catch block (around line 124). Replace the generic error:
+In `IntakePage.jsx`, update the catch block (around line 124). Replace the generic error:
 
 ```javascript
 setMessages(prev => [...prev, { role: "assistant", content: "系统繁忙，请稍后重试。" }]);
@@ -226,7 +226,7 @@ The wizard uses `canAdvance` state per step. The fix is to ensure each step corr
 
 - **Step 1 (Knowledge):** Already correct — `setCanAdvance(false)` until `allDone` is true (all 3 sources). No change needed.
 - **Step 2 (Diagnosis proof):** Should set `canAdvance` only after the doctor has actually reviewed at least one suggestion. Check if `proofData` alone is sufficient or if we need review evidence.
-- **Step 5 (Patient preview):** Should set `canAdvance` only after patient interview reaches review state.
+- **Step 5 (Patient preview):** Should set `canAdvance` only after patient intake reaches review state.
 
 For each step that's currently click-gated, find the `setCanAdvance(true)` call and add the actual completion condition.
 
@@ -337,7 +337,7 @@ After all tasks, run the core E2E regression to confirm nothing broke:
 # Then specifically verify:
 # - TC-4.3: 完成审核 with undecided suggestions should be blocked
 # - Onboarding wizard requires 3 knowledge sources
-# - Patient interview transient errors show retry-friendly message
+# - Patient intake transient errors show retry-friendly message
 ```
 
 ---

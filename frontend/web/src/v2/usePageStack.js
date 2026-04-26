@@ -53,10 +53,10 @@ export function usePageStack(routeKey, renderContent) {
       timerRef.current = null;
     }
 
-    // TEMP: force no-animation for interview overlay to debug iPhone blank
+    // TEMP: force no-animation for intake overlay to debug iPhone blank
     // page. If this resolves the bug, the root cause is animation-related
     // (rAF, transform, transition). Remove once diagnosed.
-    const noAnim = prefersReducedMotion() || routeKey === "interview";
+    const noAnim = prefersReducedMotion() || routeKey === "intake";
     const isReplace = navType === "REPLACE";
 
     if (routeKey && !prev) {

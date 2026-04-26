@@ -16,7 +16,7 @@ print(data['categories']['llm']['settings']['GROQ_API_KEY']['value'])
 
 ALL_PROMPTS=(
   doctor-extract doctor-extract-realistic patient-extract routing
-  interview patient-interview query general
+  intake patient-intake query general
   diagnosis followup_reply vision-ocr
   triage-classify triage-informational triage-escalation knowledge-ingest
   voice-to-rule persona-classify

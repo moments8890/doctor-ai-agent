@@ -143,7 +143,7 @@ class SeedSuggestion(BaseModel):
 
 class SeedRecord(BaseModel):
     key: str
-    record_type: str  # visit | interview_summary
+    record_type: str  # visit | intake_summary
     status: str  # completed | pending_review
     days_ago: int  # relative timestamp
     chief_complaint: Optional[str] = None
@@ -261,7 +261,7 @@ Create `src/channels/web/ui/preseed_data.json` with the full content. Structure:
         },
         {
           "key": "postop_2w",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "pending_review",
           "days_ago": 0,
           "chief_complaint": "双侧颈深LVB术后2周复查",
@@ -316,7 +316,7 @@ Create `src/channels/web/ui/preseed_data.json` with the full content. Structure:
         },
         {
           "key": "postop_1m",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "pending_review",
           "days_ago": 0,
           "chief_complaint": "右侧LVB术后1月，右颈肿胀伴头晕加重1天",
@@ -360,7 +360,7 @@ Create `src/channels/web/ui/preseed_data.json` with the full content. Structure:
         },
         {
           "key": "first_visit",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "pending_review",
           "days_ago": 0,
           "chief_complaint": "记忆力进行性下降2年，找词困难半年",
@@ -407,7 +407,7 @@ Create `src/channels/web/ui/preseed_data.json` with the full content. Structure:
         },
         {
           "key": "first_visit",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "pending_review",
           "days_ago": 0,
           "chief_complaint": "视物模糊伴记忆力下降1年，反复头晕半年",
@@ -465,7 +465,7 @@ Create `src/channels/web/ui/preseed_data.json` with the full content. Structure:
         },
         {
           "key": "postop_6m",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "pending_review",
           "days_ago": 0,
           "chief_complaint": "双侧LVB术后6月，认知功能部分回退2月",

@@ -14,7 +14,7 @@
  *   - addKnowledgeText → 2xx
  *   - addPersonaRule → 2xx
  *   - sendPatientMessage → 2xx
- *   - completePatientInterview → returns record_id
+ *   - completePatientIntake → returns record_id
  *   - backend /api/health → 2xx (frontend is reachable separately)
  *
  * This is not a UI test. It only hits the backend API and asserts 2xx. If
@@ -33,7 +33,7 @@ import {
   addKnowledgeText,
   addPersonaRule,
   sendPatientMessage,
-  completePatientInterview,
+  completePatientIntake,
 } from "./fixtures/seed";
 
 test.describe("工作流 00 — 基础冒烟测试", () => {
@@ -131,13 +131,13 @@ test.describe("工作流 00 — 基础冒烟测试", () => {
   test("完成患者问诊返回记录ID", async ({ request, steps }) => {
     const doctor = await registerDoctor(request);
     const patient = await registerPatient(request, doctor.doctorId);
-    // Seed a knowledge rule so the interview has context for diagnosis later.
+    // Seed a knowledge rule so the intake has context for diagnosis later.
     await addKnowledgeText(
       request,
       doctor,
       "高血压患者头痛需排除高血压脑病与颅内出血",
     );
-    const { recordId } = await completePatientInterview(request, patient);
+    const { recordId } = await completePatientIntake(request, patient);
     expect(recordId).toBeTruthy();
   });
 });

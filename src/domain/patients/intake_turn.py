@@ -1,6 +1,6 @@
-"""Interview turn handler — DEPRECATED shim.
+"""Intake turn handler — DEPRECATED shim.
 
-Phase 2.5 moved the turn loop into domain.interview.engine.InterviewEngine.
+Phase 2.5 moved the turn loop into domain.intake.engine.IntakeEngine.
 This module now forwards to the engine and re-exports legacy symbols for
 callers not yet migrated. Delete one release after Phase 2.5 ships.
 """
@@ -10,8 +10,8 @@ import asyncio as _asyncio_lock
 import warnings
 
 warnings.warn(
-    "domain.patients.interview_turn is deprecated; use "
-    "domain.interview.engine.InterviewEngine.next_turn instead.",
+    "domain.patients.intake_turn is deprecated; use "
+    "domain.intake.engine.IntakeEngine.next_turn instead.",
     DeprecationWarning,
     stacklevel=2,
 )
@@ -38,33 +38,33 @@ def release_session_lock(session_id: str) -> None:
 
 # ---- legacy symbol re-exports ----------------------------------------------
 
-from domain.patients.interview_models import (
+from domain.patients.intake_models import (
     MAX_TURNS,
     ExtractedClinicalFields,
     FIELD_LABELS,
-    InterviewLLMResponse,
-    InterviewResponse,
+    IntakeLLMResponse,
+    IntakeResponse,
     _build_progress,
 )
 
 
-# ---- interview_turn: forward to engine -------------------------------------
+# ---- intake_turn: forward to engine -------------------------------------
 
-async def interview_turn(session_id: str, patient_text: str) -> InterviewResponse:
-    """DEPRECATED — use InterviewEngine.next_turn directly.
+async def intake_turn(session_id: str, patient_text: str) -> IntakeResponse:
+    """DEPRECATED — use IntakeEngine.next_turn directly.
 
-    Forwards to the engine and rebuilds a legacy InterviewResponse from the
+    Forwards to the engine and rebuilds a legacy IntakeResponse from the
     engine's TurnResult + a session reload. Identical behavior, longer call path.
     """
-    from domain.interview.engine import InterviewEngine
-    from domain.patients.interview_session import load_session
+    from domain.intake.engine import IntakeEngine
+    from domain.patients.intake_session import load_session
 
-    engine = InterviewEngine()
+    engine = IntakeEngine()
     result = await engine.next_turn(session_id, patient_text)
 
     reloaded = await load_session(session_id)
     if reloaded is None:
-        return InterviewResponse(
+        return IntakeResponse(
             reply=result.reply, collected={},
             progress={"filled": 0, "total": 0}, status="error",
             missing=list(result.state.required_missing + result.state.recommended_missing),
@@ -72,7 +72,7 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
             ready_to_review=result.state.can_complete,
         )
 
-    return InterviewResponse(
+    return IntakeResponse(
         reply=result.reply,
         collected=reloaded.collected,
         progress=_build_progress(reloaded.collected, reloaded.mode),
@@ -89,11 +89,11 @@ async def interview_turn(session_id: str, patient_text: str) -> InterviewRespons
 __all__ = [
     "MAX_TURNS",
     "ExtractedClinicalFields",
-    "InterviewLLMResponse",
-    "InterviewResponse",
+    "IntakeLLMResponse",
+    "IntakeResponse",
     "FIELD_LABELS",
     "_build_progress",
-    "interview_turn",
+    "intake_turn",
     "get_session_lock",
     "release_session_lock",
 ]

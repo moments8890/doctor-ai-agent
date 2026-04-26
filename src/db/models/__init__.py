@@ -13,7 +13,7 @@ from db.models.runtime import RuntimeToken
 from db.models.audit import AuditLog
 from db.models.medical_record import MedicalRecord
 from db.models.patient_message import PatientMessage
-from db.models.interview_session import InterviewSessionDB, InterviewStatus
+from db.models.intake_session import IntakeSessionDB, IntakeStatus
 from db.models.doctor_chat_log import DoctorChatLog, ChatRole
 from db.models.ai_suggestion import (
     AISuggestion,
@@ -46,7 +46,7 @@ __all__ = [
     "AuditLog",
     "MedicalRecord",
     "PatientMessage",
-    "InterviewSessionDB", "InterviewStatus",
+    "IntakeSessionDB", "IntakeStatus",
     "DoctorChatLog", "ChatRole",
     "AISuggestion", "SuggestionSection", "SuggestionDecision",
     "FeedbackReasonTag", "FeedbackDoctorAction",

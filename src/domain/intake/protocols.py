@@ -1,6 +1,6 @@
-"""Polymorphic interview pipeline — protocol surface.
+"""Polymorphic intake pipeline — protocol surface.
 
-Spec: docs/superpowers/specs/2026-04-22-interview-pipeline-extensibility-design.md §3a.
+Spec: docs/superpowers/specs/2026-04-22-intake-pipeline-extensibility-design.md §3a.
 
 This file defines shapes only — no runtime behavior. Runtime impl lives in
 engine.py (generic) and templates/<name>.py (per-template).
@@ -68,7 +68,7 @@ class TurnResult(BaseModel):
 
 
 class SessionState(BaseModel):
-    """Read-model view of an interview session exposed to the engine + templates.
+    """Read-model view of an intake session exposed to the engine + templates.
     Templates MUST NOT mutate this directly; the engine owns writes."""
     id: str
     doctor_id: str

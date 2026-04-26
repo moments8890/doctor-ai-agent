@@ -19,10 +19,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-from channels.web.doctor_interview.shared import FieldUpdateRequest
-from channels.web.doctor_interview.turn import update_interview_field
-from domain.interview.protocols import FieldSpec
-from domain.patients.interview_session import InterviewSession
+from channels.web.doctor_intake.shared import FieldUpdateRequest
+from channels.web.doctor_intake.turn import update_intake_field
+from domain.intake.protocols import FieldSpec
+from domain.patients.intake_session import IntakeSession
 
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -31,8 +31,8 @@ from domain.patients.interview_session import InterviewSession
 def _make_session(
     template_id: str = "medical_general_v1",
     collected: dict[str, str] | None = None,
-) -> InterviewSession:
-    return InterviewSession(
+) -> IntakeSession:
+    return IntakeSession(
         id="session-uuid-test",
         doctor_id="dr_test",
         patient_id=1,
@@ -59,7 +59,7 @@ def _fake_template(field_names: list[str]):
 
 async def _call_patch(
     *,
-    session: InterviewSession,
+    session: IntakeSession,
     field: str,
     value: str,
     template=None,
@@ -78,17 +78,17 @@ async def _call_patch(
 
     patchers = [
         patch(
-            "channels.web.doctor_interview.turn._resolve_doctor_id",
+            "channels.web.doctor_intake.turn._resolve_doctor_id",
             new_callable=AsyncMock,
             return_value=session.doctor_id,
         ),
         patch(
-            "channels.web.doctor_interview.turn._verify_session",
+            "channels.web.doctor_intake.turn._verify_session",
             new_callable=AsyncMock,
             return_value=session,
         ),
         patch(
-            "channels.web.doctor_interview.turn.save_session",
+            "channels.web.doctor_intake.turn.save_session",
             new_callable=AsyncMock,
             return_value=None,
         ),
@@ -96,7 +96,7 @@ async def _call_patch(
     if template is not None:
         patchers.append(
             patch(
-                "channels.web.doctor_interview.turn.get_template",
+                "channels.web.doctor_intake.turn.get_template",
                 return_value=template,
             )
         )
@@ -104,7 +104,7 @@ async def _call_patch(
     for p in patchers:
         p.start()
     try:
-        return await update_interview_field(body=body, authorization="fake-token")
+        return await update_intake_field(body=body, authorization="fake-token")
     finally:
         for p in patchers:
             p.stop()

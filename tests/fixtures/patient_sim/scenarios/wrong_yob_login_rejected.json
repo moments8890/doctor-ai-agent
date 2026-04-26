@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "id": "wrong_yob_login_rejected",
-  "scenario_type": "patient_interview",
+  "scenario_type": "patient_intake",
   "title": "Wrong YOB login rejected",
   "tags": [
     "regression",
@@ -18,10 +18,10 @@
     "year_of_birth": 1999
   },
   "input": {
-    "mode": "patient_interview"
+    "mode": "patient_intake"
   },
   "execution": {
-    "entrypoint": "patient.interview.chat",
+    "entrypoint": "patient.intake.chat",
     "auto_confirm": false,
     "timeout_seconds": 60
   },

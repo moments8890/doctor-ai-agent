@@ -1,4 +1,4 @@
-"""Patient interview API endpoints (ADR 0016)."""
+"""Patient intake API endpoints (ADR 0016)."""
 from __future__ import annotations
 
 from typing import Optional
@@ -9,19 +9,19 @@ from pydantic import BaseModel, Field
 from channels.web.patient_portal.auth import _authenticate_patient
 
 
-class InterviewTurnRequest(BaseModel):
+class IntakeTurnRequest(BaseModel):
     session_id: str = Field(..., max_length=64)
     # Patient-controlled free text. 16k chars is generous for a single
-    # interview turn but bounded so a malicious client can't DOS by
+    # intake turn but bounded so a malicious client can't DOS by
     # POSTing megabyte-scale strings.
     text: str = Field(..., max_length=16000)
 
 
-class InterviewSessionRequest(BaseModel):
+class IntakeSessionRequest(BaseModel):
     session_id: str = Field(..., max_length=64)
 
 
-class InterviewStartRequest(BaseModel):
+class IntakeStartRequest(BaseModel):
     """Optional body for /start — lets the patient portal pass an explicit
     ``template_id``. When omitted the handler falls back to the doctor's
     ``preferred_template_id`` and finally to ``medical_general_v1``.
@@ -29,17 +29,17 @@ class InterviewStartRequest(BaseModel):
     template_id: Optional[str] = Field(default=None, max_length=64)
 
 
-from db.models.interview_session import InterviewStatus
+from db.models.intake_session import IntakeStatus
 from domain.patients.completeness import count_filled
-from domain.patients.interview_session import (
+from domain.patients.intake_session import (
     create_session,
     get_active_session,
     load_session,
     save_session,
 )
-from domain.patients.interview_summary import confirm_interview
-from domain.interview.engine import InterviewEngine
-from domain.interview.templates import UnknownTemplate, get_template
+from domain.patients.intake_summary import confirm_intake
+from domain.intake.engine import IntakeEngine
+from domain.intake.templates import UnknownTemplate, get_template
 
 
 def _session_readiness(session) -> tuple[bool, list[str]]:
@@ -58,15 +58,15 @@ def _session_readiness(session) -> tuple[bool, list[str]]:
     state = template.extractor.completeness(session.collected or {}, "patient")
     return state.can_complete, list(state.required_missing)
 
-router = APIRouter(prefix="/api/patient/interview", tags=["patient-interview"])
+router = APIRouter(prefix="/api/patient/intake", tags=["patient-intake"])
 
-_ENGINE: InterviewEngine | None = None
+_ENGINE: IntakeEngine | None = None
 
 
-def _get_engine() -> InterviewEngine:
+def _get_engine() -> IntakeEngine:
     global _ENGINE
     if _ENGINE is None:
-        _ENGINE = InterviewEngine()
+        _ENGINE = IntakeEngine()
     return _ENGINE
 
 
@@ -126,12 +126,12 @@ async def _resolve_start_template_id(
 
 
 @router.post("/start")
-async def start_interview(
+async def start_intake(
     authorization: Optional[str] = Header(default=None),
     template_id: Optional[str] = Query(default=None),
-    body: Optional[InterviewStartRequest] = None,
+    body: Optional[IntakeStartRequest] = None,
 ):
-    """Create or resume an interview session.
+    """Create or resume an intake session.
 
     ``template_id`` may be supplied either as a query parameter or inside the
     JSON body. Resolution order on a fresh session:
@@ -148,10 +148,10 @@ async def start_interview(
     if active:
         can_complete, _missing = _session_readiness(active)
         ready_to_review = (
-            active.status == InterviewStatus.reviewing or can_complete
+            active.status == IntakeStatus.reviewing or can_complete
         )
-        if ready_to_review and active.status != InterviewStatus.reviewing:
-            active.status = InterviewStatus.reviewing
+        if ready_to_review and active.status != IntakeStatus.reviewing:
+            active.status = IntakeStatus.reviewing
             await save_session(active)
         return {
             "session_id": active.id,
@@ -164,7 +164,7 @@ async def start_interview(
             "collected": active.collected,
             "conversation": active.conversation or [],
             "progress": {"filled": count_filled(active.collected), "total": 7},
-            "status": InterviewStatus.reviewing if ready_to_review else active.status,
+            "status": IntakeStatus.reviewing if ready_to_review else active.status,
             "ready_to_review": ready_to_review,
             "resumed": True,
         }
@@ -185,7 +185,7 @@ async def start_interview(
         "reply": f"您好！我是{doctor_name if doctor_name.endswith('医生') else doctor_name + '医生'}的AI助手。请描述您的症状，我来帮您整理病历信息。",
         "collected": {},
         "progress": {"filled": 0, "total": 7},
-        "status": InterviewStatus.interviewing,
+        "status": IntakeStatus.active,
         "ready_to_review": False,
         "resumed": False,
     }
@@ -193,7 +193,7 @@ async def start_interview(
 
 @router.post("/turn")
 async def turn(
-    body: InterviewTurnRequest,
+    body: IntakeTurnRequest,
     authorization: Optional[str] = Header(default=None),
 ):
     """Send a patient message and get AI reply."""
@@ -211,14 +211,14 @@ async def turn(
     if session.patient_id != patient.id:
         raise HTTPException(403, "无权操作")
 
-    # Phase 2.5: routed through InterviewEngine.next_turn (engine owns the turn loop).
-    from domain.patients.interview_models import InterviewResponse, _build_progress
+    # Phase 2.5: routed through IntakeEngine.next_turn (engine owns the turn loop).
+    from domain.patients.intake_models import IntakeResponse, _build_progress
 
     result = await _get_engine().next_turn(body.session_id, body.text.strip())
     reloaded = await load_session(body.session_id)
 
     if reloaded is None:
-        response = InterviewResponse(
+        response = IntakeResponse(
             reply=result.reply, collected={},
             progress={"filled": 0, "total": 0}, status="error",
             missing=list(result.state.required_missing + result.state.recommended_missing),
@@ -226,7 +226,7 @@ async def turn(
             ready_to_review=result.state.can_complete,
         )
     else:
-        response = InterviewResponse(
+        response = IntakeResponse(
             reply=result.reply,
             collected=reloaded.collected,
             progress=_build_progress(reloaded.collected, reloaded.mode),
@@ -258,7 +258,7 @@ async def turn(
 async def current_session(
     authorization: Optional[str] = Header(default=None),
 ):
-    """Get active interview session state, or null."""
+    """Get active intake session state, or null."""
     patient = await _authenticate_patient(authorization)
     active = await get_active_session(patient.id, patient.doctor_id)
 
@@ -267,10 +267,10 @@ async def current_session(
 
     can_complete, _missing = _session_readiness(active)
     ready_to_review = (
-        active.status == InterviewStatus.reviewing or can_complete
+        active.status == IntakeStatus.reviewing or can_complete
     )
-    if ready_to_review and active.status != InterviewStatus.reviewing:
-        active.status = InterviewStatus.reviewing
+    if ready_to_review and active.status != IntakeStatus.reviewing:
+        active.status = IntakeStatus.reviewing
         await save_session(active)
 
     return {
@@ -278,17 +278,17 @@ async def current_session(
         "collected": active.collected,
         "conversation": active.conversation,
         "progress": {"filled": count_filled(active.collected), "total": 7},
-        "status": InterviewStatus.reviewing if ready_to_review else active.status,
+        "status": IntakeStatus.reviewing if ready_to_review else active.status,
         "ready_to_review": ready_to_review,
     }
 
 
 @router.post("/confirm")
 async def confirm(
-    body: InterviewSessionRequest,
+    body: IntakeSessionRequest,
     authorization: Optional[str] = Header(default=None),
 ):
-    """Patient confirms interview summary -> creates record + task."""
+    """Patient confirms intake summary -> creates record + task."""
     patient = await _authenticate_patient(authorization)
 
     session = await load_session(body.session_id)
@@ -296,11 +296,11 @@ async def confirm(
         raise HTTPException(404, "问诊会话不存在")
     if session.patient_id != patient.id:
         raise HTTPException(403, "无权操作")
-    if session.status not in (InterviewStatus.reviewing, InterviewStatus.interviewing):
+    if session.status not in (IntakeStatus.reviewing, IntakeStatus.active):
         raise HTTPException(400, "该问诊已结束")
 
     # Perform handoff (includes reconciliation sweep over full transcript)
-    result = await confirm_interview(
+    result = await confirm_intake(
         session_id=session.id,
         doctor_id=session.doctor_id,
         patient_id=session.patient_id,
@@ -310,14 +310,14 @@ async def confirm(
     )
 
     # Mark session confirmed
-    session.status = InterviewStatus.confirmed
+    session.status = IntakeStatus.confirmed
     await save_session(session)
 
-    from domain.patients.interview_turn import release_session_lock
+    from domain.patients.intake_turn import release_session_lock
     release_session_lock(body.session_id)
 
     return {
-        "status": InterviewStatus.confirmed,
+        "status": IntakeStatus.confirmed,
         "record_id": result.get("record_id"),
         "review_id": result.get("review_id"),
         "message": "您的预问诊信息已提交给医生，请等待医生审阅。",
@@ -326,10 +326,10 @@ async def confirm(
 
 @router.post("/cancel")
 async def cancel(
-    body: InterviewSessionRequest,
+    body: IntakeSessionRequest,
     authorization: Optional[str] = Header(default=None),
 ):
-    """Abandon interview session."""
+    """Abandon intake session."""
     patient = await _authenticate_patient(authorization)
 
     session = await load_session(body.session_id)
@@ -337,13 +337,13 @@ async def cancel(
         raise HTTPException(404, "问诊会话不存在")
     if session.patient_id != patient.id:
         raise HTTPException(403, "无权操作")
-    if session.status not in (InterviewStatus.interviewing, InterviewStatus.reviewing):
+    if session.status not in (IntakeStatus.active, IntakeStatus.reviewing):
         raise HTTPException(400, "该问诊已结束")
 
-    session.status = InterviewStatus.abandoned
+    session.status = IntakeStatus.abandoned
     await save_session(session)
 
-    from domain.patients.interview_turn import release_session_lock
+    from domain.patients.intake_turn import release_session_lock
     release_session_lock(body.session_id)
 
-    return {"status": InterviewStatus.abandoned}
+    return {"status": IntakeStatus.abandoned}

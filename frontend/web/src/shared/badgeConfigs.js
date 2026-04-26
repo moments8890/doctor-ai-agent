@@ -28,7 +28,7 @@ export const SHARED_ICON_BADGES = {
   rec_lab:       { icon: BiotechOutlinedIcon, bg: COLOR.accent },
   rec_imaging:   { icon: MonitorHeartOutlinedIcon, bg: COLOR.accent },
   rec_surgery:   { icon: LocalHospitalOutlinedIcon, bg: COLOR.danger },
-  rec_interview: { icon: ChatOutlinedIcon, bg: COLOR.primary },
+  rec_intake: { icon: ChatOutlinedIcon, bg: COLOR.primary },
 
   // Task types
   task_follow_up:  { icon: EventRepeatOutlinedIcon, bg: COLOR.primary },
@@ -42,7 +42,7 @@ export const RECORD_TYPE_BADGE = {
   lab:               SHARED_ICON_BADGES.rec_lab,
   imaging:           SHARED_ICON_BADGES.rec_imaging,
   surgery:           SHARED_ICON_BADGES.rec_surgery,
-  interview_summary: SHARED_ICON_BADGES.rec_interview,
+  intake_summary: SHARED_ICON_BADGES.rec_intake,
 };
 
 export const TASK_TYPE_BADGE = {

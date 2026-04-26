@@ -2,7 +2,7 @@
  * Seed helpers — hit the backend API directly to set up fixture state.
  *
  * Use these from specs when a workflow needs pre-existing data (e.g. the
- * review workflow needs a completed patient interview to review). Driving
+ * review workflow needs a completed patient intake to review). Driving
  * the UI to create setup data is slow and flaky; API seeding is fast and
  * deterministic.
  *
@@ -77,14 +77,14 @@ export async function addPersonaRule(
 }
 
 /**
- * Run a patient through a full pre-interview session and return the created
+ * Run a patient through a full pre-intake session and return the created
  * record_id. Several workflows need a reviewable record to exist; this is the
  * fastest way to get one without driving the patient UI.
  *
- * Routes: `/api/patient/interview/{start, turn, confirm}` with patient Bearer
+ * Routes: `/api/patient/intake/{start, turn, confirm}` with patient Bearer
  *         auth (api.js:795-812).
  */
-export async function completePatientInterview(
+export async function completePatientIntake(
   request: APIRequestContext,
   patient: TestPatient,
   messages: string[] = [
@@ -95,30 +95,30 @@ export async function completePatientInterview(
 ): Promise<{ recordId: string }> {
   const headers = patientHeaders(patient);
 
-  const start = await request.post(`${API_BASE_URL}/api/patient/interview/start`, {
+  const start = await request.post(`${API_BASE_URL}/api/patient/intake/start`, {
     headers,
   });
   if (!start.ok()) {
-    throw new Error(`interview start failed: ${start.status()} ${await start.text()}`);
+    throw new Error(`intake start failed: ${start.status()} ${await start.text()}`);
   }
   const { session_id } = await start.json();
 
   for (const text of messages) {
-    const r = await request.post(`${API_BASE_URL}/api/patient/interview/turn`, {
+    const r = await request.post(`${API_BASE_URL}/api/patient/intake/turn`, {
       headers,
       data: { session_id, text },
     });
     if (!r.ok()) {
-      throw new Error(`interview turn failed: ${r.status()} ${await r.text()}`);
+      throw new Error(`intake turn failed: ${r.status()} ${await r.text()}`);
     }
   }
 
-  const confirm = await request.post(`${API_BASE_URL}/api/patient/interview/confirm`, {
+  const confirm = await request.post(`${API_BASE_URL}/api/patient/intake/confirm`, {
     headers,
     data: { session_id },
   });
   if (!confirm.ok()) {
-    throw new Error(`interview confirm failed: ${confirm.status()} ${await confirm.text()}`);
+    throw new Error(`intake confirm failed: ${confirm.status()} ${await confirm.text()}`);
   }
   const body = await confirm.json();
   return { recordId: String(body.record_id) };

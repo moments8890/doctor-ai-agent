@@ -8,7 +8,7 @@
 ## Context
 
 The patient app has a solid foundation: 4-tab shell, AI chat with polling, pre-visit
-interview, records, tasks, profile, voice input, 3 login flows. Theme token adoption
+intake, records, tasks, profile, voice input, 3 login flows. Theme token adoption
 is ~95%. The doctor app recently added AI persona (phase 1).
 
 This spec covers the gap between "working prototype" and "ship-ready product."
@@ -147,9 +147,9 @@ Add to MyPage: A font scale picker matching doctor's SettingsListSubpage pattern
 
 ### Phase 4: Cleanup (fix while touching)
 
-**Files:** `InterviewPage.jsx`, `RecordsTab.jsx`
+**Files:** `IntakePage.jsx`, `RecordsTab.jsx`
 
-#### 4A. InterviewPage cleanup
+#### 4A. IntakePage cleanup
 
 - Line ~138: native `alert()` → `ConfirmDialog`
 - Line ~179: `borderRadius: 3` → `RADIUS.sm`
@@ -196,7 +196,7 @@ Add to `fixtures/seed.ts`:
 - Verify no fake "收到您的消息" reply appears
 
 **`22-patient-records.spec.ts`** — Records workflow
-- Seed a completed interview → verify record appears in list
+- Seed a completed intake → verify record appears in list
 - Navigate to record detail → verify fields visible
 - Filter tabs work
 
@@ -220,7 +220,7 @@ Add to `fixtures/seed.ts`:
 | `patient/MyPage.jsx` | Medium — font scale, onboarding replay, prop cleanup | 2, 3 |
 | `patient/PatientOnboarding.jsx` | New — single-sheet onboarding | 2 |
 | `patient/constants.jsx` | Low — add onboarding constants | 2 |
-| `patient/InterviewPage.jsx` | Low — token/dialog cleanup | 4 |
+| `patient/IntakePage.jsx` | Low — token/dialog cleanup | 4 |
 | `patient/RecordsTab.jsx` | Low — bug fix + dedup constants | 4 |
 | `theme.js` | Low — add BUBBLE_RADIUS constants | 1 |
 | `src/channels/web/patient_portal/chat.py` | Medium — expose ai_handled, filter drafts | 1 |

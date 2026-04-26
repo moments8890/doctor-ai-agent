@@ -1,4 +1,4 @@
-"""InterviewEngine.next_turn — Phase 2.5: inlined turn loop, no legacy forwarder."""
+"""IntakeEngine.next_turn — Phase 2.5: inlined turn loop, no legacy forwarder."""
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -8,14 +8,14 @@ import uuid
 
 from db.engine import AsyncSessionLocal
 from db.models.doctor import Doctor
-from domain.interview.engine import InterviewEngine
-from domain.interview.protocols import CompletenessState, TurnResult
-from domain.patients.interview_session import create_session, load_session
+from domain.intake.engine import IntakeEngine
+from domain.intake.protocols import CompletenessState, TurnResult
+from domain.patients.intake_session import create_session, load_session
 
 
 @pytest.fixture
 def engine():
-    return InterviewEngine()
+    return IntakeEngine()
 
 
 async def _seed_session(mode="patient", template_id="medical_general_v1"):
@@ -54,7 +54,7 @@ async def test_next_turn_returns_turnresult(engine):
     session = await _seed_session(mode="patient")
 
     with patch(
-        "domain.interview.engine.structured_call",
+        "domain.intake.engine.structured_call",
         new=AsyncMock(return_value=_mock_llm_response(
             reply="了解，还有其他症状吗？",
             extracted_fields={"chief_complaint": "头痛"},
@@ -74,7 +74,7 @@ async def test_next_turn_appends_user_and_assistant_messages(engine):
     session = await _seed_session(mode="patient")
 
     with patch(
-        "domain.interview.engine.structured_call",
+        "domain.intake.engine.structured_call",
         new=AsyncMock(return_value=_mock_llm_response(
             reply="收到",
             extracted_fields={},
@@ -96,7 +96,7 @@ async def test_next_turn_persists_extracted_fields_via_merge(engine):
     session = await _seed_session(mode="patient")
 
     with patch(
-        "domain.interview.engine.structured_call",
+        "domain.intake.engine.structured_call",
         new=AsyncMock(return_value=_mock_llm_response(
             extracted_fields={"chief_complaint": "头痛", "present_illness": "三天"},
         )),
@@ -113,7 +113,7 @@ async def test_next_turn_persists_patient_metadata_underscore_prefixed(engine):
     session = await _seed_session(mode="patient")
 
     with patch(
-        "domain.interview.engine.structured_call",
+        "domain.intake.engine.structured_call",
         new=AsyncMock(return_value=_mock_llm_response(
             extracted_fields={
                 "patient_name": "张三",
@@ -138,7 +138,7 @@ async def test_next_turn_increments_turn_count(engine):
     session = await _seed_session(mode="patient")
 
     with patch(
-        "domain.interview.engine.structured_call",
+        "domain.intake.engine.structured_call",
         new=AsyncMock(return_value=_mock_llm_response()),
     ):
         await engine.next_turn(session.id, "第一轮")
@@ -152,12 +152,12 @@ async def test_next_turn_safety_cap_transitions_to_reviewing(engine):
     session = await _seed_session(mode="patient")
 
     # Pump turn_count close to MAX_TURNS using the save_session CRUD
-    from domain.patients.interview_session import save_session
+    from domain.patients.intake_session import save_session
     session.turn_count = 29  # one below the 30-turn cap
     await save_session(session)
 
     with patch(
-        "domain.interview.engine.structured_call",
+        "domain.intake.engine.structured_call",
         new=AsyncMock(return_value=_mock_llm_response()),
     ):
         # The 30th turn should trigger the cap (turn_count becomes 30)
@@ -180,10 +180,10 @@ async def test_next_turn_retries_on_infra_error(engine):
         return _mock_llm_response(reply="recovered", extracted_fields={})
 
     with patch(
-        "domain.interview.engine.structured_call",
+        "domain.intake.engine.structured_call",
         new=AsyncMock(side_effect=flaky),
     ), patch(
-        "domain.interview.engine.asyncio.sleep",
+        "domain.intake.engine.asyncio.sleep",
         new=AsyncMock(),  # skip real sleep
     ):
         result = await engine.next_turn(session.id, "hi")
@@ -197,7 +197,7 @@ async def test_next_turn_parse_error_returns_canned_reply(engine):
     session = await _seed_session(mode="patient")
 
     with patch(
-        "domain.interview.engine.structured_call",
+        "domain.intake.engine.structured_call",
         new=AsyncMock(side_effect=ValueError("bad JSON")),
     ):
         result = await engine.next_turn(session.id, "hi")
@@ -213,7 +213,7 @@ async def test_next_turn_applies_post_process_softening(engine):
     session = await _seed_session(mode="patient")
 
     # Seed every subjective field so patient-mode can_complete=True after merge.
-    from domain.patients.interview_session import save_session
+    from domain.patients.intake_session import save_session
     session.collected = {
         "chief_complaint": "头痛", "present_illness": "三天",
         "past_history": "无", "allergy_history": "无",
@@ -223,7 +223,7 @@ async def test_next_turn_applies_post_process_softening(engine):
     await save_session(session)
 
     with patch(
-        "domain.interview.engine.structured_call",
+        "domain.intake.engine.structured_call",
         new=AsyncMock(return_value=_mock_llm_response(
             reply="还需要补充家族史。",
             extracted_fields={},

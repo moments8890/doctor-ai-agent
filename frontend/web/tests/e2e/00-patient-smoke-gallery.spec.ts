@@ -65,7 +65,7 @@ const RECORDS = [
   },
   {
     id: 41,
-    record_type: "interview_summary",
+    record_type: "intake_summary",
     structured: { chief_complaint: "高血压复诊咨询" },
     created_at: "2026-04-15T08:30:00Z",
   },

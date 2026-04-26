@@ -377,7 +377,7 @@ Preserve current styling:
 Review:
 - `/debug/components`
 - patient detail record tabs
-- interview or chat pages using `SuggestionChips`
+- intake or chat pages using `SuggestionChips`
 - any page showing status pills
 
 Run:

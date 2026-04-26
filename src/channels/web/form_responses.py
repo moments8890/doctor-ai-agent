@@ -17,8 +17,8 @@ async def _resolve(
     authorization: Optional[str],
     x_doctor_id: Optional[str],
 ) -> str:
-    """Resolve the doctor id from auth. Reuses doctor_interview's resolver."""
-    from channels.web.doctor_interview.shared import _resolve_doctor_id as _inner
+    """Resolve the doctor id from auth. Reuses doctor_intake's resolver."""
+    from channels.web.doctor_intake.shared import _resolve_doctor_id as _inner
     return await _inner(x_doctor_id or "", authorization)
 
 

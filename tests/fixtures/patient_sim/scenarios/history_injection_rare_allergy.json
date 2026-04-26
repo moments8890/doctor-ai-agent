@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "id": "history_injection_rare_allergy",
-  "scenario_type": "patient_interview",
+  "scenario_type": "patient_intake",
   "title": "History injection — confirms rare allergy and past conditions by name",
   "tags": [
     "regression",
@@ -24,7 +24,7 @@
     }
   },
   "input": {
-    "mode": "patient_interview",
+    "mode": "patient_intake",
     "turns": [
       {
         "actor": "patient",
@@ -53,53 +53,53 @@
     ]
   },
   "execution": {
-    "entrypoint": "patient.interview.chat",
+    "entrypoint": "patient.intake.chat",
     "auto_confirm": false,
     "timeout_seconds": 60
   },
   "expectations": {
     "assertions": [
       {
-        "target": "interview.fields_filled",
+        "target": "intake.fields_filled",
         "matcher": "min",
         "expected": 4
       },
       {
-        "target": "interview.field.chief_complaint",
+        "target": "intake.field.chief_complaint",
         "matcher": "present",
         "expected": true
       },
       {
-        "target": "interview.field.present_illness",
+        "target": "intake.field.present_illness",
         "matcher": "present",
         "expected": true
       },
       {
-        "target": "interview.field.allergy_history",
+        "target": "intake.field.allergy_history",
         "matcher": "present",
         "expected": true
       },
       {
-        "target": "interview.field.chief_complaint",
+        "target": "intake.field.chief_complaint",
         "matcher": "contains_any",
         "expected": [
           "膝盖"
         ]
       },
       {
-        "target": "interview.field.allergy_history",
+        "target": "intake.field.allergy_history",
         "matcher": "contains_any",
         "expected": [
           "磺胺"
         ]
       },
       {
-        "target": "interview.history_leveraged",
+        "target": "intake.history_leveraged",
         "matcher": "eq",
         "expected": true
       },
       {
-        "target": "interview.replies",
+        "target": "intake.replies",
         "matcher": "mentions_all",
         "expected": [
           "磺胺",

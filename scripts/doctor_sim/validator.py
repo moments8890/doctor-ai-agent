@@ -440,7 +440,7 @@ async def validate_doctor_extraction(
     db_path: str,
     record_id: int,
 ) -> dict:
-    """Evaluate a doctor interview extraction across 3 dimensions.
+    """Evaluate a doctor intake extraction across 3 dimensions.
 
     Dim 1: 事实提取召回率 (40%) — fact_catalog vs DB clinical record fields, 3 LLM judges
     Dim 2: 字段归类准确率 (30%) — matched facts in correct field

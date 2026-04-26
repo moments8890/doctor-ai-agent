@@ -1,4 +1,4 @@
-"""Context loaders for interview turns: patient demographics and prior history (ADR 0016)."""
+"""Context loaders for intake turns: patient demographics and prior history (ADR 0016)."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -40,7 +40,7 @@ async def _load_previous_history(patient_id: Optional[int], doctor_id: str) -> O
 
     Aggregates stable fields (past_history, allergy, family, personal) across all
     completed records, and shows the latest visit's chief_complaint + diagnosis.
-    Skips records in interview_active or pending_review status.
+    Skips records in intake_active or pending_review status.
     """
     if patient_id is None:
         return None

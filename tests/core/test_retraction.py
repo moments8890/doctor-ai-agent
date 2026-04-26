@@ -1,4 +1,4 @@
-"""Tests for red-flag retraction — Task 1.6 of chat-interview-merge plan."""
+"""Tests for signal-flag retraction — Task 1.6 of chat-intake-merge plan."""
 import pytest
 import pytest_asyncio
 from sqlalchemy import select

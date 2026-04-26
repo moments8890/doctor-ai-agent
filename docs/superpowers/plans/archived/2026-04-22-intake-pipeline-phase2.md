@@ -1,18 +1,18 @@
-# Interview Pipeline Extensibility — Phase 2 (Medical Template Extraction)
+# Intake Pipeline Extensibility — Phase 2 (Medical Template Extraction)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Move medical-specific logic (completeness/merge/field metadata) from the scattered pre-Phase-0 files into `GeneralMedicalTemplate`. Convert the old files into thin deprecation shims that re-export from the template so legacy callers keep working for one release. Route the remaining `/turn` endpoints through `engine.next_turn()`. **Zero behavior change** — the turn loop itself still forwards to the pre-Phase-1 function (Phase 2.5 inlines that).
 
-**Architecture:** In-place swap. Phase 1 established the template as a thin delegator; Phase 2 inverts the arrow — the template is now the source of truth, and the old files (`completeness.py`, `interview_models.py`, `doctor_interview/shared.py`) become re-exports with `DeprecationWarning`. Legacy callers see no change; new callers import directly from the template. `/turn` endpoints are flipped to call `engine.next_turn()` which still forwards to `_legacy_interview_turn` internally — a one-hop indirection that makes the engine the canonical entry point.
+**Architecture:** In-place swap. Phase 1 established the template as a thin delegator; Phase 2 inverts the arrow — the template is now the source of truth, and the old files (`completeness.py`, `intake_models.py`, `doctor_intake/shared.py`) become re-exports with `DeprecationWarning`. Legacy callers see no change; new callers import directly from the template. `/turn` endpoints are flipped to call `engine.next_turn()` which still forwards to `_legacy_intake_turn` internally — a one-hop indirection that makes the engine the canonical entry point.
 
 **Tech Stack:** Pydantic 2.x, `warnings.warn(DeprecationWarning)`, pytest.
 
-**Reference:** Spec `docs/superpowers/specs/2026-04-22-interview-pipeline-extensibility-design.md` §§ 3a, 3b, 6a (Phase 2 row), 6b (shim pattern), 7a (behavior bar).
+**Reference:** Spec `docs/superpowers/specs/2026-04-22-intake-pipeline-extensibility-design.md` §§ 3a, 3b, 6a (Phase 2 row), 6b (shim pattern), 7a (behavior bar).
 
 **Explicitly out of scope for Phase 2** (saved for Phase 2.5 or later):
-- Inlining the turn loop from `interview_turn.py` into `engine.next_turn`. That function's ~130 lines (session locks, retries, LLM parsing, fallbacks, ready-to-review post-processing) stay where they are; the engine forwards to it. Phase 2.5 does the inline after the user can run `reply_sim` to catch drift.
-- Moving prompt construction (`_call_interview_llm` + `compose_for_X_interview`) into `GeneralMedicalExtractor.prompt_partial`. Phase 1's stub `_composer_kwargs` gets one improvement (threading real session context), but the prompt-file ownership stays with `prompt_composer`.
+- Inlining the turn loop from `intake_turn.py` into `engine.next_turn`. That function's ~130 lines (session locks, retries, LLM parsing, fallbacks, ready-to-review post-processing) stay where they are; the engine forwards to it. Phase 2.5 does the inline after the user can run `reply_sim` to catch drift.
+- Moving prompt construction (`_call_intake_llm` + `compose_for_X_intake`) into `GeneralMedicalExtractor.prompt_partial`. Phase 1's stub `_composer_kwargs` gets one improvement (threading real session context), but the prompt-file ownership stays with `prompt_composer`.
 - Full deletion of the legacy files. They become shims this release, delete next release.
 
 ---
@@ -32,32 +32,32 @@
 ## Behavior-preservation bar
 
 - Full test suite matches post-Phase-1 baseline (447 passed).
-- Phase 1 test files still pass (60 tests: `tests/core/test_interview_*.py`, `test_medical_*.py`, `test_template_registry.py`, `test_form_response_model.py`).
+- Phase 1 test files still pass (60 tests: `tests/core/test_intake_*.py`, `test_medical_*.py`, `test_template_registry.py`, `test_form_response_model.py`).
 - **Sim gate (user-executed, not task-automated):** After Task 7 ships, user runs `reply_sim` before marking Phase 2 done. Delta vs main baseline ≤ 2%. If unavailable, unit tests are the backstop.
 
 ## File map
 
 **Modify:**
-- `src/domain/interview/templates/medical_general.py` — inline completeness + merge logic, declarative MEDICAL_FIELDS, real prompt_partial context threading (Tasks 1, 2, 4, 6).
+- `src/domain/intake/templates/medical_general.py` — inline completeness + merge logic, declarative MEDICAL_FIELDS, real prompt_partial context threading (Tasks 1, 2, 4, 6).
 - `src/domain/patients/completeness.py` — gut → shim re-exporting from template (Task 3).
-- `src/domain/patients/interview_models.py` — gut → shim with `ExtractedClinicalFields = build_response_schema(MEDICAL_FIELDS)` (Task 5).
-- `src/channels/web/doctor_interview/turn.py` — route `/turn` first-turn + continue through `engine.next_turn` (Task 7).
-- `src/channels/web/patient_interview_routes.py` — route patient `/turn` through `engine.next_turn` (Task 7).
+- `src/domain/patients/intake_models.py` — gut → shim with `ExtractedClinicalFields = build_response_schema(MEDICAL_FIELDS)` (Task 5).
+- `src/channels/web/doctor_intake/turn.py` — route `/turn` first-turn + continue through `engine.next_turn` (Task 7).
+- `src/channels/web/patient_intake_routes.py` — route patient `/turn` through `engine.next_turn` (Task 7).
 
 **Create:**
-- Tests for each change: `tests/core/test_template_completeness.py`, `tests/core/test_template_merge.py`, `tests/core/test_completeness_shim.py`, `tests/core/test_interview_models_shim.py`.
+- Tests for each change: `tests/core/test_template_completeness.py`, `tests/core/test_template_merge.py`, `tests/core/test_completeness_shim.py`, `tests/core/test_intake_models_shim.py`.
 
 **Not touched in Phase 2** (deferred):
-- `src/domain/patients/interview_turn.py` — stays as the legacy turn-loop source.
+- `src/domain/patients/intake_turn.py` — stays as the legacy turn-loop source.
 - `src/agent/prompt_composer.py` — unchanged.
-- `src/channels/web/doctor_interview/shared.py` — `_CARRY_FORWARD_FIELDS` can shim-in-place, but deferred to a later cleanup since it's a single constant that's already referenced via `carry_forward_modes` on the FieldSpec.
+- `src/channels/web/doctor_intake/shared.py` — `_CARRY_FORWARD_FIELDS` can shim-in-place, but deferred to a later cleanup since it's a single constant that's already referenced via `carry_forward_modes` on the FieldSpec.
 
 ---
 
 ## Task 1: Inline merge_extracted into `GeneralMedicalExtractor.merge`
 
 **Files:**
-- Modify: `src/domain/interview/templates/medical_general.py`
+- Modify: `src/domain/intake/templates/medical_general.py`
 - Create: `tests/core/test_template_merge.py`
 
 Currently `GeneralMedicalExtractor.merge` delegates to `_merge_extracted` from `completeness.py`. The logic is 15 lines: dedup, append vs overwrite based on `APPENDABLE` membership. Phase 2 inlines it using `FieldSpec.appendable` instead of the frozenset.
@@ -76,7 +76,7 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.templates.medical_general import (
+from domain.intake.templates.medical_general import (
     GeneralMedicalExtractor, MEDICAL_FIELDS,
 )
 
@@ -146,7 +146,7 @@ def test_merge_trims_whitespace(extractor):
 
 - [ ] **Step 3: Inline the merge logic**
 
-In `src/domain/interview/templates/medical_general.py`, replace the `GeneralMedicalExtractor.merge` method body with inline logic:
+In `src/domain/intake/templates/medical_general.py`, replace the `GeneralMedicalExtractor.merge` method body with inline logic:
 
 ```python
     def merge(
@@ -184,7 +184,7 @@ In `src/domain/interview/templates/medical_general.py`, replace the `GeneralMedi
 Also remove the now-unused `_merge_extracted` alias from the import block — grep for its other uses first:
 
 ```
-grep -n "_merge_extracted" src/domain/interview/templates/medical_general.py
+grep -n "_merge_extracted" src/domain/intake/templates/medical_general.py
 ```
 
 If only `merge()` used it, remove the import line `from domain.patients.completeness import ... merge_extracted as _merge_extracted, ...`. If `_merge_extracted` is still referenced elsewhere in the file, leave the import.
@@ -216,10 +216,10 @@ Run again, expect all green (7 new + 5 existing = 12 tests pass across both file
 - [ ] **Step 5: Commit**
 
 ```
-git add src/domain/interview/templates/medical_general.py \
+git add src/domain/intake/templates/medical_general.py \
         tests/core/test_template_merge.py \
         tests/core/test_medical_extractor.py
-git commit -m "refactor(interview): inline merge logic into GeneralMedicalExtractor"
+git commit -m "refactor(intake): inline merge logic into GeneralMedicalExtractor"
 ```
 
 ---
@@ -227,7 +227,7 @@ git commit -m "refactor(interview): inline merge logic into GeneralMedicalExtrac
 ## Task 2: Inline completeness logic into `GeneralMedicalExtractor.completeness`
 
 **Files:**
-- Modify: `src/domain/interview/templates/medical_general.py`
+- Modify: `src/domain/intake/templates/medical_general.py`
 - Create: `tests/core/test_template_completeness.py`
 
 Currently delegates to `_get_completeness_state` from `completeness.py`. Phase 2 inlines the tier-based logic using `FieldSpec.tier` instead of the `REQUIRED`/`DOCTOR_RECOMMENDED`/`SUBJECTIVE_RECOMMENDED` tuples.
@@ -254,8 +254,8 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.protocols import CompletenessState
-from domain.interview.templates.medical_general import GeneralMedicalExtractor
+from domain.intake.protocols import CompletenessState
+from domain.intake.templates.medical_general import GeneralMedicalExtractor
 
 
 @pytest.fixture
@@ -398,7 +398,7 @@ Replace `GeneralMedicalExtractor.completeness` body:
 Remove the `_get_completeness_state` import from the module if no longer referenced:
 
 ```
-grep -n "_get_completeness_state" src/domain/interview/templates/medical_general.py
+grep -n "_get_completeness_state" src/domain/intake/templates/medical_general.py
 ```
 
 If only `completeness()` used it, delete the import line.
@@ -429,10 +429,10 @@ Run again — all should pass.
 - [ ] **Step 5: Commit**
 
 ```
-git add src/domain/interview/templates/medical_general.py \
+git add src/domain/intake/templates/medical_general.py \
         tests/core/test_template_completeness.py \
         tests/core/test_medical_extractor.py
-git commit -m "refactor(interview): inline completeness logic into GeneralMedicalExtractor"
+git commit -m "refactor(intake): inline completeness logic into GeneralMedicalExtractor"
 ```
 
 ---
@@ -444,8 +444,8 @@ git commit -m "refactor(interview): inline completeness logic into GeneralMedica
 - Create: `tests/core/test_completeness_shim.py`
 
 Legacy callers of `completeness.check_completeness`, `get_completeness_state`, `merge_extracted`, and the `REQUIRED`/`DOCTOR_RECOMMENDED`/`SUBJECTIVE_RECOMMENDED`/`APPENDABLE` constants still exist in:
-- `src/domain/patients/interview_turn.py` (the legacy turn loop — Phase 2.5 deletes it).
-- `src/domain/patients/interview_models.py::_build_progress` — uses `REQUIRED`, `DOCTOR_RECOMMENDED`, `DOCTOR_OPTIONAL`, `SUBJECTIVE_RECOMMENDED`, `SUBJECTIVE_OPTIONAL`.
+- `src/domain/patients/intake_turn.py` (the legacy turn loop — Phase 2.5 deletes it).
+- `src/domain/patients/intake_models.py::_build_progress` — uses `REQUIRED`, `DOCTOR_RECOMMENDED`, `DOCTOR_OPTIONAL`, `SUBJECTIVE_RECOMMENDED`, `SUBJECTIVE_OPTIONAL`.
 - Test files under `tests/core/` that assert the legacy frozenset contents.
 
 To avoid breaking them, `completeness.py` becomes a shim that derives the old constants from `MEDICAL_FIELDS` and re-exports the old functions.
@@ -490,14 +490,14 @@ def test_shim_warns_on_import():
 
 def test_required_matches_template_required_tier():
     from domain.patients.completeness import REQUIRED
-    from domain.interview.templates.medical_general import MEDICAL_FIELDS
+    from domain.intake.templates.medical_general import MEDICAL_FIELDS
     expected = tuple(s.name for s in MEDICAL_FIELDS if s.tier == "required")
     assert set(REQUIRED) == set(expected)
 
 
 def test_appendable_matches_template_appendable_attr():
     from domain.patients.completeness import APPENDABLE
-    from domain.interview.templates.medical_general import MEDICAL_FIELDS
+    from domain.intake.templates.medical_general import MEDICAL_FIELDS
     expected = {s.name for s in MEDICAL_FIELDS if s.appendable}
     assert set(APPENDABLE) == expected
 
@@ -536,7 +536,7 @@ def test_subjective_recommended_matches_patient_tier():
 
 def test_doctor_recommended_matches_template_recommended_tier():
     from domain.patients.completeness import DOCTOR_RECOMMENDED
-    from domain.interview.templates.medical_general import MEDICAL_FIELDS
+    from domain.intake.templates.medical_general import MEDICAL_FIELDS
     # Doctor-mode recommended = FieldSpec.tier == "recommended"
     expected = {s.name for s in MEDICAL_FIELDS if s.tier == "recommended"}
     # Legacy tuple ordering was REQUIRED-first then recommended, so compare as sets
@@ -552,7 +552,7 @@ Full replacement of `src/domain/patients/completeness.py`:
 ```python
 """Field completeness — DEPRECATED shim.
 
-Phase 2 moved this logic into domain.interview.templates.medical_general.
+Phase 2 moved this logic into domain.intake.templates.medical_general.
 This module now re-exports derivations for legacy callers. Will be deleted
 one release after Phase 2 ships.
 """
@@ -563,13 +563,13 @@ from typing import Dict, List
 
 warnings.warn(
     "domain.patients.completeness is deprecated; import from "
-    "domain.interview.templates.medical_general instead.",
+    "domain.intake.templates.medical_general instead.",
     DeprecationWarning,
     stacklevel=2,
 )
 
-from domain.interview.protocols import FieldSpec
-from domain.interview.templates.medical_general import (
+from domain.intake.protocols import FieldSpec
+from domain.intake.templates.medical_general import (
     GeneralMedicalExtractor,
     MEDICAL_FIELDS,
 )
@@ -672,7 +672,7 @@ def merge_extracted(collected: Dict[str, str], extracted: Dict[str, str]) -> Non
     tests/core/test_medical_field_specs.py \
     tests/core/test_template_completeness.py \
     tests/core/test_template_merge.py \
-    tests/core/test_interview_session_mode.py \
+    tests/core/test_intake_session_mode.py \
     -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
@@ -700,7 +700,7 @@ git add src/domain/patients/completeness.py \
         tests/core/test_completeness_shim.py \
         tests/core/test_medical_field_specs.py
 # plus any test file whose warning filter you had to add
-git commit -m "refactor(interview): convert completeness.py to deprecation shim"
+git commit -m "refactor(intake): convert completeness.py to deprecation shim"
 ```
 
 ---
@@ -708,7 +708,7 @@ git commit -m "refactor(interview): convert completeness.py to deprecation shim"
 ## Task 4: Make `MEDICAL_FIELDS` explicitly declarative
 
 **Files:**
-- Modify: `src/domain/interview/templates/medical_general.py`
+- Modify: `src/domain/intake/templates/medical_general.py`
 
 Currently `MEDICAL_FIELDS` is derived from `FIELD_LABELS`/`FIELD_META`/`APPENDABLE`/`REQUIRED`/`DOCTOR_RECOMMENDED`/`_CARRY_FORWARD_FIELDS` at import time. Task 3 turned the completeness source into a shim that now derives the same constants *from* `MEDICAL_FIELDS`, creating a cycle. The derivation must be broken in this direction — the template becomes the canonical source.
 
@@ -721,11 +721,11 @@ def test_medical_fields_are_declarative_not_derived():
     """Phase 2: MEDICAL_FIELDS no longer imports from the legacy metadata
     tables. It's hand-declared on the template as the canonical source."""
     import inspect
-    from domain.interview.templates import medical_general
+    from domain.intake.templates import medical_general
 
     source = inspect.getsource(medical_general)
     # Rough guard: no top-level import of FIELD_LABELS/FIELD_META/APPENDABLE/REQUIRED
-    # from domain.patients.completeness or domain.patients.interview_models.
+    # from domain.patients.completeness or domain.patients.intake_models.
     # (The _build_medical_fields helper function may still reference them for
     # legacy back-compat, but the new hand-declared list must exist.)
     assert "MEDICAL_FIELDS: list[FieldSpec] = [" in source or \
@@ -737,13 +737,13 @@ def test_medical_fields_are_declarative_not_derived():
 
 - [ ] **Step 3: Replace the `MEDICAL_FIELDS` derivation with an explicit list**
 
-In `src/domain/interview/templates/medical_general.py`, replace the `_build_medical_fields` function + the derived list with an explicit declaration. Read the current derivation's output (14 fields) and write each one out:
+In `src/domain/intake/templates/medical_general.py`, replace the `_build_medical_fields` function + the derived list with an explicit declaration. Read the current derivation's output (14 fields) and write each one out:
 
 ```python
-# ---- field specs — canonical source of medical-interview schema ------------
+# ---- field specs — canonical source of medical-intake schema ------------
 
 # Declarative: add/remove/reorder fields here. Legacy callers import via the
-# completeness.py and interview_models.py shims.
+# completeness.py and intake_models.py shims.
 
 MEDICAL_FIELDS: list[FieldSpec] = [
     FieldSpec(
@@ -836,14 +836,14 @@ MEDICAL_FIELDS: list[FieldSpec] = [
 ]
 
 # NOTE: _build_medical_fields() is removed in Phase 2. The derivation from
-# completeness.py / interview_models.py was Phase 1 scaffolding; Phase 2
+# completeness.py / intake_models.py was Phase 1 scaffolding; Phase 2
 # makes the template canonical.
 ```
 
 Delete the `_build_medical_fields` function and the imports it used (`FIELD_LABELS`, `FIELD_META`, `REQUIRED`, `_CARRY_FORWARD_FIELDS`, `APPENDABLE`, `DOCTOR_RECOMMENDED`). Grep first to check:
 
 ```
-grep -n "FIELD_LABELS\|FIELD_META\|_CARRY_FORWARD_FIELDS" src/domain/interview/templates/medical_general.py
+grep -n "FIELD_LABELS\|FIELD_META\|_CARRY_FORWARD_FIELDS" src/domain/intake/templates/medical_general.py
 ```
 
 Remove any import lines that only fed the derivation.
@@ -867,42 +867,42 @@ If `test_every_extracted_field_has_a_spec` breaks because `ExtractedClinicalFiel
 - [ ] **Step 5: Commit**
 
 ```
-git add src/domain/interview/templates/medical_general.py \
+git add src/domain/intake/templates/medical_general.py \
         tests/core/test_medical_field_specs.py
-git commit -m "refactor(interview): make MEDICAL_FIELDS a hand-declared canonical list"
+git commit -m "refactor(intake): make MEDICAL_FIELDS a hand-declared canonical list"
 ```
 
 ---
 
-## Task 5: Convert `interview_models.py` into a deprecation shim
+## Task 5: Convert `intake_models.py` into a deprecation shim
 
 **Files:**
-- Modify: `src/domain/patients/interview_models.py` (replace with shim)
-- Create: `tests/core/test_interview_models_shim.py`
+- Modify: `src/domain/patients/intake_models.py` (replace with shim)
+- Create: `tests/core/test_intake_models_shim.py`
 
 The file exports:
 - `ExtractedClinicalFields` — Pydantic class. Becomes `build_response_schema(MEDICAL_FIELDS)`.
-- `InterviewLLMResponse` — Pydantic class wrapping `ExtractedClinicalFields`. Keep as-is but point at the shim's `ExtractedClinicalFields`.
+- `IntakeLLMResponse` — Pydantic class wrapping `ExtractedClinicalFields`. Keep as-is but point at the shim's `ExtractedClinicalFields`.
 - `FIELD_LABELS` — dict derived from `MEDICAL_FIELDS`.
 - `FIELD_META` — dict derived.
 - `_FIELD_PRIORITY` — dict derived from `tier`.
 - `_PATIENT_PHASES` — hand-declared list (keep as-is, it's patient-UX specific).
-- `_build_progress` — keep as a function; it's used by `interview_turn.py`.
-- `InterviewResponse` — dataclass used by the legacy turn loop. Keep as-is.
+- `_build_progress` — keep as a function; it's used by `intake_turn.py`.
+- `IntakeResponse` — dataclass used by the legacy turn loop. Keep as-is.
 - `MAX_TURNS = 30` — keep as-is.
 
 - [ ] **Step 1: Verify what's imported from the module**
 
 ```
-grep -rn "from domain.patients.interview_models import" src tests --include="*.py"
+grep -rn "from domain.patients.intake_models import" src tests --include="*.py"
 ```
 
 - [ ] **Step 2: Write failing shim tests**
 
-`tests/core/test_interview_models_shim.py`:
+`tests/core/test_intake_models_shim.py`:
 
 ```python
-"""interview_models.py shim — ExtractedClinicalFields now derives from MEDICAL_FIELDS."""
+"""intake_models.py shim — ExtractedClinicalFields now derives from MEDICAL_FIELDS."""
 from __future__ import annotations
 
 import warnings
@@ -910,7 +910,7 @@ import warnings
 
 def test_shim_warns_on_import():
     import importlib
-    import domain.patients.interview_models as _m
+    import domain.patients.intake_models as _m
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         importlib.reload(_m)
@@ -920,7 +920,7 @@ def test_shim_warns_on_import():
 
 
 def test_extracted_clinical_fields_has_expected_fields():
-    from domain.patients.interview_models import ExtractedClinicalFields
+    from domain.patients.intake_models import ExtractedClinicalFields
     names = set(ExtractedClinicalFields.model_fields.keys())
     assert "chief_complaint" in names
     assert "present_illness" in names
@@ -928,16 +928,16 @@ def test_extracted_clinical_fields_has_expected_fields():
 
 
 def test_field_labels_matches_template():
-    from domain.patients.interview_models import FIELD_LABELS
-    from domain.interview.templates.medical_general import MEDICAL_FIELDS
+    from domain.patients.intake_models import FIELD_LABELS
+    from domain.intake.templates.medical_general import MEDICAL_FIELDS
     for spec in MEDICAL_FIELDS:
         if spec.label and spec.name != "department":  # department isn't in legacy labels dict
             assert FIELD_LABELS.get(spec.name) == spec.label
 
 
 def test_field_meta_preserves_hint_and_example():
-    from domain.patients.interview_models import FIELD_META
-    from domain.interview.templates.medical_general import MEDICAL_FIELDS
+    from domain.patients.intake_models import FIELD_META
+    from domain.intake.templates.medical_general import MEDICAL_FIELDS
     for spec in MEDICAL_FIELDS:
         meta = FIELD_META.get(spec.name, {})
         if spec.example:
@@ -946,44 +946,44 @@ def test_field_meta_preserves_hint_and_example():
             assert meta.get("hint") == spec.description
 
 
-def test_interview_llm_response_still_parseable():
-    from domain.patients.interview_models import InterviewLLMResponse
+def test_intake_llm_response_still_parseable():
+    from domain.patients.intake_models import IntakeLLMResponse
     # Should accept a reply + empty extracted + empty suggestions
-    obj = InterviewLLMResponse(reply="hi", suggestions=[])
+    obj = IntakeLLMResponse(reply="hi", suggestions=[])
     assert obj.reply == "hi"
 
 
 def test_max_turns_constant_preserved():
-    from domain.patients.interview_models import MAX_TURNS
+    from domain.patients.intake_models import MAX_TURNS
     assert MAX_TURNS == 30
 
 
 def test_build_progress_still_works():
-    from domain.patients.interview_models import _build_progress
+    from domain.patients.intake_models import _build_progress
     p = _build_progress({"chief_complaint": "x"}, mode="patient")
     assert p["filled"] >= 1
     assert "total" in p
 
 
-def test_interview_response_dataclass_preserved():
-    from domain.patients.interview_models import InterviewResponse
-    r = InterviewResponse(reply="x", collected={}, progress={"filled": 0, "total": 7}, status="interviewing")
+def test_intake_response_dataclass_preserved():
+    from domain.patients.intake_models import IntakeResponse
+    r = IntakeResponse(reply="x", collected={}, progress={"filled": 0, "total": 7}, status="active")
     assert r.reply == "x"
 ```
 
 - [ ] **Step 3: Run, expect mix of pass/fail**
 
-- [ ] **Step 4: Replace `interview_models.py` with the shim**
+- [ ] **Step 4: Replace `intake_models.py` with the shim**
 
-Full replacement of `src/domain/patients/interview_models.py`:
+Full replacement of `src/domain/patients/intake_models.py`:
 
 ```python
-"""Interview Pydantic models, field metadata, progress — DEPRECATED shim.
+"""Intake Pydantic models, field metadata, progress — DEPRECATED shim.
 
-Phase 2 moved the canonical schema into domain.interview.templates.medical_general.
+Phase 2 moved the canonical schema into domain.intake.templates.medical_general.
 This module re-exports derivations for legacy callers. _build_progress and the
-dataclasses (InterviewResponse, InterviewLLMResponse) remain because they're
-still used by the legacy turn loop in interview_turn.py (Phase 2.5 deletes it).
+dataclasses (IntakeResponse, IntakeLLMResponse) remain because they're
+still used by the legacy turn loop in intake_turn.py (Phase 2.5 deletes it).
 """
 from __future__ import annotations
 
@@ -994,14 +994,14 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 warnings.warn(
-    "domain.patients.interview_models is deprecated; import from "
-    "domain.interview.templates.medical_general instead.",
+    "domain.patients.intake_models is deprecated; import from "
+    "domain.intake.templates.medical_general instead.",
     DeprecationWarning,
     stacklevel=2,
 )
 
-from domain.interview.contract import build_response_schema
-from domain.interview.templates.medical_general import MEDICAL_FIELDS
+from domain.intake.contract import build_response_schema
+from domain.intake.templates.medical_general import MEDICAL_FIELDS
 
 MAX_TURNS = 30
 
@@ -1028,8 +1028,8 @@ class ExtractedClinicalFields(_ClinicalBase):  # type: ignore[misc,valid-type]
     patient_age: Optional[str] = Field(None, description="患者年龄")
 
 
-class InterviewLLMResponse(BaseModel):
-    """Structured response from the interview LLM."""
+class IntakeLLMResponse(BaseModel):
+    """Structured response from the intake LLM."""
 
     reply: str = Field(
         default="请继续描述您的情况。",
@@ -1136,7 +1136,7 @@ def _build_progress(collected: Dict[str, str], mode: str = "patient") -> dict:
 
 
 @dataclass
-class InterviewResponse:
+class IntakeResponse:
     reply: str
     collected: Dict[str, str]
     progress: dict
@@ -1154,7 +1154,7 @@ class InterviewResponse:
 
 ```
 /Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest \
-    tests/core/test_interview_models_shim.py \
+    tests/core/test_intake_models_shim.py \
     tests/core/test_medical_field_specs.py \
     -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
@@ -1171,9 +1171,9 @@ If something breaks, the most likely cause is a test that asserts `ExtractedClin
 - [ ] **Step 7: Commit**
 
 ```
-git add src/domain/patients/interview_models.py \
-        tests/core/test_interview_models_shim.py
-git commit -m "refactor(interview): convert interview_models.py to deprecation shim"
+git add src/domain/patients/intake_models.py \
+        tests/core/test_intake_models_shim.py
+git commit -m "refactor(intake): convert intake_models.py to deprecation shim"
 ```
 
 ---
@@ -1181,13 +1181,13 @@ git commit -m "refactor(interview): convert interview_models.py to deprecation s
 ## Task 6: Thread real session context through `prompt_partial`
 
 **Files:**
-- Modify: `src/domain/interview/templates/medical_general.py`
+- Modify: `src/domain/intake/templates/medical_general.py`
 
-Phase 1 left `_composer_kwargs` as a stub that passes empty `doctor_id` / `patient_context` / `doctor_message`. The engine's `next_turn` currently doesn't call `prompt_partial` (it forwards to `_legacy_interview_turn`). Phase 2 doesn't yet inline the turn loop, but we can still improve the stub so that if anything else calls `prompt_partial` (Phase 3 might, for example), it produces a real usable message list.
+Phase 1 left `_composer_kwargs` as a stub that passes empty `doctor_id` / `patient_context` / `doctor_message`. The engine's `next_turn` currently doesn't call `prompt_partial` (it forwards to `_legacy_intake_turn`). Phase 2 doesn't yet inline the turn loop, but we can still improve the stub so that if anything else calls `prompt_partial` (Phase 3 might, for example), it produces a real usable message list.
 
 - [ ] **Step 1: Update `prompt_partial` signature to accept explicit context**
 
-Change `GeneralMedicalExtractor.prompt_partial` in `src/domain/interview/templates/medical_general.py` to require the real kwargs (instead of stub defaults):
+Change `GeneralMedicalExtractor.prompt_partial` in `src/domain/intake/templates/medical_general.py` to require the real kwargs (instead of stub defaults):
 
 ```python
     async def prompt_partial(
@@ -1209,14 +1209,14 @@ Change `GeneralMedicalExtractor.prompt_partial` in `src/domain/interview/templat
         stub helper; that helper is removed.
         """
         if mode == "doctor":
-            return await _compose_for_doctor_interview(
+            return await _compose_for_doctor_intake(
                 doctor_id=doctor_id,
                 patient_context=patient_context,
                 doctor_message=doctor_message,
                 history=history,
                 template_id="medical_general_v1",
             )
-        return await _compose_for_patient_interview(
+        return await _compose_for_patient_intake(
             doctor_id=doctor_id,
             patient_context=patient_context,
             doctor_message=doctor_message,
@@ -1228,7 +1228,7 @@ Change `GeneralMedicalExtractor.prompt_partial` in `src/domain/interview/templat
 Remove the `_composer_kwargs` helper function from the file (grep confirms it's not used elsewhere):
 
 ```
-grep -n "_composer_kwargs" src/domain/interview/templates/medical_general.py tests
+grep -n "_composer_kwargs" src/domain/intake/templates/medical_general.py tests
 ```
 
 - [ ] **Step 2: Update the existing extractor tests for prompt_partial**
@@ -1239,7 +1239,7 @@ In `tests/core/test_medical_extractor.py`, update the two `prompt_partial` tests
 @pytest.mark.asyncio
 async def test_prompt_partial_is_awaitable_and_returns_messages(extractor):
     with patch(
-        "domain.interview.templates.medical_general._compose_for_patient_interview",
+        "domain.intake.templates.medical_general._compose_for_patient_intake",
         new=AsyncMock(return_value=[{"role": "system", "content": "..."}]),
     ) as mock_compose:
         result = await extractor.prompt_partial(
@@ -1262,11 +1262,11 @@ async def test_prompt_partial_is_awaitable_and_returns_messages(extractor):
 @pytest.mark.asyncio
 async def test_prompt_partial_routes_doctor_mode_to_doctor_composer(extractor):
     with patch(
-        "domain.interview.templates.medical_general._compose_for_doctor_interview",
+        "domain.intake.templates.medical_general._compose_for_doctor_intake",
         new=AsyncMock(return_value=[]),
     ) as mock_doc, \
          patch(
-        "domain.interview.templates.medical_general._compose_for_patient_interview",
+        "domain.intake.templates.medical_general._compose_for_patient_intake",
         new=AsyncMock(return_value=[]),
     ) as mock_pat:
         await extractor.prompt_partial(
@@ -1288,9 +1288,9 @@ async def test_prompt_partial_routes_doctor_mode_to_doctor_composer(extractor):
 - [ ] **Step 4: Commit**
 
 ```
-git add src/domain/interview/templates/medical_general.py \
+git add src/domain/intake/templates/medical_general.py \
         tests/core/test_medical_extractor.py
-git commit -m "refactor(interview): thread real session context through prompt_partial"
+git commit -m "refactor(intake): thread real session context through prompt_partial"
 ```
 
 ---
@@ -1298,16 +1298,16 @@ git commit -m "refactor(interview): thread real session context through prompt_p
 ## Task 7: Route `/turn` endpoints through `engine.next_turn`
 
 **Files:**
-- Modify: `src/channels/web/doctor_interview/turn.py`
-- Modify: `src/channels/web/patient_interview_routes.py`
+- Modify: `src/channels/web/doctor_intake/turn.py`
+- Modify: `src/channels/web/patient_intake_routes.py`
 
-Currently `/turn` endpoints call the legacy `interview_turn()` directly. Phase 2 flips them to call `engine.next_turn()` — which still forwards to legacy internally, but makes the engine the canonical entry point. The legacy response shape (`InterviewResponse`) is reconstructed from the engine's `TurnResult` + a session reload.
+Currently `/turn` endpoints call the legacy `intake_turn()` directly. Phase 2 flips them to call `engine.next_turn()` — which still forwards to legacy internally, but makes the engine the canonical entry point. The legacy response shape (`IntakeResponse`) is reconstructed from the engine's `TurnResult` + a session reload.
 
 **Behavior must be byte-identical** — any divergence in the endpoint response is a regression.
 
 - [ ] **Step 1: Doctor `/turn` endpoint — flip the first-turn branch**
 
-In `src/channels/web/doctor_interview/turn.py`, find `_first_turn` (around line 88). After the current `interview_turn(session.id, text)` call, replace with an engine call followed by a session reload + legacy response reconstruction:
+In `src/channels/web/doctor_intake/turn.py`, find `_first_turn` (around line 88). After the current `intake_turn(session.id, text)` call, replace with an engine call followed by a session reload + legacy response reconstruction:
 
 ```python
 async def _first_turn(doctor_id, text, pre_patient_id=None, *, template_id=None):
@@ -1321,8 +1321,8 @@ async def _first_turn(doctor_id, text, pre_patient_id=None, *, template_id=None)
     )
 
     # Phase 2: route through engine.next_turn. It forwards to legacy
-    # interview_turn() under the hood so behavior is unchanged.
-    from domain.interview.engine import InterviewEngine
+    # intake_turn() under the hood so behavior is unchanged.
+    from domain.intake.engine import IntakeEngine
     _ENGINE = _get_engine()  # use lazy factory pattern same as confirm.py
     await _ENGINE.next_turn(session.id, text)
 
@@ -1331,43 +1331,43 @@ async def _first_turn(doctor_id, text, pre_patient_id=None, *, template_id=None)
     # ... rest of existing logic that builds the response from session state ...
 ```
 
-This is the structural change. The tricky part: the original `_first_turn` used the return value of `interview_turn` directly (it had `response.reply`, `response.suggestions`, etc.). After the engine call, the function has to read those from the freshly reloaded session + engine's TurnResult.
+This is the structural change. The tricky part: the original `_first_turn` used the return value of `intake_turn` directly (it had `response.reply`, `response.suggestions`, etc.). After the engine call, the function has to read those from the freshly reloaded session + engine's TurnResult.
 
-**Pragmatic approach**: keep calling the legacy `interview_turn` internally, but wrap the call site in a local helper that also goes through the engine for bookkeeping:
+**Pragmatic approach**: keep calling the legacy `intake_turn` internally, but wrap the call site in a local helper that also goes through the engine for bookkeeping:
 
 ```python
 # Simplest change that preserves behavior: call engine, but keep using
-# interview_turn's return shape for building the response.
-response = await interview_turn(session.id, text)  # unchanged
+# intake_turn's return shape for building the response.
+response = await intake_turn(session.id, text)  # unchanged
 # (engine.next_turn call is redundant for now; Phase 2.5 replaces both)
 ```
 
 Actually — since the engine is just forwarding, routing `/turn` through it adds a second call that wastes work. The honest move is to defer `/turn` routing until Phase 2.5, when the engine actually owns the loop.
 
-**Task 7 (scoped-down):** Skip the `/turn` endpoint routing. Note the decision here and defer to Phase 2.5. The engine is still the canonical entry point for `/confirm` (Phase 1 Task 11) and `submit_interview` (Phase 1 Task 12).
+**Task 7 (scoped-down):** Skip the `/turn` endpoint routing. Note the decision here and defer to Phase 2.5. The engine is still the canonical entry point for `/confirm` (Phase 1 Task 11) and `submit_intake` (Phase 1 Task 12).
 
 - [ ] **Step 1 (revised): Document the deferral**
 
-Add a comment at the top of `src/channels/web/doctor_interview/turn.py` near the existing `_get_engine()` helper:
+Add a comment at the top of `src/channels/web/doctor_intake/turn.py` near the existing `_get_engine()` helper:
 
 ```python
-# NOTE (Phase 2): /turn endpoints still call interview_turn() directly.
-# engine.next_turn forwards to interview_turn anyway, so routing /turn
+# NOTE (Phase 2): /turn endpoints still call intake_turn() directly.
+# engine.next_turn forwards to intake_turn anyway, so routing /turn
 # through the engine would double the work without structural benefit.
 # Phase 2.5 inlines the turn loop into engine.next_turn and flips /turn
 # at the same time.
 ```
 
-Add the same note near the turn handler in `src/channels/web/patient_interview_routes.py`.
+Add the same note near the turn handler in `src/channels/web/patient_intake_routes.py`.
 
 - [ ] **Step 2: No test changes needed** — the endpoints still behave identically.
 
 - [ ] **Step 3: Commit the note**
 
 ```
-git add src/channels/web/doctor_interview/turn.py \
-        src/channels/web/patient_interview_routes.py
-git commit -m "docs(interview): note Phase 2.5 deferral of /turn engine routing"
+git add src/channels/web/doctor_intake/turn.py \
+        src/channels/web/patient_intake_routes.py
+git commit -m "docs(intake): note Phase 2.5 deferral of /turn engine routing"
 ```
 
 ---
@@ -1404,7 +1404,7 @@ warnings.filterwarnings(
 )
 warnings.filterwarnings(
     "ignore",
-    message="domain.patients.interview_models is deprecated",
+    message="domain.patients.intake_models is deprecated",
     category=DeprecationWarning,
 )
 ```
@@ -1418,7 +1418,7 @@ DO NOT add this if warnings aren't actually failing tests — leaving them visib
 grep -rn "MEDICAL_FIELDS" src --include="*.py" | head
 
 # The old FIELD_META/FIELD_LABELS still work via shim
-grep -rn "from domain.patients.interview_models import" src --include="*.py" | head
+grep -rn "from domain.patients.intake_models import" src --include="*.py" | head
 
 # Completeness shim is still imported (legacy callers not yet migrated)
 grep -rn "from domain.patients.completeness import" src --include="*.py" | head
@@ -1444,7 +1444,7 @@ echo "  requires a live server on port 8001."
 git log 12abe3a3..HEAD --oneline
 ```
 
-Expected: 7 Phase 2 commits (Tasks 1-7), each with `refactor(interview)` or `docs(interview)` prefix.
+Expected: 7 Phase 2 commits (Tasks 1-7), each with `refactor(intake)` or `docs(intake)` prefix.
 
 - [ ] **Step 6: No commit — Phase 2 complete**
 
@@ -1458,14 +1458,14 @@ Working tree should be clean of Phase 2 source files.
 - [ ] `GeneralMedicalExtractor.completeness` implements tier-based logic inline (no delegation).
 - [ ] `MEDICAL_FIELDS` is a hand-declared list (no derivation from legacy sources).
 - [ ] `completeness.py` is a deprecation shim; all legacy imports still work; constants derive from `MEDICAL_FIELDS`.
-- [ ] `interview_models.py` is a deprecation shim; `ExtractedClinicalFields` = `build_response_schema(MEDICAL_FIELDS)` + 3 metadata fields.
+- [ ] `intake_models.py` is a deprecation shim; `ExtractedClinicalFields` = `build_response_schema(MEDICAL_FIELDS)` + 3 metadata fields.
 - [ ] `prompt_partial` accepts explicit context kwargs (no stub).
 - [ ] `/turn` routing deferral is documented (Phase 2.5 blocker).
 - [ ] Full test suite matches Phase 1 baseline.
 
 ## What Phase 2 does NOT do (deferred to Phase 2.5 or later)
 
-- Inline the turn loop from `interview_turn.py` into `engine.next_turn`.
+- Inline the turn loop from `intake_turn.py` into `engine.next_turn`.
 - Route `/turn` endpoints through the engine.
 - Delete the shim files (one-release deprecation window).
 - Move prompt file ownership into the extractor (prompt_composer still owns the layer-1-through-6 stack).

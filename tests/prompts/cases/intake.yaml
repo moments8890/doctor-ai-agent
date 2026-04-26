@@ -1,10 +1,10 @@
-# Test cases for interview.md
-# Prompt: doctor-driven field extraction in interview mode
+# Test cases for intake.md
+# Prompt: doctor-driven field extraction in intake mode
 # Output: JSON with extracted (new fields) and reply (Chinese confirmation)
 
-- description: "interview: multi-field extraction — department, chief_complaint, history, physical_exam"
+- description: "intake: multi-field extraction — department, chief_complaint, history, physical_exam"
   options:
-    prompts: [interview]
+    prompts: [intake]
   vars:
     collected: "{}"
     doctor_input: "患者李四，女56岁，心内科。反复胸痛1周，既往糖尿病10年，口服二甲双胍。查体BP 135/85"
@@ -31,9 +31,9 @@
         const obj = JSON.parse(output);
         return obj.reply && obj.reply.length > 5;
 
-- description: "interview: contradiction correction — allergy updated to latest"
+- description: "intake: contradiction correction — allergy updated to latest"
   options:
-    prompts: [interview]
+    prompts: [intake]
   vars:
     collected: '{"allergy_history": "无"}'
     doctor_input: "不对，青霉素过敏"
@@ -51,9 +51,9 @@
         const e = obj.extracted || {};
         return !e.allergy_history || !e.allergy_history.includes('无');
 
-- description: "interview: empty greeting — no fields extracted"
+- description: "intake: empty greeting — no fields extracted"
   options:
-    prompts: [interview]
+    prompts: [intake]
   vars:
     collected: "{}"
     doctor_input: "你好"
@@ -72,9 +72,9 @@
         const obj = JSON.parse(output);
         return obj.reply && obj.reply.length > 0;
 
-- description: "interview: negative values — 无 in appropriate fields"
+- description: "intake: negative values — 无 in appropriate fields"
   options:
-    prompts: [interview]
+    prompts: [intake]
   vars:
     collected: "{}"
     doctor_input: "无过敏史，无家族遗传病，不吸烟不饮酒"

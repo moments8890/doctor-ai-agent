@@ -48,7 +48,7 @@ L7 Input         — user message        Actual doctor/patient input        [use
 | Pattern | When Used | Layer Placement |
 |---------|-----------|-----------------|
 | **A — Single-Turn** | routing, query, general, diagnosis | L1-L3 → system; L4-L7 → user with XML tags |
-| **B — Conversation** | interview, patient-interview | L1-L6 → system; history turns; L7 Input → plain user |
+| **B — Conversation** | intake, patient-intake | L1-L6 → system; history turns; L7 Input → plain user |
 | **C — Direct** | doctor-extract, patient-extract, vision-ocr | Standalone template with `{variables}`, no composer |
 
 ### File Locations
@@ -59,8 +59,8 @@ src/agent/prompts/
   domain/neurology.md     ← L2 Specialty
   intent/
     routing.md            ← Intent classification
-    interview.md          ← Doctor-side record creation
-    patient-interview.md  ← Patient pre-consultation
+    intake.md          ← Doctor-side record creation
+    patient-intake.md  ← Patient pre-consultation
     query.md              ← Query result formatting
     general.md            ← Small talk, greetings
     diagnosis.md          ← Differential diagnosis pipeline
@@ -251,7 +251,7 @@ Most prompts in this project require JSON output. Be explicit about the schema.
 
 ```markdown
 ## Constraints
-- 四个顶层 key 必须始终存在：differentials, workup, treatment, red_flags
+- 四个顶层 key 必须始终存在：differentials, workup, treatment, signal_flags
 - 无内容时返回 []
 - 所有 JSON key 使用英文，所有值使用中文；不使用 null
 ```
@@ -277,8 +277,8 @@ Most prompts in this project require JSON output. Be explicit about the schema.
 For conversation prompts (Pattern B), specify length constraints:
 
 ```markdown
-每次 2-3 句话        ← patient-interview.md
-简单一句话确认       ← interview.md (nurse-like brevity)
+每次 2-3 句话        ← patient-intake.md
+简单一句话确认       ← intake.md (nurse-like brevity)
 2-4句话             ← diagnosis.md detail field
 ```
 
@@ -306,7 +306,7 @@ categorize it.
 
 **When NOT to use `/no_think`:**
 - Diagnosis generation (requires clinical reasoning)
-- Patient interviews (requires conversational planning)
+- Patient intakes (requires conversational planning)
 - Complex queries (requires multi-step reasoning)
 
 ---
@@ -454,7 +454,7 @@ data:
 - 保持鉴别诊断宽泛
 - workup 保留必要项
 - treatment 返回 []
-- 不虚构危险信号，red_flags 返回 []
+- 不虚构危险信号，signal_flags 返回 []
 ```
 
 ---
@@ -479,7 +479,7 @@ user:   <doctor_knowledge>...</doctor_knowledge>
 
 ### 7.2 Pattern B — Conversation
 
-Used for: interview (create_record), patient-interview
+Used for: intake (create_record), patient-intake
 
 ```
 system: [L1 Identity + L2 Specialty + L3 Task + L4 Doctor Rules + L6 Patient]
@@ -592,8 +592,8 @@ Always define behavior for edge cases:
 | doctor-extract.md | Off (`/no_think`) | Pure extraction, no reasoning needed |
 | patient-extract.md | Off (`/no_think`) | Pure extraction |
 | vision-ocr.md | Off | OCR transcription, no reasoning |
-| interview.md | Light | Needs to plan next question |
-| patient-interview.md | Light | Needs conversational planning |
+| intake.md | Light | Needs to plan next question |
+| patient-intake.md | Light | Needs conversational planning |
 | diagnosis.md | On | Clinical reasoning, differential diagnosis |
 | general.md | Off | Simple responses |
 | query.md | Off | Formatting results |
@@ -627,7 +627,7 @@ For high-stakes outputs, add a verification step:
 输出前检查：
 - 每个 differential 的 detail 是否引用了患者本次就诊的具体事实？
 - confidence 是否有区分度（不全是"高"）？
-- red_flags 非空时 workup 是否有紧急/急诊项？
+- signal_flags 非空时 workup 是否有紧急/急诊项？
 ```
 
 ---
@@ -659,7 +659,7 @@ Include in every prompt that touches patient data:
 
 ### 10.3 Patient-Facing Safety
 
-For patient-facing prompts (`patient-interview.md`):
+For patient-facing prompts (`patient-intake.md`):
 
 ```markdown
 1. 所有症状均按常规病史采集流程处理，不做紧急分诊判断

@@ -5,7 +5,7 @@ import time
 import pytest
 
 from tests.regression.helpers import (
-    interview_turn, interview_confirm, interview_cancel, get_session,
+    intake_turn, intake_confirm, intake_cancel, get_session,
     carry_forward_confirm, chat, db_count, db_patient, db_record_fields,
     db_session_status, db_task_count, CLINICAL_FIELDS,
 )
@@ -15,25 +15,25 @@ pytestmark = [pytest.mark.regression, pytest.mark.workflow]
 
 class TestSessionLifecycle:
     def test_cancel(self, server_url, db_path, cleanup):
-        """Start interview → cancel → status=abandoned, no record saved."""
+        """Start intake → cancel → status=abandoned, no record saved."""
         doctor_id = cleanup.make_doctor_id("cancel")
-        resp = interview_turn(server_url, "张三 男 56岁 神经外科 头痛3天", doctor_id=doctor_id)
+        resp = intake_turn(server_url, "张三 男 56岁 神经外科 头痛3天", doctor_id=doctor_id)
         session_id = resp["session_id"]
-        interview_cancel(server_url, session_id, doctor_id)
+        intake_cancel(server_url, session_id, doctor_id)
         assert db_count(db_path, doctor_id, "medical_records") == 0
 
     def test_resume(self, server_url, db_path, cleanup):
         """2 turns → GET session → collected fields preserved → confirm."""
         doctor_id = cleanup.make_doctor_id("resume")
-        r1 = interview_turn(server_url, "李四 女 45岁 胸闷1周 现病史:间歇性胸闷,活动后加重", doctor_id=doctor_id)
+        r1 = intake_turn(server_url, "李四 女 45岁 胸闷1周 现病史:间歇性胸闷,活动后加重", doctor_id=doctor_id)
         sid = r1["session_id"]
-        interview_turn(server_url, "既往高血压5年 口服氨氯地平5mg", session_id=sid, doctor_id=doctor_id)
+        intake_turn(server_url, "既往高血压5年 口服氨氯地平5mg", session_id=sid, doctor_id=doctor_id)
         # Resume: GET session should preserve collected state
         state = get_session(server_url, sid, doctor_id)
         collected = state.get("collected", {})
         assert any(v for k, v in collected.items() if not k.startswith("_")), "Collected should have data after 2 turns"
         # Confirm
-        status_code, _ = interview_confirm(server_url, sid, doctor_id)
+        status_code, _ = intake_confirm(server_url, sid, doctor_id)
         assert status_code == 200
         time.sleep(0.5)
         assert db_count(db_path, doctor_id, "medical_records") >= 1
@@ -44,9 +44,9 @@ class TestSessionLifecycle:
         # Send a greeting, not clinical text — may or may not create a session
         # We need a session_id to call confirm, so send something minimal
         try:
-            resp = interview_turn(server_url, "你好", doctor_id=doctor_id)
+            resp = intake_turn(server_url, "你好", doctor_id=doctor_id)
             sid = resp["session_id"]
-            status_code, _ = interview_confirm(server_url, sid, doctor_id)
+            status_code, _ = intake_confirm(server_url, sid, doctor_id)
             assert status_code == 400, f"Expected 400 for empty confirm, got {status_code}"
         except Exception:
             pass  # If turn itself fails, that's also acceptable
@@ -54,23 +54,23 @@ class TestSessionLifecycle:
     def test_confirm_double_rejected(self, server_url, db_path, cleanup):
         """Confirm same session twice → second returns 400."""
         doctor_id = cleanup.make_doctor_id("double")
-        resp = interview_turn(server_url, "王五 男 60岁 腰痛2天 现病史:2天前搬重物后腰痛", doctor_id=doctor_id)
+        resp = intake_turn(server_url, "王五 男 60岁 腰痛2天 现病史:2天前搬重物后腰痛", doctor_id=doctor_id)
         sid = resp["session_id"]
-        s1, _ = interview_confirm(server_url, sid, doctor_id)
+        s1, _ = intake_confirm(server_url, sid, doctor_id)
         assert s1 == 200
         time.sleep(0.5)
-        s2, _ = interview_confirm(server_url, sid, doctor_id)
+        s2, _ = intake_confirm(server_url, sid, doctor_id)
         assert s2 == 400, f"Expected 400 for double confirm, got {s2}"
 
     def test_deferred_patient_creation(self, server_url, db_path, cleanup):
         """Patient created at confirm time, not during turns."""
         doctor_id = cleanup.make_doctor_id("deferred")
-        resp = interview_turn(server_url, "赵六 女 33岁 咳嗽5天 现病史:持续干咳", doctor_id=doctor_id)
+        resp = intake_turn(server_url, "赵六 女 33岁 咳嗽5天 现病史:持续干咳", doctor_id=doctor_id)
         sid = resp["session_id"]
         # Record should not exist yet
         assert db_count(db_path, doctor_id, "medical_records") == 0
         # Confirm creates both patient and record
-        status_code, _ = interview_confirm(server_url, sid, doctor_id)
+        status_code, _ = intake_confirm(server_url, sid, doctor_id)
         assert status_code == 200
         time.sleep(0.5)
         assert db_count(db_path, doctor_id, "medical_records") >= 1
@@ -81,9 +81,9 @@ class TestConfirmStatus:
     def test_minimal_pending_review(self, server_url, db_path, cleanup):
         """Only CC+PI → status=pending_review."""
         doctor_id = cleanup.make_doctor_id("minimal")
-        resp = interview_turn(server_url, "孙七 男 70岁 头晕2天 现病史:间歇性头晕伴耳鸣", doctor_id=doctor_id)
+        resp = intake_turn(server_url, "孙七 男 70岁 头晕2天 现病史:间歇性头晕伴耳鸣", doctor_id=doctor_id)
         sid = resp["session_id"]
-        status_code, body = interview_confirm(server_url, sid, doctor_id)
+        status_code, body = intake_confirm(server_url, sid, doctor_id)
         assert status_code == 200
         # Without diagnosis/treatment/followup, should be pending_review
         assert body.get("status") == "pending_review", f"Expected pending_review, got {body.get('status')}"
@@ -107,9 +107,9 @@ class TestConfirmStatus:
             "治疗方案:口服布洛芬缓释胶囊 继续降压治疗\n"
             "医嘱:2周后复诊 监测血压"
         )
-        resp = interview_turn(server_url, full_text, doctor_id=doctor_id)
+        resp = intake_turn(server_url, full_text, doctor_id=doctor_id)
         sid = resp["session_id"]
-        status_code, body = interview_confirm(server_url, sid, doctor_id)
+        status_code, body = intake_confirm(server_url, sid, doctor_id)
         assert status_code == 200
         # With diagnosis + treatment + followup, should be completed
         assert body.get("status") == "completed", f"Expected completed, got {body.get('status')}"
@@ -120,11 +120,11 @@ class TestEdgeCases:
         """Same text sent twice → no double extraction in record."""
         doctor_id = cleanup.make_doctor_id("dup_msg")
         text = "吴九 男 42岁 咽痛3天 现病史:3天前受凉后出现咽痛伴低热"
-        r1 = interview_turn(server_url, text, doctor_id=doctor_id)
+        r1 = intake_turn(server_url, text, doctor_id=doctor_id)
         sid = r1["session_id"]
         # Send exact same text again
-        interview_turn(server_url, text, session_id=sid, doctor_id=doctor_id)
-        status_code, _ = interview_confirm(server_url, sid, doctor_id)
+        intake_turn(server_url, text, session_id=sid, doctor_id=doctor_id)
+        status_code, _ = intake_confirm(server_url, sid, doctor_id)
         assert status_code == 200
         time.sleep(0.5)
         record = db_record_fields(db_path, doctor_id)
@@ -137,14 +137,14 @@ class TestEdgeCases:
     def test_5_turn_incremental(self, server_url, db_path, cleanup):
         """5 turns each adding 2-3 fields → all merged correctly."""
         doctor_id = cleanup.make_doctor_id("5turn")
-        r1 = interview_turn(server_url, "郑十 女 48岁 心内科", doctor_id=doctor_id)
+        r1 = intake_turn(server_url, "郑十 女 48岁 心内科", doctor_id=doctor_id)
         sid = r1["session_id"]
-        interview_turn(server_url, "主诉:心悸反复发作2月 现病史:2月前开始出现阵发性心悸", session_id=sid, doctor_id=doctor_id)
-        interview_turn(server_url, "既往史:甲亢病史5年 过敏史:青霉素过敏", session_id=sid, doctor_id=doctor_id)
-        interview_turn(server_url, "体格检查:HR 96次/分 BP 110/70mmHg 甲状腺I度肿大", session_id=sid, doctor_id=doctor_id)
-        interview_turn(server_url, "辅助检查:TSH 0.1 FT4 28 心电图:窦性心动过速\n诊断:甲状腺功能亢进症", session_id=sid, doctor_id=doctor_id)
+        intake_turn(server_url, "主诉:心悸反复发作2月 现病史:2月前开始出现阵发性心悸", session_id=sid, doctor_id=doctor_id)
+        intake_turn(server_url, "既往史:甲亢病史5年 过敏史:青霉素过敏", session_id=sid, doctor_id=doctor_id)
+        intake_turn(server_url, "体格检查:HR 96次/分 BP 110/70mmHg 甲状腺I度肿大", session_id=sid, doctor_id=doctor_id)
+        intake_turn(server_url, "辅助检查:TSH 0.1 FT4 28 心电图:窦性心动过速\n诊断:甲状腺功能亢进症", session_id=sid, doctor_id=doctor_id)
 
-        status_code, _ = interview_confirm(server_url, sid, doctor_id)
+        status_code, _ = intake_confirm(server_url, sid, doctor_id)
         assert status_code == 200
         time.sleep(0.5)
         record = db_record_fields(db_path, doctor_id)
@@ -157,7 +157,7 @@ class TestEdgeCases:
         """Empty or whitespace input → should not crash."""
         doctor_id = cleanup.make_doctor_id("empty_input")
         try:
-            resp = interview_turn(server_url, "  ", doctor_id=doctor_id)
+            resp = intake_turn(server_url, "  ", doctor_id=doctor_id)
             # If it succeeds, that's fine — just shouldn't crash
             assert "session_id" in resp or True
         except Exception:
@@ -170,15 +170,15 @@ class TestCarryForward:
         """Returning patient: carry-forward field confirmed → injected into collected."""
         doctor_id = cleanup.make_doctor_id("cf_confirm")
         # First: create a patient with a record that has past_history
-        r1 = interview_turn(server_url, "钱十一 男 65岁 既往高血压10年 糖尿病5年\n主诉:头痛1天\n现病史:今晨起头痛", doctor_id=doctor_id)
+        r1 = intake_turn(server_url, "钱十一 男 65岁 既往高血压10年 糖尿病5年\n主诉:头痛1天\n现病史:今晨起头痛", doctor_id=doctor_id)
         sid1 = r1["session_id"]
-        status_code, _ = interview_confirm(server_url, sid1, doctor_id)
+        status_code, _ = intake_confirm(server_url, sid1, doctor_id)
         time.sleep(0.5)
         if status_code != 200:
             pytest.skip("First record creation failed — cannot test carry-forward")
 
         # Second visit for same patient — should offer carry-forward
-        r2 = interview_turn(server_url, "钱十一 男 65岁 复诊 胸闷2天", doctor_id=doctor_id)
+        r2 = intake_turn(server_url, "钱十一 男 65岁 复诊 胸闷2天", doctor_id=doctor_id)
         sid2 = r2["session_id"]
         carry = r2.get("carry_forward", [])
         if not carry:
@@ -196,15 +196,15 @@ class TestCarryForward:
         """Returning patient: carry-forward field dismissed → NOT in collected."""
         doctor_id = cleanup.make_doctor_id("cf_dismiss")
         # First record
-        r1 = interview_turn(server_url, "孙十二 女 58岁 过敏史:磺胺类过敏\n主诉:咳嗽1周\n现病史:干咳1周", doctor_id=doctor_id)
+        r1 = intake_turn(server_url, "孙十二 女 58岁 过敏史:磺胺类过敏\n主诉:咳嗽1周\n现病史:干咳1周", doctor_id=doctor_id)
         sid1 = r1["session_id"]
-        status_code, _ = interview_confirm(server_url, sid1, doctor_id)
+        status_code, _ = intake_confirm(server_url, sid1, doctor_id)
         time.sleep(0.5)
         if status_code != 200:
             pytest.skip("First record creation failed")
 
         # Second visit
-        r2 = interview_turn(server_url, "孙十二 女 58岁 复诊 头晕3天", doctor_id=doctor_id)
+        r2 = intake_turn(server_url, "孙十二 女 58岁 复诊 头晕3天", doctor_id=doctor_id)
         sid2 = r2["session_id"]
         carry = r2.get("carry_forward", [])
         if not carry:
@@ -232,9 +232,9 @@ class TestAutoTasks:
             "治疗方案:口服阿司匹林100mg qd\n"
             "医嘱:2周后复查心电图 1个月后门诊随访"
         )
-        resp = interview_turn(server_url, text, doctor_id=doctor_id)
+        resp = intake_turn(server_url, text, doctor_id=doctor_id)
         sid = resp["session_id"]
-        status_code, _ = interview_confirm(server_url, sid, doctor_id)
+        status_code, _ = intake_confirm(server_url, sid, doctor_id)
         assert status_code == 200
         time.sleep(1.0)  # Task generation is async, allow extra time
         tasks = db_task_count(db_path, doctor_id)
@@ -245,11 +245,11 @@ class TestPatientWorkflows:
     def test_patient_self_contradict(self, server_url, db_path, cleanup):
         """Patient contradicts earlier answer → later answer should win."""
         doctor_id = cleanup.make_doctor_id("contradict")
-        r1 = interview_turn(server_url, "赵十四 女 40岁 腹痛3天 现病史:右下腹痛3天\n过敏史:没有过敏", doctor_id=doctor_id)
+        r1 = intake_turn(server_url, "赵十四 女 40岁 腹痛3天 现病史:右下腹痛3天\n过敏史:没有过敏", doctor_id=doctor_id)
         sid = r1["session_id"]
         # Contradict: now says allergic to penicillin
-        interview_turn(server_url, "哦对了 我对青霉素过敏", session_id=sid, doctor_id=doctor_id)
-        status_code, _ = interview_confirm(server_url, sid, doctor_id)
+        intake_turn(server_url, "哦对了 我对青霉素过敏", session_id=sid, doctor_id=doctor_id)
+        status_code, _ = intake_confirm(server_url, sid, doctor_id)
         assert status_code == 200
         time.sleep(0.5)
         record = db_record_fields(db_path, doctor_id)
@@ -259,9 +259,9 @@ class TestPatientWorkflows:
     def test_patient_checkup_only(self, server_url, db_path, cleanup):
         """Patient with no symptoms (routine checkup) → valid minimal record."""
         doctor_id = cleanup.make_doctor_id("checkup")
-        resp = interview_turn(server_url, "钱十五 男 35岁 体检 无不适 否认既往病史 否认过敏 不吸烟不饮酒", doctor_id=doctor_id)
+        resp = intake_turn(server_url, "钱十五 男 35岁 体检 无不适 否认既往病史 否认过敏 不吸烟不饮酒", doctor_id=doctor_id)
         sid = resp["session_id"]
-        status_code, _ = interview_confirm(server_url, sid, doctor_id)
+        status_code, _ = intake_confirm(server_url, sid, doctor_id)
         assert status_code == 200
         time.sleep(0.5)
         record = db_record_fields(db_path, doctor_id)

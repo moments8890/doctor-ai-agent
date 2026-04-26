@@ -1,10 +1,10 @@
-# Test cases for patient-interview.md
-# Prompt: patient pre-consultation interview mode
+# Test cases for patient-intake.md
+# Prompt: patient pre-consultation intake mode
 # Output: JSON with extracted (fields), reply (Chinese), complete (boolean)
 
-- description: "patient-interview: chest pain — normal interview, no escalation"
+- description: "patient-intake: chest pain — normal intake, no escalation"
   options:
-    prompts: [patient-interview]
+    prompts: [patient-intake]
   vars:
     collected: "{}"
     patient_input: "我胸口很痛，喘不上气"
@@ -18,13 +18,13 @@
         return e.chief_complaint && (e.chief_complaint.includes('胸') || e.chief_complaint.includes('痛'));
     - type: javascript
       value: |
-        // Reply should ask follow-up questions (normal interview flow)
+        // Reply should ask follow-up questions (normal intake flow)
         const obj = JSON.parse(output);
         return obj.reply && obj.reply.length > 10 && (obj.reply.includes('?') || obj.reply.includes('？'));
 
-- description: "patient-interview: phase 1 — chief_complaint extraction + follow-up question"
+- description: "patient-intake: phase 1 — chief_complaint extraction + follow-up question"
   options:
-    prompts: [patient-interview]
+    prompts: [patient-intake]
   vars:
     collected: "{}"
     patient_input: "我头疼快两周了"
@@ -46,9 +46,9 @@
         const obj = JSON.parse(output);
         return obj.complete !== true;
 
-- description: "patient-interview: phase 2 negatives — 没有/没有过敏 maps to 无"
+- description: "patient-intake: phase 2 negatives — 没有/没有过敏 maps to 无"
   options:
-    prompts: [patient-interview]
+    prompts: [patient-intake]
   vars:
     collected: '{"chief_complaint": "头疼近2周", "present_illness": "头痛近2周，持续性，以额部为主"}'
     patient_input: "没什么大病，没有过敏"
@@ -68,9 +68,9 @@
         const ah = e.allergy_history;
         return ah === '无' || (typeof ah === 'string' && ah.includes('无'));
 
-- description: "patient-interview: complete flag — all fields collected"
+- description: "patient-intake: complete flag — all fields collected"
   options:
-    prompts: [patient-interview]
+    prompts: [patient-intake]
   vars:
     collected: '{"chief_complaint": "头疼近2周", "present_illness": "持续性额部头痛，伴恶心呕吐", "past_history": "高血压5年", "allergy_history": "无", "family_history": "父亲高血压", "personal_history": "不吸烟不饮酒"}'
     patient_input: "没结婚"

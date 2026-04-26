@@ -23,7 +23,7 @@
 | Modify | `frontend/web/src/components/VoiceInput.jsx` | Update `isVoiceSupported()` to check miniapp |
 | Modify | `frontend/web/src/utils/miniappBridge.js` | Remove `openAddRuleVoice`, add `isVoiceSupported` |
 | Modify | `frontend/web/src/pages/doctor/subpages/AddKnowledgeSubpage.jsx` | Replace voice nav row with `VoiceMicButton` |
-| Modify | `frontend/web/src/pages/doctor/InterviewPage.jsx` | Replace `MiniVoiceMicHint` with `VoiceMicButton` |
+| Modify | `frontend/web/src/pages/doctor/IntakePage.jsx` | Replace `MiniVoiceMicHint` with `VoiceMicButton` |
 | Modify | `frontend/web/src/pages/doctor/DoctorPage.jsx` | Replace `MiniVoiceMicHint` with `VoiceMicButton` |
 | Modify | `frontend/miniprogram/pages/doctor/doctor.js` | Add background voice recorder + polling |
 
@@ -692,12 +692,12 @@ git commit -m "feat(voice): replace voice nav with inline VoiceMicButton in add-
 ### Task 6: Integrate VoiceMicButton into Chat Input Bars
 
 **Files:**
-- Modify: `frontend/web/src/pages/doctor/InterviewPage.jsx`
+- Modify: `frontend/web/src/pages/doctor/IntakePage.jsx`
 - Modify: `frontend/web/src/pages/doctor/DoctorPage.jsx`
 
-- [ ] **Step 1: Update InterviewPage.jsx**
+- [ ] **Step 1: Update IntakePage.jsx**
 
-In `InterviewPage.jsx`:
+In `IntakePage.jsx`:
 
 1. Add import:
 ```javascript
@@ -748,7 +748,7 @@ Expected: Build succeeds.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/web/src/pages/doctor/InterviewPage.jsx frontend/web/src/pages/doctor/DoctorPage.jsx
+git add frontend/web/src/pages/doctor/IntakePage.jsx frontend/web/src/pages/doctor/DoctorPage.jsx
 git commit -m "feat(voice): add inline VoiceMicButton to chat input bars"
 ```
 

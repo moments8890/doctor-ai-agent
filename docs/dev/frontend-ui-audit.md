@@ -51,14 +51,14 @@ typical day for the doctor and patient:
 
 #### Journey 1: Patient Pre-Consultation (患者预问诊)
 ```
-Patient opens portal → logs in → starts interview →
+Patient opens portal → logs in → starts intake →
 answers AI questions (demographics, chief complaint, history) →
 reviews summary → confirms → doctor gets notification
 ```
 
 Verify:
 - [ ] Patient can complete without getting stuck
-- [ ] Interview asks medically appropriate questions
+- [ ] Intake asks medically appropriate questions
 - [ ] Generated record is structured and readable
 - [ ] Doctor sees the completed record in their workbench
 

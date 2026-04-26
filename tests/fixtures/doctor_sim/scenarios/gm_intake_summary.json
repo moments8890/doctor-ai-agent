@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "id": "gm_interview_summary",
+  "id": "gm_intake_summary",
   "scenario_type": "doctor_chat",
-  "title": "Interview summary style record",
+  "title": "Intake summary style record",
   "tags": [
     "regression",
     "create_save"
@@ -42,7 +42,7 @@
         "expected": 1
       },
       {
-        "target": "db.interview_sessions.count",
+        "target": "db.intake_sessions.count",
         "matcher": "min",
         "expected": 1
       }

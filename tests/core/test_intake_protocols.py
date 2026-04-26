@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from domain.interview.protocols import (
+from domain.intake.protocols import (
     FieldSpec, Mode, Phase,
     CompletenessState, PersistRef, TurnResult, SessionState,
 )

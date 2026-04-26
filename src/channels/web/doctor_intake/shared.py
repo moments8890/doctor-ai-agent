@@ -1,4 +1,4 @@
-"""Doctor interview — shared Pydantic models and helper functions."""
+"""Doctor intake — shared Pydantic models and helper functions."""
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -7,7 +7,7 @@ from fastapi import HTTPException, UploadFile
 from pydantic import BaseModel
 
 from infra.auth.request_auth import resolve_doctor_id_from_auth_or_fallback
-from domain.patients.interview_turn import FIELD_LABELS as _BASE_FIELD_LABELS
+from domain.patients.intake_turn import FIELD_LABELS as _BASE_FIELD_LABELS
 from utils.log import log
 
 
@@ -35,14 +35,14 @@ FIELD_LABELS: Dict[str, str] = _build_field_labels()
 
 # ── Pydantic models ──────────────────────────────────────────────
 
-class DoctorInterviewResponse(BaseModel):
+class DoctorIntakeResponse(BaseModel):
     session_id: str
     reply: str
     collected: Dict[str, str] = {}
     progress: Dict[str, Any] = {}
     missing: List[str] = []
     missing_required: List[str] = []
-    status: str = "interviewing"
+    status: str = "active"
     patient_id: Optional[int] = None
     pending_id: Optional[str] = None
     suggestions: List[str] = []
@@ -50,7 +50,7 @@ class DoctorInterviewResponse(BaseModel):
     carry_forward: List[Dict[str, str]] = []
 
 
-class InterviewConfirmResponse(BaseModel):
+class IntakeConfirmResponse(BaseModel):
     status: str
     preview: Optional[str] = None
     pending_id: Optional[str] = None
@@ -102,17 +102,17 @@ async def _verify_session(session_id: str, doctor_id: str, *, candidate_doctor_i
     the case where JWT resolution fell back to a default but the body has
     the correct value.
     """
-    from domain.patients.interview_session import load_session
+    from domain.patients.intake_session import load_session
     session = await load_session(session_id)
     if session is None:
-        raise HTTPException(404, "Interview session not found")
+        raise HTTPException(404, "Intake session not found")
     if session.doctor_id == doctor_id:
         return session
     # JWT-resolved ID didn't match — check if the body candidate matches
     if candidate_doctor_id and session.doctor_id == candidate_doctor_id.strip():
-        log(f"[interview] session matched via candidate_doctor_id={candidate_doctor_id!r} (JWT resolved to {doctor_id!r})")
+        log(f"[intake] session matched via candidate_doctor_id={candidate_doctor_id!r} (JWT resolved to {doctor_id!r})")
         return session
-    log(f"[interview] session owner mismatch: session.doctor_id={session.doctor_id!r} != resolved={doctor_id!r} candidate={candidate_doctor_id!r}")
+    log(f"[intake] session owner mismatch: session.doctor_id={session.doctor_id!r} != resolved={doctor_id!r} candidate={candidate_doctor_id!r}")
     raise HTTPException(403, "Not your session")
 
 
@@ -127,14 +127,14 @@ def _build_clinical_text(collected: Dict[str, str]) -> str:
 
 def _compute_progress(collected):
     from domain.patients.completeness import check_completeness
-    from domain.patients.interview_turn import _build_progress
+    from domain.patients.intake_turn import _build_progress
     missing = check_completeness(collected, mode="doctor")
     missing_req = [f for f in ("chief_complaint", "present_illness") if not collected.get(f)]
     return {
         "progress": _build_progress(collected, mode="doctor"),
         "missing": missing,
         "missing_required": missing_req,
-        "status": "ready_for_confirm" if not missing else "interviewing",
+        "status": "ready_for_confirm" if not missing else "active",
     }
 
 

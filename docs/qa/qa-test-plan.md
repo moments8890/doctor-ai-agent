@@ -4,7 +4,7 @@ Comprehensive test scenarios organized by pipeline. Each section lists the
 happy-path flows, edge cases, and what to verify.
 
 **Last reference run:** 2026-04-08 (hero-path run — see `hero-path-qa-plan.md`)
-**Known open bugs:** BUG-01 (date display), BUG-02 (greeting suffix), BUG-03 (interview send, real-device only), BUG-05 (edit button order), BUG-06 (NL search), BUG-07 (logout back nav)
+**Known open bugs:** BUG-01 (date display), BUG-02 (greeting suffix), BUG-03 (intake send, real-device only), BUG-05 (edit button order), BUG-06 (NL search), BUG-07 (logout back nav)
 **Pre-flight requirement:** Backend must start with `NO_PROXY=* no_proxy=*` prefix or all LLM calls fail silently (BUG-04 — not yet permanently fixed in code)
 
 ---
@@ -61,28 +61,28 @@ Tests AI diagnosis generation, suggestion review, and record finalization.
 
 ---
 
-## 3. Doctor Interview / Record Creation
+## 3. Doctor Intake / Record Creation
 
-Tests the doctor-side structured interview flow — the primary data-entry path
+Tests the doctor-side structured intake flow — the primary data-entry path
 for creating medical records.
 
 | # | Scenario | Steps | Verify |
 |---|----------|-------|--------|
-| 3.1 | Start new interview | 新建病历 → select patient or create new | Interview chat starts, first question from AI |
+| 3.1 | Start new intake | 新建病历 → select patient or create new | Intake chat starts, first question from AI |
 | 3.2 | Multi-turn data entry | Answer AI questions about symptoms, history, etc. | AI asks relevant follow-ups, builds structured record |
-| 3.3 | Voice input during interview | Tap mic → speak → AI processes | Audio transcribed, treated as interview answer |
-| 3.4 | Image/file import mid-interview | Upload image or file during interview | Content extracted and incorporated into record fields |
-| 3.5 | Carry-forward from previous records | Start interview for returning patient | Previous record data pre-populated / referenced |
-| 3.6 | Edit fields mid-interview | Correct a field during interview | Field updated, AI adjusts subsequent questions |
+| 3.3 | Voice input during intake | Tap mic → speak → AI processes | Audio transcribed, treated as intake answer |
+| 3.4 | Image/file import mid-intake | Upload image or file during intake | Content extracted and incorporated into record fields |
+| 3.5 | Carry-forward from previous records | Start intake for returning patient | Previous record data pre-populated / referenced |
+| 3.6 | Edit fields mid-intake | Correct a field during intake | Field updated, AI adjusts subsequent questions |
 | 3.7 | Confirm and save | Review structured fields → confirm | Record created with status = pending_review |
-| 3.8 | Cancel mid-interview | Abandon interview before confirm | Partial data handled gracefully (not saved as record) |
+| 3.8 | Cancel mid-intake | Abandon intake before confirm | Partial data handled gracefully (not saved as record) |
 
 **Edge cases:**
-- Interview with no prior patient records (cold start)
+- Intake with no prior patient records (cold start)
 - Very long free-text answers
-- Switching patients mid-interview
+- Switching patients mid-intake
 - Network interruption during multi-turn conversation
-- File upload size limit: 20MB max for chat/interview uploads
+- File upload size limit: 20MB max for chat/intake uploads
 
 ---
 
@@ -94,7 +94,7 @@ Tests patient creation from various entry points.
 |---|----------|-------|--------|
 | 4.1 | Create from chat | Chat "新建患者 张三 男 45岁" | Patient created, appears in patient list |
 | 4.2 | Create from onboarding | Onboarding wizard → demo patient step | Patient created with QR code, portal URL generated |
-| 4.3 | Generate QR code | Patient detail → generate pre-interview code | QR code displayed, scannable, has expiry |
+| 4.3 | Generate QR code | Patient detail → generate pre-intake code | QR code displayed, scannable, has expiry |
 | 4.4 | Patient appears in list | Create patient → go to 患者 tab | Patient in alphabetical group, shows gender/age |
 | 4.5 | Patient detail view | Click patient → view detail | Timeline, records, messages displayed correctly |
 
@@ -107,22 +107,22 @@ Tests patient creation from various entry points.
 
 ---
 
-## 5. Patient Interview Pipeline (Patient-Facing)
+## 5. Patient Intake Pipeline (Patient-Facing)
 
-Tests the patient-facing pre-visit interview flow.
+Tests the patient-facing pre-visit intake flow.
 
 | # | Scenario | Steps | Verify |
 |---|----------|-------|--------|
-| 5.1 | Start interview via QR | Patient scans QR → lands on interview page | Interview starts, first question displayed |
+| 5.1 | Start intake via QR | Patient scans QR → lands on intake page | Intake starts, first question displayed |
 | 5.2 | Answer questions | Patient types answers → AI asks follow-ups | Clarifying questions are relevant, conversation flows |
-| 5.3 | Submit interview | Patient confirms all answers → submit | Structured record created for doctor, status = pending_review |
-| 5.4 | Doctor sees result | Doctor opens patient → view interview record | Structured fields populated (chief complaint, history, etc.) |
+| 5.3 | Submit intake | Patient confirms all answers → submit | Structured record created for doctor, status = pending_review |
+| 5.4 | Doctor sees result | Doctor opens patient → view intake record | Structured fields populated (chief complaint, history, etc.) |
 
 **Edge cases:**
-- Patient abandons mid-interview (partial data saved?)
+- Patient abandons mid-intake (partial data saved?)
 - Very long patient answers (>2000 chars)
-- Interview session timeout / token expiry
-- Patient re-starts interview after submission
+- Intake session timeout / token expiry
+- Patient re-starts intake after submission
 - Multiple patients using same QR code simultaneously
 
 ---
@@ -224,7 +224,7 @@ Status enum: `pending` → `notified` → `completed` | `cancelled`
 
 ## 9. Chat / AI Conversation Pipeline
 
-> **Note (2026-04-08):** The doctor workbench no longer has an embedded chat input on the main 我的AI tab. The workbench uses a dashboard model with quick action cards (新建病历, 患者预问诊码) and an AI activity feed. Chat interaction happens via the doctor-side interview flow (§3), not a standalone chat composer. Tests 9.1–9.4 apply to those entry points; 9.8–9.9 apply to the 我的AI activity feed.
+> **Note (2026-04-08):** The doctor workbench no longer has an embedded chat input on the main 我的AI tab. The workbench uses a dashboard model with quick action cards (新建病历, 患者预问诊码) and an AI activity feed. Chat interaction happens via the doctor-side intake flow (§3), not a standalone chat composer. Tests 9.1–9.4 apply to those entry points; 9.8–9.9 apply to the 我的AI activity feed.
 
 Tests the core AI chat interaction.
 
@@ -319,9 +319,9 @@ Tests importing records from external files (separate from knowledge upload).
 
 | # | Scenario | Steps | Verify |
 |---|----------|-------|--------|
-| 13.1 | Import from image | Upload medical record image | OCR extracts text, creates interview session |
+| 13.1 | Import from image | Upload medical record image | OCR extracts text, creates intake session |
 | 13.2 | Import from PDF | Upload medical record PDF | Text extracted, structured fields parsed |
-| 13.3 | Import from text | Paste medical record text | text_to_interview creates structured record |
+| 13.3 | Import from text | Paste medical record text | text_to_intake creates structured record |
 
 **Edge cases:**
 - Partially legible image
@@ -495,7 +495,7 @@ For systematic QA, test in this order (safety-critical and gating items first):
 1. **Auth & Access** (15) — gates everything else
 2. **Admin Panel** (16) — invite codes gate doctor registration
 3. **Knowledge Creation** (1) — foundation for AI quality
-4. **Doctor Interview / Record Creation** (3) — primary data entry path
+4. **Doctor Intake / Record Creation** (3) — primary data entry path
 5. **Diagnosis Pipeline** (2) — core product loop
 6. **Patient Portal & AI Triage** (6) — safety-critical triage classification
 7. **Draft & Reply** (7) — core communication loop
@@ -505,7 +505,7 @@ For systematic QA, test in this order (safety-critical and gating items first):
 11. **Chat / AI** (9) — primary interaction surface
 12. **Review Queue** (11) — management interface
 13. **Record Edit & Versioning** (12) — data integrity
-14. **Patient Interview** (5) — patient-facing
+14. **Patient Intake** (5) — patient-facing
 15. **Daily Briefing** (14) — dashboard utility
 16. **Medical Record Import** (13) — utility
 17. **Navigation & UI** (20) — polish

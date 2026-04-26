@@ -796,8 +796,8 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
           <span class="box-label">channels/web/patient_portal.py</span>
         </div>
         <div class="box box-green">
-          Patient Interview
-          <span class="box-label">channels/web/patient_interview_routes.py</span>
+          Patient Intake
+          <span class="box-label">channels/web/patient_intake_routes.py</span>
         </div>
       </div>
 
@@ -882,7 +882,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
           </div>
           <div class="box box-gray">
             domain/patient_lifecycle/
-            <span class="box-label">Triage, interview</span>
+            <span class="box-label">Triage, intake</span>
           </div>
         </div>
       </div>
@@ -998,7 +998,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
           <td><code>create_record</code></td>
           <td><span class="file-path" onclick="copyPath(this)">handlers/create_record.py</span></td>
           <td>Yes</td>
-          <td>Dictate a new medical record (interview mode)</td>
+          <td>Dictate a new medical record (intake mode)</td>
         </tr>
         <tr class="row-blue">
           <td><code>query_task</code></td>
@@ -1099,7 +1099,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
       </div>
       <div class="pattern-card">
         <h4>Pattern 2: Conversation</h4>
-        <p class="muted">Used by create_record (interview mode).</p>
+        <p class="muted">Used by create_record (intake mode).</p>
         <div class="pattern-block pattern-system">
           <strong>system</strong>: L1 + L2 + L3 + L4 + L5
         </div>
@@ -1119,7 +1119,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
       </tr></thead>
       <tbody>
         <tr style="border-bottom:1px solid var(--border-light);">
-          <td style="padding:5px 8px; font-weight:500;">INTENT_LAYERS (×7)</td><td style="padding:5px 8px;">query, interview, general, etc.</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">varies</td><td style="padding:5px 8px;">Chat pipeline</td>
+          <td style="padding:5px 8px; font-weight:500;">INTENT_LAYERS (×7)</td><td style="padding:5px 8px;">query, intake, general, etc.</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">varies</td><td style="padding:5px 8px;">Chat pipeline</td>
         </tr>
         <tr style="border-bottom:1px solid var(--border-light);">
           <td style="padding:5px 8px; font-weight:500;">ROUTING_LAYERS</td><td style="padding:5px 8px;">routing</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">Intent classification</td>
@@ -1131,7 +1131,7 @@ tr.row-purple td { border-left: 3px solid var(--purple); }
           <td style="padding:5px 8px; font-weight:500; color:#07C160;">FOLLOWUP_REPLY_LAYERS</td><td style="padding:5px 8px;">followup_reply</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">Draft reply generation</td>
         </tr>
         <tr>
-          <td style="padding:5px 8px; font-weight:500;">PATIENT_INTERVIEW_LAYERS</td><td style="padding:5px 8px;">patient-interview</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">Patient pre-consultation</td>
+          <td style="padding:5px 8px; font-weight:500;">PATIENT_INTAKE_LAYERS</td><td style="padding:5px 8px;">patient-intake</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">—</td><td style="padding:5px 8px;">✅</td><td style="padding:5px 8px;">Patient pre-consultation</td>
         </tr>
       </tbody>
     </table>
@@ -1399,7 +1399,7 @@ L7 user_message</span>
 
     <!-- Main flow -->
     <div class="state-machine">
-      <div class="state-box state-orange">interview_active</div>
+      <div class="state-box state-orange">intake_active</div>
       <div class="state-connector">
         <div class="state-connector-line"></div>
         <div class="state-connector-label">confirm</div>
@@ -1416,7 +1416,7 @@ L7 user_message</span>
     <div class="branch-container">
       <p style="font-size: 0.85rem; margin-bottom: 8px; font-weight: 500;">Shortcut path (all fields present at confirm):</p>
       <div class="branch-row">
-        <div class="state-box state-orange" style="padding: 8px 14px; font-size: 0.78rem;">interview_active</div>
+        <div class="state-box state-orange" style="padding: 8px 14px; font-size: 0.78rem;">intake_active</div>
         <div class="state-connector">
           <div class="state-connector-line"></div>
           <div class="state-connector-label">confirm (complete)</div>
@@ -1424,7 +1424,7 @@ L7 user_message</span>
         <div class="state-box state-green" style="padding: 8px 14px; font-size: 0.78rem;">completed</div>
       </div>
       <p class="muted" style="margin-top: 8px;">
-        When the interview collects all required fields and the doctor confirms,
+        When the intake collects all required fields and the doctor confirms,
         the record skips <code>pending_review</code> and transitions directly to <code>completed</code>.
       </p>
     </div>
@@ -1508,8 +1508,8 @@ L7 user_message</span>
         <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/records/upload</td><td class="route-desc">Upload image/PDF for OCR import</td></tr>
         <tr><td><span class="method method-get">GET</span></td><td class="route-path">/api/export/{patient_id}/pdf</td><td class="route-desc">Export patient records as PDF</td></tr>
         <tr><td rowspan="3" style="font-weight:600; color:var(--accent);">Patient</td>
-            <td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/interview/start</td><td class="route-desc">Start pre-consultation interview</td></tr>
-        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/interview/turn</td><td class="route-desc">Interview conversation turn</td></tr>
+            <td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/intake/start</td><td class="route-desc">Start pre-consultation intake</td></tr>
+        <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/intake/turn</td><td class="route-desc">Intake conversation turn</td></tr>
         <tr><td><span class="method method-post">POST</span></td><td class="route-path">/api/patient/message</td><td class="route-desc">Send message to doctor (triage)</td></tr>
         <tr><td rowspan="2" style="font-weight:600; color:var(--orange);">WeChat</td>
             <td><span class="method method-post">POST</span></td><td class="route-path">/api/wechat</td><td class="route-desc">WeChat message webhook</td></tr>
@@ -1719,24 +1719,24 @@ L7 user_message</span>
       </div>
     </div>
 
-    <!-- ── Patient Interview Session ── -->
-    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Patient Interview: Stateful HTTP</h3>
+    <!-- ── Patient Intake Session ── -->
+    <h3 style="font-size: 0.95rem; margin: 24px 0 12px; color: var(--text);">Patient Intake: Stateful HTTP</h3>
     <p class="muted">
       No WebSocket or SSE. Each turn is a standard HTTP request-response.
-      Session state lives in <code>interview_sessions</code> table (conversation history + collected fields).
+      Session state lives in <code>intake_sessions</code> table (conversation history + collected fields).
     </p>
 
     <div class="pipeline">
       <div class="pipeline-step">
         <div class="pipeline-dot pipeline-dot-green">1</div>
         <div class="pipeline-label">Start</div>
-        <div class="pipeline-sublabel">POST /interview/start</div>
+        <div class="pipeline-sublabel">POST /intake/start</div>
       </div>
       <div class="pipeline-connector"></div>
       <div class="pipeline-step">
         <div class="pipeline-dot pipeline-dot-blue">2</div>
         <div class="pipeline-label">Turn N</div>
-        <div class="pipeline-sublabel">POST /interview/turn</div>
+        <div class="pipeline-sublabel">POST /intake/turn</div>
       </div>
       <div class="pipeline-connector"></div>
       <div class="pipeline-step">
@@ -1748,7 +1748,7 @@ L7 user_message</span>
       <div class="pipeline-step">
         <div class="pipeline-dot pipeline-dot-green">3</div>
         <div class="pipeline-label">Confirm</div>
-        <div class="pipeline-sublabel">POST /interview/confirm</div>
+        <div class="pipeline-sublabel">POST /intake/confirm</div>
       </div>
       <div class="pipeline-connector"></div>
       <div class="pipeline-step">
@@ -1766,9 +1766,9 @@ L7 user_message</span>
 
     <p class="muted" style="margin-top: 12px;">
       Key files:
-      <span class="file-path" onclick="copyPath(this)">src/channels/web/patient_interview_routes.py</span> (HTTP routes),
-      <span class="file-path" onclick="copyPath(this)">src/domain/patients/interview_turn.py</span> (LLM conversation),
-      <span class="file-path" onclick="copyPath(this)">src/domain/patients/interview_session.py</span> (session CRUD).
+      <span class="file-path" onclick="copyPath(this)">src/channels/web/patient_intake_routes.py</span> (HTTP routes),
+      <span class="file-path" onclick="copyPath(this)">src/domain/patients/intake_turn.py</span> (LLM conversation),
+      <span class="file-path" onclick="copyPath(this)">src/domain/patients/intake_session.py</span> (session CRUD).
     </p>
 
     <!-- ── Concurrency Summary ── -->
@@ -1892,7 +1892,7 @@ function showToast(msg) {
     { id:'doctor_chat_log',   label:'doctor_chat_log',   pk:'id (int)',  group:'communication', cols:'doctor_id, session_id, role, content', gx:0.28, gy:0.68 },
     { id:'patient_messages',  label:'patient_messages',   pk:'id (int)',  group:'communication', cols:'patient_id, doctor_id, direction, content', gx:0.74, gy:0.22 },
     { id:'message_drafts',    label:'message_drafts',     pk:'id (int)',  group:'communication', cols:'source_message_id, status, draft_text', gx:0.92, gy:0.22 },
-    { id:'interview_sessions', label:'interview_sessions', pk:'id (uuid)', group:'workflow', cols:'doctor_id, patient_id, status, collected (JSON)', gx:0.52, gy:0.75 },
+    { id:'intake_sessions', label:'intake_sessions', pk:'id (uuid)', group:'workflow', cols:'doctor_id, patient_id, status, collected (JSON)', gx:0.52, gy:0.75 },
     { id:'doctor_tasks',      label:'doctor_tasks',       pk:'id (int)',   group:'workflow', cols:'doctor_id, patient_id, record_id, task_type, status', gx:0.74, gy:0.72 },
     { id:'doctor_edits',      label:'doctor_edits',       pk:'id (int)',   group:'workflow', cols:'rule_id, entity_type, original_text', gx:0.10, gy:0.60 },
     { id:'audit_log',         label:'audit_log',          pk:'id (int)',   group:'system', cols:'doctor_id, action, resource_type', gx:0.10, gy:0.85 },
@@ -1914,8 +1914,8 @@ function showToast(msg) {
     { from:'patient_messages', to:'patients', fk:'patient_id', on_delete:'cascade' },
     { from:'patient_messages', to:'doctors', fk:'doctor_id', on_delete:'cascade' },
     { from:'message_drafts', to:'patient_messages', fk:'source_message_id', on_delete:'none' },
-    { from:'interview_sessions', to:'doctors', fk:'doctor_id', on_delete:'cascade' },
-    { from:'interview_sessions', to:'patients', fk:'patient_id', on_delete:'cascade' },
+    { from:'intake_sessions', to:'doctors', fk:'doctor_id', on_delete:'cascade' },
+    { from:'intake_sessions', to:'patients', fk:'patient_id', on_delete:'cascade' },
     { from:'doctor_tasks', to:'doctors', fk:'doctor_id', on_delete:'cascade' },
     { from:'doctor_tasks', to:'patients', fk:'patient_id', on_delete:'set_null' },
     { from:'doctor_tasks', to:'medical_records', fk:'record_id', on_delete:'set_null' },

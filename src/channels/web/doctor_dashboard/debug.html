@@ -718,9 +718,9 @@
         <option value="">All ops</option>
         <option value="routing">routing</option>
         <option value="diagnosis">diagnosis</option>
-        <option value="interview">interview</option>
-        <option value="interview.patient">interview.patient</option>
-        <option value="interview.batch_extract">interview.batch_extract</option>
+        <option value="intake">intake</option>
+        <option value="intake.patient">intake.patient</option>
+        <option value="intake.batch_extract">intake.batch_extract</option>
         <option value="query_record">query_record</option>
         <option value="create_record">create_record</option>
         <option value="query_task">query_task</option>
@@ -752,7 +752,7 @@
         <option value="">All ops</option>
         <option value="routing">routing</option>
         <option value="diagnosis">diagnosis</option>
-        <option value="interview">interview</option>
+        <option value="intake">intake</option>
       </select>
       <span class="filter-label" id="llmErrCount" style="margin-left:auto;font-size:11px;"></span>
     </div>
@@ -1065,7 +1065,7 @@ function fmtMs(ms) {
 
 function opBadgeClass(op) {
   const map = {
-    routing: 'badge-blue', diagnosis: 'badge-purple', interview: 'badge-teal',
+    routing: 'badge-blue', diagnosis: 'badge-purple', intake: 'badge-teal',
     query_record: 'badge-green', create_record: 'badge-orange',
     query_task: 'badge-yellow', create_task: 'badge-orange',
     query_patient: 'badge-teal', daily_summary: 'badge-purple', general: 'badge-gray',

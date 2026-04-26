@@ -9,7 +9,7 @@
 > - `diagnosis_results` table **deleted**. Replaced by `ai_suggestions` table (row-per-item: section + content + decision).
 > - RAG / embedding case matching **disabled**. `matched_cases` is always `[]`. Knowledge now uses feed-all-to-LLM via 6-layer prompt composer.
 > - `embedding.py` **deleted**. No vector search. Knowledge items injected directly into LLM system prompt with `[KB-{id}]` citation markers.
-> - F1.2 QR login: **done** (backend + frontend QRDialog). F1.3 voice: **done** (integrated into patient ChatTab + InterviewPage).
+> - F1.2 QR login: **done** (backend + frontend QRDialog). F1.3 voice: **done** (integrated into patient ChatTab + IntakePage).
 > - For current architecture details, see `docs/architecture.md`.
 
 ## Product Roadmap Alignment
@@ -20,7 +20,7 @@ foundational work for Phases 3–4.
 
 | Roadmap Feature | Status | Notes |
 |-----------------|--------|-------|
-| **F1.1** AI-Guided Patient Interview (ADR 0016) | ✅ Done | Interview engine + ReAct agent + doctor/patient modes + suggestion chips |
+| **F1.1** AI-Guided Patient Intake (ADR 0016) | ✅ Done | Intake engine + ReAct agent + doctor/patient modes + suggestion chips |
 | **F1.2** Patient Entry via QR / Mini-Program (ADR 0017) | ⚠️ Partial | Unified auth done, patient portal with 4 tabs, QR not built |
 | **F1.3** Patient Input Modes (voice, text, photo, file) | ⚠️ Text only | Voice stub exists, photo/file import doctor-only |
 | **F2.1** Preliminary Diagnosis & Differential (ADR 0018) | ✅ Done | Async pipeline with RAG case matching + safety guardrails |
@@ -37,7 +37,7 @@ foundational work for Phases 3–4.
 | **UI** Design System + Restructure | ✅ Done | TYPE/ICON tokens, URL-based routing, PageSkeleton, shared components |
 
 **ADRs implemented:**
-- **ADR 0016** — Patient Pre-Consultation Interview Pipeline ✅
+- **ADR 0016** — Patient Pre-Consultation Intake Pipeline ✅
 - **ADR 0018** — Clinical Decision Support Pipeline (F2.1 + F2.2 + F2.3) ✅
 - **ADR 0022** — Specialty Knowledge Base Architecture (simplified) ✅
 
@@ -53,14 +53,14 @@ foundational work for Phases 3–4.
 
 ## Problem Statement (Updated 2026-03-21)
 
-The system has Phase 0 (foundation), F1.1 (patient interview), F2.1-F2.3
+The system has Phase 0 (foundation), F1.1 (patient intake), F2.1-F2.3
 (diagnosis pipeline), P3 (dashboard/review), and P1.5 (doctor training
 surfaces) complete. Remaining gaps:
 
 1. ~~**Patient→Doctor handoff**~~ ✅ DONE — dashboard, review queue, review
    workflow with confirm/modify/reject per diagnosis item
 2. ~~**AI diagnostic intelligence (F2.1–F2.3)**~~ ✅ DONE — async diagnosis
-   pipeline with RAG case matching, red flag detection, safety guardrails
+   pipeline with RAG case matching, signal flag detection, safety guardrails
 3. **Full patient lifecycle** — no post-visit communication loop, no treatment
    plan tracking, no bilateral reminders
 4. **Patient onboarding (F1.2)** — QR-based entry, self-registration, WeChat
@@ -74,7 +74,7 @@ surfaces) complete. Remaining gaps:
 ## Product Value Proposition
 
 A doctor-centric AI clinical assistant where:
-- **The patient is the data source, not the user.** AI interviews patients to
+- **The patient is the data source, not the user.** AI intakes patients to
   collect complete clinical information — patients just answer questions.
 - **The AI learns from THIS doctor.** Diagnostic suggestions reference the
   doctor's own case history and diagnostic patterns, not just generic textbooks.
@@ -99,7 +99,7 @@ A doctor-centric AI clinical assistant where:
 | **Growth loop** | `confidence_status` field on case history | Entries tracked as preliminary → confirmed_with_evidence → revised. Weighted matching. |
 | **Persistence** | New `diagnosis_results` table | Stores AI suggestions + doctor decisions separately for audit trail + growth loop. |
 | **LLM model** | Qwen3:32b (dev/prod), Qwen3.5:9b (local) | Single model family for consistency. |
-| **DRY fix** | Move `FIELD_LABELS` to `completeness.py` | Duplicated in `interview_turn.py` and `interview_summary.py`. |
+| **DRY fix** | Move `FIELD_LABELS` to `completeness.py` | Duplicated in `intake_turn.py` and `intake_summary.py`. |
 
 ## Constraints
 
@@ -127,9 +127,9 @@ A doctor-centric AI clinical assistant where:
 
 **Incoming records view:**
 - REST endpoint `GET /api/doctor/incoming` — patient records with status
-- Statuses: 等待 (waiting) → 问诊中 (in-interview) → 待审核 (ready-for-review) →
+- Statuses: 等待 (waiting) → 问诊中 (in-intake) → 待审核 (ready-for-review) →
   诊断中 (diagnosis running) → 诊断完成 (diagnosis ready) → 已审核 (reviewed)
-- Patient queue sidebar with status badges, sorted by urgency (red flags first)
+- Patient queue sidebar with status badges, sorted by urgency (signal flags first)
 - Click to open full record + diagnosis
 
 **Review workflow:**
@@ -152,7 +152,7 @@ diagnosis_results:
   confirmed_differentials (JSON), # what doctor approved
   confirmed_workup (JSON),
   confirmed_treatment (JSON),
-  red_flags (JSON),
+  signal_flags (JSON),
   status (pending/confirmed/rejected),
   created_at, confirmed_at
 ```
@@ -170,7 +170,7 @@ diagnosis_results:
 
 **Simplified approach (Path B / LLM-first):**
 - Extend existing `skills/neurology/` with new `diagnosis.md` skill file —
-  neurology-specific diagnosis prompts, red flag rules, common differentials
+  neurology-specific diagnosis prompts, signal flag rules, common differentials
   (same pattern as `clinical_signals.md` and `structuring.md`)
 - Add `case_history` table with `confidence_status` field
 - Case matching via lightweight RAG: embed on write, in-memory cosine similarity
@@ -205,7 +205,7 @@ case_history:
 **Dependency:** P1 (case history for matching), P3 (UI to display results)
 
 **Diagnosis pipeline (single module):**
-- Trigger: interview confirmed → record saves → background task queued
+- Trigger: intake confirmed → record saves → background task queued
 - Process:
   1. Load record structured fields
   2. Query case_history via RAG (embed chief_complaint + present_illness, cosine match)
@@ -220,7 +220,7 @@ case_history:
 differentials: List[Differential]  # condition, confidence, reasoning
 workup: List[WorkupItem]           # test/imaging, rationale, urgency level
 treatment: List[TreatmentItem]     # drug CLASS (not dose), intervention, duration
-red_flags: List[str]               # urgent findings requiring immediate action
+signal_flags: List[str]               # urgent findings requiring immediate action
 case_references: List[CaseRef]     # matched historical cases with outcomes
 disclaimer: str                    # always: "AI建议仅供参考，最终诊断由医生决定"
 ```
@@ -248,7 +248,7 @@ disclaimer: str                    # always: "AI建议仅供参考，最终诊�
 - Access model: patient belongs to the doctor who generated the QR
 
 **Voice input (F1.3):**
-- STT integration for patient interview — voice-primary with text fallback
+- STT integration for patient intake — voice-primary with text fallback
 - Provider options: WeChat native STT, Tencent Cloud ASR, browser Speech API
 - Latency target: <2s from speech end to text appearance
 - Error recovery: fallback to text input if STT fails
@@ -256,7 +256,7 @@ disclaimer: str                    # always: "AI建议仅供参考，最终诊�
 **Photo/file input (F1.3):**
 - Extend existing `vision_import.py` to patient context
 - Patient uploads: prior medical records, lab results, imaging reports
-- OCR/vision processing → extracted text added to interview context
+- OCR/vision processing → extracted text added to intake context
 
 **Files:**
 - `src/channels/wechat/qr.py` — QR generation and scanning handler
@@ -311,7 +311,7 @@ disclaimer: str                    # always: "AI建议仅供参考，最终诊�
 ## Data Flow Diagram
 
 ```
-Patient submits interview
+Patient submits intake
         │
         ▼
 Record saves immediately (status: ready_for_review)
@@ -351,12 +351,12 @@ Doctor confirms/modifies/rejects
 
 ### Clinical
 - [x] AI generates clinically appropriate differential diagnoses — pipeline built, **needs neurosurgeon validation**
-- [x] Red flag detection catches surgical emergencies — 13 red flag patterns in neurology skill
+- [x] Red flag detection catches surgical emergencies — 13 signal flag patterns in neurology skill
 - [x] Treatment suggestions use drug classes only (no specific doses)
 - [x] Zero auto-confirmed diagnoses — doctor always makes final decision
 
 ### Technical
-- [ ] Patient interview → structured record → diagnosis pipeline completes within 30 seconds end-to-end — **needs benchmarking**
+- [ ] Patient intake → structured record → diagnosis pipeline completes within 30 seconds end-to-end — **needs benchmarking**
 - [x] System degrades gracefully when LLM is slow/unavailable — cloud fallback + error_message saved
 - [x] Audit trail captures every AI suggestion and doctor decision — `ai_output` + `doctor_decisions` + `agreement_score`
 - [x] Patient data isolated between doctors — `doctor_id` FK on all records

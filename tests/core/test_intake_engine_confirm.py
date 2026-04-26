@@ -1,4 +1,4 @@
-"""InterviewEngine.confirm — mode-aware orchestration.
+"""IntakeEngine.confirm — mode-aware orchestration.
 
 Spec §5d. Patient mode fires diagnosis + notify; doctor mode fires only
 follow-up tasks (asymmetric — see §8 open question).
@@ -9,14 +9,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from domain.interview.engine import InterviewEngine
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.engine import IntakeEngine
+from domain.intake.protocols import PersistRef, SessionState
 
 
 def _session(mode="doctor", patient_id=42):
     return SessionState(
         id="s1", doctor_id="d1", patient_id=patient_id, mode=mode,
-        status="interviewing", template_id="medical_general_v1",
+        status="active", template_id="medical_general_v1",
         collected={"_patient_name": "张三", "chief_complaint": "头痛"},
         conversation=[{"role": "user", "content": "头痛"}],
         turn_count=3,
@@ -25,7 +25,7 @@ def _session(mode="doctor", patient_id=42):
 
 @pytest.fixture
 def engine():
-    return InterviewEngine()
+    return IntakeEngine()
 
 
 @pytest.mark.asyncio
@@ -34,25 +34,25 @@ async def test_confirm_runs_batch_extract_when_template_has_one(engine):
     fake_ref = PersistRef(kind="medical_record", id=99)
 
     with patch(
-        "domain.interview.engine._load_session_state",
+        "domain.intake.engine._load_session_state",
         new=AsyncMock(return_value=sess),
     ), patch(
-        "domain.interview.engine._save_session_state",
+        "domain.intake.engine._save_session_state",
         new=AsyncMock(),
     ), patch(
-        "domain.interview.engine._release_session_lock",
+        "domain.intake.engine._release_session_lock",
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalBatchExtractor"]).MedicalBatchExtractor,
         "extract",
         new=AsyncMock(return_value={"chief_complaint": "头痛 (batch)"}),
     ) as mock_batch, patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalRecordWriter"]).MedicalRecordWriter,
         "persist",
         new=AsyncMock(return_value=fake_ref),
     ) as mock_persist, patch(
-        "domain.interview.hooks.medical.GenerateFollowupTasksHook.run",
+        "domain.intake.hooks.medical.GenerateFollowupTasksHook.run",
         new=AsyncMock(),
     ) as mock_hook:
         ref = await engine.confirm(session_id="s1")
@@ -70,31 +70,31 @@ async def test_confirm_patient_mode_fires_diagnosis_and_notify(engine):
     fake_ref = PersistRef(kind="medical_record", id=100)
 
     with patch(
-        "domain.interview.engine._load_session_state",
+        "domain.intake.engine._load_session_state",
         new=AsyncMock(return_value=sess),
     ), patch(
-        "domain.interview.engine._save_session_state",
+        "domain.intake.engine._save_session_state",
         new=AsyncMock(),
     ), patch(
-        "domain.interview.engine._release_session_lock",
+        "domain.intake.engine._release_session_lock",
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalBatchExtractor"]).MedicalBatchExtractor,
         "extract",
         new=AsyncMock(return_value=None),
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalRecordWriter"]).MedicalRecordWriter,
         "persist",
         new=AsyncMock(return_value=fake_ref),
     ), patch(
-        "domain.interview.hooks.medical.TriggerDiagnosisPipelineHook.run",
+        "domain.intake.hooks.medical.TriggerDiagnosisPipelineHook.run",
         new=AsyncMock(),
     ) as mock_diag, patch(
-        "domain.interview.hooks.medical.NotifyDoctorHook.run",
+        "domain.intake.hooks.medical.NotifyDoctorHook.run",
         new=AsyncMock(),
     ) as mock_notify, patch(
-        "domain.interview.hooks.medical.GenerateFollowupTasksHook.run",
+        "domain.intake.hooks.medical.GenerateFollowupTasksHook.run",
         new=AsyncMock(),
     ) as mock_followup:
         await engine.confirm("s1")
@@ -120,25 +120,25 @@ async def test_confirm_preserves_underscore_metadata_across_batch_extract(engine
         return fake_ref
 
     with patch(
-        "domain.interview.engine._load_session_state",
+        "domain.intake.engine._load_session_state",
         new=AsyncMock(return_value=sess),
     ), patch(
-        "domain.interview.engine._save_session_state",
+        "domain.intake.engine._save_session_state",
         new=AsyncMock(),
     ), patch(
-        "domain.interview.engine._release_session_lock",
+        "domain.intake.engine._release_session_lock",
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalBatchExtractor"]).MedicalBatchExtractor,
         "extract",
         new=AsyncMock(return_value={"chief_complaint": "NEW"}),
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalRecordWriter"]).MedicalRecordWriter,
         "persist",
         _capture_persist,
     ), patch(
-        "domain.interview.hooks.medical.GenerateFollowupTasksHook.run",
+        "domain.intake.hooks.medical.GenerateFollowupTasksHook.run",
         new=AsyncMock(),
     ):
         await engine.confirm("s1")
@@ -157,25 +157,25 @@ async def test_confirm_hook_failure_does_not_unwind_persist(engine):
     fake_ref = PersistRef(kind="medical_record", id=88)
 
     with patch(
-        "domain.interview.engine._load_session_state",
+        "domain.intake.engine._load_session_state",
         new=AsyncMock(return_value=sess),
     ), patch(
-        "domain.interview.engine._save_session_state",
+        "domain.intake.engine._save_session_state",
         new=AsyncMock(),
     ), patch(
-        "domain.interview.engine._release_session_lock",
+        "domain.intake.engine._release_session_lock",
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalBatchExtractor"]).MedicalBatchExtractor,
         "extract",
         new=AsyncMock(return_value=None),
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalRecordWriter"]).MedicalRecordWriter,
         "persist",
         new=AsyncMock(return_value=fake_ref),
     ), patch(
-        "domain.interview.hooks.medical.GenerateFollowupTasksHook.run",
+        "domain.intake.hooks.medical.GenerateFollowupTasksHook.run",
         new=AsyncMock(side_effect=RuntimeError("boom")),
     ):
         # Must NOT raise

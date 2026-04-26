@@ -1,10 +1,10 @@
 """Template registry. Populated on import."""
 from __future__ import annotations
 
-from domain.interview.protocols import Template
-from domain.interview.templates.medical_general import GeneralMedicalTemplate
-from domain.interview.templates.medical_neuro import GeneralNeuroTemplate
-from domain.interview.templates.form_satisfaction import FormSatisfactionTemplate
+from domain.intake.protocols import Template
+from domain.intake.templates.medical_general import GeneralMedicalTemplate
+from domain.intake.templates.medical_neuro import GeneralNeuroTemplate
+from domain.intake.templates.form_satisfaction import FormSatisfactionTemplate
 
 
 class UnknownTemplate(KeyError):

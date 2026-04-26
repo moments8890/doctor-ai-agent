@@ -2,9 +2,9 @@
  * Workflow 12 — Doctor-side new-record creation
  *
  * Mirrors docs/qa/workflows/12-new-record.md. Tests the doctor-initiated
- * interview flow at /doctor/patients/new (text entry path).
+ * intake flow at /doctor/patients/new (text entry path).
  *
- * NOTE: This spec drives a real LLM-backed interview session — each turn
+ * NOTE: This spec drives a real LLM-backed intake session — each turn
  * hits the backend and waits for an AI reply. Set a generous timeout
  * (30 s per turn) and expect ~60 s total runtime.
  */
@@ -84,7 +84,7 @@ test.describe("工作流 12 — 新建病历", () => {
       await doctorPage.goBack();
     }
 
-    // Should exit interview and land on patient list or previous page.
+    // Should exit intake and land on patient list or previous page.
     await expect(doctorPage).not.toHaveURL(/patients\/new/);
     await steps.capture(doctorPage, "确认退出成功");
   });

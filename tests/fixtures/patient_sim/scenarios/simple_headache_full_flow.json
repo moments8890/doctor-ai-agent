@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
   "id": "simple_headache_full_flow",
-  "scenario_type": "patient_interview",
-  "title": "Simple headache — complete interview in 5 turns",
+  "scenario_type": "patient_intake",
+  "title": "Simple headache — complete intake in 5 turns",
   "tags": [
     "regression",
     "full_flow"
@@ -14,7 +14,7 @@
     "phone": "13800000001"
   },
   "input": {
-    "mode": "patient_interview",
+    "mode": "patient_intake",
     "turns": [
       {
         "actor": "patient",
@@ -39,29 +39,29 @@
     ]
   },
   "execution": {
-    "entrypoint": "patient.interview.chat",
+    "entrypoint": "patient.intake.chat",
     "auto_confirm": false,
     "timeout_seconds": 60
   },
   "expectations": {
     "assertions": [
       {
-        "target": "interview.fields_filled",
+        "target": "intake.fields_filled",
         "matcher": "min",
         "expected": 5
       },
       {
-        "target": "interview.field.chief_complaint",
+        "target": "intake.field.chief_complaint",
         "matcher": "present",
         "expected": true
       },
       {
-        "target": "interview.field.present_illness",
+        "target": "intake.field.present_illness",
         "matcher": "present",
         "expected": true
       },
       {
-        "target": "interview.field.chief_complaint",
+        "target": "intake.field.chief_complaint",
         "matcher": "contains_any",
         "expected": [
           "头疼",
@@ -69,19 +69,19 @@
         ]
       },
       {
-        "target": "interview.status",
+        "target": "intake.status",
         "matcher": "eq",
         "expected": "reviewing"
       },
       {
-        "target": "interview.confirm_creates_record",
+        "target": "intake.confirm_creates_record",
         "matcher": "eq",
         "expected": true
       },
       {
         "target": "record.type",
         "matcher": "eq",
-        "expected": "interview_summary"
+        "expected": "intake_summary"
       },
       {
         "target": "record.needs_review",

@@ -2,7 +2,7 @@
 """Stress test: send hardcoded vague patient responses to reproduce json_validate_failed.
 
 Usage:
-    PYTHONPATH=src python scripts/stress_test_interview.py [--server URL] [--turns 30] [--runs 3]
+    PYTHONPATH=src python scripts/stress_test_intake.py [--server URL] [--turns 30] [--runs 3]
 """
 from __future__ import annotations
 
@@ -118,8 +118,8 @@ def run_one(server: str, db_path: str, max_turns: int, run_id: int) -> dict:
     token = resp.json()["token"]
     auth = {"Authorization": f"Bearer {token}"}
 
-    # Start interview
-    resp = client.post(f"{server}/api/patient/interview/start", headers=auth)
+    # Start intake
+    resp = client.post(f"{server}/api/patient/intake/start", headers=auth)
     resp.raise_for_status()
     session_id = resp.json()["session_id"]
 
@@ -133,7 +133,7 @@ def run_one(server: str, db_path: str, max_turns: int, run_id: int) -> dict:
     turns_done = 0
     for i, msg in enumerate(responses):
         resp = client.post(
-            f"{server}/api/patient/interview/turn",
+            f"{server}/api/patient/intake/turn",
             json={"session_id": session_id, "text": msg},
             headers=auth,
         )
@@ -167,7 +167,7 @@ def run_one(server: str, db_path: str, max_turns: int, run_id: int) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Stress test patient interview for json_validate_failed")
+    parser = argparse.ArgumentParser(description="Stress test patient intake for json_validate_failed")
     parser.add_argument("--server", default="http://127.0.0.1:8001")
     parser.add_argument("--turns", type=int, default=30, help="Max turns per run")
     parser.add_argument("--runs", type=int, default=5, help="Number of sessions to run")

@@ -39,8 +39,8 @@ a doctor opens once per visit to read the patient's history.
 
 ## Pre-flight
 
-Seed a patient plus at least one completed interview record via
-`seed.completePatientInterview` so the records timeline has content
+Seed a patient plus at least one completed intake record via
+`seed.completePatientIntake` so the records timeline has content
 and the review status is `待审核`.
 
 ---

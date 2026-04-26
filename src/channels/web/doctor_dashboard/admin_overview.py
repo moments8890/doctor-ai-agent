@@ -37,7 +37,7 @@ from db.models import (
     DoctorChatLog,
     DoctorKnowledgeItem,
     DoctorTask,
-    InterviewSessionDB,
+    IntakeSessionDB,
     MedicalRecordDB,
     MessageDraft,
     Patient,
@@ -95,7 +95,7 @@ async def admin_overview(
     # -----------------------------------------------------------------------
     # Distinct doctor_ids seen in any activity table in the 7d window
     activity_tables = [
-        (InterviewSessionDB, InterviewSessionDB.doctor_id, InterviewSessionDB.created_at),
+        (IntakeSessionDB, IntakeSessionDB.doctor_id, IntakeSessionDB.created_at),
         (MedicalRecordDB, MedicalRecordDB.doctor_id, MedicalRecordDB.created_at),
         (PatientMessage, PatientMessage.doctor_id, PatientMessage.created_at),
         (DoctorChatLog, DoctorChatLog.doctor_id, DoctorChatLog.created_at),
@@ -142,50 +142,50 @@ async def admin_overview(
     ).scalar() or 0
 
     # -----------------------------------------------------------------------
-    # HERO: interviews
+    # HERO: intakes
     # -----------------------------------------------------------------------
-    interviews_started_cur = (
+    intakes_started_cur = (
         await db.execute(
             apply_exclude_test_doctors(
-                select(func.count()).select_from(InterviewSessionDB).where(
-                    InterviewSessionDB.created_at >= cutoff_7d
+                select(func.count()).select_from(IntakeSessionDB).where(
+                    IntakeSessionDB.created_at >= cutoff_7d
                 ),
-                InterviewSessionDB.doctor_id,
+                IntakeSessionDB.doctor_id,
             )
         )
     ).scalar() or 0
 
     _completed_statuses = ("confirmed",)
-    interviews_completed_cur = (
+    intakes_completed_cur = (
         await db.execute(
             apply_exclude_test_doctors(
-                select(func.count()).select_from(InterviewSessionDB).where(
+                select(func.count()).select_from(IntakeSessionDB).where(
                     and_(
-                        InterviewSessionDB.created_at >= cutoff_7d,
-                        InterviewSessionDB.status.in_(_completed_statuses),
+                        IntakeSessionDB.created_at >= cutoff_7d,
+                        IntakeSessionDB.status.in_(_completed_statuses),
                     )
                 ),
-                InterviewSessionDB.doctor_id,
+                IntakeSessionDB.doctor_id,
             )
         )
     ).scalar() or 0
 
-    interviews_started_prev = (
+    intakes_started_prev = (
         await db.execute(
             apply_exclude_test_doctors(
-                select(func.count()).select_from(InterviewSessionDB).where(
+                select(func.count()).select_from(IntakeSessionDB).where(
                     and_(
-                        InterviewSessionDB.created_at >= cutoff_14d,
-                        InterviewSessionDB.created_at < cutoff_7d,
+                        IntakeSessionDB.created_at >= cutoff_14d,
+                        IntakeSessionDB.created_at < cutoff_7d,
                     )
                 ),
-                InterviewSessionDB.doctor_id,
+                IntakeSessionDB.doctor_id,
             )
         )
     ).scalar() or 0
 
     completion_rate = round(
-        interviews_completed_cur / max(interviews_started_cur, 1), 2
+        intakes_completed_cur / max(intakes_started_cur, 1), 2
     )
 
     # -----------------------------------------------------------------------
@@ -521,22 +521,22 @@ async def admin_overview(
         )
     ).scalar() or 0
 
-    # SECONDARY: avg_interview_turns (completed interviews in 7d)
+    # SECONDARY: avg_intake_turns (completed intakes in 7d)
     avg_turns_row = (
         await db.execute(
             apply_exclude_test_doctors(
-                select(func.avg(InterviewSessionDB.turn_count))
+                select(func.avg(IntakeSessionDB.turn_count))
                 .where(
                     and_(
-                        InterviewSessionDB.created_at >= cutoff_7d,
-                        InterviewSessionDB.status.in_(_completed_statuses),
+                        IntakeSessionDB.created_at >= cutoff_7d,
+                        IntakeSessionDB.status.in_(_completed_statuses),
                     )
                 ),
-                InterviewSessionDB.doctor_id,
+                IntakeSessionDB.doctor_id,
             )
         )
     ).scalar()
-    avg_interview_turns = round(float(avg_turns_row), 1) if avg_turns_row else 0.0
+    avg_intake_turns = round(float(avg_turns_row), 1) if avg_turns_row else 0.0
 
     # SECONDARY: overdue_tasks
     overdue_count = (
@@ -675,12 +675,12 @@ async def admin_overview(
                 "prev": active_prev,
                 "change_pct": _change_pct(active_cur, active_prev),
             },
-            "interviews": {
-                "started": interviews_started_cur,
-                "completed": interviews_completed_cur,
+            "intakes": {
+                "started": intakes_started_cur,
+                "completed": intakes_completed_cur,
                 "completion_rate": completion_rate,
-                "prev_started": interviews_started_prev,
-                "change_pct": _change_pct(interviews_started_cur, interviews_started_prev),
+                "prev_started": intakes_started_prev,
+                "change_pct": _change_pct(intakes_started_cur, intakes_started_prev),
             },
             "ai_acceptance": {
                 "confirmed": ai_confirmed_cur,
@@ -727,7 +727,7 @@ async def admin_overview(
                 "prev": kb_prev,
                 "change_pct": _change_pct(kb_cur, kb_prev),
             },
-            "avg_interview_turns": avg_interview_turns,
+            "avg_intake_turns": avg_intake_turns,
             "overdue_tasks": overdue_count,
             "response_gap_p50_hours": response_gap_p50,
         },
@@ -1504,15 +1504,15 @@ async def admin_doctor_related(
         for c in chats
     ]
 
-    # Interview sessions
-    interviews = (await db.execute(
-        select(InterviewSessionDB).where(InterviewSessionDB.doctor_id == doctor_id)
-        .order_by(InterviewSessionDB.created_at.desc()).limit(LIMIT)
+    # Intake sessions
+    intakes = (await db.execute(
+        select(IntakeSessionDB).where(IntakeSessionDB.doctor_id == doctor_id)
+        .order_by(IntakeSessionDB.created_at.desc()).limit(LIMIT)
     )).scalars().all()
-    interviews_data = [
+    intakes_data = [
         {"id": s.id[:8], "patient_id": s.patient_id, "status": s.status,
          "turn_count": s.turn_count, "created_at": _fmt_ts(s.created_at)}
-        for s in interviews
+        for s in intakes
     ]
 
     # AI suggestions (across all records for this doctor)
@@ -1667,7 +1667,7 @@ async def admin_doctor_related(
         "tasks": {"count": len(tasks_data), "items": tasks_data},
         "knowledge": {"count": len(kb_data), "items": kb_data},
         "chats": {"count": len(chats_data), "items": chats_data},
-        "interviews": {"count": len(interviews_data), "items": interviews_data},
+        "intakes": {"count": len(intakes_data), "items": intakes_data},
         "suggestions": {"count": len(suggestions_data), "items": suggestions_data},
         "drafts": {"count": len(drafts_data), "items": drafts_data},
         "messages": {"count": len(messages_data), "items": messages_data},
@@ -1720,7 +1720,7 @@ async def admin_patient_related(
     # Medical records — emit the full clinical surface so the V3 patient
     # detail page can render structured cards instead of a 200-char snippet.
     # Truncation raised from 200 → 2000 to keep payloads bounded while still
-    # showing complete consult notes (typical interview summary < 800 chars).
+    # showing complete consult notes (typical intake summary < 800 chars).
     def _trunc(value: str | None, n: int = 2000) -> str | None:
         if value is None:
             return None
@@ -1798,15 +1798,15 @@ async def admin_patient_related(
             for s in suggestions
         ]
 
-    # Interview sessions
-    interviews = (await db.execute(
-        select(InterviewSessionDB).where(InterviewSessionDB.patient_id == patient_id)
-        .order_by(InterviewSessionDB.created_at.desc()).limit(LIMIT)
+    # Intake sessions
+    intakes = (await db.execute(
+        select(IntakeSessionDB).where(IntakeSessionDB.patient_id == patient_id)
+        .order_by(IntakeSessionDB.created_at.desc()).limit(LIMIT)
     )).scalars().all()
-    interviews_data = [
+    intakes_data = [
         {"id": s.id[:8], "doctor_id": s.doctor_id, "status": s.status,
          "turn_count": s.turn_count, "created_at": _fmt_ts(s.created_at)}
-        for s in interviews
+        for s in intakes
     ]
 
     # Message drafts
@@ -1853,7 +1853,7 @@ async def admin_patient_related(
         "messages": {"count": len(messages_data), "items": messages_data},
         "tasks": {"count": len(tasks_data), "items": tasks_data},
         "suggestions": {"count": len(suggestions_data), "items": suggestions_data},
-        "interviews": {"count": len(interviews_data), "items": interviews_data},
+        "intakes": {"count": len(intakes_data), "items": intakes_data},
         "drafts": {"count": len(drafts_data), "items": drafts_data},
         "auth": {"count": 1 if auth_data else 0, "item": auth_data},
         "kb_usage": {"count": len(kb_usage_data), "items": kb_usage_data},

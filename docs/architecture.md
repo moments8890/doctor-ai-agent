@@ -18,7 +18,7 @@ Three channels: **Web dashboard** (React SPA, primary), **WeChat/WeCom** (mobile
 
 | I want to... | Look at |
 |--------------|---------|
-| Understand the LLM pipelines | Doctor interview: `src/domain/patients/interview_turn.py`, Diagnosis: `src/domain/diagnosis_pipeline.py` |
+| Understand the LLM pipelines | Doctor intake: `src/domain/patients/intake_turn.py`, Diagnosis: `src/domain/diagnosis_pipeline.py` |
 | Add a new LLM flow | `src/agent/prompt_config.py` (LayerConfig) -> `prompts/intent/` (new .md) -> domain function |
 | Edit an LLM prompt | `src/agent/prompts/intent/*.md` — see `docs/dev/llm-prompting-guide.md` |
 | Add a new API endpoint | `src/channels/web/` (new route file) -> register in `main.py` |
@@ -37,12 +37,12 @@ graph LR
         WEB[Web Dashboard<br/>React SPA]
         WX[WeChat/WeCom]
         PT[Patient Portal]
-        INT[Doctor Interview]
+        INT[Doctor Intake]
     end
 
     subgraph Pipelines["LLM Pipelines"]
-        DI[Doctor Interview<br/>interview_turn]
-        PI[Patient Interview<br/>interview_turn]
+        DI[Doctor Intake<br/>intake_turn]
+        PI[Patient Intake<br/>intake_turn]
         DX[Diagnosis<br/>run_diagnosis]
         FR[Follow-up Reply<br/>draft_reply]
     end
@@ -89,7 +89,7 @@ graph LR
 
 ### Key Design Decisions
 
-1. **Explicit-action architecture** -- all flows are triggered by UI actions (buttons), not free-text classification. No routing LLM. Doctor interview, patient interview, and diagnosis each have a dedicated pipeline with focused prompts.
+1. **Explicit-action architecture** -- all flows are triggered by UI actions (buttons), not free-text classification. No routing LLM. Doctor intake, patient intake, and diagnosis each have a dedicated pipeline with focused prompts.
 
 2. **Instructor JSON mode** -- Groq/Qwen3 does not support tool-calling. Instructor uses `response_format` + Pydantic validation + automatic retries.
 
@@ -97,7 +97,7 @@ graph LR
 
 4. **Clinical columns** -- 14 outpatient fields as real DB columns (not JSON blob). Queryable, indexable, absorbs former case_history table.
 
-5. **Interview-first record creation** -- records go through multi-turn interview for guided field collection.
+5. **Intake-first record creation** -- records go through multi-turn intake for guided field collection.
 
 ### Technology Stack
 
@@ -125,9 +125,9 @@ graph LR
 | LLM calls | `src/agent/llm.py` | `structured_call()`, `llm_call()` |
 | Prompt files | `src/agent/prompts/` | `common/base.md`, `domain/*.md`, `intent/*.md` |
 | Prompt assembly | `src/agent/` | `prompt_composer.py`, `prompt_config.py` |
-| Web API | `src/channels/web/` | `doctor_interview/`, `tasks.py`, `export/` |
+| Web API | `src/channels/web/` | `doctor_intake/`, `tasks.py`, `export/` |
 | WeChat | `src/channels/wechat/` | `router.py`, `wechat_notify.py` |
-| Patient portal | `src/channels/web/` | `patient_portal/`, `patient_interview_routes.py` |
+| Patient portal | `src/channels/web/` | `patient_portal/`, `patient_intake_routes.py` |
 | Business logic | `src/domain/` | `patients/`, `records/`, `tasks/`, `knowledge/`, `diagnosis.py` |
 | Database models | `src/db/models/` | 18 SQLAlchemy models |
 | Database ops | `src/db/crud/` | CRUD functions per model |
@@ -142,29 +142,29 @@ graph LR
 
 All flows are explicit-action-driven (UI buttons, not free-text classification). Three core pipelines:
 
-1. **Doctor Interview** (`interview_turn.py`) -- doctor dictates, AI extracts structured fields turn-by-turn
-2. **Patient Interview** (`interview_turn.py`, patient mode) -- AI interviews patient pre-visit, extracts structured fields
+1. **Doctor Intake** (`intake_turn.py`) -- doctor dictates, AI extracts structured fields turn-by-turn
+2. **Patient Intake** (`intake_turn.py`, patient mode) -- AI intakes patient pre-visit, extracts structured fields
 3. **Diagnosis** (`diagnosis_pipeline.py`) -- structured record → differentials + workup + treatment
 
 Plus: **Follow-up Reply** (`draft_reply.py`) -- auto-drafts patient replies from triage context.
 
-### Pipeline Flow (Doctor Interview)
+### Pipeline Flow (Doctor Intake)
 
 ```mermaid
 sequenceDiagram
     participant D as Doctor
     participant UI as Web UI
-    participant IT as interview_turn
+    participant IT as intake_turn
     participant P as Prompt Composer
     participant L as LLM
     participant DB as Database
 
     D->>UI: dictates clinical info
-    UI->>IT: interview_turn(session_id, text)
+    UI->>IT: intake_turn(session_id, text)
     IT->>DB: load patient info + history
-    IT->>P: compose_for_doctor_interview(layers 1-6)
+    IT->>P: compose_for_doctor_intake(layers 1-6)
     P-->>IT: assembled messages
-    IT->>L: structured_call(InterviewLLMResponse)
+    IT->>L: structured_call(IntakeLLMResponse)
     L-->>IT: {reply, extracted, suggestions}
     IT->>DB: merge extracted fields
     IT-->>D: reply + progress
@@ -180,16 +180,16 @@ sequenceDiagram
     participant C as Chat API
     participant R as Router
     participant H as create_record
-    participant I as Interview
+    participant I as Intake
     participant DB as Database
 
     D->>C: "创建患者张三，男45岁，头痛三天"
     C->>R: route -> intent=create_record
     R->>H: dispatch
     H->>DB: resolve patient (auto-create)
-    H->>I: start interview session
+    H->>I: start intake session
     I-->>D: first turn with clinical text
-    Note over D,I: Doctor continues in interview UI
+    Note over D,I: Doctor continues in intake UI
     D->>I: confirm
     I->>DB: save clinical fields to medical_records
 ```
@@ -227,7 +227,7 @@ sequenceDiagram
     D->>UI: click pending_review record
     UI->>API: review request (no routing LLM)
     API->>DB: load knowledge + patient context
-    API->>P: compose_for_review (diagnosis rules + red flags + treatment)
+    API->>P: compose_for_review (diagnosis rules + signal flags + treatment)
     P->>L: structured_call(DiagnosisLLMResponse)
     L-->>API: {differentials, workup, treatment, suggested_tasks}
     API-->>D: review UI with suggestions
@@ -243,8 +243,8 @@ All flows are UI-triggered (explicit actions, no intent classification):
 
 | Flow | Entry Point | LLM Pipeline | Description |
 |------|-------------|-------------|-------------|
-| Doctor Interview | UI: click patient → dictate | `interview_turn.py` | Multi-turn field extraction from doctor dictation |
-| Patient Interview | Patient portal: scan QR | `interview_turn.py` (patient mode) | AI-guided pre-visit history collection |
+| Doctor Intake | UI: click patient → dictate | `intake_turn.py` | Multi-turn field extraction from doctor dictation |
+| Patient Intake | Patient portal: scan QR | `intake_turn.py` (patient mode) | AI-guided pre-visit history collection |
 | Diagnosis | UI: click "诊断" on record | `diagnosis_pipeline.py` | Differential diagnosis + workup + treatment |
 | Review | UI: click pending_review record | `diagnosis_pipeline.py` | Doctor reviews AI suggestions |
 | Follow-up Reply | Auto-triggered by triage | `draft_reply.py` | AI drafts patient reply for doctor approval |
@@ -255,9 +255,9 @@ Each flow has its own `LayerConfig` in `prompt_config.py`:
 
 | Flow | Config | Prompt | Description |
 |------|--------|--------|-------------|
-| Doctor Interview | `DOCTOR_INTERVIEW_LAYERS` | `intent/interview.md` | Turn-by-turn field extraction |
+| Doctor Intake | `DOCTOR_INTAKE_LAYERS` | `intent/intake.md` | Turn-by-turn field extraction |
 | Diagnosis | `REVIEW_LAYERS` | `intent/diagnosis.md` | Differential diagnosis pipeline |
-| Patient Interview | `PATIENT_INTERVIEW_LAYERS` | `intent/patient-interview.md` | Patient pre-consultation interview |
+| Patient Intake | `PATIENT_INTAKE_LAYERS` | `intent/patient-intake.md` | Patient pre-consultation intake |
 | Follow-up Reply | `FOLLOWUP_REPLY_LAYERS` | `intent/followup_reply.md` | Patient reply drafting |
 
 ---
@@ -273,7 +273,7 @@ All LLM calls use a shared prompt composer (`agent/prompt_composer.py`) that ass
 | Layer | Name | Source | Content |
 |-------|------|--------|---------|
 | 1 | **Identity** | `common/base.md` | Role, safety rules, precedence |
-| 2 | **Specialty** | `domain/{specialty}.md` | Domain knowledge (e.g. neurology red flags) |
+| 2 | **Specialty** | `domain/{specialty}.md` | Domain knowledge (e.g. neurology signal flags) |
 | 3 | **Task** | `intent/{intent}.md` | Action-specific rules + output format |
 | 4 | **Doctor Rules** | Doctor knowledge (DB) | User-authored KB, auto-loaded and scored |
 | 5 | **Case Memory** | Confirmed records (DB) | Similar past decisions (diagnosis pipeline only) |
@@ -291,7 +291,7 @@ graph TD
         U1[user: L4-L7 with XML tags<br/>doctor_knowledge + patient_context + doctor_request]
     end
 
-    subgraph P2["Pattern 2: Conversation<br/>(doctor interview, patient interview)"]
+    subgraph P2["Pattern 2: Conversation<br/>(doctor intake, patient intake)"]
         S2[system: L1-L6<br/>instructions + KB + patient state]
         H2[history: user/assistant turns]
         U2[user: L7 Input only<br/>latest input, plain text]
@@ -319,8 +319,8 @@ class LayerConfig:
 
 | Flow | Pattern | Domain | Intent Prompt | Dr Knowledge | Patient Ctx |
 |------|---------|--------|---------------|-------------|-------------|
-| doctor_interview | convo | | interview | | Y |
-| patient_interview | convo | Y | patient-interview | top-5 | Y |
+| doctor_intake | convo | | intake | | Y |
+| patient_intake | convo | Y | patient-intake | top-5 | Y |
 | diagnosis | single | Y | diagnosis | top-5 | Y |
 | followup_reply | single | Y | followup_reply | top-5 | Y |
 
@@ -360,7 +360,7 @@ When the LLM produces `[KB-{id}]` markers in its output, `citation_parser.py` ex
 
 ### Draft Reply Pipeline (FOLLOWUP_REPLY_LAYERS)
 
-When a patient message is escalated to the doctor, `draft_reply.py` generates a WeChat-style reply (conversational, <=100 chars) using the doctor's communication rules. Registered as `FOLLOWUP_REPLY_LAYERS` in prompt_config.py. Includes red-flag detection, medical safety constraints, and AI disclosure labeling. Triggered as a background task from the escalation handler with 30-second batching.
+When a patient message is escalated to the doctor, `draft_reply.py` generates a WeChat-style reply (conversational, <=100 chars) using the doctor's communication rules. Registered as `FOLLOWUP_REPLY_LAYERS` in prompt_config.py. Includes signal-flag detection, medical safety constraints, and AI disclosure labeling. Triggered as a background task from the escalation handler with 30-second batching.
 
 **Key behaviors:** `[KB-*]` markers are stripped from draft text before display. If no KB rule is cited, no draft is generated (the message is marked "undrafted" for manual reply). The API response includes `cited_rules` (list of cited KB item IDs) alongside the draft text. When the doctor replies, the inbound message is marked `ai_handled` and any existing draft is marked stale.
 
@@ -368,7 +368,7 @@ When a patient message is escalated to the doctor, `draft_reply.py` generates a 
 
 All LLM calls returning structured data use `instructor` (JSON mode) + Pydantic response models via `agent/llm.py:structured_call()`. Prompts do NOT contain JSON format specifications -- Pydantic models are the single source of truth for output structure.
 
-Key response models: `InterviewLLMResponse`, `DiagnosisLLMResponse`, `StructuringLLMResponse`.
+Key response models: `IntakeLLMResponse`, `DiagnosisLLMResponse`, `StructuringLLMResponse`.
 
 ---
 
@@ -385,8 +385,8 @@ erDiagram
     patients ||--o{ patient_messages : exchanges
     patients ||--o| patient_auth : authenticates
     medical_records ||--o{ ai_suggestions : receives
-    doctors ||--o{ interview_sessions : conducts
-    patients ||--o{ interview_sessions : participates
+    doctors ||--o{ intake_sessions : conducts
+    patients ||--o{ intake_sessions : participates
     doctors ||--o{ doctor_tasks : assigns
     patient_messages ||--o{ message_drafts : has
     doctor_knowledge_items ||--o{ knowledge_usage_log : tracks
@@ -402,7 +402,7 @@ erDiagram
 
 **`patient_auth`** -- Portal access credentials (optional). FK -> patients.
 
-**`medical_records`** -- Clinical records with 14 structured fields and outcome data. Record types: `visit`, `dictation`, `import`, `interview_summary`. Statuses: `interview_active`, `pending_review`, `completed`. Append-only versioning via `version_of` FK. Outcome fields (`final_diagnosis`, `treatment_outcome`, `key_symptoms`) absorb the former `case_history` table.
+**`medical_records`** -- Clinical records with 14 structured fields and outcome data. Record types: `visit`, `dictation`, `import`, `intake_summary`. Statuses: `intake_active`, `pending_review`, `completed`. Append-only versioning via `version_of` FK. Outcome fields (`final_diagnosis`, `treatment_outcome`, `key_symptoms`) absorb the former `case_history` table.
 
 **`ai_suggestions`** -- Per-item AI diagnosis suggestions with doctor decisions. Sections: `differential`, `workup`, `treatment`. Decisions: `confirmed`, `rejected`, `edited`, `custom`. One row per suggestion item.
 
@@ -414,7 +414,7 @@ erDiagram
 
 ### Workflow State (4 tables)
 
-**`interview_sessions`** -- Multi-turn clinical field collection state. Statuses: `interviewing`, `reviewing`, `confirmed`, `abandoned`, `draft_created`. Modes: `patient`, `doctor`.
+**`intake_sessions`** -- Multi-turn clinical field collection state. Statuses: `active`, `reviewing`, `confirmed`, `abandoned`, `draft_created`. Modes: `patient`, `doctor`.
 
 **`doctor_tasks`** -- Doctor tasks and follow-ups. Fields: `id` (PK), `doctor_id` (FK), `patient_id` (FK, optional), `type` (Enum: general/review/follow_up/medication/checkup), `title`, `content` (optional), `status` (Enum: pending/notified/completed/cancelled), `due_at`, `notes` (TEXT, optional), `reminder_at` (DATETIME, optional), `completed_at` (DATETIME, optional).
 
@@ -430,10 +430,10 @@ erDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> interview_active
-    interview_active --> completed : confirm + all key fields filled
-    interview_active --> pending_review : confirm + diagnosis/treatment/followup missing
-    interview_active --> [*] : abandon or timeout
+    [*] --> intake_active
+    intake_active --> completed : confirm + all key fields filled
+    intake_active --> pending_review : confirm + diagnosis/treatment/followup missing
+    intake_active --> [*] : abandon or timeout
 
     pending_review --> completed : doctor accepts/rejects suggestions
 ```
@@ -538,7 +538,7 @@ graph TD
 | Route | Handler | Description |
 |-------|---------|-------------|
 | `POST /api/records/chat` | `channels/web/chat.py` | Doctor chat -> agent pipeline |
-| `POST /api/records/interview/*` | `channels/web/doctor_interview/` | Interview turn, confirm, cancel |
+| `POST /api/records/intake/*` | `channels/web/doctor_intake/` | Intake turn, confirm, cancel |
 | `GET/POST/DELETE /api/manage/*` | `channels/web/doctor_dashboard/` | Admin: knowledge, profile, patients |
 | `POST /api/manage/onboarding/patient-entry` | `channels/web/doctor_dashboard/onboarding_handlers.py` | Create or reuse patient, then return deterministic portal + preview entry |
 | `POST /api/manage/onboarding/examples` | `channels/web/doctor_dashboard/onboarding_handlers.py` | Backend proof data for onboarding wizard (legacy) |
@@ -559,7 +559,7 @@ graph TD
 
 | Route | Handler | Description |
 |-------|---------|-------------|
-| `POST /api/patient/interview/*` | `channels/web/patient_interview_routes.py` | Patient pre-consultation interview. Turn/start/current responses emit `ready_to_review` when required fields are complete so the frontend can end questioning and show explicit confirm-or-continue UI. |
+| `POST /api/patient/intake/*` | `channels/web/patient_intake_routes.py` | Patient pre-consultation intake. Turn/start/current responses emit `ready_to_review` when required fields are complete so the frontend can end questioning and show explicit confirm-or-continue UI. |
 | `POST /api/patient/chat` | `channels/web/patient_portal/` | Patient triage pipeline |
 | `GET /api/patient/*` | `channels/web/patient_portal/` | Patient records, auth |
 

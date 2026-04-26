@@ -1,10 +1,10 @@
-# Interview Pipeline Extensibility — Phase 3 (First Form Template)
+# Intake Pipeline Extensibility — Phase 3 (First Form Template)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Ship `form_satisfaction_v1` — the first non-medical template — end-to-end. Proves the Phase 1/2 seams hold for a template whose `kind="form"`, stores to `form_responses` (not `medical_records`), has no diagnosis hook, and uses a different prompt composition path than the medical flow.
 
-**Architecture:** New `src/domain/interview/templates/form_satisfaction.py` with `FormSatisfactionTemplate`, `FormSatisfactionExtractor`, and `FormResponseWriter` (can share the writer with any `kind="form"` template). Prompt composition bypasses `prompt_composer` entirely — forms don't need doctor persona / KB layers, just a structured Q&A prompt. Two new REST endpoints (`GET /api/form_responses/{id}`, `GET /api/patients/{id}/form_responses`) serve the read path. Backend only — frontend UI is a separate effort.
+**Architecture:** New `src/domain/intake/templates/form_satisfaction.py` with `FormSatisfactionTemplate`, `FormSatisfactionExtractor`, and `FormResponseWriter` (can share the writer with any `kind="form"` template). Prompt composition bypasses `prompt_composer` entirely — forms don't need doctor persona / KB layers, just a structured Q&A prompt. Two new REST endpoints (`GET /api/form_responses/{id}`, `GET /api/patients/{id}/form_responses`) serve the read path. Backend only — frontend UI is a separate effort.
 
 **Tech Stack:** Pydantic 2.x, SQLAlchemy async, FastAPI.
 
@@ -28,8 +28,8 @@
 ## File map
 
 **Create:**
-- `src/domain/interview/writers.py` — `FormResponseWriter` (reusable across any `kind="form"` template).
-- `src/domain/interview/templates/form_satisfaction.py` — `FormSatisfactionTemplate`, `FormSatisfactionExtractor`, `FORM_SATISFACTION_FIELDS`.
+- `src/domain/intake/writers.py` — `FormResponseWriter` (reusable across any `kind="form"` template).
+- `src/domain/intake/templates/form_satisfaction.py` — `FormSatisfactionTemplate`, `FormSatisfactionExtractor`, `FORM_SATISFACTION_FIELDS`.
 - `src/channels/web/form_responses.py` — GET endpoints for form responses.
 - `tests/core/test_form_satisfaction_fields.py`
 - `tests/core/test_form_satisfaction_extractor.py`
@@ -38,7 +38,7 @@
 - `tests/channels/test_form_responses_api.py`
 
 **Modify:**
-- `src/domain/interview/templates/__init__.py` — register `form_satisfaction_v1` in `TEMPLATES`.
+- `src/domain/intake/templates/__init__.py` — register `form_satisfaction_v1` in `TEMPLATES`.
 - `src/main.py` (or wherever FastAPI mounts routers) — include the new `form_responses` router.
 
 ---
@@ -46,7 +46,7 @@
 ## Task 1: `FormSatisfactionExtractor` + `FORM_SATISFACTION_FIELDS`
 
 **Files:**
-- Create: `src/domain/interview/templates/form_satisfaction.py` (partial — extractor only)
+- Create: `src/domain/intake/templates/form_satisfaction.py` (partial — extractor only)
 - Create: `tests/core/test_form_satisfaction_fields.py`
 - Create: `tests/core/test_form_satisfaction_extractor.py`
 
@@ -65,8 +65,8 @@ Satisfaction survey has 5 fields:
 """FORM_SATISFACTION_FIELDS — 5 declarative fields for the satisfaction survey."""
 from __future__ import annotations
 
-from domain.interview.protocols import FieldSpec
-from domain.interview.templates.form_satisfaction import FORM_SATISFACTION_FIELDS
+from domain.intake.protocols import FieldSpec
+from domain.intake.templates.form_satisfaction import FORM_SATISFACTION_FIELDS
 
 
 def test_has_five_fields():
@@ -109,8 +109,8 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.protocols import CompletenessState, SessionState
-from domain.interview.templates.form_satisfaction import (
+from domain.intake.protocols import CompletenessState, SessionState
+from domain.intake.templates.form_satisfaction import (
     FormSatisfactionExtractor, FORM_SATISFACTION_FIELDS,
 )
 
@@ -150,7 +150,7 @@ def test_merge_ignores_unknown(extractor):
 def test_next_phase_returns_single_phase(extractor):
     session = SessionState(
         id="s", doctor_id="d", patient_id=1, mode="patient",
-        status="interviewing", template_id="form_satisfaction_v1",
+        status="active", template_id="form_satisfaction_v1",
         collected={}, conversation=[], turn_count=0,
     )
     assert extractor.next_phase(session, ["default"]) == "default"
@@ -181,7 +181,7 @@ async def test_prompt_partial_returns_messages(extractor):
 
 - [ ] **Step 3: Create the template file (extractor only)**
 
-`src/domain/interview/templates/form_satisfaction.py`:
+`src/domain/intake/templates/form_satisfaction.py`:
 
 ```python
 """Patient satisfaction survey — first non-medical template (kind="form").
@@ -194,7 +194,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from domain.interview.protocols import (
+from domain.intake.protocols import (
     CompletenessState, FieldSpec, Mode, Phase, SessionState,
 )
 
@@ -358,10 +358,10 @@ Target: 12 passed.
 - [ ] **Step 5: Commit**
 
 ```
-git add src/domain/interview/templates/form_satisfaction.py \
+git add src/domain/intake/templates/form_satisfaction.py \
         tests/core/test_form_satisfaction_fields.py \
         tests/core/test_form_satisfaction_extractor.py
-git commit -m "feat(interview): add FormSatisfactionExtractor + field specs"
+git commit -m "feat(intake): add FormSatisfactionExtractor + field specs"
 ```
 
 ---
@@ -369,7 +369,7 @@ git commit -m "feat(interview): add FormSatisfactionExtractor + field specs"
 ## Task 2: `FormResponseWriter`
 
 **Files:**
-- Create: `src/domain/interview/writers.py`
+- Create: `src/domain/intake/writers.py`
 - Create: `tests/core/test_form_response_writer.py`
 
 A reusable writer for any template with `kind="form"`. Inserts into `form_responses` table (already exists from Phase 0). Returns `PersistRef(kind="form_response", id=...)`.
@@ -391,8 +391,8 @@ from db.engine import AsyncSessionLocal
 from db.models.doctor import Doctor
 from db.models.form_response import FormResponseDB
 from db.models.patient import Patient
-from domain.interview.protocols import PersistRef, SessionState
-from domain.interview.writers import FormResponseWriter
+from domain.intake.protocols import PersistRef, SessionState
+from domain.intake.writers import FormResponseWriter
 
 
 def _session(doctor_id, patient_id, template_id="form_satisfaction_v1"):
@@ -401,7 +401,7 @@ def _session(doctor_id, patient_id, template_id="form_satisfaction_v1"):
         doctor_id=doctor_id,
         patient_id=patient_id,
         mode="patient",
-        status="interviewing",
+        status="active",
         template_id=template_id,
         collected={},
         conversation=[],
@@ -491,10 +491,10 @@ async def test_persist_requires_patient_id():
 
 - [ ] **Step 3: Implement `FormResponseWriter`**
 
-`src/domain/interview/writers.py`:
+`src/domain/intake/writers.py`:
 
 ```python
-"""Shared writers for interview templates.
+"""Shared writers for intake templates.
 
 Form templates all persist to the form_responses table — share one writer
 across any template with kind="form". Medical templates have their own
@@ -507,7 +507,7 @@ from fastapi import HTTPException
 from db.engine import AsyncSessionLocal
 from db.crud.doctor import _ensure_doctor_exists
 from db.models.form_response import FormResponseDB
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.protocols import PersistRef, SessionState
 
 
 class FormResponseWriter:
@@ -544,9 +544,9 @@ class FormResponseWriter:
 - [ ] **Step 5: Commit**
 
 ```
-git add src/domain/interview/writers.py \
+git add src/domain/intake/writers.py \
         tests/core/test_form_response_writer.py
-git commit -m "feat(interview): add FormResponseWriter — persists to form_responses"
+git commit -m "feat(intake): add FormResponseWriter — persists to form_responses"
 ```
 
 ---
@@ -554,8 +554,8 @@ git commit -m "feat(interview): add FormResponseWriter — persists to form_resp
 ## Task 3: `FormSatisfactionTemplate` + registry
 
 **Files:**
-- Modify: `src/domain/interview/templates/form_satisfaction.py` (append template binding)
-- Modify: `src/domain/interview/templates/__init__.py` (register)
+- Modify: `src/domain/intake/templates/form_satisfaction.py` (append template binding)
+- Modify: `src/domain/intake/templates/__init__.py` (register)
 - Create: `tests/core/test_form_satisfaction_template.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -568,11 +568,11 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.templates import TEMPLATES, get_template
-from domain.interview.templates.form_satisfaction import (
+from domain.intake.templates import TEMPLATES, get_template
+from domain.intake.templates.form_satisfaction import (
     FormSatisfactionExtractor, FormSatisfactionTemplate,
 )
-from domain.interview.writers import FormResponseWriter
+from domain.intake.writers import FormResponseWriter
 
 
 def test_form_satisfaction_v1_registered():
@@ -623,18 +623,18 @@ def test_registry_contains_both_templates():
 
 - [ ] **Step 3: Append `FormSatisfactionTemplate` to `form_satisfaction.py`**
 
-Append to `src/domain/interview/templates/form_satisfaction.py`:
+Append to `src/domain/intake/templates/form_satisfaction.py`:
 
 ```python
 # ---- template binding ------------------------------------------------------
 
 from dataclasses import dataclass, field
 
-from domain.interview.protocols import (
+from domain.intake.protocols import (
     BatchExtractor, EngineConfig, FieldExtractor, PostConfirmHook, Template,
     Writer,
 )
-from domain.interview.writers import FormResponseWriter
+from domain.intake.writers import FormResponseWriter
 
 
 @dataclass
@@ -659,15 +659,15 @@ class FormSatisfactionTemplate:
 
 - [ ] **Step 4: Register in `TEMPLATES`**
 
-Modify `src/domain/interview/templates/__init__.py`:
+Modify `src/domain/intake/templates/__init__.py`:
 
 ```python
 """Template registry. Populated on import."""
 from __future__ import annotations
 
-from domain.interview.protocols import Template
-from domain.interview.templates.medical_general import GeneralMedicalTemplate
-from domain.interview.templates.form_satisfaction import FormSatisfactionTemplate
+from domain.intake.protocols import Template
+from domain.intake.templates.medical_general import GeneralMedicalTemplate
+from domain.intake.templates.form_satisfaction import FormSatisfactionTemplate
 
 
 class UnknownTemplate(KeyError):
@@ -699,11 +699,11 @@ def test_registry_contains_medical_and_form_templates():
 - [ ] **Step 6: Commit**
 
 ```
-git add src/domain/interview/templates/form_satisfaction.py \
-        src/domain/interview/templates/__init__.py \
+git add src/domain/intake/templates/form_satisfaction.py \
+        src/domain/intake/templates/__init__.py \
         tests/core/test_form_satisfaction_template.py \
         tests/core/test_template_registry.py
-git commit -m "feat(interview): register FormSatisfactionTemplate as form_satisfaction_v1"
+git commit -m "feat(intake): register FormSatisfactionTemplate as form_satisfaction_v1"
 ```
 
 ---
@@ -872,9 +872,9 @@ async def _resolve_doctor_id(
     authorization: Optional[str], x_doctor_id: Optional[str],
 ) -> str:
     """Resolve the doctor id from auth. Copies the pattern from
-    channels.web.doctor_interview.shared._resolve_doctor_id.
+    channels.web.doctor_intake.shared._resolve_doctor_id.
     """
-    from channels.web.doctor_interview.shared import _resolve_doctor_id as _inner
+    from channels.web.doctor_intake.shared import _resolve_doctor_id as _inner
     return await _inner(x_doctor_id or "", authorization)
 
 
@@ -986,7 +986,7 @@ Target: 492+ passed (was 477 + ~15 Phase 3 tests).
 
 ```
 # Both templates registered
-python -c "from domain.interview.templates import TEMPLATES; print(list(TEMPLATES.keys()))"
+python -c "from domain.intake.templates import TEMPLATES; print(list(TEMPLATES.keys()))"
 
 # New endpoint responds (optional — requires a running server)
 # curl http://localhost:8001/api/form_responses/1  # expect 404 without auth

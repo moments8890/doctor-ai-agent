@@ -222,7 +222,7 @@
         const o = JSON.parse(output);
         return o.type === 'factual' && o.kb_category === 'medication' && o.proposed_kb_rule.length > 0 && o.persona_field === '';
 
-- description: "factual: diagnosis — add red flag for thunderclap headache"
+- description: "factual: diagnosis — add signal flag for thunderclap headache"
   options:
     prompts: [persona-classify]
   vars:

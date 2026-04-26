@@ -1,4 +1,4 @@
-# Interview Pipeline Extensibility — Phase 4 (Specialty Variants: Neuro + Therapy Intake)
+# Intake Pipeline Extensibility — Phase 4 (Specialty Variants: Neuro + Therapy Intake)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development.
 
@@ -28,9 +28,9 @@
 ## File map
 
 **Create:**
-- `src/domain/interview/templates/medical_neuro.py` — `GeneralNeuroExtractor`, `GeneralNeuroTemplate`, `NEURO_EXTRA_FIELDS`.
-- `src/domain/interview/templates/form_therapy_intake.py` — `FormTherapyIntakeExtractor`, `FormTherapyIntakeTemplate`, `FORM_THERAPY_INTAKE_FIELDS`.
-- `src/domain/interview/hooks/therapy.py` — `CrisisAlertHook`.
+- `src/domain/intake/templates/medical_neuro.py` — `GeneralNeuroExtractor`, `GeneralNeuroTemplate`, `NEURO_EXTRA_FIELDS`.
+- `src/domain/intake/templates/form_therapy_intake.py` — `FormTherapyIntakeExtractor`, `FormTherapyIntakeTemplate`, `FORM_THERAPY_INTAKE_FIELDS`.
+- `src/domain/intake/hooks/therapy.py` — `CrisisAlertHook`.
 - `tests/core/test_medical_neuro_fields.py`
 - `tests/core/test_medical_neuro_extractor.py`
 - `tests/core/test_medical_neuro_template.py`
@@ -40,7 +40,7 @@
 - `tests/core/test_crisis_alert_hook.py`
 
 **Modify:**
-- `src/domain/interview/templates/__init__.py` — register both new templates.
+- `src/domain/intake/templates/__init__.py` — register both new templates.
 - `tests/core/test_template_registry.py` — assert 4 templates registered.
 
 **Not modified (deliberate):**
@@ -53,7 +53,7 @@
 ## Task 1: `GeneralNeuroExtractor` + neuro field specs
 
 **Files:**
-- Create: `src/domain/interview/templates/medical_neuro.py` (partial — extractor + fields only)
+- Create: `src/domain/intake/templates/medical_neuro.py` (partial — extractor + fields only)
 - Create: `tests/core/test_medical_neuro_fields.py`
 - Create: `tests/core/test_medical_neuro_extractor.py`
 
@@ -75,8 +75,8 @@ All 14 base MEDICAL_FIELDS are retained unchanged.
 """NEURO_FIELDS — MEDICAL_FIELDS + 3 neuro-specific specs."""
 from __future__ import annotations
 
-from domain.interview.templates.medical_neuro import NEURO_EXTRA_FIELDS, NEURO_FIELDS
-from domain.interview.templates.medical_general import MEDICAL_FIELDS
+from domain.intake.templates.medical_neuro import NEURO_EXTRA_FIELDS, NEURO_FIELDS
+from domain.intake.templates.medical_general import MEDICAL_FIELDS
 
 
 def test_neuro_extra_has_three_specs():
@@ -118,7 +118,7 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.templates.medical_neuro import (
+from domain.intake.templates.medical_neuro import (
     GeneralNeuroExtractor, NEURO_FIELDS,
 )
 
@@ -165,7 +165,7 @@ def test_onset_time_merge_overwrites(extractor):
 
 - [ ] **Step 3: Implement**
 
-`src/domain/interview/templates/medical_neuro.py`:
+`src/domain/intake/templates/medical_neuro.py`:
 
 ```python
 """medical_neuro_v1 — 神外 (cerebrovascular) variant of the general medical
@@ -184,14 +184,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from domain.interview.hooks.medical import (
+from domain.intake.hooks.medical import (
     GenerateFollowupTasksHook, NotifyDoctorHook, TriggerDiagnosisPipelineHook,
 )
-from domain.interview.protocols import (
+from domain.intake.protocols import (
     BatchExtractor, CompletenessState, EngineConfig, FieldExtractor, FieldSpec,
     Mode, Phase, PostConfirmHook, SessionState, Writer,
 )
-from domain.interview.templates.medical_general import (
+from domain.intake.templates.medical_general import (
     GeneralMedicalExtractor, MEDICAL_FIELDS, MedicalBatchExtractor,
     MedicalRecordWriter,
 )
@@ -310,7 +310,7 @@ class NeuroMedicalRecordWriter(MedicalRecordWriter):
 - [ ] **Step 5: Commit**
 
 ```
-git commit -m "feat(interview): add GeneralNeuroExtractor — MEDICAL_FIELDS + 3 neuro specs"
+git commit -m "feat(intake): add GeneralNeuroExtractor — MEDICAL_FIELDS + 3 neuro specs"
 ```
 
 ---
@@ -318,8 +318,8 @@ git commit -m "feat(interview): add GeneralNeuroExtractor — MEDICAL_FIELDS + 3
 ## Task 2: `GeneralNeuroTemplate` + registry
 
 **Files:**
-- Modify: `src/domain/interview/templates/medical_neuro.py` (append template binding)
-- Modify: `src/domain/interview/templates/__init__.py` (register `medical_neuro_v1`)
+- Modify: `src/domain/intake/templates/medical_neuro.py` (append template binding)
+- Modify: `src/domain/intake/templates/__init__.py` (register `medical_neuro_v1`)
 - Create: `tests/core/test_medical_neuro_template.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -335,11 +335,11 @@ patient confirm.
 """
 from __future__ import annotations
 
-from domain.interview.hooks.medical import (
+from domain.intake.hooks.medical import (
     GenerateFollowupTasksHook, NotifyDoctorHook, TriggerDiagnosisPipelineHook,
 )
-from domain.interview.templates import TEMPLATES, get_template
-from domain.interview.templates.medical_neuro import (
+from domain.intake.templates import TEMPLATES, get_template
+from domain.intake.templates.medical_neuro import (
     GeneralNeuroExtractor, GeneralNeuroTemplate, NeuroMedicalRecordWriter,
 )
 
@@ -417,12 +417,12 @@ class GeneralNeuroTemplate:
 
 - [ ] **Step 4: Register in `TEMPLATES`**
 
-Modify `src/domain/interview/templates/__init__.py`:
+Modify `src/domain/intake/templates/__init__.py`:
 
 ```python
-from domain.interview.templates.medical_general import GeneralMedicalTemplate
-from domain.interview.templates.medical_neuro import GeneralNeuroTemplate
-from domain.interview.templates.form_satisfaction import FormSatisfactionTemplate
+from domain.intake.templates.medical_general import GeneralMedicalTemplate
+from domain.intake.templates.medical_neuro import GeneralNeuroTemplate
+from domain.intake.templates.form_satisfaction import FormSatisfactionTemplate
 
 
 TEMPLATES: dict[str, Template] = {
@@ -437,7 +437,7 @@ TEMPLATES: dict[str, Template] = {
 - [ ] **Step 6: Commit**
 
 ```
-git commit -m "feat(interview): register medical_neuro_v1 — §8 doctor-mode fires diagnosis"
+git commit -m "feat(intake): register medical_neuro_v1 — §8 doctor-mode fires diagnosis"
 ```
 
 ---
@@ -445,7 +445,7 @@ git commit -m "feat(interview): register medical_neuro_v1 — §8 doctor-mode fi
 ## Task 3: `CrisisAlertHook`
 
 **Files:**
-- Create: `src/domain/interview/hooks/therapy.py`
+- Create: `src/domain/intake/hooks/therapy.py`
 - Create: `tests/core/test_crisis_alert_hook.py`
 
 Alerts the therapist via the existing `send_doctor_notification` channel when `crisis_risk ∈ {"active_ideation", "plan_or_intent"}`. Uses a distinct message prefix so UI can surface it above the normal review queue (frontend filtering is out of scope for this phase).
@@ -462,8 +462,8 @@ from unittest.mock import patch, AsyncMock
 
 import pytest
 
-from domain.interview.hooks.therapy import CrisisAlertHook
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.hooks.therapy import CrisisAlertHook
+from domain.intake.protocols import PersistRef, SessionState
 
 
 def _session(doctor_id="doc_x", patient_id=1):
@@ -479,7 +479,7 @@ def _session(doctor_id="doc_x", patient_id=1):
 async def test_no_alert_for_none():
     hook = CrisisAlertHook()
     with patch(
-        "domain.interview.hooks.therapy._send_doctor_notification",
+        "domain.intake.hooks.therapy._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_send:
         await hook.run(
@@ -496,7 +496,7 @@ async def test_no_alert_for_passive_ideation():
     alerting.)"""
     hook = CrisisAlertHook()
     with patch(
-        "domain.interview.hooks.therapy._send_doctor_notification",
+        "domain.intake.hooks.therapy._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_send:
         await hook.run(
@@ -510,7 +510,7 @@ async def test_no_alert_for_passive_ideation():
 async def test_alerts_on_active_ideation():
     hook = CrisisAlertHook()
     with patch(
-        "domain.interview.hooks.therapy._send_doctor_notification",
+        "domain.intake.hooks.therapy._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_send:
         await hook.run(
@@ -529,7 +529,7 @@ async def test_alerts_on_active_ideation():
 async def test_alerts_on_plan_or_intent():
     hook = CrisisAlertHook()
     with patch(
-        "domain.interview.hooks.therapy._send_doctor_notification",
+        "domain.intake.hooks.therapy._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_send:
         await hook.run(
@@ -544,7 +544,7 @@ async def test_swallows_notification_failure():
     """Hooks are best-effort — failures log, don't raise."""
     hook = CrisisAlertHook()
     with patch(
-        "domain.interview.hooks.therapy._send_doctor_notification",
+        "domain.intake.hooks.therapy._send_doctor_notification",
         new_callable=AsyncMock,
         side_effect=RuntimeError("notification backend down"),
     ):
@@ -557,13 +557,13 @@ async def test_swallows_notification_failure():
 
 - [ ] **Step 2: Implement**
 
-`src/domain/interview/hooks/therapy.py`:
+`src/domain/intake/hooks/therapy.py`:
 
 ```python
 """Therapy-template post-confirm hooks."""
 from __future__ import annotations
 
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.protocols import PersistRef, SessionState
 from domain.tasks.notifications import (
     send_doctor_notification as _send_doctor_notification,
 )
@@ -614,7 +614,7 @@ class CrisisAlertHook:
 - [ ] **Step 4: Commit**
 
 ```
-git commit -m "feat(interview): add CrisisAlertHook — pages therapist on elevated suicidality risk"
+git commit -m "feat(intake): add CrisisAlertHook — pages therapist on elevated suicidality risk"
 ```
 
 ---
@@ -622,7 +622,7 @@ git commit -m "feat(interview): add CrisisAlertHook — pages therapist on eleva
 ## Task 4: `FormTherapyIntakeExtractor` + fields
 
 **Files:**
-- Create: `src/domain/interview/templates/form_therapy_intake.py` (partial — extractor + fields)
+- Create: `src/domain/intake/templates/form_therapy_intake.py` (partial — extractor + fields)
 - Create: `tests/core/test_form_therapy_intake_fields.py`
 - Create: `tests/core/test_form_therapy_intake_extractor.py`
 
@@ -644,7 +644,7 @@ git commit -m "feat(interview): add CrisisAlertHook — pages therapist on eleva
 ```python
 from __future__ import annotations
 
-from domain.interview.templates.form_therapy_intake import (
+from domain.intake.templates.form_therapy_intake import (
     FORM_THERAPY_INTAKE_FIELDS,
 )
 
@@ -693,8 +693,8 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.protocols import SessionState
-from domain.interview.templates.form_therapy_intake import (
+from domain.intake.protocols import SessionState
+from domain.intake.templates.form_therapy_intake import (
     FormTherapyIntakeExtractor,
 )
 
@@ -729,7 +729,7 @@ def test_merge_overwrites_enum(extractor):
 async def test_prompt_partial_mentions_crisis_screening(extractor):
     session = SessionState(
         id="s", doctor_id="d", patient_id=1, mode="patient",
-        status="interviewing", template_id="form_therapy_intake_v1",
+        status="active", template_id="form_therapy_intake_v1",
         collected={}, conversation=[], turn_count=0,
     )
     result = await extractor.prompt_partial(
@@ -744,7 +744,7 @@ async def test_prompt_partial_mentions_crisis_screening(extractor):
 
 - [ ] **Step 2: Implement**
 
-`src/domain/interview/templates/form_therapy_intake.py` (extractor + fields, template appended in Task 5):
+`src/domain/intake/templates/form_therapy_intake.py` (extractor + fields, template appended in Task 5):
 
 ```python
 """form_therapy_intake_v1 — client-facing psychotherapy intake form.
@@ -756,7 +756,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from domain.interview.protocols import (
+from domain.intake.protocols import (
     CompletenessState, FieldSpec, Mode, Phase, SessionState,
 )
 
@@ -912,7 +912,7 @@ class FormTherapyIntakeExtractor:
 - [ ] **Step 4: Commit**
 
 ```
-git commit -m "feat(interview): add FormTherapyIntakeExtractor + 6 field specs"
+git commit -m "feat(intake): add FormTherapyIntakeExtractor + 6 field specs"
 ```
 
 ---
@@ -920,8 +920,8 @@ git commit -m "feat(interview): add FormTherapyIntakeExtractor + 6 field specs"
 ## Task 5: `FormTherapyIntakeTemplate` + registry
 
 **Files:**
-- Modify: `src/domain/interview/templates/form_therapy_intake.py` (append template binding)
-- Modify: `src/domain/interview/templates/__init__.py` (register `form_therapy_intake_v1`)
+- Modify: `src/domain/intake/templates/form_therapy_intake.py` (append template binding)
+- Modify: `src/domain/intake/templates/__init__.py` (register `form_therapy_intake_v1`)
 - Create: `tests/core/test_form_therapy_intake_template.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -929,12 +929,12 @@ git commit -m "feat(interview): add FormTherapyIntakeExtractor + 6 field specs"
 ```python
 from __future__ import annotations
 
-from domain.interview.hooks.therapy import CrisisAlertHook
-from domain.interview.templates import TEMPLATES, get_template
-from domain.interview.templates.form_therapy_intake import (
+from domain.intake.hooks.therapy import CrisisAlertHook
+from domain.intake.templates import TEMPLATES, get_template
+from domain.intake.templates.form_therapy_intake import (
     FormTherapyIntakeExtractor, FormTherapyIntakeTemplate,
 )
-from domain.interview.writers import FormResponseWriter
+from domain.intake.writers import FormResponseWriter
 
 
 def test_form_therapy_intake_v1_registered():
@@ -986,11 +986,11 @@ def test_registry_has_four_templates():
 ```python
 from dataclasses import dataclass, field
 
-from domain.interview.hooks.therapy import CrisisAlertHook
-from domain.interview.protocols import (
+from domain.intake.hooks.therapy import CrisisAlertHook
+from domain.intake.protocols import (
     BatchExtractor, EngineConfig, FieldExtractor, PostConfirmHook, Writer,
 )
-from domain.interview.writers import FormResponseWriter
+from domain.intake.writers import FormResponseWriter
 
 
 @dataclass
@@ -1035,7 +1035,7 @@ TEMPLATES: dict[str, Template] = {
 - [ ] **Step 5: Commit**
 
 ```
-git commit -m "feat(interview): register form_therapy_intake_v1 with CrisisAlertHook"
+git commit -m "feat(intake): register form_therapy_intake_v1 with CrisisAlertHook"
 ```
 
 ---
@@ -1069,7 +1069,7 @@ Compare pass rate against the post-Phase-3 baseline captured in `docs/eval/`. De
 ≥3 sim scenarios each — happy path, mid-abandonment, edge case:
 
 - `sim/scenarios/neuro_happy_path.yaml` — stroke-onset conversation ends with `onset_time` + `chief_complaint` populated and diagnosis pipeline triggered.
-- `sim/scenarios/neuro_abandoned_mid_intake.yaml` — patient drops off after 2 turns; session stays `interviewing`, no hooks fire.
+- `sim/scenarios/neuro_abandoned_mid_intake.yaml` — patient drops off after 2 turns; session stays `active`, no hooks fire.
 - `sim/scenarios/neuro_no_onset_time.yaml` — edge: patient can't recall onset; must still be completable with explicit "不清楚".
 - `sim/scenarios/therapy_intake_no_risk.yaml` — happy path, `crisis_risk=none`, no alert hook call.
 - `sim/scenarios/therapy_intake_active_ideation.yaml` — active ideation mentioned mid-conversation; confirm fires `CrisisAlertHook` with exact message prefix `【危机预警】`.
@@ -1105,5 +1105,5 @@ Phase 4 complete. §8 resolved via option (c): `medical_neuro_v1` fires diagnosi
 ## Risk notes
 
 - **Crisis alert false negatives.** LLM may extract `crisis_risk=none` when the client was actually ambivalent. The required-tier screening + system prompt briefing is the primary mitigation; the sim scenario `therapy_intake_active_ideation.yaml` is the integration gate. If we see false negatives in reply_sim, escalate to explicit two-pass extraction (per-turn + batch-extract of full transcript filtered for risk keywords).
-- **Neuro hook symmetry may surprise doctors.** Doctors using `medical_general_v1` don't expect diagnosis to fire on their own dictation; `medical_neuro_v1` does. Without UI to distinguish the two, a neuro doctor who doesn't realize they were auto-routed to `medical_neuro_v1` could be confused. Mitigation: display `display_name` prominently on the interview header ("神外问诊（脑血管）") so the template choice is visible.
+- **Neuro hook symmetry may surprise doctors.** Doctors using `medical_general_v1` don't expect diagnosis to fire on their own dictation; `medical_neuro_v1` does. Without UI to distinguish the two, a neuro doctor who doesn't realize they were auto-routed to `medical_neuro_v1` could be confused. Mitigation: display `display_name` prominently on the intake header ("神外问诊（脑血管）") so the template choice is visible.
 - **Reuse of MedicalRecordWriter with `project_extras`.** The neuro writer mutates the dict by folding three fields into existing columns. This works as long as the engine treats `collected` as an opaque dict post-confirm; if any downstream code reads `collected["onset_time"]` after persist, it will find it gone. Today no such reader exists — `collected` is serialized into `session.collected` JSON before persist, and the medical record rows only expose the projected columns. Verified by grepping for `collected.get("onset_time")` in the whole codebase as part of Task 1 Step 1.

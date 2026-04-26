@@ -658,7 +658,7 @@ class KnowledgeUsageLog(Base):
     )
     usage_context: Mapped[str] = mapped_column(
         String(32), nullable=False,
-    )  # diagnosis, chat, followup, interview
+    )  # diagnosis, chat, followup, intake
     patient_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     record_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)

@@ -29,7 +29,7 @@ product's core value proposition is broken.
 - Teaching ConfirmDialog appears with "保存为知识规则" title.
 - Doctor taps "保存" → rule created via `/api/manage/teaching/create-rule`.
 - New knowledge item visible in 我的知识库 with `source=teaching`.
-- New patient interview with matching keywords → AI generates diagnosis.
+- New patient intake with matching keywords → AI generates diagnosis.
 - New diagnosis cites the teaching-sourced knowledge rule.
 - Minor edit (< 10 changed chars AND > 80% similarity) does NOT trigger
   the teaching prompt.
@@ -55,7 +55,7 @@ This workflow additionally needs:
 - **LLM-enabled backend:** `NO_PROXY=* no_proxy=*` on startup. Without
   this, draft generation and diagnosis both fail silently.
 - The Playwright spec seeds its own data via `fixtures/seed.ts` helpers:
-  `addKnowledgeText`, `completePatientInterview`, `sendPatientMessage`,
+  `addKnowledgeText`, `completePatientIntake`, `sendPatientMessage`,
   `waitForDraft`, `waitForSuggestions`.
 - No manual seed data required — everything is created per-test.
 
@@ -71,7 +71,7 @@ runtime. The spec uses `test.slow()` to triple the default timeout.
 | # | Action | Verify |
 |---|--------|--------|
 | 1.1 | Seed: add knowledge text "高血压患者建议优先使用ARB类降压药" | `POST /api/manage/knowledge` returns 200 with `id` |
-| 1.2 | Seed: complete patient interview (hypertension symptoms) | Record created; `record_id` returned |
+| 1.2 | Seed: complete patient intake (hypertension symptoms) | Record created; `record_id` returned |
 | 1.3 | Seed: patient sends follow-up message "血压控制不好，是否需要调整用药方案？" | Message created |
 | 1.4 | Wait for AI draft | `waitForDraft` returns within 30 s; draft exists for this patient |
 
@@ -100,7 +100,7 @@ runtime. The spec uses `test.slow()` to triple the default timeout.
 | # | Action | Verify |
 |---|--------|--------|
 | 4.1 | Seed: register a second patient with same doctor | New patient created |
-| 4.2 | Seed: complete interview for second patient with ARB-related symptoms: "最近头晕，血压偏高，想了解ARB类药物是否适合我" | New record created |
+| 4.2 | Seed: complete intake for second patient with ARB-related symptoms: "最近头晕，血压偏高，想了解ARB类药物是否适合我" | New record created |
 | 4.3 | Wait for AI diagnosis suggestions | `waitForSuggestions` returns within 30 s |
 | 4.4 | Navigate to review page for new record | Review page loads with 鉴别诊断/检查建议/治疗方向 sections |
 | 4.5 | Check suggestion text | At least one suggestion references ARB or the content from the teaching rule |
@@ -173,9 +173,9 @@ specifically affecting this workflow:
 - **Rule not created (Phase 3.1)** — check `POST /api/manage/teaching/create-rule`
   response. 404 means the `edit_id` was not found or doctor mismatch.
 - **Diagnosis doesn't cite the rule (Phase 4.5)** — knowledge retrieval
-  uses token-overlap scoring (top 5). If the interview text doesn't
+  uses token-overlap scoring (top 5). If the intake text doesn't
   share enough keywords with the rule, it won't be retrieved. Ensure the
-  seeded interview mentions "ARB" explicitly.
+  seeded intake mentions "ARB" explicitly.
 - **Suggestion text contains `[KB-N]` (Phase 4.6)** — server-side
   citation extraction failed. Check `extract_citations()` in
   `diagnosis_handlers.py`.

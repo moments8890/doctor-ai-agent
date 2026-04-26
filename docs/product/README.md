@@ -26,7 +26,7 @@ Large-hospital specialist doctors (neurosurgery) with significant private patien
 
 | Stage | AI Does | Doctor Does |
 |-------|---------|-------------|
-| **诊前** | Structured patient interview → quality record | Reviews, edits record |
+| **诊前** | Structured patient intake → quality record | Reviews, edits record |
 | **诊中** | Differential diagnosis + workup + treatment suggestions, citing doctor's own rules | Confirms, rejects, edits — AI learns from edits |
 | **诊后** | Drafts follow-up replies in doctor's voice, triages patient messages, tracks tasks | Reviews drafts, sends with one tap, teaches AI new rules |
 
@@ -41,7 +41,7 @@ Large-hospital specialist doctors (neurosurgery) with significant private patien
 **Done (53/65):**
 - Doctor workbench: chat, patients, tasks, settings, knowledge management
 - Diagnosis pipeline: AI suggestions → doctor review → confirm/reject/edit with KB citations
-- Patient portal: pre-consultation interview, records, messaging, tasks, voice input
+- Patient portal: pre-consultation intake, records, messaging, tasks, voice input
 - Document upload with LLM processing and citation in diagnosis
 - QR code login, bulk data export, regression tests (75 promptfoo cases)
 - AI draft replies with KB citation tracking, teaching loop, triage color dots

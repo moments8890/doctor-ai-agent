@@ -95,7 +95,7 @@ def apply_exclude_seeded(stmt, model, *, include_seeded: bool = False):
     Operators flip ``include_seeded=True`` (admin "包含演示数据" toggle) when
     they explicitly want to see the seed plumbing.
 
-    No-op for models that don't carry ``seed_source`` (e.g. InterviewSessionDB,
+    No-op for models that don't carry ``seed_source`` (e.g. IntakeSessionDB,
     DoctorChatLog) — those tables are never written by the seeder.
     """
     if include_seeded or not hasattr(model, "seed_source"):

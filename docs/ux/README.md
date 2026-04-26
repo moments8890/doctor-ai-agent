@@ -68,7 +68,7 @@ SaaS product. Every interaction should feel like messaging a trusted assistant.
 - No toast notifications for expected outcomes — only for errors and
   async completions
 - No modal dialogs unless blocking is intentional (delete confirmation,
-  interview complete choice)
+  intake complete choice)
 - No hover effects — this is a touch-first UI
 - No animations except page transitions and loading spinners
 - No color for color's sake — gray is the default, color = meaning
@@ -132,7 +132,7 @@ Two page types with distinct layouts:
 └─────────────────────────────────────┘
 ```
 
-**Subpages** (patient detail, review, interview, settings, etc.) — pushed view:
+**Subpages** (patient detail, review, intake, settings, etc.) — pushed view:
 
 ```
 ┌─────────────────────────────────────┐
@@ -142,7 +142,7 @@ Two page types with distinct layouts:
 │          CONTENT (flex: 1)          │  Scrollable. No bottom nav.
 │                                     │
 ├─────────────────────────────────────┤
-│       INPUT BAR (if applicable)     │  Chat/interview pages only.
+│       INPUT BAR (if applicable)     │  Chat/intake pages only.
 └─────────────────────────────────────┘
 ```
 
@@ -207,7 +207,7 @@ template. The shared rules (cards, spacing, components) are in sections 4-6.
 | **患者详情** | [`/doctor/patients/:id`](http://localhost:5173/doctor/patients) | Collapsible profile → record tabs → record cards → foldable patient message timeline (latest 3 items by default) |
 | **对话** | [`/doctor/chat`](http://localhost:5173/doctor/chat) | Chat bubbles → quick command chips → input bar + mic |
 | **诊断审核** | [`/doctor/review/:id`](http://localhost:5173/doctor) | Flow banner → input provenance card → record summary → diagnosis sections → sticky bottom bar |
-| **新建病历** | (interview) | Progress bar → conversation → carry-forward → input bar |
+| **新建病历** | (intake) | Progress bar → conversation → carry-forward → input bar |
 | **任务** | [`/doctor/tasks`](http://localhost:5173/doctor/tasks) | Flow banner (when routed) → filter tabs → highlighted review/follow-up task rows |
 | **设置** | [`/doctor/settings`](http://localhost:5173/doctor/settings) | Profile → tools (模板, 知识库, 预问诊入口) → general → 退出登录 |
 | **患者端预览** | [`/doctor/preview/:id`](http://localhost:5173/doctor/preview/1) | Intro card → progress bar → patient-style chat → summary sheet → submit success bridge |
@@ -519,7 +519,7 @@ Used in: internal UI review, component QA, visual regression walkthroughs.
 - Collapsed: type label (colored) + chief complaint preview + date
 - Expanded: NHC field rows (label-value, 13px) + 删除/编辑 action bar
 - Field rows: label (`60px min, #999`) + value (`#333`), separated by `1px #f0f0f0`
-- Same field layout used in: profile demographics, interview preview, review summary
+- Same field layout used in: profile demographics, intake preview, review summary
 
 ### Diagnosis Review Card
 
@@ -662,7 +662,7 @@ Used in: internal UI review, component QA, visual regression walkthroughs.
 **File:** [`src/components/RecordFields.jsx`](../../frontend/web/src/components/RecordFields.jsx)
 
 - Renders NHC structured fields as label-value rows
-- Used in: record card, interview preview dialog, review page summary
+- Used in: record card, intake preview dialog, review page summary
 
 ### SectionLabel
 
@@ -685,7 +685,7 @@ Used in: internal UI review, component QA, visual regression walkthroughs.
 
 - Floating quick-reply options above input bar
 - Multi-select toggle. Selected chips shown as green tags in input field.
-- × to dismiss entire bar. Used in: interview (AI suggestions), chat.
+- × to dismiss entire bar. Used in: intake (AI suggestions), chat.
 
 ### TaskChecklist
 
@@ -759,7 +759,7 @@ Follows WeChat convention: primary action (even destructive) always on the right
 Color (red) communicates danger. Cancel is always gray, always left.
 
 **When to use:** Any cancel/back that would lose unsaved data:
-- Interview in progress → back button
+- Intake in progress → back button
 - Record edit dialog → cancel
 - Diagnosis review with unsaved decisions → back button
 - Any form with user input → cancel
@@ -779,7 +779,7 @@ Color (red) communicates danger. Cancel is always gray, always left.
 
 - **Diagnosis decisions** (✓/✗/✎): auto-save per item (API call on each action)
 - **Record editing**: manual save (edit dialog with 保存 button)
-- **Interview**: manual save (完成 button → preview dialog → 保存/保存并诊断)
+- **Intake**: manual save (完成 button → preview dialog → 保存/保存并诊断)
 
 ### Loading States
 

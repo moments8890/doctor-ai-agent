@@ -10,7 +10,7 @@
 
 Current prompts are ad-hoc: inconsistent structure, no shared persona, zero to minimal
 few-shot examples, output format instructions duplicated in prose when they should be
-enforced by Instructor. Quality issues across routing, extraction, and interview flows.
+enforced by Instructor. Quality issues across routing, extraction, and intake flows.
 
 ## 2. Design Principles
 
@@ -21,7 +21,7 @@ enforced by Instructor. Quality issues across routing, extraction, and interview
    Pydantic models define *what to output*. No JSON format specs in prompts.
 3. **Tiered complexity**: Simple tasks get compact prompts (~1K chars), complex tasks get
    full LangGPT treatment (~3-4K chars).
-4. **Few-shot from fixtures first**: Use existing test data (`patient_interview_benchmark.json`,
+4. **Few-shot from fixtures first**: Use existing test data (`patient_intake_benchmark.json`,
    `seed_data.json`) as v1 examples. Refine with production data later.
 
 ## 3. Unified Persona
@@ -64,7 +64,7 @@ Patient-facing prompts append:
 ## Examples (2-3)
 ```
 
-### 4.3 Full (~3-4K) — doctor-interview, patient-interview, structuring, diagnosis
+### 4.3 Full (~3-4K) — doctor-intake, patient-intake, structuring, diagnosis
 
 ```markdown
 # Role
@@ -83,8 +83,8 @@ Patient-facing prompts append:
 | Prompt | Pydantic Model | Call Style | Status |
 |--------|---------------|------------|--------|
 | routing | `RoutingResult` | `structured_call` | **Done** |
-| doctor-interview | `InterviewLLMResponse` | `structured_call` | **Done** |
-| patient-interview | `InterviewLLMResponse` | `structured_call` | **Done** |
+| doctor-intake | `IntakeLLMResponse` | `structured_call` | **Done** |
+| patient-intake | `IntakeLLMResponse` | `structured_call` | **Done** |
 | structuring | `StructuringLLMResponse` | `structured_call` | **Done** |
 | diagnosis | `DiagnosisLLMResponse` | `structured_call` | **Done** |
 | compose | None | `llm_call` (raw text) | **Keep raw** — returns prose, not structured data |
@@ -118,8 +118,8 @@ Keep only: `输出JSON。` (one line, as a reminder)
 | Prompt | Has LangGPT Structure? | Has Few-Shot Examples? | Has Output Format to Remove? |
 |--------|----------------------|----------------------|----------------------------|
 | routing | Partial (rules + priority order) | Yes (6 examples) | Yes |
-| doctor-interview | Yes (role/rules/fields) | **No** | Yes |
-| patient-interview | Yes (role/stages/rules) | Yes (3 dialogue examples) | Yes |
+| doctor-intake | Yes (role/rules/fields) | **No** | Yes |
+| patient-intake | Yes (role/stages/rules) | Yes (3 dialogue examples) | Yes |
 | structuring | Yes (rules/filtering/fields) | **No** | Yes |
 | diagnosis | Yes (rules/sections) | **No** | Yes |
 | compose | Minimal (5 rules only) | **No** | No (returns prose) |
@@ -128,7 +128,7 @@ Keep only: `输出JSON。` (one line, as a reminder)
 
 ### Key Gaps
 
-- **doctor-interview, structuring, diagnosis**: No few-shot examples — these are the
+- **doctor-intake, structuring, diagnosis**: No few-shot examples — these are the
   most complex prompts and would benefit the most from examples.
 - **compose**: Minimal structure, no examples — low-priority since output is free-form.
 - **All 8 prompts**: Missing unified persona header.
@@ -139,7 +139,7 @@ Keep only: `输出JSON。` (one line, as a reminder)
 
 | Source File | Contains | Use For |
 |-------------|----------|---------|
-| `tests/fixtures/data/patient_interview_benchmark.json` | 80+ multi-turn interview cases | interview prompts |
+| `tests/fixtures/data/patient_intake_benchmark.json` | 80+ multi-turn intake cases | intake prompts |
 | `tests/fixtures/data/seed_data.json` | 5 patients, 10+ clinical records | structuring, diagnosis |
 | `scripts/seed_ui_data.py` | Realistic structured records | structuring, diagnosis |
 | New (hand-written) | Intent examples | routing, compose |
@@ -149,8 +149,8 @@ Keep only: `输出JSON。` (one line, as a reminder)
 | Prompt | Current | Target | Source | Example Type |
 |--------|---------|--------|--------|-------------|
 | routing | 6 | 6 (keep) | Existing | intent classification |
-| doctor-interview | 0 | 2 | benchmark.json | doctor input → extracted clinical fields |
-| patient-interview | 3 | 3 (keep) | Existing | patient message → reply + extracted |
+| doctor-intake | 0 | 2 | benchmark.json | doctor input → extracted clinical fields |
+| patient-intake | 3 | 3 (keep) | Existing | patient message → reply + extracted |
 | structuring | 0 | 3 | seed_data.py | clinical text → content + structured dict |
 | diagnosis | 0 | 2 | seed_data.py | clinical fields → differentials + workup |
 | compose | 0 | 1 | New | query results → natural Chinese reply |
@@ -163,9 +163,9 @@ Keep only: `输出JSON。` (one line, as a reminder)
   `outpatient_report.py:extract_outpatient_fields()` is unreachable for new records.
   Delete prompt file + LLM fallback code path.
 
-- **`structuring.md`** — Evaluate: replaced by doctor-interview as the sole record
-  creation path (per "2.1 Create Record — Always Interview" rule). WeChat import path
-  needs to route through interview or be deprecated.
+- **`structuring.md`** — Evaluate: replaced by doctor-intake as the sole record
+  creation path (per "2.1 Create Record — Always Intake" rule). WeChat import path
+  needs to route through intake or be deprecated.
 
 ## 9. Implementation Order
 
@@ -179,11 +179,11 @@ Keep only: `输出JSON。` (one line, as a reminder)
 - Add unified persona header to all 8 prompts
 - Restructure each prompt per its tier template (compact/medium/full)
 - Remove output format sections from the 5 Instructor-backed prompts
-- Keep routing's 6 existing examples, patient-interview's 3 existing examples
+- Keep routing's 6 existing examples, patient-intake's 3 existing examples
 - **Scope**: 8 prompt files
 
 ### Phase 3: Few-Shot Examples
-- Extract examples from `patient_interview_benchmark.json` → doctor-interview (2)
+- Extract examples from `patient_intake_benchmark.json` → doctor-intake (2)
 - Extract examples from `seed_data.py` → structuring (3), diagnosis (2), vision-import (1)
 - Write new examples → compose (1)
 - **Scope**: 5 prompt files
@@ -199,7 +199,7 @@ Keep only: `输出JSON。` (one line, as a reminder)
 - All 8 prompts follow consistent LangGPT structure with shared persona
 - vision-import uses `structured_call` + Pydantic (joining the other 5)
 - compose and vision-ocr remain raw (intentional — prose/plain-text output)
-- doctor-interview, structuring, and diagnosis each have 2+ few-shot examples
+- doctor-intake, structuring, and diagnosis each have 2+ few-shot examples
 - Existing tests pass (47 unit tests, no regressions)
 - Token usage per prompt stays within tier budget (compact <1K, medium <2K, full <4K)
 

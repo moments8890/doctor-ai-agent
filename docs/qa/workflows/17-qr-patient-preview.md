@@ -1,8 +1,8 @@
 # Workflow 17 — QR invite + Patient preview
 
 Ship gate for **患者预问诊码** — the QR generation flow where a doctor
-creates a patient entry, generates a shareable pre-interview link, and
-can preview the patient-side AI interview experience from within the
+creates a patient entry, generates a shareable pre-intake link, and
+can preview the patient-side AI intake experience from within the
 doctor app. Completing the preview creates a real review task.
 
 This workflow spans SettingsPage QR subpage (`/doctor/settings/qr`),
@@ -14,7 +14,7 @@ and the round-trip back to review.
 onboarding patient entry API
 (`POST /api/manage/onboarding/patient-entry` — see `api.js:734-745`),
 QR token API (`POST /api/auth/qr-token` — see `api.js:713-723`),
-patient interview APIs (`/api/patient/interview/{start,turn,confirm}`)
+patient intake APIs (`/api/patient/intake/{start,turn,confirm}`)
 **Spec:** `frontend/web/tests/e2e/17-qr-patient-preview.spec.ts`
 **Estimated runtime:** ~8 min manual / ~45 s automated
 
@@ -38,18 +38,18 @@ patient interview APIs (`/api/patient/interview/{start,turn,confirm}`)
 - Preview navigation: "预览" button navigates to
   `/doctor/preview/:patientId?patient_token=...&patient_name=...`.
 - `PatientPreviewPage` renders: intro card "患者端预览" with description,
-  AI interview chat interface, message input, send button.
-- Interview flow: patient messages are sent via
-  `POST /api/patient/interview/start` then `/turn`; AI replies appear;
+  AI intake chat interface, message input, send button.
+- Intake flow: patient messages are sent via
+  `POST /api/patient/intake/start` then `/turn`; AI replies appear;
   progress indicator tracks collected fields (7 total).
 - Summary sheet: when enough fields collected, summary sheet shows
   collected data with field-by-field status.
 - Confirm & submit: confirming triggers
-  `POST /api/patient/interview/confirm` → success card with "去审核"
+  `POST /api/patient/intake/confirm` → success card with "去审核"
   and task navigation buttons.
 - Post-completion: "去审核" navigates to
   `/doctor/review/:recordId?source=patient_preview`.
-- Exit dialog: back button during interview shows `ConfirmDialog` with
+- Exit dialog: back button during intake shows `ConfirmDialog` with
   "退出预览" title, "保存退出" cancel, "放弃重来" confirm (danger).
 
 **Out of scope**
@@ -57,7 +57,7 @@ patient interview APIs (`/api/patient/interview/{start,turn,confirm}`)
 - Actual QR code scanning by a real device — manual/physical test only.
 - Patient portal flow when accessed from a real patient device —
   covered by patient-side workflows (20-24).
-- LLM response quality in the interview — eval suite, not Playwright.
+- LLM response quality in the intake — eval suite, not Playwright.
 - Bulk export — separate workflow.
 
 ---
@@ -104,7 +104,7 @@ pre-seeding of patients is needed.
 | 4.2 | Preview page loads | Intro card visible: title "患者端预览"; description mentions "2 分钟左右的 AI 预问诊流程" |
 | 4.3 | Chat interface | Message input field and send button visible; initial AI greeting message appears |
 
-### 5. Interview flow in preview
+### 5. Intake flow in preview
 
 | # | Action | Verify |
 |---|--------|--------|
@@ -117,7 +117,7 @@ pre-seeding of patients is needed.
 | # | Action | Verify |
 |---|--------|--------|
 | 6.1 | Open summary sheet | Sheet shows collected fields with labels: 主诉, 现病史, 既往史, 过敏史, 家族史, 个人史, 婚育史; filled fields have green checkmarks |
-| 6.2 | Tap confirm/submit | "确认提交" triggers `POST /api/patient/interview/confirm`; success card appears |
+| 6.2 | Tap confirm/submit | "确认提交" triggers `POST /api/patient/intake/confirm`; success card appears |
 | 6.3 | Success card | Shows patient name; "去审核" button visible; optionally "查看任务" button |
 
 ### 7. Post-completion navigation
@@ -130,7 +130,7 @@ pre-seeding of patients is needed.
 
 | # | Action | Verify |
 |---|--------|--------|
-| 8.1 | Start a new preview; during interview, tap back | `ConfirmDialog` opens: title "退出预览"; message "要保留当前预问诊进度，还是放弃本次预览？" |
+| 8.1 | Start a new preview; during intake, tap back | `ConfirmDialog` opens: title "退出预览"; message "要保留当前预问诊进度，还是放弃本次预览？" |
 | 8.2 | "保存退出" button (LEFT, grey) | Saves progress and exits preview |
 | 8.3 | "放弃重来" button (RIGHT, red/danger) | Discards and exits |
 
@@ -154,7 +154,7 @@ pre-seeding of patients is needed.
 - **Preview re-entry** — navigating back to `/doctor/preview/:id` with
   the same patient reuses `lastPreviewToken` from onboarding state
   (localStorage).
-- **Interview LLM timeout** — if `/api/patient/interview/turn` is slow
+- **Intake LLM timeout** — if `/api/patient/intake/turn` is slow
   (>10s), the sending state persists; no timeout UI currently shown.
 
 ---
@@ -173,7 +173,7 @@ No open bugs as of 2026-04-11.
 - **Preview page shows error immediately** — `parsePreviewSession`
   couldn't find a token. Verify `patient_token` query param or
   `lastPreviewToken` in localStorage onboarding state.
-- **Interview won't start** — `/api/patient/interview/start` requires
+- **Intake won't start** — `/api/patient/intake/start` requires
   a valid patient Bearer token. The preview page uses
   `sessionConfig.token` which comes from the QR generation response.
 - **"去审核" navigates to wrong page** — the path is built from

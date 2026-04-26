@@ -15,7 +15,7 @@ write path with its existing `{content, category}` schema — no changes to the
 write API or DB schema.
 
 The goal is to lower the typing friction that gates knowledge-base activation.
-Every other AI feature (diagnosis suggestions, reply drafts, red-flag
+Every other AI feature (diagnosis suggestions, reply drafts, signal-flag
 detection, rule citations) scales with KB richness, so lowering the cost to
 add a rule compounds across the product.
 

@@ -5,8 +5,8 @@ required-ness, appendability, or carry-forward behavior.
 """
 from __future__ import annotations
 
-from domain.interview.templates.medical_general import MEDICAL_FIELDS
-from domain.interview.templates.medical_neuro import (
+from domain.intake.templates.medical_general import MEDICAL_FIELDS
+from domain.intake.templates.medical_neuro import (
     NEURO_EXTRA_FIELDS, NEURO_FIELDS,
 )
 

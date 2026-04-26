@@ -40,7 +40,7 @@ regression guard for the NL parser.
 
 Seed 3-5 patients via `seed.registerPatient` (called multiple times) with
 distinct names, genders, and birth years. At least one patient needs a
-hypertension-related record via `seed.completePatientInterview` so NL
+hypertension-related record via `seed.completePatientIntake` so NL
 queries can find condition-based matches.
 
 ---

@@ -372,7 +372,7 @@
     <div class="card-title">Test framework extensions</div>
     <div class="card-file">tests/scenarios/runner.py + test_scenarios.py</div>
     <div class="card-desc">
-      <strong>runner.py:</strong> Fixed broken <code>_encode_knowledge_payload</code> import (was blocking all KB tests). Added list indexing to <code>get_nested</code> (<code>differentials.0.condition</code>). Added diagnosis convenience fields: <code>_differentials_count</code>, <code>_red_flags_count</code>, <code>_top_condition</code>, <code>_all_details</code>.<br>
+      <strong>runner.py:</strong> Fixed broken <code>_encode_knowledge_payload</code> import (was blocking all KB tests). Added list indexing to <code>get_nested</code> (<code>differentials.0.condition</code>). Added diagnosis convenience fields: <code>_differentials_count</code>, <code>_signal_flags_count</code>, <code>_top_condition</code>, <code>_all_details</code>.<br>
       <strong>test_scenarios.py:</strong> Added <code>contains</code>, <code>not_contains</code>, <code>min_value</code> assertion operators.
     </div>
   </div>
@@ -394,7 +394,7 @@
       <tr>
         <td class="mono">diagnosis_quality.yaml</td>
         <td>Diagnosis hallucination + completeness</td>
-        <td>differentials >= 1, reasonable top condition, red_flags present, <strong>no "脑膜尾征阳性"</strong>, workup >= 1</td>
+        <td>differentials >= 1, reasonable top condition, signal_flags present, <strong>no "脑膜尾征阳性"</strong>, workup >= 1</td>
       </tr>
       <tr>
         <td class="mono">diagnosis_citation_valid.yaml</td>
@@ -402,9 +402,9 @@
         <td>SAH for thunderclap headache, no fake [KB-99] citations</td>
       </tr>
       <tr>
-        <td class="mono">kb_red_flags.yaml <span class="badge badge-improve" style="font-size:0.6rem">enhanced</span></td>
+        <td class="mono">kb_signal_flags.yaml <span class="badge badge-improve" style="font-size:0.6rem">enhanced</span></td>
         <td>KB constraint: danger flags</td>
-        <td>Was: only <code>status: completed</code>. Now: SAH in top, red_flags >= 1, workup >= 1</td>
+        <td>Was: only <code>status: completed</code>. Now: SAH in top, signal_flags >= 1, workup >= 1</td>
       </tr>
       <tr>
         <td class="mono">kb_no_opioids.yaml <span class="badge badge-improve" style="font-size:0.6rem">enhanced</span></td>

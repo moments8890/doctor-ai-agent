@@ -85,13 +85,13 @@ For each persona, the pipeline:
 
 1. **Registers** a patient via `/api/patient/register`
 2. **Logs in** via `/api/patient/login` → gets JWT token
-3. **Starts interview** via `/api/patient/interview/start`
-4. **Runs interview loop** (max 20 turns):
+3. **Starts intake** via `/api/patient/intake/start`
+4. **Runs intake loop** (max 20 turns):
    - System asks a question
    - Patient LLM generates a response based on the persona
-   - Response sent via `/api/patient/interview/turn`
+   - Response sent via `/api/patient/intake/turn`
    - Stops when 5+ fields collected or 20 turns reached
-5. **Confirms** the interview via `/api/patient/interview/confirm`
+5. **Confirms** the intake via `/api/patient/intake/confirm`
 6. **Validates** with 4 tiers:
    - **Tier 1 (DB):** record exists, structured JSON populated, review queue created
    - **Tier 2 (3-axis):** elicitation coverage, extraction fidelity (dialog-based: judges what patient actually said vs what record captured), NHC compliance. Uses LLM to extract patient's actual statements from conversation, then judges those against the structured record. Facts the patient never mentioned are excluded from scoring.
@@ -130,13 +130,13 @@ This runs the same pipeline but asserts pass/fail per persona as pytest test cas
 → Already handled — the pipeline strips Qwen3 thinking tokens automatically.
 
 **All personas hit 20 turns (timeout)**
-→ The system interview may not be extracting enough fields. Check `progress.filled` in the JSON report. The stop condition is `filled >= 5`.
+→ The system intake may not be extracting enough fields. Check `progress.filled` in the JSON report. The stop condition is `filled >= 5`.
 
 **Extraction validation fails but DB passes**
 → The `fact_catalog` entries in the persona JSON may not match what the system actually extracts. T2 uses 3 LLM judges with tiered matching (exact/partial/missed). A `partial` match (core concept present but details missing) counts as a pass. Only `missed` critical facts cause failure. Check the report for vote details and adjust facts in `tests/fixtures/patient_sim/personas/*.json`.
 
 **Same persona passes/fails on different runs**
-→ LLM non-determinism affects both the sim patient (what it says) and the interview AI (what it asks). Run 2-3 times to assess stability. Personas with `volunteer=false` facts that depend on the AI asking the right category question are inherently less stable.
+→ LLM non-determinism affects both the sim patient (what it says) and the intake AI (what it asks). Run 2-3 times to assess stability. Personas with `volunteer=false` facts that depend on the AI asking the right category question are inherently less stable.
 
 **"Register failed: 404"**
 → The test doctor doesn't exist. The pipeline creates one automatically, but the DB must be writable. Check `data/patients.db` exists and is not locked.

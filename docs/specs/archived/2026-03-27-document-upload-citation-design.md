@@ -78,7 +78,7 @@ flowchart TB
 
 ### Current problem
 
-Doctors must choose from 5 categories (interview_guide, diagnosis_rule, red_flag, treatment_protocol, custom). This is confusing. A rule like "高血压患者避免NSAIDs" could be any of 3 categories.
+Doctors must choose from 5 categories (intake_guide, diagnosis_rule, signal_flag, treatment_protocol, custom). This is confusing. A rule like "高血压患者避免NSAIDs" could be any of 3 categories.
 
 ### Change
 

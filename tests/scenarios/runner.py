@@ -1,7 +1,7 @@
 """Scenario test runner — in-process, fixture-driven, traces every step.
 
 Executes YAML scenario fixtures by calling agent functions directly
-(interview_start, interview_turn, interview_confirm, diagnosis) without
+(intake_start, intake_turn, intake_confirm, diagnosis) without
 an HTTP server.
 """
 from __future__ import annotations
@@ -96,7 +96,7 @@ class ScenarioWorld:
         from sqlalchemy import text
 
         tables = [
-            "patient_auth", "interview_sessions", "medical_records",
+            "patient_auth", "intake_sessions", "medical_records",
             "doctor_tasks", "doctor_knowledge_items", "doctor_chat_log",
             "patients", "doctors",
         ]
@@ -114,12 +114,12 @@ class ScenarioWorld:
         input_data = self._resolve_vars(step.get("input", {}))
         step_id = step["id"]
 
-        if call == "doctor_interview.start":
-            result = await self._call_interview_start(input_data)
-        elif call == "doctor_interview.turn":
-            result = await self._call_interview_turn(input_data)
-        elif call == "doctor_interview.confirm":
-            result = await self._call_interview_confirm(input_data)
+        if call == "doctor_intake.start":
+            result = await self._call_intake_start(input_data)
+        elif call == "doctor_intake.turn":
+            result = await self._call_intake_turn(input_data)
+        elif call == "doctor_intake.confirm":
+            result = await self._call_intake_confirm(input_data)
         elif call == "diagnosis.run":
             result = await self._call_diagnosis(input_data)
         elif call == "draft_reply":
@@ -156,8 +156,8 @@ class ScenarioWorld:
             return [self._resolve_vars(v) for v in data]
         return data
 
-    async def _call_interview_start(self, input_data: Dict) -> Dict:
-        from domain.patients.interview_session import create_session
+    async def _call_intake_start(self, input_data: Dict) -> Dict:
+        from domain.patients.intake_session import create_session
         session = await create_session(
             doctor_id=self.doctor_id,
             patient_id=input_data.get("patient_id"),
@@ -166,9 +166,9 @@ class ScenarioWorld:
         )
         return {"session_id": session.id, "status": session.status}
 
-    async def _call_interview_turn(self, input_data: Dict) -> Dict:
-        from domain.patients.interview_turn import interview_turn
-        response = await interview_turn(input_data["session_id"], input_data["text"])
+    async def _call_intake_turn(self, input_data: Dict) -> Dict:
+        from domain.patients.intake_turn import intake_turn
+        response = await intake_turn(input_data["session_id"], input_data["text"])
         return {
             "reply": response.reply,
             "collected": response.collected,
@@ -177,14 +177,14 @@ class ScenarioWorld:
             "missing": getattr(response, "missing", []),
         }
 
-    async def _call_interview_confirm(self, input_data: Dict) -> Dict:
-        from channels.web.doctor_interview import interview_confirm_endpoint
+    async def _call_intake_confirm(self, input_data: Dict) -> Dict:
+        from channels.web.doctor_intake import intake_confirm_endpoint
         from unittest.mock import AsyncMock
 
         # Call the confirm endpoint function directly (skip HTTP)
         # We need to simulate the Form params
-        from domain.patients.interview_session import load_session, save_session
-        from db.models.interview_session import InterviewStatus
+        from domain.patients.intake_session import load_session, save_session
+        from db.models.intake_session import IntakeStatus
         from db.engine import AsyncSessionLocal
         from db.models.records import MedicalRecordDB, RecordStatus
         from db.crud.doctor import _ensure_doctor_exists
@@ -193,7 +193,7 @@ class ScenarioWorld:
         if session is None:
             return {"error": "session not found"}
 
-        from channels.web.doctor_interview import _build_clinical_text, _compute_progress
+        from channels.web.doctor_intake import _build_clinical_text, _compute_progress
         collected = session.collected or {}
         clinical_text = _build_clinical_text(collected)
 
@@ -207,7 +207,7 @@ class ScenarioWorld:
             record = MedicalRecordDB(
                 doctor_id=self.doctor_id,
                 patient_id=session.patient_id,
-                record_type="interview_summary",
+                record_type="intake_summary",
                 status=status.value,
                 content=clinical_text,
                 chief_complaint=collected.get("chief_complaint"),
@@ -225,7 +225,7 @@ class ScenarioWorld:
             await db.commit()
             record_id = record.id
 
-        session.status = InterviewStatus.confirmed
+        session.status = IntakeStatus.confirmed
         await save_session(session)
 
         return {

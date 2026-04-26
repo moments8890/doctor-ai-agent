@@ -17,32 +17,32 @@ CLINICAL_FIELDS = [
 # --- API wrappers ---
 
 
-def interview_turn(
+def intake_turn(
     server_url: str,
     text: str,
     session_id: Optional[str] = None,
     doctor_id: Optional[str] = None,
 ) -> dict:
-    """POST /api/records/interview/turn (form-encoded). Returns response JSON. Raises on non-2xx."""
+    """POST /api/records/intake/turn (form-encoded). Returns response JSON. Raises on non-2xx."""
     data = {"text": text}
     if session_id:
         data["session_id"] = session_id
     if doctor_id:
         data["doctor_id"] = doctor_id
     resp = httpx.post(
-        f"{server_url}/api/records/interview/turn", data=data, timeout=_TIMEOUT
+        f"{server_url}/api/records/intake/turn", data=data, timeout=_TIMEOUT
     )
     resp.raise_for_status()
     return resp.json()
 
 
-def interview_confirm(
+def intake_confirm(
     server_url: str, session_id: str, doctor_id: str
 ) -> Tuple[int, dict]:
-    """POST /api/records/interview/confirm (form-encoded). Returns (status_code, body). Does NOT raise."""
+    """POST /api/records/intake/confirm (form-encoded). Returns (status_code, body). Does NOT raise."""
     data = {"session_id": session_id, "doctor_id": doctor_id}
     resp = httpx.post(
-        f"{server_url}/api/records/interview/confirm", data=data, timeout=_TIMEOUT
+        f"{server_url}/api/records/intake/confirm", data=data, timeout=_TIMEOUT
     )
     try:
         body = resp.json()
@@ -51,20 +51,20 @@ def interview_confirm(
     return resp.status_code, body
 
 
-def interview_cancel(server_url: str, session_id: str, doctor_id: str) -> dict:
-    """POST /api/records/interview/cancel (form-encoded). Raises on non-2xx."""
+def intake_cancel(server_url: str, session_id: str, doctor_id: str) -> dict:
+    """POST /api/records/intake/cancel (form-encoded). Raises on non-2xx."""
     data = {"session_id": session_id, "doctor_id": doctor_id}
     resp = httpx.post(
-        f"{server_url}/api/records/interview/cancel", data=data, timeout=_TIMEOUT
+        f"{server_url}/api/records/intake/cancel", data=data, timeout=_TIMEOUT
     )
     resp.raise_for_status()
     return resp.json()
 
 
 def get_session(server_url: str, session_id: str, doctor_id: str) -> dict:
-    """GET /api/records/interview/session/{session_id}. Returns response JSON."""
+    """GET /api/records/intake/session/{session_id}. Returns response JSON."""
     resp = httpx.get(
-        f"{server_url}/api/records/interview/session/{session_id}",
+        f"{server_url}/api/records/intake/session/{session_id}",
         params={"doctor_id": doctor_id},
         timeout=_TIMEOUT,
     )
@@ -79,7 +79,7 @@ def carry_forward_confirm(
     field_name: str,
     action: str = "confirm",
 ) -> dict:
-    """POST /api/records/interview/carry-forward-confirm (JSON body)."""
+    """POST /api/records/intake/carry-forward-confirm (JSON body)."""
     payload = {
         "session_id": session_id,
         "doctor_id": doctor_id,
@@ -87,7 +87,7 @@ def carry_forward_confirm(
         "action": action,
     }
     resp = httpx.post(
-        f"{server_url}/api/records/interview/carry-forward-confirm",
+        f"{server_url}/api/records/intake/carry-forward-confirm",
         json=payload,
         timeout=_TIMEOUT,
     )
@@ -163,7 +163,7 @@ def db_session_status(db_path: str, session_id: str) -> Optional[str]:
     conn = sqlite3.connect(str(db_path))
     try:
         row = conn.execute(
-            "SELECT status FROM interview_sessions WHERE id = ?", (session_id,)
+            "SELECT status FROM intake_sessions WHERE id = ?", (session_id,)
         ).fetchone()
         return row[0] if row else None
     except sqlite3.OperationalError:

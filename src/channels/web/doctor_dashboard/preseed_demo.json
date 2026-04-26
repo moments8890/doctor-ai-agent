@@ -51,7 +51,7 @@
       "records": [
         {
           "key": "current_visit",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "pending_review",
           "days_ago": 1,
           "chief_complaint": "头痛伴视物模糊1天",
@@ -85,7 +85,7 @@
         },
         {
           "key": "baseline_visit",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "completed",
           "days_ago": 90,
           "chief_complaint": "高血压常规随访",
@@ -144,7 +144,7 @@
       "records": [
         {
           "key": "recent_visit",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "pending_review",
           "days_ago": 0,
           "chief_complaint": "服用开浦兰后嗜睡",
@@ -171,7 +171,7 @@
         },
         {
           "key": "initial_epilepsy",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "completed",
           "days_ago": 90,
           "chief_complaint": "癫痫术后药物调整",
@@ -224,7 +224,7 @@
       "records": [
         {
           "key": "postop_d5",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "pending_review",
           "days_ago": 1,
           "chief_complaint": "开颅术后第5天复诊",
@@ -250,7 +250,7 @@
         },
         {
           "key": "postop_d3",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "completed",
           "days_ago": 3,
           "chief_complaint": "开颅术后第3天复查",
@@ -270,7 +270,7 @@
         },
         {
           "key": "postop_d2",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "completed",
           "days_ago": 4,
           "chief_complaint": "开颅术后第2天病程",

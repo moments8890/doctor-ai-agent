@@ -1,9 +1,9 @@
-"""Interview Pydantic models + field metadata — DEPRECATED shim.
+"""Intake Pydantic models + field metadata — DEPRECATED shim.
 
-Phase 2 moved the canonical schema into domain.interview.templates.medical_general.
+Phase 2 moved the canonical schema into domain.intake.templates.medical_general.
 This module re-exports derivations for legacy callers. _build_progress and
 the dataclasses remain because they're still used by the legacy turn loop
-in interview_turn.py (Phase 2.5 deletes it).
+in intake_turn.py (Phase 2.5 deletes it).
 """
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 warnings.warn(
-    "domain.patients.interview_models is deprecated; import from "
-    "domain.interview.templates.medical_general instead.",
+    "domain.patients.intake_models is deprecated; import from "
+    "domain.intake.templates.medical_general instead.",
     DeprecationWarning,
     stacklevel=2,
 )
 
-from domain.interview.contract import build_response_schema
-from domain.interview.templates.medical_general import MEDICAL_FIELDS
+from domain.intake.contract import build_response_schema
+from domain.intake.templates.medical_general import MEDICAL_FIELDS
 
 MAX_TURNS = 30
 
@@ -50,8 +50,8 @@ class ExtractedClinicalFields(_ClinicalBase):  # type: ignore[misc,valid-type]
     patient_age: Optional[str] = Field(None, description="患者年龄")
 
 
-class InterviewLLMResponse(BaseModel):
-    """Structured response from the interview LLM."""
+class IntakeLLMResponse(BaseModel):
+    """Structured response from the intake LLM."""
 
     reply: str = Field(
         default="请继续描述您的情况。",
@@ -134,7 +134,7 @@ def _build_progress(collected: Dict[str, str], mode: str = "patient") -> dict:
         rec_fields = [f for f in DOCTOR_RECOMMENDED if f not in REQUIRED]
     else:
         # Patient mode requires every subjective field — matches the
-        # interview-template completeness gate.
+        # intake-template completeness gate.
         req_fields = list(_PATIENT_FIELDS)
         rec_fields = []
 
@@ -160,7 +160,7 @@ def _build_progress(collected: Dict[str, str], mode: str = "patient") -> dict:
 
 
 @dataclass
-class InterviewResponse:
+class IntakeResponse:
     reply: str
     collected: Dict[str, str]
     progress: dict

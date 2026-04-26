@@ -23,7 +23,7 @@ class MedicalRecord(BaseModel):
     """关键词标签：诊断名称、药品、随访时间等。"""
 
     record_type: Optional[str] = Field(default="visit")
-    """记录类型：visit | dictation | import | interview_summary"""
+    """记录类型：visit | dictation | import | intake_summary"""
 
     @field_validator("record_type", mode="before")
     @classmethod

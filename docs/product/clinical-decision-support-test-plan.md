@@ -5,14 +5,14 @@
 - `GET /api/doctor/incoming` — New endpoint: doctor sees incoming patient records with status badges
 - `PATCH /api/doctor/diagnosis/{id}/confirm` — New endpoint: doctor confirms/modifies/rejects AI diagnosis
 - `/doctor/dashboard` — Extended: incoming queue panel, review panel with diagnosis overlay
-- Diagnosis background pipeline — async task triggered after interview confirmation
+- Diagnosis background pipeline — async task triggered after intake confirmation
 
 ## Key Interactions to Verify
 - Doctor refreshes dashboard → sees list of records with status (ready_for_review, diagnosis_ready)
 - Doctor clicks record → sees structured medical record + AI diagnosis side by side
 - Doctor confirms diagnosis → case_history entry created, status → confirmed
 - Doctor modifies diagnosis → original AI suggestion preserved, doctor version saved separately
-- Patient completes interview → record saves immediately, diagnosis runs in background
+- Patient completes intake → record saves immediately, diagnosis runs in background
 
 ## Edge Cases
 - LLM timeout during diagnosis → record still available for manual review (graceful degradation)
@@ -22,6 +22,6 @@
 - Doctor confirms then wants to undo → need to verify confirm is reversible
 
 ## Critical Paths
-- Interview complete → record saved → diagnosis background task → diagnosis result saved → doctor reviews → confirms → case_history created (full pipeline end-to-end)
-- Status transitions: interview_complete → ready_for_review → diagnosis_ready → confirmed
-- Diagnosis failure path: interview_complete → ready_for_review → diagnosis_failed → doctor does manual review
+- Intake complete → record saved → diagnosis background task → diagnosis result saved → doctor reviews → confirms → case_history created (full pipeline end-to-end)
+- Status transitions: intake_complete → ready_for_review → diagnosis_ready → confirmed
+- Diagnosis failure path: intake_complete → ready_for_review → diagnosis_failed → doctor does manual review

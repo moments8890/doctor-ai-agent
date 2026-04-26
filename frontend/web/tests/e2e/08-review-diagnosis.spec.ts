@@ -6,7 +6,7 @@
  */
 import { test, expect } from "./fixtures/doctor-auth";
 import {
-  completePatientInterview,
+  completePatientIntake,
   addKnowledgeText,
   waitForSuggestions,
 } from "./fixtures/seed";
@@ -19,14 +19,14 @@ test.describe("工作流 08 — 审核诊断", () => {
     request,
     steps,
   }) => {
-    // Seed one knowledge rule relevant to the interview symptoms.
+    // Seed one knowledge rule relevant to the intake symptoms.
     // category must be enum: custom|diagnosis|followup|medication (default "custom")
     await addKnowledgeText(
       request,
       doctor,
       "高血压患者头痛需排除高血压脑病与颅内出血",
     );
-    await completePatientInterview(request, patient);
+    await completePatientIntake(request, patient);
 
     await doctorPage.goto("/doctor/review");
 
@@ -54,7 +54,7 @@ test.describe("工作流 08 — 审核诊断", () => {
     steps,
   }) => {
     await addKnowledgeText(request, doctor, "规则内容");
-    const { recordId } = await completePatientInterview(request, patient);
+    const { recordId } = await completePatientIntake(request, patient);
 
     // Wait for async suggestion generation before asserting on the review
     // detail page — otherwise we race the LLM pipeline and land in the
@@ -86,7 +86,7 @@ test.describe("工作流 08 — 审核诊断", () => {
     request,
     steps,
   }) => {
-    const { recordId } = await completePatientInterview(request, patient);
+    const { recordId } = await completePatientIntake(request, patient);
     await waitForSuggestions(request, doctor, recordId);
     await doctorPage.goto(`/doctor/review/${recordId}`);
 
@@ -111,7 +111,7 @@ test.describe("工作流 08 — 审核诊断", () => {
     request,
     steps,
   }) => {
-    const { recordId } = await completePatientInterview(request, patient);
+    const { recordId } = await completePatientIntake(request, patient);
     await waitForSuggestions(request, doctor, recordId);
     await doctorPage.goto(`/doctor/review/${recordId}`);
 
@@ -147,7 +147,7 @@ test.describe("工作流 08 — 审核诊断", () => {
     expect(cancelBox && saveBox && cancelBox.x < saveBox.x).toBeTruthy(); // cancel LEFT, save RIGHT
   });
 
-  // Preseed creates a demo interview on registration, so the review queue
+  // Preseed creates a demo intake on registration, so the review queue
   // is never empty for a fresh doctor. Skip until preseed is configurable.
   test.skip("8. 空状态 — 新医生无待审核项", async ({
     doctorPage,

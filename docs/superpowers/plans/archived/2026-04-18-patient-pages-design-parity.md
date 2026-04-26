@@ -93,8 +93,8 @@ describe("detectRecordDetail", () => {
   it("returns id for /patient/records/42", () => {
     expect(detectRecordDetail("/patient/records/42")).toBe("42");
   });
-  it("returns null for /patient/records/interview", () => {
-    expect(detectRecordDetail("/patient/records/interview")).toBeNull();
+  it("returns null for /patient/records/intake", () => {
+    expect(detectRecordDetail("/patient/records/intake")).toBeNull();
   });
   it("returns null for /patient/records", () => {
     expect(detectRecordDetail("/patient/records")).toBeNull();
@@ -159,10 +159,10 @@ export function detectSection(pathname) {
   return "chat";
 }
 
-/** /patient/records/:id → id (excluding "interview"). Returns null otherwise. */
+/** /patient/records/:id → id (excluding "intake"). Returns null otherwise. */
 export function detectRecordDetail(pathname) {
   const parts = pathname.split("/").filter(Boolean);
-  if (parts[1] !== "records" || !parts[2] || parts[2] === "interview") return null;
+  if (parts[1] !== "records" || !parts[2] || parts[2] === "intake") return null;
   return parts[2];
 }
 
@@ -385,7 +385,7 @@ import { usePatientApi } from "../../../api/PatientApiContext";
 import { APP, FONT, ICON } from "../../theme";
 import { pageContainer, navBarStyle } from "../../layouts";
 import ChatTab from "./ChatTab";
-import InterviewPage from "./InterviewPage";
+import IntakePage from "./IntakePage";
 import PatientOnboarding, { isOnboardingDone, markOnboardingDone } from "./PatientOnboarding";
 import RecordsTab from "./RecordsTab";
 import TasksTab from "./TasksTab";
@@ -484,10 +484,10 @@ export default function PatientPage() {
   const recordDetailId = detectRecordDetail(location.pathname);
   const taskDetailId = detectTaskDetail(location.pathname);
   const profileSubpage = detectProfileSubpage(location.pathname);
-  const inInterview = location.pathname === "/patient/records/interview";
+  const inIntake = location.pathname === "/patient/records/intake";
 
   const fullScreenActive =
-    inInterview || !!recordDetailId || !!taskDetailId || !!profileSubpage;
+    inIntake || !!recordDetailId || !!taskDetailId || !!profileSubpage;
 
   // ── Tab + navigation handlers ────────────────────────────────────
   const handleTabChange = useCallback(
@@ -495,12 +495,12 @@ export default function PatientPage() {
     [navigate]
   );
 
-  const startInterview = useCallback(
-    () => navigate("/patient/records/interview"),
+  const startIntake = useCallback(
+    () => navigate("/patient/records/intake"),
     [navigate]
   );
 
-  const exitInterview = useCallback(
+  const exitIntake = useCallback(
     () => navigate("/patient/records"),
     [navigate]
   );
@@ -541,11 +541,11 @@ export default function PatientPage() {
   }
 
   // ── Full-screen subpages ─────────────────────────────────────────
-  if (inInterview) {
+  if (inIntake) {
     return (
       <div style={pageContainer}>
         <SafeArea position="top" />
-        <InterviewPage token={token} onBack={exitInterview} />
+        <IntakePage token={token} onBack={exitIntake} />
       </div>
     );
   }
@@ -578,7 +578,7 @@ export default function PatientPage() {
               fill="none"
               color="primary"
               size="small"
-              onClick={startInterview}
+              onClick={startIntake}
               aria-label="新问诊"
             >
               <AddCircleOutline style={{ fontSize: ICON.md }} />
@@ -604,13 +604,13 @@ export default function PatientPage() {
           <ChatTab
             token={token}
             doctorName={doctorName}
-            onNewInterview={startInterview}
+            onNewIntake={startIntake}
             onViewRecords={() => handleTabChange("records")}
             onUnreadCountChange={setUnreadCount}
           />
         )}
         {section === "records" && (
-          <RecordsTab token={token} onNewRecord={startInterview} />
+          <RecordsTab token={token} onNewRecord={startIntake} />
         )}
         {section === "tasks" && <TasksTab token={token} />}
         {section === "profile" && (
@@ -675,7 +675,7 @@ Open in browser:
 - `http://localhost:5173/patient/records` → NavBar shows "病历", right action is +icon. No more big inline "新建病历" button? (still there from RecordsTab — Task 6 removes it.)
 - `http://localhost:5173/patient/tasks` → NavBar shows "任务", no right action.
 - `http://localhost:5173/patient/profile` → NavBar shows "我的".
-- `http://localhost:5173/patient/records/interview` → NavBar hidden, InterviewPage full-screen.
+- `http://localhost:5173/patient/records/intake` → NavBar hidden, IntakePage full-screen.
 - `http://localhost:5173/patient/records/42` → Stub detail page, back arrow returns.
 - `http://localhost:5173/patient/tasks/7` → Stub detail page.
 - `http://localhost:5173/patient/profile/about` → Stub about page.
@@ -712,7 +712,7 @@ Remove `urlSubpage` from prop destructure (was unused in new shell) and keep `on
 
 - [ ] **Step 3: Run dev server, verify records list still renders without the big button**
 
-Open `/patient/records` → list renders, no inline 新建病历 button. NavBar "+" still triggers `startInterview`.
+Open `/patient/records` → list renders, no inline 新建病历 button. NavBar "+" still triggers `startIntake`.
 
 - [ ] **Step 4: Commit checkpoint**
 
@@ -1212,7 +1212,7 @@ const RECORD_TYPE_LABEL = {
   visit: "门诊记录",
   dictation: "语音记录",
   import: "导入记录",
-  interview_summary: "预问诊",
+  intake_summary: "预问诊",
 };
 
 const STATUS_LABEL = {
@@ -1663,7 +1663,7 @@ git commit -m "feat(v2): SwipeAction on patient tasks (replaces inline buttons)"
 - Modify: `frontend/web/src/v2/pages/patient/MyPage.jsx`
 - Modify: `frontend/web/src/v2/pages/patient/ChatTab.jsx`
 - Modify: `frontend/web/src/v2/pages/patient/TasksTab.jsx`
-- Modify: `frontend/web/src/v2/pages/patient/InterviewPage.jsx`
+- Modify: `frontend/web/src/v2/pages/patient/IntakePage.jsx`
 
 - [ ] **Step 1: Grep for hardcoded fontSize numbers**
 
@@ -1671,7 +1671,7 @@ git commit -m "feat(v2): SwipeAction on patient tasks (replaces inline buttons)"
 grep -nE 'fontSize:\s*[0-9]+' frontend/web/src/v2/pages/patient/*.jsx
 ```
 
-Expected hits in RecordsTab (22, 18), TasksTab (22), MyPage (20, 44), ChatTab, InterviewPage.
+Expected hits in RecordsTab (22, 18), TasksTab (22), MyPage (20, 44), ChatTab, IntakePage.
 
 - [ ] **Step 2: Replace per the ICON scale**
 

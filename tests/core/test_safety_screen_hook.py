@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from domain.interview.hooks.safety import SafetyScreenHook
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.hooks.safety import SafetyScreenHook
+from domain.intake.protocols import PersistRef, SessionState
 
 
 def _session(mode: str = "patient") -> SessionState:
@@ -41,10 +41,10 @@ async def test_no_keywords_no_notification_no_log():
         "_patient_name": "王五",
     }
     with patch(
-        "domain.interview.hooks.safety._send_doctor_notification",
+        "domain.intake.hooks.safety._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_notify, patch(
-        "domain.interview.hooks.safety.log",
+        "domain.intake.hooks.safety.log",
     ) as mock_log:
         await hook.run(_session(), _ref(), collected)
 
@@ -60,10 +60,10 @@ async def test_single_keyword_in_chief_complaint_triggers_notification():
         "_patient_name": "王五",
     }
     with patch(
-        "domain.interview.hooks.safety._send_doctor_notification",
+        "domain.intake.hooks.safety._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_notify, patch(
-        "domain.interview.hooks.safety.log",
+        "domain.intake.hooks.safety.log",
     ) as mock_log:
         await hook.run(_session(), _ref(), collected)
 
@@ -91,7 +91,7 @@ async def test_keyword_in_neuro_exam_triggers_notification():
         "_patient_name": "张三",
     }
     with patch(
-        "domain.interview.hooks.safety._send_doctor_notification",
+        "domain.intake.hooks.safety._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_notify:
         await hook.run(_session(), _ref(), collected)
@@ -111,10 +111,10 @@ async def test_multiple_keywords_across_fields_single_notification():
         "_patient_name": "李四",
     }
     with patch(
-        "domain.interview.hooks.safety._send_doctor_notification",
+        "domain.intake.hooks.safety._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_notify, patch(
-        "domain.interview.hooks.safety.log",
+        "domain.intake.hooks.safety.log",
     ) as mock_log:
         await hook.run(_session(), _ref(), collected)
 
@@ -152,7 +152,7 @@ async def test_negation_currently_false_positives_documented_limitation():
         "_patient_name": "王五",
     }
     with patch(
-        "domain.interview.hooks.safety._send_doctor_notification",
+        "domain.intake.hooks.safety._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_notify:
         await hook.run(_session(), _ref(), collected)
@@ -172,11 +172,11 @@ async def test_notification_backend_failure_is_swallowed():
         "_patient_name": "王五",
     }
     with patch(
-        "domain.interview.hooks.safety._send_doctor_notification",
+        "domain.intake.hooks.safety._send_doctor_notification",
         new_callable=AsyncMock,
         side_effect=RuntimeError("boom"),
     ), patch(
-        "domain.interview.hooks.safety.log",
+        "domain.intake.hooks.safety.log",
     ) as mock_log:
         # Must NOT raise.
         await hook.run(_session(), _ref(), collected)
@@ -201,7 +201,7 @@ async def test_missing_patient_name_uses_fallback():
         # _patient_name intentionally omitted
     }
     with patch(
-        "domain.interview.hooks.safety._send_doctor_notification",
+        "domain.intake.hooks.safety._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_notify:
         await hook.run(_session(), _ref(), collected)
@@ -220,7 +220,7 @@ async def test_doctor_mode_same_behavior_as_patient_mode():
         "_patient_name": "王五",
     }
     with patch(
-        "domain.interview.hooks.safety._send_doctor_notification",
+        "domain.intake.hooks.safety._send_doctor_notification",
         new_callable=AsyncMock,
     ) as mock_notify:
         await hook.run(_session(mode="doctor"), _ref(), collected)

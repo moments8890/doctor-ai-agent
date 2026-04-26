@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "id": "combined_answers_multi_field",
-  "scenario_type": "patient_interview",
+  "scenario_type": "patient_intake",
   "title": "Patient gives combined answers — multi-field extraction",
   "tags": [
     "regression",
@@ -14,7 +14,7 @@
     "phone": "13800000003"
   },
   "input": {
-    "mode": "patient_interview",
+    "mode": "patient_intake",
     "turns": [
       {
         "actor": "patient",
@@ -43,29 +43,29 @@
     ]
   },
   "execution": {
-    "entrypoint": "patient.interview.chat",
+    "entrypoint": "patient.intake.chat",
     "auto_confirm": false,
     "timeout_seconds": 60
   },
   "expectations": {
     "assertions": [
       {
-        "target": "interview.fields_filled",
+        "target": "intake.fields_filled",
         "matcher": "min",
         "expected": 5
       },
       {
-        "target": "interview.field.chief_complaint",
+        "target": "intake.field.chief_complaint",
         "matcher": "present",
         "expected": true
       },
       {
-        "target": "interview.field.present_illness",
+        "target": "intake.field.present_illness",
         "matcher": "present",
         "expected": true
       },
       {
-        "target": "interview.field.chief_complaint",
+        "target": "intake.field.chief_complaint",
         "matcher": "contains_any",
         "expected": [
           "胸闷",
@@ -73,12 +73,12 @@
         ]
       },
       {
-        "target": "interview.status",
+        "target": "intake.status",
         "matcher": "eq",
         "expected": "reviewing"
       },
       {
-        "target": "interview.confirm_creates_record",
+        "target": "intake.confirm_creates_record",
         "matcher": "eq",
         "expected": true
       }

@@ -1,4 +1,4 @@
-"""Doctor interview — turn handling endpoints (GET session, POST turn, PATCH field, POST carry-forward-confirm)."""
+"""Doctor intake — turn handling endpoints (GET session, POST turn, PATCH field, POST carry-forward-confirm)."""
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -6,14 +6,14 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Header, HTTPException, UploadFile, File, Form
 
 from infra.auth.rate_limit import enforce_doctor_rate_limit
-from domain.patients.interview_session import create_session, load_session, save_session
+from domain.patients.intake_session import create_session, load_session, save_session
 from agent.tools.resolve import resolve
-from domain.interview.engine import InterviewEngine
-from domain.interview.templates import UnknownTemplate, get_template
+from domain.intake.engine import IntakeEngine
+from domain.intake.templates import UnknownTemplate, get_template
 from utils.log import log
 
 from .shared import (
-    DoctorInterviewResponse,
+    DoctorIntakeResponse,
     CarryForwardConfirmRequest,
     CarryForwardConfirmResponse,
     FieldUpdateRequest,
@@ -27,29 +27,29 @@ from .shared import (
 
 router = APIRouter()
 
-_ENGINE: InterviewEngine | None = None
+_ENGINE: IntakeEngine | None = None
 
 
-def _get_engine() -> InterviewEngine:
+def _get_engine() -> IntakeEngine:
     global _ENGINE
     if _ENGINE is None:
-        _ENGINE = InterviewEngine()
+        _ENGINE = IntakeEngine()
     return _ENGINE
 
 
 async def _call_engine_turn(session_id: str, user_input: str):
-    """Call engine.next_turn, reload the session, and rebuild an InterviewResponse.
+    """Call engine.next_turn, reload the session, and rebuild an IntakeResponse.
 
     Phase 2.5: the engine owns the turn loop. The endpoint's only job is
     translating between HTTP shape and TurnResult + session state.
     """
-    from domain.patients.interview_models import InterviewResponse, _build_progress
+    from domain.patients.intake_models import IntakeResponse, _build_progress
 
     result = await _get_engine().next_turn(session_id, user_input)
     reloaded = await load_session(session_id)
 
     if reloaded is None:
-        return InterviewResponse(
+        return IntakeResponse(
             reply=result.reply,
             collected={},
             progress={"filled": 0, "total": 0},
@@ -59,7 +59,7 @@ async def _call_engine_turn(session_id: str, user_input: str):
             ready_to_review=result.state.can_complete,
         )
 
-    return InterviewResponse(
+    return IntakeResponse(
         reply=result.reply,
         collected=reloaded.collected,
         progress=_build_progress(reloaded.collected, reloaded.mode),
@@ -75,7 +75,7 @@ async def _call_engine_turn(session_id: str, user_input: str):
 
 # ── GET /session/{session_id} ────────────────────────────────────
 
-@router.get("/session/{session_id}", response_model=DoctorInterviewResponse)
+@router.get("/session/{session_id}", response_model=DoctorIntakeResponse)
 async def get_session_state(
     session_id: str,
     doctor_id: str = "",
@@ -92,7 +92,7 @@ async def get_session_state(
             last_reply = turn.get("content", "")
             break
 
-    return DoctorInterviewResponse(
+    return DoctorIntakeResponse(
         session_id=session.id,
         reply=last_reply or "病历采集中，请继续输入。",
         collected=session.collected,
@@ -104,8 +104,8 @@ async def get_session_state(
 
 # ── POST /turn ───────────────────────────────────────────────────
 
-@router.post("/turn", response_model=DoctorInterviewResponse)
-async def interview_turn_endpoint(
+@router.post("/turn", response_model=DoctorIntakeResponse)
+async def intake_turn_endpoint(
     text: str = Form(...),
     session_id: Optional[str] = Form(default=None),
     doctor_id: str = Form(default=""),
@@ -115,7 +115,7 @@ async def interview_turn_endpoint(
     authorization: Optional[str] = Header(default=None),
 ):
     resolved_doctor = await _resolve_doctor_id(doctor_id, authorization)
-    enforce_doctor_rate_limit(resolved_doctor, scope="records.interview")
+    enforce_doctor_rate_limit(resolved_doctor, scope="records.intake")
 
     extra_text = ""
     if file:
@@ -158,7 +158,7 @@ async def _first_turn(doctor_id, text, pre_patient_id=None, *, template_id=None)
         initial_fields=initial_fields,
         template_id=template_id or "medical_general_v1",
     )
-    # Phase 2.5: routed through InterviewEngine.next_turn (engine owns the turn loop).
+    # Phase 2.5: routed through IntakeEngine.next_turn (engine owns the turn loop).
     response = await _call_engine_turn(session.id, text)
 
     # Try to resolve patient from LLM-extracted name (only when no pre-selected patient)
@@ -180,7 +180,7 @@ async def _first_turn(doctor_id, text, pre_patient_id=None, *, template_id=None)
 
     progress_info = _compute_progress(response.collected)
 
-    return DoctorInterviewResponse(
+    return DoctorIntakeResponse(
         session_id=session.id,
         reply=response.reply,
         collected=response.collected,
@@ -192,11 +192,11 @@ async def _first_turn(doctor_id, text, pre_patient_id=None, *, template_id=None)
 
 
 async def _continue_turn(session, text):
-    # Phase 2.5: routed through InterviewEngine.next_turn (engine owns the turn loop).
+    # Phase 2.5: routed through IntakeEngine.next_turn (engine owns the turn loop).
     response = await _call_engine_turn(session.id, text)
     progress_info = _compute_progress(response.collected)
 
-    return DoctorInterviewResponse(
+    return DoctorIntakeResponse(
         session_id=session.id,
         reply=response.reply,
         collected=response.collected,
@@ -208,12 +208,12 @@ async def _continue_turn(session, text):
 
 # ── PATCH /field ─────────────────────────────────────────────────
 
-@router.patch("/field", response_model=DoctorInterviewResponse)
-async def update_interview_field(
+@router.patch("/field", response_model=DoctorIntakeResponse)
+async def update_intake_field(
     body: FieldUpdateRequest,
     authorization: Optional[str] = Header(default=None),
 ):
-    """Update a single field value in an interview session (for inline-edit)."""
+    """Update a single field value in an intake session (for inline-edit)."""
     resolved_doctor = await _resolve_doctor_id(body.doctor_id, authorization)
     session = await _verify_session(body.session_id, resolved_doctor, candidate_doctor_id=body.doctor_id)
 
@@ -241,7 +241,7 @@ async def update_interview_field(
 
     # Return updated progress
     progress_info = _compute_progress(session.collected)
-    return DoctorInterviewResponse(
+    return DoctorIntakeResponse(
         session_id=session.id,
         reply="",
         collected=session.collected,

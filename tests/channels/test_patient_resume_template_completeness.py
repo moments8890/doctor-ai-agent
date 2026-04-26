@@ -2,7 +2,7 @@
 template's extractor, not the legacy ``medical_general_v1`` helper (Phase 4
 r2 — bug B).
 
-The /turn endpoint already routes through ``InterviewEngine.next_turn``
+The /turn endpoint already routes through ``IntakeEngine.next_turn``
 which internally calls ``template.extractor.completeness``. The bug lived
 in the /current handler and the resume branch of /start, which hardcoded
 ``check_completeness`` against ``medical_general_v1`` fields — so a
@@ -27,14 +27,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from channels.web.patient_interview_routes import (
-    InterviewStartRequest,
+from channels.web.patient_intake_routes import (
+    IntakeStartRequest,
     current_session,
-    start_interview,
+    start_intake,
 )
-from db.models.interview_session import InterviewStatus
-from domain.interview.protocols import CompletenessState
-from domain.patients.interview_session import InterviewSession
+from db.models.intake_session import IntakeStatus
+from domain.intake.protocols import CompletenessState
+from domain.patients.intake_session import IntakeSession
 
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -51,10 +51,10 @@ def _make_patient(patient_id: int = 1, doctor_id: str = "dr_test") -> MagicMock:
 def _active_session(
     *,
     template_id: str,
-    status: str = InterviewStatus.interviewing,
+    status: str = IntakeStatus.active,
     collected: dict | None = None,
-) -> InterviewSession:
-    return InterviewSession(
+) -> IntakeSession:
+    return IntakeSession(
         id="session-uuid",
         doctor_id="dr_test",
         patient_id=1,
@@ -97,24 +97,24 @@ def _patch_current(active, get_template_side_effect=None, save_mock=None):
     """Patcher stack for /current."""
     patchers = [
         patch(
-            "channels.web.patient_interview_routes._authenticate_patient",
+            "channels.web.patient_intake_routes._authenticate_patient",
             new_callable=AsyncMock,
             return_value=_make_patient(),
         ),
         patch(
-            "channels.web.patient_interview_routes.get_active_session",
+            "channels.web.patient_intake_routes.get_active_session",
             new_callable=AsyncMock,
             return_value=active,
         ),
         patch(
-            "channels.web.patient_interview_routes.save_session",
+            "channels.web.patient_intake_routes.save_session",
             save_mock or AsyncMock(),
         ),
     ]
     if get_template_side_effect is not None:
         patchers.append(
             patch(
-                "channels.web.patient_interview_routes.get_template",
+                "channels.web.patient_intake_routes.get_template",
                 side_effect=get_template_side_effect,
             ),
         )
@@ -125,29 +125,29 @@ def _patch_start(active, get_template_side_effect=None, save_mock=None):
     """Patcher stack for /start resume branch (active session exists)."""
     patchers = [
         patch(
-            "channels.web.patient_interview_routes._authenticate_patient",
+            "channels.web.patient_intake_routes._authenticate_patient",
             new_callable=AsyncMock,
             return_value=_make_patient(),
         ),
         patch(
-            "channels.web.patient_interview_routes._get_doctor_name",
+            "channels.web.patient_intake_routes._get_doctor_name",
             new_callable=AsyncMock,
             return_value="测试医生",
         ),
         patch(
-            "channels.web.patient_interview_routes.get_active_session",
+            "channels.web.patient_intake_routes.get_active_session",
             new_callable=AsyncMock,
             return_value=active,
         ),
         patch(
-            "channels.web.patient_interview_routes.save_session",
+            "channels.web.patient_intake_routes.save_session",
             save_mock or AsyncMock(),
         ),
     ]
     if get_template_side_effect is not None:
         patchers.append(
             patch(
-                "channels.web.patient_interview_routes.get_template",
+                "channels.web.patient_intake_routes.get_template",
                 side_effect=get_template_side_effect,
             ),
         )
@@ -207,15 +207,15 @@ async def test_current_uses_template_extractor_completeness():
     assert called_mode == "patient"
 
     # Response mirrors state: can_complete=False → ready_to_review=False
-    # and status stays interviewing.
+    # and status stays active.
     assert resp["ready_to_review"] is False
-    assert resp["status"] == InterviewStatus.interviewing
+    assert resp["status"] == IntakeStatus.active
 
 
 @pytest.mark.asyncio
 async def test_current_flips_status_when_template_says_can_complete():
     """When the template extractor reports ``can_complete=True`` and status
-    is still ``interviewing``, /current must flip it to ``reviewing`` and
+    is still ``active``, /current must flip it to ``reviewing`` and
     persist the change.
     """
     extractor = _FakeExtractor(
@@ -230,7 +230,7 @@ async def test_current_flips_status_when_template_says_can_complete():
     template = _FakeTemplate(extractor)
     active = _active_session(
         template_id="medical_neuro_v1_fake",
-        status=InterviewStatus.interviewing,
+        status=IntakeStatus.active,
         collected={
             "chief_complaint": "左侧肢体无力",
             "onset_time": "2小时前",
@@ -251,11 +251,11 @@ async def test_current_flips_status_when_template_says_can_complete():
         _stop_patchers(patchers)
 
     assert resp["ready_to_review"] is True
-    assert resp["status"] == InterviewStatus.reviewing
+    assert resp["status"] == IntakeStatus.reviewing
     # Transition was persisted.
     save_mock.assert_awaited_once()
     # The session object we passed in has been mutated in place.
-    assert active.status == InterviewStatus.reviewing
+    assert active.status == IntakeStatus.reviewing
 
 
 @pytest.mark.asyncio
@@ -282,7 +282,7 @@ async def test_start_resume_uses_template_extractor_completeness():
     )
     _start_patchers(patchers)
     try:
-        resp = await start_interview(
+        resp = await start_intake(
             authorization="tok",
             template_id=None,
             body=None,
@@ -296,7 +296,7 @@ async def test_start_resume_uses_template_extractor_completeness():
     assert called_mode == "patient"
     assert resp["resumed"] is True
     assert resp["ready_to_review"] is False
-    assert resp["status"] == InterviewStatus.interviewing
+    assert resp["status"] == IntakeStatus.active
 
 
 @pytest.mark.asyncio
@@ -322,7 +322,7 @@ async def test_start_resume_transitions_to_reviewing_when_can_complete():
     template = _FakeTemplate(extractor)
     active = _active_session(
         template_id="medical_neuro_v1_fake",
-        status=InterviewStatus.interviewing,
+        status=IntakeStatus.active,
         collected={
             "chief_complaint": "左侧肢体无力",
             "onset_time": "2小时前",
@@ -338,7 +338,7 @@ async def test_start_resume_transitions_to_reviewing_when_can_complete():
     )
     _start_patchers(patchers)
     try:
-        resp = await start_interview(
+        resp = await start_intake(
             authorization="tok",
             template_id=None,
             body=None,
@@ -347,9 +347,9 @@ async def test_start_resume_transitions_to_reviewing_when_can_complete():
         _stop_patchers(patchers)
 
     assert resp["ready_to_review"] is True
-    assert resp["status"] == InterviewStatus.reviewing
+    assert resp["status"] == IntakeStatus.reviewing
     save_mock.assert_awaited_once()
-    assert active.status == InterviewStatus.reviewing
+    assert active.status == IntakeStatus.reviewing
 
 
 @pytest.mark.asyncio
@@ -363,7 +363,7 @@ async def test_medical_general_v1_legacy_path_still_works():
     """
     active = _active_session(
         template_id="medical_general_v1",
-        status=InterviewStatus.interviewing,
+        status=IntakeStatus.active,
         collected={},
     )
 
@@ -375,7 +375,7 @@ async def test_medical_general_v1_legacy_path_still_works():
         _stop_patchers(patchers)
 
     assert resp["ready_to_review"] is False
-    assert resp["status"] == InterviewStatus.interviewing
+    assert resp["status"] == IntakeStatus.active
 
 
 @pytest.mark.asyncio
@@ -389,7 +389,7 @@ async def test_medical_general_v1_legacy_path_completes_when_required_filled():
     """
     active = _active_session(
         template_id="medical_general_v1",
-        status=InterviewStatus.interviewing,
+        status=IntakeStatus.active,
         collected={
             "chief_complaint": "头痛三天",
             "present_illness": "持续性头痛，无呕吐",
@@ -410,7 +410,7 @@ async def test_medical_general_v1_legacy_path_completes_when_required_filled():
         _stop_patchers(patchers)
 
     assert resp["ready_to_review"] is True
-    assert resp["status"] == InterviewStatus.reviewing
+    assert resp["status"] == IntakeStatus.reviewing
     save_mock.assert_awaited_once()
 
 
@@ -457,7 +457,7 @@ async def test_neuro_style_session_not_complete_without_onset_time():
         _stop_patchers(patchers)
 
     assert resp_before["ready_to_review"] is False
-    assert resp_before["status"] == InterviewStatus.interviewing
+    assert resp_before["status"] == IntakeStatus.active
 
     # Step 2: onset_time now filled → ready + transitions.
     active2 = _active_session(
@@ -480,7 +480,7 @@ async def test_neuro_style_session_not_complete_without_onset_time():
         _stop_patchers(patchers)
 
     assert resp_after["ready_to_review"] is True
-    assert resp_after["status"] == InterviewStatus.reviewing
+    assert resp_after["status"] == IntakeStatus.reviewing
     save_mock.assert_awaited_once()
     # TODO(phase4): after Task 8 registers medical_neuro_v1, swap this
     # MagicMock extractor for the real GeneralNeuroExtractor and drop the

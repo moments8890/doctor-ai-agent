@@ -27,7 +27,7 @@ from db.models import (
     DoctorChatLog,
     DoctorKnowledgeItem,
     DoctorTask,
-    InterviewSessionDB,
+    IntakeSessionDB,
     MedicalRecordDB,
     MessageDraft,
     Patient,
@@ -185,7 +185,7 @@ _CASCADE_TABLES = [
     ("ai_suggestions", AISuggestion),       # → medical_records.id
     ("patient_messages", PatientMessage),    # → patients.id, doctors.doctor_id
     ("doctor_chat_log", DoctorChatLog),      # → doctors.doctor_id
-    ("interview_sessions", InterviewSessionDB),  # → doctors, patients
+    ("intake_sessions", IntakeSessionDB),  # → doctors, patients
     ("doctor_tasks", DoctorTask),            # → doctors, patients, medical_records
     ("medical_records", MedicalRecordDB),    # → patients, doctors
     ("doctor_knowledge_items", DoctorKnowledgeItem),  # → doctors

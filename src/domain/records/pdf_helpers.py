@@ -95,7 +95,7 @@ def _record_type_label(record_type: str) -> str:
         "visit": "门诊",
         "dictation": "口述",
         "import": "导入",
-        "interview_summary": "问诊总结",
+        "intake_summary": "问诊总结",
     }
     return mapping.get(record_type or "visit", record_type or "门诊")
 

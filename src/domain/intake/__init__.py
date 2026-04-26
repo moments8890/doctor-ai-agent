@@ -1,4 +1,4 @@
-"""Polymorphic interview pipeline (spec 2026-04-22).
+"""Polymorphic intake pipeline (spec 2026-04-22).
 
 Phase 0 reserves this package. Phase 1 will add protocols.py (FieldExtractor,
 BatchExtractor, Writer, PostConfirmHook, Template) and contract.py

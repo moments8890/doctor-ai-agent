@@ -8,7 +8,7 @@ stuck — their best-effort answer can't be forced into a precise
 thrombolysis-window timestamp.
 
 This is a sim scenario, not an HTTP integration test. The real
-``InterviewEngine`` + ``GeneralNeuroExtractor.completeness`` run;
+``IntakeEngine`` + ``GeneralNeuroExtractor.completeness`` run;
 ``structured_call`` is mocked to deliver canned extractions.
 
 Covers plan §Task 9 / §Step 3 scenario ``neuro_no_onset_time_recall``.
@@ -22,10 +22,10 @@ import pytest
 
 from db.engine import AsyncSessionLocal
 from db.models.doctor import Doctor
-from domain.interview.engine import InterviewEngine
-from domain.interview.protocols import CompletenessState
-from domain.interview.templates.medical_neuro import GeneralNeuroExtractor
-from domain.patients.interview_session import create_session, load_session
+from domain.intake.engine import IntakeEngine
+from domain.intake.protocols import CompletenessState
+from domain.intake.templates.medical_neuro import GeneralNeuroExtractor
+from domain.patients.intake_session import create_session, load_session
 
 
 async def _seed_neuro_session(mode: str = "patient"):
@@ -122,10 +122,10 @@ async def test_neuro_session_reaches_reviewing_when_patient_cannot_recall_onset(
         ),
     ]
 
-    engine = InterviewEngine()
+    engine = IntakeEngine()
     for user_input, reply, extracted in turns:
         with patch(
-            "domain.interview.engine.structured_call",
+            "domain.intake.engine.structured_call",
             new=AsyncMock(
                 return_value=_mock_llm_response(reply, extracted),
             ),

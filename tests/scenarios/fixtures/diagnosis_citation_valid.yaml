@@ -16,26 +16,26 @@ setup:
 
 steps:
   - id: start
-    call: doctor_interview.start
+    call: doctor_intake.start
     input:
       patient_id: ${patients.p1}
       mode: doctor
     expect:
       hard:
         session_id.exists: true
-        status: interviewing
+        status: active
 
   - id: turn_1
-    call: doctor_interview.turn
+    call: doctor_intake.turn
     input:
       session_id: ${steps.start.session_id}
       text: "李华，女38岁，突发剧烈头痛2小时，雷击样起病，伴恶心呕吐。既往高血压5年。查体颈强直可疑。"
     expect:
       hard:
-        status: interviewing
+        status: active
 
   - id: confirm
-    call: doctor_interview.confirm
+    call: doctor_intake.confirm
     input:
       session_id: ${steps.start.session_id}
     expect:

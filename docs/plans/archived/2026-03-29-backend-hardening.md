@@ -17,10 +17,10 @@
 | File | Action | Responsibility |
 |------|--------|----------------|
 | `src/infra/auth/unified.py` | Modify | Tighten JWT env guard |
-| `src/domain/patients/interview_turn.py` | Modify | Add per-session asyncio.Lock |
-| `src/domain/patients/interview_summary.py` | Modify | Clean up lock on confirm |
-| `src/channels/web/doctor_interview_confirm.py` | Modify | Clean up lock on cancel |
-| `src/channels/web/patient_interview_routes.py` | Modify | Clean up lock on patient cancel |
+| `src/domain/patients/intake_turn.py` | Modify | Add per-session asyncio.Lock |
+| `src/domain/patients/intake_summary.py` | Modify | Clean up lock on confirm |
+| `src/channels/web/doctor_intake_confirm.py` | Modify | Clean up lock on cancel |
+| `src/channels/web/patient_intake_routes.py` | Modify | Clean up lock on patient cancel |
 | `src/db/engine.py` | Modify | DB_ECHO env toggle |
 | `src/main.py` | Modify | Sentry init |
 | `requirements.txt` | Modify | Add sentry-sdk |
@@ -65,24 +65,24 @@ Expected: `RuntimeError: UNIFIED_AUTH_SECRET must be set in production.`
 
 ---
 
-### Task 2: In-memory lock for interview turns
+### Task 2: In-memory lock for intake turns
 
 > **Codex review fixes applied:** lock now covers confirm/cancel paths, cleanup uses `try/finally`, doctor confirm path included.
 
 **Files:**
-- Modify: `src/domain/patients/interview_turn.py:126`
-- Modify: `src/domain/patients/interview_summary.py:205`
-- Modify: `src/channels/web/doctor_interview_confirm.py:20,183`
-- Modify: `src/channels/web/patient_interview_routes.py:167,221`
+- Modify: `src/domain/patients/intake_turn.py:126`
+- Modify: `src/domain/patients/intake_summary.py:205`
+- Modify: `src/channels/web/doctor_intake_confirm.py:20,183`
+- Modify: `src/channels/web/patient_intake_routes.py:167,221`
 
-- [ ] **Step 1: Add the lock dict, helper, and wrap interview_turn**
+- [ ] **Step 1: Add the lock dict, helper, and wrap intake_turn**
 
-In `src/domain/patients/interview_turn.py`, add at module level (after the existing imports around line 15):
+In `src/domain/patients/intake_turn.py`, add at module level (after the existing imports around line 15):
 
 ```python
 import asyncio as _asyncio_lock
 
-# Per-session lock to prevent concurrent interview_turn calls on the same session
+# Per-session lock to prevent concurrent intake_turn calls on the same session
 # (e.g., double-tap send, browser retry). Single-instance only.
 _session_locks: dict[str, "_asyncio_lock.Lock"] = {}
 
@@ -97,36 +97,36 @@ def release_session_lock(session_id: str) -> None:
     _session_locks.pop(session_id, None)
 ```
 
-Then wrap the body of `interview_turn()` at line 126. Change:
+Then wrap the body of `intake_turn()` at line 126. Change:
 
 ```python
-async def interview_turn(session_id: str, patient_text: str) -> InterviewResponse:
-    """Process one patient message in the interview. Core loop."""
+async def intake_turn(session_id: str, patient_text: str) -> IntakeResponse:
+    """Process one patient message in the intake. Core loop."""
     session = await load_session(session_id)
 ```
 
 to:
 
 ```python
-async def interview_turn(session_id: str, patient_text: str) -> InterviewResponse:
-    """Process one patient message in the interview. Core loop."""
+async def intake_turn(session_id: str, patient_text: str) -> IntakeResponse:
+    """Process one patient message in the intake. Core loop."""
     async with get_session_lock(session_id):
-        return await _interview_turn_inner(session_id, patient_text)
+        return await _intake_turn_inner(session_id, patient_text)
 
 
-async def _interview_turn_inner(session_id: str, patient_text: str) -> InterviewResponse:
+async def _intake_turn_inner(session_id: str, patient_text: str) -> IntakeResponse:
     """Inner implementation — always called under the session lock."""
     session = await load_session(session_id)
 ```
 
-Keep the rest of the function body unchanged, but it's now inside `_interview_turn_inner`.
+Keep the rest of the function body unchanged, but it's now inside `_intake_turn_inner`.
 
-- [ ] **Step 2: Wrap confirm_interview with lock + finally cleanup**
+- [ ] **Step 2: Wrap confirm_intake with lock + finally cleanup**
 
-In `src/domain/patients/interview_summary.py`, wrap the `confirm_interview()` body with the session lock and use `try/finally` for cleanup:
+In `src/domain/patients/intake_summary.py`, wrap the `confirm_intake()` body with the session lock and use `try/finally` for cleanup:
 
 ```python
-async def confirm_interview(
+async def confirm_intake(
     session_id: str,
     doctor_id: str,
     patient_id: int,
@@ -134,8 +134,8 @@ async def confirm_interview(
     collected: Dict[str, str],
     conversation: Optional[list] = None,
 ) -> Dict[str, int]:
-    """Finalize interview: ..."""
-    from domain.patients.interview_turn import get_session_lock, release_session_lock
+    """Finalize intake: ..."""
+    from domain.patients.intake_turn import get_session_lock, release_session_lock
 
     async with get_session_lock(session_id):
         try:
@@ -147,33 +147,33 @@ async def confirm_interview(
 
 - [ ] **Step 3: Wrap doctor confirm endpoint with lock cleanup**
 
-In `src/channels/web/doctor_interview_confirm.py`, find the confirm endpoint (around line 20) and add lock cleanup in a `finally` block. Also add cleanup to the cancel endpoint (line 172):
+In `src/channels/web/doctor_intake_confirm.py`, find the confirm endpoint (around line 20) and add lock cleanup in a `finally` block. Also add cleanup to the cancel endpoint (line 172):
 
-For the **confirm** endpoint, add after the `confirm_interview()` call returns:
+For the **confirm** endpoint, add after the `confirm_intake()` call returns:
 ```python
-    from domain.patients.interview_turn import release_session_lock
+    from domain.patients.intake_turn import release_session_lock
     release_session_lock(body.session_id)
 ```
 
-For the **cancel** endpoint (line 183), after `session.status = InterviewStatus.abandoned`:
+For the **cancel** endpoint (line 183), after `session.status = IntakeStatus.abandoned`:
 ```python
-    from domain.patients.interview_turn import release_session_lock
+    from domain.patients.intake_turn import release_session_lock
     release_session_lock(body.session_id)
 ```
 
 - [ ] **Step 4: Wrap patient confirm/cancel with lock cleanup**
 
-In `src/channels/web/patient_interview_routes.py`:
+In `src/channels/web/patient_intake_routes.py`:
 
 For the **confirm** path (around line 167), add after confirm completes:
 ```python
-    from domain.patients.interview_turn import release_session_lock
+    from domain.patients.intake_turn import release_session_lock
     release_session_lock(session_id)
 ```
 
-For the **cancel** path (line 221), after `session.status = InterviewStatus.abandoned`:
+For the **cancel** path (line 221), after `session.status = IntakeStatus.abandoned`:
 ```python
-    from domain.patients.interview_turn import release_session_lock
+    from domain.patients.intake_turn import release_session_lock
     release_session_lock(session_id)
 ```
 
@@ -626,7 +626,7 @@ Create the file `src/channels/web/ui/debug.html`. This is a large self-contained
 - Fetch from `/api/debug/llm-calls`
 - List of calls: op badge, model, tokens, latency, timestamp
 - Click to expand: collapsible sections for SYSTEM prompt, USER message, OUTPUT (JSON pretty-printed)
-- Filters: op dropdown (routing/diagnosis/interview/structuring/etc.), model dropdown
+- Filters: op dropdown (routing/diagnosis/intake/structuring/etc.), model dropdown
 
 **Tab 3 — Errors:**
 - Fetch from `/api/debug/logs?level=ERROR&limit=100`
@@ -716,7 +716,7 @@ Expected: `OK` (no import errors from timezone changes)
 
 ```
 Task 1 (JWT guard)           — independent
-Task 2 (Interview lock)      — independent
+Task 2 (Intake lock)      — independent
 Task 3 (SQL echo)            — independent
 Task 4 (Sentry)              — independent
 Task 5 (LLM correlation)     — independent, but must complete before 6 and 7

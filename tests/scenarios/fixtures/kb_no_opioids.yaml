@@ -14,26 +14,26 @@ setup:
 
 steps:
   - id: start
-    call: doctor_interview.start
+    call: doctor_intake.start
     input:
       patient_id: ${patients.p1}
       mode: doctor
     expect:
       hard:
         session_id.exists: true
-        status: interviewing
+        status: active
 
   - id: turn_1
-    call: doctor_interview.turn
+    call: doctor_intake.turn
     input:
       session_id: ${steps.start.session_id}
       text: "王建国，男62岁，腰痛两周，活动后加重，无发热。既往高血压。查体腰部压痛，双下肢肌力正常。考虑腰椎间盘突出。"
     expect:
       hard:
-        status: interviewing
+        status: active
 
   - id: confirm
-    call: doctor_interview.confirm
+    call: doctor_intake.confirm
     input:
       session_id: ${steps.start.session_id}
     expect:

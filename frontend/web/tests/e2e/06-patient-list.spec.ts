@@ -4,7 +4,7 @@
  * Mirrors docs/qa/workflows/06-patient-list.md.
  */
 import { test, expect, registerPatient } from "./fixtures/doctor-auth";
-import { completePatientInterview } from "./fixtures/seed";
+import { completePatientIntake } from "./fixtures/seed";
 
 test.describe("工作流 06 — 患者列表", () => {
   // Skip: preseed creates demo patient on registration, empty state unreachable
@@ -30,7 +30,7 @@ test.describe("工作流 06 — 患者列表", () => {
       gender: "female",
       yearOfBirth: 1995,
     });
-    await completePatientInterview(request, p1);
+    await completePatientIntake(request, p1);
 
     await doctorPage.goto("/doctor/patients");
 
@@ -89,7 +89,7 @@ test.describe("工作流 06 — 患者列表", () => {
       name: "陈霞E2E06c",
       gender: "female",
     });
-    await completePatientInterview(request, male1);
+    await completePatientIntake(request, male1);
 
     await doctorPage.goto("/doctor/patients");
 

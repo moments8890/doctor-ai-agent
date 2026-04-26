@@ -8,7 +8,7 @@ from __future__ import annotations
 from db.crud.patient import get_patient_for_doctor as _get_patient_for_doctor
 from db.engine import AsyncSessionLocal
 from domain.diagnosis_pipeline import run_diagnosis as _run_diagnosis
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.protocols import PersistRef, SessionState
 from domain.tasks.from_record import (
     generate_tasks_from_record as _generate_tasks_from_record,
 )
@@ -32,9 +32,9 @@ class TriggerDiagnosisPipelineHook:
                 _run_diagnosis(doctor_id=session.doctor_id, record_id=ref.id),
                 name=f"diagnosis-{ref.id}",
             )
-            log(f"[interview] diagnosis triggered for record={ref.id}")
+            log(f"[intake] diagnosis triggered for record={ref.id}")
         except Exception as e:
-            log(f"[interview] diagnosis trigger failed: {e}", level="warning")
+            log(f"[intake] diagnosis trigger failed: {e}", level="warning")
 
 
 class NotifyDoctorHook:
@@ -53,7 +53,7 @@ class NotifyDoctorHook:
                 f"患者【{patient_name}】已完成预问诊，请查看待审核记录。",
             )
         except Exception as e:
-            log(f"[interview] doctor notification failed: {e}", level="warning")
+            log(f"[intake] doctor notification failed: {e}", level="warning")
 
 
 class GenerateFollowupTasksHook:
@@ -81,12 +81,12 @@ class GenerateFollowupTasksHook:
             )
             if task_ids:
                 log(
-                    f"[interview-confirm] auto-created {len(task_ids)} "
+                    f"[intake-confirm] auto-created {len(task_ids)} "
                     f"follow-up tasks: {task_ids}"
                 )
         except Exception as e:
             log(
-                f"[interview-confirm] task generation failed "
+                f"[intake-confirm] task generation failed "
                 f"(non-blocking): {e}",
                 level="warning",
             )

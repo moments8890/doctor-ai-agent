@@ -1,9 +1,9 @@
 # Test cases for patient-extract.md
-# Prompt: patient pre-consultation interview → 7-field structured JSON
+# Prompt: patient pre-consultation intake → 7-field structured JSON
 # Fields: chief_complaint, present_illness, past_history, allergy_history,
 #   family_history, personal_history, marital_reproductive
 
-- description: "patient-extract: full interview — all 7 fields"
+- description: "patient-extract: full intake — all 7 fields"
   options:
     prompts: [patient-extract]
   vars:

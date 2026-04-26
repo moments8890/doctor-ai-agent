@@ -1,7 +1,7 @@
-"""E2E test runner for patient interview benchmark.
+"""E2E test runner for patient intake benchmark.
 
-Runs each case through the live server's patient interview API:
-  /api/patient/register → /api/patient/interview/start → /turn × N → /confirm
+Runs each case through the live server's patient intake API:
+  /api/patient/register → /api/patient/intake/start → /turn × N → /confirm
 
 Requires:
   - Running server on port 8001
@@ -10,7 +10,7 @@ Requires:
 
 Usage:
   PYTHONPATH=src ENVIRONMENT=development RUN_E2E_FIXTURES=1 \
-    pytest tests/integration/test_patient_interview.py -v
+    pytest tests/integration/test_patient_intake.py -v
 """
 from __future__ import annotations
 
@@ -87,9 +87,9 @@ def _register_patient(
     return resp.json()
 
 
-def _start_interview(token: str) -> Dict[str, Any]:
+def _start_intake(token: str) -> Dict[str, Any]:
     resp = httpx.post(
-        f"{SERVER}/api/patient/interview/start",
+        f"{SERVER}/api/patient/intake/start",
         headers={"Authorization": f"Bearer {token}"},
         timeout=TIMEOUT,
     )
@@ -99,7 +99,7 @@ def _start_interview(token: str) -> Dict[str, Any]:
 
 def _send_turn(token: str, session_id: str, text: str) -> Dict[str, Any]:
     resp = httpx.post(
-        f"{SERVER}/api/patient/interview/turn",
+        f"{SERVER}/api/patient/intake/turn",
         json={"session_id": session_id, "text": text},
         headers={"Authorization": f"Bearer {token}"},
         timeout=TIMEOUT,
@@ -110,7 +110,7 @@ def _send_turn(token: str, session_id: str, text: str) -> Dict[str, Any]:
 
 def _confirm(token: str, session_id: str) -> Dict[str, Any]:
     resp = httpx.post(
-        f"{SERVER}/api/patient/interview/confirm",
+        f"{SERVER}/api/patient/intake/confirm",
         json={"session_id": session_id},
         headers={"Authorization": f"Bearer {token}"},
         timeout=TIMEOUT,
@@ -121,7 +121,7 @@ def _confirm(token: str, session_id: str) -> Dict[str, Any]:
 
 def _cancel(token: str, session_id: str) -> Dict[str, Any]:
     resp = httpx.post(
-        f"{SERVER}/api/patient/interview/cancel",
+        f"{SERVER}/api/patient/intake/cancel",
         json={"session_id": session_id},
         headers={"Authorization": f"Bearer {token}"},
         timeout=TIMEOUT,
@@ -175,7 +175,7 @@ def _cleanup(doctor_id: str) -> None:
     conn = sqlite3.connect(DB_PATH)
     try:
         for table in [
-            "interview_sessions", "medical_records", "doctor_tasks",
+            "intake_sessions", "medical_records", "doctor_tasks",
             "patients", "doctor_contexts", "doctor_chat_log",
             "doctor_conversation_turns",
         ]:
@@ -200,7 +200,7 @@ def _contains_any(text: str, keywords: List[str]) -> bool:
 
 
 def _run_full_flow(case: Dict[str, Any]) -> Dict[str, Any]:
-    """Run a standard interview flow: register → start → turns → check."""
+    """Run a standard intake flow: register → start → turns → check."""
     doctor_id = f"inttest_pi_{case['case_id'].lower()}_{uuid.uuid4().hex[:6]}"
     _setup_doctor(doctor_id)
 
@@ -209,7 +209,7 @@ def _run_full_flow(case: Dict[str, Any]) -> Dict[str, Any]:
         reg = _register_patient(doctor_id, patient_info)
         token = reg["token"]
 
-        start = _start_interview(token)
+        start = _start_intake(token)
         session_id = start["session_id"]
 
         chatlog = case.get("chatlog", [])
@@ -245,8 +245,8 @@ _AUTH_CASES = [c for c in ALL_CASES if c["case_id"] == "PI-009"]
 
 @pytest.mark.integration
 @pytest.mark.parametrize("case", _FLOW_CASES, ids=lambda c: c["case_id"])
-def test_interview_flow(case: Dict[str, Any]):
-    """Full interview flow: register → start → turns → assertions."""
+def test_intake_flow(case: Dict[str, Any]):
+    """Full intake flow: register → start → turns → assertions."""
     result = _run_full_flow(case)
     doctor_id = result["doctor_id"]
     expectations = case.get("expectations", {})
@@ -342,8 +342,8 @@ def test_interview_flow(case: Dict[str, Any]):
 
 @pytest.mark.integration
 @pytest.mark.parametrize("case", _RESUME_CASES, ids=lambda c: c["case_id"])
-def test_interview_resume(case: Dict[str, Any]):
-    """PI-005: Resume interrupted interview preserves collected data."""
+def test_intake_resume(case: Dict[str, Any]):
+    """PI-005: Resume interrupted intake preserves collected data."""
     doctor_id = f"inttest_pi_{case['case_id'].lower()}_{uuid.uuid4().hex[:6]}"
     _setup_doctor(doctor_id)
 
@@ -353,13 +353,13 @@ def test_interview_resume(case: Dict[str, Any]):
         token = reg["token"]
 
         # Part 1: start + first turns
-        start = _start_interview(token)
+        start = _start_intake(token)
         session_id = start["session_id"]
         for turn in case.get("chatlog_part1", []):
             _send_turn(token, session_id, turn["text"])
 
         # Resume: start again should return same session
-        resume = _start_interview(token)
+        resume = _start_intake(token)
         assert resume.get("resumed") is True, f"[PI-005] expected resumed=True"
         assert resume["session_id"] == session_id, f"[PI-005] session_id changed on resume"
 
@@ -379,7 +379,7 @@ def test_interview_resume(case: Dict[str, Any]):
 
 @pytest.mark.integration
 @pytest.mark.parametrize("case", _CANCEL_CASES, ids=lambda c: c["case_id"])
-def test_interview_cancel(case: Dict[str, Any]):
+def test_intake_cancel(case: Dict[str, Any]):
     """PI-006: Cancel then restart gives fresh session."""
     doctor_id = f"inttest_pi_{case['case_id'].lower()}_{uuid.uuid4().hex[:6]}"
     _setup_doctor(doctor_id)
@@ -390,7 +390,7 @@ def test_interview_cancel(case: Dict[str, Any]):
         token = reg["token"]
 
         # Start first session
-        start1 = _start_interview(token)
+        start1 = _start_intake(token)
         session_id1 = start1["session_id"]
 
         # Send a turn
@@ -401,7 +401,7 @@ def test_interview_cancel(case: Dict[str, Any]):
         _cancel(token, session_id1)
 
         # Start new session — should be different
-        start2 = _start_interview(token)
+        start2 = _start_intake(token)
         assert start2["session_id"] != session_id1, (
             f"[PI-006] new session should have different ID after cancel"
         )

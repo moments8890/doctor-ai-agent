@@ -5,7 +5,7 @@
  */
 import { test, expect } from "./fixtures/doctor-auth";
 import {
-  completePatientInterview,
+  completePatientIntake,
   sendPatientMessage,
 } from "./fixtures/seed";
 
@@ -16,7 +16,7 @@ test.describe("工作流 07 — 患者详情", () => {
     request,
     steps,
   }) => {
-    const { recordId } = await completePatientInterview(request, patient);
+    const { recordId } = await completePatientIntake(request, patient);
 
     await doctorPage.goto(`/doctor/patients/${patient.patientId}`);
 
@@ -66,7 +66,7 @@ test.describe("工作流 07 — 患者详情", () => {
     request,
     steps,
   }) => {
-    await completePatientInterview(request, patient);
+    await completePatientIntake(request, patient);
     await doctorPage.goto(`/doctor/patients/${patient.patientId}`);
     await expect(doctorPage.getByText(/需要你处理|⚡/)).toBeVisible();
 
@@ -107,7 +107,7 @@ test.describe("工作流 07 — 患者详情", () => {
   }) => {
     // Seed a record so the patient page is fully populated — the overflow
     // menu is always visible once the page loads.
-    await completePatientInterview(request, patient);
+    await completePatientIntake(request, patient);
     await doctorPage.goto(`/doctor/patients/${patient.patientId}`);
 
     // The overflow icon is MoreHorizIcon inside a clickable Box (no aria-label).

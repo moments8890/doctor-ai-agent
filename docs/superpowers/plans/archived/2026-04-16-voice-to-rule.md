@@ -126,7 +126,7 @@ On handled failure: `content` and `category` are null, `error` is one of the two
 - `diagnosis` — rules for diagnosing/assessing conditions (e.g., "当 X 症状出现时，考虑 Y")
 - `followup` — rules for follow-up schedules and monitoring (e.g., "术后 X 天复查 Y")
 - `medication` — rules for drug choice, dosing, contraindications
-- `custom` — anything else (patient communication style, red flags, operational rules)
+- `custom` — anything else (patient communication style, signal flags, operational rules)
 
 ## Few-shot examples
 
@@ -322,7 +322,7 @@ git commit -m "feat(prompts): add voice_to_rule extraction prompt"
         const o = JSON.parse(output);
         return o.error === null && o.category === 'custom';
 
-- description: "red flag as custom rule"
+- description: "signal flag as custom rule"
   options:
     prompts: [voice-to-rule]
   vars:

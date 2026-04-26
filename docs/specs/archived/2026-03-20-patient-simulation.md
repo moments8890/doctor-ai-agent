@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a CLI tool where an external LLM simulates patients talking to our interview API, validating extraction accuracy with DB checks + fact validation + quality scoring.
+**Goal:** Build a CLI tool where an external LLM simulates patients talking to our intake API, validating extraction accuracy with DB checks + fact validation + quality scoring.
 
 **Architecture:** A `scripts/patient_sim/` package with 4 modules: `engine.py` (simulation loop per persona), `patient_llm.py` (OpenAI-compatible client for patient responses), `validator.py` (3-tier validation), `report.py` (markdown + JSON output). Persona definitions live in `tests/fixtures/patient_sim/personas/*.json`. A thin CLI entry point at `scripts/run_patient_sim.py` ties it together.
 
@@ -18,7 +18,7 @@
 |------|--------|---------------|
 | `scripts/patient_sim/__init__.py` | Create | Package init |
 | `scripts/patient_sim/patient_llm.py` | Create | OpenAI-compatible client for patient LLM; prompt rendering from persona |
-| `scripts/patient_sim/engine.py` | Create | Simulation loop: register → login → interview turns → confirm |
+| `scripts/patient_sim/engine.py` | Create | Simulation loop: register → login → intake turns → confirm |
 | `scripts/patient_sim/validator.py` | Create | Tier 1 (DB), Tier 2 (fact extraction), Tier 3 (LLM judge) |
 | `scripts/patient_sim/report.py` | Create | Markdown + JSON report generation |
 | `scripts/run_patient_sim.py` | Create | CLI entry point with argparse |
@@ -181,12 +181,12 @@ git commit -m "feat(sim): patient LLM client with persona prompt rendering"
 
 - [ ] **Step 1: Write engine.py**
 
-The core simulation loop: register → login → start interview → turn loop → confirm.
+The core simulation loop: register → login → start intake → turn loop → confirm.
 Returns a `SimResult` dataclass with all data needed for validation and reporting.
 
 ```python
 # scripts/patient_sim/engine.py
-"""Simulation engine — runs one patient persona through the interview pipeline."""
+"""Simulation engine — runs one patient persona through the intake pipeline."""
 from __future__ import annotations
 
 import json
@@ -288,8 +288,8 @@ def run_persona(
         token = resp.json()["token"]
         result.patient_id = resp.json().get("patient_id")
 
-        # Start interview
-        resp = _api("POST", f"{server}/api/patient/interview/start", token=token)
+        # Start intake
+        resp = _api("POST", f"{server}/api/patient/intake/start", token=token)
         if resp.status_code != 200:
             result.error = f"Start failed: {resp.status_code} {resp.text[:200]}"
             return result
@@ -297,7 +297,7 @@ def run_persona(
         result.session_id = data["session_id"]
         system_reply = data.get("reply", "")
 
-        # Interview loop
+        # Intake loop
         conversation = []
         for turn_num in range(MAX_TURNS):
             # Patient LLM responds
@@ -307,7 +307,7 @@ def run_persona(
             conversation.append({"role": "user", "content": patient_text})
 
             # Send to system
-            resp = _api("POST", f"{server}/api/patient/interview/turn", token=token, json={
+            resp = _api("POST", f"{server}/api/patient/intake/turn", token=token, json={
                 "session_id": result.session_id,
                 "text": patient_text,
             })
@@ -323,15 +323,15 @@ def run_persona(
 
             # Stop conditions
             filled = result.final_progress.get("filled", 0)
-            status = data.get("status", "interviewing")
-            if filled >= MIN_FIELDS_TO_STOP or status != "interviewing":
+            status = data.get("status", "active")
+            if filled >= MIN_FIELDS_TO_STOP or status != "active":
                 break
 
         result.conversation = conversation
 
         # Confirm
         if result.error is None:
-            resp = _api("POST", f"{server}/api/patient/interview/confirm", token=token, json={
+            resp = _api("POST", f"{server}/api/patient/intake/confirm", token=token, json={
                 "session_id": result.session_id,
             })
             if resp.status_code == 200:
@@ -351,7 +351,7 @@ def run_persona(
 
 ```bash
 git add scripts/patient_sim/engine.py
-git commit -m "feat(sim): simulation engine — register/login/interview/confirm loop"
+git commit -m "feat(sim): simulation engine — register/login/intake/confirm loop"
 ```
 
 ---
@@ -416,8 +416,8 @@ def validate_tier1_db(
             else:
                 if not row[0]:
                     errors.append("medical_records.content is empty")
-                if row[1] != "interview_summary":
-                    errors.append(f"record_type={row[1]}, expected interview_summary")
+                if row[1] != "intake_summary":
+                    errors.append(f"record_type={row[1]}, expected intake_summary")
                 if row[2]:
                     try:
                         s = json.loads(row[2])
@@ -445,10 +445,10 @@ def validate_tier1_db(
         # Session confirmed
         if session_id:
             row = conn.execute(
-                "SELECT status FROM interview_sessions WHERE id=?", (session_id,),
+                "SELECT status FROM intake_sessions WHERE id=?", (session_id,),
             ).fetchone()
             if not row:
-                errors.append(f"interview_sessions row not found for id={session_id}")
+                errors.append(f"intake_sessions row not found for id={session_id}")
             elif row[0] != "confirmed":
                 errors.append(f"session status={row[0]}, expected confirmed")
     finally:
@@ -738,7 +738,7 @@ git commit -m "feat(sim): markdown + JSON report generator"
 
 ```python
 #!/usr/bin/env python3
-"""Patient simulation CLI — run LLM-simulated patients against the interview API.
+"""Patient simulation CLI — run LLM-simulated patients against the intake API.
 
 Usage:
     python scripts/run_patient_sim.py --patients all
@@ -798,7 +798,7 @@ def _cleanup_sim_data(db_path: str, doctor_ids: list) -> None:
     import sqlite3
     conn = sqlite3.connect(db_path)
     try:
-        for table in ["medical_records", "patients", "interview_sessions", "review_queue", "doctor_tasks"]:
+        for table in ["medical_records", "patients", "intake_sessions", "review_queue", "doctor_tasks"]:
             try:
                 conn.execute(f"DELETE FROM {table} WHERE doctor_id LIKE 'intsim_%'")
             except Exception:
@@ -809,7 +809,7 @@ def _cleanup_sim_data(db_path: str, doctor_ids: list) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run LLM-simulated patient interviews")
+    parser = argparse.ArgumentParser(description="Run LLM-simulated patient intakes")
     parser.add_argument("--patients", default="all", help="Comma-separated persona IDs or 'all'")
     parser.add_argument("--patient-llm", default="deepseek", choices=list(_PROVIDERS), help="Patient LLM provider")
     parser.add_argument("--server", default="http://127.0.0.1:8001", help="Server URL")
@@ -1035,7 +1035,7 @@ def sim_components():
 
 @pytest.mark.parametrize("persona_id", _get_persona_ids())
 def test_patient_simulation(persona_id, sim_components):
-    """Run one persona through the interview pipeline and validate."""
+    """Run one persona through the intake pipeline and validate."""
     personas = _load_all_personas()
     persona = next(p for p in personas if p["id"] == persona_id)
 

@@ -10,8 +10,8 @@ from db.engine import AsyncSessionLocal
 from db.models.doctor import Doctor
 from db.models.form_response import FormResponseDB
 from db.models.patient import Patient
-from domain.interview.protocols import PersistRef, SessionState
-from domain.interview.writers import FormResponseWriter
+from domain.intake.protocols import PersistRef, SessionState
+from domain.intake.writers import FormResponseWriter
 
 
 def _session(doctor_id, patient_id, template_id="form_satisfaction_v1"):
@@ -20,7 +20,7 @@ def _session(doctor_id, patient_id, template_id="form_satisfaction_v1"):
         doctor_id=doctor_id,
         patient_id=patient_id,
         mode="patient",
-        status="interviewing",
+        status="active",
         template_id=template_id,
         collected={},
         conversation=[],

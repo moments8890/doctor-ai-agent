@@ -52,7 +52,7 @@ editing), `SheetDialog` confirm send. Draft API surface
 
 Seed:
 
-1. Patient + completed interview (for chat context).
+1. Patient + completed intake (for chat context).
 2. At least one knowledge item relevant to the test message so the draft
    generator has something to cite.
 3. Patient message via `seed.sendPatientMessage` (hits

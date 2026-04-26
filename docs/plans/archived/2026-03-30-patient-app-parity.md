@@ -25,7 +25,7 @@
 | `frontend/web/src/pages/patient/ProfileTab.jsx` | Delete | Replaced by MyPage.jsx |
 | `frontend/web/src/pages/patient/PatientPage.jsx` | Modify | Fade transitions, nav styling, import MyPage |
 | `frontend/web/src/pages/patient/TasksTab.jsx` | Modify | FilterBar for status filter |
-| `frontend/web/src/pages/patient/InterviewPage.jsx` | Modify | Token/icon cleanup |
+| `frontend/web/src/pages/patient/IntakePage.jsx` | Modify | Token/icon cleanup |
 | `frontend/web/src/pages/doctor/constants.jsx` | Modify | Re-export from shared (backward compat) |
 
 ---
@@ -74,7 +74,7 @@ export const SHARED_ICON_BADGES = {
   rec_lab:       { icon: BiotechOutlinedIcon, bg: COLOR.accent },
   rec_imaging:   { icon: MonitorHeartOutlinedIcon, bg: COLOR.accent },
   rec_surgery:   { icon: LocalHospitalOutlinedIcon, bg: COLOR.danger },
-  rec_interview: { icon: ChatOutlinedIcon, bg: COLOR.primary },
+  rec_intake: { icon: ChatOutlinedIcon, bg: COLOR.primary },
 
   // Task types
   task_follow_up:  { icon: EventRepeatOutlinedIcon, bg: COLOR.primary },
@@ -91,7 +91,7 @@ export const RECORD_TYPE_BADGE = {
   lab:                SHARED_ICON_BADGES.rec_lab,
   imaging:            SHARED_ICON_BADGES.rec_imaging,
   surgery:            SHARED_ICON_BADGES.rec_surgery,
-  interview_summary:  SHARED_ICON_BADGES.rec_interview,
+  intake_summary:  SHARED_ICON_BADGES.rec_intake,
 };
 
 export const TASK_TYPE_BADGE = {
@@ -182,7 +182,7 @@ to:
 export const PATIENT_RECORD_TABS = [
   { key: "", label: "全部" },
   { key: "medical", label: "病历", types: ["visit", "dictation", "import"] },
-  { key: "interview", label: "问诊", types: ["interview_summary"] },
+  { key: "intake", label: "问诊", types: ["intake_summary"] },
 ];
 
 export const PATIENT_TASK_FILTERS = [
@@ -262,10 +262,10 @@ const filteredRecords = typeFilter
 
 7. Replace all `records.map` and `records.length` references in the list/timeline rendering with `filteredRecords`.
 
-8. Wrap the entire return in PageSkeleton for the subpage transition. Replace the current conditional `if (urlSubpage && urlSubpage !== "interview")` block and the main return with:
+8. Wrap the entire return in PageSkeleton for the subpage transition. Replace the current conditional `if (urlSubpage && urlSubpage !== "intake")` block and the main return with:
 
 ```jsx
-const detailSubpage = (urlSubpage && urlSubpage !== "interview") ? (
+const detailSubpage = (urlSubpage && urlSubpage !== "intake") ? (
   <RecordDetail
     recordId={urlSubpage}
     token={token}
@@ -338,7 +338,7 @@ import { SHARED_ICON_BADGES } from "../../shared/badgeConfigs";
 const actions = [
   { label: "新问诊", subtitle: "AI帮您整理病情",
     icon: <IconBadge config={{ icon: AddIcon, bg: COLOR.primary }} size={36} solid />,
-    onClick: onNewInterview },
+    onClick: onNewIntake },
   { label: "我的病历", subtitle: "查看历史记录",
     icon: <IconBadge config={{ icon: DescriptionOutlinedIcon, bg: COLOR.accent }} size={36} solid />,
     onClick: onViewRecords },
@@ -578,12 +578,12 @@ import { COLOR, TYPE } from "../../theme";
 <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
   {tab === "chat" && (
     <ChatTab token={token} doctorName={doctorName} onLogout={handleLogout}
-      onNewInterview={startInterview}
+      onNewIntake={startIntake}
       onViewRecords={() => setTab("records")}
       onUnreadCountChange={setUnreadCount} />
   )}
   {tab === "records" && (
-    <RecordsTab token={token} onNewRecord={startInterview} urlSubpage={urlSubpage} />
+    <RecordsTab token={token} onNewRecord={startIntake} urlSubpage={urlSubpage} />
   )}
   {tab === "tasks" && <TasksTab token={token} />}
   {tab === "profile" && (
@@ -602,14 +602,14 @@ with:
   <Fade in={tab === "chat"} timeout={150} unmountOnExit>
     <Box sx={{ position: tab === "chat" ? "relative" : "absolute", inset: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       <ChatTab token={token} doctorName={doctorName} onLogout={handleLogout}
-        onNewInterview={startInterview}
+        onNewIntake={startIntake}
         onViewRecords={() => setTab("records")}
         onUnreadCountChange={setUnreadCount} />
     </Box>
   </Fade>
   <Fade in={tab === "records"} timeout={150} unmountOnExit>
     <Box sx={{ position: tab === "records" ? "relative" : "absolute", inset: 0, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-      <RecordsTab token={token} onNewRecord={startInterview} urlSubpage={urlSubpage} />
+      <RecordsTab token={token} onNewRecord={startIntake} urlSubpage={urlSubpage} />
     </Box>
   </Fade>
   <Fade in={tab === "tasks"} timeout={150} unmountOnExit>
@@ -744,14 +744,14 @@ git commit -m "feat(patient): add FilterBar to TasksTab"
 
 ---
 
-### Task 8: InterviewPage Icon/Token Cleanup
+### Task 8: IntakePage Icon/Token Cleanup
 
 **Files:**
-- Modify: `frontend/web/src/pages/patient/InterviewPage.jsx`
+- Modify: `frontend/web/src/pages/patient/IntakePage.jsx`
 
 - [ ] **Step 1: Fix tokens and replace emojis**
 
-In `frontend/web/src/pages/patient/InterviewPage.jsx`:
+In `frontend/web/src/pages/patient/IntakePage.jsx`:
 
 1. Add imports:
 ```js
@@ -811,8 +811,8 @@ Expected: Build succeeds.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add frontend/web/src/pages/patient/InterviewPage.jsx
-git commit -m "feat(patient): cleanup InterviewPage tokens and replace emojis with MUI icons"
+git add frontend/web/src/pages/patient/IntakePage.jsx
+git commit -m "feat(patient): cleanup IntakePage tokens and replace emojis with MUI icons"
 ```
 
 ---

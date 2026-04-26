@@ -161,21 +161,21 @@ curl -s -X POST "http://127.0.0.1:8000/api/auth/unified/register/patient" \
 
 ---
 
-## 7. Patient Portal — Interview
+## 7. Patient Portal — Intake
 
 | # | Scenario | Steps | Verify |
 |---|----------|-------|--------|
 | 7.1 | Patient portal loads | Navigate to `http://127.0.0.1:5173/patient` (with patient session set, or login first) | "AI 健康助手" header; "新问诊 AI帮您整理病情" + "我的病历 查看历史记录" cards; AI greeting bubble visible; 4-tab bottom nav: 主页 / 病历 / 任务 / 我的 |
 | 7.2 | Patient login | At `/login` tap "患者" tab → enter 昵称 (nickname/phone) + 口令 (numeric passcode/birth year); or register with invitation code WELCOME | Session established; redirected to `/patient`; patient portal home shown |
-| 7.3 | Start interview | Tap "新问诊" card | Navigates to `/patient/records/interview`; AI greeting appears within 3s: "您好！我是[doctor name]的AI助手。请描述您的症状..."; progress bar at 0% at top |
+| 7.3 | Start intake | Tap "新问诊" card | Navigates to `/patient/records/intake`; AI greeting appears within 3s: "您好！我是[doctor name]的AI助手。请描述您的症状..."; progress bar at 0% at top |
 | 7.4 | Answer questions | Type response → tap send | Message appears right-aligned (green bubble); AI reply within 10s; progress bar % advances; chat auto-scrolls to bottom |
 | 7.5 | Progress indicator | Check progress bar at top | Shows 0%–100% percentage bar advancing as fields are collected (not field count fraction) |
-| 7.6 | Complete interview | All required fields filled → AI signals completion | Bottom sheet slides up showing all collected NHC fields; **确认提交** button visible |
+| 7.6 | Complete intake | All required fields filled → AI signals completion | Bottom sheet slides up showing all collected NHC fields; **确认提交** button visible |
 | 7.7 | Submit | Tap **确认提交** | Confirmation dialog (取消 LEFT / 确认 RIGHT); on confirm: record created with status `pending_review`; patient sees success state; input disabled |
 | 7.8 | Send button (manual) | Type a message → tap send | Message sent and appears in chat — no page navigation crash (BUG-03; verify on real device) |
 
 **Edge cases:**
-- Patient abandons mid-interview — partial data not corrupted
+- Patient abandons mid-intake — partial data not corrupted
 - Very long answer (>500 chars) — accepted, no truncation
 - Session token expiry — graceful redirect to login
 
@@ -209,7 +209,7 @@ Run these after each bug is fixed to confirm it stays fixed.
 |---|-----|--------|-------|--------------|
 | R.1 | BUG-01 (date display) | ✅ **FIXED** `f2f4fb7e` | Knowledge cards created today | Shows 今天 — not -1天前 or future |
 | R.2 | BUG-02 (greeting suffix) | ✅ **FIXED** `795729ff` | Log in as doctor named "测试医生" → open 我的AI tab | AI persona header shows "测试医生 的 AI" — not "测试医生医生 的 AI". |
-| R.3 | BUG-04 (proxy isolation) | ✅ **FIXED** (permanent) | Any LLM-driven action (diagnosis, draft, interview) | All LLM-facing httpx clients have `trust_env=False` — no env var needed |
+| R.3 | BUG-04 (proxy isolation) | ✅ **FIXED** (permanent) | Any LLM-driven action (diagnosis, draft, intake) | All LLM-facing httpx clients have `trust_env=False` — no env var needed |
 | R.4 | BUG-05 (button order) | ✅ **FIXED** `795729ff` | 审核 → open suggestion → edit form | 取消 LEFT (grey), 保存 RIGHT (green) |
 | R.5 | BUG-06 (NL search gender) | ✅ **FIXED** `795729ff` | Search "最近来诊的男性" | Non-empty results; all male patients |
 | R.6 | BUG-07 (logout back) | ✅ **FIXED** `795729ff` | Logout → press browser back | Lands on `/login` — settings page not accessible |
@@ -222,7 +222,7 @@ Run these after each bug is fixed to confirm it stays fixed.
 |----|-------------|--------|--------|
 | BUG-01 | Knowledge card dates show -1天前 — UTC vs local time mismatch in `formatRelativeDate` | ✅ **Fixed** `f2f4fb7e` | MyAIPage + RecordCard now use shared `relativeDate` from `time.js` |
 | BUG-02 | Doctor greeting renders "测试医生医生" — redundant 医生 suffix | ✅ **Fixed** `795729ff` | Greeting skips appending 医生 if name already ends with it |
-| BUG-03 | Patient interview send button crashes headless Playwright — native form submit race before React `preventDefault` | **Deferred** — needs real WeChat WebView verification | Unknown until verified on device |
+| BUG-03 | Patient intake send button crashes headless Playwright — native form submit race before React `preventDefault` | **Deferred** — needs real WeChat WebView verification | Unknown until verified on device |
 | BUG-04 | Python backend routes LLM calls through dead system proxy 127.0.0.1:1081 — all LLM calls fail silently | ✅ **Fixed** (permanent) | All LLM-facing httpx clients have `trust_env=False` |
 | BUG-05 | Review suggestion edit modal: 保存 LEFT / 取消 RIGHT — reversed from app-wide convention | ✅ **Fixed** `795729ff` | Cancel LEFT, save RIGHT |
 | BUG-06 | NL patient search returns no results for queries like "最近来诊的男性" despite matching patients existing | ✅ **Fixed** `795729ff` | Gender filter now matches 男/女 and male/female |

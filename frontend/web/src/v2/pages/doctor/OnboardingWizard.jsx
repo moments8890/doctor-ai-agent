@@ -4,7 +4,7 @@
  * Steps:
  *   1. 添加一条规则   — navigate to knowledge add, return with ?saved=...
  *   2. 看AI怎么用它   — interactive demo: confirm diagnosis + send reply
- *   3. 确认并开始     — completion screen with optional patient interview preview
+ *   3. 确认并开始     — completion screen with optional patient intake preview
  *
  * No MUI, no framer-motion, no src/components/, no src/theme.js
  */
@@ -695,7 +695,7 @@ function Step3Content({ doctorId, progress, updateProgress, setCanAdvance, api }
   useEffect(() => {
     setCanAdvance(true);
 
-    const savedToken = progress?.interviewToken;
+    const savedToken = progress?.intakeToken;
     if (savedToken) {
       setReady(true);
       return;
@@ -710,7 +710,7 @@ function Step3Content({ doctorId, progress, updateProgress, setCanAdvance, api }
           age: 65,
         });
         const patientToken = data?.portal_token || data?.token;
-        if (patientToken) updateProgress({ interviewToken: patientToken });
+        if (patientToken) updateProgress({ intakeToken: patientToken });
         queryClient.invalidateQueries({ queryKey: QK.patients(doctorId) });
         setReady(true);
       } catch {
@@ -780,9 +780,9 @@ function Step3Content({ doctorId, progress, updateProgress, setCanAdvance, api }
         </div>
         <Button
           size="small"
-          disabled={!ready || !progress?.interviewToken}
+          disabled={!ready || !progress?.intakeToken}
           onClick={() => {
-            const token = progress?.interviewToken;
+            const token = progress?.intakeToken;
             if (token) {
               window.open(`/patient?token=${token}`, "_blank");
             }

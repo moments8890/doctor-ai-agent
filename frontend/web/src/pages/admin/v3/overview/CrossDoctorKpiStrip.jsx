@@ -15,7 +15,7 @@
 // `secondary.new_patients.current`           — 7d new patients (best signal
 //                                              for "registered patients" we
 //                                              have without a fresh endpoint)
-// `hero.interviews.started`                  — interviews 7d
+// `hero.intakes.started`                  — intakes 7d
 // `hero.ai_acceptance.rate` (0..1)           — × 100 → integer pct
 // `hero.unanswered_messages.count`           — red when > 0
 
@@ -96,7 +96,7 @@ export default function CrossDoctorKpiStrip({ hero, secondary }) {
   const s = secondary || {};
 
   const active = h.active_doctors || {};
-  const interviews = h.interviews || {};
+  const intakes = h.intakes || {};
   const acceptance = h.ai_acceptance || {};
   const unanswered = h.unanswered_messages || {};
   const newPatients = s.new_patients || {};
@@ -123,11 +123,11 @@ export default function CrossDoctorKpiStrip({ hero, secondary }) {
     },
     {
       label: "本周问诊",
-      value: safeNum(interviews.started),
+      value: safeNum(intakes.started),
       unit: null,
       hint:
-        interviews.completed != null
-          ? `${interviews.completed} 已完成`
+        intakes.completed != null
+          ? `${intakes.completed} 已完成`
           : null,
     },
     {

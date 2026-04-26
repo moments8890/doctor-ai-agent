@@ -79,7 +79,7 @@ Run both plans. Hero path first, then AI loop.
 | 4 | 患者 Tab — Patient Detail | ☐ Pass ☐ Fail | |
 | 5 | 审核 — Review Queue | ☐ Pass ☐ Fail | |
 | 6 | 审核 — 待回复 | ☐ Pass ☐ Fail | |
-| 7 | Patient Portal Interview | ☐ Pass ☐ Fail | |
+| 7 | Patient Portal Intake | ☐ Pass ☐ Fail | |
 | 8 | Navigation & UI | ☐ Pass ☐ Fail | |
 | 9 | Regression Checks | ☐ Pass ☐ Fail | |
 
@@ -121,7 +121,7 @@ git diff origin/main --name-only | head -30
 
 | If changed files include... | Spot check |
 |-----------------------------|-----------|
-| `src/domain/patient_lifecycle/` or interview pages | Re-run §7 (Patient Portal) of hero-path |
+| `src/domain/patient_lifecycle/` or intake pages | Re-run §7 (Patient Portal) of hero-path |
 | `knowledge` in any path | Re-run §2 (我的AI) + §5 (Review Queue) of hero-path |
 | `draft_handlers.py` or draft reply pages | Re-run §6 (待回复) of hero-path |
 | Core pipeline (agent, prompts, intents) | Re-run full hero-path §1–9 |

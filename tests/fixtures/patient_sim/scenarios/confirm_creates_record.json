@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "id": "confirm_creates_record",
-  "scenario_type": "patient_interview",
+  "scenario_type": "patient_intake",
   "title": "Confirm creates record visible in patient records API",
   "tags": [
     "regression",
@@ -14,7 +14,7 @@
     "phone": "13800000010"
   },
   "input": {
-    "mode": "patient_interview",
+    "mode": "patient_intake",
     "turns": [
       {
         "actor": "patient",
@@ -43,14 +43,14 @@
     ]
   },
   "execution": {
-    "entrypoint": "patient.interview.chat",
+    "entrypoint": "patient.intake.chat",
     "auto_confirm": false,
     "timeout_seconds": 60
   },
   "expectations": {
     "assertions": [
       {
-        "target": "interview.confirm_creates_record",
+        "target": "intake.confirm_creates_record",
         "matcher": "eq",
         "expected": true
       },

@@ -77,15 +77,15 @@ tests/regression/
   models.py             # ScenarioSpec, FactRule, MatchResult, ScenarioResult
   helpers.py            # API call wrappers + DB helpers
   test_extraction.py    # Kind A: parametrized from JSON scenarios
-  test_doctor_interview.py  # Kind B: session lifecycle, confirm states
+  test_doctor_intake.py  # Kind B: session lifecycle, confirm states
 ```
 
 When Kind B grows beyond ~30 tests in one file, split by pipeline:
 ```
-  test_doctor_interview.py   → session lifecycle, confirm, cancel, resume
+  test_doctor_intake.py   → session lifecycle, confirm, cancel, resume
   test_doctor_chat.py        → routing edge cases (empty input, etc.)
   test_carry_forward.py      → carry-forward specific
-  test_patient_interview.py  → patient workflow tests
+  test_patient_intake.py  → patient workflow tests
 ```
 
 ## Shared Layer (6 files)
@@ -129,7 +129,7 @@ def cleanup(db_path):
 
 class Cleanup:
     TABLES = [
-        "patient_auth", "interview_sessions", "medical_records",
+        "patient_auth", "intake_sessions", "medical_records",
         "doctor_tasks", "doctor_chat_log", "doctor_knowledge_items",
         "patients", "doctors",
     ]
@@ -227,16 +227,16 @@ def expand_aliases(text: str, aliases: list[str]) -> list[str]:
 
 API wrappers — all synchronous `httpx.post()`, matching existing test patterns.
 
-**Content-type note:** The interview endpoints (`/turn`, `/confirm`, `/cancel`) use
+**Content-type note:** The intake endpoints (`/turn`, `/confirm`, `/cancel`) use
 `Form(...)` parameters — helpers must POST with `data=` (form-encoded), not `json=`.
 The carry-forward endpoint uses a JSON body (`CarryForwardConfirmRequest`).
 The chat endpoint also uses JSON body (`ChatInput`).
 
 ```python
 # Form-encoded endpoints (data=)
-def interview_turn(server_url, text, session_id=None, doctor_id=None) -> dict
-def interview_confirm(server_url, session_id, doctor_id) -> tuple[int, dict]
-def interview_cancel(server_url, session_id, doctor_id) -> dict
+def intake_turn(server_url, text, session_id=None, doctor_id=None) -> dict
+def intake_confirm(server_url, session_id, doctor_id) -> tuple[int, dict]
+def intake_cancel(server_url, session_id, doctor_id) -> dict
 
 # JSON body endpoints (json=)
 def carry_forward_confirm(server_url, session_id, doctor_id, field, action) -> dict
@@ -246,7 +246,7 @@ def chat(server_url, text, doctor_id) -> dict
 def get_session(server_url, session_id, doctor_id) -> dict
 ```
 
-`interview_confirm` returns `tuple[int, dict]` (status_code + body) because Kind B
+`intake_confirm` returns `tuple[int, dict]` (status_code + body) because Kind B
 tests need to assert HTTP 400 on error cases. Other helpers raise on non-2xx since
 their callers don't need the status code.
 
@@ -263,7 +263,7 @@ def db_task_count(db_path, doctor_id) -> int
 chief_complaint, present_illness, past_history, allergy_history, personal_history,
 marital_reproductive, family_history, physical_exam, specialist_exam, auxiliary_exam,
 diagnosis, treatment_plan, orders_followup.
-(`department` is a DB column but the interview confirm endpoint does not save it;
+(`department` is a DB column but the intake confirm endpoint does not save it;
 `content` is a text summary field, not a clinical extraction field.)
 
 ### models.py
@@ -300,12 +300,12 @@ class TurnInput:
 
 @dataclass
 class InputSpec:
-    mode: str            # "doctor_interview" | "patient_interview"
+    mode: str            # "doctor_intake" | "patient_intake"
     turns: list[TurnInput]
 
 @dataclass
 class ExecutionSpec:
-    entrypoint: str      # "records.interview.turn" | "patient.interview.chat"
+    entrypoint: str      # "records.intake.turn" | "patient.intake.chat"
     auto_confirm: bool = True
     timeout_seconds: int = 60
 
@@ -368,8 +368,8 @@ def _parse_v2(data: dict) -> ScenarioSpec: ...
 
 Single parametrized function, ~40 lines of code. Handles all extraction scenarios:
 
-1. Send turns via `interview_turn()`
-2. Confirm via `interview_confirm()` (if `auto_confirm`)
+1. Send turns via `intake_turn()`
+2. Confirm via `intake_confirm()` (if `auto_confirm`)
 3. Snapshot record fields from DB
 4. Run generic assertions (record.exists, db counts)
 5. Run fact matching (presence, field routing, forbidden)
@@ -382,7 +382,7 @@ Adding a scenario = adding a JSON file. Zero code changes.
 absorbed into `test_extraction.py`. No standalone runner module is needed — the
 parametrized test function IS the runner.
 
-## Kind B: test_doctor_interview.py
+## Kind B: test_doctor_intake.py
 
 Pytest functions grouped by concern:
 
@@ -442,7 +442,7 @@ Each test file sets its own `pytestmark` (conftest.py `pytestmark` does not prop
 # test_extraction.py
 pytestmark = [pytest.mark.regression, pytest.mark.extraction]
 
-# test_doctor_interview.py
+# test_doctor_intake.py
 pytestmark = [pytest.mark.regression, pytest.mark.workflow]
 ```
 
@@ -451,14 +451,14 @@ pytest -m regression                    # all regression (Kind A + Kind B)
 pytest -m extraction                    # Kind A only
 pytest -m workflow                      # Kind B only
 pytest tests/regression/test_extraction.py -k "D1"   # specific scenario
-pytest tests/regression/test_doctor_interview.py -k "cancel"  # specific workflow
+pytest tests/regression/test_doctor_intake.py -k "cancel"  # specific workflow
 ```
 
 ## What This Replaces
 
 | Current | Replaced by |
 |---------|-------------|
-| `test_e2e_fixtures.py` | `test_extraction.py` + `test_doctor_interview.py` |
+| `test_e2e_fixtures.py` | `test_extraction.py` + `test_doctor_intake.py` |
 | `scripts/doctor_sim/validator.py` (LLM judges) | `matchers.py` (deterministic) |
 | `scripts/run_doctor_sim.py` (pass/fail) | `pytest -m regression` |
 
@@ -481,7 +481,7 @@ pytest tests/regression/test_doctor_interview.py -k "cancel"  # specific workflo
 Verify against existing D1-D8 + MVP scenarios
 
 ### Phase 3: Kind B workflow tests
-`test_doctor_interview.py` — 16 workflow tests
+`test_doctor_intake.py` — 16 workflow tests
 
 ### Phase 4: Migrate scenario format
 Convert D1-D8 to v2 format (add `allowed_fields`, `aliases`, `thresholds`)

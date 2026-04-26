@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from domain.interview.hooks.medical import (
+from domain.intake.hooks.medical import (
     GenerateFollowupTasksHook, NotifyDoctorHook, TriggerDiagnosisPipelineHook,
 )
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.protocols import PersistRef, SessionState
 
 
 def _session() -> SessionState:
@@ -26,9 +26,9 @@ def _session() -> SessionState:
 async def test_trigger_diagnosis_calls_safe_create_task():
     hook = TriggerDiagnosisPipelineHook()
     with patch(
-        "domain.interview.hooks.medical._safe_create_task",
+        "domain.intake.hooks.medical._safe_create_task",
     ) as mock_safe, patch(
-        "domain.interview.hooks.medical._run_diagnosis",
+        "domain.intake.hooks.medical._run_diagnosis",
     ) as mock_run:
         mock_run.return_value = "coro-sentinel"
         await hook.run(_session(), PersistRef(kind="medical_record", id=99), {})
@@ -44,7 +44,7 @@ async def test_trigger_diagnosis_calls_safe_create_task():
 async def test_trigger_diagnosis_swallows_exceptions():
     hook = TriggerDiagnosisPipelineHook()
     with patch(
-        "domain.interview.hooks.medical._safe_create_task",
+        "domain.intake.hooks.medical._safe_create_task",
         side_effect=RuntimeError("boom"),
     ):
         # Must NOT raise
@@ -55,7 +55,7 @@ async def test_trigger_diagnosis_swallows_exceptions():
 async def test_notify_doctor_sends_notification():
     hook = NotifyDoctorHook()
     with patch(
-        "domain.interview.hooks.medical._send_doctor_notification",
+        "domain.intake.hooks.medical._send_doctor_notification",
         new=AsyncMock(),
     ) as mock_notify:
         collected = {"_patient_name": "王五"}
@@ -71,7 +71,7 @@ async def test_notify_doctor_sends_notification():
 async def test_notify_doctor_swallows_exceptions():
     hook = NotifyDoctorHook()
     with patch(
-        "domain.interview.hooks.medical._send_doctor_notification",
+        "domain.intake.hooks.medical._send_doctor_notification",
         new=AsyncMock(side_effect=RuntimeError("boom")),
     ):
         await hook.run(_session(), PersistRef(kind="medical_record", id=99), {})
@@ -81,10 +81,10 @@ async def test_notify_doctor_swallows_exceptions():
 async def test_generate_followup_tasks_calls_generator():
     hook = GenerateFollowupTasksHook()
     with patch(
-        "domain.interview.hooks.medical._get_patient_for_doctor",
+        "domain.intake.hooks.medical._get_patient_for_doctor",
         new=AsyncMock(return_value=type("P", (), {"name": "赵六"})()),
     ), patch(
-        "domain.interview.hooks.medical._generate_tasks_from_record",
+        "domain.intake.hooks.medical._generate_tasks_from_record",
         new=AsyncMock(return_value=[1, 2, 3]),
     ) as mock_gen:
         collected = {
@@ -105,7 +105,7 @@ async def test_generate_followup_tasks_calls_generator():
 async def test_generate_followup_tasks_swallows_exceptions():
     hook = GenerateFollowupTasksHook()
     with patch(
-        "domain.interview.hooks.medical._get_patient_for_doctor",
+        "domain.intake.hooks.medical._get_patient_for_doctor",
         new=AsyncMock(side_effect=RuntimeError("boom")),
     ):
         await hook.run(_session(), PersistRef(kind="medical_record", id=99), {})

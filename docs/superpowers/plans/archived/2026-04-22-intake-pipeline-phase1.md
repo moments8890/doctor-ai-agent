@@ -1,22 +1,22 @@
-# Interview Pipeline Extensibility — Phase 1 (Engine Extraction)
+# Intake Pipeline Extensibility — Phase 1 (Engine Extraction)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Introduce `InterviewEngine` + the 5 protocol seams (`FieldSpec`, `FieldExtractor`, `BatchExtractor`, `Writer`, `PostConfirmHook`, `Template`) and route the existing medical pipeline through them. **Zero behavior change** — the medical logic stays where it lives today (`interview_models.py`, `completeness.py`, `batch_extract_from_transcript`, the insert in `confirm.py`, the diagnosis/notify/tasks side effects). Phase 1 is the thin indirection layer that makes Phase 2 (real extraction of that logic into the template) possible.
+**Goal:** Introduce `IntakeEngine` + the 5 protocol seams (`FieldSpec`, `FieldExtractor`, `BatchExtractor`, `Writer`, `PostConfirmHook`, `Template`) and route the existing medical pipeline through them. **Zero behavior change** — the medical logic stays where it lives today (`intake_models.py`, `completeness.py`, `batch_extract_from_transcript`, the insert in `confirm.py`, the diagnosis/notify/tasks side effects). Phase 1 is the thin indirection layer that makes Phase 2 (real extraction of that logic into the template) possible.
 
-**Architecture:** New `src/domain/interview/` package holds the protocol surface (`protocols.py`), the LLM contract synthesis helper (`contract.py`), the generic engine (`engine.py`), hooks (`hooks/medical.py`), and a medical template (`templates/medical_general.py`) whose methods *delegate* to the existing codepaths — not re-implement them. The doctor `/turn`, `/confirm`, `/cancel` endpoints and the patient interview route flip from calling `interview_turn()` / `confirm.py` logic directly to calling `engine.next_turn()` / `engine.confirm()`. The existing `interview_turn` / `batch_extract_from_transcript` / `submit_interview` functions stay reachable for the shim; Phase 2 will inline-delete them.
+**Architecture:** New `src/domain/intake/` package holds the protocol surface (`protocols.py`), the LLM contract synthesis helper (`contract.py`), the generic engine (`engine.py`), hooks (`hooks/medical.py`), and a medical template (`templates/medical_general.py`) whose methods *delegate* to the existing codepaths — not re-implement them. The doctor `/turn`, `/confirm`, `/cancel` endpoints and the patient intake route flip from calling `intake_turn()` / `confirm.py` logic directly to calling `engine.next_turn()` / `engine.confirm()`. The existing `intake_turn` / `batch_extract_from_transcript` / `submit_intake` functions stay reachable for the shim; Phase 2 will inline-delete them.
 
 **Tech Stack:** Python 3.13, `typing.Protocol`, Pydantic 2.x `BaseModel` + `create_model`, SQLAlchemy 2.x async, pytest + pytest-asyncio.
 
-**Reference:** Spec `docs/superpowers/specs/2026-04-22-interview-pipeline-extensibility-design.md` §§ 3a, 3b, 3e, 5c, 5d, 6a (Phase 1 row), 7a.
+**Reference:** Spec `docs/superpowers/specs/2026-04-22-intake-pipeline-extensibility-design.md` §§ 3a, 3b, 3e, 5c, 5d, 6a (Phase 1 row), 7a.
 
 ---
 
 ## Preconditions
 
-- Phase 0 is landed. Alembic head = `c9f8d2e14a20`. `template_id` threaded through ORM + dataclass + `/turn` endpoint. Empty `src/domain/interview/` package exists (commit `8ac87a4c`).
+- Phase 0 is landed. Alembic head = `c9f8d2e14a20`. `template_id` threaded through ORM + dataclass + `/turn` endpoint. Empty `src/domain/intake/` package exists (commit `8ac87a4c`).
 - Working tree clean. Branch = `main`.
-- All 14 Phase 0 tests pass (`tests/core/test_interview_session_*.py`, `tests/db/test_migration_interview_template_id.py`, `tests/core/test_form_response_model.py`, `tests/core/test_doctor_first_turn_template_id.py`).
+- All 14 Phase 0 tests pass (`tests/core/test_intake_session_*.py`, `tests/db/test_migration_intake_template_id.py`, `tests/core/test_form_response_model.py`, `tests/core/test_doctor_first_turn_template_id.py`).
 - `.venv/bin/python` at `/Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python`.
 - Test harness incantation (pinned):
   ```
@@ -28,45 +28,45 @@
 
 - `reply_sim` pass-rate delta ≤ 2% vs main at task 13's gate.
 - `test_diagnosis_prompt_sniff.py` stays green.
-- Existing interview tests in `tests/core/` stay green.
+- Existing intake tests in `tests/core/` stay green.
 - No user-visible change. The doctor `/turn`, patient `/start` and `/turn`, and `/confirm` endpoints produce byte-compatible responses (tolerance: 2% sim delta).
 - The asymmetric confirm-path side effects are preserved intentionally (spec §5d + §8 open question): patient confirm fires `TriggerDiagnosisPipelineHook` + `NotifyDoctorHook`; doctor confirm fires `GenerateFollowupTasksHook` only. Phase 4 revisits.
 
 ## File map
 
 **Create:**
-- `src/domain/interview/protocols.py` — `FieldSpec`, `FieldExtractor`, `BatchExtractor`, `Writer`, `PostConfirmHook`, `Template`, `SessionState`, `PersistRef`, `Phase`, `Mode`, `CompletenessState`, `TurnResult`.
-- `src/domain/interview/contract.py` — `build_response_schema(fields) -> type[BaseModel]`.
-- `src/domain/interview/engine.py` — `InterviewEngine` class with `next_turn()` and `confirm()`.
-- `src/domain/interview/templates/__init__.py` — `TEMPLATES: dict[str, Template]`, `get_template(id)`, `UnknownTemplate`.
-- `src/domain/interview/templates/medical_general.py` — `GeneralMedicalTemplate`, `GeneralMedicalExtractor`, `MedicalBatchExtractor`, `MedicalRecordWriter`, `MEDICAL_FIELDS` list.
-- `src/domain/interview/hooks/__init__.py` — empty package.
-- `src/domain/interview/hooks/medical.py` — `TriggerDiagnosisPipelineHook`, `GenerateFollowupTasksHook`, `NotifyDoctorHook`.
+- `src/domain/intake/protocols.py` — `FieldSpec`, `FieldExtractor`, `BatchExtractor`, `Writer`, `PostConfirmHook`, `Template`, `SessionState`, `PersistRef`, `Phase`, `Mode`, `CompletenessState`, `TurnResult`.
+- `src/domain/intake/contract.py` — `build_response_schema(fields) -> type[BaseModel]`.
+- `src/domain/intake/engine.py` — `IntakeEngine` class with `next_turn()` and `confirm()`.
+- `src/domain/intake/templates/__init__.py` — `TEMPLATES: dict[str, Template]`, `get_template(id)`, `UnknownTemplate`.
+- `src/domain/intake/templates/medical_general.py` — `GeneralMedicalTemplate`, `GeneralMedicalExtractor`, `MedicalBatchExtractor`, `MedicalRecordWriter`, `MEDICAL_FIELDS` list.
+- `src/domain/intake/hooks/__init__.py` — empty package.
+- `src/domain/intake/hooks/medical.py` — `TriggerDiagnosisPipelineHook`, `GenerateFollowupTasksHook`, `NotifyDoctorHook`.
 
 **Test files (create):**
-- `tests/core/test_interview_protocols.py`
-- `tests/core/test_interview_contract.py`
+- `tests/core/test_intake_protocols.py`
+- `tests/core/test_intake_contract.py`
 - `tests/core/test_medical_field_specs.py`
 - `tests/core/test_medical_extractor.py`
 - `tests/core/test_medical_batch_extractor.py`
 - `tests/core/test_medical_writer.py`
 - `tests/core/test_medical_hooks.py`
 - `tests/core/test_template_registry.py`
-- `tests/core/test_interview_engine_turn.py`
-- `tests/core/test_interview_engine_confirm.py`
+- `tests/core/test_intake_engine_turn.py`
+- `tests/core/test_intake_engine_confirm.py`
 
 **Modify:**
-- `src/channels/web/doctor_interview/confirm.py` — inline logic → `engine.confirm()` call + thin HTTP glue (Task 11).
-- `src/domain/patients/interview_summary.py` — `submit_interview` becomes a thin wrapper around `engine.confirm()` (Task 12).
+- `src/channels/web/doctor_intake/confirm.py` — inline logic → `engine.confirm()` call + thin HTTP glue (Task 11).
+- `src/domain/patients/intake_summary.py` — `submit_intake` becomes a thin wrapper around `engine.confirm()` (Task 12).
 
 **Not modified in Phase 1** (all four `/turn` endpoint files stay as-is — `engine.next_turn` exists but wiring `/turn` through it is a Phase 2 concern when the turn loop is inlined):
-- `src/channels/web/doctor_interview/turn.py`
-- `src/channels/web/patient_interview_routes.py`
+- `src/channels/web/doctor_intake/turn.py`
+- `src/channels/web/patient_intake_routes.py`
 
 **Do NOT modify in Phase 1** (these move in Phase 2):
-- `src/domain/patients/interview_models.py`
+- `src/domain/patients/intake_models.py`
 - `src/domain/patients/completeness.py`
-- `src/channels/web/doctor_interview/shared.py`
+- `src/channels/web/doctor_intake/shared.py`
 - Prompt files in `src/agent/prompts/intent/`
 
 ---
@@ -74,12 +74,12 @@
 ## Task 1: Protocol surface — types, dataclasses, Protocol classes
 
 **Files:**
-- Create: `src/domain/interview/protocols.py`
-- Create: `tests/core/test_interview_protocols.py`
+- Create: `src/domain/intake/protocols.py`
+- Create: `tests/core/test_intake_protocols.py`
 
 - [ ] **Step 1: Write failing protocol-shape tests**
 
-`tests/core/test_interview_protocols.py`:
+`tests/core/test_intake_protocols.py`:
 
 ```python
 """Protocol surface smoke tests — shapes only, not behavior."""
@@ -88,7 +88,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from domain.interview.protocols import (
+from domain.intake.protocols import (
     FieldSpec, Mode, Phase,
     CompletenessState, PersistRef, TurnResult, SessionState,
 )
@@ -166,20 +166,20 @@ def test_persistref_shape():
 
 ```
 /Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest \
-    tests/core/test_interview_protocols.py -v \
+    tests/core/test_intake_protocols.py -v \
     --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
-Expected: `FAILED ... ModuleNotFoundError: No module named 'domain.interview.protocols'`.
+Expected: `FAILED ... ModuleNotFoundError: No module named 'domain.intake.protocols'`.
 
 - [ ] **Step 3: Create the protocol module**
 
-`src/domain/interview/protocols.py`:
+`src/domain/intake/protocols.py`:
 
 ```python
-"""Polymorphic interview pipeline — protocol surface.
+"""Polymorphic intake pipeline — protocol surface.
 
-Spec: docs/superpowers/specs/2026-04-22-interview-pipeline-extensibility-design.md §3a.
+Spec: docs/superpowers/specs/2026-04-22-intake-pipeline-extensibility-design.md §3a.
 
 This file defines shapes only — no runtime behavior. Runtime impl lives in
 engine.py (generic) and templates/<name>.py (per-template).
@@ -249,7 +249,7 @@ class TurnResult(BaseModel):
 
 
 class SessionState(BaseModel):
-    """Read-model view of an interview session exposed to the engine + templates.
+    """Read-model view of an intake session exposed to the engine + templates.
     Templates MUST NOT mutate this directly; the engine owns writes."""
     id: str
     doctor_id: str
@@ -349,7 +349,7 @@ class Template(Protocol):
 
 ```
 /Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest \
-    tests/core/test_interview_protocols.py -v \
+    tests/core/test_intake_protocols.py -v \
     --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
@@ -358,8 +358,8 @@ Expected: `8 passed`.
 - [ ] **Step 5: Commit**
 
 ```
-git add src/domain/interview/protocols.py tests/core/test_interview_protocols.py
-git commit -m "feat(interview): add protocol surface — FieldSpec + 5 protocols"
+git add src/domain/intake/protocols.py tests/core/test_intake_protocols.py
+git commit -m "feat(intake): add protocol surface — FieldSpec + 5 protocols"
 ```
 
 ---
@@ -367,12 +367,12 @@ git commit -m "feat(interview): add protocol surface — FieldSpec + 5 protocols
 ## Task 2: LLM contract synthesis helper
 
 **Files:**
-- Create: `src/domain/interview/contract.py`
-- Create: `tests/core/test_interview_contract.py`
+- Create: `src/domain/intake/contract.py`
+- Create: `tests/core/test_intake_contract.py`
 
 - [ ] **Step 1: Write failing tests**
 
-`tests/core/test_interview_contract.py`:
+`tests/core/test_intake_contract.py`:
 
 ```python
 """build_response_schema — synthesizes a per-call Pydantic class from FieldSpec list.
@@ -385,8 +385,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from domain.interview.contract import build_response_schema
-from domain.interview.protocols import FieldSpec
+from domain.intake.contract import build_response_schema
+from domain.intake.protocols import FieldSpec
 
 
 def _spec(**kw):
@@ -488,13 +488,13 @@ def test_unknown_type_raises_at_build_time():
 
 ```
 /Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest \
-    tests/core/test_interview_contract.py -v \
+    tests/core/test_intake_contract.py -v \
     --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
 - [ ] **Step 3: Implement `contract.py`**
 
-`src/domain/interview/contract.py`:
+`src/domain/intake/contract.py`:
 
 ```python
 """LLM structured-output contract synthesis.
@@ -513,7 +513,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, create_model
 
-from domain.interview.protocols import FieldSpec
+from domain.intake.protocols import FieldSpec
 
 # Frozen mapping. Widen only via PR + tests.
 _SPEC_TO_PY_TYPE: dict[str, type] = {
@@ -565,15 +565,15 @@ def build_response_schema(fields: list[FieldSpec]) -> type[BaseModel]:
 
 ```
 /Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest \
-    tests/core/test_interview_contract.py -v \
+    tests/core/test_intake_contract.py -v \
     --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
 - [ ] **Step 5: Commit**
 
 ```
-git add src/domain/interview/contract.py tests/core/test_interview_contract.py
-git commit -m "feat(interview): add build_response_schema — throwaway Pydantic from FieldSpec"
+git add src/domain/intake/contract.py tests/core/test_intake_contract.py
+git commit -m "feat(intake): add build_response_schema — throwaway Pydantic from FieldSpec"
 ```
 
 ---
@@ -581,18 +581,18 @@ git commit -m "feat(interview): add build_response_schema — throwaway Pydantic
 ## Task 3: Medical field specs — derive from ExtractedClinicalFields
 
 **Files:**
-- Create: `src/domain/interview/templates/__init__.py` (empty placeholder)
-- Create: `src/domain/interview/templates/medical_general.py` (partial — only `MEDICAL_FIELDS` list in this task)
+- Create: `src/domain/intake/templates/__init__.py` (empty placeholder)
+- Create: `src/domain/intake/templates/medical_general.py` (partial — only `MEDICAL_FIELDS` list in this task)
 - Create: `tests/core/test_medical_field_specs.py`
 
-The medical extractor's `fields()` must return a `list[FieldSpec]` that describes the 17 fields already present in `src/domain/patients/interview_models.py::ExtractedClinicalFields`. Metadata (labels, descriptions, examples, appendability, carry-forward) is already embedded in the existing `FIELD_LABELS`, `FIELD_META`, and `completeness.APPENDABLE` + `doctor_interview/shared._CARRY_FORWARD_FIELDS`. This task translates those scattered sources into one declarative list — no behavior change.
+The medical extractor's `fields()` must return a `list[FieldSpec]` that describes the 17 fields already present in `src/domain/patients/intake_models.py::ExtractedClinicalFields`. Metadata (labels, descriptions, examples, appendability, carry-forward) is already embedded in the existing `FIELD_LABELS`, `FIELD_META`, and `completeness.APPENDABLE` + `doctor_intake/shared._CARRY_FORWARD_FIELDS`. This task translates those scattered sources into one declarative list — no behavior change.
 
 - [ ] **Step 1: Inspect the existing sources**
 
 Before writing the failing test, read:
-- `src/domain/patients/interview_models.py` — confirm the 17 field names on `ExtractedClinicalFields` and the contents of `FIELD_LABELS` + `FIELD_META`.
+- `src/domain/patients/intake_models.py` — confirm the 17 field names on `ExtractedClinicalFields` and the contents of `FIELD_LABELS` + `FIELD_META`.
 - `src/domain/patients/completeness.py` — confirm the `APPENDABLE` frozenset and `REQUIRED` tuple.
-- `src/channels/web/doctor_interview/shared.py` — confirm `_CARRY_FORWARD_FIELDS`.
+- `src/channels/web/doctor_intake/shared.py` — confirm `_CARRY_FORWARD_FIELDS`.
 
 Do not copy the exact constants into the plan — derive them from the actual files so later drift doesn't silently bit-rot the spec.
 
@@ -610,12 +610,12 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.templates.medical_general import MEDICAL_FIELDS
+from domain.intake.templates.medical_general import MEDICAL_FIELDS
 from domain.patients.completeness import APPENDABLE, REQUIRED
-from domain.patients.interview_models import (
+from domain.patients.intake_models import (
     ExtractedClinicalFields, FIELD_LABELS, FIELD_META,
 )
-from channels.web.doctor_interview.shared import _CARRY_FORWARD_FIELDS
+from channels.web.doctor_intake.shared import _CARRY_FORWARD_FIELDS
 
 
 def test_every_extracted_field_has_a_spec():
@@ -705,13 +705,13 @@ def test_examples_prefer_field_meta_example():
 
 - [ ] **Step 4: Create the templates package placeholder**
 
-`src/domain/interview/templates/__init__.py`:
+`src/domain/intake/templates/__init__.py`:
 
 ```python
 """Template registry. Populated by templates/medical_general.py + future variants."""
 from __future__ import annotations
 
-from domain.interview.protocols import Template
+from domain.intake.protocols import Template
 
 
 class UnknownTemplate(KeyError):
@@ -729,7 +729,7 @@ def get_template(template_id: str) -> Template:
 
 - [ ] **Step 5: Build `MEDICAL_FIELDS` in `medical_general.py`**
 
-`src/domain/interview/templates/medical_general.py`:
+`src/domain/intake/templates/medical_general.py`:
 
 ```python
 """GeneralMedicalTemplate — Phase 1 thin-stub implementation.
@@ -741,7 +741,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from domain.interview.protocols import (
+from domain.intake.protocols import (
     BatchExtractor, CompletenessState, EngineConfig, FieldExtractor, FieldSpec,
     Mode, Phase, PersistRef, PostConfirmHook, SessionState, Template, Writer,
 )
@@ -749,8 +749,8 @@ from domain.interview.protocols import (
 # ---- field specs ------------------------------------------------------------
 
 from domain.patients.completeness import APPENDABLE, REQUIRED
-from domain.patients.interview_models import FIELD_LABELS, FIELD_META
-from channels.web.doctor_interview.shared import _CARRY_FORWARD_FIELDS
+from domain.patients.intake_models import FIELD_LABELS, FIELD_META
+from channels.web.doctor_intake.shared import _CARRY_FORWARD_FIELDS
 
 
 def _build_medical_fields() -> list[FieldSpec]:
@@ -814,10 +814,10 @@ If any test fails, the mismatch is between the derivation rules above and the ac
 - [ ] **Step 7: Commit**
 
 ```
-git add src/domain/interview/templates/__init__.py \
-        src/domain/interview/templates/medical_general.py \
+git add src/domain/intake/templates/__init__.py \
+        src/domain/intake/templates/medical_general.py \
         tests/core/test_medical_field_specs.py
-git commit -m "feat(interview): derive MEDICAL_FIELDS from scattered medical metadata"
+git commit -m "feat(intake): derive MEDICAL_FIELDS from scattered medical metadata"
 ```
 
 ---
@@ -825,7 +825,7 @@ git commit -m "feat(interview): derive MEDICAL_FIELDS from scattered medical met
 ## Task 4: `GeneralMedicalExtractor` — delegating FieldExtractor
 
 **Files:**
-- Modify: `src/domain/interview/templates/medical_general.py` (append class)
+- Modify: `src/domain/intake/templates/medical_general.py` (append class)
 - Create: `tests/core/test_medical_extractor.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -845,8 +845,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from domain.interview.protocols import CompletenessState, SessionState
-from domain.interview.templates.medical_general import (
+from domain.intake.protocols import CompletenessState, SessionState
+from domain.intake.templates.medical_general import (
     GeneralMedicalExtractor, MEDICAL_FIELDS,
 )
 
@@ -864,7 +864,7 @@ def test_merge_delegates_to_completeness_merge_extracted(extractor):
     # merge_extracted mutates in-place; the delegating wrapper returns the
     # same dict after mutation.
     with patch(
-        "domain.interview.templates.medical_general._merge_extracted",
+        "domain.intake.templates.medical_general._merge_extracted",
     ) as mock_merge:
         collected = {"chief_complaint": "头痛"}
         extracted = {"present_illness": "3天"}
@@ -883,7 +883,7 @@ def test_completeness_delegates_to_get_completeness_state(extractor):
         "next_focus": "past_history",
     }
     with patch(
-        "domain.interview.templates.medical_general._get_completeness_state",
+        "domain.intake.templates.medical_general._get_completeness_state",
         return_value=fake_state,
     ) as mock_get:
         state = extractor.completeness({"chief_complaint": "x"}, "patient")
@@ -898,7 +898,7 @@ def test_completeness_delegates_to_get_completeness_state(extractor):
 def test_next_phase_returns_single_default_phase_for_now(extractor):
     session = SessionState(
         id="s1", doctor_id="d", patient_id=None, mode="patient",
-        status="interviewing", template_id="medical_general_v1",
+        status="active", template_id="medical_general_v1",
         collected={}, conversation=[], turn_count=0,
     )
     # Phase 1 doesn't implement real phase transitions — it returns the
@@ -912,7 +912,7 @@ async def test_prompt_partial_is_awaitable_and_returns_messages(extractor):
     would have produced. Phase 1 forwards to the composer directly so the
     output is byte-identical."""
     with patch(
-        "domain.interview.templates.medical_general._compose_for_patient_interview",
+        "domain.intake.templates.medical_general._compose_for_patient_intake",
     ) as mock_compose:
         mock_compose.return_value = [
             {"role": "system", "content": "..."},
@@ -932,10 +932,10 @@ async def test_prompt_partial_is_awaitable_and_returns_messages(extractor):
 @pytest.mark.asyncio
 async def test_prompt_partial_routes_doctor_mode_to_doctor_composer(extractor):
     with patch(
-        "domain.interview.templates.medical_general._compose_for_doctor_interview",
+        "domain.intake.templates.medical_general._compose_for_doctor_intake",
     ) as mock_doc, \
          patch(
-        "domain.interview.templates.medical_general._compose_for_patient_interview",
+        "domain.intake.templates.medical_general._compose_for_patient_intake",
     ) as mock_pat:
         mock_doc.return_value = []
         await extractor.prompt_partial(
@@ -955,7 +955,7 @@ async def test_prompt_partial_routes_doctor_mode_to_doctor_composer(extractor):
 
 - [ ] **Step 3: Append `GeneralMedicalExtractor` to `medical_general.py`**
 
-Append to `src/domain/interview/templates/medical_general.py`:
+Append to `src/domain/intake/templates/medical_general.py`:
 
 ```python
 # ---- extractor -------------------------------------------------------------
@@ -965,8 +965,8 @@ from domain.patients.completeness import (
     merge_extracted as _merge_extracted,
 )
 from agent.prompt_composer import (
-    compose_for_doctor_interview as _compose_for_doctor_interview,
-    compose_for_patient_interview as _compose_for_patient_interview,
+    compose_for_doctor_intake as _compose_for_doctor_intake,
+    compose_for_patient_intake as _compose_for_patient_intake,
 )
 
 
@@ -992,10 +992,10 @@ class GeneralMedicalExtractor:
         # (Task 10) calls this helper with the full set of kwargs the
         # composer expects, threaded from the SessionState it already has.
         if mode == "doctor":
-            return await _compose_for_doctor_interview(**_composer_kwargs(
+            return await _compose_for_doctor_intake(**_composer_kwargs(
                 collected, history, phase, mode,
             ))
-        return await _compose_for_patient_interview(**_composer_kwargs(
+        return await _compose_for_patient_intake(**_composer_kwargs(
             collected, history, phase, mode,
         ))
 
@@ -1049,9 +1049,9 @@ def _composer_kwargs(
 - [ ] **Step 5: Commit**
 
 ```
-git add src/domain/interview/templates/medical_general.py \
+git add src/domain/intake/templates/medical_general.py \
         tests/core/test_medical_extractor.py
-git commit -m "feat(interview): add GeneralMedicalExtractor — thin-stub delegator"
+git commit -m "feat(intake): add GeneralMedicalExtractor — thin-stub delegator"
 ```
 
 ---
@@ -1059,10 +1059,10 @@ git commit -m "feat(interview): add GeneralMedicalExtractor — thin-stub delega
 ## Task 5: `MedicalBatchExtractor`
 
 **Files:**
-- Modify: `src/domain/interview/templates/medical_general.py`
+- Modify: `src/domain/intake/templates/medical_general.py`
 - Create: `tests/core/test_medical_batch_extractor.py`
 
-The existing `batch_extract_from_transcript` lives in `src/domain/patients/interview_summary.py`. It takes `(conversation, patient_info, mode)` and returns either a dict of extracted fields or `None` on failure. The `MedicalBatchExtractor.extract` protocol signature matches almost directly — only the `context` → `patient_info` name differs.
+The existing `batch_extract_from_transcript` lives in `src/domain/patients/intake_summary.py`. It takes `(conversation, patient_info, mode)` and returns either a dict of extracted fields or `None` on failure. The `MedicalBatchExtractor.extract` protocol signature matches almost directly — only the `context` → `patient_info` name differs.
 
 - [ ] **Step 1: Write failing test**
 
@@ -1076,13 +1076,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from domain.interview.templates.medical_general import MedicalBatchExtractor
+from domain.intake.templates.medical_general import MedicalBatchExtractor
 
 
 @pytest.mark.asyncio
 async def test_extract_delegates_with_patient_info_rename():
     with patch(
-        "domain.interview.templates.medical_general._batch_extract_from_transcript",
+        "domain.intake.templates.medical_general._batch_extract_from_transcript",
         new=AsyncMock(return_value={"chief_complaint": "头痛"}),
     ) as mock_batch:
         be = MedicalBatchExtractor()
@@ -1103,7 +1103,7 @@ async def test_extract_delegates_with_patient_info_rename():
 @pytest.mark.asyncio
 async def test_extract_propagates_none_on_empty_result():
     with patch(
-        "domain.interview.templates.medical_general._batch_extract_from_transcript",
+        "domain.intake.templates.medical_general._batch_extract_from_transcript",
         new=AsyncMock(return_value=None),
     ):
         be = MedicalBatchExtractor()
@@ -1120,7 +1120,7 @@ async def test_extract_propagates_none_on_empty_result():
 ```python
 # ---- batch extractor -------------------------------------------------------
 
-from domain.patients.interview_summary import (
+from domain.patients.intake_summary import (
     batch_extract_from_transcript as _batch_extract_from_transcript,
 )
 
@@ -1144,9 +1144,9 @@ class MedicalBatchExtractor:
 - [ ] **Step 5: Commit**
 
 ```
-git add src/domain/interview/templates/medical_general.py \
+git add src/domain/intake/templates/medical_general.py \
         tests/core/test_medical_batch_extractor.py
-git commit -m "feat(interview): add MedicalBatchExtractor — delegates to existing batch extract"
+git commit -m "feat(intake): add MedicalBatchExtractor — delegates to existing batch extract"
 ```
 
 ---
@@ -1154,7 +1154,7 @@ git commit -m "feat(interview): add MedicalBatchExtractor — delegates to exist
 ## Task 6: `MedicalRecordWriter` — persist + deferred patient creation
 
 **Files:**
-- Modify: `src/domain/interview/templates/medical_general.py`
+- Modify: `src/domain/intake/templates/medical_general.py`
 - Create: `tests/core/test_medical_writer.py`
 
 The writer absorbs two pre-Phase-1 concerns from `confirm.py`:
@@ -1185,8 +1185,8 @@ from db.engine import AsyncSessionLocal
 from db.models.doctor import Doctor
 from db.models.patient import Patient
 from db.models.records import MedicalRecordDB
-from domain.interview.protocols import PersistRef, SessionState
-from domain.interview.templates.medical_general import MedicalRecordWriter
+from domain.intake.protocols import PersistRef, SessionState
+from domain.intake.templates.medical_general import MedicalRecordWriter
 
 
 def _session(**over) -> SessionState:
@@ -1195,7 +1195,7 @@ def _session(**over) -> SessionState:
         doctor_id=f"doc_{uuid.uuid4().hex[:8]}",
         patient_id=None,
         mode="doctor",
-        status="interviewing",
+        status="active",
         template_id="medical_general_v1",
         collected={},
         conversation=[],
@@ -1321,14 +1321,14 @@ async def test_persist_raises_422_when_no_patient_name():
 from fastapi import HTTPException
 
 from agent.tools.resolve import resolve as _resolve_patient
-from channels.web.doctor_interview.shared import _build_clinical_text
+from channels.web.doctor_intake.shared import _build_clinical_text
 from db.crud.doctor import _ensure_doctor_exists
 from db.engine import AsyncSessionLocal
 from db.models.records import MedicalRecordDB, RecordStatus
 
 
 class MedicalRecordWriter:
-    """Phase 1 writer. Persists the confirmed interview to medical_records.
+    """Phase 1 writer. Persists the confirmed intake to medical_records.
 
     Absorbs deferred patient creation from confirm.py:72-101. Does NOT fire
     diagnosis / notifications / task generation — those are separate hooks.
@@ -1354,7 +1354,7 @@ class MedicalRecordWriter:
             record = MedicalRecordDB(
                 doctor_id=session.doctor_id,
                 patient_id=patient_id,
-                record_type="interview_summary",
+                record_type="intake_summary",
                 status=status,
                 content=clinical_text,
                 chief_complaint=collected.get("chief_complaint"),
@@ -1419,9 +1419,9 @@ class MedicalRecordWriter:
 - [ ] **Step 5: Commit**
 
 ```
-git add src/domain/interview/templates/medical_general.py \
+git add src/domain/intake/templates/medical_general.py \
         tests/core/test_medical_writer.py
-git commit -m "feat(interview): add MedicalRecordWriter — absorbs deferred patient creation"
+git commit -m "feat(intake): add MedicalRecordWriter — absorbs deferred patient creation"
 ```
 
 ---
@@ -1429,14 +1429,14 @@ git commit -m "feat(interview): add MedicalRecordWriter — absorbs deferred pat
 ## Task 7: Post-confirm hooks — diagnosis, tasks, notify
 
 **Files:**
-- Create: `src/domain/interview/hooks/__init__.py`
-- Create: `src/domain/interview/hooks/medical.py`
+- Create: `src/domain/intake/hooks/__init__.py`
+- Create: `src/domain/intake/hooks/medical.py`
 - Create: `tests/core/test_medical_hooks.py`
 
 Three hooks, one effect each. Each is a thin forward to an existing codepath:
-- `TriggerDiagnosisPipelineHook.run` → `safe_create_task(run_diagnosis(...))` (from `interview_summary.py:280-288`)
+- `TriggerDiagnosisPipelineHook.run` → `safe_create_task(run_diagnosis(...))` (from `intake_summary.py:280-288`)
 - `GenerateFollowupTasksHook.run` → `generate_tasks_from_record(...)` (from `confirm.py:160-178`)
-- `NotifyDoctorHook.run` → `send_doctor_notification(...)` (from `interview_summary.py:292-299`)
+- `NotifyDoctorHook.run` → `send_doctor_notification(...)` (from `intake_summary.py:292-299`)
 
 All three must swallow exceptions and log — the engine's loop treats hook failure as non-blocking per spec §5d.
 
@@ -1455,10 +1455,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from domain.interview.hooks.medical import (
+from domain.intake.hooks.medical import (
     GenerateFollowupTasksHook, NotifyDoctorHook, TriggerDiagnosisPipelineHook,
 )
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.protocols import PersistRef, SessionState
 
 
 def _session() -> SessionState:
@@ -1473,9 +1473,9 @@ def _session() -> SessionState:
 async def test_trigger_diagnosis_calls_safe_create_task():
     hook = TriggerDiagnosisPipelineHook()
     with patch(
-        "domain.interview.hooks.medical._safe_create_task",
+        "domain.intake.hooks.medical._safe_create_task",
     ) as mock_safe, patch(
-        "domain.interview.hooks.medical._run_diagnosis",
+        "domain.intake.hooks.medical._run_diagnosis",
     ) as mock_run:
         mock_run.return_value = "coro-sentinel"
         await hook.run(_session(), PersistRef(kind="medical_record", id=99), {})
@@ -1491,7 +1491,7 @@ async def test_trigger_diagnosis_calls_safe_create_task():
 async def test_trigger_diagnosis_swallows_exceptions():
     hook = TriggerDiagnosisPipelineHook()
     with patch(
-        "domain.interview.hooks.medical._safe_create_task",
+        "domain.intake.hooks.medical._safe_create_task",
         side_effect=RuntimeError("boom"),
     ):
         # Must NOT raise
@@ -1502,7 +1502,7 @@ async def test_trigger_diagnosis_swallows_exceptions():
 async def test_notify_doctor_sends_notification():
     hook = NotifyDoctorHook()
     with patch(
-        "domain.interview.hooks.medical._send_doctor_notification",
+        "domain.intake.hooks.medical._send_doctor_notification",
         new=AsyncMock(),
     ) as mock_notify:
         collected = {"_patient_name": "王五"}
@@ -1518,7 +1518,7 @@ async def test_notify_doctor_sends_notification():
 async def test_notify_doctor_swallows_exceptions():
     hook = NotifyDoctorHook()
     with patch(
-        "domain.interview.hooks.medical._send_doctor_notification",
+        "domain.intake.hooks.medical._send_doctor_notification",
         new=AsyncMock(side_effect=RuntimeError("boom")),
     ):
         await hook.run(_session(), PersistRef(kind="medical_record", id=99), {})
@@ -1528,10 +1528,10 @@ async def test_notify_doctor_swallows_exceptions():
 async def test_generate_followup_tasks_calls_generator():
     hook = GenerateFollowupTasksHook()
     with patch(
-        "domain.interview.hooks.medical._get_patient_for_doctor",
+        "domain.intake.hooks.medical._get_patient_for_doctor",
         new=AsyncMock(return_value=type("P", (), {"name": "赵六"})()),
     ), patch(
-        "domain.interview.hooks.medical._generate_tasks_from_record",
+        "domain.intake.hooks.medical._generate_tasks_from_record",
         new=AsyncMock(return_value=[1, 2, 3]),
     ) as mock_gen:
         collected = {
@@ -1552,7 +1552,7 @@ async def test_generate_followup_tasks_calls_generator():
 async def test_generate_followup_tasks_swallows_exceptions():
     hook = GenerateFollowupTasksHook()
     with patch(
-        "domain.interview.hooks.medical._get_patient_for_doctor",
+        "domain.intake.hooks.medical._get_patient_for_doctor",
         new=AsyncMock(side_effect=RuntimeError("boom")),
     ):
         await hook.run(_session(), PersistRef(kind="medical_record", id=99), {})
@@ -1562,13 +1562,13 @@ async def test_generate_followup_tasks_swallows_exceptions():
 
 - [ ] **Step 3: Create the hooks package**
 
-`src/domain/interview/hooks/__init__.py`:
+`src/domain/intake/hooks/__init__.py`:
 
 ```python
 """Post-confirm hooks, split per domain concern."""
 ```
 
-`src/domain/interview/hooks/medical.py`:
+`src/domain/intake/hooks/medical.py`:
 
 ```python
 """Medical template post-confirm hooks.
@@ -1581,7 +1581,7 @@ from __future__ import annotations
 from db.crud.patient import get_patient_for_doctor as _get_patient_for_doctor
 from db.engine import AsyncSessionLocal
 from domain.diagnosis import run_diagnosis as _run_diagnosis
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.protocols import PersistRef, SessionState
 from domain.tasks.from_record import (
     generate_tasks_from_record as _generate_tasks_from_record,
 )
@@ -1605,9 +1605,9 @@ class TriggerDiagnosisPipelineHook:
                 _run_diagnosis(doctor_id=session.doctor_id, record_id=ref.id),
                 name=f"diagnosis-{ref.id}",
             )
-            log(f"[interview] diagnosis triggered for record={ref.id}")
+            log(f"[intake] diagnosis triggered for record={ref.id}")
         except Exception as e:
-            log(f"[interview] diagnosis trigger failed: {e}", level="warning")
+            log(f"[intake] diagnosis trigger failed: {e}", level="warning")
 
 
 class NotifyDoctorHook:
@@ -1626,7 +1626,7 @@ class NotifyDoctorHook:
                 f"患者【{patient_name}】已完成预问诊，请查看待审核记录。",
             )
         except Exception as e:
-            log(f"[interview] doctor notification failed: {e}", level="warning")
+            log(f"[intake] doctor notification failed: {e}", level="warning")
 
 
 class GenerateFollowupTasksHook:
@@ -1654,12 +1654,12 @@ class GenerateFollowupTasksHook:
             )
             if task_ids:
                 log(
-                    f"[interview-confirm] auto-created {len(task_ids)} "
+                    f"[intake-confirm] auto-created {len(task_ids)} "
                     f"follow-up tasks: {task_ids}"
                 )
         except Exception as e:
             log(
-                f"[interview-confirm] task generation failed "
+                f"[intake-confirm] task generation failed "
                 f"(non-blocking): {e}",
                 level="warning",
             )
@@ -1670,10 +1670,10 @@ class GenerateFollowupTasksHook:
 - [ ] **Step 5: Commit**
 
 ```
-git add src/domain/interview/hooks/__init__.py \
-        src/domain/interview/hooks/medical.py \
+git add src/domain/intake/hooks/__init__.py \
+        src/domain/intake/hooks/medical.py \
         tests/core/test_medical_hooks.py
-git commit -m "feat(interview): add medical post-confirm hooks — diagnosis/notify/followup"
+git commit -m "feat(intake): add medical post-confirm hooks — diagnosis/notify/followup"
 ```
 
 ---
@@ -1681,8 +1681,8 @@ git commit -m "feat(interview): add medical post-confirm hooks — diagnosis/not
 ## Task 8: Template binding + registry
 
 **Files:**
-- Modify: `src/domain/interview/templates/medical_general.py`
-- Modify: `src/domain/interview/templates/__init__.py`
+- Modify: `src/domain/intake/templates/medical_general.py`
+- Modify: `src/domain/intake/templates/__init__.py`
 - Create: `tests/core/test_template_registry.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -1695,14 +1695,14 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.templates import (
+from domain.intake.templates import (
     TEMPLATES, UnknownTemplate, get_template,
 )
-from domain.interview.templates.medical_general import (
+from domain.intake.templates.medical_general import (
     GeneralMedicalExtractor, GeneralMedicalTemplate, MedicalBatchExtractor,
     MedicalRecordWriter,
 )
-from domain.interview.hooks.medical import (
+from domain.intake.hooks.medical import (
     GenerateFollowupTasksHook, NotifyDoctorHook, TriggerDiagnosisPipelineHook,
 )
 
@@ -1766,7 +1766,7 @@ def test_registry_is_dict_of_exactly_one_template_phase1():
 
 from dataclasses import dataclass, field
 
-from domain.interview.hooks.medical import (
+from domain.intake.hooks.medical import (
     GenerateFollowupTasksHook, NotifyDoctorHook, TriggerDiagnosisPipelineHook,
 )
 
@@ -1804,14 +1804,14 @@ class GeneralMedicalTemplate:
 
 - [ ] **Step 4: Register in the registry**
 
-Modify `src/domain/interview/templates/__init__.py`:
+Modify `src/domain/intake/templates/__init__.py`:
 
 ```python
 """Template registry. Populated on import."""
 from __future__ import annotations
 
-from domain.interview.protocols import Template
-from domain.interview.templates.medical_general import GeneralMedicalTemplate
+from domain.intake.protocols import Template
+from domain.intake.templates.medical_general import GeneralMedicalTemplate
 
 
 class UnknownTemplate(KeyError):
@@ -1834,21 +1834,21 @@ def get_template(template_id: str) -> Template:
 - [ ] **Step 6: Commit**
 
 ```
-git add src/domain/interview/templates/__init__.py \
-        src/domain/interview/templates/medical_general.py \
+git add src/domain/intake/templates/__init__.py \
+        src/domain/intake/templates/medical_general.py \
         tests/core/test_template_registry.py
-git commit -m "feat(interview): bind GeneralMedicalTemplate + register medical_general_v1"
+git commit -m "feat(intake): bind GeneralMedicalTemplate + register medical_general_v1"
 ```
 
 ---
 
-## Task 9: `InterviewEngine` skeleton + `next_turn`
+## Task 9: `IntakeEngine` skeleton + `next_turn`
 
 **Files:**
-- Create: `src/domain/interview/engine.py`
-- Create: `tests/core/test_interview_engine_turn.py`
+- Create: `src/domain/intake/engine.py`
+- Create: `tests/core/test_intake_engine_turn.py`
 
-The engine's `next_turn` is a thin reframe of `_interview_turn_inner` from `interview_turn.py`. It:
+The engine's `next_turn` is a thin reframe of `_intake_turn_inner` from `intake_turn.py`. It:
 1. Acquires the session lock (unchanged).
 2. Loads the session.
 3. Appends user message to conversation, increments turn_count.
@@ -1859,14 +1859,14 @@ The engine's `next_turn` is a thin reframe of `_interview_turn_inner` from `inte
 8. Persists session.
 9. Returns `TurnResult`.
 
-For Phase 1, to avoid rewriting the LLM call loop from scratch (which is 70+ lines of guards, retries, post-processing), the engine's `next_turn` **forwards to the existing `interview_turn()` function** and wraps its response into a `TurnResult`. The protocol is preserved; Phase 2 will inline the loop into the engine using the template's extractor.
+For Phase 1, to avoid rewriting the LLM call loop from scratch (which is 70+ lines of guards, retries, post-processing), the engine's `next_turn` **forwards to the existing `intake_turn()` function** and wraps its response into a `TurnResult`. The protocol is preserved; Phase 2 will inline the loop into the engine using the template's extractor.
 
 - [ ] **Step 1: Write failing tests**
 
-`tests/core/test_interview_engine_turn.py`:
+`tests/core/test_intake_engine_turn.py`:
 
 ```python
-"""InterviewEngine.next_turn — Phase 1 forwards to legacy interview_turn().
+"""IntakeEngine.next_turn — Phase 1 forwards to legacy intake_turn().
 
 These tests confirm the engine's contract (input session_id + text →
 TurnResult) and that the legacy function is still the execution engine.
@@ -1877,13 +1877,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from domain.interview.engine import InterviewEngine
-from domain.interview.protocols import CompletenessState, TurnResult
+from domain.intake.engine import IntakeEngine
+from domain.intake.protocols import CompletenessState, TurnResult
 
 
 @pytest.fixture
 def engine():
-    return InterviewEngine()
+    return IntakeEngine()
 
 
 @pytest.mark.asyncio
@@ -1892,7 +1892,7 @@ async def test_next_turn_returns_turnresult(engine):
         "reply": "ok",
         "collected": {"chief_complaint": "头痛"},
         "progress": {"filled": 1, "total": 14},
-        "status": "interviewing",
+        "status": "active",
         "missing": [],
         "suggestions": ["休息"],
         "ready_to_review": False,
@@ -1903,7 +1903,7 @@ async def test_next_turn_returns_turnresult(engine):
     })()
 
     with patch(
-        "domain.interview.engine._legacy_interview_turn",
+        "domain.intake.engine._legacy_intake_turn",
         new=AsyncMock(return_value=fake_legacy_response),
     ):
         result = await engine.next_turn(
@@ -1920,12 +1920,12 @@ async def test_next_turn_returns_turnresult(engine):
 async def test_next_turn_surfaces_patient_metadata(engine):
     fake = type("R", (), {
         "reply": "", "collected": {}, "progress": {"filled": 0, "total": 7},
-        "status": "interviewing", "missing": [], "suggestions": [],
+        "status": "active", "missing": [], "suggestions": [],
         "ready_to_review": False, "retryable": False,
         "patient_name": "张三", "patient_gender": "男", "patient_age": "50",
     })()
     with patch(
-        "domain.interview.engine._legacy_interview_turn",
+        "domain.intake.engine._legacy_intake_turn",
         new=AsyncMock(return_value=fake),
     ):
         result = await engine.next_turn("s1", "x")
@@ -1944,7 +1944,7 @@ async def test_next_turn_state_reflects_completeness_can_complete(engine):
         "patient_name": None, "patient_gender": None, "patient_age": None,
     })()
     with patch(
-        "domain.interview.engine._legacy_interview_turn",
+        "domain.intake.engine._legacy_intake_turn",
         new=AsyncMock(return_value=fake),
     ):
         result = await engine.next_turn("s1", "x")
@@ -1955,10 +1955,10 @@ async def test_next_turn_state_reflects_completeness_can_complete(engine):
 
 - [ ] **Step 3: Create `engine.py`**
 
-`src/domain/interview/engine.py`:
+`src/domain/intake/engine.py`:
 
 ```python
-"""InterviewEngine — template-agnostic orchestrator.
+"""IntakeEngine — template-agnostic orchestrator.
 
 Spec §5c (next_turn), §5d (confirm). Phase 1 forwards heavy lifting to
 legacy functions; Phase 2 inlines them using the template's protocols.
@@ -1967,23 +1967,23 @@ from __future__ import annotations
 
 from typing import Any
 
-from domain.interview.protocols import (
+from domain.intake.protocols import (
     CompletenessState, PersistRef, SessionState, Template, TurnResult,
 )
-from domain.interview.templates import get_template
+from domain.intake.templates import get_template
 
 # Legacy imports — renamed with leading underscore to make Phase 2 sweep obvious.
-from domain.patients.interview_turn import interview_turn as _legacy_interview_turn
-from domain.patients.interview_session import (
+from domain.patients.intake_turn import intake_turn as _legacy_intake_turn
+from domain.patients.intake_session import (
     load_session as _load_session,
     save_session as _save_session,
 )
 
 
-class InterviewEngine:
+class IntakeEngine:
     """Generic engine. One instance serves every template.
 
-    Phase 1: turn loop forwards to domain.patients.interview_turn.interview_turn.
+    Phase 1: turn loop forwards to domain.patients.intake_turn.intake_turn.
     Phase 2: inlines the loop using template.extractor.* methods.
     """
 
@@ -1993,7 +1993,7 @@ class InterviewEngine:
         user_input: str,
     ) -> TurnResult:
         """Execute one turn. Phase 1 is a structural passthrough."""
-        raw = await _legacy_interview_turn(session_id, user_input)
+        raw = await _legacy_intake_turn(session_id, user_input)
 
         state = CompletenessState(
             can_complete=bool(raw.ready_to_review),
@@ -2033,20 +2033,20 @@ class InterviewEngine:
 - [ ] **Step 5: Commit**
 
 ```
-git add src/domain/interview/engine.py \
-        tests/core/test_interview_engine_turn.py
-git commit -m "feat(interview): add InterviewEngine.next_turn — Phase 1 legacy forwarder"
+git add src/domain/intake/engine.py \
+        tests/core/test_intake_engine_turn.py
+git commit -m "feat(intake): add IntakeEngine.next_turn — Phase 1 legacy forwarder"
 ```
 
 ---
 
-## Task 10: `InterviewEngine.confirm` — mode-aware orchestration
+## Task 10: `IntakeEngine.confirm` — mode-aware orchestration
 
 **Files:**
-- Modify: `src/domain/interview/engine.py`
-- Create: `tests/core/test_interview_engine_confirm.py`
+- Modify: `src/domain/intake/engine.py`
+- Create: `tests/core/test_intake_engine_confirm.py`
 
-The engine's `confirm` replaces the hand-rolled logic in `confirm.py` + `interview_summary.submit_interview`. Flow:
+The engine's `confirm` replaces the hand-rolled logic in `confirm.py` + `intake_summary.submit_intake`. Flow:
 
 1. Load the session; get the template.
 2. Merge doctor edits (if any) into `collected` via `template.extractor.merge`.
@@ -2060,10 +2060,10 @@ Special case: `override_patient_name` from the doctor confirm endpoint — if pr
 
 - [ ] **Step 1: Write failing tests**
 
-`tests/core/test_interview_engine_confirm.py`:
+`tests/core/test_intake_engine_confirm.py`:
 
 ```python
-"""InterviewEngine.confirm — mode-aware orchestration.
+"""IntakeEngine.confirm — mode-aware orchestration.
 
 Spec §5d. Patient mode fires diagnosis + notify; doctor mode fires only
 follow-up tasks (asymmetric — see §8 open question).
@@ -2074,14 +2074,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from domain.interview.engine import InterviewEngine
-from domain.interview.protocols import PersistRef, SessionState
+from domain.intake.engine import IntakeEngine
+from domain.intake.protocols import PersistRef, SessionState
 
 
 def _session(mode="doctor", patient_id=42):
     return SessionState(
         id="s1", doctor_id="d1", patient_id=patient_id, mode=mode,
-        status="interviewing", template_id="medical_general_v1",
+        status="active", template_id="medical_general_v1",
         collected={"_patient_name": "张三", "chief_complaint": "头痛"},
         conversation=[{"role": "user", "content": "头痛"}],
         turn_count=3,
@@ -2090,7 +2090,7 @@ def _session(mode="doctor", patient_id=42):
 
 @pytest.fixture
 def engine():
-    return InterviewEngine()
+    return IntakeEngine()
 
 
 @pytest.mark.asyncio
@@ -2099,25 +2099,25 @@ async def test_confirm_runs_batch_extract_when_template_has_one(engine):
     fake_ref = PersistRef(kind="medical_record", id=99)
 
     with patch(
-        "domain.interview.engine._load_session_state",
+        "domain.intake.engine._load_session_state",
         new=AsyncMock(return_value=sess),
     ), patch(
-        "domain.interview.engine._save_session_state",
+        "domain.intake.engine._save_session_state",
         new=AsyncMock(),
     ), patch(
-        "domain.interview.engine._release_session_lock",
+        "domain.intake.engine._release_session_lock",
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalBatchExtractor"]).MedicalBatchExtractor,
         "extract",
         new=AsyncMock(return_value={"chief_complaint": "头痛 (batch)"}),
     ) as mock_batch, patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalRecordWriter"]).MedicalRecordWriter,
         "persist",
         new=AsyncMock(return_value=fake_ref),
     ) as mock_persist, patch(
-        "domain.interview.hooks.medical.GenerateFollowupTasksHook.run",
+        "domain.intake.hooks.medical.GenerateFollowupTasksHook.run",
         new=AsyncMock(),
     ) as mock_hook:
         ref = await engine.confirm(session_id="s1")
@@ -2135,31 +2135,31 @@ async def test_confirm_patient_mode_fires_diagnosis_and_notify(engine):
     fake_ref = PersistRef(kind="medical_record", id=100)
 
     with patch(
-        "domain.interview.engine._load_session_state",
+        "domain.intake.engine._load_session_state",
         new=AsyncMock(return_value=sess),
     ), patch(
-        "domain.interview.engine._save_session_state",
+        "domain.intake.engine._save_session_state",
         new=AsyncMock(),
     ), patch(
-        "domain.interview.engine._release_session_lock",
+        "domain.intake.engine._release_session_lock",
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalBatchExtractor"]).MedicalBatchExtractor,
         "extract",
         new=AsyncMock(return_value=None),
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalRecordWriter"]).MedicalRecordWriter,
         "persist",
         new=AsyncMock(return_value=fake_ref),
     ), patch(
-        "domain.interview.hooks.medical.TriggerDiagnosisPipelineHook.run",
+        "domain.intake.hooks.medical.TriggerDiagnosisPipelineHook.run",
         new=AsyncMock(),
     ) as mock_diag, patch(
-        "domain.interview.hooks.medical.NotifyDoctorHook.run",
+        "domain.intake.hooks.medical.NotifyDoctorHook.run",
         new=AsyncMock(),
     ) as mock_notify, patch(
-        "domain.interview.hooks.medical.GenerateFollowupTasksHook.run",
+        "domain.intake.hooks.medical.GenerateFollowupTasksHook.run",
         new=AsyncMock(),
     ) as mock_followup:
         await engine.confirm("s1")
@@ -2185,25 +2185,25 @@ async def test_confirm_preserves_underscore_metadata_across_batch_extract(engine
         return fake_ref
 
     with patch(
-        "domain.interview.engine._load_session_state",
+        "domain.intake.engine._load_session_state",
         new=AsyncMock(return_value=sess),
     ), patch(
-        "domain.interview.engine._save_session_state",
+        "domain.intake.engine._save_session_state",
         new=AsyncMock(),
     ), patch(
-        "domain.interview.engine._release_session_lock",
+        "domain.intake.engine._release_session_lock",
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalBatchExtractor"]).MedicalBatchExtractor,
         "extract",
         new=AsyncMock(return_value={"chief_complaint": "NEW"}),
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalRecordWriter"]).MedicalRecordWriter,
         "persist",
         _capture_persist,
     ), patch(
-        "domain.interview.hooks.medical.GenerateFollowupTasksHook.run",
+        "domain.intake.hooks.medical.GenerateFollowupTasksHook.run",
         new=AsyncMock(),
     ):
         await engine.confirm("s1")
@@ -2222,25 +2222,25 @@ async def test_confirm_hook_failure_does_not_unwind_persist(engine):
     fake_ref = PersistRef(kind="medical_record", id=88)
 
     with patch(
-        "domain.interview.engine._load_session_state",
+        "domain.intake.engine._load_session_state",
         new=AsyncMock(return_value=sess),
     ), patch(
-        "domain.interview.engine._save_session_state",
+        "domain.intake.engine._save_session_state",
         new=AsyncMock(),
     ), patch(
-        "domain.interview.engine._release_session_lock",
+        "domain.intake.engine._release_session_lock",
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalBatchExtractor"]).MedicalBatchExtractor,
         "extract",
         new=AsyncMock(return_value=None),
     ), patch.object(
-        __import__("domain.interview.templates.medical_general",
+        __import__("domain.intake.templates.medical_general",
                    fromlist=["MedicalRecordWriter"]).MedicalRecordWriter,
         "persist",
         new=AsyncMock(return_value=fake_ref),
     ), patch(
-        "domain.interview.hooks.medical.GenerateFollowupTasksHook.run",
+        "domain.intake.hooks.medical.GenerateFollowupTasksHook.run",
         new=AsyncMock(side_effect=RuntimeError("boom")),
     ):
         # Must NOT raise
@@ -2269,7 +2269,7 @@ Replace the `NotImplementedError` stub:
         patient name into `_patient_name` before batch extract (preserves
         the current behavior at confirm.py:76-77).
         """
-        from domain.interview.templates.medical_general import (
+        from domain.intake.templates.medical_general import (
             MedicalBatchExtractor, MedicalRecordWriter,
         )
 
@@ -2325,7 +2325,7 @@ Replace the `NotImplementedError` stub:
 At the top of `engine.py`, next to the existing legacy imports:
 
 ```python
-from domain.patients.interview_turn import release_session_lock as _release_session_lock
+from domain.patients.intake_turn import release_session_lock as _release_session_lock
 
 
 async def _load_session_state(session_id: str) -> SessionState:
@@ -2361,17 +2361,17 @@ async def _save_session_state(sess: SessionState) -> None:
 
 ```
 /Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest \
-    tests/core/test_interview_engine_turn.py \
-    tests/core/test_interview_engine_confirm.py -v \
+    tests/core/test_intake_engine_turn.py \
+    tests/core/test_intake_engine_confirm.py -v \
     --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
 - [ ] **Step 6: Commit**
 
 ```
-git add src/domain/interview/engine.py \
-        tests/core/test_interview_engine_confirm.py
-git commit -m "feat(interview): add InterviewEngine.confirm — mode-aware orchestration"
+git add src/domain/intake/engine.py \
+        tests/core/test_intake_engine_confirm.py
+git commit -m "feat(intake): add IntakeEngine.confirm — mode-aware orchestration"
 ```
 
 ---
@@ -2379,14 +2379,14 @@ git commit -m "feat(interview): add InterviewEngine.confirm — mode-aware orche
 ## Task 11: Route doctor `/confirm` through the engine
 
 **Files:**
-- Modify: `src/channels/web/doctor_interview/confirm.py`
+- Modify: `src/channels/web/doctor_intake/confirm.py`
 
-**Scope note:** Phase 1 routes the `/confirm` path through `engine.confirm()` — that's where the polymorphic fan-out and asymmetric side effects live, so it's where engine routing pays off. The `/turn` endpoints continue calling `interview_turn()` directly in Phase 1; `engine.next_turn` exists (Task 9) and forwards to the same function internally, but wiring `/turn` through it yields zero structural benefit while adding response-shape translation complexity. Phase 2 inlines the turn loop into the engine using the template's extractor — at that point the `/turn` endpoints flip too.
+**Scope note:** Phase 1 routes the `/confirm` path through `engine.confirm()` — that's where the polymorphic fan-out and asymmetric side effects live, so it's where engine routing pays off. The `/turn` endpoints continue calling `intake_turn()` directly in Phase 1; `engine.next_turn` exists (Task 9) and forwards to the same function internally, but wiring `/turn` through it yields zero structural benefit while adding response-shape translation complexity. Phase 2 inlines the turn loop into the engine using the template's extractor — at that point the `/turn` endpoints flip too.
 
 - [ ] **Step 1: Inspect the current `/confirm` endpoint**
 
 ```
-sed -n '20,185p' src/channels/web/doctor_interview/confirm.py
+sed -n '20,185p' src/channels/web/doctor_intake/confirm.py
 ```
 
 Note the flow: resolve doctor → verify session → guard status/empty-collected → batch extract → deferred patient create → insert record → update patient activity → set status confirmed → release lock → generate follow-up tasks.
@@ -2395,10 +2395,10 @@ After this task, the engine owns everything from "batch extract" through "follow
 
 - [ ] **Step 2: Replace the body of `/confirm` with `engine.confirm()` + thin HTTP glue**
 
-Rewrite `src/channels/web/doctor_interview/confirm.py` to:
+Rewrite `src/channels/web/doctor_intake/confirm.py` to:
 
 ```python
-"""Doctor interview — confirm and cancel endpoints."""
+"""Doctor intake — confirm and cancel endpoints."""
 from __future__ import annotations
 
 from typing import Optional
@@ -2407,11 +2407,11 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.engine import get_db
-from domain.interview.engine import InterviewEngine
+from domain.intake.engine import IntakeEngine
 from utils.log import log
 
 from .shared import (
-    InterviewConfirmResponse,
+    IntakeConfirmResponse,
     _resolve_doctor_id,
     _verify_session,
     _build_clinical_text,
@@ -2419,11 +2419,11 @@ from .shared import (
 
 router = APIRouter()
 
-_ENGINE = InterviewEngine()
+_ENGINE = IntakeEngine()
 
 
-@router.post("/confirm", response_model=InterviewConfirmResponse)
-async def interview_confirm_endpoint(
+@router.post("/confirm", response_model=IntakeConfirmResponse)
+async def intake_confirm_endpoint(
     session_id: str = Form(...),
     doctor_id: str = Form(default=""),
     patient_name: Optional[str] = Form(default=None),
@@ -2435,7 +2435,7 @@ async def interview_confirm_endpoint(
         session_id, resolved_doctor, candidate_doctor_id=doctor_id,
     )
 
-    if session.status not in ("interviewing",):
+    if session.status not in ("active",):
         raise HTTPException(
             400, f"Session status is '{session.status}', cannot confirm",
         )
@@ -2460,7 +2460,7 @@ async def interview_confirm_endpoint(
         )
     }) if record else None
 
-    return InterviewConfirmResponse(
+    return IntakeConfirmResponse(
         status=record.status if record else "confirmed",
         preview=(preview[:200] if preview else None),
         pending_id=str(ref.id),
@@ -2468,7 +2468,7 @@ async def interview_confirm_endpoint(
 
 
 @router.post("/cancel")
-async def interview_cancel_endpoint(
+async def intake_cancel_endpoint(
     session_id: str = Form(...),
     doctor_id: str = Form(default=""),
     authorization: Optional[str] = Header(default=None),
@@ -2478,13 +2478,13 @@ async def interview_cancel_endpoint(
         session_id, resolved_doctor, candidate_doctor_id=doctor_id,
     )
 
-    from domain.patients.interview_session import save_session
-    from db.models.interview_session import InterviewStatus
+    from domain.patients.intake_session import save_session
+    from db.models.intake_session import IntakeStatus
 
-    session.status = InterviewStatus.abandoned
+    session.status = IntakeStatus.abandoned
     await save_session(session)
 
-    from domain.patients.interview_turn import release_session_lock
+    from domain.patients.intake_turn import release_session_lock
     release_session_lock(session_id)
 
     return {"status": "abandoned"}
@@ -2492,33 +2492,33 @@ async def interview_cancel_endpoint(
 
 Notice: the rewritten `/confirm` reads the freshly-inserted record from the DB after `engine.confirm` returns — the preview is now derived from the persisted row, not from `collected`. This is a deliberate simplification that also closes a latent bug where `collected` could drift from what was actually persisted.
 
-- [ ] **Step 3: Run the full interview suite**
+- [ ] **Step 3: Run the full intake suite**
 
 ```
 /Volumes/ORICO/Code/doctor-ai-agent/.venv/bin/python -m pytest \
-    tests/core/test_interview_session_mode.py \
-    tests/core/test_interview_session_template_id.py \
-    tests/core/test_interview_engine_turn.py \
-    tests/core/test_interview_engine_confirm.py \
+    tests/core/test_intake_session_mode.py \
+    tests/core/test_intake_session_template_id.py \
+    tests/core/test_intake_engine_turn.py \
+    tests/core/test_intake_engine_confirm.py \
     tests/core/test_medical_writer.py \
     tests/core/test_medical_hooks.py \
     tests/core/test_template_registry.py \
     tests/core/test_medical_extractor.py \
     tests/core/test_medical_batch_extractor.py \
     tests/core/test_medical_field_specs.py \
-    tests/core/test_interview_protocols.py \
-    tests/core/test_interview_contract.py \
+    tests/core/test_intake_protocols.py \
+    tests/core/test_intake_contract.py \
     tests/core/test_doctor_first_turn_template_id.py \
     -v --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
-All should pass. If an endpoint-level integration test exists that exercises `/confirm`, run it too — grep `tests/` for `interview_confirm_endpoint` references.
+All should pass. If an endpoint-level integration test exists that exercises `/confirm`, run it too — grep `tests/` for `intake_confirm_endpoint` references.
 
 - [ ] **Step 4: Commit**
 
 ```
-git add src/channels/web/doctor_interview/confirm.py
-git commit -m "feat(interview): route doctor /confirm through InterviewEngine"
+git add src/channels/web/doctor_intake/confirm.py
+git commit -m "feat(intake): route doctor /confirm through IntakeEngine"
 ```
 
 ---
@@ -2526,42 +2526,42 @@ git commit -m "feat(interview): route doctor /confirm through InterviewEngine"
 ## Task 12: Route patient confirm path through the engine
 
 **Files:**
-- Modify: `src/domain/patients/interview_summary.py`
+- Modify: `src/domain/patients/intake_summary.py`
 
-The patient-side confirm lives in `submit_interview()` at `src/domain/patients/interview_summary.py` (around line 200-305). It does: batch-extract, insert record, fire diagnosis, notify doctor. All of this is now the engine's job when the session is patient-mode.
+The patient-side confirm lives in `submit_intake()` at `src/domain/patients/intake_summary.py` (around line 200-305). It does: batch-extract, insert record, fire diagnosis, notify doctor. All of this is now the engine's job when the session is patient-mode.
 
-Replace the body of `submit_interview` with a thin wrapper around `engine.confirm()`. Preserve the function's return shape (`{"record_id": int, "review_id": None}`) so existing callers don't break.
+Replace the body of `submit_intake` with a thin wrapper around `engine.confirm()`. Preserve the function's return shape (`{"record_id": int, "review_id": None}`) so existing callers don't break.
 
 - [ ] **Step 1: Inspect the current function signature and return shape**
 
 ```
-grep -n "def submit_interview" src/domain/patients/interview_summary.py
-sed -n '200,310p' src/domain/patients/interview_summary.py
+grep -n "def submit_intake" src/domain/patients/intake_summary.py
+sed -n '200,310p' src/domain/patients/intake_summary.py
 ```
 
 Note the exact parameters the function takes and the callers:
 
 ```
-grep -rn "submit_interview" src --include="*.py"
+grep -rn "submit_intake" src --include="*.py"
 ```
 
-- [ ] **Step 2: Rewrite `submit_interview` as a thin engine wrapper**
+- [ ] **Step 2: Rewrite `submit_intake` as a thin engine wrapper**
 
 The function currently takes `(session_id, doctor_id, patient_id, patient_name)`. Keep that signature. Body becomes:
 
 ```python
-async def submit_interview(
+async def submit_intake(
     session_id: str,
     doctor_id: str,
     patient_id: int | None,
     patient_name: str,
 ) -> dict:
-    """Patient-side confirm. Phase 1: delegates to InterviewEngine.confirm.
+    """Patient-side confirm. Phase 1: delegates to IntakeEngine.confirm.
 
-    Preserves the return shape expected by patient_interview_routes.py.
+    Preserves the return shape expected by patient_intake_routes.py.
     """
-    from domain.interview.engine import InterviewEngine
-    engine = InterviewEngine()
+    from domain.intake.engine import IntakeEngine
+    engine = IntakeEngine()
     ref = await engine.confirm(
         session_id=session_id,
         override_patient_name=patient_name or None,
@@ -2581,13 +2581,13 @@ Remove the now-dead code below it (the hand-rolled batch-extract + insert + diag
     --rootdir=/Volumes/ORICO/Code/doctor-ai-agent
 ```
 
-All interview-related tests should still pass.
+All intake-related tests should still pass.
 
 - [ ] **Step 4: Commit**
 
 ```
-git add src/domain/patients/interview_summary.py
-git commit -m "feat(interview): route patient submit_interview through InterviewEngine"
+git add src/domain/patients/intake_summary.py
+git commit -m "feat(intake): route patient submit_intake through IntakeEngine"
 ```
 
 ---
@@ -2627,17 +2627,17 @@ ls tests/sim/ 2>/dev/null
 - [ ] **Step 4: Invariant grep**
 
 ```
-# The legacy interview_turn() is still reachable (engine wraps it)
-grep -rn "from domain.patients.interview_turn import interview_turn" src
+# The legacy intake_turn() is still reachable (engine wraps it)
+grep -rn "from domain.patients.intake_turn import intake_turn" src
 
 # The engine exists and is wired into confirm paths
-grep -rn "InterviewEngine" src --include="*.py"
+grep -rn "IntakeEngine" src --include="*.py"
 
-# No accidental direct import of legacy submit_interview inside the engine
-grep -n "submit_interview" src/domain/interview/engine.py
+# No accidental direct import of legacy submit_intake inside the engine
+grep -n "submit_intake" src/domain/intake/engine.py
 ```
 
-Expected: `submit_interview` should NOT appear in `engine.py`. The engine owns confirm; `submit_interview` calls the engine, not the other way around.
+Expected: `submit_intake` should NOT appear in `engine.py`. The engine owns confirm; `submit_intake` calls the engine, not the other way around.
 
 - [ ] **Step 5: Alembic head unchanged**
 
@@ -2653,7 +2653,7 @@ Expected: `c9f8d2e14a20 (head)`. Phase 1 does not migrate.
 git log fa857fac..HEAD --oneline | head -20
 ```
 
-Expected: 12 Phase-1 commits plus any Phase-0 commits already on the branch. Each with a `feat(interview)` / `refactor` / `chore` prefix.
+Expected: 12 Phase-1 commits plus any Phase-0 commits already on the branch. Each with a `feat(intake)` / `refactor` / `chore` prefix.
 
 - [ ] **Step 7: No commit — Phase 1 complete**
 
@@ -2667,23 +2667,23 @@ git status
 
 ## Phase 1 completion checklist
 
-- [ ] `src/domain/interview/protocols.py` defines `FieldSpec`, `FieldExtractor`, `BatchExtractor`, `Writer`, `PostConfirmHook`, `Template`, `SessionState`, `PersistRef`, `TurnResult`, `CompletenessState`, `EngineConfig`.
-- [ ] `src/domain/interview/contract.py::build_response_schema` round-trips `string | text | number | enum` field types through Pydantic.
-- [ ] `src/domain/interview/engine.py::InterviewEngine.next_turn` forwards to legacy `interview_turn` and returns `TurnResult`.
-- [ ] `src/domain/interview/engine.py::InterviewEngine.confirm` merges edits, runs batch extract when present, calls writer, fires mode-appropriate hooks, marks session confirmed.
-- [ ] `src/domain/interview/templates/medical_general.py` exposes `GeneralMedicalTemplate`, `GeneralMedicalExtractor`, `MedicalBatchExtractor`, `MedicalRecordWriter`, `MEDICAL_FIELDS`.
-- [ ] `src/domain/interview/hooks/medical.py` exposes three hooks (diagnosis, notify, follow-up tasks) each swallowing exceptions.
-- [ ] `src/domain/interview/templates/__init__.py::TEMPLATES` contains exactly `medical_general_v1`.
+- [ ] `src/domain/intake/protocols.py` defines `FieldSpec`, `FieldExtractor`, `BatchExtractor`, `Writer`, `PostConfirmHook`, `Template`, `SessionState`, `PersistRef`, `TurnResult`, `CompletenessState`, `EngineConfig`.
+- [ ] `src/domain/intake/contract.py::build_response_schema` round-trips `string | text | number | enum` field types through Pydantic.
+- [ ] `src/domain/intake/engine.py::IntakeEngine.next_turn` forwards to legacy `intake_turn` and returns `TurnResult`.
+- [ ] `src/domain/intake/engine.py::IntakeEngine.confirm` merges edits, runs batch extract when present, calls writer, fires mode-appropriate hooks, marks session confirmed.
+- [ ] `src/domain/intake/templates/medical_general.py` exposes `GeneralMedicalTemplate`, `GeneralMedicalExtractor`, `MedicalBatchExtractor`, `MedicalRecordWriter`, `MEDICAL_FIELDS`.
+- [ ] `src/domain/intake/hooks/medical.py` exposes three hooks (diagnosis, notify, follow-up tasks) each swallowing exceptions.
+- [ ] `src/domain/intake/templates/__init__.py::TEMPLATES` contains exactly `medical_general_v1`.
 - [ ] Doctor `/confirm` endpoint calls `engine.confirm()`.
-- [ ] Patient `submit_interview` calls `engine.confirm()`.
+- [ ] Patient `submit_intake` calls `engine.confirm()`.
 - [ ] All unit tests (~40+ new) pass.
 - [ ] Full test suite matches main baseline.
 - [ ] `reply_sim` (if available) within ±2% of baseline.
 
 ## What Phase 1 does NOT do (saved for Phase 2+)
 
-- Move medical logic out of `interview_models.py` / `completeness.py` / `doctor_interview/shared.py` → Phase 2.
-- Inline the turn loop from `interview_turn.py` into `engine.next_turn` → Phase 2.
+- Move medical logic out of `intake_models.py` / `completeness.py` / `doctor_intake/shared.py` → Phase 2.
+- Inline the turn loop from `intake_turn.py` into `engine.next_turn` → Phase 2.
 - Wire `doctor.preferred_template_id` fallback into session-create precedence → can ship independently in Phase 1.5 if desired.
 - Build specialty variants → Phase 4.
 - Change prompt files → separate effort.

@@ -1,7 +1,7 @@
-"""Patient interview API helpers for regression tests.
+"""Patient intake API helpers for regression tests.
 
 All endpoints require a patient JWT token (Authorization: Bearer <token>).
-The test flow: register patient → get token → use token for interview calls.
+The test flow: register patient → get token → use token for intake calls.
 """
 from __future__ import annotations
 
@@ -51,20 +51,20 @@ def _auth_header(token: str) -> Dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def patient_interview_start(server_url: str, token: str) -> dict:
-    """POST /api/patient/interview/start. Returns session info."""
+def patient_intake_start(server_url: str, token: str) -> dict:
+    """POST /api/patient/intake/start. Returns session info."""
     resp = httpx.post(
-        f"{server_url}/api/patient/interview/start",
+        f"{server_url}/api/patient/intake/start",
         headers=_auth_header(token), timeout=_TIMEOUT,
     )
     resp.raise_for_status()
     return resp.json()
 
 
-def patient_interview_turn(server_url: str, token: str, session_id: str, text: str) -> dict:
-    """POST /api/patient/interview/turn. Returns interview response."""
+def patient_intake_turn(server_url: str, token: str, session_id: str, text: str) -> dict:
+    """POST /api/patient/intake/turn. Returns intake response."""
     resp = httpx.post(
-        f"{server_url}/api/patient/interview/turn",
+        f"{server_url}/api/patient/intake/turn",
         json={"session_id": session_id, "text": text},
         headers=_auth_header(token), timeout=_TIMEOUT,
     )
@@ -72,10 +72,10 @@ def patient_interview_turn(server_url: str, token: str, session_id: str, text: s
     return resp.json()
 
 
-def patient_interview_confirm(server_url: str, token: str, session_id: str) -> Tuple[int, dict]:
-    """POST /api/patient/interview/confirm. Returns (status_code, body)."""
+def patient_intake_confirm(server_url: str, token: str, session_id: str) -> Tuple[int, dict]:
+    """POST /api/patient/intake/confirm. Returns (status_code, body)."""
     resp = httpx.post(
-        f"{server_url}/api/patient/interview/confirm",
+        f"{server_url}/api/patient/intake/confirm",
         json={"session_id": session_id},
         headers=_auth_header(token), timeout=_TIMEOUT,
     )
@@ -86,10 +86,10 @@ def patient_interview_confirm(server_url: str, token: str, session_id: str) -> T
     return resp.status_code, body
 
 
-def patient_interview_cancel(server_url: str, token: str, session_id: str) -> Tuple[int, dict]:
-    """POST /api/patient/interview/cancel. Returns (status_code, body)."""
+def patient_intake_cancel(server_url: str, token: str, session_id: str) -> Tuple[int, dict]:
+    """POST /api/patient/intake/cancel. Returns (status_code, body)."""
     resp = httpx.post(
-        f"{server_url}/api/patient/interview/cancel",
+        f"{server_url}/api/patient/intake/cancel",
         json={"session_id": session_id},
         headers=_auth_header(token), timeout=_TIMEOUT,
     )
@@ -100,10 +100,10 @@ def patient_interview_cancel(server_url: str, token: str, session_id: str) -> Tu
     return resp.status_code, body
 
 
-def patient_interview_current(server_url: str, token: str) -> Optional[dict]:
-    """GET /api/patient/interview/current. Returns session or None."""
+def patient_intake_current(server_url: str, token: str) -> Optional[dict]:
+    """GET /api/patient/intake/current. Returns session or None."""
     resp = httpx.get(
-        f"{server_url}/api/patient/interview/current",
+        f"{server_url}/api/patient/intake/current",
         headers=_auth_header(token), timeout=_TIMEOUT,
     )
     if resp.status_code == 200:

@@ -1,4 +1,4 @@
-"""Generate MedicalRecord from completed interview (ADR 0016).
+"""Generate MedicalRecord from completed intake (ADR 0016).
 
 Batch-extracts all clinical record fields from the complete conversation transcript
 in one LLM pass. No incremental merge needed.
@@ -102,7 +102,7 @@ def extract_tags(collected: Dict[str, str]) -> List[str]:
 
 
 def build_medical_record(collected: Dict[str, str]) -> MedicalRecord:
-    """Build a MedicalRecord from interview collected fields."""
+    """Build a MedicalRecord from intake collected fields."""
     content = generate_content(collected)
     if not content:
         content = "预问诊记录（无临床内容）"
@@ -114,7 +114,7 @@ def build_medical_record(collected: Dict[str, str]) -> MedicalRecord:
         content=content,
         structured=structured,
         tags=tags,
-        record_type="interview_summary",
+        record_type="intake_summary",
     )
 
 
@@ -135,7 +135,7 @@ async def batch_extract_from_transcript(
     Args:
         conversation: Full conversation history (list of dicts with role/content).
         patient_info: Dict with keys name, gender, age.
-        mode: "patient" for pre-consultation interviews, "doctor" for doctor dictation.
+        mode: "patient" for pre-consultation intakes, "doctor" for doctor dictation.
 
     Returns:
         Dict of field_name -> extracted value (empty fields filtered out).
@@ -182,7 +182,7 @@ async def batch_extract_from_transcript(
         extracted = await structured_call(
             response_model=response_model,
             messages=messages,
-            op_name="interview.batch_extract",
+            op_name="intake.batch_extract",
             temperature=0.1,
             max_tokens=1024,
         )
@@ -202,7 +202,7 @@ async def batch_extract_from_transcript(
         return {}
 
 
-async def confirm_interview(
+async def confirm_intake(
     session_id: str,
     doctor_id: str,
     patient_id: int,
@@ -210,16 +210,16 @@ async def confirm_interview(
     collected: Dict[str, str],
     conversation: Optional[list] = None,
 ) -> Dict[str, int]:
-    """Patient-side confirm. Phase 1: delegates to InterviewEngine.confirm.
+    """Patient-side confirm. Phase 1: delegates to IntakeEngine.confirm.
 
-    Preserves the return shape expected by patient_interview_routes.py.
+    Preserves the return shape expected by patient_intake_routes.py.
     The engine handles batch re-extract, record persist, diagnosis trigger,
     doctor notification, session mark-confirmed, and lock release internally.
     """
     # Import inside function body to avoid circular imports (same pattern as Task 11).
-    from domain.interview.engine import InterviewEngine
+    from domain.intake.engine import IntakeEngine
 
-    engine = InterviewEngine()
+    engine = IntakeEngine()
     ref = await engine.confirm(
         session_id=session_id,
         override_patient_name=patient_name or None,

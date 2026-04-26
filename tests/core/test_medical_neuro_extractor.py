@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from domain.interview.protocols import SessionState
-from domain.interview.templates.medical_neuro import (
+from domain.intake.protocols import SessionState
+from domain.intake.templates.medical_neuro import (
     GeneralNeuroExtractor, NEURO_FIELDS,
 )
 
@@ -34,7 +34,7 @@ def _session(
         doctor_id="doc1",
         patient_id=patient_id,
         mode=mode,
-        status="interviewing",
+        status="active",
         template_id=template_id,
         collected=collected or {},
         conversation=conversation or [],
@@ -126,13 +126,13 @@ async def test_prompt_partial_injects_neuro_guidance_into_first_system_msg(
         {"role": "user", "content": "turn"},
     ]
     with patch(
-        "domain.interview.templates.medical_general._load_patient_info",
+        "domain.intake.templates.medical_general._load_patient_info",
         new=AsyncMock(return_value={"name": "X", "gender": "男", "age": 60}),
     ), patch(
-        "domain.interview.templates.medical_general._load_previous_history",
+        "domain.intake.templates.medical_general._load_previous_history",
         new=AsyncMock(return_value=None),
     ), patch(
-        "domain.interview.templates.medical_general._compose_for_patient_interview",
+        "domain.intake.templates.medical_general._compose_for_patient_intake",
         new=AsyncMock(return_value=composed_messages),
     ):
         result = await extractor.prompt_partial(
@@ -161,13 +161,13 @@ async def test_prompt_partial_no_system_message_is_noop(extractor):
 
     composed_messages = [{"role": "user", "content": "just a user msg"}]
     with patch(
-        "domain.interview.templates.medical_general._load_patient_info",
+        "domain.intake.templates.medical_general._load_patient_info",
         new=AsyncMock(return_value={"name": "X", "gender": "男", "age": 60}),
     ), patch(
-        "domain.interview.templates.medical_general._load_previous_history",
+        "domain.intake.templates.medical_general._load_previous_history",
         new=AsyncMock(return_value=None),
     ), patch(
-        "domain.interview.templates.medical_general._compose_for_patient_interview",
+        "domain.intake.templates.medical_general._compose_for_patient_intake",
         new=AsyncMock(return_value=composed_messages),
     ):
         result = await extractor.prompt_partial(
@@ -193,13 +193,13 @@ async def test_prompt_partial_threads_session_template_id_to_patient_composer(
     state = extractor.completeness(session.collected, session.mode)
 
     with patch(
-        "domain.interview.templates.medical_general._load_patient_info",
+        "domain.intake.templates.medical_general._load_patient_info",
         new=AsyncMock(return_value={"name": "X", "gender": "男", "age": 60}),
     ), patch(
-        "domain.interview.templates.medical_general._load_previous_history",
+        "domain.intake.templates.medical_general._load_previous_history",
         new=AsyncMock(return_value=None),
     ), patch(
-        "domain.interview.templates.medical_general._compose_for_patient_interview",
+        "domain.intake.templates.medical_general._compose_for_patient_intake",
         new=AsyncMock(return_value=[{"role": "system", "content": "c"}]),
     ) as mock_compose:
         await extractor.prompt_partial(
@@ -222,13 +222,13 @@ async def test_prompt_partial_threads_session_template_id_to_doctor_composer(
     state = extractor.completeness(session.collected, "doctor")
 
     with patch(
-        "domain.interview.templates.medical_general._load_patient_info",
+        "domain.intake.templates.medical_general._load_patient_info",
         new=AsyncMock(return_value={"name": "X", "gender": "男", "age": 60}),
     ), patch(
-        "domain.interview.templates.medical_general._load_previous_history",
+        "domain.intake.templates.medical_general._load_previous_history",
         new=AsyncMock(return_value=None),
     ), patch(
-        "domain.interview.templates.medical_general._compose_for_doctor_interview",
+        "domain.intake.templates.medical_general._compose_for_doctor_intake",
         new=AsyncMock(return_value=[{"role": "system", "content": "c"}]),
     ) as mock_doc:
         await extractor.prompt_partial(

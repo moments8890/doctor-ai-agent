@@ -190,7 +190,7 @@ export default function PatientsPage() {
     }
   }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function startInterview(patient) {
+  function startIntake(patient) {
     setPickerOpen(false);
     navigate(patient ? `/doctor/patients/new?patient_id=${patient.id}` : "/doctor/patients/new");
   }
@@ -292,7 +292,7 @@ export default function PatientsPage() {
     navigate(`/doctor/patients/${patient.id}`);
   }
 
-  function handleNewInterview() {
+  function handleNewIntake() {
     navigate("/doctor/patients?action=new");
   }
 
@@ -365,7 +365,7 @@ export default function PatientsPage() {
         <div style={styles.pickerBody}>
           <div
             role="button"
-            onClick={() => startInterview(null)}
+            onClick={() => startIntake(null)}
             style={styles.pickerNewRow}
           >
             <div style={styles.pickerNewIcon}>
@@ -400,7 +400,7 @@ export default function PatientsPage() {
                     key={p.id}
                     prefix={<NameAvatar name={p.name} size={36} />}
                     description={sub}
-                    onClick={() => startInterview(p)}
+                    onClick={() => startIntake(p)}
                     arrow
                   >
                     <span style={{ fontSize: FONT.md, fontWeight: 500 }}>
@@ -431,7 +431,7 @@ export default function PatientsPage() {
         {filtered.length === 0 && !isLoading && (
           search
             ? <EmptyState title="无匹配患者" description="试试其他关键词" />
-            : <EmptyState title="暂无患者" description="点击右上角 + 新建第一位患者" action="新建病历" onAction={handleNewInterview} />
+            : <EmptyState title="暂无患者" description="点击右上角 + 新建第一位患者" action="新建病历" onAction={handleNewIntake} />
         )}
 
         {filtered.length > 0 && (

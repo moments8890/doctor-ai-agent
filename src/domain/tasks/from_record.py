@@ -1,6 +1,6 @@
 """Auto-generate follow-up tasks from a medical record's orders/treatment fields.
 
-Called after interview confirm or record status change to completed/pending_review.
+Called after intake confirm or record status change to completed/pending_review.
 Parses orders_followup and treatment_plan into discrete tasks via LLM.
 """
 from __future__ import annotations

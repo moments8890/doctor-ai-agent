@@ -840,21 +840,34 @@ def _do_menu(port: int) -> None:
 
 def _print_urls(host: str, port: int, want_frontend: bool,
                 background: bool = False) -> None:
+    """Print local URLs grouped to mirror the prod subdomain layout.
+
+    Each prod subdomain has a local equivalent so devs can find pages
+    without having to reverse-engineer the nginx vhost configs.
+    See deploy/tencent/nginx/*.conf for the prod side.
+    """
+    fe = f"http://127.0.0.1:{FRONTEND_PORT}"
+    api = f"http://127.0.0.1:{port}"
     print()
-    print(f"  Local API  : http://127.0.0.1:{port}")
+    print("  Subdomains (prod ↔ local)")
     if want_frontend:
-        print(f"  Frontend   : http://127.0.0.1:{FRONTEND_PORT}")
-        print(f"  Dashboard  : http://127.0.0.1:{FRONTEND_PORT}/admin")
-    print(f"  WeChat URL : http://127.0.0.1:{port}/wechat")
-    print(f"  Debug      : http://127.0.0.1:{port}/debug")
-    print(f"  Docs       : http://127.0.0.1:{port}/docs")
+        print(f"    app.*    →  {fe}/                       (doctor + patient app)")
+        print(f"    admin.*  →  {fe}/admin                  (admin dashboard)")
+        print(f"    wiki.*   →  {fe}/wiki/wiki.html         (public wiki)")
+        print(f"    docs.*   →  {fe}/wiki/docs.html         (public docs)")
+    print(f"    api.*    →  {api}                       (FastAPI backend)")
+    print()
+    print("  Backend tools")
+    print(f"    WeChat       : {api}/wechat")
+    print(f"    Debug        : {api}/debug")
+    print(f"    API Docs     : {api}/docs   (FastAPI Swagger)")
     print()
     if want_frontend:
         print(f"  FE log     : tail -f {FRONTEND_LOG}")
     if background:
         print(f"  API log    : tail -f {LOG_DIR / 'uvicorn.log'}")
         print(f"  Stop       : ./cli.py stop")
-    print("=" * 54)
+    print("=" * 60)
     print()
 
 

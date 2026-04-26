@@ -47,7 +47,7 @@ Patient message
     → patient_portal_chat.py (HTTP, auth)
     → triage.classify(message, patient_context)
     → informational: answer directly from records/tasks/plan
-    → clinical: structured follow-up → interview pipeline (mode: follow_up)
+    → clinical: structured follow-up → intake pipeline (mode: follow_up)
         → MedicalRecordDB (record_type: follow_up) → review queue → notify doctor
     → upload: upload_matcher.match(file, pending_tasks) → confirm → mark done → notify
 
@@ -64,8 +64,8 @@ Doctor confirms diagnosis
 | Category | AI Action | Doctor Notified? |
 |----------|-----------|-----------------|
 | `informational` | LLM answers using patient context (records/tasks/plan injected) | No |
-| `symptom_report` | Hand off to interview pipeline (mode: follow_up) | Yes |
-| `side_effect` | Hand off to interview pipeline + flag medication | Yes, with urgency |
+| `symptom_report` | Hand off to intake pipeline (mode: follow_up) | Yes |
+| `side_effect` | Hand off to intake pipeline + flag medication | Yes, with urgency |
 | `general_question` | LLM answers if within plan context; if not, summarizes chat and escalates | Only if escalated (with summary) |
 | `urgent` | Red flag detection → immediate escalation | Yes, high priority |
 
@@ -77,8 +77,8 @@ Doctor confirms diagnosis
   (treatment plan, tasks, diagnosis, medications). E.g., "我的药怎么吃？"
   → LLM sees the treatment plan and answers "甲钴胺片，每日3次，还剩12天"
 - For clinical content (symptoms, side effects): AI hands off to existing
-  interview pipeline with `mode: follow_up` and narrower scope
-- Follow-up interview collects: symptom, onset, severity, duration, pattern,
+  intake pipeline with `mode: follow_up` and narrower scope
+- Follow-up intake collects: symptom, onset, severity, duration, pattern,
   related symptoms, suspected trigger (matched from treatment plan)
 - For unrelated new complaints (not matching current treatment plan): still
   collect structured data, create follow-up record, escalate to doctor
@@ -117,7 +117,7 @@ Prevent patients from flooding doctors with escalations:
 - **Batch notifications**: escalations within a 10-minute window are batched
   into a single doctor notification with count ("李明有3条新消息需要您处理").
   Doctor sees all items in the triage summary view.
-- **Urgent bypasses rate limit**: `urgent` classification (red flags) always
+- **Urgent bypasses rate limit**: `urgent` classification (signal flags) always
   notifies immediately, regardless of rate limit or batching.
 - Existing patient message rate limit (10/min) still applies at the HTTP layer.
 - **Urgent escalation**: uses existing notification system (`infra/notify/`).
@@ -128,7 +128,7 @@ Prevent patients from flooding doctors with escalations:
 ### Path to Active Triage (v2, future)
 
 AI provides basic guidance for non-urgent cases ("common side effect, usually
-resolves in 2-3 days") with disclaimer. Urgent/red-flag still immediately escalated.
+resolves in 2-3 days") with disclaimer. Urgent/signal-flag still immediately escalated.
 
 ### Patient Context Injected into Triage LLM
 
@@ -248,7 +248,7 @@ Migration: `ALTER TABLE` + backfill. All existing `inbound` → `patient`, all
 existing `outbound` → `ai` (doctor direct replies don't exist yet, so all
 outbound messages are AI-generated).
 
-### Interview Session Changes
+### Intake Session Changes
 
 ```python
 mode            # add "follow_up" to existing "patient"/"doctor" values
@@ -260,7 +260,7 @@ Doctor notified only on **escalated** actionable events:
 - AI-escalated symptom/side-effect report (triage created follow-up record)
 - Patient uploads results (new)
 - Patient completes a treatment plan item (new)
-- Urgent red flag detection (high priority alert)
+- Urgent signal flag detection (high priority alert)
 
 NOT notified on:
 - Informational queries handled by AI (records, plan, task status)
@@ -331,7 +331,7 @@ Add:
 - Tap record → subpage shows diagnosis + treatment plan (if confirmed diagnosis
   exists for that record)
 - Treatment plan view: `ContentCard` with `TYPE.heading` (14/600) section title,
-  `TYPE.body` (14/400) items, red flag warning (`dangerLight` bg + `danger` border)
+  `TYPE.body` (14/400) items, signal flag warning (`dangerLight` bg + `danger` border)
 - Follow-up reports appear as new `ListCard` rows with warning-colored avatar
 - `StatusBadge` for diagnosis status (`colorMap: {已确认: COLOR.success}`)
 
@@ -344,7 +344,7 @@ Replace `EmptyState` with `TaskChecklist`:
 - Upload action: `AppButton variant="ghost" size="sm"`
 - Urgency badge: `StatusBadge` with `colorMap: {紧急: COLOR.danger, 常规: COLOR.text4}`
 - `SectionLabel` for "待完成" / "已完成" groups
-- Diagnosis context card at bottom: `ContentCard` + `StatusBadge` + red flag warning
+- Diagnosis context card at bottom: `ContentCard` + `StatusBadge` + signal flag warning
 
 ### 设置 Tab
 
@@ -427,7 +427,7 @@ POST   /api/manage/patients/:id/reply  # doctor direct reply to patient
 
 ## Dependencies
 
-- ADR 0016 (patient interview pipeline) — reused for follow-up mode
+- ADR 0016 (patient intake pipeline) — reused for follow-up mode
 - ADR 0018 (diagnosis pipeline) — treatment plan derived from confirmed results
 - Existing task system (`task_rules.py`) — extended for patient tasks
 

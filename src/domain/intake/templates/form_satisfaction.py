@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from domain.interview.protocols import (
+from domain.intake.protocols import (
     CompletenessState, FieldSpec, Mode, Phase, SessionState,
 )
 
@@ -173,11 +173,11 @@ class FormSatisfactionExtractor:
 
 from dataclasses import dataclass, field
 
-from domain.interview.protocols import (
+from domain.intake.protocols import (
     BatchExtractor, EngineConfig, FieldExtractor, PostConfirmHook, Template,
     Writer,
 )
-from domain.interview.writers import FormResponseWriter
+from domain.intake.writers import FormResponseWriter
 
 
 @dataclass

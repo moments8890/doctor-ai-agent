@@ -92,7 +92,7 @@ def db_path():
 
 class Cleanup:
     TABLES = [
-        "patient_auth", "interview_sessions", "medical_records",
+        "patient_auth", "intake_sessions", "medical_records",
         "doctor_tasks", "doctor_chat_log", "doctor_knowledge_items",
         "patients", "doctors",
     ]

@@ -13,7 +13,7 @@ Enable doctors to export all their patient data as a downloadable ZIP archive fo
 ## Scope
 
 - Records + patient demographics only
-- No AI-generated content (no ai_suggestions, no diagnosis output, no interview conversation logs)
+- No AI-generated content (no ai_suggestions, no diagnosis output, no intake conversation logs)
 - Pure clinical data the doctor and patient own
 
 ## Part 1: Single Patient Report (fix existing)
@@ -211,7 +211,7 @@ async def generate_bulk_export(doctor_id: str, task: BulkExportTask) -> None:
 
 - `VoiceInput.jsx`, patient pages — untouched
 - AI suggestion models — not included in export
-- Interview conversation logs — not included in export
+- Intake conversation logs — not included in export
 
 ## Deferred
 

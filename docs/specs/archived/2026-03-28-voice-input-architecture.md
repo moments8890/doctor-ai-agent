@@ -29,7 +29,7 @@ is broken for all Chinese users. We need a China-accessible server-side ASR.
 | **随访 draft edit** | Voice-edit a draft reply | High |
 | **审核 edit** | Voice-dictate diagnosis edits | Medium |
 | **Knowledge add** | Voice-dictate a new rule | Medium |
-| **Patient interview** | Already has VoiceInput | Exists |
+| **Patient intake** | Already has VoiceInput | Exists |
 
 ## Architecture
 

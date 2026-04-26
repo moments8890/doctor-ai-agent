@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.protocols import CompletenessState, SessionState
-from domain.interview.templates.form_satisfaction import (
+from domain.intake.protocols import CompletenessState, SessionState
+from domain.intake.templates.form_satisfaction import (
     FormSatisfactionExtractor, FORM_SATISFACTION_FIELDS,
 )
 
@@ -44,7 +44,7 @@ def test_merge_ignores_unknown(extractor):
 def test_next_phase_returns_single_phase(extractor):
     session = SessionState(
         id="s", doctor_id="d", patient_id=1, mode="patient",
-        status="interviewing", template_id="form_satisfaction_v1",
+        status="active", template_id="form_satisfaction_v1",
         collected={}, conversation=[], turn_count=0,
     )
     assert extractor.next_phase(session, ["default"]) == "default"
@@ -56,7 +56,7 @@ async def test_prompt_partial_returns_messages(extractor):
     without going through prompt_composer (no doctor persona / KB needed)."""
     session = SessionState(
         id="s", doctor_id="d", patient_id=1, mode="patient",
-        status="interviewing", template_id="form_satisfaction_v1",
+        status="active", template_id="form_satisfaction_v1",
         collected={}, conversation=[], turn_count=0,
     )
     state = extractor.completeness({}, "patient")

@@ -1,4 +1,4 @@
-"""Forward + downgrade round-trip for the interview_template_id migration.
+"""Forward + downgrade round-trip for the intake_template_id migration.
 
 Applies every migration up to the revision under test against a fresh SQLite
 DB, asserts the schema matches the spec (§4a), then downgrades one step and
@@ -80,14 +80,14 @@ def test_upgrade_creates_template_id_and_form_responses(fresh_db):
                 "VALUES ('doc1', '2026-01-01', '2026-01-01')"
             ))
             conn.execute(text(
-                "INSERT INTO interview_sessions (id, doctor_id, status, mode, turn_count, created_at, updated_at) "
+                "INSERT INTO intake_sessions (id, doctor_id, status, mode, turn_count, created_at, updated_at) "
                 "VALUES ('s1', 'doc1', 'draft_created', 'doctor', 0, '2026-01-01', '2026-01-01')"
             ))
 
         command.upgrade(cfg, REVISION)
 
         insp = inspect(eng)
-        session_cols = {c["name"] for c in insp.get_columns("interview_sessions")}
+        session_cols = {c["name"] for c in insp.get_columns("intake_sessions")}
         assert "template_id" in session_cols
 
         doctor_cols = {c["name"] for c in insp.get_columns("doctors")}
@@ -98,7 +98,7 @@ def test_upgrade_creates_template_id_and_form_responses(fresh_db):
         # Existing session row backfilled to medical_general_v1, status retagged
         with eng.begin() as conn:
             row = conn.execute(text(
-                "SELECT template_id, status FROM interview_sessions WHERE id='s1'"
+                "SELECT template_id, status FROM intake_sessions WHERE id='s1'"
             )).first()
         assert row.template_id == "medical_general_v1"
         assert row.status == "confirmed"  # draft_created → confirmed
@@ -120,7 +120,7 @@ def test_downgrade_removes_everything(fresh_db):
                 "VALUES ('doc1', '2026-01-01', '2026-01-01')"
             ))
             conn.execute(text(
-                "INSERT INTO interview_sessions (id, doctor_id, status, mode, turn_count, created_at, updated_at) "
+                "INSERT INTO intake_sessions (id, doctor_id, status, mode, turn_count, created_at, updated_at) "
                 "VALUES ('s1', 'doc1', 'draft_created', 'doctor', 0, '2026-01-01', '2026-01-01')"
             ))
 
@@ -129,7 +129,7 @@ def test_downgrade_removes_everything(fresh_db):
         command.downgrade(cfg, _prev_revision(cfg))
 
         insp = inspect(eng)
-        session_cols = {c["name"] for c in insp.get_columns("interview_sessions")}
+        session_cols = {c["name"] for c in insp.get_columns("intake_sessions")}
         assert "template_id" not in session_cols
         doctor_cols = {c["name"] for c in insp.get_columns("doctors")}
         assert "preferred_template_id" not in doctor_cols
@@ -138,7 +138,7 @@ def test_downgrade_removes_everything(fresh_db):
         # Verify the data migration is irreversible: draft_created row stays confirmed
         with eng.begin() as conn:
             row = conn.execute(text(
-                "SELECT status FROM interview_sessions WHERE id='s1'"
+                "SELECT status FROM intake_sessions WHERE id='s1'"
             )).first()
         assert row.status == "confirmed", (
             "Downgrade intentionally does not restore draft_created — "

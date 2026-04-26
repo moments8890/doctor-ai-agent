@@ -30,7 +30,7 @@ workflow additionally needs:
 - &lt;any extra env state&gt;
 
 If the Playwright spec owns its own seeding, list the fixture helpers used
-(e.g. `seed.addKnowledgeText`, `seed.completePatientInterview`).
+(e.g. `seed.addKnowledgeText`, `seed.completePatientIntake`).
 
 ---
 

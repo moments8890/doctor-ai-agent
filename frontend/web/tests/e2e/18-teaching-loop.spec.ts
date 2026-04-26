@@ -15,7 +15,7 @@
 import { test, expect } from "./fixtures/doctor-auth";
 import {
   addKnowledgeText,
-  completePatientInterview,
+  completePatientIntake,
   sendPatientMessage,
   waitForDraft,
   waitForSuggestions,
@@ -51,8 +51,8 @@ test.describe("工作流 18 — 教学闭环", () => {
       "高血压患者建议优先使用ARB类降压药，避免未评估即用β受体阻滞剂",
     );
 
-    // 1.2 — Complete a patient interview to establish medical context.
-    await completePatientInterview(request, patient);
+    // 1.2 — Complete a patient intake to establish medical context.
+    await completePatientIntake(request, patient);
 
     // 1.3 — Patient sends a follow-up message to trigger draft generation.
     await sendPatientMessage(
@@ -154,13 +154,13 @@ test.describe("工作流 18 — 教学闭环", () => {
     // Phase 4 — Round-trip: rule cited in next diagnosis (workflow 08)
     // ────────────────────────────────────────────────────────
 
-    // 4.1 — Register a second patient so we get a clean interview context.
+    // 4.1 — Register a second patient so we get a clean intake context.
     const patient2 = await registerPatient(request, doctor.doctorId, {
       name: "E2E回访患者",
     });
 
-    // 4.2 — Complete an interview with ARB-related keywords.
-    const { recordId } = await completePatientInterview(request, patient2, [
+    // 4.2 — Complete an intake with ARB-related keywords.
+    const { recordId } = await completePatientIntake(request, patient2, [
       "最近头晕发作，血压偏高到150/95，想了解ARB类降压药是否适合",
       "没有吃过降压药，之前一直没重视",
       "家里有血压计，可以每天测量",
@@ -208,7 +208,7 @@ test.describe("工作流 18 — 教学闭环", () => {
   }) => {
     // 5.1 — Seed and generate a draft.
     await addKnowledgeText(request, doctor, "常规回复知识");
-    await completePatientInterview(request, patient);
+    await completePatientIntake(request, patient);
     await sendPatientMessage(request, patient, "请问复查需要空腹吗？");
     await waitForDraft(request, doctor, patient.patientId, {
       timeoutMs: 45_000,
@@ -261,7 +261,7 @@ test.describe("工作流 18 — 教学闭环", () => {
   }) => {
     // 6.1 — Seed, generate draft, and edit significantly.
     await addKnowledgeText(request, doctor, "复查检验项目标准");
-    await completePatientInterview(request, patient);
+    await completePatientIntake(request, patient);
     await sendPatientMessage(request, patient, "复查结果出来了，帮我看一下");
     await waitForDraft(request, doctor, patient.patientId, {
       timeoutMs: 45_000,

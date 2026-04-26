@@ -44,8 +44,8 @@ React Query hooks in `src/lib/doctorQueries.js`
 Uses `doctorAuth` + `seed.ts` fixtures. The spec seeds:
 
 1. 2–3 knowledge rules (varying `source`) via `seed.addKnowledgeText`.
-2. 1 completed patient interview (→ creates a pending review) via
-   `seed.completePatientInterview`.
+2. 1 completed patient intake (→ creates a pending review) via
+   `seed.completePatientIntake`.
 3. 1 persona rule via `seed.addPersonaRule` so the persona card is
    non-empty.
 

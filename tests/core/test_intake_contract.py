@@ -8,8 +8,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from domain.interview.contract import build_response_schema
-from domain.interview.protocols import FieldSpec
+from domain.intake.contract import build_response_schema
+from domain.intake.protocols import FieldSpec
 
 
 def _spec(**kw):

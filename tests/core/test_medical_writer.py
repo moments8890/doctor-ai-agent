@@ -14,8 +14,8 @@ from db.engine import AsyncSessionLocal
 from db.models.doctor import Doctor
 from db.models.patient import Patient
 from db.models.records import MedicalRecordDB
-from domain.interview.protocols import PersistRef, SessionState
-from domain.interview.templates.medical_general import MedicalRecordWriter
+from domain.intake.protocols import PersistRef, SessionState
+from domain.intake.templates.medical_general import MedicalRecordWriter
 
 
 def _session(**over) -> SessionState:
@@ -24,7 +24,7 @@ def _session(**over) -> SessionState:
         doctor_id=f"doc_{uuid.uuid4().hex[:8]}",
         patient_id=None,
         mode="doctor",
-        status="interviewing",
+        status="active",
         template_id="medical_general_v1",
         collected={},
         conversation=[],

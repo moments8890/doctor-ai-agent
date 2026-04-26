@@ -1,4 +1,4 @@
-"""InterviewEngine — template-agnostic orchestrator.
+"""IntakeEngine — template-agnostic orchestrator.
 
 Spec §5c (next_turn), §5d (confirm). Phase 2.5 inlines the full turn loop
 using the template's extractor protocol methods.
@@ -14,20 +14,20 @@ from typing import Any, List
 from pydantic import Field, create_model
 
 from agent.llm import structured_call
-from domain.interview.contract import build_response_schema
-from domain.interview.protocols import (
+from domain.intake.contract import build_response_schema
+from domain.intake.protocols import (
     CompletenessState, PersistRef, SessionState, Template, TurnResult,
 )
-from domain.interview.templates import get_template
-from domain.patients.interview_turn import (
+from domain.intake.templates import get_template
+from domain.patients.intake_turn import (
     get_session_lock as _get_session_lock,
     release_session_lock as _release_session_lock,
 )
-from domain.patients.interview_session import (
+from domain.patients.intake_session import (
     load_session as _load_session,
     save_session as _save_session,
 )
-from db.models.interview_session import InterviewStatus
+from db.models.intake_session import IntakeStatus
 from utils.log import log
 
 
@@ -88,7 +88,7 @@ async def _save_session_state(sess: SessionState) -> None:
     await _save_session(raw)
 
 
-class InterviewEngine:
+class IntakeEngine:
     """Generic engine. One instance serves every template."""
 
     async def next_turn(
@@ -119,10 +119,10 @@ class InterviewEngine:
             )
 
         mode = getattr(raw, "mode", "patient")
-        resumed_from_review = raw.status == InterviewStatus.reviewing
+        resumed_from_review = raw.status == IntakeStatus.reviewing
 
         # Guard: terminal statuses are read-only
-        if raw.status not in (InterviewStatus.interviewing, InterviewStatus.reviewing):
+        if raw.status not in (IntakeStatus.active, IntakeStatus.reviewing):
             state = CompletenessState(
                 can_complete=False, required_missing=[],
                 recommended_missing=[], optional_missing=[], next_focus=None,
@@ -131,8 +131,8 @@ class InterviewEngine:
                 reply="该问诊已结束。", suggestions=[], state=state,
             )
 
-        if raw.status == InterviewStatus.reviewing:
-            raw.status = InterviewStatus.interviewing
+        if raw.status == IntakeStatus.reviewing:
+            raw.status = IntakeStatus.active
 
         template = get_template(raw.template_id)
 
@@ -147,7 +147,7 @@ class InterviewEngine:
         if raw.turn_count >= template.config.max_turns:
             reply = "我们已经聊了很久了，让我整理一下已有的信息。"
             raw.conversation.append({"role": "assistant", "content": reply})
-            raw.status = InterviewStatus.reviewing
+            raw.status = IntakeStatus.reviewing
             await _save_session(raw)
             state = template.extractor.completeness(raw.collected, mode)
             return TurnResult(
@@ -191,7 +191,7 @@ class InterviewEngine:
                 llm_response = await structured_call(
                     response_model=response_schema,
                     messages=messages,
-                    op_name=f"interview.{mode}",
+                    op_name=f"intake.{mode}",
                     env_var=env_var,
                     temperature=0.1,
                     max_tokens=2048,
@@ -199,14 +199,14 @@ class InterviewEngine:
                 break
             except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
                 log(
-                    f"[interview] LLM parse error (attempt {attempt+1}): {e}",
+                    f"[intake] LLM parse error (attempt {attempt+1}): {e}",
                     level="warning",
                 )
                 last_error = e
                 break  # parse errors won't fix with retry
             except Exception as e:
                 log(
-                    f"[interview] LLM call failed (attempt {attempt+1}/3): {e}",
+                    f"[intake] LLM call failed (attempt {attempt+1}/3): {e}",
                     level="warning",
                 )
                 last_error = e
@@ -218,7 +218,7 @@ class InterviewEngine:
                 reply = "抱歉，我没有理解，请再说一次。"
             else:
                 log(
-                    f"[interview] LLM call failed after 3 attempts: {last_error}",
+                    f"[intake] LLM call failed after 3 attempts: {last_error}",
                     level="error",
                 )
                 reply = "系统暂时繁忙，请重新发送您的回答。"
@@ -258,23 +258,23 @@ class InterviewEngine:
         )
         reply = template.extractor.post_process_reply(reply, raw.collected, mode)
 
-        # Style guard (detect-only, max_regens=0 — latency budget for interview is ≤3s).
+        # Style guard (detect-only, max_regens=0 — latency budget for intake is ≤3s).
         # We log violations but don't regenerate to avoid latency hit.
-        # Per locked plan: interview prefers latency over polish.
+        # Per locked plan: intake prefers latency over polish.
         try:
             from agent.style_guard import detect_hard_violations, detect_soft_chain
             hard = detect_hard_violations(reply)
             soft = detect_soft_chain(reply)
             if hard:
-                log(f"[interview.{mode}] style violations detected (no regen): hard={hard} soft={soft}")
+                log(f"[intake.{mode}] style violations detected (no regen): hard={hard} soft={soft}")
         except Exception as exc:
-            log(f"[interview] style guard check failed (non-fatal): {exc}", level="warning")
+            log(f"[intake] style guard check failed (non-fatal): {exc}", level="warning")
 
         # Status transition if ready to review
         state = template.extractor.completeness(raw.collected, mode)
         # Patient-mode special: if ready, transition status
         if mode == "patient" and state.can_complete and template.requires_doctor_review:
-            raw.status = InterviewStatus.reviewing
+            raw.status = IntakeStatus.reviewing
             if not resumed_from_review:
                 reply = (
                     "我已经整理好主要信息。请确认后提交给医生；"

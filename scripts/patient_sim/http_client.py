@@ -160,7 +160,7 @@ async def cleanup_demo_data(
             "patient_messages",
             "doctor_tasks",
             "medical_records",
-            "interview_sessions",
+            "intake_sessions",
             "ai_suggestions",
             "patients",
             "doctor_knowledge_items",

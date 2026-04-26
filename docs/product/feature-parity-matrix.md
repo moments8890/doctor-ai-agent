@@ -56,7 +56,7 @@
 | D1.1 | AI助手对话 / AI Assistant Chat | **Done** | ChatPage.jsx — bubbles, markdown, file upload |
 | D1.2 | 快速操作芯片 / Action Chips | **Done** | Quick commands (新增病历, 查询患者, 今日摘要) + ActionPanel (camera, gallery, file, patient) |
 | D1.3 | 自然语言患者查询 / NL Patient Lookup | **Done** | PatientsPage detects NL queries via Chinese keyword detection |
-| D1.4 | 对话式新建患者 / Conversational Patient Create | **Done** | Via chat + interview mode |
+| D1.4 | 对话式新建患者 / Conversational Patient Create | **Done** | Via chat + intake mode |
 | D1.5 | 对话式创建任务 / Conversational Task Create | **Done** | Via chat + manual dialog |
 | D1.6 | 临床摘要生成 / Clinical Summary | **Done** | Daily briefing + per-patient clinical summary via "总结{患者名}" chat command. Structured output: 基本信息→主要诊断→治疗经过→当前状态→注意事项 |
 | D1.7 | 语音输入 / Voice Input | **Done** | VoiceInput.jsx — long-press mic, drag-to-cancel, Web Speech API (zh-CN) |
@@ -133,16 +133,16 @@
 | P1.2 | 患者自注册 / Patient Self-Registration | **Done** | LoginPage patient tab — select doctor, nickname, gender, passcode |
 | P1.3 | 患者登录 / Patient Login | **Done** | Phone + passcode login with multi-role detection |
 
-### Pre-Consultation Interview
+### Pre-Consultation Intake
 
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
-| P2.1 | AI引导预问诊采访 / AI-Guided Interview | **Done** | InterviewPage — 7 clinical fields, progress bar, session resume, suggestion chips |
-| P2.2 | 患者预问诊确认预览 / Interview Review | **Done** | Required fields complete -> backend emits `ready_to_review`, frontend exits questioning and shows `确认提交 / 继续补充` summary UI |
-| P2.3 | 语音输入 (患者端) / Voice Input (Patient) | **Done** | VoiceInput.jsx reused in patient InterviewPage + ChatTab. WeChat-style mic toggle left of input. QA: 6/6 pass |
-| P2.4 | 文字输入 / Text Input | **Done** | Text input in interview + chat |
+| P2.1 | AI引导预问诊采访 / AI-Guided Intake | **Done** | IntakePage — 7 clinical fields, progress bar, session resume, suggestion chips |
+| P2.2 | 患者预问诊确认预览 / Intake Review | **Done** | Required fields complete -> backend emits `ready_to_review`, frontend exits questioning and shows `确认提交 / 继续补充` summary UI |
+| P2.3 | 语音输入 (患者端) / Voice Input (Patient) | **Done** | VoiceInput.jsx reused in patient IntakePage + ChatTab. WeChat-style mic toggle left of input. QA: 6/6 pass |
+| P2.4 | 文字输入 / Text Input | **Done** | Text input in intake + chat |
 | P2.5 | 患者上传医疗文件 / Patient File Upload | **Done** | `patientUpload` API wired |
-| P2.6 | 预问诊完成提交 / Interview Submission | **Done** | Confirm triggers draft record + doctor task + notification |
+| P2.6 | 预问诊完成提交 / Intake Submission | **Done** | Confirm triggers draft record + doctor task + notification |
 
 ### Patient Portal Post-Visit
 

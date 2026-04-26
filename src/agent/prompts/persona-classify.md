@@ -30,7 +30,7 @@
 9. type=factual 或 type=context_specific 时，persona_field 填 ""
 
 ### KB 分类（仅 type=factual 时必填）
-10. **diagnosis** — 诊断逻辑、鉴别要点、红旗识别
+10. **diagnosis** — 诊断逻辑、鉴别要点、信号标记识别
 11. **medication** — 药物选择、剂量、禁忌
 12. **followup** — 随访时间、复查频率、监测指标
 13. **custom** — 不在上面三类中的临床规则

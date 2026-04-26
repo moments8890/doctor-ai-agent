@@ -15,11 +15,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-from channels.web.patient_interview_routes import (
-    InterviewStartRequest,
-    start_interview,
+from channels.web.patient_intake_routes import (
+    IntakeStartRequest,
+    start_intake,
 )
-from domain.patients.interview_session import InterviewSession
+from domain.patients.intake_session import IntakeSession
 
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ def _capture_create_session():
         captured["doctor_id"] = doctor_id
         captured["patient_id"] = patient_id
         captured["template_id"] = kwargs.get("template_id")
-        return InterviewSession(
+        return IntakeSession(
             id="session-uuid-test",
             doctor_id=doctor_id,
             patient_id=patient_id,
@@ -82,22 +82,22 @@ def _patch_start_deps(doctor_row, create_session_mock):
     """Build the common patcher stack used by every test."""
     return [
         patch(
-            "channels.web.patient_interview_routes._authenticate_patient",
+            "channels.web.patient_intake_routes._authenticate_patient",
             new_callable=AsyncMock,
             return_value=_make_patient(),
         ),
         patch(
-            "channels.web.patient_interview_routes._get_doctor_name",
+            "channels.web.patient_intake_routes._get_doctor_name",
             new_callable=AsyncMock,
             return_value="测试医生",
         ),
         patch(
-            "channels.web.patient_interview_routes.get_active_session",
+            "channels.web.patient_intake_routes.get_active_session",
             new_callable=AsyncMock,
             return_value=None,
         ),
         patch(
-            "channels.web.patient_interview_routes.create_session",
+            "channels.web.patient_intake_routes.create_session",
             create_session_mock,
         ),
         patch(
@@ -119,11 +119,11 @@ async def _run_start(
         p.start()
     try:
         body = (
-            InterviewStartRequest(template_id=body_template_id)
+            IntakeStartRequest(template_id=body_template_id)
             if body_template_id is not None
             else None
         )
-        resp = await start_interview(
+        resp = await start_intake(
             authorization="fake-token",
             template_id=explicit_template_id,
             body=body,

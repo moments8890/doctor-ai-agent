@@ -16,7 +16,7 @@ const TYPE_LABEL = {
   visit: "门诊记录",
   dictation: "语音记录",
   import: "导入记录",
-  interview_summary: "预问诊",
+  intake_summary: "预问诊",
 };
 
 const STATUS_LABEL = {

@@ -30,7 +30,7 @@
 - `src/domain/patient_lifecycle/draft_reply.py` — remove lines 117-119 (the citation gate)
 
 **What stays unchanged:**
-- `RED_FLAG_KEYWORDS` and `detect_red_flags()` — still adds the warning prompt hint for dangerous messages. Low cost, no harm.
+- `SIGNAL_FLAG_KEYWORDS` and `detect_signal_flags()` — still adds the warning prompt hint for dangerous messages. Low cost, no harm.
 - `cited_knowledge_ids` — still extracted and stored. Empty list = no KB grounding.
 - Draft persistence — unchanged, all drafts now saved.
 
@@ -179,7 +179,7 @@ Knowledge page → pinned card at top (filtered out of regular list to avoid dup
 | UI green/amber draft distinction | Doctor reads every draft at low volume. Compute from `cited_knowledge_ids` later if needed. |
 | patient_id type mismatch fix | Works on SQLite at pilot scale. Fix before MySQL production. |
 | Batch mechanism rewrite (multi-message collection) | Single worker, low volume. Fix when scaling. |
-| Neuro-specific red flag keywords | Triage LLM handles urgency. Existing generic keywords are adequate. |
+| Neuro-specific signal flag keywords | Triage LLM handles urgency. Existing generic keywords are adequate. |
 | Review queue restructuring | Premature before real usage data. |
 
 ## What We Cut (from v1 spec)

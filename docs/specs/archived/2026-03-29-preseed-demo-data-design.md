@@ -94,7 +94,7 @@ JSON structure:
         },
         {
           "key": "postop_2w",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "pending_review",
           "days_ago": 0,
           "chief_complaint": "...",
@@ -293,7 +293,7 @@ Content preview: `docs/dev/preseed-demo-preview.html`
 
 The current `ensureOnboardingExamples` endpoint and its helper functions (`_ensure_onboarding_patient`, `_ensure_diagnosis_example`, `_ensure_reply_example`, `_ensure_auto_handled_messages`) are kept as a dev/debug route until the new preseed system is proven. Then they can be removed.
 
-The `create_onboarding_patient_entry` endpoint (for the interview demo patient) remains separate — it's used during the wizard's interview step, not for seeding demo data.
+The `create_onboarding_patient_entry` endpoint (for the intake demo patient) remains separate — it's used during the wizard's intake step, not for seeding demo data.
 
 ---
 

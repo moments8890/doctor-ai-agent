@@ -77,7 +77,7 @@ export const RECORD_TYPE_COLOR = {
   imaging: "warning",
   dictation: "secondary",
   import: "default",
-  interview_summary: "info",
+  intake_summary: "info",
 };
 
 export const RECORD_TYPE_LABEL = {
@@ -88,7 +88,7 @@ export const RECORD_TYPE_LABEL = {
   imaging: "影像",
   dictation: "语音录入",
   import: "导入",
-  interview_summary: "问诊总结",
+  intake_summary: "问诊总结",
 };
 
 export const NAV = [
@@ -113,7 +113,7 @@ export const RECORD_TYPE_FILTER_OPTS = [
   { value: "imaging", label: "影像" },
   { value: "surgery", label: "手术" },
   { value: "referral", label: "转诊" },
-  { value: "interview_summary", label: "问诊总结" },
+  { value: "intake_summary", label: "问诊总结" },
 ];
 
 export const TASK_STATUS_OPTS = [
@@ -272,7 +272,7 @@ export const RECORD_TAB_GROUPS = [
   { key: "", label: "全部", types: null },
   { key: "medical", label: "病历", types: ["visit", "dictation", "import", "surgery", "referral"] },
   { key: "lab_imaging", label: "检验/影像", types: ["lab", "imaging"] },
-  { key: "interview", label: "问诊", types: ["interview_summary"] },
+  { key: "intake", label: "问诊", types: ["intake_summary"] },
 ];
 
 export const TASK_FILTER_CHIPS = [
@@ -324,7 +324,7 @@ export const ICON_BADGES = {
   rec_lab:       { icon: BiotechOutlinedIcon, bg: COLOR.accent },
   rec_imaging:   { icon: MonitorHeartOutlinedIcon, bg: COLOR.accent },
   rec_surgery:   { icon: LocalHospitalOutlinedIcon, bg: COLOR.danger },
-  rec_interview: { icon: ChatOutlinedIcon, bg: COLOR.primary },
+  rec_intake: { icon: ChatOutlinedIcon, bg: COLOR.primary },
 
   // Task types
   task_follow_up:  { icon: EventRepeatOutlinedIcon, bg: COLOR.primary },
@@ -344,7 +344,7 @@ export const PAGE_HELP = {
   teachByExample:     "粘贴一段你满意的回复示例，AI会从中提取你的沟通风格。提取结果会进入待确认队列，由你决定是否采纳。",
   template:           "门诊病历的输出格式。上传你的自定义模板，AI生成报告时会按你的格式排版，不上传则使用国家标准格式。",
   reviewQueue:        "AI生成的诊断建议和回复草稿都在这里。逐条审核后确认、修改或拒绝，未确认的内容不会发给患者。",
-  interview:          "语音或文字输入患者信息，AI实时提取并整理成结构化病历，比手动填表更快。",
+  intake:          "语音或文字输入患者信息，AI实时提取并整理成结构化病历，比手动填表更快。",
   patientDetail:      "患者的病历、消息和AI回复都在这里。AI会根据你的知识库和风格，为每位患者生成个性化的诊断建议和回复草稿。",
   personaOnboarding:  "选择你更习惯的回复方式，AI会从中提取你的沟通偏好。完成后自动生成你的AI风格描述。",
   qrCode:             "患者扫码后自助填写病史信息，AI会整理成结构化病历，免去你手动录入。",

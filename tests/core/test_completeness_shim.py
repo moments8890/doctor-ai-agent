@@ -19,14 +19,14 @@ def test_shim_warns_on_import():
 
 def test_required_matches_template_required_tier():
     from domain.patients.completeness import REQUIRED
-    from domain.interview.templates.medical_general import MEDICAL_FIELDS
+    from domain.intake.templates.medical_general import MEDICAL_FIELDS
     expected = {s.name for s in MEDICAL_FIELDS if s.tier == "required"}
     assert set(REQUIRED) == expected
 
 
 def test_appendable_matches_template_appendable_attr():
     from domain.patients.completeness import APPENDABLE
-    from domain.interview.templates.medical_general import MEDICAL_FIELDS
+    from domain.intake.templates.medical_general import MEDICAL_FIELDS
     expected = {s.name for s in MEDICAL_FIELDS if s.appendable}
     assert set(APPENDABLE) == expected
 
@@ -61,6 +61,6 @@ def test_subjective_recommended_has_expected_members():
 
 def test_doctor_recommended_matches_template_recommended_tier():
     from domain.patients.completeness import DOCTOR_RECOMMENDED
-    from domain.interview.templates.medical_general import MEDICAL_FIELDS
+    from domain.intake.templates.medical_general import MEDICAL_FIELDS
     expected = {s.name for s in MEDICAL_FIELDS if s.tier == "recommended"}
     assert expected.issubset(set(DOCTOR_RECOMMENDED))

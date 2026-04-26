@@ -3,14 +3,14 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.templates import (
+from domain.intake.templates import (
     TEMPLATES, UnknownTemplate, get_template,
 )
-from domain.interview.templates.medical_general import (
+from domain.intake.templates.medical_general import (
     GeneralMedicalExtractor, GeneralMedicalTemplate, MedicalBatchExtractor,
     MedicalRecordWriter,
 )
-from domain.interview.hooks.medical import (
+from domain.intake.hooks.medical import (
     GenerateFollowupTasksHook, NotifyDoctorHook, TriggerDiagnosisPipelineHook,
 )
 

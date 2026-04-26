@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "id": "resume_interrupted_interview",
-  "scenario_type": "patient_interview",
-  "title": "Resume interrupted interview",
+  "id": "resume_interrupted_intake",
+  "scenario_type": "patient_intake",
+  "title": "Resume interrupted intake",
   "tags": [
     "regression",
     "session_management"
@@ -14,7 +14,7 @@
     "phone": "13800000005"
   },
   "input": {
-    "mode": "patient_interview",
+    "mode": "patient_intake",
     "turns": [
       {
         "actor": "patient",
@@ -63,19 +63,19 @@
     ]
   },
   "execution": {
-    "entrypoint": "patient.interview.chat",
+    "entrypoint": "patient.intake.chat",
     "auto_confirm": false,
     "timeout_seconds": 60
   },
   "expectations": {
     "assertions": [
       {
-        "target": "interview.status",
+        "target": "intake.status",
         "matcher": "eq",
         "expected": "reviewing"
       },
       {
-        "target": "interview.confirm_creates_record",
+        "target": "intake.confirm_creates_record",
         "matcher": "eq",
         "expected": true
       },

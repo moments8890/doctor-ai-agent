@@ -64,7 +64,7 @@ Needs push infrastructure (WeChat template msg / web push / SMS). Notifications 
 
 ## Success Criteria (unchecked)
 
-- [ ] E2E pipeline (interview → record → diagnosis) completes within 30 seconds
+- [ ] E2E pipeline (intake → record → diagnosis) completes within 30 seconds
 - [ ] Patient self-onboards via QR in <60 seconds
 - [ ] Doctor reviews and finalizes a case in <3 minutes
 - [ ] One neurosurgeon uses the system for 1 week with real patients

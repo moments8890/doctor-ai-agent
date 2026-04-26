@@ -79,7 +79,7 @@ class Doctor(Base):
     preferred_template_id: Mapped[Optional[str]] = mapped_column(
         String(64), nullable=True,
     )
-    # Doctor-level gate for the chat-interview merge: until set, patient-
+    # Doctor-level gate for the chat-intake merge: until set, patient-
     # facing replies grounded in this doctor's KB items are blocked even
     # if individual items are flagged patient_safe=True. Forces a
     # one-time deliberate review pass over every existing KB item.

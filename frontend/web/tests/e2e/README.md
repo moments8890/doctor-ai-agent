@@ -89,7 +89,7 @@ All specs use the `doctorAuth` fixture in `fixtures/doctor-auth.ts`, which:
 3. Writes the returned token into `localStorage` before navigating — same
    shape the frontend uses in real login.
 
-If a workflow needs seeded data (knowledge rules, a completed interview,
+If a workflow needs seeded data (knowledge rules, a completed intake,
 an existing review suggestion), the spec calls into `fixtures/seed.ts`
 helpers that hit the backend API directly. No Playwright click-dancing
 to set up state — only to **verify** it.

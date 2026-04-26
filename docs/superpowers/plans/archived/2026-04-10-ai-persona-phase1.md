@@ -410,13 +410,13 @@ git commit -m "feat(persona): add persona CRUD with rule management"
 """Tests for prompt composition with structured persona."""
 import json
 import pytest
-from agent.prompt_config import LayerConfig, FOLLOWUP_REPLY_LAYERS, DOCTOR_INTERVIEW_LAYERS
+from agent.prompt_config import LayerConfig, FOLLOWUP_REPLY_LAYERS, DOCTOR_INTAKE_LAYERS
 
 def test_followup_reply_has_load_persona_true():
     assert FOLLOWUP_REPLY_LAYERS.load_persona is True
 
-def test_doctor_interview_has_load_persona_false():
-    assert DOCTOR_INTERVIEW_LAYERS.load_persona is False
+def test_doctor_intake_has_load_persona_false():
+    assert DOCTOR_INTAKE_LAYERS.load_persona is False
 
 def test_layer_config_load_persona_default_false():
     lc = LayerConfig()
@@ -443,9 +443,9 @@ class LayerConfig:
     patient_context: bool = False
     conversation_mode: bool = False
 
-DOCTOR_INTERVIEW_LAYERS = LayerConfig(
+DOCTOR_INTAKE_LAYERS = LayerConfig(
     domain=False,
-    intent="interview",
+    intent="intake",
     load_knowledge=False,
     load_persona=False,  # structured extraction — no style
     patient_context=True,
@@ -468,9 +468,9 @@ FOLLOWUP_REPLY_LAYERS = LayerConfig(
     patient_context=True,
 )
 
-PATIENT_INTERVIEW_LAYERS = LayerConfig(
+PATIENT_INTAKE_LAYERS = LayerConfig(
     domain=True,
-    intent="patient-interview",
+    intent="patient-intake",
     load_knowledge=True,
     load_persona=False,  # structured extraction — no style
     patient_context=True,

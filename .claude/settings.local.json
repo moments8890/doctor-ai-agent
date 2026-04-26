@@ -29,7 +29,9 @@
       "Skill(document-release)",
       "Skill(checkpoint)",
       "Skill(ship)",
-      "Skill(update-config)"
+      "Skill(update-config)",
+      "Bash(rm -f .git/index.lock)",
+      "Bash(rg \"interview|Interview|INTERVIEW\" --type-add 'src:*.{py,md,yaml,yml,json,html}' -tsrc src tests docs)"
     ]
   }
 }

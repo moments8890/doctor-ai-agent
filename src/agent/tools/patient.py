@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from agent.identity import get_current_identity
-from db.models.interview_session import InterviewStatus
+from db.models.intake_session import IntakeStatus
 
 
 async def _get_patient(patient_id: int) -> Optional[Any]:
@@ -19,8 +19,8 @@ async def _get_patient(patient_id: int) -> Optional[Any]:
 
 
 async def _get_or_create_session(patient_id: int, doctor_id: str) -> Any:
-    """Find active interview session for this patient, or create one."""
-    from domain.patients.interview_session import get_active_session, create_session
+    """Find active intake session for this patient, or create one."""
+    from domain.patients.intake_session import get_active_session, create_session
 
     session = await get_active_session(patient_id, doctor_id)
     if session is None:
@@ -28,10 +28,10 @@ async def _get_or_create_session(patient_id: int, doctor_id: str) -> Any:
     return session
 
 
-async def advance_interview(answer: str) -> Dict[str, Any]:
+async def advance_intake(answer: str) -> Dict[str, Any]:
     """推进预问诊流程。将患者回答传入，系统提取临床信息并返回下一个问题。
     当患者提供症状、病史、用药等临床信息时调用。闲聊或与问诊无关的消息不要调用。"""
-    from domain.patients.interview_turn import interview_turn
+    from domain.patients.intake_turn import intake_turn
 
     patient_id = int(get_current_identity())
     patient = await _get_patient(patient_id)
@@ -42,7 +42,7 @@ async def advance_interview(answer: str) -> Dict[str, Any]:
     if session is None:
         return {"status": "error", "message": "无法创建问诊会话"}
 
-    result = await interview_turn(session.id, answer)
+    result = await intake_turn(session.id, answer)
     missing = result.missing or []
     return {
         "reply": result.reply,
@@ -53,10 +53,10 @@ async def advance_interview(answer: str) -> Dict[str, Any]:
     }
 
 
-async def confirm_interview() -> Dict[str, Any]:
+async def confirm_intake() -> Dict[str, Any]:
     """确认预问诊结果并提交给医生。仅在患者明确表示"没问题"、"确认"后调用。无需参数。"""
-    from domain.patients.interview_session import get_active_session
-    from domain.patients.interview_summary import confirm_interview
+    from domain.patients.intake_session import get_active_session
+    from domain.patients.intake_summary import confirm_intake
 
     patient_id = int(get_current_identity())
     patient = await _get_patient(patient_id)
@@ -64,10 +64,10 @@ async def confirm_interview() -> Dict[str, Any]:
         return {"status": "error", "message": "未找到患者信息"}
 
     session = await get_active_session(patient_id, patient.doctor_id)
-    if session is None or session.status not in (InterviewStatus.interviewing, InterviewStatus.reviewing):
+    if session is None or session.status not in (IntakeStatus.active, IntakeStatus.reviewing):
         return {"status": "error", "message": "没有待确认的问诊记录"}
 
-    result = await confirm_interview(
+    result = await confirm_intake(
         session.id, patient.doctor_id, patient_id,
         patient.name, session.collected,
     )

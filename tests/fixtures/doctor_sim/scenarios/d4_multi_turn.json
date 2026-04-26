@@ -14,7 +14,7 @@
     "age": 52
   },
   "input": {
-    "mode": "doctor_interview",
+    "mode": "doctor_intake",
     "turns": [
       {
         "actor": "doctor",
@@ -31,7 +31,7 @@
     ]
   },
   "execution": {
-    "entrypoint": "records.interview.turn",
+    "entrypoint": "records.intake.turn",
     "auto_confirm": true,
     "timeout_seconds": 60
   },

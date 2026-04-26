@@ -161,7 +161,7 @@ nav.toc ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: 
 
 
 def _build_elicitation_panel(elicitation: dict) -> str:
-    """Panel A: Elicitation — did the interview ask about each must-elicit topic?"""
+    """Panel A: Elicitation — did the intake ask about each must-elicit topic?"""
     topics = elicitation.get("topics", {})
     if not topics:
         return ""

@@ -1,6 +1,6 @@
-"""Form response persistence (Phase 0 of interview-pipeline-extensibility).
+"""Form response persistence (Phase 0 of intake-pipeline-extensibility).
 
-A form response is the non-medical-record output of an interview template
+A form response is the non-medical-record output of an intake template
 whose kind is "form" (e.g. form_satisfaction_v1). Medical templates still
 write to medical_records; this table is for everything else.
 """
@@ -35,7 +35,7 @@ class FormResponseDB(Base):
     template_id: Mapped[str] = mapped_column(String(64), nullable=False)
     session_id: Mapped[Optional[str]] = mapped_column(
         String(36),
-        ForeignKey("interview_sessions.id", ondelete="SET NULL"),
+        ForeignKey("intake_sessions.id", ondelete="SET NULL"),
         nullable=True,
     )
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)

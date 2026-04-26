@@ -18,10 +18,10 @@ from typing import Dict, List, Optional
 
 from agent.prompt_config import (
     LayerConfig,
-    DOCTOR_INTERVIEW_LAYERS,
+    DOCTOR_INTAKE_LAYERS,
     REVIEW_LAYERS,
     FOLLOWUP_REPLY_LAYERS,
-    PATIENT_INTERVIEW_LAYERS,
+    PATIENT_INTAKE_LAYERS,
     DAILY_SUMMARY_LAYERS,
 )
 from agent.prompt_safety import wrap_untrusted
@@ -139,7 +139,7 @@ async def compose_messages(
     if intent_prompt:
         parts.append(intent_prompt)
 
-    # Extra system content (e.g. interview context injected by handler)
+    # Extra system content (e.g. intake context injected by handler)
     if extra_system:
         parts.append(extra_system)
 
@@ -274,7 +274,7 @@ async def compose_messages(
     return messages
 
 
-async def compose_for_doctor_interview(
+async def compose_for_doctor_intake(
     *,
     doctor_id: str = "",
     patient_context: str = "",
@@ -284,9 +284,9 @@ async def compose_for_doctor_interview(
     extra_system: str = "",
     template_id: str = "medical_general_v1",  # Accepted for Phase 1 plumbing; currently ignored.
 ) -> List[Dict[str, str]]:
-    """Compose messages for the doctor interview flow."""
+    """Compose messages for the doctor intake flow."""
     return await compose_messages(
-        DOCTOR_INTERVIEW_LAYERS,
+        DOCTOR_INTAKE_LAYERS,
         doctor_id=doctor_id,
         patient_context=patient_context,
         doctor_message=doctor_message,
@@ -315,7 +315,7 @@ async def compose_for_review(
     )
 
 
-async def compose_for_patient_interview(
+async def compose_for_patient_intake(
     *,
     doctor_id: str = "",
     patient_context: str = "",
@@ -324,9 +324,9 @@ async def compose_for_patient_interview(
     specialty: str = "",
     template_id: str = "medical_general_v1",  # Accepted for Phase 1 plumbing; currently ignored.
 ) -> List[Dict[str, str]]:
-    """Compose messages for the patient interview flow."""
+    """Compose messages for the patient intake flow."""
     return await compose_messages(
-        PATIENT_INTERVIEW_LAYERS,
+        PATIENT_INTAKE_LAYERS,
         doctor_id=doctor_id,
         patient_context=patient_context,
         doctor_message=doctor_message,

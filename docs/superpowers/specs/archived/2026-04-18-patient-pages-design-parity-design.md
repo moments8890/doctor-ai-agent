@@ -36,7 +36,7 @@ Mirror `DoctorPage.jsx` structure.
 | `/patient/records` | RecordsTab |
 | `/patient/tasks` | TasksTab |
 | `/patient/profile` | MyPage |
-| `/patient/records/interview` | InterviewPage (full-screen) |
+| `/patient/records/intake` | IntakePage (full-screen) |
 | `/patient/records/:id` | PatientRecordDetailPage (full-screen, new) |
 | `/patient/tasks/:id` | PatientTaskDetailPage (full-screen, new) |
 | `/patient/profile/about` | PatientAboutSubpage (full-screen, new) |

@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "id": "cancel_and_restart",
-  "scenario_type": "patient_interview",
+  "scenario_type": "patient_intake",
   "title": "Cancel and restart gives fresh session",
   "tags": [
     "regression",
@@ -14,7 +14,7 @@
     "phone": "13800000006"
   },
   "input": {
-    "mode": "patient_interview",
+    "mode": "patient_intake",
     "turns": [
       {
         "actor": "patient",
@@ -23,7 +23,7 @@
     ]
   },
   "execution": {
-    "entrypoint": "patient.interview.chat",
+    "entrypoint": "patient.intake.chat",
     "auto_confirm": false,
     "timeout_seconds": 60
   },

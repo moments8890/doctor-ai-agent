@@ -26,7 +26,7 @@
       "records": [
         {
           "key": "recent_visit",
-          "record_type": "interview_summary",
+          "record_type": "intake_summary",
           "status": "pending_review",
           "days_ago": 0,
           "chief_complaint": "头痛头晕3天，加重1天",

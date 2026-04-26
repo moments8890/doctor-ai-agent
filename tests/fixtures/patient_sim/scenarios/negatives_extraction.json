@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "id": "negatives_extraction",
-  "scenario_type": "patient_interview",
+  "scenario_type": "patient_intake",
   "title": "Patient says '没有' to everything — negatives extracted",
   "tags": [
     "regression",
@@ -14,7 +14,7 @@
     "phone": "13800000004"
   },
   "input": {
-    "mode": "patient_interview",
+    "mode": "patient_intake",
     "turns": [
       {
         "actor": "patient",
@@ -43,41 +43,41 @@
     ]
   },
   "execution": {
-    "entrypoint": "patient.interview.chat",
+    "entrypoint": "patient.intake.chat",
     "auto_confirm": false,
     "timeout_seconds": 60
   },
   "expectations": {
     "assertions": [
       {
-        "target": "interview.fields_filled",
+        "target": "intake.fields_filled",
         "matcher": "min",
         "expected": 5
       },
       {
-        "target": "interview.field.chief_complaint",
+        "target": "intake.field.chief_complaint",
         "matcher": "present",
         "expected": true
       },
       {
-        "target": "interview.field.chief_complaint",
+        "target": "intake.field.chief_complaint",
         "matcher": "contains_any",
         "expected": [
           "头晕"
         ]
       },
       {
-        "target": "interview.status",
+        "target": "intake.status",
         "matcher": "eq",
         "expected": "reviewing"
       },
       {
-        "target": "interview.confirm_creates_record",
+        "target": "intake.confirm_creates_record",
         "matcher": "eq",
         "expected": true
       },
       {
-        "target": "interview.negative_fields",
+        "target": "intake.negative_fields",
         "matcher": "includes_all",
         "expected": [
           "past_history",

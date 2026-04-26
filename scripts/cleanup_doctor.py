@@ -29,7 +29,7 @@ TABLES = [
     "doctor_session_states",
     "doctor_notify_preferences",
     "doctor_knowledge_items",
-    "interview_sessions",
+    "intake_sessions",
     "patient_messages",
     "patients",
     "doctors",

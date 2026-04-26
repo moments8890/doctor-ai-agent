@@ -43,14 +43,14 @@ render or can't be acted on, the product is unusable.
 - 待回复 tab — [09](09-draft-reply.md).
 - Citation correctness (does the suggestion actually cite the right KB?) —
   `ai-thinks-like-me-qa-plan.md`.
-- Adding new records / creating interviews — [07](07-patient-detail.md).
+- Adding new records / creating intakes — [07](07-patient-detail.md).
 
 ---
 
 ## Pre-flight
 
-Seed a pending review by running a patient through an interview via
-`seed.completePatientInterview`. This creates a record with status
+Seed a pending review by running a patient through an intake via
+`seed.completePatientIntake`. This creates a record with status
 `pending_review`. Suggestion generation is **async** — the spec must
 wait for the backend LLM pipeline to finish before asserting on the
 review detail page. Use the `seed.waitForSuggestions(doctor, recordId)`
@@ -58,7 +58,7 @@ helper (polls `GET /api/doctor/records/<id>/suggestions`) or trigger
 diagnosis explicitly with `POST /api/doctor/records/<id>/diagnose`
 body `{doctor_id}`.
 
-Seed 2–3 knowledge items relevant to the interview symptoms so the LLM
+Seed 2–3 knowledge items relevant to the intake symptoms so the LLM
 has something to cite — otherwise the "no `[KB-N]` literal" assertion is
 vacuous.
 

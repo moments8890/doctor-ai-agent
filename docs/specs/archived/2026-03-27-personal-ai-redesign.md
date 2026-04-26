@@ -134,7 +134,7 @@ All designs follow `docs/ux/UI-DESIGN.md`:
 ```
 
 - Standard `ListCard` rows with colored square icons
-- 患者预问诊码: generates QR code for patients to scan and enter interview
+- 患者预问诊码: generates QR code for patients to scan and enter intake
 - Badges on 待审核 (amber) and 处理随访 (red)
 
 #### 我的方法 (knowledge preview)
@@ -259,7 +259,7 @@ in their voice with rule citations, taps 发送. This is the daily habit loop.
 **Changes:**
 
 - New table `knowledge_usage_log`:
-  - `id`, `doctor_id`, `knowledge_item_id`, `usage_context` (enum: diagnosis/chat/followup/interview)
+  - `id`, `doctor_id`, `knowledge_item_id`, `usage_context` (enum: diagnosis/chat/followup/intake)
   - `patient_id` (nullable), `record_id` (nullable), `created_at`
 - When prompt_composer injects KB items and LLM returns `[KB-id]` citations,
   log each citation to this table
@@ -346,7 +346,7 @@ in their voice with rule citations, taps 发送. This is the daily habit loop.
     dose/medication changes, or prescription advice. These require manual doctor input.
   - Allowed content: plan reiteration, follow-up reminders, education, symptom monitoring
     instructions, escalation instructions ("请尽快来院检查").
-  - Red-flag blocker: if patient message contains red-flag symptoms (fever, neuro deficit,
+  - Red-flag blocker: if patient message contains signal-flag symptoms (fever, neuro deficit,
     chest pain, dyspnea, bleeding, postop deterioration), draft must default to
     escalation template ("请立即就医") rather than a conversational reply.
 - **AI disclosure:** all patient-facing messages generated or drafted by AI must include
@@ -565,7 +565,7 @@ Stream A: Knowledge Foundation (build FIRST — everything depends on this)
 
 Stream B: Draft Reply Pipeline (start after steps 1+3 — needs categories AND citations)
   6. AI draft replies (3D)               ← new LLM pipeline, heaviest work
-  7. Medical safety constraints (3E)     ← hard-blocks, red-flag blocker, AI disclosure
+  7. Medical safety constraints (3E)     ← hard-blocks, signal-flag blocker, AI disclosure
   8. Draft approve/send + confirmation (3E) ← depends on 3D
   9. Stale draft invalidation            ← regenerate on new patient message
   10. Teaching loop — draft edits (4E-drafts) ← depends on MessageDraft existing
@@ -668,7 +668,7 @@ Average score: **4.9/10**. Changes incorporated above.
 | Mockups contradict spec on citations | UX Designer, Codex UX | Added step 14: update mockups before frontend |
 | Voice input + image handling missing | Doctor (7→8 if added) | Added 4G: voice, image, batch operations |
 | Teaching loop has no data model | Tech Architect | Added `doctor_edits` table spec, trigger logic, split into 3 phases |
-| Draft needs medical safety hard-blocks | Codex Medical, Doctor | Added red-flag blocker, content constraints, `AI生成` label |
+| Draft needs medical safety hard-blocks | Codex Medical, Doctor | Added signal-flag blocker, content constraints, `AI生成` label |
 | Send confirmation needs patient context | Doctor | Added patient summary + cited rules to confirmation sheet |
 | Stream B depends on A step 3, not just step 1 | Tech Architect | Fixed dependency notes in build order |
 | 3 call sites for category hardcode, not 1 | Tech Architect | Noted in 4A |

@@ -92,7 +92,7 @@
         const o = JSON.parse(output);
         return o.error === null && o.category === 'custom';
 
-- description: "red flag as custom rule"
+- description: "signal flag as custom rule"
   options:
     prompts: [voice-to-rule]
   vars:

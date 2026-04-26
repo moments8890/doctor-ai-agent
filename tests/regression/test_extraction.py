@@ -13,8 +13,8 @@ from tests.regression.helpers import (
     db_count,
     db_patient,
     db_record_fields,
-    interview_confirm,
-    interview_turn,
+    intake_confirm,
+    intake_turn,
 )
 from tests.regression.matchers import fact_in_field, forbidden_absent, run_matcher
 
@@ -23,7 +23,7 @@ pytestmark = [pytest.mark.regression, pytest.mark.extraction]
 SCENARIO_DIRS = [
     "tests/fixtures/doctor_sim/scenarios",
     # patient_sim scenarios need their own runner (patient auth, different API endpoints)
-    # TODO: implement test_patient_interview.py for these
+    # TODO: implement test_patient_intake.py for these
 ]
 
 _scenarios = load_scenarios(SCENARIO_DIRS)
@@ -42,16 +42,16 @@ def test_extraction(scenario: ScenarioSpec, server_url, db_path, cleanup):
         for turn in scenario.input.turns:
             chat(server_url, turn.text, doctor_id)
     else:
-        # Extraction scenarios go through interview pipeline
+        # Extraction scenarios go through intake pipeline
         for turn in scenario.input.turns:
-            resp = interview_turn(
+            resp = intake_turn(
                 server_url, turn.text, session_id=session_id, doctor_id=doctor_id
             )
             session_id = resp.get("session_id")
 
         # 2. Confirm
         if scenario.execution.auto_confirm and session_id:
-            status_code, _ = interview_confirm(server_url, session_id, doctor_id)
+            status_code, _ = intake_confirm(server_url, session_id, doctor_id)
             if status_code != 200:
                 failures.append(f"Confirm failed with status {status_code}")
             time.sleep(0.5)  # WAL flush delay

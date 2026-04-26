@@ -1,8 +1,8 @@
 """FORM_SATISFACTION_FIELDS — 5 declarative fields for the satisfaction survey."""
 from __future__ import annotations
 
-from domain.interview.protocols import FieldSpec
-from domain.interview.templates.form_satisfaction import FORM_SATISFACTION_FIELDS
+from domain.intake.protocols import FieldSpec
+from domain.intake.templates.form_satisfaction import FORM_SATISFACTION_FIELDS
 
 
 def test_has_five_fields():

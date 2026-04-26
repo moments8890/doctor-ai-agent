@@ -177,7 +177,7 @@ async def _ensure_diagnosis_example(
             doctor_id,
             MedicalRecord(
                 content="主诉：术后头痛加剧伴恶心1天\n现病史：脑膜瘤术后第7天，今日晨起头痛较昨日明显加重，伴恶心，无发热。",
-                record_type="interview_summary",
+                record_type="intake_summary",
                 tags=[_ONBOARDING_DIAGNOSIS_TAG],
                 structured={
                     "department": "神经外科",
@@ -492,7 +492,7 @@ async def create_onboarding_patient_entry(
             if patient is None:
                 raise HTTPException(status_code=409, detail="患者创建冲突，请重试")
 
-    # Seed a completed prior-visit record so the interview can reference history
+    # Seed a completed prior-visit record so the intake can reference history
     if created:
         from sqlalchemy import select as sa_select
 

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from domain.interview.protocols import CompletenessState
-from domain.interview.templates.medical_general import GeneralMedicalExtractor
+from domain.intake.protocols import CompletenessState
+from domain.intake.templates.medical_general import GeneralMedicalExtractor
 
 
 @pytest.fixture

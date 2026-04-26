@@ -209,7 +209,7 @@ confirm calls the existing `sendDraft` API.
 
 ### Step 5: 体验患者预问诊
 
-**Goal:** Doctor generates a patient pre-interview entry and optionally previews
+**Goal:** Doctor generates a patient pre-intake entry and optionally previews
 the patient experience.
 
 **Screen content:**
@@ -220,15 +220,15 @@ the patient experience.
 - After generation: QR code + "预览患者端" button + "复制链接" button
 
 **Action:** Doctor enters a name, generates the QR code, then taps "预览" to
-run through the patient interview preview. The preview must reach submission
+run through the patient intake preview. The preview must reach submission
 for the review task to be created (shown in Step 6).
 
-**Completion:** QR code generated AND patient interview preview submitted.
+**Completion:** QR code generated AND patient intake preview submitted.
 Preview is mandatory because Step 6 depends on the review task created by
 patient submission.
 
 **Data source:** Real `createOnboardingPatientEntry` API call. Review task
-created by the patient interview submission flow.
+created by the patient intake submission flow.
 
 ### Step 6: 查看生成的审核与随访任务
 

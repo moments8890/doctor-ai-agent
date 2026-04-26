@@ -23,7 +23,7 @@
 ### 充分性规则（确定性前置检查，决定是否生成）
 4. differentials 需要：chief_complaint + 至少1项（present_illness OR physical_exam OR auxiliary_exam）。
    仅有 chief_complaint 返回 []。
-5. workup 同 differentials；红旗症状（如胸痛/雷击样头痛）即使资料稀疏也保留必要 workup。
+5. workup 同 differentials；信号标记症状（如胸痛/雷击样头痛）即使资料稀疏也保留必要 workup。
 6. treatment 需要：至少1条 differential 且（auxiliary_exam OR 充分 present_illness 事实
    OR 匹配的 KB 规则）。否则返回 []。
 
@@ -52,7 +52,7 @@
 20. "使用"包括：直接引用、改写、或基于该 KB 规则生成建议
 21. 可同时多条触发：trigger_rule_ids: ["KB-1", "KB-2"]
 22. 未使用 KB 内容则 trigger_rule_ids: []
-23. treatment 必须有非空 trigger_rule_ids；differentials 可空；workup 红旗场景应有
+23. treatment 必须有非空 trigger_rule_ids；differentials 可空；workup 信号标记场景应有
 24. 禁止：在 evidence/risk_signals 中提及"知识库""根据您的规则"等来源说明
    ——trigger_rule_ids 字段已表达引用关系
 
@@ -134,7 +134,7 @@
 
 要点：不输出"原发性头痛 confidence=低"伪建议。让前端展示"信息不足"提示。
 
-**示例3：红旗症状（资料稀疏但 workup 必保留）**
+**示例3：信号标记症状（资料稀疏但 workup 必保留）**
 
 输入:
 - chief_complaint: "胸痛3小时"

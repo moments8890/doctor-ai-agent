@@ -1,4 +1,4 @@
-# Patient Chat–Interview Merge — v1 Design Spec
+# Patient Chat–Intake Merge — v1 Design Spec
 
 > **Status:** v1.2 — strategy converged across 4 Codex review rounds. Ready for implementation plan.
 > **Author:** Claude (synthesizing user intent + Codex rounds 1, 2, 3, 4 reviews)
@@ -28,15 +28,15 @@
 
 ## Goal
 
-Collapse the patient app's separate "新建问诊" entry into the main ChatTab so the patient experiences a single conversation surface. The system silently detects when a casual message becomes clinical intake, runs a sticky interview state with always-on red-flag protection, holds the structured fields in a draft, and only writes a doctor-visible record after a lightweight explicit confirmation. A small whitelist of intents gets autonomous AI replies; everything else is intake or doctor-routed.
+Collapse the patient app's separate "新建问诊" entry into the main ChatTab so the patient experiences a single conversation surface. The system silently detects when a casual message becomes clinical intake, runs a sticky intake state with always-on signal-flag protection, holds the structured fields in a draft, and only writes a doctor-visible record after a lightweight explicit confirmation. A small whitelist of intents gets autonomous AI replies; everything else is intake or doctor-routed.
 
-The win is **one mental model for a 40+ WeChat-native patient population** — no CTA to find, no concept of "interview mode" to learn. The risk we are explicitly accepting is that intent classification becomes load-bearing on a model call, so the spec spends most of its weight on the safety scaffolding around that call.
+The win is **one mental model for a 40+ WeChat-native patient population** — no CTA to find, no concept of "intake mode" to learn. The risk we are explicitly accepting is that intent classification becomes load-bearing on a model call, so the spec spends most of its weight on the safety scaffolding around that call.
 
 ## Non-goals
 
 - Removing the doctor-facing review queue. Records remain the unit of doctor work; chat is intake.
 - Letting AI directly answer diagnosis-adjacent or personalized clinical judgment questions. Whitelist is operational only.
-- Big-bang replacement. The explicit `InterviewPage` stays as a control arm and fallback button until the merged flow proves equal-or-better on capture quality and routing safety.
+- Big-bang replacement. The explicit `IntakePage` stays as a control arm and fallback button until the merged flow proves equal-or-better on capture quality and routing safety.
 - Re-enabling RAG / embeddings. Whitelist matches against doctor KB use the existing token-overlap scoring (`triage._check_kb_can_answer`).
 
 ---
@@ -44,8 +44,8 @@ The win is **one mental model for a 40+ WeChat-native patient population** — n
 ## What exists today (one-screen recap)
 
 - **ChatTab** (`frontend/web/src/v2/pages/patient/ChatTab.jsx`) calls `POST /api/patient/chat`, polls `GET /api/patient/chat/messages`. Per-turn `triage.classify()` → `{informational, symptom_report, side_effect, general_question, urgent}` → handler. KB-overlap downgrade already turns `side_effect`/`general_question` into auto-reply when a doctor KB item scores ≥ 4.
-- **InterviewPage** (separate route) calls `start/turn/confirm/cancel`. `InterviewEngine` runs a template (`medical_general_v1`), then `MedicalRecordWriter.persist()` creates `MedicalRecordDB` with the 7 history fields.
-- **MedicalRecordDB** has `status: interview_active|pending_review|diagnosis_failed|completed` and a `seed_source` column already wired for provenance.
+- **IntakePage** (separate route) calls `start/turn/confirm/cancel`. `IntakeEngine` runs a template (`medical_general_v1`), then `MedicalRecordWriter.persist()` creates `MedicalRecordDB` with the 7 history fields.
+- **MedicalRecordDB** has `status: intake_active|pending_review|diagnosis_failed|completed` and a `seed_source` column already wired for provenance.
 - **Urgent** is a per-turn category that bypasses the 3-per-6h escalation rate limit and emits a static safety message.
 - **Doctor review queue** (`/api/manage/review/queue`) sorts by urgency + ts, joins `AISuggestion` and `MedicalRecordDB`. Does **not** filter by `seed_source` today.
 
@@ -64,7 +64,7 @@ States: { idle, intake, qa_window }
 ```
 
 - **idle** — default. No active intake. Whitelist QA is allowed (returns templated answer). Anything not whitelist-eligible is routed to doctor as today.
-- **intake** — entered when the per-turn classifier emits `symptom_report` with confidence ≥ 0.65 (see §1a). Carries a `MedicalRecordDB` row at `status=interview_active` and a partial `collected` dict. Doctor cannot see this row in the queue (`pending_review` filter excludes it).
+- **intake** — entered when the per-turn classifier emits `symptom_report` with confidence ≥ 0.65 (see §1a). Carries a `MedicalRecordDB` row at `status=intake_active` and a partial `collected` dict. Doctor cannot see this row in the queue (`pending_review` filter excludes it).
 - **qa_window** — short-lived state entered when, mid-`intake`, the patient asks a whitelist QA question (e.g., "顺便问一下，挂号怎么改时间"). System answers the QA, returns to `intake` on the patient's next intake-relevant turn or explicit "回到问诊" signal (see §1b — turn-count cap removed).
 
 #### 1a. Entry rule (idle → intake) — trust the classifier, boost with lexicon
@@ -101,7 +101,7 @@ qa_window exits when **any** of:
 
 Codex round 2 noted "tied to intent completion, not turn count." The 2-turn cap is gone. qa_window exists as long as the patient is doing logistics and exits the moment they resume intake or signal it explicitly.
 
-**Per-turn red-flag pass — runs in parallel regardless of state.** `urgent` classifier output bypasses the state machine entirely, fires the existing static safety message + immediate doctor notification, and flags the active record (if any) with `red_flag=true`. This is the Codex-mandated safety floor primitive. See §4 for the ordering rule when red-flag fires after a whitelist reply.
+**Per-turn signal-flag pass — runs in parallel regardless of state.** `urgent` classifier output bypasses the state machine entirely, fires the existing static safety message + immediate doctor notification, and flags the active record (if any) with `signal_flag=true`. This is the Codex-mandated safety floor primitive. See §4 for the ordering rule when signal-flag fires after a whitelist reply.
 
 ### 2. Whitelist for autonomous AI replies (positive list, narrow)
 
@@ -127,11 +127,11 @@ Codex round 2 was right: silent writes at threshold pollute the queue. v1 revers
 
 To `MedicalRecordDB`:
 ```sql
-seed_source: enum('explicit_interview', 'chat_detected', 'imported')  -- existing column; backfilled
+seed_source: enum('explicit_intake', 'chat_detected', 'imported')  -- existing column; backfilled
 extraction_confidence: float NULL  -- DETERMINISTIC: see §3a
 patient_confirmed_at: datetime NULL  -- set when patient confirms via threshold gate
 cancellation_reason: enum('patient_cancel', 'patient_cancel_late', 'idle_decay', 'system_rollback', 'merged_into_existing') NULL
-red_flag: boolean DEFAULT false  -- set by per-turn red-flag pass
+signal_flag: boolean DEFAULT false  -- set by per-turn signal-flag pass
 intake_segment_id: string NULL  -- groups records that came from one continuous chat segment, see §5
 dedup_skipped_by_patient: boolean DEFAULT false  -- patient explicitly chose 新开一条
 ```
@@ -180,7 +180,7 @@ When `intake` reaches `chief_complaint + present_illness + (duration OR severity
 
 Two buttons. Default is no action (no implicit promotion).
 
-- **整理给医生**: `MedicalRecordWriter.persist()` runs, record promoted from `interview_active` to `pending_review`, `patient_confirmed_at` set, state machine returns to `idle`. Doctor sees it in the review queue with `seed_source=chat_detected` and the `extraction_confidence` value.
+- **整理给医生**: `MedicalRecordWriter.persist()` runs, record promoted from `intake_active` to `pending_review`, `patient_confirmed_at` set, state machine returns to `idle`. Doctor sees it in the review queue with `seed_source=chat_detected` and the `extraction_confidence` value.
 - **继续聊**: state machine stays in `intake`. The draft persists. Threshold gate may re-fire later if more fields get filled.
 
 If the patient ignores the gate (sends another message instead of tapping):
@@ -188,26 +188,26 @@ If the patient ignores the gate (sends another message instead of tapping):
 - If the new message is `intake_cancel` or whitelist QA, handle accordingly (cancel record, or enter qa_window).
 - If 24h passes, idle decay applies (cancellation_reason='idle_decay').
 
-The draft is never doctor-visible until the patient confirms. This is the v1 fix to the v0 "silent writes pollute the queue" problem. The cost is that intake-active records that never confirm sit in `interview_active` and consume DB rows; idle decay handles cleanup.
+The draft is never doctor-visible until the patient confirms. This is the v1 fix to the v0 "silent writes pollute the queue" problem. The cost is that intake-active records that never confirm sit in `intake_active` and consume DB rows; idle decay handles cleanup.
 
 #### 3c. After-the-fact correction
 
 Even after explicit confirmation, the patient retains correction surfaces:
-- 5 minutes from `patient_confirmed_at`: an "[撤销刚才的整理]" chip stays attached to the chat message that confirmed creation. Tap → record reverts to `interview_active`, state machine re-enters intake.
+- 5 minutes from `patient_confirmed_at`: an "[撤销刚才的整理]" chip stays attached to the chat message that confirmed creation. Tap → record reverts to `intake_active`, state machine re-enters intake.
 - Beyond 5 minutes: RecordsTab swipe-delete (existing affordance). Triggers `cancellation_reason='patient_cancel_late'`.
 
 This is the only place a passive chip survives in v1, and it's explicitly post-confirmation, so it can't pollute on its own.
 
-### 4. Red-flag ordering — retract whitelist replies if red-flag fires same segment
+### 4. Red-flag ordering — retract whitelist replies if signal-flag fires same segment
 
-The per-turn red-flag classifier runs in parallel with the state machine. If `urgent` fires on turn N **after** a whitelist autonomous reply was sent on turn N-K (K ≥ 1) within the same `intake_segment_id`:
+The per-turn signal-flag classifier runs in parallel with the state machine. If `urgent` fires on turn N **after** a whitelist autonomous reply was sent on turn N-K (K ≥ 1) within the same `intake_segment_id`:
 
 1. Send a chat message: "鲸鱼: 抱歉，刚才的回答可能不够稳妥。请稍等，医生会立刻处理。"
 2. Run the existing static urgent safety message + doctor notification.
 3. Mark the prior whitelist reply with `retracted=true` (new column on chat messages) — visually struck through in the UI so the patient sees it was withdrawn.
-4. Set `red_flag=true` on the active intake record (or create a `chat_detected` record at `interview_active` if none exists, so the doctor has context for the urgent escalation).
+4. Set `signal_flag=true` on the active intake record (or create a `chat_detected` record at `intake_active` if none exists, so the doctor has context for the urgent escalation).
 
-Codex round 2: "the ordering and suppression rules matter." This is the rule. The whitelist is allowed to be wrong if the safety net catches it; what's not allowed is the patient walking away from a stale low-risk answer when a red-flag has since fired.
+Codex round 2: "the ordering and suppression rules matter." This is the rule. The whitelist is allowed to be wrong if the safety net catches it; what's not allowed is the patient walking away from a stale low-risk answer when a signal-flag has since fired.
 
 ---
 
@@ -217,13 +217,13 @@ Codex round 2: "duplicate and fragmented record creation will wreck doctor trust
 
 ### 5a. Detection — similarity is necessary but not sufficient
 
-When the threshold confirm gate is about to fire (§3b) for a patient who has another `pending_review` or `interview_active` record from the **same patient within the last 24h**, run a same-episode check that combines text similarity with episode-boundary signals (Codex round 4: "same complaint text can represent worsening, recurrence, or post-treatment change").
+When the threshold confirm gate is about to fire (§3b) for a patient who has another `pending_review` or `intake_active` record from the **same patient within the last 24h**, run a same-episode check that combines text similarity with episode-boundary signals (Codex round 4: "same complaint text can represent worsening, recurrence, or post-treatment change").
 
 ```
 chief_complaint_similarity = LLM-judged 0..1 on whether two chief complaints describe the same clinical issue
 hours_since_last = elapsed time since last patient turn on the candidate target record
 treatment_event_since_last = boolean — did an AISuggestion get sent or doctor decision get made on the candidate target since its last patient input?
-status_change_since_last = boolean — did the candidate target advance in status (interview_active → pending_review, pending_review → completed) since its last patient input?
+status_change_since_last = boolean — did the candidate target advance in status (intake_active → pending_review, pending_review → completed) since its last patient input?
 
 same_episode = chief_complaint_similarity >= 0.5
             AND hours_since_last <= 24
@@ -243,7 +243,7 @@ Codex round 3: "patients should confirm 'send this to doctor.' They should not a
 
 The behavior splits by candidate target status:
 
-**Common case — target is `interview_active` or `pending_review` with no doctor decision yet, similarity ≥ 0.7:** auto-merge **append-only with provenance**. Show the standard confirm gate (§3b) with continuity-aware copy: "继续您之前的就诊记录，整理给医生? [整理给医生] [继续聊]". The patient confirms once.
+**Common case — target is `intake_active` or `pending_review` with no doctor decision yet, similarity ≥ 0.7:** auto-merge **append-only with provenance**. Show the standard confirm gate (§3b) with continuity-aware copy: "继续您之前的就诊记录，整理给医生? [整理给医生] [继续聊]". The patient confirms once.
 
 The merge rules — Codex round 4's "append-only and provenance-preserving":
 - **No silent overwrites of any prior field, ever.** Each field stores a list of `(text, intake_segment_id, timestamp)` entries, not a single string. The doctor view renders them in order with visible timestamps and a soft separator ("初次描述" / "之后补充"). The doctor reads exactly what the patient described, when they described it, never a stitched narrative pretending to be one coherent intake.
@@ -284,7 +284,7 @@ The review queue gains a provenance filter, a column, and a confidence indicator
 
 - **Filter chips** above the queue: `全部 | 问诊完成 | 自动整理` — defaults to 全部. "自动整理" maps to `seed_source='chat_detected'`.
 - **Row badge** on chat-derived records: small "对话整理" tag. `extraction_confidence` shown as a small ring (0/7 to 7/7 visual) — not a percentage, not a colored severity dot. The denominator is right there so doctors learn what the number means.
-- **Red-flag bubble** if `red_flag=true` from the per-turn urgent pass — same surface as today's existing urgent escalation, anchored to the record.
+- **Red-flag bubble** if `signal_flag=true` from the per-turn urgent pass — same surface as today's existing urgent escalation, anchored to the record.
 - **Retracted-reply indicator**: any chat message marked `retracted=true` (from §4) is shown struck through in the doctor's chat-history view of the patient, with a small "已撤回 (危险信号触发)" annotation. Doctors see exactly what the patient saw and what the system pulled back.
 
 Records keep their existing edit-and-confirm flow. No change to how doctors compose AI suggestions — that's downstream of `pending_review`.
@@ -293,25 +293,25 @@ Records keep their existing edit-and-confirm flow. No change to how doctors comp
 
 ## Migration plan — parallel flows, no big bang
 
-**Phase 0: backend safety floor.** `seed_source` column populated on existing rows. New columns added (Alembic migration): `extraction_confidence`, `patient_confirmed_at`, `cancellation_reason`, `red_flag`, `intake_segment_id`, `dedup_skipped_by_patient`. New `retracted` column on chat messages. `patient_safe` field on `DoctorKnowledgeItem`. Per-turn red-flag classifier pulled out of `triage_handlers.handle_urgent` into a standalone always-on pass. **Ship this first, even before any UX change** — it's the floor regardless of whether merge ships.
+**Phase 0: backend safety floor.** `seed_source` column populated on existing rows. New columns added (Alembic migration): `extraction_confidence`, `patient_confirmed_at`, `cancellation_reason`, `signal_flag`, `intake_segment_id`, `dedup_skipped_by_patient`. New `retracted` column on chat messages. `patient_safe` field on `DoctorKnowledgeItem`. Per-turn signal-flag classifier pulled out of `triage_handlers.handle_urgent` into a standalone always-on pass. **Ship this first, even before any UX change** — it's the floor regardless of whether merge ships.
 
 **Phase 0.5: doctor KB curation onboarding.** New `KbCurationOnboardingDone` doctor-level flag. Until set, no `patient_safe=true` flag is honored on any of that doctor's KB items, even if individually marked. The KB editor surfaces a one-shot review pass: doctor walks through every existing KB item, decides patient-safe or not, then sets the onboarding-done flag. This is the round-2 fix to "per-item opt-in is not enough." We force the deliberate first-pass curation before patient-facing answers go live for that doctor.
 
-**Phase 1: dual-mode chat backend.** ChatTab POST endpoint gains state-machine logic. Whitelist intents start replying autonomously (only for doctors who completed Phase 0.5). Draft-first record creation goes live but `intake` state has a feature flag (`PATIENT_CHAT_INTAKE_ENABLED`, doctor-scoped) — defaults off for everyone except 3 pilot doctors. Explicit `InterviewPage` continues to work unchanged.
+**Phase 1: dual-mode chat backend.** ChatTab POST endpoint gains state-machine logic. Whitelist intents start replying autonomously (only for doctors who completed Phase 0.5). Draft-first record creation goes live but `intake` state has a feature flag (`PATIENT_CHAT_INTAKE_ENABLED`, doctor-scoped) — defaults off for everyone except 3 pilot doctors. Explicit `IntakePage` continues to work unchanged.
 
 **Phase 2: pilot.** Feature-flag intake on for ~5 doctors (~50 patients) who have completed Phase 0.5. Two weeks. Measure:
 - false-positive record rate (`chat_detected` records doctor cancels in review)
-- false-negative escalation rate (red-flag turns the system missed, caught by doctor)
+- false-negative escalation rate (signal-flag turns the system missed, caught by doctor)
 - whitelist mis-fire rate (autonomous replies the doctor would have answered differently)
 - patient correction rate (gate `继续聊` taps + post-confirm `撤销` taps)
-- explicit-interview usage (does it drop, hold, or rise among pilot doctors)
+- explicit-intake usage (does it drop, hold, or rise among pilot doctors)
 - entry-branch split (`entered_by_primary_threshold` vs `entered_by_lexicon_boost`) and FP rate per branch
 - **dedup band defensibility** (Codex round 4 ask): auto-merge precision above 0.7 (doctor-reversal rate after silent merge), prompt-trigger rate inside [0.5, 0.7], patient choice distribution in-band (并入 / 新开 / 都不要), false-negative duplicate rate below 0.5 (records the doctor later flags as obvious duplicates of an earlier one)
 - **supplement acceptance** (Edge case 2): for reviewed-record supplements, doctor accept rate vs create-new vs ignore. Low accept rate signals the patient prompt should bias toward 新开一条 instead.
 
-Hard rollback if any of: red-flag miss > 0 in pilot, FP record rate > 15%, whitelist mis-fire causes a documented patient harm event, or dedup prompt confusion rate (patients tap 都不要 then immediately re-describe symptoms) > 25%.
+Hard rollback if any of: signal-flag miss > 0 in pilot, FP record rate > 15%, whitelist mis-fire causes a documented patient harm event, or dedup prompt confusion rate (patients tap 都不要 then immediately re-describe symptoms) > 25%.
 
-**Phase 3: default-on.** If pilot metrics clear, flip default. `InterviewPage` stays in the patient app as a small secondary CTA ("结构化问诊 →") for one quarter as a control arm + fallback. Kill-it-when criterion: `chat_detected` records' doctor-cancel rate ≤ explicit-interview cancel rate, AND explicit-interview usage drops below 10% of intake events for 4 consecutive weeks.
+**Phase 3: default-on.** If pilot metrics clear, flip default. `IntakePage` stays in the patient app as a small secondary CTA ("结构化问诊 →") for one quarter as a control arm + fallback. Kill-it-when criterion: `chat_detected` records' doctor-cancel rate ≤ explicit-intake cancel rate, AND explicit-intake usage drops below 10% of intake events for 4 consecutive weeks.
 
 ---
 
@@ -319,23 +319,23 @@ Hard rollback if any of: red-flag miss > 0 in pilot, FP record rate > 15%, white
 
 Per Codex rounds 1 and 2, none of these are negotiable:
 
-- [ ] Always-on per-turn red-flag classifier, independent of state.
+- [ ] Always-on per-turn signal-flag classifier, independent of state.
 - [ ] Whitelist-only autonomous replies. No blacklist anywhere in the codebase.
 - [ ] `patient_safe=true` required on KB items used in patient-facing replies, AND doctor `KbCurationOnboardingDone=true` required (Phase 0.5).
 - [ ] `seed_source` provenance flag on every chat-derived record.
 - [ ] Draft-first writes only. No promotion to `pending_review` without `patient_confirmed_at`.
 - [ ] Threshold confirm gate (§3b) at every record promotion.
 - [ ] 5-minute post-confirm undo + RecordsTab swipe-delete as longer-tail correction.
-- [ ] Idle decay (24h) auto-cancels stale `interview_active` rows with `cancellation_reason='idle_decay'`.
+- [ ] Idle decay (24h) auto-cancels stale `intake_active` rows with `cancellation_reason='idle_decay'`.
 - [ ] Dedup detection combines chief_complaint similarity AND episode-boundary signals (§5a); same complaint after a doctor decision or status advance is **not** a duplicate.
 - [ ] Dedup merges are **append-only with provenance** (§5b common case) — no silent field overwrites, doctor view shows each entry's timestamp and segment.
-- [ ] Auto-merge applies only when target is `interview_active` or undecided `pending_review` AND similarity ≥ 0.7 AND episode signals clear. [0.5, 0.7] band prompts the patient.
+- [ ] Auto-merge applies only when target is `intake_active` or undecided `pending_review` AND similarity ≥ 0.7 AND episode signals clear. [0.5, 0.7] band prompts the patient.
 - [ ] Reviewed-record merges (§5b Edge case 2) create a `RecordSupplementDB` row pending doctor accept; **never auto-mutate clinical work product**.
 - [ ] Same-segment auto-merge (§5c) without prompting, but never against a doctor-reviewed record (falls back to §5b Edge case 2 supplement flow).
 - [ ] Entry-branch observability counters (`entered_by_primary_threshold` vs `entered_by_lexicon_boost`) wired into pilot dashboards. Without this, intake threshold tuning is guesswork.
 - [ ] Red-flag retraction (§4) when `urgent` fires after a whitelist reply in the same segment.
 - [ ] Doctor-side provenance badge + filter + extraction_confidence indicator shipped same release as auto-record creation.
-- [ ] Hard rollback procedure: feature flag off → ChatTab returns to triage-only behavior, in-flight `interview_active` rows soft-cancelled with `cancellation_reason='system_rollback'` (excluded from user-behavior analytics by definition).
+- [ ] Hard rollback procedure: feature flag off → ChatTab returns to triage-only behavior, in-flight `intake_active` rows soft-cancelled with `cancellation_reason='system_rollback'` (excluded from user-behavior analytics by definition).
 
 ---
 
@@ -347,7 +347,7 @@ v0 closed: Q3 (extraction_confidence — now deterministic), Q6 (medication_timi
 
 **Q2.** Threshold confirm gate copy — proposed: "您刚才提到的情况，要为您整理成一条就诊记录给医生看吗? [整理给医生] [继续聊]". The verb 整理 is gentle but might read as too informal for a clinical action. Alternatives: 保存为 / 提交给 / 记录给. Pick one for v0 or test in pilot?
 
-**Q3 (was Q5).** `InterviewPage` long-term — Phase 3 keeps it for one quarter as control. Is the kill criterion sound (cancel rate parity + < 10% usage for 4 weeks), or do you want stronger evidence before deletion? E.g., patient-survey signal that they don't miss it, or doctor-survey signal that record quality is equivalent.
+**Q3 (was Q5).** `IntakePage` long-term — Phase 3 keeps it for one quarter as control. Is the kill criterion sound (cancel rate parity + < 10% usage for 4 weeks), or do you want stronger evidence before deletion? E.g., patient-survey signal that they don't miss it, or doctor-survey signal that record quality is equivalent.
 
 **Q4 (was Q4).** Threshold confirm gate copy variants — same as Q2 but specifically for patient-facing trust. Three frames: action-explicit ("整理成就诊记录") vs benefit-explicit ("整理给医生看") vs minimal ("保存"). 40+ Chinese WeChat audience reads 记录 with weight. Worth pilot A/B?
 

@@ -11,26 +11,26 @@ setup:
 
 steps:
   - id: start
-    call: doctor_interview.start
+    call: doctor_intake.start
     input:
       patient_id: ${patients.p1}
       mode: doctor
     expect:
       hard:
         session_id.exists: true
-        status: interviewing
+        status: active
 
   - id: turn_1
-    call: doctor_interview.turn
+    call: doctor_intake.turn
     input:
       session_id: ${steps.start.session_id}
       text: "张伟，男50岁，头痛两周加重三天，伴恶心呕吐。既往高血压10年。查体视乳头水肿。MRI示右额叶占位，均匀强化，宽基底附着硬脑膜。"
     expect:
       hard:
-        status: interviewing
+        status: active
 
   - id: confirm
-    call: doctor_interview.confirm
+    call: doctor_intake.confirm
     input:
       session_id: ${steps.start.session_id}
     expect:

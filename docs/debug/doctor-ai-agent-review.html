@@ -580,7 +580,7 @@ Session State Lost on Crash/Restart</h3>
 <p><strong>What the code does:</strong></p>
 <p><code>services/session.py</code> stores each doctor’s active session
 in a Python dictionary keyed by <code>doctor_id</code>. This includes
-the current patient context, the active guided interview state, and the
+the current patient context, the active guided intake state, and the
 rolling conversation history. DB recovery
 (<code>hydrate_session_state()</code>) runs once per doctor when they
 first appear in the process.</p>

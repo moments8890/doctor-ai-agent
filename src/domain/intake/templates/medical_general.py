@@ -2,27 +2,27 @@
 
 Phase 2.5: GeneralMedicalExtractor now owns the full medical prompt context
 building (prompt_partial), metadata extraction (extract_metadata), and reply
-softening (post_process_reply). The legacy _call_interview_llm in
-interview_turn.py is the behavior reference — byte-identical context output is
+softening (post_process_reply). The legacy _call_intake_llm in
+intake_turn.py is the behavior reference — byte-identical context output is
 the preservation bar.
 """
 from __future__ import annotations
 
 from typing import Any
 
-from domain.interview.protocols import (
+from domain.intake.protocols import (
     BatchExtractor, CompletenessState, EngineConfig, FieldExtractor, FieldSpec,
     Mode, Phase, PersistRef, PostConfirmHook, SessionState, Template, Writer,
 )
-from domain.patients.interview_context import (
+from domain.patients.intake_context import (
     _load_patient_info,
     _load_previous_history,
 )
 
-# ---- field specs — canonical source of medical-interview schema ------------
+# ---- field specs — canonical source of medical-intake schema ------------
 
 # Declarative: add/remove/reorder fields here. Legacy callers import via the
-# completeness.py and interview_models.py shims (both now thin re-exports).
+# completeness.py and intake_models.py shims (both now thin re-exports).
 
 MEDICAL_FIELDS: list[FieldSpec] = [
     FieldSpec(
@@ -118,8 +118,8 @@ MEDICAL_FIELDS: list[FieldSpec] = [
 # ---- extractor -------------------------------------------------------------
 
 from agent.prompt_composer import (
-    compose_for_doctor_interview as _compose_for_doctor_interview,
-    compose_for_patient_interview as _compose_for_patient_interview,
+    compose_for_doctor_intake as _compose_for_doctor_intake,
+    compose_for_patient_intake as _compose_for_patient_intake,
 )
 
 
@@ -136,10 +136,10 @@ class GeneralMedicalExtractor:
         phase: Phase,
         mode: Mode,
     ) -> list[dict[str, str]]:
-        """Build the medical interview LLM message list.
+        """Build the medical intake LLM message list.
 
         Phase 2.5: absorbs the patient_context + history-window logic that
-        previously lived in _call_interview_llm. The engine passes structured
+        previously lived in _call_intake_llm. The engine passes structured
         state; this method produces the messages list.
         """
         import json
@@ -239,14 +239,14 @@ class GeneralMedicalExtractor:
             prior_history = history[:-1]
 
         if mode == "doctor":
-            return await _compose_for_doctor_interview(
+            return await _compose_for_doctor_intake(
                 doctor_id=session_state.doctor_id,
                 patient_context=patient_context,
                 doctor_message=latest_msg,
                 history=prior_history,
                 template_id=session_state.template_id,
             )
-        return await _compose_for_patient_interview(
+        return await _compose_for_patient_intake(
             doctor_id=session_state.doctor_id,
             patient_context=patient_context,
             doctor_message=latest_msg,
@@ -278,7 +278,7 @@ class GeneralMedicalExtractor:
 
         If can_complete=True (required fields filled), rewrite phrases like
         "还需要补充X" → "如方便可再补充" and strip "必须..." / "还缺...".
-        Preserves the current interview_turn.py:317-325 behavior.
+        Preserves the current intake_turn.py:317-325 behavior.
         """
         import re
         state = self.completeness(collected, mode)
@@ -344,9 +344,9 @@ class GeneralMedicalExtractor:
 
         if mode == "patient":
             specs = [s for s in specs if s.name in _PATIENT_FIELDS]
-            # Patient interview drives the full pre-consultation loop: all
+            # Patient intake drives the full pre-consultation loop: all
             # subjective fields are required before the session is "ready
-            # to review". This matches patient-interview.md's stop condition.
+            # to review". This matches patient-intake.md's stop condition.
             required = [s.name for s in specs]
             recommended = []
             optional = []
@@ -394,8 +394,8 @@ class MedicalBatchExtractor:
         mode: Mode,
     ) -> dict[str, str] | None:
         # Lazy import to avoid circular dependency:
-        # completeness (shim) → medical_general → interview_summary → completeness
-        from domain.patients.interview_summary import (
+        # completeness (shim) → medical_general → intake_summary → completeness
+        from domain.patients.intake_summary import (
             batch_extract_from_transcript as _batch_extract_from_transcript,
         )
         return await _batch_extract_from_transcript(
@@ -436,7 +436,7 @@ _WRITER_CONTROLLED_COLUMNS: frozenset[str] = frozenset({
 
 
 class MedicalRecordWriter:
-    """Writer. Persists the confirmed interview to medical_records.
+    """Writer. Persists the confirmed intake to medical_records.
 
     Maps `collected` keys to `MedicalRecordDB` columns generically: any
     `collected` key whose name matches an ORM column (and isn't writer-
@@ -452,8 +452,8 @@ class MedicalRecordWriter:
         self, session: SessionState, collected: dict[str, str],
     ) -> PersistRef:
         # Lazy import to avoid circular dependency:
-        # completeness (shim) → medical_general → shared → interview_turn → completeness
-        from channels.web.doctor_interview.shared import _build_clinical_text
+        # completeness (shim) → medical_general → shared → intake_turn → completeness
+        from channels.web.doctor_intake.shared import _build_clinical_text
 
         patient_id = await self._ensure_patient(session, collected)
 
@@ -485,7 +485,7 @@ class MedicalRecordWriter:
             record = MedicalRecordDB(
                 doctor_id=session.doctor_id,
                 patient_id=patient_id,
-                record_type="interview_summary",
+                record_type="intake_summary",
                 status=status,
                 content=clinical_text,
                 **column_kwargs,
@@ -537,7 +537,7 @@ class MedicalRecordWriter:
 
 from dataclasses import dataclass, field
 
-from domain.interview.hooks.medical import (
+from domain.intake.hooks.medical import (
     GenerateFollowupTasksHook, NotifyDoctorHook, TriggerDiagnosisPipelineHook,
 )
 

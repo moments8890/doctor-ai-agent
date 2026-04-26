@@ -17,7 +17,7 @@ The current product has strong surfaces for:
 - doctor AI dashboard
 - knowledge creation
 - QR sharing
-- patient guided interview
+- patient guided intake
 
 But discovery is still non-deterministic because the doctor has to infer the
 intended sequence. The app behaves like a dashboard with many valid entry
@@ -301,8 +301,8 @@ feature-linked, not generic volume:
 - `frontend/web/src/pages/doctor/ChatPage.jsx`
   Add patient-onboarding shortcut entry for doctors who start from chat.
 - `frontend/web/src/pages/patient/PatientPage.jsx`
-  Route preview / QR-first entry into interview-first experience.
-- `frontend/web/src/pages/patient/InterviewPage.jsx`
+  Route preview / QR-first entry into intake-first experience.
+- `frontend/web/src/pages/patient/IntakePage.jsx`
   Add intro framing and success CTA back to doctor review.
 
 ## Cascading Impact
@@ -312,7 +312,7 @@ feature-linked, not generic volume:
 3. **API endpoints** — Optional only. Current flows can mostly work with existing routes. A later implementation may want explicit preview/example routes, seeded-example deep links, and doctor-chat link generation helpers.
 4. **Domain logic** — None for the mock. Implementation may add lightweight onboarding state helpers, seeded-example selection helpers, and doctor-chat patient-intake helpers.
 5. **Prompt files** — None.
-6. **Frontend** — Primary impact. `MyAIPage`, knowledge flow, review proof surfaces, QR flow, doctor chat shortcut, patient preview routing, patient interview success state, task highlight state.
+6. **Frontend** — Primary impact. `MyAIPage`, knowledge flow, review proof surfaces, QR flow, doctor chat shortcut, patient preview routing, patient intake success state, task highlight state.
 7. **Configuration** — None.
 8. **Existing tests** — UI/mock tests and any route assumptions around patient default tab may need updates if preview mode is introduced.
 9. **Cleanup** — Remove or down-rank equal-weight first-run cards that currently compete with the guided path.

@@ -21,7 +21,7 @@ pages/patient/
 ├── RecordsTab.jsx           ← records list
 ├── TasksTab.jsx             ← patient tasks with checklist
 ├── ProfileTab.jsx           ← doctor info, patient info, logout
-├── InterviewPage.jsx        ← full-screen pre-assessment interview
+├── IntakePage.jsx        ← full-screen pre-assessment intake
 ├── constants.jsx            ← NAV_TABS, FIELD_LABELS, RECORD_TYPE_LABELS
 ├── subpages/
 │   └── RecordDetail.jsx     ← drilldown view for a single record
@@ -76,7 +76,7 @@ Responsibilities:
 - Parse `useParams()` for `tab` and `subpage`
 - Render active tab component based on `tab` param
 - Bottom nav with 4 tabs: 主页, 病历, 任务, 设置
-- When interview is active (full-screen), hide bottom nav
+- When intake is active (full-screen), hide bottom nav
 
 Props flow:
 - `token`, `patientName`, `doctorName`, `doctorId` derived from auth state
@@ -105,7 +105,7 @@ Extracted from current `RecordsTab`.
 
 - List view with `ListCard` components
 - Each record: `RecordTypeAvatar` (type icon), title (record type label), subtitle (chief complaint), right side (status badge + date)
-- `NewItemCard` at top: "新建病历" → navigates to interview
+- `NewItemCard` at top: "新建病历" → navigates to intake
 - Tap record → navigate to `/patient/records/:recordId`
 
 API calls:
@@ -146,9 +146,9 @@ Extracted from current `ProfileTab`.
 API calls:
 - `getMe(token)` — patient info + doctor info
 
-### InterviewPage.jsx
+### IntakePage.jsx
 
-Extracted from current interview code inside PatientPage.jsx.
+Extracted from current intake code inside PatientPage.jsx.
 
 - Full-screen overlay (bottom nav hidden)
 - Session-based: sessionId, collected, progress, status
@@ -159,10 +159,10 @@ Extracted from current interview code inside PatientPage.jsx.
 - Exit dialog: save vs discard
 
 API calls:
-- `interviewStart(token)`
-- `interviewTurn(token, sessionId, text)`
-- `interviewConfirm(token, sessionId)`
-- `interviewCancel(token, sessionId)`
+- `intakeStart(token)`
+- `intakeTurn(token, sessionId, text)`
+- `intakeConfirm(token, sessionId)`
+- `intakeCancel(token, sessionId)`
 
 ### constants.jsx
 
@@ -205,10 +205,10 @@ API functions exposed (matching existing `api.js` patient exports):
 - `getRecordDetail(token, recordId)`
 - `getTasks(token)`
 - `completeTask(token, taskId)`
-- `interviewStart(token)`
-- `interviewTurn(token, sessionId, text)`
-- `interviewConfirm(token, sessionId)`
-- `interviewCancel(token, sessionId)`
+- `intakeStart(token)`
+- `intakeTurn(token, sessionId, text)`
+- `intakeConfirm(token, sessionId)`
+- `intakeCancel(token, sessionId)`
 
 ## Mock Data (MockData.jsx)
 
@@ -220,7 +220,7 @@ doctor: 张医生, 神经外科, doctor_id: mock_doctor
 
 ### Records (6)
 1. **Completed visit** — 头痛3天伴恶心呕吐, full SOAP (14 fields), diagnosis: 高血压性头痛, status: completed
-2. **Pending review (interview)** — 头晕反复发作1月, partial fields, status: pending_review
+2. **Pending review (intake)** — 头晕反复发作1月, partial fields, status: pending_review
 3. **Completed visit** — 血压控制不佳2周, diagnosis: 高血压病3级, with treatment_plan
 4. **Completed visit** — 糖尿病复查, diagnosis: 2型糖尿病, with lab results in auxiliary_exam
 5. **Imported record** — 外院转入MRI报告, record_type: import, with auxiliary_exam only
@@ -251,11 +251,11 @@ patient: "好的张医生"
 ai: "张医生已收到您的回复。如有其他问题随时问我。"
 ```
 
-### Interview State (partial)
-For showing interview-in-progress:
+### Intake State (partial)
+For showing intake-in-progress:
 ```
-sessionId: "mock-interview-001"
-status: "interviewing"
+sessionId: "mock-intake-001"
+status: "active"
 collected: {
   chief_complaint: "头痛反复发作",
   present_illness: "近1月来反复头痛，以双侧太阳穴为主",
@@ -270,7 +270,7 @@ suggestions: ["有恶心呕吐", "没有其他症状", "有时头晕"]
 - Auth is bypassed — PatientPage checks `isMock` and uses mock patient identity
 - All API calls return mock data with realistic delays (50-200ms `setTimeout`)
 - Chat `sendMessage` returns a canned response: "这是模拟回复。Mock mode 不支持真实对话。"
-- Interview turns return next question from a scripted sequence
+- Intake turns return next question from a scripted sequence
 - Task completion toggles status in mutable mock state (resets on refresh)
 - Record list and detail work with full structured data
 
@@ -291,7 +291,7 @@ suggestions: ["有恶心呕吐", "没有其他症状", "有时头晕"]
 6. Extract `TasksTab.jsx`
 7. Extract `RecordsTab.jsx` + `subpages/RecordDetail.jsx`
 8. Extract `ChatTab.jsx` (most complex, polling logic)
-9. Extract `InterviewPage.jsx`
+9. Extract `IntakePage.jsx`
 10. Rewrite `PatientPage.jsx` as thin shell
 11. Update `App.jsx` — add `patientRoutes()`, debug routes, DebugPage link
 12. Verify real mode works (login → all tabs)

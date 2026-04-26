@@ -2,19 +2,19 @@
 
 **Date:** 2026-03-20
 **Status:** Design approved, reviewed by Codex
-**Scope:** LLM-simulated patient testing for the patient interview pipeline
+**Scope:** LLM-simulated patient testing for the patient intake pipeline
 
 ## Goal
 
 Build a testing pipeline where an external LLM plays simulated patients, talking to our
-system's patient interview API. Validates that the interview system collects clinically
+system's patient intake API. Validates that the intake system collects clinically
 appropriate information for 神经外科脑血管疾病 (neurosurgery cerebrovascular) cases.
 
 ## Non-Goals
 
 - Emergency/acute case handling (SAH, acute stroke) — deferred
 - Doctor-side simulation — only patient side
-- Replacing existing pre-scripted tests (`patient_interview_benchmark.json`)
+- Replacing existing pre-scripted tests (`patient_intake_benchmark.json`)
 
 ## Architecture
 
@@ -32,9 +32,9 @@ appropriate information for 神经外科脑血管疾病 (neurosurgery cerebrovas
 │                                      │
 │  /api/patient/register               │
 │  /api/patient/login                  │
-│  /api/patient/interview/start        │
-│  /api/patient/interview/turn  ← NOTE │
-│  /api/patient/interview/confirm      │
+│  /api/patient/intake/start        │
+│  /api/patient/intake/turn  ← NOTE │
+│  /api/patient/intake/confirm      │
 │  /api/patient/records                │
 └──────────────────┬───────────────────┘
                    │
@@ -50,7 +50,7 @@ appropriate information for 神经外科脑血管疾病 (neurosurgery cerebrovas
 └──────────────────────────────────────┘
 ```
 
-**API choice:** The simulation uses `/api/patient/interview/turn` (not `/chat`).
+**API choice:** The simulation uses `/api/patient/intake/turn` (not `/chat`).
 The `/turn` endpoint returns `session_id`, `status`, `collected`, `progress`,
 and `missing` fields needed for the loop and validation. The `/chat` endpoint
 only returns `{reply}` and lacks session state.
@@ -136,13 +136,13 @@ includes chronicity and stability markers to prevent the system from escalating.
 
 **Schema notes:**
 
-- `allowed_facts[].category` maps to the 7 interview fields (`chief_complaint`,
+- `allowed_facts[].category` maps to the 7 intake fields (`chief_complaint`,
   `present_illness`, `past_history`, `allergy_history`, `family_history`,
   `personal_history`, `marital_reproductive`)
 - `allowed_facts[].volunteer`: if `true`, the patient may mention it unprompted;
   if `false`, only disclose when asked
 - `expected_extracted`: keywords that MUST appear in `collected` or `structured`
-  after the interview — this is what Tier 2 validates
+  after the intake — this is what Tier 2 validates
 - Denials (e.g., "无药物过敏") are explicit facts — the patient LLM should say
   "没有过敏" when asked, not invent allergies
 
@@ -154,17 +154,17 @@ For each persona:
    to isolate runs. Ensure test doctor exists with `accepting_patients=True`.
 2. **Register** — `POST /api/patient/register` with persona demographics + unique phone
 3. **Login** — `POST /api/patient/login` with phone + year_of_birth → JWT token
-4. **Start Interview** — `POST /api/patient/interview/start` → `session_id`, initial greeting
-5. **Interview Loop** (max 20 turns):
+4. **Start Intake** — `POST /api/patient/intake/start` → `session_id`, initial greeting
+5. **Intake Loop** (max 20 turns):
    - Read system's reply + `collected` + `progress` + `missing` from response
    - Feed system reply to Patient LLM with persona context + conversation history
    - Patient LLM generates response (grounded in `allowed_facts`)
-   - Send to `POST /api/patient/interview/turn` with `session_id` + `text`
+   - Send to `POST /api/patient/intake/turn` with `session_id` + `text`
    - **Stop conditions** (check in order):
      - `progress.filled >= 5` (enough fields collected) → break
-     - `status != "interviewing"` → break
+     - `status != "active"` → break
      - Turn count >= 20 → break (timeout)
-6. **Confirm** — `POST /api/patient/interview/confirm` → `record_id`, `review_id`
+6. **Confirm** — `POST /api/patient/intake/confirm` → `record_id`, `review_id`
 7. **Validate** — run 3-tier validation using `session_id`, `record_id`, `review_id`
 8. **Cleanup** — delete `intsim_*` rows (same pattern as `inttest_*` cleanup)
 9. **Report** — append results to report
@@ -212,10 +212,10 @@ Query using the **returned IDs** from the simulation (not by name lookup):
 
 | Check | Query Key | Pass Criteria |
 |-------|-----------|---------------|
-| Record created | `record_id` from confirm response | Row exists in `medical_records`, `content` non-empty, `record_type = 'interview_summary'` |
+| Record created | `record_id` from confirm response | Row exists in `medical_records`, `content` non-empty, `record_type = 'intake_summary'` |
 | Structured JSON | `record_id` → `structured` column | Parseable JSON, `chief_complaint` populated |
 | Review queue | `review_id` from confirm response | Row exists in `review_queue`, `status = 'pending_review'` |
-| Session confirmed | `session_id` from start response | `interview_sessions.status = 'confirmed'` |
+| Session confirmed | `session_id` from start response | `intake_sessions.status = 'confirmed'` |
 | Patient linked | `record_id` → `patient_id` | Patient row exists, name matches persona |
 
 Fail immediately if any check fails.
@@ -226,7 +226,7 @@ Validate **extracted facts** against `expected_extracted`, using the system's ow
 `collected` dict (from the final `/turn` response) and `structured` JSON (from DB).
 
 ```python
-# Primary: check collected dict from interview response
+# Primary: check collected dict from intake response
 collected = final_turn_response["collected"]
 
 # Secondary: check structured JSON from medical_records
@@ -376,7 +376,7 @@ python scripts/run_patient_sim.py --patients all --no-quality-score
 
 | Trigger | What Runs | Command | Gate |
 |---------|-----------|---------|------|
-| Every PR | Pre-scripted benchmark (Lane 1) | `RUN_E2E_FIXTURES=1 pytest tests/integration/test_patient_interview.py` | Hard pass/fail |
+| Every PR | Pre-scripted benchmark (Lane 1) | `RUN_E2E_FIXTURES=1 pytest tests/integration/test_patient_intake.py` | Hard pass/fail |
 | Manual | LLM simulation (Lane 2) | `python scripts/run_patient_sim.py --patients all --server http://localhost:8001` | DB + extraction gate; quality informational |
 | Nightly (optional) | Full simulation | Same as manual, triggered by cron schedule in CI | Same |
 

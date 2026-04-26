@@ -60,11 +60,11 @@ if env not in ("development", "dev", "test"):
 
 ---
 
-### 2. In-memory lock for interview turns
+### 2. In-memory lock for intake turns
 
-**File:** `src/domain/patients/interview_turn.py`
+**File:** `src/domain/patients/intake_turn.py`
 
-**Problem:** `interview_turn()` does load → process (LLM call) → save without any guard. If a doctor double-taps send or the browser retries on a slow network, two concurrent requests on the same session can race — the second overwrites the first's turn.
+**Problem:** `intake_turn()` does load → process (LLM call) → save without any guard. If a doctor double-taps send or the browser retries on a slow network, two concurrent requests on the same session can race — the second overwrites the first's turn.
 
 **Fix:** Add a per-session asyncio.Lock before entering the turn logic.
 
@@ -73,7 +73,7 @@ import asyncio
 
 _session_locks: dict[str, asyncio.Lock] = {}
 
-async def interview_turn(session_id: str, patient_text: str) -> InterviewResponse:
+async def intake_turn(session_id: str, patient_text: str) -> IntakeResponse:
     lock = _session_locks.setdefault(session_id, asyncio.Lock())
     async with lock:
         # ... existing logic unchanged ...
@@ -179,7 +179,7 @@ _log_llm_call(op_name, model, messages, result, usage=usage)
 - `doctor_id` — who triggered this call
 - `intent` — what the routing decided
 - `tokens` — cost tracking
-- `op` — operation name (routing, diagnosis, interview, etc.)
+- `op` — operation name (routing, diagnosis, intake, etc.)
 - `input` / `output` — full prompt and response (already present)
 
 This makes LLM calls searchable by any dimension and correlatable with the trace system.
@@ -390,7 +390,7 @@ Apply to all three file handlers: `app.log`, `tasks.log`, `scheduler.log`.
 | DB schema | None |
 | ORM models / Pydantic | None |
 | API endpoints | 2 new: `/api/debug/llm-calls`, `/debug` (dashboard page). Both debug-only, token-protected |
-| Domain logic | interview_turn.py gains a lock |
+| Domain logic | intake_turn.py gains a lock |
 | Prompt files | None |
 | Frontend | None — dashboard is backend-served |
 | CLI | `cli.py` prints debug URL on startup |
@@ -406,7 +406,7 @@ Apply to all three file handlers: `app.log`, `tasks.log`, `scheduler.log`.
 
 ```mermaid
 graph TD
-    A[1. JWT guard] --> B[2. Interview lock]
+    A[1. JWT guard] --> B[2. Intake lock]
     B --> C[3. SQL echo toggle]
     C --> D[4. Sentry init]
     D --> E[5. LLM correlation + tokens]

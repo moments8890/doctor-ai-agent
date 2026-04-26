@@ -29,15 +29,15 @@ The regression suite is the primary quality gate. All tests are deterministic (n
 **Time:** ~2.5 minutes
 **Markers:** `pytest -m regression` (all), `-m extraction` (Kind A), `-m workflow` (Kind B)
 
-### Kind B: Doctor Interview Workflow (16 tests)
+### Kind B: Doctor Intake Workflow (16 tests)
 
-Tests the doctor interview API — session lifecycle, confirm behavior, edge cases.
+Tests the doctor intake API — session lifecycle, confirm behavior, edge cases.
 
 #### Session Lifecycle (5 tests)
 
 | Test | What it does | What it verifies |
 |------|-------------|-----------------|
-| `test_cancel` | Start interview for "张三 男 56岁 头痛3天", then cancel | No medical record saved in DB |
+| `test_cancel` | Start intake for "张三 男 56岁 头痛3天", then cancel | No medical record saved in DB |
 | `test_resume` | Send 2 turns, then GET session state | Collected fields preserved; confirm creates record |
 | `test_confirm_empty_rejected` | Send "你好" (no clinical data), then confirm | HTTP 400 — can't save empty record |
 | `test_confirm_double_rejected` | Confirm, then confirm again | First → 200, second → 400 |
@@ -86,9 +86,9 @@ Tests the doctor interview API — session lifecycle, confirm behavior, edge cas
 
 ---
 
-### Kind B: Patient Interview Workflow (10 tests)
+### Kind B: Patient Intake Workflow (10 tests)
 
-Tests the patient-facing API — registration, JWT auth, interview flow.
+Tests the patient-facing API — registration, JWT auth, intake flow.
 
 #### Full Flow (2 tests)
 
@@ -124,7 +124,7 @@ Tests the patient-facing API — registration, JWT auth, interview flow.
 
 ### Kind A: Doctor Extraction D1-D8 (8 tests)
 
-Each sends a complete doctor dictation → confirms → checks if ≥65% of expected clinical facts appear in the correct DB fields. Tests the full extraction pipeline: `interview.md` (per-turn) + `doctor-extract.md` (batch at confirm).
+Each sends a complete doctor dictation → confirms → checks if ≥65% of expected clinical facts appear in the correct DB fields. Tests the full extraction pipeline: `intake.md` (per-turn) + `doctor-extract.md` (batch at confirm).
 
 | Test | Input Style | Key Challenge | Facts |
 |------|------------|---------------|-------|
@@ -171,11 +171,11 @@ tests/
 │   ├── normalizer.py            # Chinese text normalization + alias tables
 │   ├── matchers.py              # 4-layer deterministic matcher (substring → token → core-term → jieba)
 │   ├── helpers.py               # Doctor API wrappers + DB helpers
-│   ├── helpers_patient.py       # Patient API wrappers (registration, auth, interview)
+│   ├── helpers_patient.py       # Patient API wrappers (registration, auth, intake)
 │   ├── loader.py                # Auto-detect JSON format (v2, D1-D8 legacy, MVP legacy)
 │   ├── test_extraction.py       # Kind A: parametrized from 60 JSON scenario files
-│   ├── test_doctor_interview.py # Kind B: 16 doctor workflow tests
-│   └── test_patient_interview.py# Kind B: 10 patient workflow tests
+│   ├── test_doctor_intake.py # Kind B: 16 doctor workflow tests
+│   └── test_patient_intake.py# Kind B: 10 patient workflow tests
 ├── fixtures/
 │   ├── doctor_sim/scenarios/    # 60 doctor scenario JSON files (v2 format)
 │   └── patient_sim/scenarios/   # 11 patient scenario JSON files (v2 format)

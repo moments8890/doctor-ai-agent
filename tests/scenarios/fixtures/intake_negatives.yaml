@@ -1,6 +1,6 @@
-id: interview-negatives-001
-title: "Interview: negative values count as collected"
-tags: [interview, extraction]
+id: intake-negatives-001
+title: "Intake: negative values count as collected"
+tags: [intake, extraction]
 
 setup:
   patients:
@@ -11,7 +11,7 @@ setup:
 
 steps:
   - id: start
-    call: doctor_interview.start
+    call: doctor_intake.start
     input:
       patient_id: ${patients.p1}
       mode: doctor
@@ -20,10 +20,10 @@ steps:
     expect:
       hard:
         session_id.exists: true
-        status: interviewing
+        status: active
 
   - id: negatives
-    call: doctor_interview.turn
+    call: doctor_intake.turn
     input:
       session_id: ${steps.start.session_id}
       text: "无特殊既往史，无药物过敏，无家族遗传病史，不吸烟不饮酒"

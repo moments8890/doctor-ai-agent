@@ -24,8 +24,8 @@ import pytest
 #   - response builders / list-aggregators that audit at the parent endpoint.
 #   - internal scheduler tasks (no user request → nobody to attribute to).
 _ALLOWLIST = frozenset({
-    # internal helper, called from doctor-interview handlers that audit
-    "channels/web/doctor_interview/shared.py",
+    # internal helper, called from doctor-intake handlers that audit
+    "channels/web/doctor_intake/shared.py",
     # AI activity timeline — aggregates AI suggestions (already proxies
     # via doctor_id rate-limit + the suggestion table itself is audited
     # on creation in the LLM call path).
@@ -52,7 +52,7 @@ _AUDIT_BASELINE_GAPS = frozenset({
     "channels/web/doctor_dashboard/onboarding_handlers.py",
     "channels/web/doctor_dashboard/preseed_service.py",
     "channels/web/doctor_dashboard/review_queue_handlers.py",
-    "channels/web/doctor_interview/confirm.py",
+    "channels/web/doctor_intake/confirm.py",
 })
 
 

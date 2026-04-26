@@ -1,7 +1,7 @@
 /**
  * @route /doctor/patients/new
  *
- * v2 InterviewPage — chat-based medical record intake.
+ * v2 IntakePage — chat-based medical record intake.
  * Uses antd-mobile + raw HTML. No MUI.
  *
  * Phase 1 gate: proves antd-mobile + keyboard handler work in WeChat WebView.
@@ -217,7 +217,7 @@ const cardStyles = {
 };
 
 // ── Complete dialog (Popup) ────────────────────────────────────────
-function InterviewCompletePopup({ open, fields, fieldCount, onSave, onSaveAndDiagnose, onClose, loading }) {
+function IntakeCompletePopup({ open, fields, fieldCount, onSave, onSaveAndDiagnose, onClose, loading }) {
   const [nameInput, setNameInput] = useState(fields?._patient_name || "");
 
   useEffect(() => {
@@ -390,7 +390,7 @@ const popupStyles = {
 
 // ── Main page ──────────────────────────────────────────────────────
 
-export default function InterviewPage({
+export default function IntakePage({
   doctorId,
   sessionId: resumeSessionId,
   patientContext,
@@ -400,13 +400,13 @@ export default function InterviewPage({
 }) {
   const navigate = useAppNavigate();
   const {
-    doctorInterviewTurn,
-    doctorInterviewConfirm,
-    doctorInterviewCancel,
-    doctorInterviewGetSession,
+    doctorIntakeTurn,
+    doctorIntakeConfirm,
+    doctorIntakeCancel,
+    doctorIntakeGetSession,
     confirmCarryForward,
     triggerDiagnosis,
-    updateInterviewField,
+    updateIntakeField,
     ocrImage,
   } = useApi();
 
@@ -444,7 +444,7 @@ export default function InterviewPage({
   const [session, setSession] = useState({
     sessionId: resumeSessionId || null,
     progress: { filled: 0, total: 7 },
-    status: "interviewing",
+    status: "active",
     patientId: patientContext?.id || null,
     collected: {},
   });
@@ -484,7 +484,7 @@ export default function InterviewPage({
     if (!resumeSessionId) return;
     (async () => {
       try {
-        const data = await doctorInterviewGetSession(resumeSessionId, doctorId);
+        const data = await doctorIntakeGetSession(resumeSessionId, doctorId);
         setSession({
           sessionId: data.session_id,
           progress: data.progress,
@@ -569,7 +569,7 @@ export default function InterviewPage({
   async function handleImportEdit(field, newValue) {
     if (!session.sessionId) return;
     try {
-      const data = await updateInterviewField(
+      const data = await updateIntakeField(
         session.sessionId,
         doctorId,
         field,
@@ -631,7 +631,7 @@ export default function InterviewPage({
       if (session.patientId)
         formData.append("patient_id", String(session.patientId));
 
-      const data = await doctorInterviewTurn(formData);
+      const data = await doctorIntakeTurn(formData);
 
       setSession({
         sessionId: data.session_id,
@@ -666,7 +666,7 @@ export default function InterviewPage({
     if (!session.sessionId) return null;
     setLoading(true);
     try {
-      const data = await doctorInterviewConfirm(
+      const data = await doctorIntakeConfirm(
         session.sessionId,
         doctorId,
         nameOverride
@@ -714,7 +714,7 @@ export default function InterviewPage({
   async function handleCancel() {
     if (session.sessionId) {
       try {
-        await doctorInterviewCancel(session.sessionId, doctorId);
+        await doctorIntakeCancel(session.sessionId, doctorId);
       } catch {
         /* ignore */
       }
@@ -926,8 +926,8 @@ export default function InterviewPage({
         />
       )}
 
-      {/* Interview complete popup */}
-      <InterviewCompletePopup
+      {/* Intake complete popup */}
+      <IntakeCompletePopup
         open={showCompletePopup}
         fields={session.collected}
         fieldCount={fieldCount}
