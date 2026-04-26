@@ -105,8 +105,24 @@ async def post_chat(
 ):
     """Save patient message and generate a draft reply for doctor review.
 
-    No auto-reply to patient. No triage classification.
-    All replies go through doctor review via draft_reply pipeline.
+    Thin wrapper. Currently always delegates to ``_legacy_triage_dispatch``.
+    Section F will add a feature-flag check that routes flag-on doctors to
+    the new ``_intake_dispatch`` (state-machine path) instead.
+    """
+    return await _legacy_triage_dispatch(body, x_patient_token, authorization, db)
+
+
+async def _legacy_triage_dispatch(
+    body: ChatRequest,
+    x_patient_token: Optional[str],
+    authorization: Optional[str],
+    db: AsyncSession,
+) -> ChatResponse:
+    """Original chat handler — saves inbound, generates draft via background task.
+
+    Kill-switch fallback path: when the PATIENT_CHAT_INTAKE_ENABLED flag is
+    off (or for any doctor explicitly opted out), incoming messages route
+    here and behave exactly as they did pre-Task-1.7. Behavior verbatim.
     """
     patient = await _authenticate_patient(x_patient_token, authorization)
     text = (body.text or "").strip()
