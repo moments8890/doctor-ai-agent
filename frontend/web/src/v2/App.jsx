@@ -4,7 +4,8 @@
  */
 import { lazy, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { decideColdStartSeed } from "./coldStartSeed";
 import { ConfigProvider, unstableSetRender } from "antd-mobile";
 
 // React 19 compatibility — antd-mobile v5 uses ReactDOM.render internally
@@ -116,6 +117,7 @@ function PlaceholderPage({ name }) {
 
 export default function App() {
   useKeyboard();
+  const navigate = useNavigate();
 
   const { accessToken, doctorId, setAuth } = useDoctorStore();
 
@@ -123,6 +125,23 @@ export default function App() {
   useEffect(() => {
     const fontScale = useFontScaleStore.getState().fontScale;
     initTheme(fontScale || "standard");
+  }, []);
+
+  // Single-tab IA: seed a synthetic /doctor/my-ai history entry behind any
+  // cold-start deep-link to a doctor subpage so the back button unwinds to
+  // home instead of exiting the app (WeChat/iOS push entry case).
+  useEffect(() => {
+    const decision = decideColdStartSeed({
+      pathname: window.location.pathname,
+      search: window.location.search,
+      hash: window.location.hash,
+      historyLength: window.history.length,
+    });
+    if (decision.kind === "seed") {
+      navigate(decision.homePath, { replace: true });
+      navigate(decision.target, { replace: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Apply font scale whenever it changes
