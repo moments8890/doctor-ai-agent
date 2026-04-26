@@ -225,6 +225,7 @@ function AddToDesktopPopover() {
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
+            justifyContent: "flex-end",
           }}
         >
           <AddToHomeScreenOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
@@ -416,7 +417,17 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
             </FeedbackPopover>
           }
           onBack={() => { /* no-op — left slot is feedback, not back nav */ }}
-          right={<AddToDesktopPopover />}
+          right={
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+              }}
+            >
+              <AddToDesktopPopover />
+            </div>
+          }
           style={{
             "--height": "44px",
             "--border-bottom": `0.5px solid ${APP.border}`,
