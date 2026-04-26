@@ -194,6 +194,7 @@ async def get_record_entries(
 
     Response shape:
       {
+        "_record_meta": {"is_legacy": bool},
         field_name: {
           "text": str,
           "carry_forward": {source_record_id, source_date, confirmed_by_patient} | None,
@@ -201,6 +202,13 @@ async def get_record_entries(
         },
         ...
       }
+
+    A record is considered legacy if both carry_forward_meta and
+    fields_updated_this_visit are null on medical_records — i.e. it was
+    created before alembic 6a5d3c2e1f47 introduced the provenance columns
+    (or via a path that bypassed the new intake confirm flow). Frontend
+    suppresses per-field "本次采集" badges on legacy records and shows a
+    single "历史档案" tag at the section level instead, to cut noise.
     """
     resolved_doctor_id = _resolve_ui_doctor_id(doctor_id, authorization)
 
@@ -215,12 +223,13 @@ async def get_record_entries(
 
     cf_meta = rec.carry_forward_meta or {}
     updated = set(rec.fields_updated_this_visit or [])
+    is_legacy = (rec.carry_forward_meta is None) and (rec.fields_updated_this_visit is None)
     seven_fields = (
         "chief_complaint", "present_illness", "past_history", "allergy_history",
         "personal_history", "marital_reproductive", "family_history",
     )
 
-    out: dict[str, dict] = {}
+    out: dict[str, dict] = {"_record_meta": {"is_legacy": is_legacy}}
     for field in seven_fields:
         text = getattr(rec, field, None) or ""
         if not text:

@@ -412,9 +412,13 @@ function isProvenanceEntry(v) {
  *   - EMPTY: falls back to flat structured-column rendering.
  */
 function FieldEntriesSection({ entries, structured }) {
-  const hasEntries = entries && Object.keys(entries).length > 0;
+  // Pull the record-level metadata flag (legacy records pre-date the
+  // intake redesign and have no per-field provenance to show).
+  const recordMeta = entries?._record_meta || null;
+  const isLegacy = Boolean(recordMeta?.is_legacy);
+  const hasFieldData = entries && Object.keys(entries).some((k) => k !== "_record_meta");
 
-  if (!hasEntries) {
+  if (!hasFieldData) {
     // Legacy fallback: render from structured columns
     const legacyFields = HISTORY_FIELDS.filter(({ key }) => structured?.[key]);
     if (legacyFields.length === 0) return null;
@@ -466,8 +470,30 @@ function FieldEntriesSection({ entries, structured }) {
   });
   if (renderedFields.length === 0) return null;
 
+  // Single section-level "历史档案" tag for legacy records, instead of
+  // per-field "本次采集" badges (which would mislabel pre-redesign records
+  // as freshly-captured-this-visit).
+  const sectionHeader = isLegacy ? (
+    <div style={{ marginBottom: 6 }}>
+      <span
+        style={{
+          display: "inline-block",
+          padding: "1px 8px",
+          borderRadius: RADIUS.xs,
+          background: APP.borderLight,
+          color: APP.text3,
+          fontSize: FONT.xs,
+          fontWeight: 500,
+        }}
+      >
+        历史档案
+      </span>
+    </div>
+  ) : null;
+
   return (
     <>
+      {sectionHeader}
       {renderedFields.map(({ key, label }, fi) => {
         const v = entries[key];
 
@@ -490,10 +516,12 @@ function FieldEntriesSection({ entries, structured }) {
                 }}
               >
                 {label}
-                <FieldProvenanceBadge
-                  carryForward={v.carry_forward}
-                  updatedThisVisit={v.updated_this_visit}
-                />
+                {!isLegacy && (
+                  <FieldProvenanceBadge
+                    carryForward={v.carry_forward}
+                    updatedThisVisit={v.updated_this_visit}
+                  />
+                )}
               </div>
               <div
                 style={{
