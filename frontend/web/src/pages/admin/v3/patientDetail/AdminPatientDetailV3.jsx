@@ -385,76 +385,131 @@ function RecordsSection({ items, suggestionsByRecord }) {
   );
 }
 
-// Chat-bubble layout: patient on the left (gray bubble), doctor/AI on the
-// right (brand-tint bubble), label adjacent to bubble, time below. Backend
-// returns most recent first, so we reverse for chronological order — that's
-// how a real chatlog reads.
-function ChatBubble({ msg }) {
-  const isInbound = msg.direction === "inbound";
-  const senderLabel = isInbound
-    ? "患者"
-    : msg.source === "ai"
-    ? "AI"
-    : "医生";
-  const senderColor = isInbound
-    ? COLOR.info
-    : msg.source === "ai"
-    ? COLOR.brand
-    : COLOR.text1;
-  const bubbleBg = isInbound ? COLOR.bgCardAlt : COLOR.brandTint;
-  const bubbleColor = COLOR.text1;
+// WeChat-style chat log — mirrors the doctor-detail 沟通 tab and the
+// 沟通中心 thread modal. Inbound (patient) bubbles align left as light
+// cards with a thin border; outbound (doctor / AI-on-behalf) bubbles
+// align right as filled brand-color tiles with white text. Day-tag
+// pills separate consecutive different-day bubbles. Stamps (HH:MM)
+// live inside the bubble at the bottom-right.
+
+function _parseTs(ts) {
+  if (!ts) return null;
+  const d = new Date(`${String(ts).replace(" ", "T")}Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function _fmtStamp(d) {
+  if (!d) return "";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function _fmtDayTag(d) {
+  if (!d) return "";
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = d.toDateString() === yesterday.toDateString();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+  if (sameDay) return `今天 · ${m} 月 ${dd} 日`;
+  if (isYesterday) return `昨天 · ${m} 月 ${dd} 日`;
+  return `${m} 月 ${dd} 日 · ${weekdays[d.getDay()]}`;
+}
+
+function _dayKey(d) {
+  return d ? d.toDateString() : "";
+}
+
+function _buildChatItems(messages) {
+  const bubbles = (messages || [])
+    .filter((m) => m && (m.direction === "inbound" || m.direction === "outbound"))
+    .map((m) => ({
+      kind: "bubble",
+      role: m.direction === "outbound" ? "doctor" : "patient",
+      text: m.content || "",
+      ts: _parseTs(m.created_at),
+      _id: m.id,
+    }))
+    .sort((a, b) => {
+      if (!a.ts) return -1;
+      if (!b.ts) return 1;
+      return a.ts.getTime() - b.ts.getTime();
+    });
+  const out = [];
+  let last = null;
+  for (const b of bubbles) {
+    const k = _dayKey(b.ts);
+    if (k !== last) {
+      out.push({ kind: "day", label: _fmtDayTag(b.ts), _key: `day-${k}` });
+      last = k;
+    }
+    out.push({ ...b, stamp: _fmtStamp(b.ts) });
+  }
+  return out;
+}
+
+function ChatBubble({ role, text, stamp }) {
+  const isDoctor = role === "doctor";
   return (
     <div
       style={{
+        alignSelf: isDoctor ? "flex-end" : "flex-start",
+        maxWidth: "70%",
+        padding: "10px 14px",
+        fontSize: 14,
+        lineHeight: 1.55,
+        position: "relative",
         display: "flex",
-        justifyContent: isInbound ? "flex-start" : "flex-end",
-        marginBottom: 14,
+        flexDirection: "column",
+        gap: 4,
+        background: isDoctor ? COLOR.brand : COLOR.bgCard,
+        color: isDoctor ? "#fff" : COLOR.text1,
+        border: isDoctor ? "none" : `1px solid ${COLOR.borderSubtle}`,
+        borderRadius: isDoctor ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
       }}
     >
-      <div style={{ maxWidth: "72%", display: "flex", flexDirection: "column", alignItems: isInbound ? "flex-start" : "flex-end" }}>
-        <div
+      <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{text}</div>
+      {stamp && (
+        <span
           style={{
-            fontSize: FONT.xs,
-            color: senderColor,
-            fontWeight: 500,
-            marginBottom: 4,
+            fontFamily: FONT_STACK.mono,
+            fontSize: 10.5,
+            color: isDoctor ? "rgba(255,255,255,0.75)" : COLOR.text3,
+            alignSelf: "flex-end",
           }}
         >
-          {senderLabel}
-        </div>
-        <div
-          style={{
-            fontSize: FONT.sm,
-            color: bubbleColor,
-            background: bubbleBg,
-            padding: "10px 14px",
-            borderRadius: 14,
-            borderTopLeftRadius: isInbound ? 4 : 14,
-            borderTopRightRadius: isInbound ? 14 : 4,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            lineHeight: 1.55,
-          }}
-        >
-          {msg.content}
-        </div>
-        <div
-          style={{
-            fontSize: FONT.xs,
-            color: COLOR.text3,
-            marginTop: 4,
-          }}
-        >
-          {fmtRelative(msg.created_at)}
-        </div>
-      </div>
+          {stamp}
+        </span>
+      )}
     </div>
   );
 }
 
+function ChatDayTag({ label }) {
+  return (
+    <span
+      style={{
+        alignSelf: "center",
+        fontSize: 11,
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        color: COLOR.text3,
+        background: COLOR.bgCard,
+        padding: "3px 12px",
+        borderRadius: 999,
+        border: `1px solid ${COLOR.borderSubtle}`,
+        fontWeight: 600,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 function MessagesSection({ items }) {
-  // Backend returns desc; flip so the conversation reads top-to-bottom.
-  const ordered = [...items].reverse();
+  const built = _buildChatItems(items);
   return (
     <SectionCard title="对话记录" count={`${items.length} 条`}>
       {items.length === 0 ? (
@@ -462,13 +517,26 @@ function MessagesSection({ items }) {
       ) : (
         <div
           style={{
-            padding: "16px 16px 6px",
-            background: COLOR.bgPage,
+            padding: "18px 22px",
+            background: COLOR.bgCardAlt || COLOR.bgPage,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
           }}
         >
-          {ordered.map((m) => (
-            <ChatBubble key={m.id} msg={m} />
-          ))}
+          {built.map((it, idx) => {
+            if (it.kind === "day") {
+              return <ChatDayTag key={it._key || idx} label={it.label} />;
+            }
+            return (
+              <ChatBubble
+                key={it._id ?? idx}
+                role={it.role}
+                text={it.text}
+                stamp={it.stamp}
+              />
+            );
+          })}
         </div>
       )}
     </SectionCard>
