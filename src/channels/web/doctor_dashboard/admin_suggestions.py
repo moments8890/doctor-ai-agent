@@ -180,6 +180,10 @@ async def admin_suggestions_recent(
                 "id": r.id,
                 "section": r.section,
                 "decision": r.decision,
+                # patient_id is needed by the V3 admin so a row click can
+                # drill straight into the patient detail page where this
+                # suggestion is rendered inline under its parent record.
+                "patient_id": r.patient_id,
                 "patient_name": r.patient_name or "",
                 "doctor_id": r.doctor_id,
                 # See admin_patients.py — fall back to a sentinel rather than

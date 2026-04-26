@@ -95,12 +95,35 @@ function formatRelative(ts) {
   return `${yr}-${mo}-${dd}`;
 }
 
+// Both helpers PRESERVE the existing section= param so the sidebar
+// stays highlighted on 知识 & AI when the operator drills in. v3/index.jsx
+// resolves patient= / doctor= for the rendered surface but reads section=
+// for the sidebar highlight.
+
 function navigateToDoctor(doctorId) {
   if (!doctorId || typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
-  params.delete("section");
+  params.delete("patient");
   params.set("v", "3");
   params.set("doctor", doctorId);
+  window.history.pushState({}, "", `?${params.toString()}`);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+// Drill into the patient detail surface — the suggestion lives inline
+// under its parent record there, alongside the full clinical context
+// (records, messages, tasks). Falls back to the doctor view when the
+// row has no patient_id (older suggestions before the field was added).
+function navigateToSuggestion({ patientId, doctorId }) {
+  if (typeof window === "undefined") return;
+  if (patientId == null) {
+    navigateToDoctor(doctorId);
+    return;
+  }
+  const params = new URLSearchParams(window.location.search);
+  params.set("v", "3");
+  if (doctorId) params.set("doctor", doctorId);
+  params.set("patient", String(patientId));
   window.history.pushState({}, "", `?${params.toString()}`);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
@@ -400,13 +423,19 @@ function ActivityTable({ items }) {
           {items.map((s, idx) => (
             <tr
               key={`${s.id}-${idx}`}
-              onClick={() => navigateToDoctor(s.doctor_id)}
+              onClick={() =>
+                navigateToSuggestion({
+                  patientId: s.patient_id,
+                  doctorId: s.doctor_id,
+                })
+              }
               onMouseEnter={(e) =>
                 (e.currentTarget.style.background = COLOR.bgPage)
               }
               onMouseLeave={(e) =>
                 (e.currentTarget.style.background = "transparent")
               }
+              title={s.patient_name ? `查看 ${s.patient_name} 详情` : undefined}
               style={{ cursor: "pointer", transition: "120ms" }}
             >
               <td style={TD}>
