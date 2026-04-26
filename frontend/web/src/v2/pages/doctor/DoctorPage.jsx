@@ -10,7 +10,7 @@
 import { useState, useCallback, useRef, useMemo } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { usePageStack } from "../../usePageStack";
-import { NavBar, SafeArea, TabBar, Button } from "antd-mobile";
+import { Dialog, NavBar, SafeArea, TabBar, Button } from "antd-mobile";
 import { usePatients } from "../../../lib/doctorQueries";
 import InterviewPage from "./InterviewPage";
 import MyAIPage from "./MyAIPage";
@@ -37,8 +37,7 @@ import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
 import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
 import MailIcon from "@mui/icons-material/Mail";
-import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
+import AddToHomeScreenOutlinedIcon from "@mui/icons-material/AddToHomeScreenOutlined";
 import { APP, FONT, ICON } from "../../theme";
 import { useDoctorStore } from "../../../store/doctorStore";
 
@@ -280,41 +279,36 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
                 <AddCircleOutline style={{ fontSize: ICON.md }} />
               </Button>
             ) : baseSection === "my-ai" ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div
-                  aria-label="搜索"
-                  style={{
-                    padding: 8,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  <SearchOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
-                </div>
-                <div
-                  aria-label="通知"
-                  style={{
-                    padding: 8,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    position: "relative",
-                  }}
-                >
-                  <NotificationsNoneOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: 7,
-                      right: 7,
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      backgroundColor: APP.danger,
-                    }}
-                  />
-                </div>
+              <div
+                role="button"
+                aria-label="添加到桌面"
+                onClick={() =>
+                  Dialog.alert({
+                    title: "添加到桌面，下次一键打开",
+                    content: (
+                      <div style={{ fontSize: FONT.base, color: APP.text2, lineHeight: 1.7 }}>
+                        <div style={{ marginBottom: 8 }}>
+                          1. 点击微信右上角的 「···」 菜单
+                        </div>
+                        <div style={{ marginBottom: 8 }}>
+                          2. 选择 「添加到桌面」
+                        </div>
+                        <div>
+                          3. 下次直接从手机桌面打开「鲸鱼随行」，无需进入微信
+                        </div>
+                      </div>
+                    ),
+                    confirmText: "知道了",
+                  })
+                }
+                style={{
+                  padding: 8,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <AddToHomeScreenOutlinedIcon sx={{ fontSize: ICON.md, color: APP.text2 }} />
               </div>
             ) : null
           }
