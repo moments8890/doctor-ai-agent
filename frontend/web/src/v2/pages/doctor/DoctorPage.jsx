@@ -10,7 +10,7 @@
 import { useState, useCallback, useRef, useMemo } from "react";
 import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { usePageStack } from "../../usePageStack";
-import { NavBar, Popover, Mask, SafeArea, TabBar, Button, TextArea, Toast } from "antd-mobile";
+import { NavBar, Popover, Mask, SafeArea, Button, TextArea, Toast } from "antd-mobile";
 import { usePatients } from "../../../lib/doctorQueries";
 import IntakePage from "./IntakePage";
 import MyAIPage from "./MyAIPage";
@@ -31,56 +31,19 @@ import PersonaOnboardingSubpage from "./settings/PersonaOnboardingSubpage";
 import TemplateSubpage from "./settings/TemplateSubpage";
 import QrSubpage from "./settings/QrSubpage";
 import { AddCircleOutline } from "antd-mobile-icons";
-import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
-import PeopleAltIcon from "@mui/icons-material/PeopleAlt";
-import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
-import MailIcon from "@mui/icons-material/Mail";
 import AddToHomeScreenOutlinedIcon from "@mui/icons-material/AddToHomeScreenOutlined";
 import FeedbackOutlinedIcon from "@mui/icons-material/FeedbackOutlined";
 import { submitPlatformFeedback } from "../../../api";
 import { APP, FONT, ICON } from "../../theme";
 import { useDoctorStore } from "../../../store/doctorStore";
 
-// ── Tab config ─────────────────────────────────────────────────────
-
-const TABS = [
-  {
-    key: "my-ai",
-    label: "我的AI",
-    icon: <AutoAwesomeOutlinedIcon sx={{ fontSize: "inherit" }} />,
-    activeIcon: <AutoAwesomeIcon sx={{ fontSize: "inherit" }} />,
-    path: "/doctor/my-ai",
-    title: "我的AI",
-  },
-  {
-    key: "patients",
-    label: "患者",
-    icon: <PeopleAltOutlinedIcon sx={{ fontSize: "inherit" }} />,
-    activeIcon: <PeopleAltIcon sx={{ fontSize: "inherit" }} />,
-    path: "/doctor/patients",
-    title: "患者",
-    badgeKey: "patients",
-  },
-  {
-    key: "review",
-    label: "审核",
-    icon: <MailOutlinedIcon sx={{ fontSize: "inherit" }} />,
-    activeIcon: <MailIcon sx={{ fontSize: "inherit" }} />,
-    path: "/doctor/review",
-    title: "审核",
-    badgeKey: "review",
-  },
-];
-
 // ── Section detection ──────────────────────────────────────────────
 
 function detectSection(pathname) {
   // /doctor or /doctor/ → my-ai
   if (pathname === "/doctor" || pathname === "/doctor/") return "my-ai";
-  const segment = pathname.split("/")[2]; // e.g. "my-ai", "patients", "review", "settings"
-  if (TABS.some((t) => t.key === segment)) return segment;
+  const segment = pathname.split("/")[2];
+  if (segment === "my-ai" || segment === "patients" || segment === "review") return segment;
   if (segment === "settings") return "settings";
   return "my-ai";
 }
@@ -307,10 +270,6 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
   const navigate = useNavigate();
 
   const activeSection = detectSection(location.pathname);
-  const activeTab = TABS.find((t) => t.key === activeSection) || TABS[0];
-
-  // Badge counts — placeholder zeros; real data wired in later
-  const [badges] = useState({ review: 0, patients: 0 });
 
   // Intake overlay — active when navigated to /doctor/patients/new
   const intakeActive = location.pathname.endsWith("/patients/new");
@@ -438,11 +397,6 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
   // Page stack — keeps previous pages mounted when navigating deeper
   const { stackEntries } = usePageStack(overlayRouteKey, renderContent);
 
-  function handleTabChange(key) {
-    const tab = TABS.find((t) => t.key === key);
-    if (tab) navigate(tab.path, { replace: true });
-  }
-
   return (
     <div
       style={{
@@ -499,7 +453,7 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
 
           }}
         >
-          {(TABS.find((t) => t.key === baseSection) || TABS[0]).title}
+          {baseSection === "patients" ? "患者" : baseSection === "review" ? "审核" : "我的AI"}
         </NavBar>
 
       {/* Content area */}
@@ -518,48 +472,16 @@ export default function DoctorPage({ doctorId: propDoctorId, onLogout }) {
         ) : baseSection === "review" ? (
           <ReviewQueuePage />
         ) : (
-          <SectionPlaceholder name={activeTab.title} />
+          <SectionPlaceholder name="未知" />
         )}
       </div>
 
-      {/* Page stack — positioned over the ENTIRE page (covers NavBar + TabBar) */}
+      {/* Page stack — positioned over the ENTIRE page */}
       {stackEntries.map((entry) => (
         <div key={entry.key} style={entry.style}>
           {entry.content}
         </div>
       ))}
-
-      {/* Bottom TabBar — hidden when stack active */}
-      <div style={{ backgroundColor: APP.surface, flexShrink: 0 }} className="doctor-tabbar-wrap">
-        <style>{`
-          .doctor-tabbar-wrap .adm-tab-bar-item-active .adm-tab-bar-item-icon,
-          .doctor-tabbar-wrap .adm-tab-bar-item-active .adm-tab-bar-item-title {
-            color: ${APP.primary} !important;
-          }
-        `}</style>
-        <TabBar
-          safeArea
-          activeKey={baseSection}
-          onChange={handleTabChange}
-          style={{
-            borderTop: `0.5px solid ${APP.border}`,
-            "--adm-color-primary": APP.primary,
-          }}
-        >
-          {TABS.map((tab) => {
-            const badgeCount = tab.badgeKey ? (badges[tab.badgeKey] || 0) : 0;
-            const isActive = baseSection === tab.key;
-            return (
-              <TabBar.Item
-                key={tab.key}
-                icon={isActive ? tab.activeIcon : tab.icon}
-                title={tab.label}
-                badge={badgeCount > 0 ? badgeCount : undefined}
-              />
-            );
-          })}
-        </TabBar>
-      </div>
     </div>
   );
 }
