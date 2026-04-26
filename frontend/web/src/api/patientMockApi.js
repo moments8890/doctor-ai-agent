@@ -141,3 +141,25 @@ export async function intakeCancel(token, sessionId) {
   await delay();
   return { status: "cancelled" };
 }
+
+// ── Chat-intake confirm / per-field (mock) ──
+
+export async function confirmIntake(token, sessionId) {
+  await delay();
+  return {
+    status: "confirmed",
+    session_id: sessionId,
+    record_id: 999,
+    message: "您的问诊信息已提交给医生，请等待医生审阅。",
+  };
+}
+
+export async function updateIntakeFieldPatient(token, sessionId, field, newValue) {
+  await delay();
+  return { status: "ok", session_id: sessionId, field, value: newValue };
+}
+
+export async function confirmAllCarryForward(token, sessionId) {
+  await delay();
+  return { status: "ok", session_id: sessionId };
+}

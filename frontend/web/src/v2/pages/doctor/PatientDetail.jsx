@@ -43,7 +43,7 @@ import { useDoctorStore } from "../../../store/doctorStore";
 import { useMarkPatientViewed } from "../../../lib/doctorQueries";
 import { recordView } from "../../../hooks/useLastViewed";
 import { formatAge, relativeTime } from "../../../utils/time";
-import { APP, FONT, RADIUS, ICON } from "../../theme";
+import { APP, FONT, RADIUS, ICON, CATEGORY_COLOR } from "../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { LoadingCenter, NameAvatar } from "../../components";
 import { STRUCTURED_FIELD_LABELS } from "../../constants";
@@ -334,9 +334,82 @@ const HISTORY_FIELDS = [
 ];
 
 /**
- * Renders the chronological FieldEntryDB view for a single record.
- * - entries: {} means no FieldEntryDB rows exist (legacy record) → fall back to structured fields.
- * - entries: { field_name: [{text, created_at}, ...] } for records with history.
+ * Per-field provenance badge (intake redesign 6a5d3c2e1f47).
+ *
+ * Three states:
+ *   - "已沿用并确认"  — patient saw a prior value carried forward and confirmed it.
+ *   - "本次更新"      — carry-forward field that the patient changed this visit.
+ *   - "本次采集"      — first time this field was captured (no carry_forward).
+ *
+ * Inline next to the field label. Tinted pill, sized FONT.xs.
+ */
+function FieldProvenanceBadge({ carryForward, updatedThisVisit }) {
+  let label;
+  let bg;
+  let fg;
+  if (updatedThisVisit) {
+    label = "本次更新";
+    // Followup palette = orange tones, semantically "needs attention"
+    bg = CATEGORY_COLOR.followup.bg;
+    fg = CATEGORY_COLOR.followup.fg;
+  } else if (carryForward && carryForward.confirmed_by_patient) {
+    label = "已沿用并确认";
+    bg = APP.primaryLight;
+    fg = APP.primary;
+  } else if (!carryForward) {
+    label = "本次采集";
+    bg = APP.accentLight;
+    fg = APP.accent;
+  } else {
+    // carry_forward present but not yet confirmed — show neutral hint.
+    label = "已沿用";
+    bg = APP.borderLight;
+    fg = APP.text3;
+  }
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        marginLeft: 6,
+        padding: "1px 6px",
+        borderRadius: RADIUS.xs,
+        background: bg,
+        color: fg,
+        fontSize: FONT.xs,
+        fontWeight: 500,
+        verticalAlign: "middle",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+// Detect the post-redesign per-field shape returned by GET
+// /api/manage/records/{id}/entries: each value is an object with `text`,
+// `carry_forward`, `updated_this_visit` keys. Legacy shape was an array of
+// {text, created_at} entries — the legacy branch below handles that for
+// older records.
+function isProvenanceEntry(v) {
+  return (
+    v != null
+    && typeof v === "object"
+    && !Array.isArray(v)
+    && typeof v.text === "string"
+  );
+}
+
+/**
+ * Renders the per-field history view for a single record.
+ *
+ * Two backend shapes supported:
+ *   - NEW (intake redesign):
+ *       entries[field] = { text, carry_forward: {...}|null, updated_this_visit }
+ *     Renders single text with a provenance badge next to the label.
+ *   - LEGACY (FieldEntryDB):
+ *       entries[field] = [{ text, created_at }, ...]
+ *     Renders chronological multi-entry view (initial + supplements).
+ *   - EMPTY: falls back to flat structured-column rendering.
  */
 function FieldEntriesSection({ entries, structured }) {
   const hasEntries = entries && Object.keys(entries).length > 0;
@@ -385,14 +458,59 @@ function FieldEntriesSection({ entries, structured }) {
     );
   }
 
-  // FieldEntryDB path — chronological multi-entry view
-  const renderedFields = HISTORY_FIELDS.filter(({ key }) => entries[key]?.length > 0);
+  // Filter to fields that have content under either shape.
+  const renderedFields = HISTORY_FIELDS.filter(({ key }) => {
+    const v = entries[key];
+    if (isProvenanceEntry(v)) return Boolean(v.text && v.text.trim());
+    return Array.isArray(v) && v.length > 0;
+  });
   if (renderedFields.length === 0) return null;
 
   return (
     <>
       {renderedFields.map(({ key, label }, fi) => {
-        const fieldEntries = entries[key];
+        const v = entries[key];
+
+        // ── New per-field provenance shape ─────────────────────────
+        if (isProvenanceEntry(v)) {
+          return (
+            <div
+              key={key}
+              style={{
+                padding: "8px 0 4px",
+                borderTop: fi === 0 ? "none" : `0.5px solid ${APP.borderLight}`,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: FONT.sm,
+                  color: APP.text4,
+                  fontWeight: 500,
+                  marginBottom: 4,
+                }}
+              >
+                {label}
+                <FieldProvenanceBadge
+                  carryForward={v.carry_forward}
+                  updatedThisVisit={v.updated_this_visit}
+                />
+              </div>
+              <div
+                style={{
+                  fontSize: FONT.sm,
+                  color: APP.text2,
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                }}
+              >
+                {v.text}
+              </div>
+            </div>
+          );
+        }
+
+        // ── Legacy chronological multi-entry view ──────────────────
+        const fieldEntries = v;
         const isMulti = fieldEntries.length > 1;
         return (
           <div

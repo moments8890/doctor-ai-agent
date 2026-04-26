@@ -31,6 +31,7 @@ async def create_session(
     mode: str = "patient",
     initial_fields: Optional[Dict[str, str]] = None,
     template_id: str = "medical_general_v1",
+    carry_forward: bool = False,
 ) -> IntakeSession:
     """Create a new intake session in the DB.
 
@@ -38,14 +39,35 @@ async def create_session(
         initial_fields: Pre-extracted fields (from OCR, voice/paste, etc.)
             to pre-populate the session. Doctor reviews and fills gaps
             via the intake flow.
+        carry_forward: When True (and patient_id is set), pre-populate the
+            session's `collected` with stable history fields from the
+            patient's most recent confirmed/pending record, and stamp
+            ``_carry_forward_meta`` so the engine knows which fields are
+            server-frozen until the patient explicitly confirms them.
     """
     from db.models.intake_session import IntakeSessionDB
 
     session_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
 
-    collected = initial_fields or {}
+    collected = dict(initial_fields or {})
     conversation: List[Dict[str, Any]] = []
+
+    # Carry-forward bootstrap (patient mode, has a prior record). Runs before
+    # initial_fields is examined for the system message so the carry-forward
+    # additions are part of the "pre-populated" log line below.
+    if carry_forward and patient_id is not None:
+        try:
+            from domain.intake.carry_forward import bootstrap_carry_forward
+            seed, cf_meta = await bootstrap_carry_forward(patient_id, doctor_id)
+            for k, v in seed.items():
+                # Don't overwrite anything already in initial_fields.
+                if k not in collected or not collected.get(k):
+                    collected[k] = v
+            if cf_meta:
+                collected["_carry_forward_meta"] = cf_meta
+        except Exception as exc:
+            log(f"[intake] carry-forward bootstrap failed (non-fatal): {exc}", level="warning")
 
     # Auto-fill department from doctor profile if not already set
     if "department" not in collected or not collected.get("department"):

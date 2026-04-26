@@ -65,6 +65,26 @@ class ChatResponse(BaseModel):
     reply: str
     triage_category: str
     ai_handled: bool
+    # Surface engine-level intake metadata so the frontend can render the
+    # banner + suggestion chips without polling a separate endpoint.
+    suggestions: list[str] = []
+    session_id: Optional[str] = None
+    turn_count: Optional[int] = None
+    intake_active: bool = False
+
+
+class IntakeStatusResponse(BaseModel):
+    """Authoritative snapshot of the patient's active intake (if any).
+
+    Frontend uses this on chat-tab mount + page reload so the banner and
+    chips don't vanish across reloads. Empty payload {has_active: false}
+    when no active session exists.
+    """
+    has_active: bool
+    session_id: Optional[str] = None
+    turn_count: Optional[int] = None
+    status: Optional[str] = None
+    suggestions: list[str] = []
 
 
 class ChatMessageOut(BaseModel):
@@ -78,6 +98,16 @@ class ChatMessageOut(BaseModel):
 
 
 class ConfirmRequest(BaseModel):
+    session_id: str = Field(..., max_length=64)
+
+
+class UpdateFieldRequest(BaseModel):
+    session_id: str = Field(..., max_length=64)
+    field: str = Field(..., max_length=64)
+    new_value: str = Field(..., max_length=4000)
+
+
+class ConfirmAllCarryForwardRequest(BaseModel):
     session_id: str = Field(..., max_length=64)
 
 
@@ -230,6 +260,7 @@ async def _intake_dispatch(
             reply=_NON_INTAKE_ACK_TEXT,
             triage_category="other",
             ai_handled=True,
+            intake_active=False,
         )
 
     # 3b. Intake path: find or create an active intake session, then turn.
@@ -240,6 +271,7 @@ async def _intake_dispatch(
             patient_id=patient_id,
             mode="patient",
             template_id="medical_general_v1",
+            carry_forward=True,
         )
 
     # Stamp the session id on the inbound message before committing.
@@ -278,10 +310,19 @@ async def _intake_dispatch(
         doctor_id, "WRITE",
         resource_type="patient_chat", resource_id=str(patient_id),
     ))
+
+    # Engine returns suggestions in result.suggestions (see engine.py).
+    # Re-load the session to get the authoritative turn_count and status
+    # post-engine (the engine bumps turn_count internally).
+    fresh = await load_session(session.id)
     return ChatResponse(
         reply=result.reply,
         triage_category=category_value,
         ai_handled=True,
+        suggestions=list(result.suggestions or []),
+        session_id=session.id,
+        turn_count=fresh.turn_count if fresh else None,
+        intake_active=(fresh.status in ("active", "reviewing")) if fresh else True,
     )
 
 
@@ -333,6 +374,41 @@ async def get_chat_messages(
         resource_type="chat_messages", resource_id=str(patient.id),
     ))
     return [_msg_to_out(m) for m in messages]
+
+
+# ---------------------------------------------------------------------------
+# Intake status — frontend uses this on mount/reload so banner+chips
+# survive page refresh without depending on transient POST /chat state.
+# ---------------------------------------------------------------------------
+
+@chat_router.get("/chat/intake/status", response_model=IntakeStatusResponse)
+async def get_intake_status(
+    x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Return the patient's active intake session, if any.
+
+    has_active = true when an intake_session exists with status active or
+    reviewing. Returns the session_id, current turn_count, and the
+    suggestions from the most recent assistant turn so the frontend can
+    re-render chips after a reload.
+    """
+    patient = await _authenticate_patient(x_patient_token, authorization)
+    session = await get_active_session(patient.id, patient.doctor_id)
+    if session is None:
+        return IntakeStatusResponse(has_active=False)
+
+    # Pull the latest assistant turn's suggestions out of conversation. The
+    # engine writes a {"role": "assistant", "content": ...} entry per turn;
+    # suggestions are not persisted on the session — so we leave that empty
+    # here. Frontend caches per-turn suggestions from POST /chat anyway.
+    return IntakeStatusResponse(
+        has_active=True,
+        session_id=session.id,
+        turn_count=session.turn_count,
+        status=session.status,
+        suggestions=[],
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -394,6 +470,86 @@ async def confirm_intake_session(
         "ref": {"kind": ref.kind, "id": ref.id},
         "message": "您的问诊信息已提交给医生，请等待医生审阅。",
     }
+
+
+# ---------------------------------------------------------------------------
+# Carry-forward chip endpoints
+# ---------------------------------------------------------------------------
+
+@chat_router.post("/chat/intake/update_field")
+async def update_intake_field(
+    body: UpdateFieldRequest,
+    x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Patient corrects a single carry-forward field.
+
+    Marks the field as patient-confirmed (so the LLM cannot overwrite on
+    subsequent turns) and records the update for the doctor's review.
+    """
+    patient = await _authenticate_patient(x_patient_token, authorization)
+
+    session = await load_session(body.session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="问诊会话不存在")
+    if session.patient_id != patient.id:
+        raise HTTPException(status_code=403, detail="无权操作")
+    if session.status not in (IntakeStatus.active, IntakeStatus.reviewing):
+        raise HTTPException(status_code=400, detail="该问诊已结束")
+
+    try:
+        await _get_engine().update_field(
+            body.session_id, body.field, body.new_value,
+        )
+    except Exception:
+        logger.exception(
+            "[PatientChat] update_field failed | session=%s field=%s",
+            body.session_id, body.field,
+        )
+        raise HTTPException(status_code=500, detail="更新失败，请稍后再试")
+
+    safe_create_task(audit(
+        session.doctor_id, "WRITE",
+        resource_type="intake_session", resource_id=body.session_id,
+    ))
+    return {"status": "ok", "field": body.field}
+
+
+@chat_router.post("/chat/intake/confirm_all_carry_forward")
+async def confirm_all_carry_forward(
+    body: ConfirmAllCarryForwardRequest,
+    x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Patient confirms every carried-forward field is still accurate.
+
+    No values change; only meta flags flip to ``confirmed_by_patient=True``.
+    Backs the "全部仍然准确" chip in the chat redesign.
+    """
+    patient = await _authenticate_patient(x_patient_token, authorization)
+
+    session = await load_session(body.session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="问诊会话不存在")
+    if session.patient_id != patient.id:
+        raise HTTPException(status_code=403, detail="无权操作")
+    if session.status not in (IntakeStatus.active, IntakeStatus.reviewing):
+        raise HTTPException(status_code=400, detail="该问诊已结束")
+
+    try:
+        await _get_engine().bulk_confirm_carry_forward(body.session_id)
+    except Exception:
+        logger.exception(
+            "[PatientChat] bulk_confirm_carry_forward failed | session=%s",
+            body.session_id,
+        )
+        raise HTTPException(status_code=500, detail="确认失败，请稍后再试")
+
+    safe_create_task(audit(
+        session.doctor_id, "WRITE",
+        resource_type="intake_session", resource_id=body.session_id,
+    ))
+    return {"status": "ok"}
 
 
 # ---------------------------------------------------------------------------

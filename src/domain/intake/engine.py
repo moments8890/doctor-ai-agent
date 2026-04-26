@@ -27,6 +27,7 @@ from domain.patients.intake_session import (
     load_session as _load_session,
     save_session as _save_session,
 )
+from db.engine import AsyncSessionLocal
 from db.models.intake_session import IntakeStatus
 from utils.log import log
 
@@ -244,8 +245,28 @@ class IntakeEngine:
             k: v for k, v in extracted_dict.items() if k not in metadata
         }
 
+        # Snapshot patient-confirmed carry-forward values BEFORE merge so we
+        # can restore them after — the LLM cannot overwrite a field the
+        # patient has already confirmed via update_field /
+        # bulk_confirm_carry_forward.
+        cf_meta_pre = raw.collected.get("_carry_forward_meta") or {}
+        frozen_snapshot: dict[str, Any] = {}
+        if isinstance(cf_meta_pre, dict):
+            for field_name, entry in cf_meta_pre.items():
+                if (
+                    isinstance(entry, dict)
+                    and entry.get("confirmed_by_patient")
+                    and field_name in raw.collected
+                ):
+                    frozen_snapshot[field_name] = raw.collected[field_name]
+
         # Merge clinical fields
         template.extractor.merge(raw.collected, clinical_extracted)
+
+        # Restore confirmed carry-forward values that the merge may have
+        # mutated (e.g. an appendable field where the LLM tacked on text).
+        for field_name, frozen_value in frozen_snapshot.items():
+            raw.collected[field_name] = frozen_value
 
         # Write metadata as underscore-prefixed keys (always overwrite)
         for meta_key, meta_value in metadata.items():
@@ -293,6 +314,90 @@ class IntakeEngine:
             metadata=metadata,
         )
 
+    async def update_field(
+        self,
+        session_id: str,
+        field: str,
+        new_value: str,
+    ) -> None:
+        """Patient-driven correction of a single intake field.
+
+        Sets ``collected[field] = new_value``, marks the field as
+        patient-confirmed in ``_carry_forward_meta`` (creating the entry
+        if absent — a patient may correct a field that wasn't a
+        carry-forward in the first place), and appends ``field`` to
+        ``_fields_updated_this_visit``.
+
+        After this call, the engine's frozen-field guard ensures the LLM
+        cannot overwrite the value on subsequent turns.
+        """
+        async with _get_session_lock(session_id):
+            raw = await _load_session(session_id)
+            if raw is None:
+                raise LookupError(f"session {session_id} not found")
+
+            # Normalize the new value the same way merge() does so the LLM
+            # snapshot/restore logic compares apples to apples.
+            if isinstance(new_value, str):
+                new_value = new_value.strip()
+
+            raw.collected[field] = new_value
+
+            cf_meta = raw.collected.get("_carry_forward_meta")
+            if not isinstance(cf_meta, dict):
+                cf_meta = {}
+            entry = cf_meta.get(field)
+            if not isinstance(entry, dict):
+                # Not a carry-forward field originally — still record the
+                # patient confirmation so the freeze guard kicks in.
+                entry = {
+                    "source_record_id": None,
+                    "source_date": None,
+                    "confirmed_by_patient": True,
+                }
+            else:
+                entry = dict(entry)
+                entry["confirmed_by_patient"] = True
+            cf_meta[field] = entry
+            raw.collected["_carry_forward_meta"] = cf_meta
+
+            updated = raw.collected.get("_fields_updated_this_visit")
+            if not isinstance(updated, list):
+                updated = []
+            if field not in updated:
+                updated.append(field)
+            raw.collected["_fields_updated_this_visit"] = updated
+
+            await _save_session(raw)
+
+    async def bulk_confirm_carry_forward(self, session_id: str) -> None:
+        """Flip every carry-forward field's ``confirmed_by_patient`` to True.
+
+        Backs the "全部仍然准确" chip — patient asserts every carried-forward
+        value is still accurate without changing any. Field values are not
+        touched; only the meta flag changes. Fields are NOT added to
+        ``_fields_updated_this_visit`` because the patient did not update them.
+        """
+        async with _get_session_lock(session_id):
+            raw = await _load_session(session_id)
+            if raw is None:
+                raise LookupError(f"session {session_id} not found")
+
+            cf_meta = raw.collected.get("_carry_forward_meta")
+            if not isinstance(cf_meta, dict) or not cf_meta:
+                return
+
+            updated_meta: dict = {}
+            for field_name, entry in cf_meta.items():
+                if isinstance(entry, dict):
+                    new_entry = dict(entry)
+                    new_entry["confirmed_by_patient"] = True
+                    updated_meta[field_name] = new_entry
+                else:
+                    updated_meta[field_name] = entry
+            raw.collected["_carry_forward_meta"] = updated_meta
+            await _save_session(raw)
+
     async def confirm(
         self,
         session_id: str,
@@ -334,6 +439,36 @@ class IntakeEngine:
                 collected = re_extracted
 
         ref = await template.writer.persist(sess, collected)
+
+        # Post-write provenance update: stamp carry_forward_meta and
+        # fields_updated_this_visit onto the new medical_record row so the
+        # doctor-side review surface can show "carried from 2026-04-12, patient
+        # confirmed unchanged" / "patient updated this visit" badges.
+        # Direct SQL keeps the writer protocol untouched (template-agnostic).
+        if ref.kind == "medical_record":
+            cf_meta_raw = collected.get("_carry_forward_meta")
+            updated_raw = collected.get("_fields_updated_this_visit")
+            cf_meta = cf_meta_raw if isinstance(cf_meta_raw, dict) else None
+            updated = updated_raw if isinstance(updated_raw, list) else None
+            if cf_meta or updated:
+                try:
+                    from sqlalchemy import update as _sa_update
+                    from db.models.records import MedicalRecordDB
+                    async with AsyncSessionLocal() as db:
+                        await db.execute(
+                            _sa_update(MedicalRecordDB)
+                            .where(MedicalRecordDB.id == ref.id)
+                            .values(
+                                carry_forward_meta=cf_meta,
+                                fields_updated_this_visit=updated,
+                            )
+                        )
+                        await db.commit()
+                except Exception as exc:
+                    log(
+                        f"[engine-confirm] post-write provenance update failed (non-fatal): {exc}",
+                        level="warning",
+                    )
 
         # Bug E fix: persist the reconciled `collected` back to the session
         # row BEFORE hook dispatch. Hooks are best-effort and may fail; the

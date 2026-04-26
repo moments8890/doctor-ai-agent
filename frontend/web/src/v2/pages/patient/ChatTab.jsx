@@ -22,6 +22,8 @@ import { Card, TintedIconRow } from "../../components";
 import ChatBubble from "../../ChatBubble";
 import ChatConfirmGate from "../../components/ChatConfirmGate";
 import ChatDedupPrompt from "../../components/ChatDedupPrompt";
+import IntakeBanner from "../../components/IntakeBanner";
+import SuggestionChips from "../../components/SuggestionChips";
 import ChatComposer from "../../ChatComposer";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { APP, FONT, RADIUS } from "../../theme";
@@ -130,6 +132,21 @@ export default function ChatTab({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [lastMsgId, setLastMsgId] = useState(null);
+  // Intake state — derived from POST /chat triage_category. The chat endpoint
+  // does not yet return session_id or turn_count; we track turn count
+  // client-side (incremented per successful intake response) and treat the
+  // session as "active" while the most recent reply is symptom_report.
+  // TODO(backend): expose {session_id, turn_count, status} on POST /chat
+  // (or add GET /api/patient/intake/active) so banner state survives reloads
+  // and supports backend cancel.
+  const [intakeActive, setIntakeActive] = useState(false);
+  const [intakeTurnCount, setIntakeTurnCount] = useState(0);
+  // suggestions[lastAiMsgId] = array of chip texts; rendered under the AI
+  // bubble whose id matches. Cleared when the patient sends another turn.
+  // Source: POST /chat response. The backend is in the process of forwarding
+  // IntakeEngine's TurnResult.suggestions through ChatResponse — until that
+  // ships, this stays empty (see TODO above).
+  const [latestSuggestions, setLatestSuggestions] = useState([]);
   const chatEndRef = useRef(null);
   const pollingRef = useRef(null);
   const visibleRef = useRef(true);
@@ -221,9 +238,31 @@ export default function ChatTab({
       ...prev,
       { source: "patient", content: text, _local: true, _ts: Date.now() },
     ]);
+    // A new patient turn invalidates the previous AI bubble's chip set.
+    setLatestSuggestions([]);
     setSending(true);
     try {
-      await sendPatientChat(token, text);
+      const resp = await sendPatientChat(token, text);
+      // Drive intake banner + chip rendering from the chat response.
+      // resp shape: { reply, triage_category, ai_handled, suggestions? }.
+      const isIntake = resp?.triage_category === "symptom_report";
+      if (isIntake) {
+        setIntakeActive(true);
+        setIntakeTurnCount((n) => n + 1);
+      } else {
+        // A non-intake reply ends the active intake banner.
+        setIntakeActive(false);
+        setIntakeTurnCount(0);
+      }
+      // Suggestions ride on the response once backend wires them through.
+      // Defensive: accept either an array or a comma-separated string.
+      const raw = resp?.suggestions;
+      const list = Array.isArray(raw)
+        ? raw
+        : typeof raw === "string"
+          ? raw.split(",").map((s) => s.trim()).filter(Boolean)
+          : [];
+      setLatestSuggestions(list.slice(0, 4));
     } catch (err) {
       if (err?.status === 401) return;
       setMessages((prev) => [
@@ -234,6 +273,27 @@ export default function ChatTab({
       setSending(false);
     }
   }
+
+  function handleCancelIntake() {
+    // Without a session_id from the backend chat endpoint we can only hide
+    // the banner client-side. When the backend exposes session metadata on
+    // POST /chat (or a GET /api/patient/intake/active), wire intakeCancel
+    // here.
+    setIntakeActive(false);
+    setIntakeTurnCount(0);
+  }
+
+  // Index of the last AI message in the list — the only AI bubble that
+  // gets the suggestion chip row (suggestions are tied to the most recent
+  // turn).
+  const lastAiIndex = (() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const m = messages[i];
+      const src = m.source || (m.role === "user" ? "patient" : "ai");
+      if (src === "ai" && !m.kind) return i;
+    }
+    return -1;
+  })();
 
   function renderMessage(msg, i) {
     if (msg.kind === "confirm_gate") {
@@ -286,6 +346,9 @@ export default function ChatTab({
     // AI message with optional triage enrichment
     const isUrgent = msg.triage_category === "urgent";
     const isDiagnosis = msg.triage_category === "diagnosis_confirmation";
+    // Suggestions render only under the LATEST AI bubble (older turns
+    // shouldn't keep stale chips after the conversation moved on).
+    const showChips = i === lastAiIndex && latestSuggestions.length > 0;
     return (
       <div key={msg.id || i} style={{ marginBottom: 12 }}>
         {isDiagnosis ? (
@@ -299,6 +362,13 @@ export default function ChatTab({
         <div style={{ fontSize: FONT.xs, color: APP.text4, paddingLeft: 44, marginTop: 2 }}>
           {doctorName ? `${doctorName}的AI助手` : "AI健康助手"}
         </div>
+        {showChips && (
+          <SuggestionChips
+            suggestions={latestSuggestions}
+            disabled={sending}
+            onPick={(text) => handleSend(text)}
+          />
+        )}
       </div>
     );
   }
@@ -306,6 +376,15 @@ export default function ChatTab({
   return (
     <div style={keyboardAwareStyle}>
       <QuickActions onNewIntake={onNewIntake} onViewRecords={onViewRecords} />
+
+      {/* Active-intake banner sits above the message list. Hidden when no
+          intake is active. */}
+      {intakeActive && (
+        <IntakeBanner
+          turnCount={intakeTurnCount}
+          onCancel={handleCancelIntake}
+        />
+      )}
 
       {/* Message list */}
       <div style={styles.msgList}>

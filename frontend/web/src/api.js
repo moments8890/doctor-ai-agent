@@ -968,6 +968,45 @@ export async function intakeCancel(token, sessionId) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Patient chat-intake confirm / per-field controls (intake redesign)
+// ---------------------------------------------------------------------------
+//
+// confirmIntake — patient finalizes the active intake session created via
+// the chat endpoint. Backend route: POST /api/patient/chat/confirm.
+//
+// updateIntakeField / confirmAllCarryForward — backend endpoints may not
+// exist yet (see TODO in PatientPage); callers should expect a 404 and
+// degrade gracefully (caller logs + continues).
+
+export async function confirmIntake(token, sessionId) {
+  return patientRequest("/api/patient/chat/confirm", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+}
+
+export async function updateIntakeFieldPatient(token, sessionId, field, newValue) {
+  // TODO(backend): /api/patient/chat/intake/update_field not yet implemented.
+  // Caller must catch 404 / 405 and continue.
+  return patientRequest("/api/patient/chat/intake/update_field", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId, field, new_value: newValue }),
+  });
+}
+
+export async function confirmAllCarryForward(token, sessionId) {
+  // TODO(backend): /api/patient/chat/intake/confirm_all_carry_forward not yet
+  // implemented. Caller must catch 404 / 405 and continue.
+  return patientRequest("/api/patient/chat/intake/confirm_all_carry_forward", token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+}
+
 export async function getKnowledgeItems(doctorId) {
   return request(`/api/manage/knowledge?doctor_id=${doctorId}`);
 }
