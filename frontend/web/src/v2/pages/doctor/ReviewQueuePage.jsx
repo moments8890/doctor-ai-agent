@@ -4,7 +4,7 @@
  * v2 ReviewQueuePage — antd-mobile rewrite.
  * Shows pending diagnosis reviews, pending reply drafts, and completed items.
  */
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -62,58 +62,10 @@ function KindTag({ kind, count = 1 }) {
   );
 }
 
-// Provenance filter chips — 全部 / 问诊完成 / 自动整理
-const PROVENANCE_OPTIONS = [
-  { label: "全部", value: null },
-  { label: "问诊完成", value: "explicit_intake" },
-  { label: "自动整理", value: "chat_detected" },
-];
-
-function ProvenanceChips({ value, onChange }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        padding: "8px 12px",
-        backgroundColor: APP.surface,
-        borderBottom: `0.5px solid ${APP.borderLight}`,
-        flexWrap: "wrap",
-      }}
-    >
-      {PROVENANCE_OPTIONS.map((opt) => {
-        const isSelected = value === opt.value;
-        return (
-          <button
-            key={String(opt.value)}
-            onClick={() => onChange(opt.value)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minWidth: 44,
-              minHeight: 44,
-              padding: "0 14px",
-              borderRadius: RADIUS.pill,
-              border: isSelected
-                ? `1.5px solid ${APP.primary}`
-                : `1px solid ${APP.border}`,
-              backgroundColor: isSelected ? APP.primaryLight : APP.surface,
-              color: isSelected ? APP.primary : APP.text2,
-              fontSize: FONT.sm,
-              fontWeight: isSelected ? 600 : 400,
-              cursor: "pointer",
-              outline: "none",
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+// Provenance filter chips (全部 / 问诊完成 / 自动整理) removed 2026-04-26.
+// Added speculatively for the chat-interview merge but no evidence doctors
+// want to triage chat-derived vs explicit records separately. Backend filter
+// param `seed_source` still accepted; frontend just always passes null.
 
 // Format ISO timestamp → "N 天前" / "刚刚" / "N 小时前" for the extra slot.
 function formatRelative(iso) {
@@ -278,12 +230,9 @@ export default function ReviewQueuePage() {
   const navigate = useNavigate();
   const { doctorId } = useDoctorStore();
 
-  // Provenance filter — null means "all", "chat_detected" or "explicit_intake" filters
-  const [seedSource, setSeedSource] = useState(null);
-
   const queryClient = useQueryClient();
 
-  const { data: queueData, isLoading: qLoading, refetch: refetchQueue } = useReviewQueue({ seedSource });
+  const { data: queueData, isLoading: qLoading, refetch: refetchQueue } = useReviewQueue();
   const { data: draftsData, isLoading: dLoading, refetch: refetchDrafts } = useDrafts({ includeSent: true });
   // 2026-04-25: supplement queue removed — patient submissions after closed
   // records become their own pending_review medical_records, no separate queue.
@@ -413,11 +362,6 @@ export default function ReviewQueuePage() {
           />
         </JumboTabs>
       </div>
-
-      {/* Provenance filter chips — only shown on the pending tab */}
-      {activeTab === "pending" && (
-        <ProvenanceChips value={seedSource} onChange={setSeedSource} />
-      )}
 
       {/* Scrollable content — page bg is gray (pageContainer), list sits in a white card */}
       <div style={scrollable}>
