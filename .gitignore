@@ -42,8 +42,12 @@ frontend/.vite/
 frontend/**/dist/
 frontend/android/
 frontend/ios/
-frontend/.env.android
+frontend/web/.env.android
+frontend/web/.env.ios
 frontend/web/android/app/build/
+frontend/web/ios/App/Pods/
+frontend/web/ios/App/build/
+frontend/web/ios/DerivedData/
 
 # Playwright artifacts
 frontend/web/playwright-report/

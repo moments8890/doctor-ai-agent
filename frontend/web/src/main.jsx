@@ -2,7 +2,7 @@ import "antd-mobile/es/global";
 import "./index.css";
 import React, { useMemo } from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, MemoryRouter } from "react-router-dom";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import App from "./v2/App";
 import { applyFontScale, createAppThemeScaled } from "./theme";
@@ -13,6 +13,12 @@ import { buildTitle } from "./lib/pageTitle";
 setLocale("zh-CN");
 document.documentElement.lang = "zh-CN";
 document.title = buildTitle(null, t("app.title"));
+
+// Default to MemoryRouter while we're in beta — paths never appear in any
+// address bar and deep-linking via URL is impossible across web, miniapp,
+// and Capacitor builds. To get URLs back (E2E tests, sharable dev links),
+// set VITE_ROUTER_MODE=browser.
+const Router = import.meta.env.VITE_ROUTER_MODE === "browser" ? BrowserRouter : MemoryRouter;
 
 // Apply persisted font scale immediately (before first render)
 applyFontScale(useFontScaleStore.getState().fontScale);
@@ -34,9 +40,9 @@ function Root() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <BrowserRouter>
+      <Router>
         <App />
-      </BrowserRouter>
+      </Router>
     </ThemeProvider>
   );
 }
