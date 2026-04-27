@@ -67,6 +67,19 @@ export default function SettingsPage() {
         localStorage.removeItem("unified_auth_name");
         localStorage.removeItem("unified_auth_doctor_id");
         localStorage.removeItem("unified_auth_patient_id");
+        // Tell the App.jsx URL-token absorber to skip re-auth on next mount.
+        // The WeChat miniprogram WebView may reload with ?token= in the
+        // querystring on refresh; without this flag the absorber would
+        // silently re-authenticate the user we just signed out.
+        localStorage.setItem("explicit_signout", "1");
+        // Best-effort: notify the WeChat miniprogram host so it can clear
+        // its cached token and update the WebView src.
+        try {
+          // eslint-disable-next-line no-undef
+          wx?.miniProgram?.postMessage?.({ data: { action: "logout" } });
+        } catch {
+          // not in miniprogram; ignore
+        }
         window.location.href = "/login";
       },
     });

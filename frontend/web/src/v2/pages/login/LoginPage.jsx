@@ -48,8 +48,9 @@ function saveSession(data) {
 
 const styles = {
   page: {
-    height: "100%",
+    minHeight: "100%",
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     padding: "0 16px",
@@ -195,6 +196,9 @@ export default function LoginPage() {
   }
 
   function handleLoginSuccess(data) {
+    // Clear the "explicit signout" guard so the WeChat URL-token absorber
+    // and other auto-restore paths can run normally on next mount.
+    try { localStorage.removeItem("explicit_signout"); } catch { /* noop */ }
     saveSession(data);
     if (data.role === "doctor") {
       setWebToken(data.token);

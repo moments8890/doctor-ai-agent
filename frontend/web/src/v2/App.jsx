@@ -189,6 +189,13 @@ export default function App() {
 
   // Absorb token from WeChat Mini Program web-view URL params
   useState(() => {
+    // Skip if the user just explicitly signed out — the WeChat miniprogram
+    // WebView may reload with ?token= in the URL on refresh; without this
+    // guard the absorber would silently re-authenticate the user we just
+    // signed out. Cleared on next successful login (LoginPage).
+    if (localStorage.getItem("explicit_signout") === "1") {
+      return;
+    }
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
     const did = params.get("doctor_id");
