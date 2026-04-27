@@ -93,6 +93,67 @@ async def _structured_call_for_diagnosis(
     )
 
 
+def _collect_diagnosis_free_text(result: DiagnosisLLMResponse) -> str:
+    """Concatenate free-text fields a doctor sees (evidence + risk_signals) for
+    L0 style scanning. Excludes condition/test/drug_class labels — those are
+    canonical clinical names, not prose."""
+    chunks: List[str] = []
+    for d in result.differentials:
+        chunks.extend(d.evidence or [])
+        chunks.extend(d.risk_signals or [])
+    for w in result.workup:
+        chunks.extend(w.evidence or [])
+        chunks.extend(w.risk_signals or [])
+    for t in result.treatment:
+        chunks.extend(t.evidence or [])
+        chunks.extend(t.risk_signals or [])
+    return " ".join(chunks)
+
+
+async def _diagnosis_l0_pass(
+    result: DiagnosisLLMResponse,
+    composed_messages: List[Dict[str, str]],
+    timeout: int,
+    tag: str,
+) -> DiagnosisLLMResponse:
+    """Run L0 style scan on diagnosis output; regen once if hard violations fire.
+
+    Diagnosis budget per locked plan: 1 regen on style violation, then
+    ship-with-warning. Soft violations are logged but not regen'd (the chain
+    threshold is unlikely to fire on structured arrays).
+    """
+    from agent.style_guard import detect_hard_violations, build_correction_message
+
+    text = _collect_diagnosis_free_text(result)
+    violations = detect_hard_violations(text)
+    if not violations:
+        return result
+
+    log(f"{tag} L0: {len(violations)} hard violations in evidence/risk_signals, regen 1/1: {violations}")
+    corrective = build_correction_message(violations)
+    # Append the violator output + correction to the original messages and re-call.
+    # structured_call's instructor wrapper handles re-shaping back into Pydantic.
+    corrected_messages = list(composed_messages) + [
+        {"role": "assistant", "content": result.model_dump_json()},
+        corrective,
+    ]
+    try:
+        regen = await asyncio.wait_for(
+            _structured_call_for_diagnosis(corrected_messages, env_var="DIAGNOSIS_LLM"),
+            timeout=timeout,
+        )
+    except Exception as regen_exc:
+        log(f"{tag} L0 regen failed (non-fatal, shipping with warning): {regen_exc}", level="warning")
+        return result
+
+    final_text = _collect_diagnosis_free_text(regen)
+    final_violations = detect_hard_violations(final_text)
+    if final_violations:
+        log(f"{tag} L0 shipped with {len(final_violations)} violations after 1 regen: {final_violations}",
+            level="warning")
+    return regen
+
+
 async def _try_cloud_fallback(
     original_err: Exception,
     provider_name: str,
@@ -518,6 +579,16 @@ async def run_diagnosis(
                 llm_error = str(exc)
                 log("[diagnosis] llm_io error",
                     doctor_id=doctor_id, record_id=record_id, error=str(exc))
+
+        # L0 style guard: scan free-text fields (evidence/risk_signals) for
+        # corpus-validated AI-smell phrases and regen once if any fire.
+        if llm_result is not None:
+            try:
+                llm_result = await _diagnosis_l0_pass(
+                    llm_result, composed, _DIAGNOSIS_TIMEOUT, _tag,
+                )
+            except Exception as guard_exc:
+                log(f"{_tag} L0 style guard failed (non-fatal): {guard_exc}", level="warning")
 
         if llm_error or llm_result is None:
             err_msg = llm_error or "Empty LLM response"

@@ -311,7 +311,20 @@ async def structured_call(
     _t0 = _time.monotonic()
     try:
         with trace_block("llm", op_name, {"model": model, "response_model": response_model.__name__}):
-            result = await _call(model)
+            # Transport-level retry with circuit breaker. instructor's
+            # max_retries handles validation failures; this layer handles
+            # network/timeout/5xx/429 transient blips. Without this, one
+            # Groq hiccup propagates as "系统繁忙" to the patient. Same
+            # helper used by llm_call for symmetry.
+            from infra.llm.resilience import call_with_retry_and_fallback
+            result = await call_with_retry_and_fallback(
+                _call,
+                primary_model=model,
+                fallback_model=None,
+                max_attempts=3,
+                backoff_seconds=(0.5, 1.0),
+                op_name=op_name,
+            )
 
         _dur = int((_time.monotonic() - _t0) * 1000)
         log(f"[{op_name}] output: {result.model_dump_json()[:200]}")

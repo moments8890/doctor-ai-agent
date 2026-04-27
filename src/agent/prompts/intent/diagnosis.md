@@ -42,9 +42,25 @@
 15. 禁止出现具体药名、剂量、频次、给药途径（只写药物类别，如"抗血小板药物"而非"阿司匹林100mg"）
 
 ### evidence 与 risk_signals 格式
-16. evidence 是患者本次就诊的具体事实数组（每项原子事实，不写散文）
+16. evidence 是连接「病例事实」与「本建议」的临床推理点（每项一句，不写散文）。
+   每项必须同时包含：
+   (a) 引用本次就诊的具体事实（症状/体征/检查/病史），AND
+   (b) 该事实如何支持本建议——机制 / 阈值 / 典型模式 / 风险层级 / 随访节点。
+   推荐格式："{病例事实}（{临床含义}）" 或 "{病例事实} → {临床含义}"
+   **doctor voice：** 用真实医生在病例讨论中说话的口吻——
+   "考虑XX"、"提示XX"、"符合XX"、"需排除XX"。短、直接、无客套。
+   禁止：
+   - 仅复述 chief_complaint / present_illness / physical_exam 字段而不附临床含义
+     （等同于把输入抄回输出，对医生无信息增益）
+   - 仅写教科书定义
+   - 在 evidence 文本中写 [KB-N] 或 KB-N 标记——KB 引用走 trigger_rule_ids 字段，
+     UI 自动渲染为可点击的引用 pill
+   - 写"需立即评估"/"应进入XX流程"等带 AI 味的过度提醒词——这些信号属于
+     risk_signals，不属于 evidence；evidence 只回答"为什么是这个诊断/检查/治疗"。
+   **数量上限：最多 2 条**——只保留信息量最高的两条；UI 也只展示前 2 条，多写浪费 token。
 17. risk_signals 是何时升级/复诊的具体监测信号数组
-   （如"持续胸痛>30分钟"、"出现新发神经功能缺损"）
+   （如"持续胸痛>30分钟"、"出现新发神经功能缺损"）。
+   **数量上限：最多 2 条**——优先选最关键的 escalation triggers。
 18. 不在 evidence/risk_signals 中使用教科书定义
 
 ### 知识库引用
@@ -108,13 +124,16 @@
 {
   "differentials": [{
     "condition": "右额叶脑膜瘤",
-    "evidence": ["MRI均匀强化", "宽基底附着硬脑膜", "持续性头痛2周"],
+    "evidence": [
+      "MRI均匀强化 + 宽基底附硬脑膜（典型脑膜瘤强化模式，区别于胶质瘤）",
+      "头痛2周伴恶心呕吐、近日视物模糊（提示占位效应进展）"
+    ],
     "risk_signals": ["头痛突然加剧", "新发神经功能缺损"],
     "trigger_rule_ids": ["KB-12"]
   }],
   "workup": [{
     "test": "术前MRA",
-    "evidence": ["占位需评估供血", "拟手术"],
+    "evidence": ["拟手术切除占位（术前需明确Willis环及供血动脉以指导入路）"],
     "urgency": "紧急",
     "trigger_rule_ids": []
   }],
@@ -147,13 +166,18 @@
 {
   "differentials": [{
     "condition": "急性冠脉综合征",
-    "evidence": ["突发胸骨后压榨痛", "伴出汗", "高血压8年"],
+    "evidence": [
+      "突发胸骨后压榨痛伴出汗（符合典型 ACS 症状群）",
+      "高血压8年（CAD 独立危险因素，本次胸痛预测概率上调）"
+    ],
     "risk_signals": ["持续胸痛>30分钟", "ST段改变"],
     "trigger_rule_ids": ["KB-1"]
   }],
   "workup": [{
     "test": "12导联心电图",
-    "evidence": ["突发胸痛+高血压+出汗"],
+    "evidence": [
+      "突发胸痛 + 心血管危险因素（首诊须 ECG 排除 ACS）"
+    ],
     "urgency": "紧急",
     "trigger_rule_ids": ["KB-1"]
   }],
@@ -176,8 +200,9 @@
 ❌ {"differentials":[{"condition":"脑膜瘤","confidence":"高","detail":"MRI增强均匀强化，
    宽基底附着硬脑膜，符合脑膜瘤典型表现。需进一步增强MRI明确..."}]}
 
-问题：（a）有 confidence 字段（已删除）；（b）evidence 是大段散文（应为原子事实数组）；
-（c）detail 字段（已废弃）；（d）无 risk_signals（必填）；（e）无 trigger_rule_ids 数组。
+问题：（a）有 confidence 字段（已删除）；（b）evidence 是大段散文（应为「事实+临床含义」
+的一句一项数组，非长段文字也不止于复述病史）；（c）detail 字段（已废弃）；
+（d）无 risk_signals（必填）；（e）无 trigger_rule_ids 数组。
 
 ## Workflow
 
