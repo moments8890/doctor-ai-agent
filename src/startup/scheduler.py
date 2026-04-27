@@ -91,8 +91,39 @@ def create_scheduler() -> AsyncIOScheduler:
     return AsyncIOScheduler()
 
 
+def _register_scheduler_telemetry(scheduler: AsyncIOScheduler) -> None:
+    """Emit one Sentry Logs event per APScheduler job tick.
+
+    Body prefix "scheduler." routes via _before_send_log in main.py to
+    service.name=scheduler so GlitchTip Logs' Service dropdown filters
+    them out cleanly. Triple-defensive: missing sentry_sdk, missing
+    APScheduler events module, or a logger raise must never poison
+    scheduler startup or the tick path.
+    """
+    try:
+        from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+        from sentry_sdk import logger as _slog
+
+        def _on_event(event):
+            try:
+                _slog.info(
+                    "scheduler.tick",
+                    job_id=getattr(event, "job_id", "unknown"),
+                    status="error" if event.exception else "ok",
+                    exception=str(event.exception) if event.exception else "",
+                    scheduled_run_time=str(getattr(event, "scheduled_run_time", "")),
+                )
+            except Exception:
+                pass
+
+        scheduler.add_listener(_on_event, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+    except Exception:
+        pass
+
+
 def configure_scheduler(scheduler: AsyncIOScheduler, startup_log: logging.Logger) -> None:
     """Clear all jobs and re-register all scheduled timers."""
     scheduler.remove_all_jobs()
     _schedule_task_notifications(scheduler, startup_log)
     _schedule_retention_jobs(scheduler, startup_log)
+    _register_scheduler_telemetry(scheduler)

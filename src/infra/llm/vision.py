@@ -126,6 +126,21 @@ async def extract_text_from_image(image_bytes: bytes, mime_type: str) -> str:
     from agent.llm import clean_llm_output
     extracted = clean_llm_output(extracted)
     log(f"{_tag} response: {len(extracted)} chars: {extracted[:80]!r}")
+    # GlitchTip Logs surface: body prefix "vision." routes via
+    # _before_send_log in main.py to service.name=vision. Defensive —
+    # never break the OCR path on a Sentry hiccup.
+    try:
+        from sentry_sdk import logger as _slog
+        _slog.info(
+            "vision.extract",
+            provider=provider_name,
+            model=model,
+            chars_extracted=len(extracted),
+            mime=mime_type,
+            status="ok" if extracted else "empty",
+        )
+    except Exception:
+        pass
     if not extracted:
         raise RuntimeError("Vision LLM returned empty text — check image quality or model availability.")
     return extracted

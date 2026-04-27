@@ -17,11 +17,24 @@ async def run_alembic_migrations() -> None:
         cfg.set_main_option("script_location", "alembic")
         command.upgrade(cfg, "head")
 
+    status = "applied"
+    error = ""
     try:
         await asyncio.get_event_loop().run_in_executor(None, _run_sync)
         log.info("[DB] Alembic migrations applied (or already at head)")
     except Exception as exc:
+        status = "failed"
+        error = str(exc)
         log.warning("[DB] Alembic migration failed -- continuing (schema may already be current): %s", exc)
+    # GlitchTip Logs surface: body prefix "db." routes via _before_send_log
+    # in main.py to service.name=db. One event per startup so the DB layer
+    # is visible in the Service dropdown on every deploy. Defensive — must
+    # never break the startup path.
+    try:
+        from sentry_sdk import logger as _slog
+        _slog.info("db.migration", status=status, error=error)
+    except Exception:
+        pass
 
 
 async def init_database(startup_log: logging.Logger) -> None:

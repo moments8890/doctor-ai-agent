@@ -119,12 +119,30 @@ def _init_sentry() -> None:
         # auto-emit it from `server_name` (that becomes `server.address`),
         # so we hook before_send_log and inject it ourselves. Verified via
         # local envelope probe — without this hook the dropdown stays grey.
-        _service_name = os.environ.get(
-            "SENTRY_SERVICE_NAME", "doctor-ai-agent-backend",
-        )
+        #
+        # Architectural note: before_send_log fires ONLY for explicit
+        # sentry_sdk.logger.* calls — NOT for stdlib logging events
+        # captured via LoggingIntegration. So the body-prefix routing
+        # below requires that emitters across the codebase use slog.info
+        # with a stable body string ("llm.call", "vision.extract",
+        # "scheduler.tick", "db.migration"). Anything not matching falls
+        # through to the default service ("backend"), which covers HTTP
+        # access, FastAPI route logs, and unhandled exceptions.
+        _service_name = os.environ.get("SENTRY_SERVICE_NAME", "backend")
 
         def _before_send_log(log, hint):
-            log.setdefault("attributes", {})["service.name"] = _service_name
+            body = (log.get("body") or "")
+            if body.startswith("llm."):
+                service = "llm"
+            elif body.startswith("vision."):
+                service = "vision"
+            elif body.startswith("scheduler."):
+                service = "scheduler"
+            elif body.startswith("db."):
+                service = "db"
+            else:
+                service = _service_name
+            log.setdefault("attributes", {})["service.name"] = service
             return log
 
         sentry_sdk.init(
@@ -162,7 +180,7 @@ def _init_sentry() -> None:
         # server_name on the Logs ingest path.
         sentry_sdk.set_tag(
             "service",
-            os.environ.get("SENTRY_SERVICE_NAME", "doctor-ai-agent-backend"),
+            os.environ.get("SENTRY_SERVICE_NAME", "backend"),
         )
         logging.getLogger("startup").info(
             "[Sentry] initialized (dsn=%s..., release=%s)",

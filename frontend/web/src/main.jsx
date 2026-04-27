@@ -9,6 +9,11 @@ import { applyFontScale, createAppThemeScaled } from "./theme";
 import { useFontScaleStore, useFontScaleRerender, triggerFontScaleRerender } from "./store/fontScaleStore";
 import { setLocale, t } from "./i18n";
 import { buildTitle } from "./lib/pageTitle";
+import { initSentry } from "./observability";
+
+// Boot Sentry before the React tree mounts so any sync init error in App
+// is captured. No-op when VITE_SENTRY_DSN is unset (dev / CI).
+initSentry();
 
 setLocale("zh-CN");
 document.documentElement.lang = "zh-CN";
