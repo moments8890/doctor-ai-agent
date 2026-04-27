@@ -117,6 +117,12 @@ def _init_sentry() -> None:
             dsn=dsn,
             environment=os.environ.get("ENVIRONMENT", "development"),
             release=os.environ.get("GIT_COMMIT", "unknown"),
+            # server_name populates the "Service" filter dropdown on the
+            # GlitchTip Logs tab. One value per service — useful when the
+            # same project hosts multiple services (worker, scheduler split).
+            server_name=os.environ.get(
+                "SENTRY_SERVICE_NAME", "doctor-ai-agent-backend",
+            ),
             traces_sample_rate=float(os.environ.get("SENTRY_TRACES_RATE", "0.1")),
             profiles_sample_rate=0.0,  # GlitchTip doesn't support profiles
             send_default_pii=False,     # strip cookies/IP, HIPAA-adjacent
@@ -133,6 +139,13 @@ def _init_sentry() -> None:
                     event_level=logging.ERROR,
                 ),
             ],
+        )
+        # Belt-and-suspenders: also set as a global tag so every event
+        # carries it as `tags.service` even if a SDK version doesn't honor
+        # server_name on the Logs ingest path.
+        sentry_sdk.set_tag(
+            "service",
+            os.environ.get("SENTRY_SERVICE_NAME", "doctor-ai-agent-backend"),
         )
         logging.getLogger("startup").info(
             "[Sentry] initialized (dsn=%s..., release=%s)",
