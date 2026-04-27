@@ -113,23 +113,40 @@ def _init_sentry() -> None:
         from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
         from sentry_sdk.integrations.logging import LoggingIntegration
 
+        # Service-name injection for GlitchTip's Logs "Service" dropdown.
+        # GlitchTip reads the OTel-standard top-level `service.name`
+        # attribute on each log envelope. sentry-sdk 2.56 does NOT
+        # auto-emit it from `server_name` (that becomes `server.address`),
+        # so we hook before_send_log and inject it ourselves. Verified via
+        # local envelope probe — without this hook the dropdown stays grey.
+        _service_name = os.environ.get(
+            "SENTRY_SERVICE_NAME", "doctor-ai-agent-backend",
+        )
+
+        def _before_send_log(log, hint):
+            log.setdefault("attributes", {})["service.name"] = _service_name
+            return log
+
         sentry_sdk.init(
             dsn=dsn,
             environment=os.environ.get("ENVIRONMENT", "development"),
             release=os.environ.get("GIT_COMMIT", "unknown"),
-            # server_name populates the "Service" filter dropdown on the
-            # GlitchTip Logs tab. One value per service — useful when the
-            # same project hosts multiple services (worker, scheduler split).
-            server_name=os.environ.get(
-                "SENTRY_SERVICE_NAME", "doctor-ai-agent-backend",
-            ),
+            # server_name still populates the Sentry-side `server.address`
+            # attribute (visible in Issues + log payloads), kept for
+            # operator clarity even though the Logs filter ignores it.
+            server_name=_service_name,
             traces_sample_rate=float(os.environ.get("SENTRY_TRACES_RATE", "0.1")),
             profiles_sample_rate=0.0,  # GlitchTip doesn't support profiles
             send_default_pii=False,     # strip cookies/IP, HIPAA-adjacent
             # _experimental flag enables sentry_sdk.logger.* structured logs
             # → GlitchTip Logs tab (separate from Issues). Required for the
             # observability surface to show standalone trace/info/warn events.
-            _experiments={"enable_logs": True},
+            # before_send_log hook injects service.name top-level so the
+            # Service filter dropdown populates.
+            _experiments={
+                "enable_logs": True,
+                "before_send_log": _before_send_log,
+            },
             integrations=[
                 FastApiIntegration(transaction_style="endpoint"),
                 StarletteIntegration(),
