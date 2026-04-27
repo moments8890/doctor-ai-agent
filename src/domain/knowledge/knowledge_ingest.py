@@ -64,7 +64,7 @@ async def _llm_process_knowledge(raw_text: str) -> Optional[str]:
     """
     from agent.prompt_safety import wrap_untrusted
 
-    prompt_path = pathlib.Path(__file__).resolve().parent.parent / "agent" / "prompts" / "knowledge_ingest.md"
+    prompt_path = pathlib.Path(__file__).resolve().parent.parent.parent / "agent" / "prompts" / "knowledge_ingest.md"
     system_prompt = prompt_path.read_text(encoding="utf-8")
     user_message = system_prompt.replace(
         "{{document_text}}",

@@ -121,6 +121,10 @@ async def extract_text_from_image(image_bytes: bytes, mime_type: str) -> str:
     )
 
     extracted = (completion.choices[0].message.content or "").strip()
+    # Strip <think>...</think> tags if model ignored /no_think in vision-ocr.md.
+    # Reuses the same cleaner intent-prompts go through (single source of truth).
+    from agent.llm import clean_llm_output
+    extracted = clean_llm_output(extracted)
     log(f"{_tag} response: {len(extracted)} chars: {extracted[:80]!r}")
     if not extracted:
         raise RuntimeError("Vision LLM returned empty text — check image quality or model availability.")
