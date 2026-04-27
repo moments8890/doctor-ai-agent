@@ -32,7 +32,10 @@ import {
   useKnowledgeItems,
   usePatients,
   useUnseenPatientCount,
+  useDoctorProfile,
 } from "../../../lib/doctorQueries";
+import { useReleaseNotes } from "../../../hooks/useReleaseNotes";
+import ReleaseNotesDialog from "../../components/ReleaseNotesDialog";
 import { dp } from "../../../utils/doctorBasePath";
 import { formatAge } from "../../../utils/time";
 import { APP, FONT, RADIUS, ICON, CATEGORY_COLOR } from "../../theme";
@@ -428,6 +431,12 @@ export default function MyAIPage({ doctorId }) {
   const navigate = useAppNavigate();
   const { doctorName } = useDoctorStore();
 
+  const { data: profile } = useDoctorProfile();
+  const { showDialog, release, dismiss } = useReleaseNotes(
+    doctorId,
+    profile?.finished_onboarding,
+  );
+
   const { data: reviewQueueData, isLoading: qLoading } = useReviewQueue();
   const { data: unseenPatientData } = useUnseenPatientCount();
   const { data: personaData, isLoading: pLoading } = usePersona();
@@ -763,6 +772,11 @@ export default function MyAIPage({ doctorId }) {
         )}
         <SafeArea position="bottom" />
       </div>
+      <ReleaseNotesDialog
+        visible={showDialog}
+        release={release}
+        onDismiss={dismiss}
+      />
     </div>
   );
 }
