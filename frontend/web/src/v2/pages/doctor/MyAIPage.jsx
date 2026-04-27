@@ -32,7 +32,6 @@ import {
   useKnowledgeItems,
   usePatients,
   useUnseenPatientCount,
-  useDoctorProfile,
 } from "../../../lib/doctorQueries";
 import { useReleaseNotes } from "../../../hooks/useReleaseNotes";
 import ReleaseNotesDialog from "../../components/ReleaseNotesDialog";
@@ -431,11 +430,7 @@ export default function MyAIPage({ doctorId }) {
   const navigate = useAppNavigate();
   const { doctorName } = useDoctorStore();
 
-  const { data: profile } = useDoctorProfile();
-  const { showDialog, release, dismiss } = useReleaseNotes(
-    doctorId,
-    profile?.finished_onboarding,
-  );
+  const { showDialog, release, dismiss } = useReleaseNotes(doctorId);
 
   const { data: reviewQueueData, isLoading: qLoading } = useReviewQueue();
   const { data: unseenPatientData } = useUnseenPatientCount();

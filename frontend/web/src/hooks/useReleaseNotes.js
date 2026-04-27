@@ -11,16 +11,19 @@ import {
   markReleaseSeen,
 } from "../store/releaseStore";
 
-export function useReleaseNotes(doctorId, finishedOnboarding) {
+export function useReleaseNotes(doctorId) {
   const [showDialog, setShowDialog] = useState(false);
   const [release, setRelease] = useState(null);
   const [syncDone, setSyncDone] = useState(false);
 
   // Step 1: sync seen_releases from backend (merges local + remote)
+  // Previously gated on finished_onboarding; that locked out doctors who
+  // registered before the wizard existed (most Tencent prod users), so
+  // they never saw release notes. Now: any authenticated doctor.
   useEffect(() => {
-    if (!doctorId || !finishedOnboarding) return;
+    if (!doctorId) return;
     syncSeenReleases(doctorId).finally(() => setSyncDone(true));
-  }, [doctorId, finishedOnboarding]);
+  }, [doctorId]);
 
   // Step 2: after sync completes, check for unseen releases
   useEffect(() => {
