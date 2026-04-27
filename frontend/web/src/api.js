@@ -1336,6 +1336,14 @@ export async function finalizeReview(recordId, doctorId, opts = {}) {
   });
 }
 
+export async function reopenReview(recordId, doctorId) {
+  return request(`/api/doctor/records/${recordId}/review/reopen`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ doctor_id: doctorId }),
+  });
+}
+
 export async function seedDemo(doctorId) {
   return request("/api/manage/onboarding/seed-demo", {
     method: "POST",

@@ -615,3 +615,50 @@ async def finalize_review(
         "follow_up_task_ids": follow_up_task_ids,
         "follow_up_task_count": len(follow_up_task_ids),
     }
+
+
+# ── 6. POST /records/{record_id}/review/reopen — flip back to pending ───
+#
+# Doctor can re-open a finalized record to add or change suggestions.
+# This is a status flip only — past suggestion decisions are preserved
+# (the doctor adjusts them via the normal decide flow). Audit-logged so
+# the trail shows the record was edited post-finalization.
+
+class ReopenRequest(BaseModel):
+    doctor_id: str
+
+
+@router.post("/api/doctor/records/{record_id}/review/reopen", include_in_schema=True)
+async def reopen_review(
+    record_id: int,
+    body: ReopenRequest,
+    authorization: Optional[str] = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Re-open a completed record so the doctor can add/edit suggestions."""
+    resolved = _resolve_ui_doctor_id(body.doctor_id, authorization)
+    rec = (
+        await db.execute(
+            select(MedicalRecordDB)
+            .where(
+                MedicalRecordDB.id == record_id,
+                MedicalRecordDB.doctor_id == resolved,
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if rec is None:
+        raise HTTPException(status_code=404, detail="Record not found")
+
+    if rec.status != RecordStatus.completed.value:
+        # Not an error — already editable. Idempotent for client retries.
+        return {"status": rec.status, "record_id": record_id, "reopened": False}
+
+    rec.status = RecordStatus.pending_review.value
+    await db.commit()
+    log_event(
+        "record.reopened",
+        record_id=record_id,
+        doctor_id=resolved,
+    )
+    return {"status": rec.status, "record_id": record_id, "reopened": True}

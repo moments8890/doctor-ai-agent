@@ -647,6 +647,9 @@ function InlineReviewLayout({
   onOpenCitation,
   onSubmitFeedback,
   finalizing,
+  isCompleted,
+  onReopen,
+  reopening,
   onBack,
   teachEditId,
   onTeachSkip,
@@ -924,33 +927,35 @@ function InlineReviewLayout({
           }
         />
 
-        {/* Custom-add buttons */}
-        <div style={{ display: "flex", gap: 8, margin: "6px 12px 12px" }}>
-          {[
-            { section: "differential", label: "+ 诊断" },
-            { section: "workup", label: "+ 检查" },
-            { section: "treatment", label: "+ 治疗" },
-          ].map((btn) => (
-            <div
-              key={btn.section}
-              onClick={() => openComposer(btn.section)}
-              style={{
-                flex: 1,
-                padding: "8px 6px",
-                background: APP.surface,
-                border: `0.5px solid ${APP.border}`,
-                borderRadius: RADIUS.md,
-                fontSize: FONT.sm,
-                color: APP.primary,
-                fontWeight: 500,
-                textAlign: "center",
-                cursor: "pointer",
-              }}
-            >
-              {btn.label}
-            </div>
-          ))}
-        </div>
+        {/* Custom-add buttons — hidden on completed reviews (read-only) */}
+        {!isCompleted && (
+          <div style={{ display: "flex", gap: 8, margin: "6px 12px 12px" }}>
+            {[
+              { section: "differential", label: "+ 诊断" },
+              { section: "workup", label: "+ 检查" },
+              { section: "treatment", label: "+ 治疗" },
+            ].map((btn) => (
+              <div
+                key={btn.section}
+                onClick={() => openComposer(btn.section)}
+                style={{
+                  flex: 1,
+                  padding: "8px 6px",
+                  background: APP.surface,
+                  border: `0.5px solid ${APP.border}`,
+                  borderRadius: RADIUS.md,
+                  fontSize: FONT.sm,
+                  color: APP.primary,
+                  fontWeight: 500,
+                  textAlign: "center",
+                  cursor: "pointer",
+                }}
+              >
+                {btn.label}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Inline custom composer */}
         {composerSection && (
@@ -1027,7 +1032,43 @@ function InlineReviewLayout({
         )}
       </div>
 
-      {/* Bottom bar */}
+      {/* Bottom bar — read-only completion footer with reopen affordance */}
+      {isCompleted ? (
+        <ActionFooter
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
+            ✓ 审核已完成
+          </span>
+          <button
+            type="button"
+            onClick={onReopen}
+            disabled={reopening}
+            style={{
+              fontSize: FONT.sm,
+              color: APP.primary,
+              fontWeight: 500,
+              background: "none",
+              border: "none",
+              padding: "6px 4px",
+              cursor: reopening ? "default" : "pointer",
+              opacity: reopening ? 0.6 : 1,
+              fontFamily: "inherit",
+            }}
+          >
+            {reopening ? "打开中…" : "重新编辑记录"}
+          </button>
+        </ActionFooter>
+      ) : (
       <ActionFooter
         style={{
           position: "absolute",
@@ -1072,6 +1113,7 @@ function InlineReviewLayout({
           )}
         </Button>
       </ActionFooter>
+      )}
 
       {/* Teach-AI snackbar */}
       {teachEditId && (
@@ -1156,6 +1198,7 @@ export default function ReviewPage({ recordId }) {
     addSuggestion,
     triggerDiagnosis,
     finalizeReview,
+    reopenReview,
     getTaskRecord,
     getKnowledgeBatch,
     submitFeedback,
@@ -1171,6 +1214,7 @@ export default function ReviewPage({ recordId }) {
   const [record, setRecord] = useState(null);
   const [suggestions, setSuggestions] = useState(null);
   const [finalizing, setFinalizing] = useState(false);
+  const [reopening, setReopening] = useState(false);
   const [knowledgeMap, setKnowledgeMap] = useState({});
   const [teachEditId, setTeachEditId] = useState(null);
   const [teachSaving, setTeachSaving] = useState(false);
@@ -1337,6 +1381,30 @@ export default function ReviewPage({ recordId }) {
     }
   }
 
+  async function handleReopen() {
+    if (reopening || !reopenReview) return;
+    Dialog.confirm({
+      title: "重新编辑记录",
+      content: "记录将回到待审核状态，您可以增改诊断、检查、治疗。原有的采纳决定会保留。",
+      cancelText: "取消",
+      confirmText: "确认",
+      onConfirm: async () => {
+        setReopening(true);
+        try {
+          await reopenReview(recordId, doctorId);
+          setRecord((prev) => (prev ? { ...prev, status: "pending_review" } : prev));
+          queryClient.invalidateQueries({ queryKey: QK.suggestions(recordId, doctorId) });
+          queryClient.invalidateQueries({ queryKey: QK.reviewQueue(doctorId) });
+          Toast.show({ content: "已重新打开，可继续编辑", position: "bottom" });
+        } catch {
+          Toast.show({ content: "重新打开失败", position: "bottom" });
+        } finally {
+          setReopening(false);
+        }
+      },
+    });
+  }
+
   async function handleSubmitFeedback({ suggestion, reasonTag, reasonText }) {
     if (!submitFeedback || !suggestion) {
       throw new Error("submitFeedback unavailable");
@@ -1377,6 +1445,9 @@ export default function ReviewPage({ recordId }) {
   const isDiagnosisFailed = record?.status === "diagnosis_failed";
   // 2026-04-25 sufficiency rule: pipeline returned empty arrays without LLM call
   const isInsufficientData = record?.status === "insufficient_data";
+  // After finalize the record moves to "completed". Used to hide the
+  // 完成审核 CTA + custom-add buttons when revisiting a finalized review.
+  const isCompleted = record?.status === "completed";
 
   const isDecided = (s) =>
     s.decision === "confirmed" ||
@@ -1458,6 +1529,9 @@ export default function ReviewPage({ recordId }) {
           onOpenCitation={handleOpenCitation}
           onSubmitFeedback={handleSubmitFeedback}
           finalizing={finalizing}
+          isCompleted={isCompleted}
+          onReopen={handleReopen}
+          reopening={reopening}
           onBack={() => navigate(-1)}
           teachEditId={teachEditId}
           onTeachSkip={() => setTeachEditId(null)}
