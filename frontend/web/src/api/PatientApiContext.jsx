@@ -20,6 +20,7 @@ import {
   updateIntakeFieldPatient,
   confirmAllCarryForward,
   getIntakeStatus,
+  cancelIntake,
 } from "../api";
 
 export const PatientApiContext = createContext(null);
@@ -45,6 +46,7 @@ const realApi = {
   updateIntakeFieldPatient,
   confirmAllCarryForward,
   getIntakeStatus,
+  cancelIntake,
 };
 
 // Stable reference — avoids new-object-per-render when no value prop is passed

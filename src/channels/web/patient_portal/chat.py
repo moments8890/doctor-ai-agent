@@ -4,7 +4,7 @@ Patient portal chat routes — IntakeEngine-backed dispatch.
 Provides:
   GET  /chat/messages          — poll for new messages (patient/ai/doctor/system)
   POST /chat                   — send a message; routes to IntakeEngine on
-                                 symptom_report, otherwise hands off to a
+                                 ``intake`` triage, otherwise hands off to a
                                  doctor-review draft and acknowledges to patient
   POST /chat/confirm           — patient confirms the active intake session;
                                  IntakeEngine.confirm() persists the record and
@@ -43,6 +43,7 @@ from domain.patients.intake_session import (
     create_session,
     get_active_session,
     load_session,
+    save_session,
 )
 from infra.auth.rate_limit import enforce_doctor_rate_limit
 from infra.observability.audit import audit
@@ -71,9 +72,18 @@ class ChatResponse(BaseModel):
     session_id: Optional[str] = None
     turn_count: Optional[int] = None
     intake_active: bool = False
+    # Raw IntakeSession.status — "active" while engine is still gathering,
+    # "reviewing" once the engine flips to gather-complete and is asking
+    # the patient to confirm. Frontend uses this to show the 提交给医生
+    # button on the banner.
+    status: Optional[str] = None
     # Per-field collected state (after stripping engine metadata keys),
     # so the IntakeBanner can render the progress bar + expanded panel.
     collected: dict = {}
+    # Field names whose values are seeded from a prior visit and NOT yet
+    # patient-confirmed. Banner uses this to count those as unfilled
+    # (matching engine completeness) so progress starts at 0/6.
+    unconfirmed_carry_forward: list[str] = []
 
 
 class IntakeStatusResponse(BaseModel):
@@ -89,6 +99,7 @@ class IntakeStatusResponse(BaseModel):
     status: Optional[str] = None
     suggestions: list[str] = []
     collected: dict = {}
+    unconfirmed_carry_forward: list[str] = []
 
 
 def _strip_meta_keys(collected: dict) -> dict:
@@ -103,6 +114,28 @@ def _strip_meta_keys(collected: dict) -> dict:
     return {k: v for k, v in collected.items() if not k.startswith("_")}
 
 
+def _unconfirmed_carry_forward(collected: dict) -> list[str]:
+    """Return field names that are seeded from a prior visit but NOT yet
+    confirmed by the patient. The banner uses this to start at 0/6 and
+    increment only as the patient confirms (or overwrites) each carried
+    field. Without this signal the banner shows non-empty CF values as
+    filled while the engine considers them missing — confusing mismatch.
+    """
+    if not isinstance(collected, dict):
+        return []
+    cf_meta = collected.get("_carry_forward_meta")
+    if not isinstance(cf_meta, dict):
+        return []
+    out: list[str] = []
+    for field_name, entry in cf_meta.items():
+        if (
+            isinstance(entry, dict)
+            and entry.get("confirmed_by_patient") is False
+        ):
+            out.append(field_name)
+    return out
+
+
 class ChatMessageOut(BaseModel):
     id: int
     content: str
@@ -111,6 +144,10 @@ class ChatMessageOut(BaseModel):
     triage_category: Optional[str] = None
     ai_handled: Optional[bool] = None
     created_at: datetime
+    # When set, the message belongs to an intake session. Frontend uses
+    # this (combined with intake_sessions[session_id].status) to collapse
+    # confirmed-intake transcripts into a single summary card.
+    intake_session_id: Optional[str] = None
 
 
 class ConfirmRequest(BaseModel):
@@ -158,6 +195,7 @@ def _msg_to_out(msg: PatientMessage) -> ChatMessageOut:
         triage_category=msg.triage_category,
         ai_handled=msg.ai_handled,
         created_at=msg.created_at,
+        intake_session_id=msg.intake_session_id,
     )
 
 
@@ -191,14 +229,16 @@ async def _intake_dispatch(
 ) -> ChatResponse:
     """Route an inbound chat turn.
 
-    intake (symptom_report)  → IntakeEngine.next_turn(); engine handles
-                               extraction, completeness, status transitions,
-                               and conversation persistence.
-    non-intake               → schedule a doctor-review draft in the
-                               background and emit a system ack for the
-                               patient. AI never auto-replies clinically;
-                               the doctor's reviewed reply is what reaches
-                               the patient.
+    intake          → IntakeEngine.next_turn(); engine handles extraction,
+                      completeness, status transitions, and conversation
+                      persistence.
+    informational   → doctor-review draft + system ack (KB-aware AI auto-
+                      answer happens upstream of intake when it lands; here
+                      we treat informational like other for routing).
+    other           → schedule a doctor-review draft in the background and
+                      emit a system ack for the patient. AI never auto-
+                      replies clinically; the doctor's reviewed reply is
+                      what reaches the patient.
     """
     patient = await _authenticate_patient(x_patient_token, authorization)
     text = (body.text or "").strip()
@@ -232,8 +272,8 @@ async def _intake_dispatch(
 
     # 2. Active-session check FIRST. Once a patient is in an intake session,
     #    every turn belongs to the engine — including responses like "没有",
-    #    "好的", "不知道" that triage would otherwise classify as
-    #    general_question. The triage gate is for IDLE-state entry only.
+    #    "好的", "不知道" that triage would otherwise classify as ``other``.
+    #    The triage gate is for IDLE-state entry only.
     #    Intake ends three ways: engine→reviewing→confirm, 24h decay→expired,
     #    or explicit 取消 button → abandoned.
     session = await get_active_session(patient_id, doctor_id)
@@ -242,7 +282,7 @@ async def _intake_dispatch(
     if session is not None:
         # Mid-intake — skip triage, route straight to the engine.
         is_intake = True
-        category_value = "symptom_report"
+        category_value = TriageCategory.intake.value
     else:
         # Idle — triage decides intake-or-not.
         try:
@@ -253,13 +293,13 @@ async def _intake_dispatch(
                 doctor_id=doctor_id,
             )
             category_value = triage.category.value
-            is_intake = triage.category == TriageCategory.symptom_report
+            is_intake = triage.category == TriageCategory.intake
         except Exception:
             logger.exception(
                 "[PatientChat] triage classify failed | patient_id=%s", patient_id,
             )
             # Safe fallback: treat as non-intake so the doctor still gets a draft.
-            category_value = "general_question"
+            category_value = TriageCategory.other.value
             is_intake = False
 
     # 3a. Non-intake path: queue a doctor draft, emit a system ack, return.
@@ -294,7 +334,7 @@ async def _intake_dispatch(
         ))
         return ChatResponse(
             reply=_NON_INTAKE_ACK_TEXT,
-            triage_category="other",
+            triage_category=category_value,
             ai_handled=True,
             intake_active=False,
         )
@@ -366,7 +406,11 @@ async def _intake_dispatch(
         session_id=session.id,
         turn_count=fresh.turn_count if fresh else None,
         intake_active=(fresh.status in ("active", "reviewing")) if fresh else True,
+        status=fresh.status if fresh else None,
         collected=_strip_meta_keys(fresh.collected) if fresh else {},
+        unconfirmed_carry_forward=(
+            _unconfirmed_carry_forward(fresh.collected) if fresh else []
+        ),
     )
 
 
@@ -453,6 +497,7 @@ async def get_intake_status(
         status=session.status,
         suggestions=[],
         collected=_strip_meta_keys(session.collected),
+        unconfirmed_carry_forward=_unconfirmed_carry_forward(session.collected),
     )
 
 
@@ -515,6 +560,35 @@ async def confirm_intake_session(
         "ref": {"kind": ref.kind, "id": ref.id},
         "message": "您的问诊信息已提交给医生，请等待医生审阅。",
     }
+
+
+# ---------------------------------------------------------------------------
+# Cancel endpoint — patient abandons the active intake before completing
+# ---------------------------------------------------------------------------
+
+@chat_router.post("/chat/intake/cancel")
+async def cancel_intake_session(
+    x_patient_token: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
+):
+    """Mark the patient's active intake session as abandoned.
+
+    Without this, dismissing the banner client-side leaves the session
+    `active` in DB and `getIntakeStatus` resurrects it on the next reload.
+    Idempotent: returns ok even if there's nothing to cancel.
+    """
+    patient = await _authenticate_patient(x_patient_token, authorization)
+    session = await get_active_session(patient.id, patient.doctor_id)
+    if session is None:
+        return {"status": "ok", "cancelled": False}
+
+    session.status = IntakeStatus.abandoned
+    await save_session(session)
+    safe_create_task(audit(
+        session.doctor_id, "WRITE",
+        resource_type="intake_session", resource_id=session.id,
+    ))
+    return {"status": "ok", "cancelled": True, "session_id": session.id}
 
 
 # ---------------------------------------------------------------------------

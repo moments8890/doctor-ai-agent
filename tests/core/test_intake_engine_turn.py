@@ -168,28 +168,19 @@ async def test_next_turn_safety_cap_transitions_to_reviewing(engine):
 
 
 @pytest.mark.asyncio
-async def test_next_turn_retries_on_infra_error(engine):
+async def test_next_turn_infra_error_returns_busy_reply(engine):
+    """Engine no longer retries internally — structured_call retries
+    transport errors with backoff (3 attempts, 0.5s/1s) before raising.
+    When it ultimately raises, engine returns a busy-fallback reply."""
     session = await _seed_session(mode="patient")
-
-    call_count = {"n": 0}
-
-    async def flaky(*args, **kwargs):
-        call_count["n"] += 1
-        if call_count["n"] == 1:
-            raise ConnectionError("simulated infra error")
-        return _mock_llm_response(reply="recovered", extracted_fields={})
 
     with patch(
         "domain.intake.engine.structured_call",
-        new=AsyncMock(side_effect=flaky),
-    ), patch(
-        "domain.intake.engine.asyncio.sleep",
-        new=AsyncMock(),  # skip real sleep
+        new=AsyncMock(side_effect=ConnectionError("simulated infra error")),
     ):
         result = await engine.next_turn(session.id, "hi")
 
-    assert call_count["n"] == 2  # retried once, succeeded
-    assert result.reply == "recovered"
+    assert "系统暂时繁忙" in result.reply
 
 
 @pytest.mark.asyncio

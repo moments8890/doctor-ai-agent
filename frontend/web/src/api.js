@@ -22,6 +22,10 @@ const _SAME_ORIGIN_HOSTS = new Set([
 
 function _resolveApiBase() {
   if (typeof window === "undefined") return _API_BASE_BUILD;
+  // Capacitor serves the SPA from capacitor://localhost — hostname is
+  // "localhost" but there is NO same-origin /api proxy. Always use the
+  // build-time base URL inside the native WebView.
+  if (window.Capacitor?.isNativePlatform?.()) return _API_BASE_BUILD;
   if (_SAME_ORIGIN_HOSTS.has(window.location.hostname)) return "";
   return _API_BASE_BUILD;
 }
@@ -1162,6 +1166,13 @@ export async function sendPatientChat(token, text) {
  */
 export async function getIntakeStatus(token) {
   return patientRequest("/api/patient/chat/intake/status", token);
+}
+
+/** Cancel the patient's active intake session (marks it abandoned). */
+export async function cancelIntake(token) {
+  return patientRequest("/api/patient/chat/intake/cancel", token, {
+    method: "POST",
+  });
 }
 
 /** Respond to a confirm_gate prompt. action: "confirm" | "continue". */

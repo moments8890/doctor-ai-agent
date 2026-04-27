@@ -102,6 +102,9 @@ def test_chat_router_endpoint_contract() -> None:
     required_chat_fields = {
         "reply", "triage_category", "ai_handled",
         "suggestions", "session_id", "turn_count", "intake_active",
+        # `status` (raw IntakeSession.status) drives the 提交给医生 button
+        # — banner shows it only when status === "reviewing".
+        "status",
     }
     assert required_chat_fields.issubset(chat_resp_fields), (
         f"ChatResponse missing frontend-required fields: "
@@ -111,6 +114,15 @@ def test_chat_router_endpoint_contract() -> None:
     # IntakeStatusResponse must let the frontend rehydrate after reload.
     status_fields = set(IntakeStatusResponse.model_fields.keys())
     assert status_fields.issuperset({"has_active", "session_id", "turn_count", "status"})
+
+    # ChatMessageOut must expose intake_session_id so the patient ChatTab
+    # can collapse confirmed-intake transcripts into a summary card.
+    from channels.web.patient_portal.chat import ChatMessageOut
+    msg_fields = set(ChatMessageOut.model_fields.keys())
+    assert "intake_session_id" in msg_fields, (
+        "ChatMessageOut.intake_session_id is required for the C1 collapsed-"
+        "intake card on the patient ChatTab."
+    )
 
 
 def test_chat_module_does_not_reference_dead_modules() -> None:

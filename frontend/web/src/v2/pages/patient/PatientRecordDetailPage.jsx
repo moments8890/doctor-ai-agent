@@ -4,7 +4,7 @@
  * with floating white Card sections. Field names match the actual
  * PatientRecordDetailOut payload shape, NOT made-up names.
  */
-import { NavBar, Tag } from "antd-mobile";
+import { SafeArea, NavBar, Tag } from "antd-mobile";
 import { LeftOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { APP, FONT } from "../../theme";
@@ -12,12 +12,9 @@ import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { Card, LoadingCenter, EmptyState } from "../../components";
 import { usePatientRecordDetail } from "../../../lib/patientQueries";
 
-const TYPE_LABEL = {
-  visit: "门诊记录",
-  dictation: "语音记录",
-  import: "导入记录",
-  intake_summary: "预问诊",
-};
+// Record-type labels removed from the patient detail header — patient
+// already knows the source of their own record; only the doctor's
+// review STATUS is actionable. Doctor-side has its own type-label table.
 
 const STATUS_LABEL = {
   completed: { text: "待审核", color: "primary" },
@@ -61,6 +58,7 @@ export default function PatientRecordDetailPage({ recordId }) {
 
   return (
     <div style={pageContainer}>
+      <SafeArea position="top" />
       <NavBar backArrow={<LeftOutline />} onBack={() => navigate(-1)} style={navBarStyle}>
         病历详情
       </NavBar>
@@ -76,10 +74,11 @@ export default function PatientRecordDetailPage({ recordId }) {
         )}
         {rec && (
           <>
-            {/* Header card — type tag + date + diagnosis status tag (when set) */}
+            {/* Header card — date + diagnosis status tag (when set). Type
+                tag dropped per patient UX simplification — see TYPE_LABEL
+                comment above. */}
             <Card style={{ marginTop: 8 }}>
               <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <Tag color="primary">{TYPE_LABEL[rec.record_type] || rec.record_type}</Tag>
                 <span style={{ fontSize: FONT.sm, color: APP.text4 }}>{formatDate(rec.created_at)}</span>
                 {rec.diagnosis_status && STATUS_LABEL[rec.diagnosis_status] && (
                   <Tag color={STATUS_LABEL[rec.diagnosis_status].color}>

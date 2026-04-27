@@ -15,15 +15,18 @@
  * the tab nav. The card was duplicating both affordances.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SpinLoading } from "antd-mobile";
+import { Dialog, SpinLoading, Toast } from "antd-mobile";
 import { usePatientApi } from "../../../api/PatientApiContext";
 import ChatBubble from "../../ChatBubble";
 import ChatConfirmGate from "../../components/ChatConfirmGate";
 import ChatDedupPrompt from "../../components/ChatDedupPrompt";
 import IntakeBanner from "../../components/IntakeBanner";
+import IntakeSubmitPopup from "../../components/IntakeSubmitPopup";
+import CollapsedIntakeCard from "../../components/CollapsedIntakeCard";
 import ChatComposer from "../../ChatComposer";
+import { groupPastIntakes } from "../../intake/groupMessages";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { APP, FONT, RADIUS } from "../../theme";
 
@@ -67,6 +70,15 @@ function DoctorMessage({ msg, doctorName }) {
   );
 }
 
+// Stable key for chat messages. Local optimistic messages have no id;
+// without prefixing, their fallback `i` collides with a polled msg whose
+// real db id equals that index (e.g. local at i=29 vs polled msg.id=29).
+function msgKey(msg, i) {
+  if (msg?.id !== undefined && msg?.id !== null) return `db-${msg.id}`;
+  if (msg?._ts) return `local-${msg._ts}`;
+  return `idx-${i}`;
+}
+
 function SystemMessage({ msg, onTap }) {
   return (
     <div
@@ -96,6 +108,8 @@ export default function ChatTab({
     confirmPatientChatDraft,
     dedupDecisionPatientChat,
     getIntakeStatus,
+    cancelIntake,
+    confirmIntake,
   } = usePatientApi();
 
   const welcomeMsg = {
@@ -115,6 +129,21 @@ export default function ChatTab({
   // Banner shows progress 已完成 N/6 步 + expandable per-step detail.
   const [intakeActive, setIntakeActive] = useState(false);
   const [intakeCollected, setIntakeCollected] = useState({});
+  // Field names whose carried-forward values still need patient confirmation
+  // (server-supplied via POST /chat + GET /chat/intake/status). Drives
+  // banner progress: unconfirmed CF values render as "待采集" so progress
+  // starts at 0/6 and increments only as the patient confirms each.
+  const [unconfirmedCarryForward, setUnconfirmedCarryForward] = useState([]);
+  // status string: "active" | "reviewing" | null — drives the 提交给医生
+  // button on IntakeBanner. session_id needed to call confirmIntake().
+  const [intakeStatus, setIntakeStatus] = useState(null);
+  const [intakeSessionId, setIntakeSessionId] = useState(null);
+  const [submitOpen, setSubmitOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  // session_id → "active" | "reviewing" | "confirmed" | "abandoned" | "expired".
+  // Drives groupConfirmedIntakes() — only "confirmed" sessions collapse.
+  // Local-only: built up from POST /chat responses + the on-confirm flip.
+  const [sessionStatusMap, setSessionStatusMap] = useState({});
   // suggestions[lastAiMsgId] = chip text array; rendered above the
   // composer. Cleared when the patient sends another turn.
   const [latestSuggestions, setLatestSuggestions] = useState([]);
@@ -137,6 +166,15 @@ export default function ChatTab({
         if (status?.has_active) {
           setIntakeActive(true);
           setIntakeCollected(status.collected || {});
+          setUnconfirmedCarryForward(status.unconfirmed_carry_forward || []);
+          setIntakeStatus(status.status || "active");
+          setIntakeSessionId(status.session_id || null);
+          if (status.session_id && status.status) {
+            setSessionStatusMap((prev) => ({
+              ...prev,
+              [status.session_id]: status.status,
+            }));
+          }
         }
       } catch (err) {
         if (err?.status === 401) return;
@@ -163,11 +201,23 @@ export default function ChatTab({
             if (newMsgs.length === 0) return prev;
             const cleaned = prev.filter((m) => {
               if (!m._local) return true;
-              return !newMsgs.some(
-                (nm) => nm.source === "patient" && nm.content === m.content
-              );
+              return !newMsgs.some((nm) => {
+                const nmSrc = nm.source || (nm.role === "user" ? "patient" : "ai");
+                return nmSrc === m.source && nm.content === m.content;
+              });
             });
-            return [...cleaned, ...newMsgs];
+            // Idempotent id-dedup. With two polls overlapping (state update
+            // hasn't flushed before the next poll resolves), both callbacks
+            // can see a `prev` missing id=125, both append it. Final pass
+            // guarantees one row per id no matter what.
+            const merged = [...cleaned, ...newMsgs];
+            const seen = new Set();
+            return merged.filter((m) => {
+              if (!m.id) return true;
+              if (seen.has(m.id)) return false;
+              seen.add(m.id);
+              return true;
+            });
           });
           setLastMsgId(Math.max(...data.map((m) => m.id)));
         }
@@ -245,9 +295,37 @@ export default function ChatTab({
       if (resp?.intake_active) {
         setIntakeActive(true);
         setIntakeCollected(resp.collected || {});
+        setUnconfirmedCarryForward(resp.unconfirmed_carry_forward || []);
+        setIntakeStatus(resp.status || "active");
+        setIntakeSessionId(resp.session_id || null);
+        if (resp.session_id && resp.status) {
+          setSessionStatusMap((prev) => ({
+            ...prev,
+            [resp.session_id]: resp.status,
+          }));
+        }
       } else {
         setIntakeActive(false);
         setIntakeCollected({});
+        setUnconfirmedCarryForward([]);
+        setIntakeStatus(null);
+        setIntakeSessionId(null);
+      }
+      // Optimistic AI bubble — the reply is already persisted server-side,
+      // but the next poll is up to 10s away. Without this the chips render
+      // before the message they belong to. Dedup happens on next poll
+      // (matches local against polled by source+content).
+      if (resp?.reply) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            source: "ai",
+            content: resp.reply,
+            _local: true,
+            _ts: Date.now(),
+            intake_session_id: resp.session_id || null,
+          },
+        ]);
       }
       // Suggestions ride on the response once backend wires them through.
       // Defensive: accept either an array or a comma-separated string.
@@ -270,30 +348,107 @@ export default function ChatTab({
   }
 
   function handleCancelIntake() {
-    // Backend cancel endpoint is not yet exposed on the chat router (would
-    // need POST /chat/intake/cancel). For now this just hides the banner
-    // client-side; 24h decay closes any abandoned intake_session row.
-    setIntakeActive(false);
-    setIntakeCollected({});
+    Dialog.confirm({
+      title: "取消问诊",
+      content: "已采集的信息会保留，但问诊将结束。确定取消吗？",
+      cancelText: "继续问诊",
+      confirmText: "取消问诊",
+      onConfirm: async () => {
+        // Stamp the just-canceled session as "abandoned" in the local map
+        // so its prior messages collapse with the right "已取消问诊" label.
+        if (intakeSessionId) {
+          setSessionStatusMap((prev) => ({
+            ...prev,
+            [intakeSessionId]: "abandoned",
+          }));
+        }
+        setIntakeActive(false);
+        setIntakeCollected({});
+        setUnconfirmedCarryForward([]);
+        setIntakeStatus(null);
+        setIntakeSessionId(null);
+        try {
+          await cancelIntake?.(token);
+        } catch (err) {
+          if (err?.status === 401) return;
+          // Non-fatal: 24h decay will close abandoned sessions either way.
+          console.warn("cancelIntake failed:", err?.message);
+        }
+      },
+    });
   }
 
-  // Index of the last AI message in the list — the only AI bubble that
-  // gets the suggestion chip row (suggestions are tied to the most recent
-  // turn).
-  const lastAiIndex = (() => {
+  function handleOpenSubmit() {
+    if (!intakeSessionId) return;
+    setSubmitOpen(true);
+  }
+
+  async function handleSubmitIntake() {
+    if (!intakeSessionId || submitting) return;
+    setSubmitting(true);
+    try {
+      const result = await confirmIntake(token, intakeSessionId);
+      const recordId = result?.record_id;
+      // Mark this session confirmed so any messages tagged with it collapse
+      // into a single CollapsedIntakeCard on the next render pass.
+      const submittedId = intakeSessionId;
+      setSessionStatusMap((prev) => ({ ...prev, [submittedId]: "confirmed" }));
+      setSubmitOpen(false);
+      setIntakeActive(false);
+      setIntakeCollected({});
+      setUnconfirmedCarryForward([]);
+      setIntakeStatus(null);
+      setIntakeSessionId(null);
+      // Local system message — the engine writes its own DB record on
+      // confirm, but the poller may take up to 10s to surface it. Give
+      // immediate feedback. Patient sees this if they navigate back to
+      // chat from the record page.
+      setMessages((prev) => [
+        ...prev,
+        {
+          source: "system",
+          content: "✓ 问诊已提交，医生会尽快查看",
+          _local: true,
+          _ts: Date.now(),
+        },
+      ]);
+      // Navigate to the freshly-created medical record so the patient
+      // can see exactly what got submitted. Defensive: if record_id is
+      // missing for any reason, stay on chat — the system message is
+      // still visible.
+      if (recordId) {
+        navigate(`/patient/records/${recordId}`);
+      }
+    } catch (err) {
+      if (err?.status === 401) {
+        setSubmitOpen(false);
+        return;
+      }
+      Toast.show({ icon: "fail", content: err?.message || "提交失败，请重试" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // The most recent AI bubble — used to attach the inline 提交给医生 CTA
+  // when the engine has flipped status to "reviewing". Reference is
+  // captured by closure so renderMessage can check `msg === lastAiMsg`
+  // without depending on render-item indices (which change after the
+  // grouping pass).
+  const lastAiMsg = (() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
       const m = messages[i];
       const src = m.source || (m.role === "user" ? "patient" : "ai");
-      if (src === "ai" && !m.kind) return i;
+      if (src === "ai" && !m.kind) return m;
     }
-    return -1;
+    return null;
   })();
 
   function renderMessage(msg, i) {
     if (msg.kind === "confirm_gate") {
       return (
         <ChatConfirmGate
-          key={msg.id ?? i}
+          key={msgKey(msg, i)}
           continuity={msg.continuity}
           onConfirm={() => sendConfirmation(msg.draft_id, "confirm")}
           onContinue={() => sendConfirmation(msg.draft_id, "continue")}
@@ -304,7 +459,7 @@ export default function ChatTab({
     if (msg.kind === "dedup_prompt") {
       return (
         <ChatDedupPrompt
-          key={msg.id ?? i}
+          key={msgKey(msg, i)}
           targetReviewed={msg.target_reviewed}
           onMerge={() => sendDedupDecision(msg.draft_id, "merge")}
           onNew={() => sendDedupDecision(msg.draft_id, "new")}
@@ -316,7 +471,7 @@ export default function ChatTab({
     const src = msg.source || (msg.role === "user" ? "patient" : "ai");
 
     if (src === "doctor") {
-      return <DoctorMessage key={msg.id || i} msg={msg} doctorName={doctorName} />;
+      return <DoctorMessage key={msgKey(msg, i)} msg={msg} doctorName={doctorName} />;
     }
 
     if (src === "system") {
@@ -326,12 +481,12 @@ export default function ChatTab({
       let onTap = null;
       if (linkType === "record") onTap = () => navigate(`/patient/records/${linkId}`);
       else if (linkType === "task") onTap = () => navigate("/patient/tasks");
-      return <SystemMessage key={msg.id || i} msg={msg} onTap={onTap} />;
+      return <SystemMessage key={msgKey(msg, i)} msg={msg} onTap={onTap} />;
     }
 
     if (src === "patient") {
       return (
-        <div style={{ marginBottom: 12 }} key={msg.id || i}>
+        <div style={{ marginBottom: 12 }} key={msgKey(msg, i)}>
           <ChatBubble role="user" content={msg.content} />
         </div>
       );
@@ -344,8 +499,19 @@ export default function ChatTab({
     // pattern). They render above the textarea where the patient's
     // attention already is, and tapping toggles the chip text in/out of
     // the textarea so multiple choices can be combined before sending.
+    // Inline 提交给医生 CTA — attaches to the latest AI bubble whenever the
+    // engine has flipped status to reviewing AND the message belongs to
+    // the active session. Catches the patient at the natural decision
+    // moment without making them notice the top banner button.
+    const showSubmitCta = (
+      msg === lastAiMsg
+      && intakeStatus === "reviewing"
+      && intakeSessionId
+      && (!msg.intake_session_id || msg.intake_session_id === intakeSessionId)
+    );
+
     return (
-      <div key={msg.id || i} style={{ marginBottom: 12 }}>
+      <div key={msgKey(msg, i)} style={{ marginBottom: 12 }}>
         {isDiagnosis ? (
           <div style={styles.diagnosisBubble}>{msg.content}</div>
         ) : (
@@ -357,24 +523,73 @@ export default function ChatTab({
         <div style={{ fontSize: FONT.xs, color: APP.text4, paddingLeft: 44, marginTop: 2 }}>
           {doctorName ? `${doctorName}的AI助手` : "AI健康助手"}
         </div>
+        {showSubmitCta && (
+          <div style={styles.inlineSubmitWrap}>
+            <button
+              type="button"
+              style={styles.inlineSubmitBtn}
+              onClick={handleOpenSubmit}
+            >
+              查看并提交
+            </button>
+          </div>
+        )}
       </div>
     );
   }
 
+  // Build the render list: any past intake (session_id != current active)
+  // collapses into a single card; the active session and non-intake
+  // messages pass through. Memoized to skip re-walking on keystrokes.
+  const renderItems = useMemo(
+    () => groupPastIntakes(messages, sessionStatusMap, intakeSessionId),
+    [messages, sessionStatusMap, intakeSessionId],
+  );
+
   return (
     <div style={keyboardAwareStyle}>
       {/* Active-intake banner sits above the message list. Hidden when no
-          intake is active. */}
+          intake is active. When status === "reviewing", the banner shows a
+          提交给医生 button that opens IntakeSubmitPopup. */}
       {intakeActive && (
         <IntakeBanner
           collected={intakeCollected}
+          status={intakeStatus}
+          unconfirmedCarryForward={unconfirmedCarryForward}
+          onSubmit={intakeSessionId ? handleOpenSubmit : undefined}
           onCancel={handleCancelIntake}
         />
       )}
 
+      <IntakeSubmitPopup
+        open={submitOpen}
+        collected={intakeCollected}
+        loading={submitting}
+        onClose={() => (submitting ? null : setSubmitOpen(false))}
+        onSubmit={handleSubmitIntake}
+      />
+
       {/* Message list */}
       <div style={styles.msgList}>
-        {messages.map(renderMessage)}
+        {renderItems.map((item, i) => {
+          if (item.kind === "collapsed_intake") {
+            // Same session_id can appear in two non-contiguous runs (split
+            // by a doctor reply or system message). Each run becomes its
+            // own card; key must include the first message's id (or list
+            // index as a backstop) to stay unique across runs.
+            const firstId = item.messages[0]?.id;
+            const cardKey = `collapsed-${item.session_id}-${firstId ?? `idx${i}`}`;
+            return (
+              <CollapsedIntakeCard
+                key={cardKey}
+                messages={item.messages}
+                status={item.status}
+                renderMessage={renderMessage}
+              />
+            );
+          }
+          return renderMessage(item.message, i);
+        })}
         {sending && (
           <div style={{ paddingLeft: 44, paddingBottom: 8 }}>
             <SpinLoading color={APP.primary} style={{ "--size": "20px" }} />
@@ -474,5 +689,23 @@ const styles = {
     fontSize: FONT.sm,
     color: APP.danger,
     fontWeight: 500,
+  },
+  inlineSubmitWrap: {
+    display: "flex",
+    justifyContent: "flex-start",
+    paddingLeft: 44,
+    marginTop: 8,
+  },
+  inlineSubmitBtn: {
+    background: APP.primary,
+    color: APP.white,
+    border: "none",
+    borderRadius: RADIUS.md,
+    padding: "8px 16px",
+    fontSize: FONT.md,
+    fontWeight: 600,
+    minHeight: 36,
+    cursor: "pointer",
+    fontFamily: "inherit",
   },
 };

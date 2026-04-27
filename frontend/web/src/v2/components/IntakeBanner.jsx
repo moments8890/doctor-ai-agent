@@ -46,14 +46,23 @@ function isFieldFilled(value) {
   return value !== null && value !== undefined && String(value).trim() !== "";
 }
 
-function computeSteps(collected) {
+// Carry-forward fields seeded from a prior visit must be patient-confirmed
+// before they count as filled — otherwise the banner shows 6/6 while the
+// engine keeps asking, and the 提交给医生 button never appears. The server
+// surfaces the unconfirmed list explicitly (POST /chat + GET /chat/intake/status
+// both return `unconfirmed_carry_forward: [field_name, ...]`).
+function computeSteps(collected, unconfirmedSet) {
   const c = collected || {};
   return STEPS.map((step) => {
-    const filledFields = step.fields.filter((f) => isFieldFilled(c[f]));
+    const filledFields = step.fields.filter(
+      (f) => isFieldFilled(c[f]) && !unconfirmedSet.has(f),
+    );
     const filled = step.requireAll
       ? filledFields.length === step.fields.length
       : filledFields.length > 0;
-    // Display value: join non-empty field values with "、"
+    // Display value: still show the carried text so the patient can see
+    // what's there even when unconfirmed (the value is information, but
+    // doesn't count toward progress until they confirm it).
     const displayValue = step.fields
       .map((f) => c[f])
       .filter((v) => isFieldFilled(v))
@@ -62,12 +71,20 @@ function computeSteps(collected) {
   });
 }
 
-export default function IntakeBanner({ collected, onCancel }) {
+export default function IntakeBanner({
+  collected,
+  status,
+  onSubmit,
+  onCancel,
+  unconfirmedCarryForward = [],
+}) {
   const [expanded, setExpanded] = useState(false);
-  const steps = computeSteps(collected);
+  const unconfirmedSet = new Set(unconfirmedCarryForward);
+  const steps = computeSteps(collected, unconfirmedSet);
   const filledCount = steps.filter((s) => s.filled).length;
   const total = steps.length;
   const percent = total === 0 ? 0 : Math.round((filledCount / total) * 100);
+  const reviewing = status === "reviewing";
 
   return (
     <div style={styles.wrap}>
@@ -76,7 +93,9 @@ export default function IntakeBanner({ collected, onCancel }) {
           <EditNoteOutlinedIcon sx={{ fontSize: ICON.sm, color: APP.primary }} />
         </div>
         <div style={styles.labelCol}>
-          <div style={styles.title}>正在采集病史</div>
+          <div style={styles.title}>
+            {reviewing ? "信息已整理，请确认后提交" : "正在采集病史"}
+          </div>
           <div style={styles.progressRow}>
             <ProgressBar
               percent={percent}
@@ -98,13 +117,24 @@ export default function IntakeBanner({ collected, onCancel }) {
         >
           {expanded ? <ExpandLessIcon sx={{ fontSize: ICON.sm }} /> : <ExpandMoreIcon sx={{ fontSize: ICON.sm }} />}
         </span>
+        {reviewing && onSubmit && (
+          <span
+            role="button"
+            tabIndex={0}
+            aria-label="提交给医生"
+            onClick={onSubmit}
+            style={styles.submitBtn}
+          >
+            提交给医生
+          </span>
+        )}
         {onCancel && (
           <span
             role="button"
             tabIndex={0}
             aria-label="取消问诊"
             onClick={onCancel}
-            style={styles.cancel}
+            style={reviewing ? styles.cancelLink : styles.cancel}
           >
             取消
           </span>
@@ -192,6 +222,29 @@ const styles = {
     cursor: "pointer",
     userSelect: "none",
     flexShrink: 0,
+  },
+  submitBtn: {
+    fontSize: FONT.sm,
+    color: APP.white,
+    background: APP.primary,
+    padding: "8px 12px",
+    borderRadius: RADIUS.md,
+    cursor: "pointer",
+    userSelect: "none",
+    flexShrink: 0,
+    fontWeight: 500,
+    minHeight: 32,
+    display: "inline-flex",
+    alignItems: "center",
+  },
+  cancelLink: {
+    fontSize: FONT.sm,
+    color: APP.text4,
+    padding: "4px 6px",
+    cursor: "pointer",
+    userSelect: "none",
+    flexShrink: 0,
+    textDecoration: "underline",
   },
   list: {
     marginTop: 10,

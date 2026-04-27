@@ -17,7 +17,7 @@
 import { useNavigate } from "react-router-dom";
 import { PullToRefresh, Tag, Ellipsis } from "antd-mobile";
 import { usePatientRecords } from "../../../lib/patientQueries";
-import { APP, FONT, RADIUS } from "../../theme";
+import { APP, FONT } from "../../theme";
 import { pageContainer } from "../../layouts";
 import { LoadingCenter, EmptyState, Card } from "../../components";
 
@@ -25,23 +25,10 @@ import { LoadingCenter, EmptyState, Card } from "../../components";
 // Helpers
 // ---------------------------------------------------------------------------
 
-const RECORD_TYPE_LABEL = {
-  visit: "门诊记录",
-  dictation: "语音记录",
-  import: "导入记录",
-  intake_summary: "预问诊",
-};
-
-// Type tag color mapping — green for medical encounters, blue/accent for
-// intake summaries, gray fallback for unknown.
-const RECORD_TYPE_COLOR = {
-  visit: { bg: APP.primaryLight, fg: APP.primary },
-  dictation: { bg: APP.primaryLight, fg: APP.primary },
-  import: { bg: APP.primaryLight, fg: APP.primary },
-  intake_summary: { bg: APP.accentLight, fg: APP.accent },
-};
-
-const DEFAULT_TYPE_COLOR = { bg: APP.borderLight, fg: APP.text3 };
+// Record-type labels were dropped from the patient card view (patient
+// already knows where their records came from). Doctor-side keeps the
+// type chip via its own RECORD_TYPE_LABEL table. Remove this block in
+// the patient module rather than leave dead lookups behind.
 
 const DIAGNOSIS_STATUS_LABELS = {
   pending: "诊断中",
@@ -90,12 +77,14 @@ function groupByMonth(records) {
 // ---------------------------------------------------------------------------
 
 function RecordCardRow({ rec, onTap, style }) {
-  const typeLabel = RECORD_TYPE_LABEL[rec.record_type] || rec.record_type;
-  const typeColor = RECORD_TYPE_COLOR[rec.record_type] || DEFAULT_TYPE_COLOR;
   const chief = rec.structured?.chief_complaint;
   const fallback = (rec.content || "").replace(/\n/g, " ");
   const title = chief || fallback || "（内容为空）";
-  const ds = rec.status;
+  // Backend computes `diagnosis_status` (completed/confirmed) from the
+  // raw record.status (pending_review/confirmed/...). Read the derived
+  // field, not the raw one — DIAGNOSIS_STATUS_LABELS keys match the
+  // derived values.
+  const ds = rec.diagnosis_status;
   const dsLabel = ds ? DIAGNOSIS_STATUS_LABELS[ds] : null;
   const dsColor = ds ? DIAGNOSIS_STATUS_COLORS[ds] : "default";
 
@@ -112,35 +101,17 @@ function RecordCardRow({ rec, onTap, style }) {
           gap: 6,
         }}
       >
-        {/* Top row: type tag + status tag */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8,
-          }}
-        >
-          <span
-            style={{
-              display: "inline-block",
-              padding: "2px 8px",
-              borderRadius: RADIUS.sm,
-              fontSize: FONT.xs,
-              fontWeight: 600,
-              background: typeColor.bg,
-              color: typeColor.fg,
-              flexShrink: 0,
-            }}
-          >
-            {typeLabel}
-          </span>
-          {dsLabel && (
+        {/* Top row: status tag only. The record-type chip (预问诊/门诊记录/…)
+            was dropped on the patient side — patients know what they
+            submitted, and the title's chief_complaint already tells them
+            what the record is about. Doctor-side keeps the type chip. */}
+        {dsLabel && (
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <Tag color={dsColor} fill="outline" style={{ fontSize: FONT.xs }}>
               {dsLabel}
             </Tag>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Title — Ellipsis rows={1}, never .slice() */}
         <div

@@ -16,15 +16,26 @@ import { isInMiniapp } from "../utils/miniappBridge";
 import { APP, FONT, ICON, RADIUS } from "./theme";
 
 // Toggle a chip's text in/out of the textarea. Single source of truth:
-// "selected" means the chip's text currently appears in the textarea.
+// "selected" means the chip's text currently appears as a standalone token
+// in the textarea — not as a substring of another chip. Without the
+// boundary check, "没有" being in the value would make the "有" chip
+// look selected too (有 ⊂ 没有).
 const SEP = "，";
+function isChipSelected(value, chipText) {
+  if (!value || !chipText) return false;
+  if (value === chipText) return true;
+  if (value.startsWith(chipText + SEP)) return true;
+  if (value.endsWith(SEP + chipText)) return true;
+  if (value.includes(SEP + chipText + SEP)) return true;
+  return false;
+}
 function toggleChipInValue(value, chipText) {
   if (!value) return chipText;
-  if (!value.includes(chipText)) return `${value}${SEP}${chipText}`;
+  if (!isChipSelected(value, chipText)) return `${value}${SEP}${chipText}`;
   // Remove — peel the surrounding separator if present
   let next = value.replace(`${chipText}${SEP}`, "");
   if (next === value) next = value.replace(`${SEP}${chipText}`, "");
-  if (next === value) next = value.replace(chipText, "");
+  if (next === value && value === chipText) next = "";
   return next.replace(new RegExp(`^${SEP}+|${SEP}+$`, "g"), "");
 }
 
@@ -70,7 +81,7 @@ export default function ChatComposer({
       {suggestions.length > 0 && (
         <div style={styles.chips}>
           {suggestions.map((s, i) => {
-            const selected = value.includes(s);
+            const selected = isChipSelected(value, s);
             return (
               <span
                 key={i}
