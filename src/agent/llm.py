@@ -160,23 +160,48 @@ def _log_llm_call(
         # request_id. Only fires when _experiments.enable_logs=True on
         # sentry_sdk.init. Wrapped defensively — logger is still an
         # experimental API and may rename between sentry-sdk versions.
+        #
+        # Attaches full input/output content so the GlitchTip log entry is
+        # debuggable on its own (no need to SSH and grep the JSONL). Note:
+        # patient inputs may contain clinical content; the GlitchTip
+        # endpoint at ops.doctoragentai.cn must be considered an egress
+        # channel for that data. To turn the content off while keeping the
+        # metadata, set LLM_LOG_CONTENT=0.
         try:
             from sentry_sdk import logger as _sentry_log
             tokens = entry.get("tokens") or {}
-            _sentry_log.info(
-                "llm.call",
-                op=op_name,
-                model=model,
-                status=entry["status"],
-                duration_ms=duration_ms or 0,
-                tokens_in=int(tokens.get("prompt", 0)),
-                tokens_out=int(tokens.get("completion", 0)),
-                tokens_total=int(tokens.get("total", 0)),
-                request_id=entry.get("request_id", ""),
-                doctor_id=entry.get("doctor_id", ""),
-                trace_id=entry.get("trace_id", ""),
-                intent=entry.get("intent", ""),
-            )
+            include_content = os.environ.get("LLM_LOG_CONTENT", "1") != "0"
+            kwargs: Dict[str, Any] = {
+                "op": op_name,
+                "model": model,
+                "status": entry["status"],
+                "duration_ms": duration_ms or 0,
+                "tokens_in": int(tokens.get("prompt", 0)),
+                "tokens_out": int(tokens.get("completion", 0)),
+                "tokens_total": int(tokens.get("total", 0)),
+                "request_id": entry.get("request_id", ""),
+                "doctor_id": entry.get("doctor_id", ""),
+                "trace_id": entry.get("trace_id", ""),
+                "intent": entry.get("intent", ""),
+            }
+            if include_content:
+                # Compact JSON of the prompt messages — role + content per
+                # turn. ensure_ascii=False keeps Chinese readable in the
+                # GlitchTip UI rather than \uXXXX escapes.
+                kwargs["input"] = _json.dumps(
+                    [
+                        {"role": m.get("role", ""), "content": m.get("content", "")}
+                        for m in messages
+                        if isinstance(m, dict)
+                    ],
+                    ensure_ascii=False,
+                )
+                output_obj = entry.get("output")
+                if output_obj is not None:
+                    kwargs["output"] = _json.dumps(output_obj, ensure_ascii=False)
+                if error is not None:
+                    kwargs["error"] = str(error)
+            _sentry_log.info("llm.call", **kwargs)
         except Exception:
             pass  # observability must not break the LLM call path
 
