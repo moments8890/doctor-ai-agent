@@ -29,9 +29,9 @@ function isNLQuery(q) {
   return /[的得了这那哪]{1}|姓|阿姨|叔叔|奶奶|大爷|多岁|中年|老年|男性|女性|上周|本周|最近|昨天/.test(q);
 }
 
-// Display order for attention chips. Matches the old priority (message →
-// task → suggestion) so the most urgent flag reads first.
-const CHIP_ORDER = ["unread_message", "due_task", "unreviewed_suggestion"];
+// Display order for attention chips. Task system is not currently active —
+// only unread_message and unreviewed_suggestion render.
+const CHIP_ORDER = ["unread_message", "unreviewed_suggestion"];
 
 // Per-type tinted recipe. Muted tones — bg uses the *Light token, fg the
 // matching saturated token. Mirrors the ICON_BADGES pattern in constants.jsx
@@ -39,7 +39,6 @@ const CHIP_ORDER = ["unread_message", "due_task", "unreviewed_suggestion"];
 const CHIP_RECIPE = {
   unread_message:        { label: "待回复",   bg: APP.primaryLight, fg: APP.primary },
   unreviewed_suggestion: { label: "待审核",   bg: APP.accentLight,  fg: APP.accent  },
-  due_task:              { label: "任务到期", bg: "#fff3e0",        fg: "#E67E22"   },
 };
 
 function AttentionChip({ type }) {
@@ -63,7 +62,7 @@ function AttentionChip({ type }) {
 }
 
 // Row subtitle (vitals only): "男 · 70岁 · 0份病历".
-// Action items render as small green chips on a line below (待回复 / 待审核 / 任务到期).
+// Action items render as small green chips on a line below (待回复 / 待审核).
 function patientSubtitle(patient) {
   const genderStr = patient.gender
     ? { male: "男", female: "女" }[patient.gender] || patient.gender
