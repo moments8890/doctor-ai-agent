@@ -31,7 +31,8 @@
       "Skill(ship)",
       "Skill(update-config)",
       "Bash(rm -f .git/index.lock)",
-      "Bash(rg \"interview|Interview|INTERVIEW\" --type-add 'src:*.{py,md,yaml,yml,json,html}' -tsrc src tests docs)"
+      "Bash(cat)",
+      "Read(//Users/jingwuxu/**)"
     ]
   }
 }
