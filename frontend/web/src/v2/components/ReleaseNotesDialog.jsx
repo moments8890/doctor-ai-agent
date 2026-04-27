@@ -68,11 +68,16 @@ export default function ReleaseNotesDialog({ release, visible, onDismiss }) {
       visible={visible}
       onClose={onDismiss}
       closeOnMaskClick={false}
+      // Portal to body so the popup escapes any transformed page-stack
+      // ancestor (translate3d on stack entries creates a containing block
+      // for position:fixed and can shift the popup off-center).
+      getContainer={() => document.body}
       bodyStyle={{
         padding: "22px 20px 20px",
         maxHeight: "85vh",
         overflowY: "auto",
         width: "min(86vw, 360px)",
+        boxSizing: "border-box",
       }}
     >
       <div
@@ -81,6 +86,7 @@ export default function ReleaseNotesDialog({ release, visible, onDismiss }) {
           fontWeight: 600,
           color: APP.text1,
           marginBottom: 4,
+          textAlign: "center",
         }}
       >
         {release.title}
@@ -90,6 +96,7 @@ export default function ReleaseNotesDialog({ release, visible, onDismiss }) {
           fontSize: FONT.xs,
           color: APP.text4,
           marginBottom: 16,
+          textAlign: "center",
         }}
       >
         {release.date}
