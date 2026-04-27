@@ -436,22 +436,26 @@ function FieldEntriesSection({ entries, structured }) {
             <div
               key={key}
               style={{
-                padding: "8px 0 4px",
+                display: "flex",
+                gap: 10,
+                padding: "6px 0",
                 borderTop: fi === 0 ? "none" : `0.5px solid ${APP.borderLight}`,
               }}
             >
-              <div
+              <span
                 style={{
                   fontSize: FONT.sm,
                   color: APP.text4,
                   fontWeight: 500,
-                  marginBottom: 4,
+                  flexShrink: 0,
+                  minWidth: 60,
                 }}
               >
                 {label}
-              </div>
-              <div
+              </span>
+              <span
                 style={{
+                  flex: 1,
                   fontSize: FONT.sm,
                   color: APP.text2,
                   whiteSpace: "pre-wrap",
@@ -459,7 +463,7 @@ function FieldEntriesSection({ entries, structured }) {
                 }}
               >
                 {v.text}
-              </div>
+              </span>
             </div>
           );
         }
@@ -467,6 +471,48 @@ function FieldEntriesSection({ entries, structured }) {
         // ── Legacy chronological multi-entry view ──────────────────
         const fieldEntries = v;
         const isMulti = fieldEntries.length > 1;
+
+        // Single entry: use left-label / right-value layout (matches the
+        // structured-field rows + provenance branch above).
+        if (!isMulti) {
+          return (
+            <div
+              key={key}
+              style={{
+                display: "flex",
+                gap: 10,
+                padding: "6px 0",
+                borderTop: fi === 0 ? "none" : `0.5px solid ${APP.borderLight}`,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: FONT.sm,
+                  color: APP.text4,
+                  fontWeight: 500,
+                  flexShrink: 0,
+                  minWidth: 60,
+                }}
+              >
+                {label}
+              </span>
+              <span
+                style={{
+                  flex: 1,
+                  fontSize: FONT.sm,
+                  color: APP.text2,
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6,
+                }}
+              >
+                {fieldEntries[0].text}
+              </span>
+            </div>
+          );
+        }
+
+        // Multi-entry: keep stacked layout because each entry has its own
+        // meta line (初次描述 / 之后补充 + relative time).
         return (
           <div
             key={key}
@@ -475,34 +521,18 @@ function FieldEntriesSection({ entries, structured }) {
               borderTop: fi === 0 ? "none" : `0.5px solid ${APP.borderLight}`,
             }}
           >
-            {/* Field label */}
             <div
               style={{
                 fontSize: FONT.sm,
                 color: APP.text4,
                 fontWeight: 500,
-                marginBottom: isMulti ? 6 : 4,
+                marginBottom: 6,
               }}
             >
               {label}
             </div>
 
-            {/* Single entry: compact, no meta header */}
-            {!isMulti && (
-              <div
-                style={{
-                  fontSize: FONT.sm,
-                  color: APP.text2,
-                  whiteSpace: "pre-wrap",
-                  lineHeight: 1.6,
-                }}
-              >
-                {fieldEntries[0].text}
-              </div>
-            )}
-
-            {/* Multiple entries: each with meta line */}
-            {isMulti && fieldEntries.map((entry, idx) => (
+            {fieldEntries.map((entry, idx) => (
               <div key={idx} style={{ marginBottom: idx < fieldEntries.length - 1 ? 8 : 0 }}>
                 <div
                   style={{
