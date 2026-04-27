@@ -86,7 +86,17 @@ PATIENT_INTAKE_LAYERS = LayerConfig(
     # the doctor's KB. Clinical judgment happens later when the doctor
     # reviews the medical_record (FOLLOWUP_REPLY_LAYERS keeps load_knowledge=True).
     load_knowledge=False,
-    load_persona=True,  # 2026-04-25: was False — pre-visit chat could not sound like the doctor
+    # 2026-04-27: load_persona → False. Persona's "closing"/"structure" snippets
+    # ("做完检查发给我", "给出清晰行动路径", "到了急诊跟他们说") were repeatedly
+    # leaking into patient-facing reply, even with the server-side reply gate.
+    # The gate caught exact substrings; LLM rephrased its way around them
+    # ("建议您尽快到医院" / "到了医院跟他们说"). The structural fix is the
+    # one the doctor intake template uses — no persona at all. Persona's
+    # legitimate home is FOLLOWUP_REPLY where doctor-voice is desired.
+    # Loss: pre-visit chat won't sound like the specific doctor (generic but
+    # safe). For intake that's a feature — the chat is data-capture, not
+    # pseudo-medical conversation.
+    load_persona=False,
     load_examples=True,  # L5: complaint-clustered exemplars (intake register)
     example_limit=2,
     patient_context=True,

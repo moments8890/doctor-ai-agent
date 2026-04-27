@@ -47,6 +47,13 @@ class CompletenessState(BaseModel):
     recommended_missing: list[str]
     optional_missing: list[str]
     next_focus: str | None
+    # Engine-driven focus policy (added 2026-04-27 for engine-policy refactor):
+    # the engine computes the exact next question + chip seeds and surfaces
+    # them to the prompt so the LLM doesn't have to interpret 8+ priority
+    # rules. Prompt-side state-machine logic moves here.
+    phase1_complete: bool = False
+    next_focus_question: str | None = None  # exact Chinese sentence the LLM should ask
+    next_focus_suggestions: list[str] = Field(default_factory=list)  # chip seeds
 
 
 class PersistRef(BaseModel):

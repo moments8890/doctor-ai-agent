@@ -15,15 +15,16 @@ from __future__ import annotations
 # Bump this on substantive patient-intake.md changes. Format:
 # YYYY-MM-DD-short-slug. Sessions started under an older version get
 # their conversation truncated on the next turn.
-CURRENT_INTAKE_PROMPT_VERSION = "2026-04-26-defer-to-doctor"
+CURRENT_INTAKE_PROMPT_VERSION = "2026-04-27-engine-policy"
 
 import asyncio
+import hashlib
 import json
 import os
 from datetime import datetime, timezone
-from typing import Any, List
+from typing import Any, List, Literal, Optional
 
-from pydantic import Field, create_model
+from pydantic import BaseModel, Field, create_model
 
 from agent.llm import structured_call
 from domain.intake.contract import build_response_schema
@@ -42,6 +43,36 @@ from domain.patients.intake_session import (
 from db.engine import AsyncSessionLocal
 from db.models.intake_session import IntakeStatus
 from utils.log import log
+
+
+class ClinicalSignal(BaseModel):
+    section: Literal["differential", "workup", "treatment"]
+    content: str
+    detail: Optional[str] = None
+    urgency: Optional[Literal["low", "medium", "high"]] = None
+    evidence: List[str] = Field(default_factory=list)
+    risk_signals: List[str] = Field(default_factory=list)
+
+
+# Reply-gate banned patterns — phrases that betray the doctor's persona
+# leaking into the patient-facing reply (clinical instructions, ED routing,
+# workup orders). When a reply contains any of these, route the underlying
+# clinical thought to clinical_signals[] instead and replace reply with a
+# defer-and-continue line.
+_BANNED_REPLY_PATTERNS = [
+    "做完检查", "我帮你看", "建议做", "建议去医院", "建议就医",
+    "立即去急诊", "立即打120", "马上去医院", "去做个", "做个B超",
+    "做个CT", "做个核磁", "去医院做",
+]
+
+
+_FIELD_QUESTIONS = {
+    "past_history": "之前有没有什么慢性病或动过手术？",
+    "allergy_history": "有没有药物或食物过敏？",
+    "family_history": "家里直系亲属有没有什么遗传病或慢性病？",
+    "personal_history": "平时有抽烟喝酒的习惯吗？",
+    "marital_reproductive": "婚姻和生育情况方便简单说一下吗？",
+}
 
 
 def _build_turn_llm_response_schema(template: Template):
@@ -68,6 +99,16 @@ def _build_turn_llm_response_schema(template: Template):
         suggestions=(
             List[str],
             Field(default_factory=list, description="快捷回复选项"),
+        ),
+        clinical_signals=(
+            List[ClinicalSignal],
+            Field(
+                default_factory=list,
+                description=(
+                    "临床信号（鉴别诊断/检查建议/治疗思路）—— 仅给医生，"
+                    "不要写入 reply"
+                ),
+            ),
         ),
     )
 
@@ -193,6 +234,12 @@ class IntakeEngine:
             session_state, template.config.phases[mode],
         )
 
+        # Snapshot the focus question that's about to be sent to the LLM.
+        # Reused after the call to mark `_asked_safety_net`. The `state`
+        # variable below is reassigned post-merge, so we can't read it
+        # back from `state` then.
+        focus_question_this_turn = state.next_focus_question
+
         # Build prompt via extractor (template-specific)
         messages = await template.extractor.prompt_partial(
             session_state=session_state,
@@ -204,50 +251,46 @@ class IntakeEngine:
         # Build the per-turn LLM response schema from template fields
         response_schema = _build_turn_llm_response_schema(template)
 
+        # Stamp on each buffered clinical_signal so we can correlate the row
+        # back to the prompt that produced it (matches ai_suggestions.prompt_hash).
+        prompt_hash = hashlib.sha256(
+            json.dumps(messages, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        ).hexdigest()[:16]
+
         env_var = (
             "CONVERSATION_LLM"
             if os.environ.get("CONVERSATION_LLM")
             else "ROUTING_LLM"
         )
 
-        # LLM call with 3-attempt retry (infra errors only; parse errors are non-retryable)
+        # structured_call now retries transport errors with backoff internally
+        # (3 attempts, 0.5s/1s). The previous 3-outer × 1-inner setup gave
+        # 9 total attempts on persistent failures. Single attempt here is
+        # enough; we still distinguish parse errors (non-retryable) from
+        # transport (already retried inside structured_call) for the user-
+        # facing fallback message.
         llm_response = None
         last_error: Exception | None = None
-        for attempt in range(3):
-            try:
-                llm_response = await structured_call(
-                    response_model=response_schema,
-                    messages=messages,
-                    op_name=f"intake.{mode}",
-                    env_var=env_var,
-                    temperature=0.1,
-                    max_tokens=2048,
-                )
-                break
-            except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
-                log(
-                    f"[intake] LLM parse error (attempt {attempt+1}): {e}",
-                    level="warning",
-                )
-                last_error = e
-                break  # parse errors won't fix with retry
-            except Exception as e:
-                log(
-                    f"[intake] LLM call failed (attempt {attempt+1}/3): {e}",
-                    level="warning",
-                )
-                last_error = e
-                if attempt < 2:
-                    await asyncio.sleep(1.0 * (attempt + 1))
+        try:
+            llm_response = await structured_call(
+                response_model=response_schema,
+                messages=messages,
+                op_name=f"intake.{mode}",
+                env_var=env_var,
+                temperature=0.1,
+                max_tokens=2048,
+            )
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+            log(f"[intake] LLM parse error: {e}", level="warning")
+            last_error = e
+        except Exception as e:
+            log(f"[intake] LLM call failed (after retries): {e}", level="error")
+            last_error = e
 
         if llm_response is None:
             if isinstance(last_error, (json.JSONDecodeError, KeyError, TypeError, ValueError)):
                 reply = "抱歉，我没有理解，请再说一次。"
             else:
-                log(
-                    f"[intake] LLM call failed after 3 attempts: {last_error}",
-                    level="error",
-                )
                 reply = "系统暂时繁忙，请重新发送您的回答。"
             raw.conversation.append({"role": "assistant", "content": reply})
             await _save_session(raw)
@@ -286,6 +329,22 @@ class IntakeEngine:
                 ):
                     frozen_snapshot[field_name] = raw.collected[field_name]
 
+        # For unconfirmed carry-forward fields the LLM is now extracting,
+        # the carried value is just a hypothesis — patient input replaces it,
+        # not appends to it. Clear the carried value before merge so the new
+        # extraction starts from empty (avoids "青霉素过敏；无" append bug).
+        unconfirmed_overwrites: list[str] = []
+        if isinstance(cf_meta_pre, dict):
+            for field_name in clinical_extracted:
+                entry = cf_meta_pre.get(field_name)
+                if (
+                    isinstance(entry, dict)
+                    and entry.get("confirmed_by_patient") is False
+                    and field_name in raw.collected
+                ):
+                    raw.collected.pop(field_name, None)
+                    unconfirmed_overwrites.append(field_name)
+
         # Merge clinical fields
         template.extractor.merge(raw.collected, clinical_extracted)
 
@@ -294,10 +353,61 @@ class IntakeEngine:
         for field_name, frozen_value in frozen_snapshot.items():
             raw.collected[field_name] = frozen_value
 
+        # Flip confirmed_by_patient → true for any carry-forward field the
+        # patient just provided info on this turn. Otherwise completeness
+        # treats the field as still unconfirmed and intake never ends.
+        if unconfirmed_overwrites:
+            cf_meta_post = raw.collected.get("_carry_forward_meta")
+            if isinstance(cf_meta_post, dict):
+                for field_name in unconfirmed_overwrites:
+                    entry = cf_meta_post.get(field_name)
+                    if isinstance(entry, dict):
+                        entry["confirmed_by_patient"] = True
+
         # Write metadata as underscore-prefixed keys (always overwrite)
         for meta_key, meta_value in metadata.items():
             if meta_value:
                 raw.collected[f"_{meta_key}"] = meta_value
+
+        # Buffer clinical signals on the session. Materialized as
+        # ai_suggestions rows on confirm() so the doctor sees them in the
+        # review queue. Cap at 3 per turn; dedup against existing buffer by
+        # (section, content_lower, urgency).
+        raw_signals = list(llm_response.clinical_signals or [])[:3]
+        new_clinical_signals: list[dict[str, Any]] = []
+        if raw_signals:
+            existing_buffer = raw.collected.get("_pending_ai_suggestions")
+            if not isinstance(existing_buffer, list):
+                existing_buffer = []
+            seen_keys: set[tuple[str, str, Optional[str]]] = set()
+            for entry in existing_buffer:
+                if not isinstance(entry, dict):
+                    continue
+                section = str(entry.get("section", ""))
+                content = str(entry.get("content", "")).strip().lower()
+                urgency = entry.get("urgency")
+                seen_keys.add((section, content, urgency))
+
+            for sig in raw_signals:
+                key = (sig.section, sig.content.strip().lower(), sig.urgency)
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+                new_clinical_signals.append({
+                    "section": sig.section,
+                    "content": sig.content.strip(),
+                    "detail": sig.detail,
+                    "urgency": sig.urgency,
+                    "evidence": list(sig.evidence or []),
+                    "risk_signals": list(sig.risk_signals or []),
+                    "turn_index": raw.turn_count,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "prompt_hash": prompt_hash,
+                })
+            if new_clinical_signals:
+                raw.collected["_pending_ai_suggestions"] = (
+                    existing_buffer + new_clinical_signals
+                )
 
         # Build reply, apply template-specific post-processing
         reply = llm_response.reply or (
@@ -317,6 +427,34 @@ class IntakeEngine:
         except Exception as exc:
             log(f"[intake] style guard check failed (non-fatal): {exc}", level="warning")
 
+        # Reply gate: if the LLM emitted clinical thoughts (either as
+        # clinical_signals or leaked into reply via banned phrases), force
+        # the patient-facing reply to a defer line + the next phase-2
+        # question. The clinical signal itself is preserved in the buffer
+        # and surfaces to the doctor on confirm.
+        # The presence of clinical_signals is NOT itself a leak — that's the
+        # whole point of the channel. We only gate when the LLM actually
+        # writes a banned advice phrase into the patient-facing reply.
+        # Earlier the gate fired on (signals OR banned_hit), which clobbered
+        # every clinically-suggestive turn with the same canned defer line.
+        state_pre = template.extractor.completeness(raw.collected, mode)
+        banned_hit = any(pat in reply for pat in _BANNED_REPLY_PATTERNS)
+        if banned_hit:
+            next_q = ""
+            for field_name in state_pre.required_missing or []:
+                if field_name in _FIELD_QUESTIONS:
+                    next_q = _FIELD_QUESTIONS[field_name]
+                    break
+            if next_q:
+                gated_reply = "已记录您的情况，医生会尽快查看。" + next_q
+            else:
+                gated_reply = "已记录您的情况，医生会尽快查看，请稍候。"
+            log(
+                f"[intake] reply gate fired (banned_hit) original={reply[:80]!r}",
+                level="warning",
+            )
+            reply = gated_reply
+
         # Status transition if ready to review
         state = template.extractor.completeness(raw.collected, mode)
         # Patient-mode special: if ready, transition status
@@ -328,10 +466,33 @@ class IntakeEngine:
                     "如果还有补充，也可以继续补充。"
                 )
 
+        # Engine-driven focus tracking: if the prompt told the LLM to ask a
+        # specific safety-net or chronic-drilldown question this turn, mark
+        # it asked so the next turn moves to the next question instead of
+        # repeating. Optimistic — assumes the LLM is cooperative when given
+        # a concrete focus. Cheaper and more reliable than fuzzy-matching
+        # the LLM's reply against the canonical question text.
+        if focus_question_this_turn:
+            asked = raw.collected.get("_asked_safety_net")
+            if not isinstance(asked, list):
+                asked = []
+            if focus_question_this_turn not in asked:
+                asked.append(focus_question_this_turn)
+                raw.collected["_asked_safety_net"] = asked
+
         raw.conversation.append({"role": "assistant", "content": reply})
         await _save_session(raw)
 
-        suggestions = [str(s) for s in (llm_response.suggestions or []) if s][:4]
+        # Engine-side suggestion post-process — chip completeness for binary
+        # / uncertainty-plausible questions. Replaces the bare 4-cap so the
+        # LLM doesn't have to remember to inject 没有/不清楚 every turn.
+        from domain.intake.templates.medical_general import (
+            _postprocess_suggestions,
+        )
+        raw_suggestions = [
+            str(s) for s in (llm_response.suggestions or []) if s
+        ]
+        suggestions = _postprocess_suggestions(reply, raw_suggestions)
 
         return TurnResult(
             reply=reply,
@@ -495,6 +656,13 @@ class IntakeEngine:
                         f"[engine-confirm] post-write provenance update failed (non-fatal): {exc}",
                         level="warning",
                     )
+
+            # Buffered clinical_signals stay on the session JSON
+            # (`_pending_ai_suggestions`). Not materialized as ai_suggestions
+            # rows yet — diagnosis pipeline is the sole writer for that table
+            # in the current product call. The buffer is retained so we can
+            # backfill if/when intake-side suggestions get promoted to
+            # first-class review data.
 
         # Bug E fix: persist the reconciled `collected` back to the session
         # row BEFORE hook dispatch. Hooks are best-effort and may fail; the

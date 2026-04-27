@@ -29,6 +29,7 @@ async def create_suggestion(
     evidence_json: Optional[str] = None,
     risk_signals_json: Optional[str] = None,
     trigger_rule_ids_json: Optional[str] = None,
+    seed_source: Optional[str] = None,
 ) -> AISuggestion:
     row = AISuggestion(
         record_id=record_id,
@@ -45,6 +46,7 @@ async def create_suggestion(
         evidence_json=evidence_json,
         risk_signals_json=risk_signals_json,
         trigger_rule_ids_json=trigger_rule_ids_json,
+        seed_source=seed_source,
         decision=SuggestionDecision.custom.value if is_custom else None,
     )
     session.add(row)
