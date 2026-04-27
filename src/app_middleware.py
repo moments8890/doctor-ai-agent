@@ -38,6 +38,19 @@ def setup_cors(app: FastAPI) -> None:
         logging.getLogger("startup").warning(
             "[CORS] CORS_ALLOW_ORIGINS not set — defaulting to ['*'] (dev only)"
         )
+    # Native Capacitor builds (iOS / Android) serve the WebView from a custom
+    # URL scheme — `capacitor://localhost` (default), `https://localhost`
+    # (Android with iosScheme/androidScheme: "https"), `ionic://localhost`
+    # (legacy). These origins are stable per Capacitor build and can never
+    # be set via env (CORS_ALLOW_ORIGINS is for known web hosts). Always
+    # allow them so the iOS/Android wrappers don't fail at the CORS preflight.
+    _CAPACITOR_ORIGINS = [
+        "capacitor://localhost",
+        "ionic://localhost",
+    ]
+    for o in _CAPACITOR_ORIGINS:
+        if o not in _cors_origins:
+            _cors_origins.append(o)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_cors_origins,
