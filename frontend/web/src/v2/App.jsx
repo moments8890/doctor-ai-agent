@@ -196,6 +196,30 @@ export default function App() {
     if (localStorage.getItem("explicit_signout") === "1") {
       return;
     }
+    // Skip if we already have a real (non-synthetic) session. The
+    // miniprogram WebView may reload with stale ?token= from an earlier
+    // demo build (e.g. "测试医生"); without this guard those stale params
+    // overwrite the user's freshly-authenticated session every time the
+    // WebView reloads, making real login appear ineffective.
+    const existing = useDoctorStore.getState();
+    if (
+      existing.accessToken &&
+      existing.doctorId &&
+      !isSyntheticSession(existing.doctorId, existing.accessToken)
+    ) {
+      // Strip the params for cleanliness so a later reload doesn't keep
+      // re-checking the same stale URL.
+      try {
+        const url = new URL(window.location.href);
+        ["token", "doctor_id", "name"].forEach((k) => url.searchParams.delete(k));
+        if (url.toString() !== window.location.href) {
+          window.history.replaceState({}, "", url.toString());
+        }
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
     const did = params.get("doctor_id");
