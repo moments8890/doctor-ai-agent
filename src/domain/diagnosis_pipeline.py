@@ -672,11 +672,22 @@ async def run_diagnosis(
                 _prompt_hash = compute_prompt_hash(composed)
 
                 async with AsyncSessionLocal() as db:
+                    import re as _re
                     from domain.knowledge.citation_parser import extract_citations as _extract_citations
 
-                    def _cited_json(text: str) -> Optional[str]:
-                        ids = _extract_citations(text).cited_ids
-                        return json.dumps(ids) if ids else None
+                    def _cited_json(text: str, trigger_rule_ids: Optional[list]) -> Optional[str]:
+                        # Union of two sources:
+                        #   1. [KB-N] markers found in free-text (legacy + edge cases)
+                        #   2. Structured trigger_rule_ids field (canonical for new prompt)
+                        # The new prompt forbids [KB-N] in evidence text, so
+                        # without merging the structured field the frontend
+                        # would render no citation pill at all.
+                        text_ids = set(_extract_citations(text).cited_ids)
+                        for r in trigger_rule_ids or []:
+                            m = _re.match(r"KB-(\d+)", str(r))
+                            if m:
+                                text_ids.add(int(m.group(1)))
+                        return json.dumps(sorted(text_ids)) if text_ids else None
 
                     def _json_or_none(items):
                         return json.dumps(items, ensure_ascii=False) if items else None
@@ -691,7 +702,7 @@ async def run_diagnosis(
                             content=d["condition"],
                             detail=_detail or None,
                             confidence=d.get("confidence") or None,
-                            cited_knowledge_ids=_cited_json(f"{d['condition']} {_detail}"),
+                            cited_knowledge_ids=_cited_json(f"{d['condition']} {_detail}", d.get("trigger_rule_ids")),
                             prompt_hash=_prompt_hash,
                             evidence_json=_json_or_none(d.get("evidence")),
                             risk_signals_json=_json_or_none(d.get("risk_signals")),
@@ -707,7 +718,7 @@ async def run_diagnosis(
                             content=w["test"],
                             detail=_detail or None,
                             urgency=w.get("urgency") or None,
-                            cited_knowledge_ids=_cited_json(f"{w['test']} {_detail}"),
+                            cited_knowledge_ids=_cited_json(f"{w['test']} {_detail}", w.get("trigger_rule_ids")),
                             prompt_hash=_prompt_hash,
                             evidence_json=_json_or_none(w.get("evidence")),
                             risk_signals_json=_json_or_none(w.get("risk_signals")),
@@ -723,7 +734,7 @@ async def run_diagnosis(
                             content=t["drug_class"],
                             detail=_detail or None,
                             intervention=t.get("intervention") or None,
-                            cited_knowledge_ids=_cited_json(f"{t['drug_class']} {_detail}"),
+                            cited_knowledge_ids=_cited_json(f"{t['drug_class']} {_detail}", t.get("trigger_rule_ids")),
                             prompt_hash=_prompt_hash,
                             evidence_json=_json_or_none(t.get("evidence")),
                             risk_signals_json=_json_or_none(t.get("risk_signals")),
