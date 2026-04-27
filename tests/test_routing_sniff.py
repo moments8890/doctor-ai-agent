@@ -12,11 +12,10 @@ NOTE on prompt identity:
     and invoked via ``domain.patient_lifecycle.triage.classify``. That is
     the prompt exercised here.
 
-The triage classifier maps inbound patient messages into one of five
-intent categories:
+The triage classifier maps inbound patient messages into one of three
+categories:
 
-    informational | symptom_report | side_effect |
-    general_question | urgent
+    intake | informational | other
 
 and returns a confidence score in [0, 1].
 
@@ -110,55 +109,46 @@ pytestmark = pytest.mark.skipif(
 
 # ── Scenarios ──────────────────────────────────────────────────────────
 #
-# Five messages, one per documented triage category. The assertion is
-# structural (valid enum + valid confidence range). We additionally
-# assert on *category* for the unambiguous cases (urgent, clear
-# informational). The ambiguous case validates only the enum membership
-# since the safe-default rule may legitimately reroute to
-# general_question.
+# One message per current category. Assertions are structural (valid enum
+# + valid confidence range) plus a category whitelist per scenario. Under
+# the 3-category model, symptom-shaped, drug-reaction, and urgent
+# presentations all collapse into ``intake``.
 
 SCENARIOS: List[Dict[str, Any]] = [
     {
         "id": "informational_med_timing",
         "description": "Pure info question about dosing timing",
         "message": "我的药什么时候吃？饭前还是饭后？",
-        # "general_question" is an acceptable safe-default here; we
-        # permit either informational or general_question.
-        "allowed_categories": {"informational", "general_question"},
+        # ``other`` is an acceptable safe-default here.
+        "allowed_categories": {"informational", "other"},
     },
     {
-        "id": "symptom_report_new_symptom",
-        "description": "New onset cough with phlegm — clearly symptom_report",
+        "id": "intake_new_symptom",
+        "description": "New onset cough with phlegm — clearly intake",
         "message": "医生，我今天开始咳嗽了，有黄痰，已经两天了。",
-        "allowed_categories": {"symptom_report", "general_question"},
+        "allowed_categories": {"intake"},
     },
     {
-        "id": "side_effect_post_antihypertensive",
-        "description": "Dizziness after BP med → side_effect",
+        "id": "intake_drug_reaction",
+        "description": "Dizziness after BP med → intake (drug reaction is a symptom)",
         "message": "吃了降压药以后一直头晕，是不是副作用？",
-        "allowed_categories": {"side_effect", "symptom_report", "general_question"},
+        "allowed_categories": {"intake"},
     },
     {
-        "id": "urgent_chest_pain_dyspnea",
-        "description": "Chest pain + dyspnea → urgent",
+        "id": "intake_chest_pain_dyspnea",
+        "description": "Chest pain + dyspnea → intake (urgency surfaces to doctor, not patient)",
         "message": "胸口突然很痛，喘不上来气。",
-        # Urgent must be returned here — if not, the classifier is unsafe.
-        "allowed_categories": {"urgent"},
+        "allowed_categories": {"intake"},
     },
     {
-        "id": "general_question_ambiguous",
-        "description": "Ambiguous / unclear → safe default general_question",
+        "id": "other_ambiguous",
+        "description": "Ambiguous / unclear → safe default other",
         "message": "我想问个问题但不知道怎么说。",
-        "allowed_categories": {
-            "general_question", "informational",
-        },
+        "allowed_categories": {"other", "informational"},
     },
 ]
 
-_ALL_VALID_CATEGORIES = {
-    "informational", "symptom_report", "side_effect",
-    "general_question", "urgent",
-}
+_ALL_VALID_CATEGORIES = {"intake", "informational", "other"}
 
 
 # ── Tests ─────────────────────────────────────────────────────────────
@@ -219,10 +209,9 @@ async def test_routing_sniff(scenario: Dict[str, Any]):
 
     # ── Scenario-specific allowed set ─────────────────────────────────
     # Note: classify() itself downgrades low-confidence (<0.7) results
-    # to general_question as a safety default, so we always allow
-    # general_question *unless* the scenario whitelist explicitly omits
-    # it (e.g. the urgent scenario — downgrading urgent to
-    # general_question is a real bug we want to surface).
+    # to ``other`` as a safety default. Scenarios that don't list
+    # ``other`` in their whitelist (e.g. clear intake cases) treat the
+    # downgrade itself as a regression worth flagging.
     allowed = scenario["allowed_categories"]
     assert result.category.value in allowed, (
         f"[{scenario['id']}] category={result.category.value!r} not in "

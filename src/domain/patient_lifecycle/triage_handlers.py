@@ -1,8 +1,13 @@
 """Triage handlers for patient messages (ADR 0020).
 
-Contains the per-category handler functions (informational, escalation, urgent)
+Contains the per-category handler functions (informational, escalation)
 along with their shared helpers: rate limiting, notification batching, patient
 name lookup, and LLM response models.
+
+Under the 3-category triage model, ``urgent`` is no longer a separate path —
+symptom-shaped messages all flow through intake; non-intake messages get a
+doctor draft via ``handle_escalation``. Doctor-side urgency comes from
+``MessageDraft.priority`` and ``ai_suggestions.urgency``.
 """
 from __future__ import annotations
 
@@ -66,8 +71,7 @@ _escalation_timestamps: Dict[tuple, List[float]] = {}
 def _is_rate_limited(patient_id: int, doctor_id: str) -> bool:
     """Return True if the patient has exceeded the escalation notification limit.
 
-    Trims expired entries on each call. The ``urgent`` category should bypass
-    this check entirely (caller responsibility).
+    Trims expired entries on each call.
     """
     key = (patient_id, doctor_id)
     now = time.time()
@@ -98,11 +102,7 @@ _last_notify_time: Dict[tuple, float] = {}
 
 
 def _should_notify(patient_id: int, doctor_id: str) -> bool:
-    """Return True if enough time has passed since the last notification.
-
-    The ``urgent`` category should bypass this check entirely (caller
-    responsibility).
-    """
+    """Return True if enough time has passed since the last notification."""
     key = (patient_id, doctor_id)
     now = time.time()
     last = _last_notify_time.get(key, 0.0)
@@ -402,64 +402,3 @@ async def handle_escalation(
     return ""
 
 
-async def handle_urgent(
-    message: str,
-    context: dict,
-    db_session: AsyncSession,
-    patient_id: int,
-    doctor_id: str,
-) -> str:
-    """Handle an urgent message: provide safety guidance and notify doctor.
-
-    Returns a static safety message — no LLM call (latency matters for urgent).
-    Saves with ``triage_category="urgent"`` and ``ai_handled=False``.
-
-    ``urgent`` always notifies immediately — bypasses rate limiting and batching.
-    """
-    context_summary = _build_context_summary(context)
-    reason_for_escalation = "紧急情况"
-    if context_summary:
-        reason_for_escalation += "，结合既往病史/随访背景需立即处理"
-
-    # Persist inbound urgent message
-    saved_msg = await save_patient_message(
-        db_session,
-        patient_id=patient_id,
-        doctor_id=doctor_id,
-        content=message,
-        direction="inbound",
-        source="patient",
-        ai_handled=False,
-        triage_category="urgent",
-        structured_data=json.dumps({
-            "patient_question": message,
-            "conversation_context": context_summary,
-            "patient_status": message,
-            "reason_for_escalation": reason_for_escalation,
-            "suggested_action": "请立即联系患者，并评估是否需要急诊就医或立即回院。",
-        }, ensure_ascii=False),
-    )
-
-    # Fire-and-forget: generate AI draft reply for the doctor
-    try:
-        context_str = json.dumps(context, ensure_ascii=False) if context else ""
-        safe_create_task(
-            _generate_draft_for_escalated(
-                doctor_id, patient_id, saved_msg.id, message, context_str,
-            ),
-            name=f"draft-reply-{saved_msg.id}",
-        )
-    except Exception as exc:
-        log(f"[triage] failed to schedule draft generation: {exc}", level="warning")
-
-    # Urgent always notifies immediately — bypasses rate limiting and batching.
-    patient_name = await _get_patient_name(db_session, patient_id, doctor_id)
-    preview = message[:40] + ("…" if len(message) > 40 else "")
-    notification = "【紧急】患者【{name}】: {preview}，请立即处理".format(
-        name=patient_name, preview=preview,
-    )
-    _mark_notified(patient_id, doctor_id)
-    safe_create_task(_notify_doctor_safe(doctor_id, notification))
-
-    # No auto-reply to patient — all replies go through doctor review
-    return ""

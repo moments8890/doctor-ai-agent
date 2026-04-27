@@ -43,35 +43,56 @@ def reset_triage_state():
 # ---------------------------------------------------------------------------
 
 class TestTriageCategory:
+    def test_intake_value(self):
+        assert TriageCategory.intake.value == "intake"
+
     def test_informational_value(self):
         assert TriageCategory.informational.value == "informational"
 
-    def test_symptom_report_value(self):
-        assert TriageCategory.symptom_report.value == "symptom_report"
-
-    def test_side_effect_value(self):
-        assert TriageCategory.side_effect.value == "side_effect"
-
-    def test_general_question_value(self):
-        assert TriageCategory.general_question.value == "general_question"
-
-    def test_urgent_value(self):
-        assert TriageCategory.urgent.value == "urgent"
+    def test_other_value(self):
+        assert TriageCategory.other.value == "other"
 
     def test_is_str_enum(self):
         """TriageCategory inherits from str — members compare equal to their values."""
         assert TriageCategory.informational == "informational"
         assert isinstance(TriageCategory.informational, str)
 
-    def test_all_five_members_exist(self):
+    def test_all_three_members_exist(self):
         members = {c.value for c in TriageCategory}
-        assert members == {
-            "informational",
-            "symptom_report",
-            "side_effect",
-            "general_question",
-            "urgent",
-        }
+        assert members == {"intake", "informational", "other"}
+
+
+# ---------------------------------------------------------------------------
+# Legacy category string parsing — read-only back-compat for old DB rows
+# ---------------------------------------------------------------------------
+
+class TestLegacyCategoryParse:
+    def test_legacy_symptom_report_maps_to_intake(self):
+        from domain.patient_lifecycle.triage import parse_category
+        assert parse_category("symptom_report") is TriageCategory.intake
+
+    def test_legacy_side_effect_maps_to_intake(self):
+        from domain.patient_lifecycle.triage import parse_category
+        assert parse_category("side_effect") is TriageCategory.intake
+
+    def test_legacy_urgent_maps_to_intake(self):
+        from domain.patient_lifecycle.triage import parse_category
+        assert parse_category("urgent") is TriageCategory.intake
+
+    def test_legacy_general_question_maps_to_other(self):
+        from domain.patient_lifecycle.triage import parse_category
+        assert parse_category("general_question") is TriageCategory.other
+
+    def test_current_values_pass_through(self):
+        from domain.patient_lifecycle.triage import parse_category
+        assert parse_category("intake") is TriageCategory.intake
+        assert parse_category("informational") is TriageCategory.informational
+        assert parse_category("other") is TriageCategory.other
+
+    def test_unknown_value_falls_back_to_other(self):
+        from domain.patient_lifecycle.triage import parse_category
+        assert parse_category("garbage") is TriageCategory.other
+        assert parse_category("") is TriageCategory.other
 
 
 # ---------------------------------------------------------------------------
@@ -81,10 +102,10 @@ class TestTriageCategory:
 class TestTriageResult:
     def test_instantiation_with_category_and_confidence(self):
         result = TriageResult(
-            category=TriageCategory.symptom_report,
+            category=TriageCategory.intake,
             confidence=0.95,
         )
-        assert result.category == TriageCategory.symptom_report
+        assert result.category == TriageCategory.intake
         assert result.confidence == 0.95
 
     def test_instantiation_with_informational(self):
@@ -92,9 +113,9 @@ class TestTriageResult:
         assert result.category == TriageCategory.informational
         assert result.confidence == 1.0
 
-    def test_instantiation_with_urgent_zero_confidence(self):
+    def test_instantiation_with_other_zero_confidence(self):
         """Zero confidence is a valid sentinel for LLM failure fallback."""
-        result = TriageResult(category=TriageCategory.general_question, confidence=0.0)
+        result = TriageResult(category=TriageCategory.other, confidence=0.0)
         assert result.confidence == 0.0
 
 

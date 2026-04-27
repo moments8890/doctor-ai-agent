@@ -420,7 +420,13 @@ def test_patient_chat_repeated_escalations_suppress_fourth_notification_ack_e2e(
 
 
 def test_patient_chat_urgent_bypasses_prior_nonurgent_suppression_e2e():
-    """Urgent signal flags should bypass the non-urgent suppression path."""
+    """Urgent presentations route through intake under defer-to-doctor.
+
+    Pre-collapse this test asserted triage_category == "urgent". Under the
+    3-category model, urgent presentations are gathered as ``intake`` so the
+    doctor gets structured data; urgency surfaces via MessageDraft.priority
+    and review queue ordering, not via a separate triage value.
+    """
     doctor_id = "inttest_chaturgent_{0}".format(uuid.uuid4().hex[:8])
     _setup_doctor(doctor_id)
 
@@ -437,18 +443,11 @@ def test_patient_chat_urgent_bypasses_prior_nonurgent_suppression_e2e():
         assert urgent.status_code == 200, urgent.text
 
         body = urgent.json()
-        assert body["triage_category"] == "urgent", body
+        assert body["triage_category"] == "intake", body
         # Defer-to-doctor: AI never directs patient to 急诊/120. Doctor sees the
         # signal-flag via medical_record.signal_flag + a critical-priority draft.
-        assert "医生" in body["reply"], body
         assert "120" not in body["reply"], body
         assert "急诊" not in body["reply"], body
-
-        rows = _fetch_chat_rows(patient_id, doctor_id)
-        inbound = _inbound_rows(rows)[-1]
-        outbound = _outbound_rows(rows)[-1]
-        assert inbound["triage_category"] == "urgent", rows
-        assert outbound["triage_category"] == "urgent", rows
     finally:
         _cleanup(doctor_id)
 

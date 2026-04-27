@@ -1,8 +1,9 @@
 # Test cases for triage-classify.md
 # Prompt: patient message → {category, confidence} JSON
-# Safety-critical: wrong classification can suppress urgent messages
+# Safety-critical: wrong classification can suppress clinical content.
+# 3-category model: intake | informational | other
 
-# --- informational (AI can auto-reply) ---
+# --- informational (pure info, no symptoms described) ---
 
 - description: "triage: medication timing → informational"
   options:
@@ -34,9 +35,9 @@
         const obj = JSON.parse(output);
         return obj.category === 'informational';
 
-# --- symptom_report (must escalate to doctor) ---
+# --- intake: new / worsening symptoms ---
 
-- description: "triage: new symptom → symptom_report"
+- description: "triage: new symptom → intake"
   options:
     prompts: [triage-classify]
   vars:
@@ -47,9 +48,9 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category === 'symptom_report';
+        return obj.category === 'intake';
 
-- description: "triage: worsening symptom → symptom_report"
+- description: "triage: worsening symptom → intake"
   options:
     prompts: [triage-classify]
   vars:
@@ -60,11 +61,11 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category === 'symptom_report';
+        return obj.category === 'intake';
 
-# --- side_effect (must escalate) ---
+# --- intake: drug reactions (collapsed from old side_effect) ---
 
-- description: "triage: drug side effect → side_effect"
+- description: "triage: drug reaction → intake"
   options:
     prompts: [triage-classify]
   vars:
@@ -75,9 +76,9 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category === 'side_effect';
+        return obj.category === 'intake';
 
-- description: "triage: nausea after new medication → side_effect"
+- description: "triage: nausea after new medication → intake"
   options:
     prompts: [triage-classify]
   vars:
@@ -88,11 +89,11 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category === 'side_effect';
+        return obj.category === 'intake';
 
-# --- urgent (highest priority — must never be missed) ---
+# --- intake: urgent presentations (collapsed from old urgent — doctor decides) ---
 
-- description: "triage: chest pain + dyspnea → urgent"
+- description: "triage: chest pain + dyspnea → intake"
   options:
     prompts: [triage-classify]
   vars:
@@ -103,13 +104,13 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category === 'urgent';
+        return obj.category === 'intake';
     - type: javascript
       value: |
         const obj = JSON.parse(output);
         return obj.confidence >= 0.8;
 
-- description: "triage: consciousness change → urgent"
+- description: "triage: consciousness change → intake"
   options:
     prompts: [triage-classify]
   vars:
@@ -120,9 +121,9 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category === 'urgent';
+        return obj.category === 'intake';
 
-- description: "triage: postop bleeding → urgent"
+- description: "triage: postop bleeding → intake"
   options:
     prompts: [triage-classify]
   vars:
@@ -133,11 +134,11 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category === 'urgent';
+        return obj.category === 'intake';
 
-# --- general_question (safe default for ambiguous) ---
+# --- other: ambiguous / unclassifiable ---
 
-- description: "triage: vague message → general_question"
+- description: "triage: vague message → other"
   options:
     prompts: [triage-classify]
   vars:
@@ -148,11 +149,11 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category === 'general_question';
+        return obj.category === 'other';
 
-# --- mixed content (should classify to more clinical category) ---
+# --- mixed content (clinical wins) ---
 
-- description: "triage: info + symptom mixed → symptom_report (clinical priority)"
+- description: "triage: info + symptom mixed → intake (clinical priority)"
   options:
     prompts: [triage-classify]
   vars:
@@ -163,9 +164,9 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category === 'symptom_report';
+        return obj.category === 'intake';
 
-- description: "triage: info + side effect mixed → side_effect (clinical priority)"
+- description: "triage: info + drug reaction mixed → intake"
   options:
     prompts: [triage-classify]
   vars:
@@ -176,11 +177,11 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category === 'side_effect' || obj.category === 'symptom_report';
+        return obj.category === 'intake';
 
-# --- post-surgical neurological signal flags ---
+# --- post-surgical neurological signal flags (still intake) ---
 
-- description: "triage: postop headache + vomiting + high BP → urgent"
+- description: "triage: postop headache + vomiting + high BP → intake"
   options:
     prompts: [triage-classify]
   vars:
@@ -191,13 +192,13 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category === 'urgent';
+        return obj.category === 'intake';
     - type: javascript
       value: |
         const obj = JSON.parse(output);
         return obj.confidence >= 0.8;
 
-- description: "triage: postop new limb weakness + speech difficulty → urgent"
+- description: "triage: postop new limb weakness + speech difficulty → intake"
   options:
     prompts: [triage-classify]
   vars:
@@ -208,13 +209,13 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category === 'urgent';
+        return obj.category === 'intake';
     - type: javascript
       value: |
         const obj = JSON.parse(output);
         return obj.confidence >= 0.8;
 
-- description: "triage: postop wound pain (routine) → symptom_report (NOT urgent)"
+- description: "triage: postop wound pain (routine) → intake (still a symptom)"
   options:
     prompts: [triage-classify]
   vars:
@@ -225,4 +226,4 @@
     - type: javascript
       value: |
         const obj = JSON.parse(output);
-        return obj.category !== 'urgent';
+        return obj.category === 'intake';

@@ -1,21 +1,21 @@
 """AI triage for patient messages (ADR 0020).
 
-Classifies every inbound patient message into a triage category and routes it
-to the appropriate handler:
+Classifies every inbound patient message into one of three categories and
+routes it to the appropriate handler:
 
-- **informational** — AI answers directly using patient context
-- **symptom_report / side_effect** — escalated to doctor with structured summary
-- **general_question** — escalated (safe default for ambiguous messages)
-- **urgent** — immediate safety guidance + doctor notification
+- **intake**         — symptom-shaped messages → IntakeEngine.next_turn
+- **informational**  — KB-answerable Q → AI direct answer (with doctor-draft
+                       fallback when KB has no hit)
+- **other**          — ambiguous / off-topic → doctor draft + system ack
 
-This is safety-critical code: classification errors can suppress clinical
-content.  The system prompt is deliberately conservative — ambiguous messages
-are classified to the *most clinical* category, and low-confidence outputs
-default to ``general_question`` (escalation).
+Under the defer-to-doctor policy the AI never directs patients to ER/120.
+Urgency surfaces to the doctor through the review queue / draft priority,
+not through a separate triage category. Drug reactions are treated as
+symptoms and run through intake.
 
 Sub-modules
 -----------
-- ``triage_handlers`` — handle_informational, handle_escalation, handle_urgent
+- ``triage_handlers`` — handle_informational, handle_escalation
 - ``triage_context``  — load_patient_context
 """
 from __future__ import annotations
@@ -34,7 +34,6 @@ from utils.prompt_loader import get_prompt_sync
 from domain.patient_lifecycle.triage_handlers import (  # noqa: F401
     handle_informational,
     handle_escalation,
-    handle_urgent,
 )
 from domain.patient_lifecycle.triage_context import load_patient_context  # noqa: F401
 
@@ -44,15 +43,40 @@ from domain.patient_lifecycle.triage_context import load_patient_context  # noqa
 # ---------------------------------------------------------------------------
 
 class TriageCategory(str, Enum):
-    """Patient message triage categories."""
+    """Patient message triage categories (3-way model)."""
+    intake = "intake"
     informational = "informational"
-    symptom_report = "symptom_report"
-    side_effect = "side_effect"
-    general_question = "general_question"
-    urgent = "urgent"
+    other = "other"
 
 
 _VALID_CATEGORIES = {c.value for c in TriageCategory}
+
+
+# Read-only legacy mapping for old DB rows / cached payloads written before
+# the 3-category collapse. classify() never returns these strings; this is
+# only consulted when *parsing* a stored category string back into the enum.
+_LEGACY_MAP = {
+    "symptom_report":   TriageCategory.intake,
+    "side_effect":      TriageCategory.intake,
+    "urgent":           TriageCategory.intake,
+    "general_question": TriageCategory.other,
+}
+
+
+def parse_category(value: str) -> TriageCategory:
+    """Parse a stored triage_category string into the new enum.
+
+    Accepts current values (intake/informational/other) and the four legacy
+    names that may still appear in patient_messages rows from before the
+    refactor. Falls back to ``other`` for any unknown value.
+    """
+    if not value:
+        return TriageCategory.other
+    if value in _VALID_CATEGORIES:
+        return TriageCategory(value)
+    if value in _LEGACY_MAP:
+        return _LEGACY_MAP[value]
+    return TriageCategory.other
 
 
 # -- Pydantic response model for classify() --------------------------------
@@ -63,19 +87,18 @@ class ClassifyLLMResponse(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
-# Categories that trigger escalation to doctor (not AI-handled).
-_ESCALATION_CATEGORIES = {
-    TriageCategory.symptom_report,
-    TriageCategory.side_effect,
-    TriageCategory.general_question,
+# Categories that escalate to a doctor draft (informational is the only
+# auto-handleable one, and only when the KB has a hit).
+_ESCALATING_CATEGORIES = {
+    TriageCategory.intake,
+    TriageCategory.other,
 }
 
-# Categories eligible for KB-aware downgrade to informational.
-# If KB has a matching answer, the message can be auto-replied instead of escalated.
-# Never downgrade symptom_report (needs clinical judgment) or urgent.
-_KB_DOWNGRADE_ELIGIBLE = {
-    TriageCategory.side_effect,
-    TriageCategory.general_question,
+# Categories eligible for KB-aware downgrade to informational. ``intake``
+# is never downgraded — symptom-shaped messages always run through the
+# IntakeEngine regardless of KB content.
+_DOWNGRADABLE_TO_INFO = {
+    TriageCategory.other,
 }
 
 
@@ -149,7 +172,7 @@ async def classify(message: str, patient_context: dict, doctor_id: str = "") -> 
     """Classify a patient message into a triage category.
 
     Uses structured_call() with ClassifyLLMResponse for validated output.
-    If confidence < 0.7, defaults to ``general_question`` (safe escalation).
+    If confidence < 0.7, defaults to ``other`` (safe fallback to doctor draft).
     """
     from agent.llm import structured_call
 
@@ -172,13 +195,13 @@ async def classify(message: str, patient_context: dict, doctor_id: str = "") -> 
         )
     except Exception as exc:
         log(f"[triage] classify failed: {exc}", level="error")
-        return TriageResult(category=TriageCategory.general_question, confidence=0.0)
+        return TriageResult(category=TriageCategory.other, confidence=0.0)
 
-    # Low confidence → safe default
+    # Low confidence → safe default (doctor draft path)
     if result.confidence < 0.7:
-        log(f"[triage] low confidence {result.confidence:.2f} for '{result.category.value}', escalating to general_question")
+        log(f"[triage] low confidence {result.confidence:.2f} for '{result.category.value}', defaulting to other")
         return TriageResult(
-            category=TriageCategory.general_question,
+            category=TriageCategory.other,
             confidence=result.confidence,
         )
 
