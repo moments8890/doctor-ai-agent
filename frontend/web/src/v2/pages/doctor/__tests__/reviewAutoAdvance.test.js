@@ -36,4 +36,17 @@ describe("computeNextNav", () => {
   test("handles missing pending field", () => {
     expect(computeNextNav({}, "r1")).toEqual({ kind: "done" });
   });
+
+  test("filters current record when queue has integer ids and currentId is a URL string", () => {
+    // Backend returns record_id as a number (DB primary key); URL gives string.
+    // Strict !== would keep the current record in the list and pick it as next,
+    // causing navigate-replace to the same URL → stuck spinner.
+    const queue = { pending: [{ record_id: 53 }, { record_id: 54 }] };
+    expect(computeNextNav(queue, "53")).toEqual({ kind: "next", nextId: 54, remaining: 1 });
+  });
+
+  test("returns done when only-current is in queue with integer id vs string currentId", () => {
+    const queue = { pending: [{ record_id: 53 }] };
+    expect(computeNextNav(queue, "53")).toEqual({ kind: "done" });
+  });
 });

@@ -8,7 +8,7 @@
  * notes (inline editable), mark complete, delete.
  */
 import { useCallback, useEffect, useState } from "react";
-import { NavBar, Button, Toast, Dialog, List } from "antd-mobile";
+import { SafeArea, NavBar, Button, Toast, Dialog, List } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
@@ -235,6 +235,7 @@ export default function TaskDetailSubpage({ taskId: taskIdProp }) {
   if (loading) {
     return (
       <div style={pageContainer}>
+        <SafeArea position="top" />
         <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>任务详情</NavBar>
         <LoadingCenter />
       </div>

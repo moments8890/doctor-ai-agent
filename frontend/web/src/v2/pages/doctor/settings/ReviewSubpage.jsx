@@ -7,7 +7,7 @@
  * antd-mobile only, no MUI.
  */
 import { useState } from "react";
-import { NavBar, Button, TextArea, Dialog } from "antd-mobile";
+import { SafeArea, NavBar, Button, TextArea, Dialog } from "antd-mobile";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import { useNavigate } from "react-router-dom";
 import { APP, FONT, RADIUS } from "../../../theme";
@@ -464,6 +464,7 @@ export default function ReviewSubpage({
 
   return (
     <div style={pageContainer}>
+      <SafeArea position="top" />
       <NavBar onBack={handleBack} right={headerRight || null} style={navBarStyle}>
         诊断审核
       </NavBar>

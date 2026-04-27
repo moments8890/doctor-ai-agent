@@ -5,7 +5,7 @@
  * antd-mobile only, no MUI.
  */
 import { useState, useEffect, useMemo } from "react";
-import { NavBar, TextArea, Button, Toast } from "antd-mobile";
+import { SafeArea, NavBar, TextArea, Button, Toast } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
@@ -135,6 +135,7 @@ export default function PersonaSubpage() {
 
   return (
     <div style={pageContainer}>
+      <SafeArea position="top" />
       <NavBar backArrow={<SubpageBackHome />}
         onBack={() => navigate(-1)}
         right={

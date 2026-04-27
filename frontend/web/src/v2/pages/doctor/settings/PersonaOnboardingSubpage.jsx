@@ -7,7 +7,7 @@
  * antd-mobile only, no MUI.
  */
 import { useState, useEffect, useRef } from "react";
-import { NavBar, Button, SpinLoading, Toast } from "antd-mobile";
+import { SafeArea, NavBar, Button, SpinLoading, Toast } from "antd-mobile";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -97,6 +97,7 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
   if (loadError) {
     return (
       <div style={pageStyle}>
+        <SafeArea position="top" />
         <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navStyle}>
           初始化风格
         </NavBar>

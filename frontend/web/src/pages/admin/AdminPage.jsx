@@ -15,6 +15,7 @@
  * AdminPageV3 itself; we don't need to duplicate it here.
  */
 
+import { Navigate, useLocation } from "react-router-dom";
 import { setAdminToken } from "../../api";
 import AdminPageV3 from "./v3";
 
@@ -25,12 +26,26 @@ const DEV_MODE = import.meta.env.DEV;
 if (DEV_MODE) setAdminToken("dev");
 
 export default function AdminPage() {
+  const location = useLocation();
+
   // Populate the api.js admin token cache synchronously on every render so
   // V3 children (which fire API calls in their own mount useEffects, before
   // any parent useEffect) see X-Admin-Token from the very first request.
+  // If no token is stored, gate the entire admin surface behind /admin/login —
+  // preserves the requested URL via location.state.next so the login page
+  // sends the user back here on success.
   if (!DEV_MODE && typeof window !== "undefined") {
     const stored = localStorage.getItem(ADMIN_TOKEN_KEY) || "";
-    if (stored) setAdminToken(stored);
+    if (!stored) {
+      return (
+        <Navigate
+          to="/admin/login"
+          replace
+          state={{ next: location.pathname + location.search + location.hash }}
+        />
+      );
+    }
+    setAdminToken(stored);
   }
 
   return <AdminPageV3 />;

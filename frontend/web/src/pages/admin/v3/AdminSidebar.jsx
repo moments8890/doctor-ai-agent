@@ -49,11 +49,11 @@ function navigateTo(href) {
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
-function NavItem({ item, active }) {
+function NavItem({ item, active, onAfterNavigate }) {
   const clickable = !!item.href;
   return (
     <a
-      onClick={clickable ? () => navigateTo(item.href) : undefined}
+      onClick={clickable ? () => { navigateTo(item.href); onAfterNavigate?.(); } : undefined}
       style={{
         position: "relative",
         height: 36,
@@ -326,12 +326,13 @@ function UserMenu({ role }) {
   );
 }
 
-export default function AdminSidebar({ activeSection }) {
+export default function AdminSidebar({ activeSection, mobileOpen = false, onAfterNavigate }) {
   const role = useAdminRole();
 
   return (
     <aside
       data-v3-sidebar
+      data-v3-mobile-open={mobileOpen ? "true" : undefined}
       style={{
         borderRight: `1px solid ${COLOR.borderSubtle}`,
         background: COLOR.bgCard,
@@ -409,6 +410,7 @@ export default function AdminSidebar({ activeSection }) {
                 key={item.key}
                 item={item}
                 active={item.key === activeSection}
+                onAfterNavigate={onAfterNavigate}
               />
             ))}
           </div>

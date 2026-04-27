@@ -4,7 +4,7 @@
  * PrivacyPage v2 — static privacy policy.
  * antd-mobile only, no MUI.
  */
-import { NavBar } from "antd-mobile";
+import { SafeArea, NavBar } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import { APP } from "../theme";
 import PrivacyContent from "./PrivacyContent";
@@ -14,6 +14,7 @@ export default function PrivacyPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", background: APP.surfaceAlt, overflow: "hidden" }}>
+      <SafeArea position="top" />
       <NavBar
         onBack={() => navigate(-1)}
         style={{

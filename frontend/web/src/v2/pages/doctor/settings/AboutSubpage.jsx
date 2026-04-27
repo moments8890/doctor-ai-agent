@@ -3,7 +3,7 @@
  *
  * AboutSubpage v2 — static about page. Card-based layout.
  */
-import { NavBar } from "antd-mobile";
+import { SafeArea, NavBar } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import { APP, FONT, ICON, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
@@ -53,6 +53,7 @@ export default function AboutSubpage() {
 
   return (
     <div style={pageContainer}>
+      <SafeArea position="top" />
       <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>
         关于
       </NavBar>

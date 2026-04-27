@@ -5,7 +5,11 @@ const config: CapacitorConfig = {
   appName: "鲸鱼随行",
   webDir: "dist",
   server: {
-    // Use https scheme so cookies and auth headers behave correctly on Android
+    // Android uses https://localhost so cookies/auth headers behave like on
+    // the real web. iOS keeps the default capacitor://localhost — the iOS
+    // hostname-rewrite path requires WKAppBoundDomains in Info.plist which
+    // we don't ship; the backend allowlist explicitly includes
+    // capacitor://localhost (see src/app_middleware.py setup_cors).
     androidScheme: "https",
   },
 };

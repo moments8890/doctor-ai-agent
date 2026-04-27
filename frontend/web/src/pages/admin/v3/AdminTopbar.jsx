@@ -37,7 +37,7 @@ function navigateBack() {
   window.history.back();
 }
 
-export default function AdminTopbar({ breadcrumb = [], showBack = false }) {
+export default function AdminTopbar({ breadcrumb = [], showBack = false, onMobileNavOpen }) {
 
   return (
     <header
@@ -67,6 +67,33 @@ export default function AdminTopbar({ breadcrumb = [], showBack = false }) {
           color: COLOR.text2,
         }}
       >
+        {/* Mobile-only hamburger: toggled in via CSS in AdminShellV3
+            (data-v3="hamburger" → display:none default, grid on <768px). */}
+        {onMobileNavOpen && (
+          <button
+            type="button"
+            data-v3="hamburger"
+            onClick={onMobileNavOpen}
+            title="菜单"
+            aria-label="打开菜单"
+            style={{
+              display: "none",
+              width: 36,
+              height: 36,
+              marginRight: 4,
+              borderRadius: RADIUS.md,
+              border: `1px solid ${COLOR.borderDefault}`,
+              background: COLOR.bgCard,
+              color: COLOR.text1,
+              cursor: "pointer",
+              placeItems: "center",
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
+              menu
+            </span>
+          </button>
+        )}
         {showBack && (
           <button
             type="button"

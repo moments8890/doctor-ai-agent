@@ -9,8 +9,7 @@
  */
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import {
-  NavBar,
+import { SafeArea, NavBar,
   List,
   JumboTabs,
   Tag,
@@ -996,6 +995,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
   return (
     <div style={pageContainer}>
       {/* NavBar */}
+      <SafeArea position="top" />
       <NavBar
         backArrow={<SubpageBackHome />}
         onBack={handleBack}

@@ -13,7 +13,8 @@
   font-style: normal;
   font-weight: 400;
   font-display: block;
-  src: url('/fonts/material-symbols-outlined.woff') format('woff');
+  src: url('/fonts/material-symbols-outlined.woff2') format('woff2'),
+       url('/fonts/material-symbols-outlined.woff') format('woff');
 }
 
 /* Class definition mirrors the upstream Google Fonts payload. Without

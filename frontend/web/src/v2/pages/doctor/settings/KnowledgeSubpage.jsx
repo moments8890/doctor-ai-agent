@@ -7,8 +7,7 @@
  * antd-mobile only, no MUI.
  */
 import { useMemo, useState, useEffect } from "react";
-import {
-  NavBar,
+import { SafeArea, NavBar,
   List,
   SearchBar,
   Button,
@@ -698,6 +697,7 @@ export default function KnowledgeSubpage() {
 
   return (
     <div style={pageContainer}>
+      <SafeArea position="top" />
       <NavBar backArrow={<SubpageBackHome />}
         onBack={() => navigate(-1)}
         right={

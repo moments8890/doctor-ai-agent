@@ -4,7 +4,7 @@
  * TemplateSubpage v2 — report template management.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { NavBar, Button, Dialog, SpinLoading, Toast } from "antd-mobile";
+import { SafeArea, NavBar, Button, Dialog, SpinLoading, Toast } from "antd-mobile";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -206,6 +206,7 @@ export default function TemplateSubpage() {
 
   return (
     <div style={pageContainer}>
+      <SafeArea position="top" />
       <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>
         报告模板
       </NavBar>

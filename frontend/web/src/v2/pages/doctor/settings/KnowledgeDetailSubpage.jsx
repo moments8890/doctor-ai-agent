@@ -5,7 +5,7 @@
  * antd-mobile only, no MUI.
  */
 import { useCallback, useEffect, useState } from "react";
-import { NavBar, Button, TextArea, Dialog, Toast, Tag, Switch } from "antd-mobile";
+import { SafeArea, NavBar, Button, TextArea, Dialog, Toast, Tag, Switch } from "antd-mobile";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import { useNavigate, useParams } from "react-router-dom";
@@ -176,6 +176,7 @@ export default function KnowledgeDetailSubpage({ itemId: propItemId }) {
   if (editing) {
     return (
       <div style={pageContainer}>
+        <SafeArea position="top" />
         <NavBar backArrow={<SubpageBackHome />}
           onBack={() => setEditing(false)}
           right={

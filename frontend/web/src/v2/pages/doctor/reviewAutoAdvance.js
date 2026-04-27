@@ -8,8 +8,11 @@
  * Pure / no React deps so it's trivially unit-testable.
  */
 export function computeNextNav(reviewQueue, currentId) {
+  // Backend returns record_id as an integer; URL gives currentId as a string.
+  // Stringify both sides so the current record gets filtered out.
+  const current = currentId == null ? "" : String(currentId);
   const pending = reviewQueue?.pending || [];
-  const others = pending.filter((item) => item.record_id !== currentId);
+  const others = pending.filter((item) => String(item.record_id) !== current);
   const next = others[0];
   if (next) {
     return { kind: "next", nextId: next.record_id, remaining: others.length };

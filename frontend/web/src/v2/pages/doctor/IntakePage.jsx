@@ -7,8 +7,7 @@
  * Phase 1 gate: proves antd-mobile + keyboard handler work in WeChat WebView.
  */
 import { useEffect, useRef, useState } from "react";
-import {
-  NavBar,
+import { SafeArea, NavBar,
   Button,
   Dialog,
   Toast,
@@ -32,22 +31,9 @@ import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
 import { APP, FONT, ICON, RADIUS } from "../../theme";
 
 // ── Field label map ────────────────────────────────────────────────
-const FIELD_LABELS = {
-  department: "科室",
-  chief_complaint: "主诉",
-  present_illness: "现病史",
-  past_history: "既往史",
-  allergy_history: "过敏史",
-  personal_history: "个人史",
-  marital_reproductive: "婚育史",
-  family_history: "家族史",
-  physical_exam: "体格检查",
-  specialist_exam: "专科检查",
-  auxiliary_exam: "辅助检查",
-  diagnosis: "初步诊断",
-  treatment_plan: "治疗方案",
-  orders_followup: "医嘱随访",
-};
+// Canonical labels live in v2/intake/fieldLabels.js so the patient submit
+// popup and the doctor complete popup stay in sync.
+import { FIELD_LABELS } from "../../intake/fieldLabels";
 
 // ── Field review card (carry-forward / import) ─────────────────────
 function FieldReviewCard({ title, subtitle, items, confirmLabel, dismissLabel, confirmAllLabel, onConfirm, onDismiss, onConfirmAll, editable, disabled }) {
@@ -755,6 +741,7 @@ export default function IntakePage({
   return (
     <div style={keyboardAwareStyle}>
       {/* Header */}
+      <SafeArea position="top" />
       <NavBar
         onBack={handleBack}
         right={

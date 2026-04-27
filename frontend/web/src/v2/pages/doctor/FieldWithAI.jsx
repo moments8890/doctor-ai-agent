@@ -13,7 +13,16 @@
  */
 import { useState, useMemo } from "react";
 import { TextArea, Swiper } from "antd-mobile";
-import { APP, FONT, RADIUS } from "../../theme";
+import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
+import BiotechOutlinedIcon from "@mui/icons-material/BiotechOutlined";
+import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
+import { APP, FONT, RADIUS, ICON } from "../../theme";
+
+const SECTION_ICONS = {
+  differential: LocalHospitalOutlinedIcon,
+  workup: BiotechOutlinedIcon,
+  treatment: MedicationOutlinedIcon,
+};
 
 function pickTopPending(sections) {
   // Priority: is_custom > (not rejected/confirmed/edited) > id asc
@@ -152,42 +161,52 @@ function AIPendingRow({
           </span>
         )}
       </div>
-      {/* 2026-04-25 new schema: prefer evidence/risk_signals arrays over legacy detail prose */}
-      {s.evidence && s.evidence.length > 0 && (
-        <div style={{ marginTop: 6 }}>
-          <div style={{ fontSize: FONT.sm, color: APP.text2, fontWeight: 600, marginBottom: 4 }}>
-            依据
-          </div>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: FONT.sm, color: APP.text2, lineHeight: 1.6 }}>
-            {s.evidence.map((fact, i) => (
-              <li key={i}>{fact}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {s.risk_signals && s.risk_signals.length > 0 && (
-        <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: FONT.sm, color: APP.danger || "#d92d2d", fontWeight: 600, marginBottom: 4 }}>
-            风险监测
-          </div>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: FONT.sm, color: APP.text2, lineHeight: 1.6 }}>
-            {s.risk_signals.map((signal, i) => (
-              <li key={i}>{signal}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {/* Legacy fallback: detail prose only when new fields are absent */}
-      {(!s.evidence || s.evidence.length === 0) && s.detail && (
+      {/* Detail message — the "详细说明" prose. Editable via the 修改 form;
+          always rendered when present so the doctor sees the full message
+          without having to open edit mode. */}
+      {s.detail && s.detail.trim().length > 0 && (
         <div
           style={{
-            fontSize: FONT.xs,
-            color: APP.text4,
+            marginTop: 4,
+            fontSize: FONT.sm,
+            color: APP.text2,
             lineHeight: 1.55,
-            marginTop: 2,
+            whiteSpace: "pre-wrap",
           }}
         >
           {s.detail}
+        </div>
+      )}
+      {/* Compact supporting context — kept visible (safety + reasoning) but
+          rendered as one-line muted text so the diagnosis title stays the
+          primary visual anchor. Capped at 2 items each: more than that pushes
+          the title down and overwhelms the card. */}
+      {s.evidence && s.evidence.length > 0 && (
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: FONT.xs,
+            color: APP.text4,
+            lineHeight: 1.5,
+          }}
+        >
+          <span style={{ fontWeight: 500 }}>依据：</span>
+          {s.evidence.slice(0, 2).join("、")}
+        </div>
+      )}
+      {s.risk_signals && s.risk_signals.length > 0 && (
+        <div
+          style={{
+            marginTop: 2,
+            fontSize: FONT.xs,
+            color: APP.text4,
+            lineHeight: 1.5,
+          }}
+        >
+          <span style={{ fontWeight: 500, color: APP.danger || "#d92d2d" }}>
+            风险监测：
+          </span>
+          {s.risk_signals.slice(0, 2).join("、")}
         </div>
       )}
       {citedRules.length > 0 && (
@@ -511,7 +530,22 @@ export default function FieldWithAI({
           padding: "8px 14px 4px",
         }}
       >
-        <div style={{ fontSize: FONT.base, fontWeight: 600, color: APP.text1 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: FONT.base,
+            fontWeight: 600,
+            color: APP.text1,
+          }}
+        >
+          {(() => {
+            const SectionIcon = SECTION_ICONS[sectionKey];
+            return SectionIcon ? (
+              <SectionIcon sx={{ fontSize: ICON.xs, color: APP.primary }} />
+            ) : null;
+          })()}
           {label}
         </div>
         {metaText && (
@@ -634,6 +668,11 @@ export default function FieldWithAI({
                   onEdit={() => startEdit(s)}
                   knowledgeMap={knowledgeMap}
                   onOpenCitation={onOpenCitation}
+                  onOpenFeedback={
+                    onOpenFeedback
+                      ? () => onOpenFeedback({ ...s, section: sectionKey })
+                      : undefined
+                  }
                 />
               </div>
             </Swiper.Item>
@@ -673,7 +712,11 @@ export default function FieldWithAI({
               : undefined
           }
         />
-      ) : isEmpty ? (
+      ) : isEmpty &&
+        // Suppress the empty-state hint when the editable field already has
+        // content — the synthetic ✓ row above already shows the doctor's
+        // value, so "暂无 AI 建议 · 手动填写" is misleading.
+        !(hasEditableField && (editableFieldValue || "").trim().length > 0) ? (
         <div
           style={{
             padding: "7px 14px",

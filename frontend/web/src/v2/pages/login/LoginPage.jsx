@@ -13,6 +13,7 @@ import {
   List,
   Picker,
   Popup,
+  SafeArea,
   SearchBar,
   SpinLoading,
   Tabs,
@@ -363,6 +364,7 @@ export default function LoginPage() {
 
   return (
     <div style={styles.page}>
+      <SafeArea position="top" />
       <div style={styles.card}>
         {/* Header */}
         <div style={styles.header}>

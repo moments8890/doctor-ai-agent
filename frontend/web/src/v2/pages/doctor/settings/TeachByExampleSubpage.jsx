@@ -5,7 +5,7 @@
  * antd-mobile only, no MUI.
  */
 import { useState } from "react";
-import { NavBar, TextArea, Button, Toast } from "antd-mobile";
+import { SafeArea, NavBar, TextArea, Button, Toast } from "antd-mobile";
 import CheckOutlinedIcon from "@mui/icons-material/CheckOutlined";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -57,6 +57,7 @@ export default function TeachByExampleSubpage() {
 
   return (
     <div style={pageContainer}>
+      <SafeArea position="top" />
       <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>
         教AI新偏好
       </NavBar>

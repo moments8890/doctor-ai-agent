@@ -4,7 +4,7 @@
  * SettingsPage v2 — card-based layout: profile card at top, AI 助手 group,
  * 通用设置 group, logout + security footer.
  */
-import { NavBar, Button, Dialog, Switch } from "antd-mobile";
+import { SafeArea, NavBar, Button, Dialog, Switch } from "antd-mobile";
 import { useNavigate } from "react-router-dom";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
 import PsychologyOutlinedIcon from "@mui/icons-material/PsychologyOutlined";
@@ -74,6 +74,7 @@ export default function SettingsPage() {
 
   return (
     <div style={pageContainer}>
+      <SafeArea position="top" />
       <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>
         设置
       </NavBar>

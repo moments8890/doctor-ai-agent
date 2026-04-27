@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { NavBar, ProgressBar, Button, SpinLoading, Dialog, Toast } from "antd-mobile";
+import { SafeArea, NavBar, ProgressBar, Button, SpinLoading, Dialog, Toast } from "antd-mobile";
 import { CheckCircleFill, CloseCircleOutline } from "antd-mobile-icons";
 import { usePatientApi } from "../../../api/PatientApiContext";
 import ChatBubble from "../../ChatBubble";
@@ -315,6 +315,7 @@ export default function IntakePage({ token, onBack }) {
   return (
     <div style={{ ...pageStyle, position: "relative" }}>
       {/* NavBar */}
+      <SafeArea position="top" />
       <NavBar
         onBack={handleBackPress}
         right={

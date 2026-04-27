@@ -5,7 +5,7 @@
  * antd-mobile only, no MUI.
  */
 import { useState } from "react";
-import { NavBar, Button, Tag, SpinLoading } from "antd-mobile";
+import { SafeArea, NavBar, Button, Tag, SpinLoading } from "antd-mobile";
 import EmptyState from "../../../components/EmptyState";
 import { useNavigate } from "react-router-dom";
 import { usePersonaPending, useAcceptPendingItem, useRejectPendingItem } from "../../../../lib/doctorQueries";
@@ -44,6 +44,7 @@ export default function PendingReviewSubpage() {
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: APP.surfaceAlt }}>
+      <SafeArea position="top" />
       <NavBar backArrow={<SubpageBackHome />}
         onBack={() => navigate(-1)}
         style={{

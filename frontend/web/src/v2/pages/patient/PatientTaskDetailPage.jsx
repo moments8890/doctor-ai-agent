@@ -4,7 +4,7 @@
  * (Phase 0). Fields: task_type, status (pending|completed|cancelled),
  * source_record_id (derived from task.record_id, NOT task.source_id), completed_at.
  */
-import { Button, Dialog, Ellipsis, NavBar, Tag } from "antd-mobile";
+import { SafeArea, Button, Dialog, Ellipsis, NavBar, Tag } from "antd-mobile";
 import { LeftOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import { APP, FONT } from "../../theme";
@@ -52,6 +52,7 @@ export default function PatientTaskDetailPage({ taskId }) {
 
   return (
     <div style={pageContainer}>
+      <SafeArea position="top" />
       <NavBar backArrow={<LeftOutline />} onBack={() => navigate(-1)} style={navBarStyle}>
         任务详情
       </NavBar>

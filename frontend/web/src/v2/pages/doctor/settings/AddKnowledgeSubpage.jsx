@@ -5,7 +5,7 @@
  * antd-mobile only, no MUI.
  */
 import { useState, useRef } from "react";
-import { NavBar, Button, TextArea, Input, Toast, SpinLoading, Dialog, Tabs } from "antd-mobile";
+import { SafeArea, NavBar, Button, TextArea, Input, Toast, SpinLoading, Dialog, Tabs } from "antd-mobile";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -160,6 +160,7 @@ export default function AddKnowledgeSubpage() {
   if (previewOpen) {
     return (
       <div style={pageContainer}>
+        <SafeArea position="top" />
         <NavBar backArrow={<SubpageBackHome />}
           onBack={() => setPreviewOpen(false)}
           style={navBarStyle}

@@ -736,8 +736,19 @@ function InlineReviewLayout({
     return out;
   }, [suggestions]);
 
+  // Match what the user can actually see + act on. Pending suggestions in
+  // 诊断/治疗 are hidden by FieldWithAI when the editable field already has
+  // content (doctor picked one — no need for a competing proposal). Counting
+  // them here would say "2 条未处理" while only one card is actionable.
+  const isHiddenByFilledField = (s) => {
+    if (s.section === "differential") return diagnosisDraft.trim().length > 0;
+    if (s.section === "treatment") return treatmentDraft.trim().length > 0;
+    return false;
+  };
   const undecidedCount = (suggestions || []).filter(
-    (s) => s.decision == null || s.decision === "pending"
+    (s) =>
+      (s.decision == null || s.decision === "pending") &&
+      !isHiddenByFilledField(s)
   ).length;
 
   const handleFinalize = () => {
@@ -1302,6 +1313,7 @@ export default function ReviewPage({ recordId }) {
           navigate(
             `${dp("tasks")}?tab=followups&highlight_task_ids=${highlight}&origin=review_finalize`
           );
+          setFinalizing(false);
           return;
         }
         // Single-tab IA: auto-advance to next pending review item, or
@@ -1317,6 +1329,7 @@ export default function ReviewPage({ recordId }) {
           Toast.show({ content: "已处理完今日全部事项", position: "bottom" });
           navigate(dp("my-ai"));
         }
+        setFinalizing(false);
       }, 600);
     } catch {
       Toast.show({ content: "提交失败", position: "bottom" });

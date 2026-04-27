@@ -9,7 +9,7 @@
  * the security review).
  */
 import { useEffect, useState } from "react";
-import { NavBar, Button, Toast } from "antd-mobile";
+import { SafeArea, NavBar, Button, Toast } from "antd-mobile";
 import { QRCodeSVG } from "qrcode.react";
 import { useNavigate } from "react-router-dom";
 import { useDoctorStore } from "../../../../store/doctorStore";
@@ -43,6 +43,7 @@ export default function QrSubpage() {
 
   return (
     <div style={pageContainer}>
+      <SafeArea position="top" />
       <NavBar backArrow={<SubpageBackHome />} onBack={() => navigate(-1)} style={navBarStyle}>
         我的患者邀请码
       </NavBar>

@@ -364,6 +364,7 @@ export default function PatientsPage() {
 
   return (
     <div style={pageContainer}>
+      <SafeArea position="top" />
       {/* Subpage NavBar — back+home cluster, 患者 title, "+" right action */}
       <NavBar
         backArrow={<SubpageBackHome />}

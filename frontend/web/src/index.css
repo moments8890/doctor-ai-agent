@@ -1,5 +1,24 @@
 /* Global resets / utility classes for the admin v3 surface. */
 
+/* iOS WKWebView puts form elements on a separate font stack that doesn't
+ * always fall back to PingFang SC for Chinese. Without `font-family: inherit`,
+ * <input placeholder="请输入昵称">, <button>登录</button>, etc. render
+ * Chinese chars as missing-glyph tofu while surrounding labels (which
+ * inherit normally) look fine.
+ *
+ * antd-mobile's `.adm-text-area-element` has `font-family: var(--adm-font-family)`
+ * baked in, which beats a plain `textarea {...}` rule by class-vs-element
+ * specificity — TextArea placeholders render tofu in WKWebView until we
+ * override the class explicitly. We use `body ...` to win over antd-mobile's
+ * class selector regardless of CSS load order. */
+input, textarea, button, select {
+  font-family: inherit;
+}
+body .adm-text-area-element,
+body .adm-input-element {
+  font-family: inherit;
+}
+
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
   font-size: 20px;

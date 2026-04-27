@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { NavBar, Button, Toast, Dialog } from "antd-mobile";
+import { SafeArea, NavBar, Button, Toast, Dialog } from "antd-mobile";
 import { useApi } from "../../../api/ApiContext";
 import { useDoctorStore } from "../../../store/doctorStore";
 import { useKnowledgeItems } from "../../../lib/doctorQueries";
@@ -497,13 +497,16 @@ export default function PatientChatPage({ patientId: propPatientId, embedded = f
     <div style={keyboardAwareStyle}>
       {/* NavBar — hidden when embedded inside PatientDetail tabs */}
       {!embedded && (
-        <NavBar
-          backArrow={<SubpageBackHome />}
-          onBack={handleBack}
-          style={navBarStyle}
-        >
-          {patientName}
-        </NavBar>
+        <>
+          <SafeArea position="top" />
+          <NavBar
+            backArrow={<SubpageBackHome />}
+            onBack={handleBack}
+            style={navBarStyle}
+          >
+            {patientName}
+          </NavBar>
+        </>
       )}
 
       {/* Messages area */}

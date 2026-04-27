@@ -1,7 +1,7 @@
 /**
  * @route /patient/profile/about
  */
-import { NavBar } from "antd-mobile";
+import { SafeArea, NavBar } from "antd-mobile";
 import { LeftOutline } from "antd-mobile-icons";
 import { useNavigate } from "react-router-dom";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
@@ -24,6 +24,7 @@ export default function PatientAboutSubpage() {
 
   return (
     <div style={pageContainer}>
+      <SafeArea position="top" />
       <NavBar backArrow={<LeftOutline />} onBack={() => navigate(-1)} style={navBarStyle}>
         关于
       </NavBar>
