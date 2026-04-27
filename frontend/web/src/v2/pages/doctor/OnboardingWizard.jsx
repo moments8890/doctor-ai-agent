@@ -27,7 +27,7 @@ import {
   clearWizardProgress,
 } from "./onboardingWizardState";
 import { seedDemo, updateDoctorProfile } from "../../../api";
-import { markAllReleasesSeen } from "../../../store/releaseStore";
+import { markPreviousReleasesSeen } from "../../../store/releaseStore";
 import { dp } from "../../../utils/doctorBasePath";
 import { APP, FONT, RADIUS } from "../../theme";
 import SubpageBackHome from "../../components/SubpageBackHome";
@@ -844,7 +844,7 @@ export default function OnboardingWizard() {
     if (next > TOTAL_STEPS) {
       markWizardDone(doctorId, "completed");
       updateDoctorProfile(doctorId, { finished_onboarding: true }).catch(() => {});
-      markAllReleasesSeen(doctorId);
+      markPreviousReleasesSeen(doctorId);
       navigate(dp());
       seedDemo(doctorId)
         .then(() => queryClient.invalidateQueries())
@@ -857,7 +857,7 @@ export default function OnboardingWizard() {
   function handleSkip() {
     markWizardDone(doctorId, "skipped");
     updateDoctorProfile(doctorId, { finished_onboarding: true }).catch(() => {});
-    markAllReleasesSeen(doctorId);
+    markPreviousReleasesSeen(doctorId);
     navigate(dp());
   }
 

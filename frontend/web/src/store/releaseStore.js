@@ -36,11 +36,16 @@ export function markReleaseSeen(doctorId, version) {
   }
 }
 
-/** Mark ALL existing releases as seen (called after onboarding completion). */
-export function markAllReleasesSeen(doctorId) {
-  const allVersions = RELEASES.map((r) => r.version);
-  localStorage.setItem(lsKey(doctorId), JSON.stringify(allVersions));
-  updatePreferences(doctorId, { seen_releases: allVersions }).catch(() => {});
+/**
+ * Mark all PREVIOUS releases as seen, leaving the latest unseen so the
+ * "what's new" modal still pops once after onboarding. Called when a doctor
+ * finishes or skips the onboarding wizard.
+ */
+export function markPreviousReleasesSeen(doctorId) {
+  // RELEASES is newest-first → drop index 0 (the latest)
+  const previousVersions = RELEASES.slice(1).map((r) => r.version);
+  localStorage.setItem(lsKey(doctorId), JSON.stringify(previousVersions));
+  updatePreferences(doctorId, { seen_releases: previousVersions }).catch(() => {});
 }
 
 /**
