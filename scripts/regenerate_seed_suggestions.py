@@ -75,7 +75,7 @@ async def main() -> int:
     async with AsyncSessionLocal() as db:
         stmt = (
             select(MedicalRecordDB.id, MedicalRecordDB.doctor_id)
-            .where(MedicalRecordDB.seed_source == "onboarding_demo")
+            .where(MedicalRecordDB.seed_source.in_(("onboarding_demo", "onboarding_preseed")))
             .order_by(MedicalRecordDB.doctor_id, MedicalRecordDB.id)
         )
         if args.only_doctor:
@@ -97,7 +97,7 @@ async def main() -> int:
     # ── 2. Wipe existing seed suggestions ───────────────────────────
     async with AsyncSessionLocal() as db:
         deleted = (await db.execute(
-            delete(AISuggestion).where(AISuggestion.seed_source == "onboarding_demo")
+            delete(AISuggestion).where(AISuggestion.seed_source.in_(("onboarding_demo", "onboarding_preseed")))
         )).rowcount
         await db.commit()
     print(f"Cleared {deleted} stale seed suggestion(s)")
@@ -112,13 +112,18 @@ async def main() -> int:
                 failed += 1
                 print(f"  FAIL  doctor={doctor_id} record={record_id}: {result.get('error')}")
                 continue
-            # Tag the freshly-created suggestions so cleanup can find them
+            # Tag the freshly-created suggestions so cleanup can find them.
+            # Inherit the parent record's seed_source so preseed-vs-demo split
+            # is preserved.
             async with AsyncSessionLocal() as db:
+                rec_source = (await db.execute(
+                    select(MedicalRecordDB.seed_source).where(MedicalRecordDB.id == record_id)
+                )).scalar_one_or_none() or "onboarding_demo"
                 tagged = (await db.execute(
                     update(AISuggestion)
                     .where(AISuggestion.record_id == record_id)
                     .where(AISuggestion.seed_source.is_(None))
-                    .values(seed_source="onboarding_demo")
+                    .values(seed_source=rec_source)
                 )).rowcount
                 await db.commit()
             success += 1
