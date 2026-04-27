@@ -20,24 +20,26 @@ import SubpageBackHome from "../../../components/SubpageBackHome";
 
 export default function QrSubpage() {
   const navigate = useNavigate();
-  const { doctorId, doctorName, token } = useDoctorStore();
+  // Doctor store exposes the token under `accessToken`. The previous
+  // destructure used `token`, which silently became undefined → fetch
+  // sent no Authorization header → 401 "Missing Authorization header".
+  const { doctorId, doctorName, accessToken } = useDoctorStore();
   const [code, setCode] = useState("");
   const [qrUrl, setQrUrl] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // Wait for both doctorId AND token. The doctor store rehydrates these
-    // separately; firing the fetch with an empty token results in a 401
-    // "Missing Authorization header" that briefly flashes before the retry.
-    if (!doctorId || !token) return;
-    getDoctorAttachCode(token, doctorId)
+    // Wait for both doctorId AND token; doctor-session rehydrates each
+    // separately on cold-start.
+    if (!doctorId || !accessToken) return;
+    getDoctorAttachCode(accessToken, doctorId)
       .then((data) => {
         setCode(data.code || "");
         setQrUrl(data.qr_url || "");
         setError("");
       })
       .catch((err) => setError(err.message || "加载失败"));
-  }, [doctorId, token]);
+  }, [doctorId, accessToken]);
 
   function copyCode() {
     if (!code) return;
