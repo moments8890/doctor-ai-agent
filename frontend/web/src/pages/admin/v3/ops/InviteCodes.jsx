@@ -176,6 +176,7 @@ export default function InviteCodes() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div
+        data-v3="kpi"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(3, 1fr)",
@@ -248,7 +249,7 @@ export default function InviteCodes() {
             暂无邀请码
           </div>
         ) : (
-          <div>
+          <div data-v3="table-scroll">
             <div
               style={{
                 display: "grid",

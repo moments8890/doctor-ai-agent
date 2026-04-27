@@ -168,6 +168,7 @@ export default function PartnerReport() {
       </div>
 
       <div
+        data-v3="kpi"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(3, 1fr)",
@@ -248,7 +249,7 @@ export default function PartnerReport() {
             本周暂无数据
           </div>
         ) : (
-          <div>
+          <div data-v3="table-scroll">
             <div
               style={{
                 display: "grid",

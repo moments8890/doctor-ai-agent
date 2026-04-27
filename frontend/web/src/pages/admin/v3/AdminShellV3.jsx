@@ -76,6 +76,15 @@ html:has(body.admin-v3-mounted) {
   [data-v3="chat-list"] { display: none !important; }
   [data-v3="triptych"] { grid-template-columns: 1fr !important; }
   [data-v3="crumb-here"] { font-size: 18px !important; }
+  /* Wide grid tables (ops InviteCodes, PartnerReport, etc.) — let them
+     keep their desktop column widths but horizontal-scroll inside the
+     wrapper instead of squeezing each column to ~50px. The min-width on
+     direct children preserves readability; touch scroll keeps it native. */
+  [data-v3="table-scroll"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  [data-v3="table-scroll"] > * { min-width: 560px; }
 }
 `;
 
