@@ -2,15 +2,15 @@
 """
 webhook_server.py — Gitee Webhook 监听服务
 
-用途：监听来自 Gitee 的 push 事件，验证 X-Gitee-Token 后异步执行 deploy.sh。
-运行方式：由 doctor-ai-webhook systemd 服务托管，读取 ~/.webhook.env 中的环境变量。
-监听端口：9000（由 nginx 代理，对外路径为 /hooks/deploy）
-并发保护：同一时刻只允许一个 deploy.sh 实例运行，重复请求直接跳过。
+监听端口：9000（由 nginx 代理 /hooks/deploy → 127.0.0.1:9000）
+分发规则：根据 push payload 的 ref 字段选择对应分支的 deploy 脚本
+并发保护：每个分支独立持有一把锁；同分支重复请求跳过；不同分支请求并行。
 
-使用方法（手动测试）：
-    WEBHOOK_SECRET=<your-secret> python3 webhook_server.py
+Python 3.9 compatible per AGENTS.md:120 — no `list[str]` / `str | None`,
+typing imports only.
 """
-import hashlib
+from __future__ import annotations
+
 import hmac
 import http.server
 import json
@@ -18,10 +18,30 @@ import logging
 import os
 import subprocess
 import threading
+from typing import Dict, List, Optional
 
 PORT = int(os.environ.get("WEBHOOK_PORT", "9000"))
 SECRET = os.environ.get("WEBHOOK_SECRET", "")
-DEPLOY_SCRIPT = os.environ.get("DEPLOY_SCRIPT", "/home/ubuntu/deploy.sh")
+
+# Branch → deploy command. The staging command runs under a systemd slice so
+# its RAM/CPU is capped and cannot starve prod. Slice unit lives at
+# /etc/systemd/system/staging-build.slice (see Task 8).
+BRANCH_DEPLOYS: Dict[str, List[str]] = {
+    "main": [
+        "/bin/bash",
+        os.environ.get("DEPLOY_SCRIPT_MAIN", "/home/ubuntu/deploy.sh"),
+    ],
+    "staging": [
+        "/usr/bin/systemd-run",
+        "--unit=staging-deploy-%s" % os.getpid(),
+        "--slice=staging-build.slice",
+        "--collect",
+        "--wait",
+        "--quiet",
+        "/bin/bash",
+        os.environ.get("DEPLOY_SCRIPT_STAGING", "/home/ubuntu/deploy-staging.sh"),
+    ],
+}
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,40 +50,52 @@ logging.basicConfig(
 )
 log = logging.getLogger("webhook")
 
-_deploy_lock = threading.Lock()
+# One lock per branch — main and staging deploys can run concurrently;
+# two pushes to the same branch within one deploy window queue (skip).
+_locks: Dict[str, threading.Lock] = {b: threading.Lock() for b in BRANCH_DEPLOYS}
 
 
-def _run_deploy():
-    if not _deploy_lock.acquire(blocking=False):
-        log.warning("deploy already in progress — skipping")
+def _run_deploy(branch: str, command: List[str]) -> None:
+    lock = _locks[branch]
+    if not lock.acquire(blocking=False):
+        log.warning("deploy already in progress for %s — skipping", branch)
         return
     try:
-        log.info("starting deploy: %s", DEPLOY_SCRIPT)
+        log.info("starting %s deploy: %s", branch, " ".join(command))
         result = subprocess.run(
-            ["/bin/bash", DEPLOY_SCRIPT],
+            command,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=900,  # 15 min — npm ci on cold cache ~3 min, plus headroom
         )
         if result.returncode == 0:
-            log.info("deploy succeeded:\n%s", result.stdout[-2000:])
+            log.info("%s deploy succeeded:\n%s", branch, result.stdout[-2000:])
         else:
             log.error(
-                "deploy failed (rc=%d):\n%s\n%s",
+                "%s deploy failed (rc=%d):\n%s\n%s",
+                branch,
                 result.returncode,
                 result.stdout[-1000:],
                 result.stderr[-1000:],
             )
     except subprocess.TimeoutExpired:
-        log.error("deploy timed out")
+        log.error("%s deploy timed out after 15 min", branch)
     except Exception as exc:
-        log.exception("deploy error: %s", exc)
+        log.exception("%s deploy error: %s", branch, exc)
     finally:
-        _deploy_lock.release()
+        lock.release()
+
+
+def _branch_from_ref(ref: str) -> Optional[str]:
+    # gitee sends e.g. "refs/heads/main" or "refs/heads/staging"
+    prefix = "refs/heads/"
+    if ref.startswith(prefix):
+        return ref[len(prefix):]
+    return None
 
 
 class WebhookHandler(http.server.BaseHTTPRequestHandler):
-    def log_message(self, fmt, *args):  # suppress default access log
+    def log_message(self, fmt, *args):
         pass
 
     def do_POST(self):
@@ -74,7 +106,6 @@ class WebhookHandler(http.server.BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length) if length else b""
 
-        # Gitee sends the raw secret in X-Gitee-Token header
         token = self.headers.get("X-Gitee-Token", "")
         if SECRET and not hmac.compare_digest(token, SECRET):
             log.warning("invalid token from %s", self.client_address[0])
@@ -87,11 +118,19 @@ class WebhookHandler(http.server.BaseHTTPRequestHandler):
             payload = {}
 
         ref = payload.get("ref", "")
-        log.info("push event ref=%r from %s", ref, self.client_address[0])
+        branch = _branch_from_ref(ref)
+        log.info("push event ref=%r (branch=%r) from %s", ref, branch, self.client_address[0])
 
-        # Fire deploy in background so we can respond quickly
-        threading.Thread(target=_run_deploy, daemon=True).start()
-        self._reply(200, "deploying")
+        command = BRANCH_DEPLOYS.get(branch) if branch else None
+        if not command:
+            log.info("ignoring push to unknown branch %r", branch)
+            self._reply(200, "ignored: unknown branch")
+            return
+
+        threading.Thread(
+            target=_run_deploy, args=(branch, command), daemon=True
+        ).start()
+        self._reply(200, f"deploying {branch}")
 
     def _reply(self, code: int, msg: str):
         body = (msg + "\n").encode()
@@ -105,10 +144,8 @@ class WebhookHandler(http.server.BaseHTTPRequestHandler):
 if __name__ == "__main__":
     if not SECRET:
         log.warning("WEBHOOK_SECRET is not set — all requests will be accepted")
-    # Bind to loopback only — nginx proxies /hooks/deploy → 127.0.0.1:9000
-    # so there's no reason to expose the listener on the public interface.
-    # WEBHOOK_BIND can override (e.g. for a debug harness) but defaults safe.
     BIND = os.environ.get("WEBHOOK_BIND", "127.0.0.1")
     server = http.server.ThreadingHTTPServer((BIND, PORT), WebhookHandler)
-    log.info("webhook server listening on %s:%d", BIND, PORT)
+    log.info("webhook server listening on %s:%d (branches: %s)",
+             BIND, PORT, ", ".join(BRANCH_DEPLOYS.keys()))
     server.serve_forever()

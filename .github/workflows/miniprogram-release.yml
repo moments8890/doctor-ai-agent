@@ -1,5 +1,7 @@
-name: WeChat Mini Program Release
+name: WeChat Mini Program — PROD upload
 
+# Triggers on every v* tag, but the job's `if:` skips staging/rc tags.
+# Then the first step refuses to upload if the tagged commit is not on `main`.
 on:
   push:
     tags:
@@ -9,50 +11,57 @@ jobs:
   upload-miniprogram:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Skip staging/rc tags. Empty result = job is skipped (not failed).
+    if: ${{ !contains(github.ref_name, '-staging-') && !contains(github.ref_name, '-rc-') }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # need full history for branch-contains check
+
+      - name: Verify tag matches semver pattern
+        run: |
+          # Belt-and-suspenders: shell regex check the tag name.
+          if ! [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9._-]+)?$ ]]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match v<semver>[-suffix]."
+            exit 1
+          fi
+
+      - name: Verify tag is on main
+        run: |
+          if ! git branch -r --contains "$GITHUB_SHA" | grep -qE 'origin/main$'; then
+            echo "::error::Tag ${GITHUB_REF_NAME} (commit ${GITHUB_SHA}) is not on origin/main."
+            echo "Tag a commit that's been merged to main, or use a -staging- tag for staging."
+            exit 1
+          fi
 
       - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+        with: { node-version: '20' }
 
-      # Build the React SPA that gets loaded in the WebView
       - name: Build web frontend
         working-directory: frontend/web
         run: |
           npm ci
-          npm run build
+          VITE_API_BASE_URL=https://api.doctoragentai.cn npm run build
 
-      # Install WeChat miniprogram-ci
       - name: Install miniprogram-ci
         run: npm install -g miniprogram-ci
 
-      # Write upload key from secret
       - name: Write upload key
         run: echo "${{ secrets.MINIPROGRAM_UPLOAD_KEY }}" > /tmp/mp-upload-key.key
 
-      # Extract version from tag (v1.2.0-xxx → 1.2.0)
       - name: Extract version
         id: version
         run: echo "version=$(echo ${{ github.ref_name }} | sed 's/^v//' | sed 's/-.*//')" >> "$GITHUB_OUTPUT"
 
-      # Build description from tag name + annotation
       - name: Build description
         id: desc
         run: |
           TAG_NAME="${{ github.ref_name }}"
           TAG_MSG=$(git tag -l --format='%(contents:subject)' "$TAG_NAME" 2>/dev/null || echo "")
-          if [ -z "$TAG_MSG" ]; then
-            DESC="$TAG_NAME"
-          else
-            DESC="$TAG_NAME — $TAG_MSG"
-          fi
-          # miniprogram-ci desc max 200 chars
-          DESC="${DESC:0:200}"
-          echo "desc=$DESC" >> "$GITHUB_OUTPUT"
+          DESC="${TAG_NAME}${TAG_MSG:+ — $TAG_MSG}"
+          echo "desc=${DESC:0:200}" >> "$GITHUB_OUTPUT"
 
-      # Upload to WeChat MP platform
-      - name: Upload miniprogram
+      - name: Upload miniprogram (PROD path = app.stg.* branches won't ship here, this is the prod build)
         working-directory: frontend/miniprogram
         run: |
           miniprogram-ci upload \
@@ -60,7 +69,7 @@ jobs:
             --pkp /tmp/mp-upload-key.key \
             --appid wx9667f8091b342fb7 \
             --uv "${{ steps.version.outputs.version }}" \
-            --desc "${{ steps.desc.outputs.desc }}" \
+            --desc "[PROD] ${{ steps.desc.outputs.desc }}" \
             -r 1 \
             --enable-es6 true \
             --enable-es7 true \

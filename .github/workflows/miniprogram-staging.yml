@@ -1,0 +1,70 @@
+name: WeChat Mini Program — STAGING upload
+
+# Glob `v*-staging-*` works as written: `*` is a valid glob wildcard.
+# Refuses to upload if the tagged commit is not on `staging`.
+# Lands in 开发版 of the same appid; resolveBases() at runtime sends it to the
+# staging stack via wx.getAccountInfoSync().miniProgram.envVersion === "develop".
+on:
+  push:
+    tags:
+      - 'v*-staging-*'
+
+jobs:
+  upload-miniprogram-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag matches v<semver>-staging-<date> pattern
+        run: |
+          if ! [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-staging-[0-9A-Za-z._-]+$ ]]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} doesn't match v<semver>-staging-<id>."
+            exit 1
+          fi
+
+      - name: Verify tag is on staging
+        run: |
+          if ! git branch -r --contains "$GITHUB_SHA" | grep -qE 'origin/staging$'; then
+            echo "::error::Tag ${GITHUB_REF_NAME} (commit ${GITHUB_SHA}) is not on origin/staging."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Build web frontend (staging)
+        working-directory: frontend/web
+        run: |
+          npm ci
+          VITE_API_BASE_URL=https://api.stg.doctoragentai.cn npm run build
+
+      - name: Install miniprogram-ci
+        run: npm install -g miniprogram-ci
+
+      - name: Write upload key
+        run: echo "${{ secrets.MINIPROGRAM_UPLOAD_KEY }}" > /tmp/mp-upload-key.key
+
+      - name: Extract version
+        id: version
+        run: echo "version=$(echo ${{ github.ref_name }} | sed 's/^v//' | sed 's/-.*//')" >> "$GITHUB_OUTPUT"
+
+      - name: Upload miniprogram
+        working-directory: frontend/miniprogram
+        run: |
+          miniprogram-ci upload \
+            --pp ./ \
+            --pkp /tmp/mp-upload-key.key \
+            --appid wx9667f8091b342fb7 \
+            --uv "${{ steps.version.outputs.version }}" \
+            --desc "[STAGING] ${{ github.ref_name }}" \
+            -r 1 \
+            --enable-es6 true \
+            --enable-es7 true \
+            --enable-minify true
+
+      - name: Cleanup key
+        if: always()
+        run: rm -f /tmp/mp-upload-key.key
