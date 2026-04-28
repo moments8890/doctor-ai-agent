@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Prompt Quality Audit · 2026-04-27</title>
+<style>
+  :root {
+    --bg: #fafafa; --fg: #1a1a1a; --muted: #6b7280; --border: #e5e7eb;
+    --accent: #07c160; --warn: #f59e0b; --danger: #dc2626; --info: #3b82f6;
+    --code-bg: #f5f5f5; --code-fg: #1a1a1a; --diff-add: #d4f4dd; --diff-del: #fde0e0;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: var(--bg); color: var(--fg);
+    max-width: 880px; margin: 0 auto; padding: 32px 24px 96px;
+    line-height: 1.6; font-size: 15px;
+  }
+  h1 { font-size: 28px; margin: 0 0 8px; font-weight: 600; }
+  h2 { font-size: 20px; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); font-weight: 600; }
+  h3 { font-size: 17px; margin: 20px 0 8px; font-weight: 600; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+    vertical-align: middle; margin-right: 6px;
+  }
+  .b-p0 { background: var(--danger); color: white; }
+  .b-p1 { background: var(--warn); color: white; }
+  .b-p2 { background: #94a3b8; color: white; }
+  .b-ok { background: var(--accent); color: white; }
+  .b-bad { background: #ef4444; color: white; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-weight: 600; background: #f3f4f6; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px 14px; overflow-x: auto;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px;
+    line-height: 1.45; margin: 10px 0;
+  }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px;
+         background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  pre code { background: none; padding: 0; }
+  .diff-add { background: var(--diff-add); display: block; padding-left: 4px; }
+  .diff-del { background: var(--diff-del); display: block; padding-left: 4px; text-decoration: line-through; opacity: 0.85; }
+  .card { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 14px 0; }
+  .card.p0 { border-left: 4px solid var(--danger); }
+  .card.p1 { border-left: 4px solid var(--warn); }
+  .card.p2 { border-left: 4px solid #94a3b8; }
+  .summary-row { display: flex; gap: 12px; margin: 12px 0; }
+  .summary-tile {
+    flex: 1; background: white; border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px 14px; text-align: center;
+  }
+  .summary-tile .v { font-size: 22px; font-weight: 600; }
+  .summary-tile .l { font-size: 12px; color: var(--muted); }
+  .quote { border-left: 3px solid var(--info); padding: 4px 14px; color: #374151; background: #eff6ff; margin: 8px 0; }
+  ul.tight li { margin: 2px 0; }
+  .file { color: #2563eb; font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
+  details { margin: 8px 0; }
+  summary { cursor: pointer; padding: 4px 0; font-weight: 600; color: #4b5563; }
+  .small { font-size: 13px; color: var(--muted); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+</style>
+</head>
+<body>
+
+<h1>Prompt Quality Audit</h1>
+<div class="meta">2026-04-27 · 19 prompts under <code>src/agent/prompts/</code> · 3-round Codex consultation · 87% agreement reached</div>
+
+<div class="summary-row">
+  <div class="summary-tile"><div class="v">19</div><div class="l">prompts reviewed</div></div>
+  <div class="summary-tile"><div class="v">4</div><div class="l">real issues found</div></div>
+  <div class="summary-tile"><div class="v">~60</div><div class="l">lines to change</div></div>
+  <div class="summary-tile"><div class="v">87%</div><div class="l">codex agreement</div></div>
+</div>
+
+<h2>Process</h2>
+<ol class="tight">
+  <li><b>Audit subagent</b> read all 19 .md files, scored against the gold-standard reference (<code>intent/intake.md</code>, <code>intent/patient-intake.md</code>) — produced 4 P0s + several P1s.</li>
+  <li><b>Codex round 1</b> pressure-tested the audit. Agreement: <b>60%</b>. Codex caught: vision-ocr DOES have <code>/no_think</code> already; placeholder syntax inconsistency was intentional per render path; 2 of the P0s were on dead code paths.</li>
+  <li><b>Codex round 2</b> dug into call sites + flagged a real P0 the audit missed: <code>knowledge_ingest.py:67</code> reads its prompt from a path that doesn't exist. Round 2 timed out before final synthesis.</li>
+  <li><b>Codex round 3</b> closed on fix strategies. Final agreement: <b>87%</b>. Adjusted scope of fix C and D from my proposal.</li>
+</ol>
+
+<h2>Findings</h2>
+
+<div class="card p0">
+  <h3><span class="badge b-p0">P0</span> A. <code>knowledge_ingest.py</code> reads from a non-existent path</h3>
+  <p>Every knowledge upload &gt;500 chars currently <code>FileNotFoundError</code>s before its <code>try/except</code>. Silent under fallback that returns raw text without LLM processing — but the LLM-extraction step is effectively never running.</p>
+
+  <p><b>Computation:</b><br>
+    <code>__file__</code> = <span class="file">src/domain/knowledge/knowledge_ingest.py</span><br>
+    <code>.parent.parent</code> resolves to <span class="file">src/domain/</span><br>
+    Adding <code>"agent/prompts/knowledge_ingest.md"</code> gives <span class="file">src/domain/agent/prompts/knowledge_ingest.md</span> ← doesn't exist<br>
+    Real path: <span class="file">src/agent/prompts/knowledge_ingest.md</span>
+  </p>
+
+  <p><b>Fix:</b> add one more <code>.parent</code></p>
+<pre><code><span class="diff-del">- prompt_path = pathlib.Path(__file__).resolve().parent.parent / "agent" / "prompts" / "knowledge_ingest.md"</span>
+<span class="diff-add">+ prompt_path = pathlib.Path(__file__).resolve().parent.parent.parent / "agent" / "prompts" / "knowledge_ingest.md"</span></code></pre>
+  <p class="small">Files: 1 · Lines: 1 · <span class="badge b-ok">codex ✓</span></p>
+</div>
+
+<div class="card p0">
+  <h3><span class="badge b-p0">P0</span> B. <code>style_guard.md</code> contradicts <code>followup_reply.md</code> on urgent phrases</h3>
+  <p>Both prompts get prepended into the followup-reply LLM call (<code>FOLLOWUP_REPLY_LAYERS.style_guard=True</code>). The LLM gets contradicting signals on every doctor reply.</p>
+
+  <table>
+    <tr><th>File</th><th>Says</th></tr>
+    <tr><td><span class="file">common/style_guard.md:44-50</span></td><td>"立即去急诊"/"立即打120" are valid escalation forms</td></tr>
+    <tr><td><span class="file">intent/followup_reply.md:61-83</span></td><td>"严禁'立即去急诊'/'立即打120'/'马上去医院'等急诊指令"</td></tr>
+  </table>
+
+  <p><b>Fix:</b> keep the phrases in style_guard for surfaces that legitimately use them (diagnosis explains doctor's reasoning to doctor), but add a scoped override for followup_reply.</p>
+
+<pre><code><span class="diff-add">+ 本节适用于 **诊断/解释/医嘱解读** 类生成（diagnosis、daily_summary 等），</span>
+<span class="diff-add">+ 用于把医生的处置意见传达给读者。</span>
+<span class="diff-add">+</span>
+- 推荐做检查: `建议去医院做个[具体检查]` ...
+- 紧急: `立即去急诊`（真实医生 5 次）
+- 极紧急（罕见）: `立即打120`（真实医生 1 次，仅用于真实危及生命）
+
+<span class="diff-add">+ **意图覆盖**：在 `followup_reply` 流程（AI 起草给患者的随访消息）中，</span>
+<span class="diff-add">+ 这一节作废 — followup_reply.md 规则 19 优先：AI 不替医生做紧急判断，</span>
+<span class="diff-add">+ 遇风险信号一律转给医生而非输出急诊指令。</span></code></pre>
+
+  <p class="small">Files: 1 · Lines: ~6 · <span class="badge b-ok">codex ✓</span></p>
+</div>
+
+<div class="card p0">
+  <h3><span class="badge b-p0">P0</span> C. Vision OCR doesn't strip <code>&lt;think&gt;</code> if model ignores <code>/no_think</code></h3>
+  <p>Live OCR pipeline at <span class="file">infra/llm/vision.py:104-126</span> returns raw text. If the model ignores the <code>/no_think</code> instruction at the top of <code>vision-ocr.md</code>, reasoning tags leak into the OCR output and downstream consumers see them as document content.</p>
+
+  <p><b>Fix:</b> reuse <code>agent.llm.clean_llm_output()</code> at the wire, before returning.</p>
+
+<pre><code>     result = ...
+<span class="diff-del">-    return result</span>
+<span class="diff-add">+    from agent.llm import clean_llm_output</span>
+<span class="diff-add">+    return clean_llm_output(result)</span></code></pre>
+
+  <p class="small">Codex correction: <b>do NOT also strip in <code>vision_import.py</code>/<code>knowledge_ingest.py</code></b> — the latter routes through <code>llm_call</code> which already cleans. Single source of truth at the wire.</p>
+  <p class="small">Files: 1 · Lines: ~3 · <span class="badge b-ok">codex ✓</span></p>
+</div>
+
+<div class="card p1">
+  <h3><span class="badge b-p1">P1</span> D. Dead triage prompts drifting from production</h3>
+  <p><code>handle_informational()</code> and <code>handle_escalation()</code> are defined in <span class="file">triage_handlers.py</span> but never called from <span class="file">patient_portal/chat.py</span>. The patient flow directly schedules <code>_generate_draft_for_escalated()</code> instead.</p>
+
+  <p>The <code>.md</code> files (<code>triage-escalation.md</code>, <code>triage-informational.md</code>) and the response models exist as zombies — only the promptfoo eval harness still references them.</p>
+
+  <p><b>Fix:</b> clean cut. Per Codex, scope is broader than I initially proposed:</p>
+
+  <ul class="tight">
+    <li>Delete <span class="file">src/agent/prompts/intent/triage-escalation.md</span></li>
+    <li>Delete <span class="file">src/agent/prompts/intent/triage-informational.md</span></li>
+    <li>Remove from <span class="file">triage_handlers.py</span>: <code>handle_informational</code>, <code>handle_escalation</code>, <code>EscalationLLMResponse</code>, <code>InformationalLLMResponse</code>, prompt constants</li>
+    <li>Remove re-exports in <span class="file">triage.py</span> + update <code>__all__</code></li>
+    <li>Remove promptfoo wrappers/cases/run.sh entries: <span class="file">tests/prompts/wrappers/triage-{escalation,informational}.md</span>, <span class="file">tests/prompts/cases/triage-{escalation,informational}.yaml</span></li>
+    <li>Update <span class="file">src/agent/prompts/README.md</span> documentation table</li>
+  </ul>
+  <p class="small">Files: ~6+ · Lines: ~50+ · <span class="badge b-ok">codex ✓ (with broader scope)</span></p>
+</div>
+
+<h2>Findings I dropped after Codex pressure-test</h2>
+
+<table>
+  <tr><th>Original audit claim</th><th>Verdict</th><th>Why</th></tr>
+  <tr>
+    <td><code>vision-ocr.md</code> missing <code>/no_think</code></td>
+    <td><span class="badge b-bad">FALSE</span></td>
+    <td>Line 1 actually says <code>/no_think</code>; audit subagent misread (<code># Role:</code> is on line 2).</td>
+  </tr>
+  <tr>
+    <td>Placeholder syntax inconsistency (<code>{var}</code> vs <code>{{var}}</code> vs <code>&lt;tag&gt;</code>)</td>
+    <td><span class="badge b-bad">NOT A BUG</span></td>
+    <td>Different render paths use different syntax intentionally. <code>{{document_text}}</code> matches its caller's <code>str.replace</code> pattern.</td>
+  </tr>
+  <tr>
+    <td>Triage <code>.md</code> files missing <code>## Output</code> JSON schema</td>
+    <td><span class="badge b-p2">DEMOTED</span></td>
+    <td>Code paths are dead in production. Schemas would only fix the promptfoo harness, not real flows. Better to delete entirely (item D above).</td>
+  </tr>
+  <tr>
+    <td><code>base.md</code>/<code>style_guard.md</code> missing <code>## Purpose</code></td>
+    <td><span class="badge b-p2">COSMETIC</span></td>
+    <td>Self-documenting prepended layers is nice-to-have, not blocking.</td>
+  </tr>
+  <tr>
+    <td><code>domain/neurology.md</code> sparse (17 lines)</td>
+    <td><span class="badge b-p2">COSMETIC</span></td>
+    <td>Could be a stub or could be intentional reference layer. Either way, not breaking.</td>
+  </tr>
+  <tr>
+    <td>Safety/PII rules duplicated across prompts</td>
+    <td><span class="badge b-p2">COSMETIC</span></td>
+    <td>Redundancy is conservative — removing it saves bytes but loses defense-in-depth.</td>
+  </tr>
+</table>
+
+<h2>11 Prompts that came out clean</h2>
+<p class="small">No changes needed:</p>
+<table>
+  <tr><th>File</th><th>Lines</th><th>Verdict</th></tr>
+  <tr><td><span class="file">intent/intake.md</span></td><td class="num">93</td><td>Gold standard reference</td></tr>
+  <tr><td><span class="file">intent/patient-intake.md</span></td><td class="num">157</td><td>Just refactored, engine-driven</td></tr>
+  <tr><td><span class="file">intent/doctor-extract.md</span></td><td class="num">125</td><td>Clean structure + edge cases</td></tr>
+  <tr><td><span class="file">intent/patient-extract.md</span></td><td class="num">114</td><td>Clean structure</td></tr>
+  <tr><td><span class="file">intent/diagnosis.md</span></td><td class="num">210</td><td>Dense but coherent</td></tr>
+  <tr><td><span class="file">intent/daily_summary.md</span></td><td class="num">163</td><td>Strong JSON schema</td></tr>
+  <tr><td><span class="file">intent/triage-classify.md</span></td><td class="num">58</td><td>Just refactored to 3 categories</td></tr>
+  <tr><td><span class="file">persona-classify.md</span></td><td class="num">186</td><td>Strong JSON + good examples</td></tr>
+  <tr><td><span class="file">persona-teach.md</span></td><td class="num">117</td><td>Well-designed extraction logic</td></tr>
+  <tr><td><span class="file">persona-generate.md</span></td><td class="num">76</td><td>Minor — input format depends on persona-teach</td></tr>
+  <tr><td><span class="file">voice_to_rule.md</span></td><td class="num">121</td><td>Clean English-first design</td></tr>
+</table>
+
+<h2>Where I still disagree with Codex (~13% gap)</h2>
+
+<details>
+  <summary>1. Item B — override note may be too weak</summary>
+  <div class="quote">
+    Codex agreed with my approach but I think the override is weak — a footnote at the bottom of style_guard.md is easy for the LLM to miss when both blocks are loaded simultaneously. Stronger fix would be: drop those phrases from style_guard entirely AND add them only to the surfaces that need them (diagnosis.md). But that touches more files. Acceptable to ship the lighter version first and observe.
+  </div>
+</details>
+
+<details>
+  <summary>2. Item C — defense-in-depth in consumers</summary>
+  <div class="quote">
+    Codex says drop my consumer-level stripping to avoid drift. I'd add at least an assertion in <code>vision_import.py:_extract_fields</code> that the result has no <code>&lt;think&gt;</code> tags (cheap defense-in-depth, no behavior change unless something slips through). Optional.
+  </div>
+</details>
+
+<h2>Recommendation</h2>
+
+<div class="card">
+  <p><b>Ship A + B + C as one focused commit</b> — these are live-path bug fixes, ~10 lines total across 3 files.</p>
+  <p><b>Defer D as a separate "remove dead triage" cleanup PR</b> — no behavior change, but larger surface (~50 lines across 6+ files), easier to review on its own.</p>
+
+  <p>Skip P2 cosmetic items entirely.</p>
+</div>
+
+<h2>Sizes & summary</h2>
+<table>
+  <tr><th>Item</th><th>Severity</th><th>Files</th><th>Lines</th><th>Codex</th><th>Status</th></tr>
+  <tr><td>A · knowledge_ingest path</td><td><span class="badge b-p0">P0</span></td><td class="num">1</td><td class="num">1</td><td>✓</td><td>Show-stopper</td></tr>
+  <tr><td>B · style_guard override</td><td><span class="badge b-p0">P0</span></td><td class="num">1</td><td class="num">~6</td><td>✓</td><td>Conflict resolution</td></tr>
+  <tr><td>C · vision OCR strip</td><td><span class="badge b-p0">P0</span></td><td class="num">1</td><td class="num">~3</td><td>✓</td><td>Single-point fix</td></tr>
+  <tr><td>D · dead triage cleanup</td><td><span class="badge b-p1">P1</span></td><td class="num">6+</td><td class="num">~50+</td><td>✓ (broader scope)</td><td>Separate PR</td></tr>
+</table>
+
+<hr>
+<p class="small">Audit conducted by Claude Opus 4.7 with subagent dispatch + 3-round Codex (gpt-5.4) consultation.<br>
+Audit subagent run: <code>~15 tool calls</code> · Codex r1: <code>165k tokens</code> · r2: timed out · r3: <code>90k tokens</code><br>
+Final agreement: <b>87%</b> (codex's number). Remaining gap: scope of fix B (override vs. removal) and C (defense-in-depth).</p>
+
+</body>
+</html>
