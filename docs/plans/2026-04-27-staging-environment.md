@@ -112,7 +112,7 @@ file:///Volumes/ORICO/Code/doctor-ai-agent/deploy/tencent/nginx/app.doctoragenta
 
 file:///Volumes/ORICO/Code/doctor-ai-agent/.github/workflows/miniprogram-release.yml
 
-file:///Volumes/ORICO/Code/doctor-ai-agent/docs/deploy/tecenet-deployment/scripts/webhook_server.py
+file:///Volumes/ORICO/Code/doctor-ai-agent/deploy/tencent/webhook_server.py
 
 file:///Volumes/ORICO/Code/doctor-ai-agent/AGENTS.md
 
@@ -158,7 +158,7 @@ The residual risks (MySQL buffer-pool contention, IOPS spikes from concurrent mi
 - `frontend/miniprogram/pages/login/login.js:28` — switch to `webBase` for the WebView src
 - `frontend/miniprogram/pages/doctor/doctor.js:36` — switch to `webBase` for the WebView src
 - `frontend/miniprogram/utils/api.js:7` — read `apiBase` from `app.globalData` (already does, but clarify)
-- `docs/deploy/tecenet-deployment/scripts/webhook_server.py` — branch-aware dispatch with per-branch locks
+- `deploy/tencent/webhook_server.py` — branch-aware dispatch with per-branch locks
 - `.github/workflows/miniprogram-release.yml` — gate to `main` branch only; rename context-clear
 
 **Manual one-time changes (outside repo):**
@@ -411,13 +411,13 @@ The nginx vhost in Task 6 serves this directly out of the working tree, NOT out 
 ## Task 3: Revise webhook server for per-branch dispatch with per-branch locks
 
 **Files:**
-- Modify: `docs/deploy/tecenet-deployment/scripts/webhook_server.py`
+- Modify: `deploy/tencent/webhook_server.py`
 
 **Why this comes first:** Once `staging` branch exists on gitee and a webhook is configured, the existing `webhook_server.py` would happily run prod's `deploy.sh` for staging pushes (it ignores `ref`). Fix the dispatcher *before* anything else can trigger it.
 
 - [ ] **Step 1: Replace `webhook_server.py`**
 
-Open `docs/deploy/tecenet-deployment/scripts/webhook_server.py` and replace the dispatch section so it picks the deploy script by branch and uses per-branch locks. Full file:
+Open `deploy/tencent/webhook_server.py` and replace the dispatch section so it picks the deploy script by branch and uses per-branch locks. Full file:
 
 ```python
 #!/usr/bin/env python3
@@ -585,7 +585,7 @@ Differences from the prior file:
 - [ ] **Step 3: Commit**
 
 ```bash
-git add docs/deploy/tecenet-deployment/scripts/webhook_server.py
+git add deploy/tencent/webhook_server.py
 git commit -m "feat(deploy): branch-aware webhook dispatch with per-branch locks"
 ```
 
