@@ -1,13 +1,13 @@
 /**
  * Workflow 21 — Patient chat
  */
-import { test, expect, authenticatePatientPage, registerDoctor, registerPatient } from "./fixtures/doctor-auth";
+import { test, expect, authenticatePatientPage, loginAsTestDoctor, loginAsTestPatient } from "./fixtures/doctor-auth";
 import { sendDoctorReply } from "./fixtures/seed";
 
 test.describe("工作流 21 — 患者对话", () => {
   test("患者发送消息且无虚假AI回复", async ({ page, request, steps }) => {
-    const doctor = await registerDoctor(request);
-    const patient = await registerPatient(request, doctor.doctorId);
+    const doctor = await loginAsTestDoctor(request);
+    const patient = await loginAsTestPatient(request, doctor.doctorId);
     await authenticatePatientPage(page, patient, doctor.name);
 
     // Mark onboarding done so overlay doesn't block input
@@ -32,8 +32,8 @@ test.describe("工作流 21 — 患者对话", () => {
   });
 
   test("医生回复显示医生姓名", async ({ page, request, steps }) => {
-    const doctor = await registerDoctor(request);
-    const patient = await registerPatient(request, doctor.doctorId);
+    const doctor = await loginAsTestDoctor(request);
+    const patient = await loginAsTestPatient(request, doctor.doctorId);
 
     await sendDoctorReply(request, doctor, patient.patientId, "注意休息，明天来复查");
 

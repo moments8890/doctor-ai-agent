@@ -49,8 +49,12 @@ test.describe("工作流 04 — AI风格规则", () => {
     await addPersonaRule(request, doctor, "closing", "有问题随时联系我");
     await doctorPage.goto("/doctor/settings/persona");
 
-    // The fallback from rules should show the closing text
-    await expect(doctorPage.getByText(/有问题随时联系我/)).toBeVisible();
+    // The fallback from rules should show the closing text.
+    // Scope the regex with the section label so it matches the persona page only.
+    // The MyAI home page (rendered behind the subpage overlay) shows
+    // `AI风格：有问题随时联系我` as a short summary card and would otherwise
+    // collide with the persona body's `结尾方式：有问题随时联系我`.
+    await expect(doctorPage.getByText(/结尾方式：有问题随时联系我/)).toBeVisible();
 
     await steps.capture(doctorPage, "已有风格内容", "显示已配置的结尾语");
 
@@ -70,7 +74,9 @@ test.describe("工作流 04 — AI风格规则", () => {
     await addPersonaRule(request, doctor, "avoid", "不主动展开罕见风险");
     await doctorPage.goto("/doctor/settings/persona");
 
-    await expect(doctorPage.getByText(/不主动展开罕见风险/)).toBeVisible();
+    // Scope to persona section label — the MyAI home behind the overlay shows
+    // the same rule text under an `AI风格：…` summary card.
+    await expect(doctorPage.getByText(/回避内容：不主动展开罕见风险/)).toBeVisible();
 
     await steps.capture(doctorPage, "编辑前状态", "显示原有风格内容");
 
@@ -84,7 +90,7 @@ test.describe("工作流 04 — AI风格规则", () => {
     await doctorPage.getByText("取消", { exact: true }).first().click();
 
     // Original content should still be visible
-    await expect(doctorPage.getByText(/不主动展开罕见风险/)).toBeVisible();
+    await expect(doctorPage.getByText(/回避内容：不主动展开罕见风险/)).toBeVisible();
     await expect(doctorPage.getByText("完全不同的内容")).toBeHidden();
 
     await steps.capture(doctorPage, "取消编辑后恢复", "原有内容未被修改");
@@ -102,10 +108,13 @@ test.describe("工作流 04 — AI风格规则", () => {
 
     await doctorPage.goto("/doctor/settings/persona");
 
-    // All rules should appear in the fallback text
-    await expect(doctorPage.getByText(/直接给结论/)).toBeVisible();
-    await expect(doctorPage.getByText(/祝早日康复/)).toBeVisible();
-    await expect(doctorPage.getByText(/先结论后解释/)).toBeVisible();
+    // All rules should appear in the persona page fallback text.
+    // Scope to the section label so the MyAI home preview (rendered behind
+    // the overlay as `AI风格：直接给结论 · 祝早日康复 · 先结论后解释`)
+    // doesn't collide with the persona body under strict-mode.
+    await expect(doctorPage.getByText(/沟通风格：直接给结论/)).toBeVisible();
+    await expect(doctorPage.getByText(/结尾方式：祝早日康复/)).toBeVisible();
+    await expect(doctorPage.getByText(/回复结构：先结论后解释/)).toBeVisible();
 
     await steps.capture(doctorPage, "多条规则展示", "三条风格规则全部可见");
   });

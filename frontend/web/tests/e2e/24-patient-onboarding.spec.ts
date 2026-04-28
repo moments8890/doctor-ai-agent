@@ -1,13 +1,15 @@
 /**
  * Workflow 24 — Patient onboarding
  */
-import { test, expect, authenticatePatientPage, registerDoctor, registerPatient } from "./fixtures/doctor-auth";
+import { test, expect, authenticatePatientPage, loginAsTestDoctor, loginAsTestPatient } from "./fixtures/doctor-auth";
 
 test.describe("工作流 24 — 患者引导", () => {
   test("首次患者看到引导页，关闭后不再显示", async ({ page, request, steps }) => {
-    const doctor = await registerDoctor(request);
-    const patient = await registerPatient(request, doctor.doctorId);
-    await authenticatePatientPage(page, patient, doctor.name);
+    const doctor = await loginAsTestDoctor(request);
+    const patient = await loginAsTestPatient(request, doctor.doctorId);
+    // This spec explicitly wants the onboarding overlay to render — opt out
+    // of the default `skipOnboarding=true` behavior.
+    await authenticatePatientPage(page, patient, { skipOnboarding: false });
 
     await page.evaluate((pid) => {
       localStorage.setItem("patient_portal_patient_id", pid);

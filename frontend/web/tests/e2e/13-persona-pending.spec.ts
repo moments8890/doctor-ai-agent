@@ -34,7 +34,7 @@ test.describe("工作流 13 — 待确认风格", () => {
       }),
     );
 
-    await doctorPage.goto("/doctor/settings/persona/pending");
+    await doctorPage.goto("/doctor/settings/pending-review");
 
     // step 1.1 — page header
     await expect(doctorPage.getByText("AI发现")).toBeVisible();
@@ -83,7 +83,7 @@ test.describe("工作流 13 — 待确认风格", () => {
       }),
     );
 
-    await doctorPage.goto("/doctor/settings/persona/pending");
+    await doctorPage.goto("/doctor/settings/pending-review");
 
     // step 2.1 — both items render
     await expect(doctorPage.getByText("简洁直接，不绕弯")).toBeVisible();
@@ -136,7 +136,7 @@ test.describe("工作流 13 — 待确认风格", () => {
       return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
     });
 
-    await doctorPage.goto("/doctor/settings/persona/pending");
+    await doctorPage.goto("/doctor/settings/pending-review");
 
     // Both items visible
     await expect(doctorPage.getByText("口语化回复")).toBeVisible();
@@ -176,7 +176,7 @@ test.describe("工作流 13 — 待确认风格", () => {
       return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
     });
 
-    await doctorPage.goto("/doctor/settings/persona/pending");
+    await doctorPage.goto("/doctor/settings/pending-review");
     await expect(doctorPage.getByText("结尾加鼓励语")).toBeVisible();
     await steps.capture(doctorPage, "单项待确认列表");
 

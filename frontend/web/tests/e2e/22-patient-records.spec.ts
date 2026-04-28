@@ -4,13 +4,13 @@
  * As of 2026-04-24, RecordsTab is a single chronological timeline grouped by
  * month — no view toggle, no type filter. Test only the simplified surface.
  */
-import { test, expect, authenticatePatientPage, registerDoctor, registerPatient } from "./fixtures/doctor-auth";
+import { test, expect, authenticatePatientPage, loginAsTestDoctor, loginAsTestPatient } from "./fixtures/doctor-auth";
 import { completePatientIntake, addKnowledgeText } from "./fixtures/seed";
 
 test.describe("工作流 22 — 患者病历", () => {
   test("完成问诊后病历列表中显示记录", async ({ page, request, steps }) => {
-    const doctor = await registerDoctor(request);
-    const patient = await registerPatient(request, doctor.doctorId);
+    const doctor = await loginAsTestDoctor(request);
+    const patient = await loginAsTestPatient(request, doctor.doctorId);
     await addKnowledgeText(request, doctor, "高血压患者头痛需排除高血压脑病");
     await completePatientIntake(request, patient);
 

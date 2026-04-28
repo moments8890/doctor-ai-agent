@@ -10,7 +10,7 @@ test.describe("工作流 16 — 模板管理", () => {
     doctorPage,
     steps,
   }) => {
-    await doctorPage.goto("/doctor/settings/template");
+    await doctorPage.goto("/doctor/settings/templates");
 
     // 1.1 — page header (may appear in both header and settings list; use .first())
     // Allow extra time for settings subpage to render after navigation.
@@ -26,26 +26,26 @@ test.describe("工作流 16 — 模板管理", () => {
     // 1.3 — status card shows default template info
     await expect(doctorPage.getByText("门诊病历报告模板")).toBeVisible();
     await expect(
-      doctorPage.getByText("使用国家卫生部 2010 年标准格式 ›"),
+      doctorPage.getByText("使用国家卫生部 2010 年标准格式"),
     ).toBeVisible();
 
     // 1.5 — upload action visible, no delete action
     await expect(doctorPage.getByText("上传模板文件")).toBeVisible();
     await expect(doctorPage.getByText("删除模板，恢复默认")).toBeHidden();
 
-    // 1.6 — format hint
+    // 1.6 — format hint (source: TemplateSubpage.jsx subtitle "PDF / DOCX / DOC / TXT / JPG / PNG, 最大 1 MB")
     await expect(
-      doctorPage.getByText(/支持格式：PDF、DOCX、DOC、TXT、JPG、PNG/),
+      doctorPage.getByText(/PDF \/ DOCX \/ DOC \/ TXT \/ JPG \/ PNG/),
     ).toBeVisible();
     await steps.capture(doctorPage, "验证默认模板状态");
   });
 
   test("2. 标准格式预览弹窗", async ({ doctorPage, steps }) => {
-    await doctorPage.goto("/doctor/settings/template");
+    await doctorPage.goto("/doctor/settings/templates");
 
     // 2.1 — tap the standard format link
     await doctorPage
-      .getByText("使用国家卫生部 2010 年标准格式 ›")
+      .getByText("使用国家卫生部 2010 年标准格式")
       .click();
 
     // 2.1 — dialog opens
@@ -78,7 +78,7 @@ test.describe("工作流 16 — 模板管理", () => {
   test.skip("3. 上传、替换和删除模板", async ({
     doctorPage,
   }) => {
-    await doctorPage.goto("/doctor/settings/template");
+    await doctorPage.goto("/doctor/settings/templates");
 
     // 3.1 — upload via setInputFiles on the hidden input
     const fileInput = doctorPage.locator('input[type="file"]');
@@ -118,7 +118,7 @@ test.describe("工作流 16 — 模板管理", () => {
     // 5.4 — reverted to default
     await expect(doctorPage.getByText("已自定义")).toBeHidden();
     await expect(
-      doctorPage.getByText("使用国家卫生部 2010 年标准格式 ›"),
+      doctorPage.getByText("使用国家卫生部 2010 年标准格式"),
     ).toBeVisible();
   });
 });

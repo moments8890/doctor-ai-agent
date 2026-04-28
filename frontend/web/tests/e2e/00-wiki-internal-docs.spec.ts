@@ -22,16 +22,19 @@ import { test, expect, type Page } from "@playwright/test";
 // regression boundary.
 const DOCS = [
   // 系统架构 / 产品
-  { slug: "architecture",            expectInTitle: "架构" },
+  // Most internal docs have settled into English H1s; we match against the
+  // actual heading keyword. This still catches the regression we care about
+  // (silent marked.js parse failure) — the H1-exists check above runs for all.
+  { slug: "architecture",            expectInTitle: "architecture" },
   { slug: "product-strategy",        expectInTitle: "策略" },
   { slug: "north-star",              expectInTitle: "" },     // tiny doc, no specific keyword guarantee
   { slug: "roadmap",                 expectInTitle: "" },
   // 部署运维
-  { slug: "services",                expectInTitle: "服务" },
-  { slug: "runbook-subdomain-split", expectInTitle: "子域名" },
+  { slug: "services",                expectInTitle: "services" },
+  { slug: "runbook-subdomain-split", expectInTitle: "subdomain" },
   { slug: "tencent-resources",       expectInTitle: "资源" },
   { slug: "glitchtip",               expectInTitle: "GlitchTip" },
-  { slug: "dbgate",                  expectInTitle: "DBGate" },
+  { slug: "dbgate",                  expectInTitle: "adminer" },  // doc renamed to Adminer; slug retained for URL stability
   { slug: "mysql-restore",           expectInTitle: "MySQL" },
   // 开发指南
   { slug: "repo-rules",              expectInTitle: "" },

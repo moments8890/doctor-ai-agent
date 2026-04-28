@@ -108,6 +108,94 @@ def register_health_and_utility_routes(
 
         return {"cleared": cleared}
 
+    @app.post("/api/test/reset-test-doctor-data")
+    async def reset_test_doctor_data():
+        """Wipe all per-test state under the seeded test doctor (nickname=test)
+        and the seeded test patient under that doctor. Preserves the doctors
+        row and the test patient row so subsequent logins keep working.
+
+        Triple-guarded: ENVIRONMENT must be dev/test AND PATIENTS_DB_PATH must
+        contain "e2e" or "test" (so this can never accidentally fire against
+        a production-like DB).
+        """
+        _env = os.environ.get("ENVIRONMENT", "").strip().lower()
+        if _env not in ("development", "dev", "test") and "pytest" not in sys.modules:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404)
+
+        _db_path = (os.environ.get("PATIENTS_DB_PATH") or "").lower()
+        if "e2e" not in _db_path and "test" not in _db_path:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=400,
+                detail="reset endpoint refuses to fire unless PATIENTS_DB_PATH "
+                "contains 'e2e' or 'test'",
+            )
+
+        from db.engine import AsyncSessionLocal
+        from db.models import Doctor, Patient
+        from sqlalchemy import select, text
+        from infra.auth.rate_limit import _RATE_WINDOWS
+
+        # Tables FK'd to doctors.doctor_id — wipe all rows for the test doctor.
+        per_doctor_tables = [
+            "ai_suggestions", "audit_log", "doctor_chat_log", "doctor_edits",
+            "doctor_feature_flags", "doctor_knowledge_items", "doctor_personas",
+            "doctor_tasks", "doctor_wechat", "form_responses",
+            "hallucinated_citations", "intake_sessions", "kb_pending_items",
+            "knowledge_usage_log", "medical_records", "message_drafts",
+            "patient_messages", "persona_pending_items", "platform_feedback",
+        ]
+
+        async with AsyncSessionLocal() as db:
+            doctor = (await db.execute(
+                select(Doctor).where(Doctor.nickname == "test").limit(1)
+            )).scalar_one_or_none()
+            if doctor is None:
+                return {"reset": False, "reason": "no test doctor seeded"}
+            doctor_id = doctor.doctor_id
+
+            test_patient = (await db.execute(
+                select(Patient).where(
+                    Patient.doctor_id == doctor_id,
+                    Patient.nickname == "test",
+                ).limit(1)
+            )).scalar_one_or_none()
+            test_patient_id = test_patient.id if test_patient else None
+
+            counts = {}
+            for t in per_doctor_tables:
+                res = await db.execute(
+                    text(f"DELETE FROM {t} WHERE doctor_id = :did"),
+                    {"did": doctor_id},
+                )
+                counts[t] = res.rowcount or 0
+
+            # Patients under test doctor — preserve test patient only.
+            if test_patient_id is not None:
+                res = await db.execute(
+                    text("DELETE FROM patients WHERE doctor_id = :did AND id != :pid"),
+                    {"did": doctor_id, "pid": test_patient_id},
+                )
+            else:
+                res = await db.execute(
+                    text("DELETE FROM patients WHERE doctor_id = :did"),
+                    {"did": doctor_id},
+                )
+            counts["patients"] = res.rowcount or 0
+
+            await db.commit()
+
+        # Clear in-memory rate limit windows so re-runs don't 429.
+        _RATE_WINDOWS.clear()
+
+        return {
+            "reset": True,
+            "doctor_id": doctor_id,
+            "test_patient_id": test_patient_id,
+            "rows_deleted": counts,
+        }
+
     @app.get("/api/version")
     def api_version():
         return {"version": 1, "app_version": "0.2.0"}

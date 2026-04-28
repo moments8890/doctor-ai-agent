@@ -11,12 +11,12 @@
  * The PATIENT_CHAT_INTAKE_ENABLED feature flag defaults ON so this test runs
  * against any newly-registered doctor without setup.
  */
-import { test, expect, authenticatePatientPage, registerDoctor, registerPatient, API_BASE_URL } from "./fixtures/doctor-auth";
+import { test, expect, authenticatePatientPage, loginAsTestDoctor, loginAsTestPatient, API_BASE_URL } from "./fixtures/doctor-auth";
 
 test.describe("工作流 28 — 患者聊天-问诊融合", () => {
   test("症状描述触发 intake 并出现 confirm gate", async ({ page, request, steps }) => {
-    const doctor = await registerDoctor(request);
-    const patient = await registerPatient(request, doctor.doctorId);
+    const doctor = await loginAsTestDoctor(request);
+    const patient = await loginAsTestPatient(request, doctor.doctorId);
     await authenticatePatientPage(page, patient, doctor.name);
 
     // Skip onboarding overlay
@@ -79,8 +79,8 @@ test.describe("工作流 28 — 患者聊天-问诊融合", () => {
   });
 
   test("非症状消息走 legacy 路径，不触发 intake", async ({ page, request, steps }) => {
-    const doctor = await registerDoctor(request);
-    const patient = await registerPatient(request, doctor.doctorId);
+    const doctor = await loginAsTestDoctor(request);
+    const patient = await loginAsTestPatient(request, doctor.doctorId);
     await authenticatePatientPage(page, patient, doctor.name);
 
     await page.evaluate((pid) => {

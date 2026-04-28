@@ -34,18 +34,27 @@ export interface TestDoctor {
 }
 
 /**
- * Fixed credentials for the shared test doctor. Seeded via
- * `scripts/ensure_test_doctor.py` before the suite runs (wired into
- * `scripts/validate-v2-e2e.sh`). Every spec that pulls the `doctor` /
- * `doctorPage` fixture logs in as this same doctor — no per-test
+ * Fixed credentials for the shared test doctor + test patient. Seeded
+ * via `scripts/ensure_test_doctor.py` and `scripts/ensure_test_patient.py`
+ * before the suite runs (both wired into `scripts/validate-v2-e2e.sh`).
+ *
+ * Every spec that pulls the `doctor` / `doctorPage` / `patient` /
+ * `patientPage` fixture logs in as this same pair — no per-test
  * registration, no random nicknames, no rate-limit thrash, no state
  * pollution from racing register-then-login flows.
  *
- * Specs that explicitly verify the register endpoint (seed-smoke) call
- * `registerDoctor` directly and continue to use random per-call nicknames.
+ * Patient nickname uniqueness is scoped per-doctor on the backend, so a
+ * patient and a doctor sharing the nickname `test` is fine — the unified
+ * login disambiguates by `role` (and `doctor_id` for patient).
+ *
+ * Specs that explicitly verify the register endpoints (seed-smoke) call
+ * `registerDoctor` / `registerPatient` directly and continue to use random
+ * per-call nicknames.
  */
 export const TEST_DOCTOR_NICKNAME = "test";
 export const TEST_DOCTOR_PASSCODE = "123456";
+export const TEST_PATIENT_NICKNAME = "test";
+export const TEST_PATIENT_PASSCODE = "123456";
 
 export interface TestPatient {
   patientId: string;
@@ -73,15 +82,44 @@ function randomPasscode(): string {
 }
 
 /**
+ * Wipe the seeded test doctor's per-test state (KB items, persona, records,
+ * messages, tasks, intake sessions, etc.) and any non-test patients under
+ * that doctor. The test doctor row and the test patient row are preserved
+ * so subsequent logins still work.
+ *
+ * Calls `/api/test/reset-test-doctor-data`, which is mounted only when the
+ * backend runs with ENVIRONMENT=development AND PATIENTS_DB_PATH contains
+ * "e2e" or "test" (triple-guarded against firing on a real DB).
+ */
+export async function resetTestDoctorData(
+  request: import("@playwright/test").APIRequestContext,
+): Promise<void> {
+  const res = await request.post(`${API_BASE_URL}/api/test/reset-test-doctor-data`);
+  expect(
+    res.ok(),
+    `reset-test-doctor-data failed: ${res.status()} ${await res.text()}`,
+  ).toBeTruthy();
+}
+
+/**
  * Login as the shared seeded test doctor (nickname=test, passcode=123456).
  * This is the default path used by the `doctor` and `doctorPage` fixtures.
+ *
+ * Resets per-test state by default (`opts.reset = true`) so each test gets
+ * a clean doctor row with no leftover KBs, persona, messages, etc. from
+ * earlier tests in the run. Pass `{ reset: false }` for the rare case
+ * where a test wants to observe accumulated state.
  *
  * Requires `scripts/ensure_test_doctor.py` to have run against the test DB
  * before the suite — `scripts/validate-v2-e2e.sh` does this in preflight.
  */
 export async function loginAsTestDoctor(
   request: import("@playwright/test").APIRequestContext,
+  opts: { reset?: boolean } = {},
 ): Promise<TestDoctor> {
+  if (opts.reset !== false) {
+    await resetTestDoctorData(request);
+  }
   const res = await request.post(`${API_BASE_URL}/api/auth/unified/login`, {
     data: {
       nickname: TEST_DOCTOR_NICKNAME,
@@ -127,6 +165,47 @@ export async function registerDoctor(
     name: body.name || name,
     nickname,
     passcode,
+    token: body.token,
+  };
+}
+
+/**
+ * Login as the shared seeded test patient (nickname=test, passcode=123456)
+ * under the seeded test doctor. This is the default path used by the
+ * `patient` and `patientPage` fixtures.
+ *
+ * Requires both `scripts/ensure_test_doctor.py` and
+ * `scripts/ensure_test_patient.py` to have run against the test DB.
+ *
+ * Patient login uses `/unified/login-role` (not `/unified/login`) because
+ * the backend requires `doctor_id` to disambiguate per-doctor patient
+ * nicknames before mutating any failure counter (DOS guard).
+ */
+export async function loginAsTestPatient(
+  request: import("@playwright/test").APIRequestContext,
+  doctorId: string,
+): Promise<TestPatient> {
+  const res = await request.post(`${API_BASE_URL}/api/auth/unified/login-role`, {
+    data: {
+      nickname: TEST_PATIENT_NICKNAME,
+      passcode: TEST_PATIENT_PASSCODE,
+      role: "patient",
+      doctor_id: doctorId,
+    },
+  });
+  expect(
+    res.ok(),
+    `login as test patient failed: ${res.status()} ${await res.text()}\n` +
+      `Did you run scripts/ensure_test_patient.py against the test DB?`,
+  ).toBeTruthy();
+  const body = await res.json();
+  return {
+    patientId: String(body.patient_id),
+    doctorId: body.doctor_id,
+    name: body.name || TEST_PATIENT_NICKNAME,
+    nickname: TEST_PATIENT_NICKNAME,
+    passcode: TEST_PATIENT_PASSCODE,
+    gender: "男",
     token: body.token,
   };
 }
@@ -236,8 +315,39 @@ export async function authenticateDoctorPage(page: Page, doctor: TestDoctor) {
  * After login the app writes patient_portal_* localStorage keys and
  * redirects to /patient. We wait for that redirect as the success signal.
  */
-export async function authenticatePatientPage(page: Page, patient: TestPatient) {
+export async function authenticatePatientPage(
+  page: Page,
+  patient: TestPatient,
+  doctorNameOrOpts?: string | { skipOnboarding?: boolean },
+) {
+  // Legacy 3rd-arg call sites passed doctor.name (now ignored). New callers
+  // pass an options object. Detect which flavor we got.
+  const opts: { skipOnboarding?: boolean } =
+    typeof doctorNameOrOpts === "object" && doctorNameOrOpts !== null
+      ? doctorNameOrOpts
+      : {};
+  const skipOnboarding = opts.skipOnboarding !== false;
+
   await page.goto("/login");
+
+  if (skipOnboarding) {
+    // Pre-set the onboarding-done flag BEFORE login redirects to /patient.
+    // PatientPage.jsx initializes its `onboardingDone` React state via a
+    // useState initializer that reads localStorage exactly once at mount.
+    // If the flag isn't set before the post-login mount, the onboarding
+    // overlay renders and stays — setting localStorage after the fact does
+    // not re-trigger the initializer. Mirrors the doctor wizard pre-set
+    // pattern in authenticateDoctorPage().
+    //
+    // Pass `{ skipOnboarding: false }` from specs that explicitly want to
+    // see and interact with the onboarding overlay (e.g. 24-onboarding).
+    await page.evaluate((pid) => {
+      localStorage.setItem(`patient_onboarding_done_${pid}`, "1");
+      // PatientPage useState reads this key to look up the patient id; pre-set
+      // it so the first mount sees a hit on the keyed onboarding-done check.
+      localStorage.setItem("patient_portal_patient_id", pid);
+    }, patient.patientId);
+  }
 
   // Switch to 患者 tab (index 1).
   await page.getByRole("tab", { name: "患者" }).click();
@@ -268,7 +378,11 @@ export const test = base.extend<Fixtures>({
   },
 
   patient: async ({ request, doctor }, use) => {
-    const p = await registerPatient(request, doctor.doctorId);
+    // Default: log in as the shared seeded test patient (test/123456) under
+    // the test doctor. For specs that explicitly need a freshly registered
+    // patient (seed-smoke contract tests), call `registerPatient(request,
+    // doctorId)` directly inside the test body instead of using this fixture.
+    const p = await loginAsTestPatient(request, doctor.doctorId);
     await use(p);
   },
 

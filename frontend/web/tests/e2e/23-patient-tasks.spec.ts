@@ -1,13 +1,13 @@
 /**
  * Workflow 23 — Patient tasks
  */
-import { test, expect, authenticatePatientPage, registerDoctor, registerPatient } from "./fixtures/doctor-auth";
+import { test, expect, authenticatePatientPage, loginAsTestDoctor, loginAsTestPatient } from "./fixtures/doctor-auth";
 import { createPatientTask } from "./fixtures/seed";
 
 test.describe("工作流 23 — 患者任务", () => {
   test("患者任务显示在列表中且可完成", async ({ page, request, steps }) => {
-    const doctor = await registerDoctor(request);
-    const patient = await registerPatient(request, doctor.doctorId);
+    const doctor = await loginAsTestDoctor(request);
+    const patient = await loginAsTestPatient(request, doctor.doctorId);
     await createPatientTask(request, doctor, patient.patientId, { title: "明天复查血压" });
 
     await authenticatePatientPage(page, patient, doctor.name);

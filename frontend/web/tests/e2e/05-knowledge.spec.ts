@@ -37,8 +37,10 @@ test.describe("工作流 05 — 知识库管理", () => {
     await steps.capture(doctorPage, "知识列表页面", "显示添加的知识条目");
 
     // Stats bar labels (v2 redesign: 总规则 / 近7天引用 / 30天未用)
+    // exact:true scopes to the StatCell label only — rule meta strings like
+    // "近7天引用 5 次" would otherwise collide under strict-mode locator.
     for (const label of ["总规则", "近7天引用", "30天未用"]) {
-      await expect(doctorPage.getByText(label)).toBeVisible();
+      await expect(doctorPage.getByText(label, { exact: true })).toBeVisible();
     }
 
     // 1.4 — no "-1天前" (BUG-01 gate)

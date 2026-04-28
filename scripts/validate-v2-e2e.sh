@@ -51,25 +51,39 @@ TEST_DB="${PATIENTS_DB_PATH:-/tmp/e2e_test.db}"
 if PYTHONPATH=src ENVIRONMENT=development PATIENTS_DB_PATH="$TEST_DB" \
      "$ROOT_DIR/.venv/bin/python" "$ROOT_DIR/scripts/ensure_welcome_code.py" >/dev/null 2>&1 \
    && PYTHONPATH=src ENVIRONMENT=development PATIENTS_DB_PATH="$TEST_DB" \
-     "$ROOT_DIR/.venv/bin/python" "$ROOT_DIR/scripts/ensure_test_doctor.py" >/dev/null 2>&1; then
-  pass "Test seed (WELCOME invite + test doctor) ready in $TEST_DB"
+     "$ROOT_DIR/.venv/bin/python" "$ROOT_DIR/scripts/ensure_test_doctor.py" >/dev/null 2>&1 \
+   && PYTHONPATH=src ENVIRONMENT=development PATIENTS_DB_PATH="$TEST_DB" \
+     "$ROOT_DIR/.venv/bin/python" "$ROOT_DIR/scripts/ensure_test_patient.py" >/dev/null 2>&1; then
+  pass "Test seed (WELCOME invite + test doctor + test patient) ready in $TEST_DB"
 else
   fail "Failed to seed test DB at $TEST_DB. Run manually:
   PYTHONPATH=src ENVIRONMENT=development PATIENTS_DB_PATH=$TEST_DB \\
     .venv/bin/python scripts/ensure_welcome_code.py
   PYTHONPATH=src ENVIRONMENT=development PATIENTS_DB_PATH=$TEST_DB \\
-    .venv/bin/python scripts/ensure_test_doctor.py"
+    .venv/bin/python scripts/ensure_test_doctor.py
+  PYTHONPATH=src ENVIRONMENT=development PATIENTS_DB_PATH=$TEST_DB \\
+    .venv/bin/python scripts/ensure_test_patient.py"
 fi
 
-# Frontend on 5173
-if ! curl -sS --max-time 2 http://127.0.0.1:5173 >/dev/null 2>&1; then
-  fail "Frontend dev server on :5173 is not reachable. Start with: npm run dev"
+# E2E frontend dev server lives on :5174 with VITE_API_TARGET=http://127.0.0.1:8001.
+# Its only job is to proxy /api → :8001 so UI form-login and API-direct seeding
+# hit the SAME backend / DB. The default :5173 proxies to the dev backend on
+# :8000, which causes asymmetric login (API helpers get the test patient,
+# form-login gets the user's dev-DB patient) and is not safe for E2E.
+if ! curl -sS --max-time 2 http://127.0.0.1:5174 >/dev/null 2>&1; then
+  fail "E2E frontend on :5174 is not reachable. Start it with:
+  cd frontend/web && VITE_API_TARGET=http://127.0.0.1:8001 \\
+    npx vite --port 5174 --host 127.0.0.1"
 fi
-pass "Frontend :5173 reachable"
+pass "E2E frontend :5174 reachable (proxies → :8001)"
 
 # Guard against accidental :8000 use
 if [[ "${E2E_API_BASE_URL:-}" == *":8000"* ]]; then
   fail "E2E_API_BASE_URL points at :8000. Tests must target :8001."
+fi
+if [[ "${E2E_BASE_URL:-}" == *":5173"* ]]; then
+  fail "E2E_BASE_URL points at :5173 (dev frontend → :8000 backend).
+Tests must target :5174 (proxies to :8001)."
 fi
 
 # ── Run ──────────────────────────────────────────────────────────────
@@ -79,6 +93,7 @@ echo ""
 
 rm -rf test-results
 export E2E_API_BASE_URL="http://127.0.0.1:8001"
+export E2E_BASE_URL="http://127.0.0.1:5174"
 
 if npx playwright test; then
   echo ""

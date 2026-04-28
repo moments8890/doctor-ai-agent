@@ -20,7 +20,7 @@ const FAKE_EXTRACTED = [
 
 test.describe("工作流 15 — 教AI学偏好", () => {
   test("1. 页面外壳正确渲染", async ({ doctorPage, steps }) => {
-    await doctorPage.goto("/doctor/settings/persona/teach");
+    await doctorPage.goto("/doctor/settings/teach");
 
     // step 1.1 — header
     await expect(doctorPage.getByText("教AI新偏好")).toBeVisible();
@@ -48,7 +48,7 @@ test.describe("工作流 15 — 教AI学偏好", () => {
   });
 
   test("2. 输入验证启用/禁用提交按钮", async ({ doctorPage, steps }) => {
-    await doctorPage.goto("/doctor/settings/persona/teach");
+    await doctorPage.goto("/doctor/settings/teach");
 
     const textarea = doctorPage.getByPlaceholder("粘贴一段你满意的回复示例…");
     const submitBtn = doctorPage.getByText("开始分析", { exact: true });
@@ -81,7 +81,7 @@ test.describe("工作流 15 — 教AI学偏好", () => {
       }),
     );
 
-    await doctorPage.goto("/doctor/settings/persona/teach");
+    await doctorPage.goto("/doctor/settings/teach");
 
     const textarea = doctorPage.getByPlaceholder("粘贴一段你满意的回复示例…");
     await textarea.fill(SAMPLE_REPLY);
@@ -113,7 +113,7 @@ test.describe("工作流 15 — 教AI学偏好", () => {
       }),
     );
 
-    await doctorPage.goto("/doctor/settings/persona/teach");
+    await doctorPage.goto("/doctor/settings/teach");
 
     await doctorPage.getByPlaceholder("粘贴一段你满意的回复示例…").fill("你好");
     await doctorPage.getByText("开始分析", { exact: true }).click();
@@ -130,7 +130,7 @@ test.describe("工作流 15 — 教AI学偏好", () => {
       route.fulfill({ status: 500, body: "Internal Server Error" }),
     );
 
-    await doctorPage.goto("/doctor/settings/persona/teach");
+    await doctorPage.goto("/doctor/settings/teach");
 
     await doctorPage.getByPlaceholder("粘贴一段你满意的回复示例…").fill(SAMPLE_REPLY);
     await doctorPage.getByText("开始分析", { exact: true }).click();
