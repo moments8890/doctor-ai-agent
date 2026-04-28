@@ -27,10 +27,9 @@ import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import RefreshOutlinedIcon from "@mui/icons-material/RefreshOutlined";
 import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
-import MedicalServicesOutlinedIcon from "@mui/icons-material/MedicalServicesOutlined";
-import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import EventNoteOutlinedIcon from "@mui/icons-material/EventNoteOutlined";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
+import FamilyRestroomOutlinedIcon from "@mui/icons-material/FamilyRestroomOutlined";
 import BoltOutlinedIcon from "@mui/icons-material/BoltOutlined";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -85,12 +84,16 @@ const TAB_OVERVIEW = "overview";
 const TAB_RECORDS = "records";
 const TAB_CHAT = "chat";
 
-// Keys in record.structured that we surface in the Overview clinical card.
+// Keys in record.structured that we surface in the Overview 临床资料 card.
+// Trimmed 2026-04-27 to safety/persistent-state only — diagnosis +
+// treatment_plan dropped because they're per-visit values, better seen
+// in the 病历 tab where each record carries its own date. Allergy +
+// 既往 + 家族史 are persistent patient state that drives every visit's
+// decisions, so they belong always-visible on the overview.
 const CLINICAL_FIELDS = [
-  { key: "diagnosis",       label: "诊断", Icon: MedicalServicesOutlinedIcon },
-  { key: "treatment_plan",  label: "用药", Icon: MedicationOutlinedIcon },
   { key: "allergy_history", label: "过敏", danger: true, Icon: WarningAmberOutlinedIcon },
   { key: "past_history",    label: "既往", Icon: EventNoteOutlinedIcon },
+  { key: "family_history",  label: "家族史", Icon: FamilyRestroomOutlinedIcon },
 ];
 
 // ── Record status color ───────────────────────────────────────────────
@@ -143,14 +146,20 @@ function formatRecordDate(dateStr) {
   return `${Y}-${M}-${D}`;
 }
 
-// Merge structured fields across all records. Later records override earlier
-// ones so the Overview reflects the doctor's most recent understanding.
+// Merge structured fields across CONFIRMED records only — pending_review
+// drafts can carry inconsistent AI-extracted values (one record says
+// 过敏=无, the next says 过敏=青霉素过敏) and shouldn't shape the
+// "official" patient state until the doctor approves them. Without this
+// filter, 临床资料 drifts whenever AI extracts something contradictory
+// in a draft, even before the doctor gets a chance to review.
 function buildClinicalContext(records) {
   const merged = {};
-  // Oldest → newest so later writes win
-  const ordered = [...records].sort(
-    (a, b) => (a.created_at || "").localeCompare(b.created_at || "")
-  );
+  // Exclude draft-like records (pending_review, intake_active). Anything
+  // else (confirmed, null/undefined status, future statuses) counts.
+  // Oldest → newest so later writes win.
+  const ordered = [...records]
+    .filter((r) => r.status !== "pending_review" && r.status !== "intake_active")
+    .sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""));
   for (const r of ordered) {
     const s = r.structured || {};
     for (const { key } of CLINICAL_FIELDS) {
@@ -162,17 +171,16 @@ function buildClinicalContext(records) {
   return merged;
 }
 
-// AI summary text — prefer patient.ai_summary (backend-generated, refreshed
-// after each new record). Fall back to the most recent record's summary_text
-// or chief_complaint when the LLM summary hasn't been generated yet.
-function buildAiSummary(patient, records) {
+// AI summary text — only the backend-generated synthesis at
+// patient.ai_summary (domain.briefing.patient_summary). Per Codex r3
+// verdict: if the LLM has nothing to synthesize beyond what the page's
+// 临床资料 / 需要你处理 / 待回复 cards already show, return empty so
+// the AI summary card hides. NEVER concatenate structured fields into
+// a fake summary — that's structured restatement, exactly what we're
+// trying to drop.
+function buildAiSummary(patient) {
   if (patient?.ai_summary && patient.ai_summary.trim()) {
     return patient.ai_summary.trim();
-  }
-  for (const r of records) {
-    if (r.summary_text && r.summary_text.trim()) return r.summary_text.trim();
-    const s = r.structured || {};
-    if (s.chief_complaint && s.chief_complaint.trim()) return s.chief_complaint.trim();
   }
   return "";
 }
@@ -244,8 +252,8 @@ function AttentionCard({ pendingReviewCount, draftCount, onPendingClick, onDraft
           iconColor={APP.warning}
           iconBg={APP.surface}
           tint={APP.warningLight}
-          title="需要你处理"
-          description="请尽快查看并确认AI建议"
+          title={`${pendingReviewCount} 条问诊病历需要你审核`}
+          description="请尽快查看并确认"
           onClick={onPendingClick}
         />
       )}
@@ -926,7 +934,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
   const effectivePatient = summaryOverride
     ? { ...patient, ...summaryOverride }
     : patient;
-  const aiSummary = buildAiSummary(effectivePatient, records);
+  const aiSummary = buildAiSummary(effectivePatient);
   const aiSummaryAge = effectivePatient?.ai_summary
     ? formatSummaryAge(effectivePatient.ai_summary_at)
     : null;
@@ -1189,7 +1197,10 @@ export default function PatientDetail({ patientId: propPatientId }) {
       >
         <JumboTabs activeKey={activeTab} onChange={handleTabChange}>
           <JumboTabs.Tab title="总览" key={TAB_OVERVIEW} />
-          <JumboTabs.Tab title="病历" key={TAB_RECORDS} />
+          <JumboTabs.Tab
+            title={pendingReviewCount > 0 ? `病历 (${pendingReviewCount})` : "病历"}
+            key={TAB_RECORDS}
+          />
           <JumboTabs.Tab
             title={draftCount > 0 ? `聊天 (${draftCount})` : "聊天"}
             key={TAB_CHAT}
@@ -1212,7 +1223,10 @@ export default function PatientDetail({ patientId: propPatientId }) {
         {/* ── 总览 tab ── */}
         {!loading && !error && activeTab === TAB_OVERVIEW && (
           <>
-            {/* AI 摘要 — white outer card wrapping a bordered inner box */}
+            {/* AI 摘要 — always rendered. Content is the backend-generated
+                synthesis (cross-visit narrative + risk concern + trajectory).
+                When the LLM has nothing yet (new patient, summary not regen-ed),
+                show a calm placeholder rather than fake structured restatement. */}
             <div
               style={{
                 margin: "8px 12px 0",
@@ -1258,19 +1272,35 @@ export default function PatientDetail({ patientId: propPatientId }) {
               </div>
               <div
                 style={{
-                  background: `linear-gradient(135deg, ${APP.primaryLight} 0%, #d4f5e0 100%)`,
+                  background: aiSummary
+                    ? `linear-gradient(135deg, ${APP.primaryLight} 0%, #d4f5e0 100%)`
+                    : APP.surfaceAlt,
                   borderRadius: RADIUS.md,
                   padding: "10px 14px",
                   fontSize: FONT.base,
-                  color: APP.text1,
+                  color: aiSummary ? APP.text1 : APP.text4,
                   lineHeight: 1.65,
                 }}
               >
-                {aiSummary || "暂无摘要"}
+                {aiSummary || "暂无综合性提示。点击右上角刷新，或新增就诊记录后自动生成。"}
               </div>
             </div>
 
-            {/* Clinical context — outer card with nested bordered inner card */}
+            {/* Attention callouts — actionable items first, doctor scans
+                from top down: AI 摘要 (synthesis) → action cards (next
+                decision) → 临床资料 (persistent baseline, reference). */}
+            {hasAttention && (
+              <AttentionCard
+                pendingReviewCount={pendingReviewCount}
+                draftCount={draftCount}
+                onPendingClick={goToPendingReview}
+                onDraftClick={goToChat}
+              />
+            )}
+
+            {/* Clinical context — moved to bottom 2026-04-27 per UX call.
+                It's persistent reference data (allergy / past / family),
+                not a "what to do now" surface — belongs below action cards. */}
             {hasClinical && (
               <div
                 style={{
@@ -1344,16 +1374,6 @@ export default function PatientDetail({ patientId: propPatientId }) {
                   })}
                 </div>
               </div>
-            )}
-
-            {/* Attention callouts — each renders its own spacing */}
-            {hasAttention && (
-              <AttentionCard
-                pendingReviewCount={pendingReviewCount}
-                draftCount={draftCount}
-                onPendingClick={goToPendingReview}
-                onDraftClick={goToChat}
-              />
             )}
 
             <div style={{ height: 24 }} />

@@ -99,13 +99,29 @@ def _build_fact_block(patient: Patient, records: list[MedicalRecordDB]) -> str:
 
 
 def _build_messages(fact_block: str) -> list[dict]:
+    # 2026-04-27 prompt rewrite (Codex r3 verdict): the previous prompt
+    # produced "structured restatement" — restated diagnosis/treatment/
+    # allergy that the page's 临床资料 card already shows. Doctor-facing
+    # value of this card lives in synthesis the structured cards CAN'T
+    # express: cross-visit narrative, field-spanning risk concerns,
+    # trajectory. Anything else returns empty so the UI can hide.
     return [
         {
             "role": "system",
             "content": (
-                "你是临床AI助手。用一两句中文总结这位患者当前的临床状态，"
-                "面向医生阅读。包含关键诊断、用药、过敏风险和近期变化。"
-                "不写寒暄；不超过80字；不臆造未知信息。"
+                "你是临床AI助手。这条摘要只用于医生在患者详情页顶部快速理解病情，"
+                "页面下方已有「临床资料」卡（独立显示诊断、用药、过敏、既往史、家族史），"
+                "页面下方已有「需要你处理」「待回复」等动作卡（显示待审核/待回复事项）。\n"
+                "你的输出只允许包含以下三种「综合性」内容之一或组合，且每条必须基于 patient_facts："
+                "\n1. 跨次就诊叙事：用 1-2 句话描述近 N 次门诊连起来的故事"
+                "（例：'近3次门诊主诉头痛持续，调整为新止痛方案后症状改善'）；"
+                "\n2. 字段间风险关联：把多个字段连起来构成一个临床关注点"
+                "（例：'糖尿病 + 反复头痛 + 青霉素过敏 — 用药需避开青霉素，建议明确血糖控制'）；"
+                "\n3. 病情趋势：症状是 改善 / 加重 / 稳定（仅当多次记录支持时）。"
+                "\n严禁：复述单条记录的诊断、用药、过敏、就诊次数（这些下方已有），"
+                "客套话，编造未知信息，AI口吻（'AI建议'/'我认为'）。"
+                "\n若 patient_facts 不足以做出上述任何一种综合，返回空字符串。"
+                "\n语言：中文，不超过 80 字。"
             ),
         },
         {

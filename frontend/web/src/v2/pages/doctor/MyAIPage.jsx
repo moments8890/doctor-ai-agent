@@ -504,7 +504,7 @@ export default function MyAIPage({ doctorId }) {
     {
       key: "review",
       label: "待审核诊断建议",
-      description: `${pendingReview} 位患者待确认`,
+      description: `${pendingReview} 项待审核`,
       count: pendingReview,
       icon: PersonOutlineIcon,
       bg: APP.primaryLight,
