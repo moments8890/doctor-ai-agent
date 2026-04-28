@@ -33,6 +33,20 @@ export interface TestDoctor {
   token: string;
 }
 
+/**
+ * Fixed credentials for the shared test doctor. Seeded via
+ * `scripts/ensure_test_doctor.py` before the suite runs (wired into
+ * `scripts/validate-v2-e2e.sh`). Every spec that pulls the `doctor` /
+ * `doctorPage` fixture logs in as this same doctor — no per-test
+ * registration, no random nicknames, no rate-limit thrash, no state
+ * pollution from racing register-then-login flows.
+ *
+ * Specs that explicitly verify the register endpoint (seed-smoke) call
+ * `registerDoctor` directly and continue to use random per-call nicknames.
+ */
+export const TEST_DOCTOR_NICKNAME = "test";
+export const TEST_DOCTOR_PASSCODE = "123456";
+
 export interface TestPatient {
   patientId: string;
   doctorId: string;
@@ -56,6 +70,38 @@ function uniqueNickname(prefix: "doctor" | "patient"): string {
 
 function randomPasscode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+/**
+ * Login as the shared seeded test doctor (nickname=test, passcode=123456).
+ * This is the default path used by the `doctor` and `doctorPage` fixtures.
+ *
+ * Requires `scripts/ensure_test_doctor.py` to have run against the test DB
+ * before the suite — `scripts/validate-v2-e2e.sh` does this in preflight.
+ */
+export async function loginAsTestDoctor(
+  request: import("@playwright/test").APIRequestContext,
+): Promise<TestDoctor> {
+  const res = await request.post(`${API_BASE_URL}/api/auth/unified/login`, {
+    data: {
+      nickname: TEST_DOCTOR_NICKNAME,
+      passcode: TEST_DOCTOR_PASSCODE,
+      role: "doctor",
+    },
+  });
+  expect(
+    res.ok(),
+    `login as test doctor failed: ${res.status()} ${await res.text()}\n` +
+      `Did you run scripts/ensure_test_doctor.py against the test DB?`,
+  ).toBeTruthy();
+  const body = await res.json();
+  return {
+    doctorId: body.doctor_id,
+    name: body.name || TEST_DOCTOR_NICKNAME,
+    nickname: TEST_DOCTOR_NICKNAME,
+    passcode: TEST_DOCTOR_PASSCODE,
+    token: body.token,
+  };
 }
 
 export async function registerDoctor(
@@ -213,7 +259,11 @@ type Fixtures = {
 
 export const test = base.extend<Fixtures>({
   doctor: async ({ request }, use) => {
-    const d = await registerDoctor(request);
+    // Default: log in as the shared seeded test doctor (test/123456).
+    // For specs that explicitly need a freshly registered doctor (seed-smoke
+    // contract tests, auth tests), call `registerDoctor(request)` directly
+    // inside the test body instead of using this fixture.
+    const d = await loginAsTestDoctor(request);
     await use(d);
   },
 

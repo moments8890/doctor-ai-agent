@@ -44,6 +44,23 @@ Start it in another terminal with an isolated DB:
 fi
 pass "Test backend :8001 healthy"
 
+# Seed shared test doctor (test/123456) used by every spec via doctor-auth
+# fixture. Idempotent — safe to run on every invocation. Without this,
+# specs that pull the `doctor` / `doctorPage` fixture cannot log in.
+TEST_DB="${PATIENTS_DB_PATH:-/tmp/e2e_test.db}"
+if PYTHONPATH=src ENVIRONMENT=development PATIENTS_DB_PATH="$TEST_DB" \
+     "$ROOT_DIR/.venv/bin/python" "$ROOT_DIR/scripts/ensure_welcome_code.py" >/dev/null 2>&1 \
+   && PYTHONPATH=src ENVIRONMENT=development PATIENTS_DB_PATH="$TEST_DB" \
+     "$ROOT_DIR/.venv/bin/python" "$ROOT_DIR/scripts/ensure_test_doctor.py" >/dev/null 2>&1; then
+  pass "Test seed (WELCOME invite + test doctor) ready in $TEST_DB"
+else
+  fail "Failed to seed test DB at $TEST_DB. Run manually:
+  PYTHONPATH=src ENVIRONMENT=development PATIENTS_DB_PATH=$TEST_DB \\
+    .venv/bin/python scripts/ensure_welcome_code.py
+  PYTHONPATH=src ENVIRONMENT=development PATIENTS_DB_PATH=$TEST_DB \\
+    .venv/bin/python scripts/ensure_test_doctor.py"
+fi
+
 # Frontend on 5173
 if ! curl -sS --max-time 2 http://127.0.0.1:5173 >/dev/null 2>&1; then
   fail "Frontend dev server on :5173 is not reachable. Start with: npm run dev"
