@@ -31,7 +31,13 @@ BRANCH_DEPLOYS: Dict[str, List[str]] = {
         "/bin/bash",
         os.environ.get("DEPLOY_SCRIPT_MAIN", "/home/ubuntu/deploy.sh"),
     ],
+    # systemd-run prefixed with sudo: webhook runs as `ubuntu`, but
+    # `--slice=staging-build.slice` is a system slice (not a user slice),
+    # which only attaches when systemd-run is invoked as root. The matching
+    # NOPASSWD sudoers entry is in /etc/sudoers.d/doctor-ai-deploy
+    # (DOCTORAI_STAGING_RUN alias).
     "staging": [
+        "/usr/bin/sudo",
         "/usr/bin/systemd-run",
         "--unit=staging-deploy-%s" % os.getpid(),
         "--slice=staging-build.slice",

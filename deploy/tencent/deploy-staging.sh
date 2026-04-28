@@ -18,7 +18,7 @@ set -euo pipefail
 APP_DIR="/home/ubuntu/doctor-ai-staging"
 VENV="$APP_DIR/.venv"
 LOG="$APP_DIR/logs/deploy.log"
-ENV_FILE="/etc/doctor-ai-staging.env"
+ENV_FILE="/etc/default/doctor-ai-staging"
 
 exec >> "$LOG" 2>&1
 echo "=== staging deploy started at $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
