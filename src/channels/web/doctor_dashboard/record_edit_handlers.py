@@ -32,6 +32,16 @@ class RecordUpdate(BaseModel):
     content: Optional[str] = None
     tags: Optional[List[str]] = None
     record_type: Optional[str] = None
+    # 2026-04-26: ReviewPage completed-record edit mode lets the doctor tweak
+    # 诊断 / 检查建议 / 治疗方向 in place after AI review without going back
+    # through the AI suggestion flow. The handler already copies all structured
+    # columns to a versioned row and applies updates via setattr; only the
+    # schema needs to allow these fields. 检查建议 lands on `auxiliary_exam`
+    # as the canonical column once the doctor has edited it (display falls
+    # back to the joined-from-suggestions string when the column is empty).
+    diagnosis: Optional[str] = None
+    auxiliary_exam: Optional[str] = None
+    treatment_plan: Optional[str] = None
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -110,6 +120,9 @@ async def update_record(
         "content": rec.content,
         "tags": _parse_tags(rec.tags),
         "version_of": rec.version_of,
+        "diagnosis": rec.diagnosis,
+        "auxiliary_exam": rec.auxiliary_exam,
+        "treatment_plan": rec.treatment_plan,
         "created_at": _fmt_ts(rec.created_at),
         "updated_at": _fmt_ts(rec.updated_at),
     }

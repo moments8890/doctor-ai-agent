@@ -237,292 +237,6 @@ function LoadingCard() {
   );
 }
 
-// ── Checklist suggestion item ──────────────────────────────────────
-
-/**
- * Decision card for one AI suggestion. Three visual states:
- *  - pending   → white card, title + body + optional citation chip + 修改/采纳
- *  - accepted  → light-green fill, single line ✓ + title; tap to reopen
- *  - editing   → inline textareas + 取消/保存
- * No category tags, no urgency chip — all categorization dropped by design.
- */
-function SuggestionCard({ suggestion, onDecide, knowledgeMap, onOpenCitation }) {
-  const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState("");
-  const [editDetail, setEditDetail] = useState("");
-
-  const s = suggestion;
-  const isAccepted = s.decision === "confirmed" || s.decision === "edited";
-  const isRejected = s.decision === "rejected";
-
-  // Resolve cited knowledge → human-readable entries. Each shows as its own
-  // row below the card; tapping any row opens the shared swiper popup at that
-  // index.
-  const citedRules = (s.cited_knowledge_ids || [])
-    .map((id) => knowledgeMap[id])
-    .filter(Boolean);
-
-  function startEdit() {
-    setEditText(s.edited_text || s.content || "");
-    setEditDetail(s.detail || "");
-    setEditing(true);
-  }
-
-  function saveEdit() {
-    if (editText.trim()) {
-      onDecide(s.id, "edited", {
-        edited_text: editText.trim(),
-        detail: editDetail.trim(),
-      });
-    }
-    setEditing(false);
-  }
-
-  // ── Rejected: muted single-line card, tap to restore ──────────────
-  if (isRejected && !editing) {
-    return (
-      <div
-        onClick={() => onDecide(s.id, "pending", {})}
-        style={{
-          background: APP.surfaceAlt,
-          borderRadius: RADIUS.md,
-          padding: "10px 14px",
-          margin: "0 12px 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          cursor: "pointer",
-        }}
-      >
-        <span style={{ color: APP.text4, fontSize: FONT.sm, flexShrink: 0 }}>已移除</span>
-        <div
-          style={{
-            flex: 1,
-            fontSize: FONT.sm,
-            color: APP.text4,
-            textDecoration: "line-through",
-            minWidth: 0,
-          }}
-        >
-          <Ellipsis direction="end" content={s.edited_text || s.content} rows={1} />
-        </div>
-        <span style={{ fontSize: FONT.sm, color: APP.primary }}>恢复</span>
-      </div>
-    );
-  }
-
-  // ── Accepted: single-line light-green card ────────────────────────
-  if (isAccepted && !editing) {
-    return (
-      <div
-        onClick={() => onDecide(s.id, "pending", {})}
-        style={{
-          background: APP.primaryLight,
-          borderRadius: RADIUS.md,
-          padding: "12px 14px",
-          margin: "0 12px 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          cursor: "pointer",
-        }}
-      >
-        <span style={{ color: APP.primary, fontWeight: 600, fontSize: FONT.md, flexShrink: 0 }}>
-          ✓
-        </span>
-        <span style={{ flex: 1, fontSize: FONT.base, color: APP.text1, fontWeight: 500 }}>
-          {s.edited_text || s.content}
-        </span>
-      </div>
-    );
-  }
-
-  // ── Editing: inline textareas ─────────────────────────────────────
-  if (editing) {
-    return (
-      <div
-        style={{
-          background: APP.surface,
-          border: `0.5px solid ${APP.border}`,
-          borderRadius: RADIUS.md,
-          padding: 14,
-          margin: "0 12px 12px",
-        }}
-      >
-        <TextArea
-          placeholder="建议内容"
-          value={editText}
-          onChange={setEditText}
-          autoSize={{ minRows: 1, maxRows: 3 }}
-          style={{ marginBottom: 8, fontSize: FONT.md }}
-        />
-        <TextArea
-          placeholder="详细说明"
-          value={editDetail}
-          onChange={setEditDetail}
-          autoSize={{ minRows: 2, maxRows: 6 }}
-          style={{ fontSize: FONT.sm }}
-        />
-        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <button
-            onClick={() => setEditing(false)}
-            style={{
-              flex: 1, padding: "8px 0",
-              background: APP.surface,
-              border: `0.5px solid ${APP.border}`,
-              borderRadius: RADIUS.sm,
-              color: APP.text2,
-              fontSize: FONT.sm,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
-            取消
-          </button>
-          <button
-            onClick={saveEdit}
-            style={{
-              flex: 1, padding: "8px 0",
-              background: APP.primary,
-              border: "none",
-              borderRadius: RADIUS.sm,
-              color: APP.white,
-              fontSize: FONT.sm,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
-            保存
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Pending: title + body + citation + 修改/采纳 ───────────────────
-  return (
-    <div
-      style={{
-        background: APP.surface,
-        border: `0.5px solid ${APP.border}`,
-        borderRadius: RADIUS.md,
-        padding: 14,
-        margin: "0 12px 12px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-      }}
-    >
-      <div style={{ fontSize: FONT.md, color: APP.text1, fontWeight: 500, lineHeight: 1.4 }}>
-        {s.edited_text || s.content}
-      </div>
-      {/* 2026-04-25 new schema: prefer evidence/risk_signals arrays over legacy detail prose */}
-      {s.evidence && s.evidence.length > 0 && (
-        <div>
-          <div style={{ fontSize: FONT.xs, color: APP.text4, marginBottom: 4, fontWeight: 500 }}>
-            依据
-          </div>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: FONT.sm, color: APP.text2, lineHeight: 1.55 }}>
-            {s.evidence.map((fact, i) => (
-              <li key={i}>{fact}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {s.risk_signals && s.risk_signals.length > 0 && (
-        <div>
-          <div style={{ fontSize: FONT.xs, color: APP.danger || "#d92d2d", marginBottom: 4, fontWeight: 500 }}>
-            风险监测
-          </div>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: FONT.sm, color: APP.text2, lineHeight: 1.55 }}>
-            {s.risk_signals.map((signal, i) => (
-              <li key={i}>{signal}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {/* Legacy fallback: show detail prose only when new fields are absent */}
-      {(!s.evidence || s.evidence.length === 0) && s.detail && (
-        <div style={{ fontSize: FONT.sm, color: APP.text3, lineHeight: 1.55 }}>
-          {s.detail}
-        </div>
-      )}
-      {citedRules.length > 0 && (
-        <div style={{ display: "grid", gap: 4, justifyItems: "start" }}>
-          {citedRules.map((rule, idx) => (
-            <span
-              key={rule.id}
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenCitation?.(citedRules, idx);
-              }}
-              style={{
-                color: APP.primary,
-                background: APP.primaryLight,
-                fontSize: FONT.xs,
-                padding: "2px 8px",
-                borderRadius: RADIUS.xs,
-                cursor: "pointer",
-                maxWidth: "100%",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              依据：{rule.title || rule.text?.slice(0, 16) || "已删除"} ›
-            </span>
-          ))}
-        </div>
-      )}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          alignItems: "center",
-          gap: 16,
-        }}
-      >
-        <span
-          onClick={() => onDecide(s.id, "rejected", { reason: "removed" })}
-          style={{
-            fontSize: FONT.sm,
-            color: APP.text4,
-            cursor: "pointer",
-            padding: "10px 4px",
-          }}
-        >
-          移除
-        </span>
-        <span
-          onClick={startEdit}
-          style={{
-            fontSize: FONT.sm,
-            color: APP.text4,
-            cursor: "pointer",
-            padding: "10px 4px",
-          }}
-        >
-          修改
-        </span>
-        <button
-          onClick={() => onDecide(s.id, "confirmed", {})}
-          style={{
-            background: APP.primary,
-            border: "none",
-            borderRadius: RADIUS.sm,
-            color: APP.white,
-            fontSize: FONT.sm,
-            fontWeight: 500,
-            padding: "8px 20px",
-            cursor: "pointer",
-          }}
-        >
-          采纳
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // ── Checklist section ──────────────────────────────────────────────
 
@@ -620,6 +334,74 @@ function ChecklistSection({ sectionKey, label, items, onDecide, onAdd, knowledge
   );
 }
 
+// ── Completed-record plain section ─────────────────────────────────
+//
+// When a record's AI review is finalized, the doctor revisits it as a
+// medical record — not a review queue. This component renders one
+// section (诊断 / 检查建议 / 治疗方向) as a plain summary row matching
+// the 病例摘要 typography above. No ✓ badge, no chevron, no "已采纳：".
+//
+// In edit mode (Part 2), 诊断 + 治疗方向 swap to a TextArea bound to
+// the parent's draft state. 检查建议 stays read-only because it is the
+// joined output of multiple confirmed AI suggestions — editing it as a
+// single textarea would orphan those suggestion rows from their record.
+function CompletedRecordSection({
+  label,
+  value,
+  editing,
+  editable,
+  onChange,
+  isFirst,
+}) {
+  const displayValue = value && value.trim().length > 0 ? value : "—";
+  const isEmpty = !(value && value.trim().length > 0);
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 10,
+        padding: "8px 0",
+        fontSize: FONT.sm,
+        lineHeight: 1.55,
+        borderTop: isFirst ? "none" : `0.5px solid ${APP.borderLight}`,
+        alignItems: editing && editable ? "flex-start" : "baseline",
+      }}
+    >
+      <span
+        style={{
+          minWidth: 60,
+          flexShrink: 0,
+          color: APP.text4,
+          fontWeight: 500,
+          paddingTop: editing && editable ? 6 : 0,
+        }}
+      >
+        {label}
+      </span>
+      {editing && editable ? (
+        <div style={{ flex: 1 }}>
+          <TextArea
+            value={value || ""}
+            onChange={onChange}
+            autoSize={{ minRows: 1, maxRows: 6 }}
+            style={{ fontSize: FONT.sm, "--color": APP.text2 }}
+          />
+        </div>
+      ) : (
+        <span
+          style={{
+            flex: 1,
+            color: isEmpty ? APP.text4 : APP.text2,
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {displayValue}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ── Inline review layout (feature-flagged V5) ──────────────────────
 
 /**
@@ -650,6 +432,7 @@ function InlineReviewLayout({
   isCompleted,
   onReopen,
   reopening,
+  onSaveEdits,
   onBack,
   teachEditId,
   onTeachSkip,
@@ -663,9 +446,15 @@ function InlineReviewLayout({
   const [feedbackFor, setFeedbackFor] = useState(null);
   const structured = record?.structured || {};
 
-  // Editable draft state for diagnosis + treatment_plan. Hydrated once.
+  // Editable draft state for diagnosis + auxiliary_exam + treatment_plan.
+  // Hydrated once. 检查建议 prefers the canonical `auxiliary_exam` column
+  // (set when the doctor has edited it post-finalize); the joined-from-
+  // suggestions fallback is hydrated below once acceptedWorkupText resolves.
   const [diagnosisDraft, setDiagnosisDraft] = useState(
     structured.diagnosis || ""
+  );
+  const [workupDraft, setWorkupDraft] = useState(
+    structured.auxiliary_exam || ""
   );
   const [treatmentDraft, setTreatmentDraft] = useState(
     structured.treatment_plan || ""
@@ -674,10 +463,13 @@ function InlineReviewLayout({
     if (structured.diagnosis && !diagnosisDraft) {
       setDiagnosisDraft(structured.diagnosis);
     }
+    if (structured.auxiliary_exam && !workupDraft) {
+      setWorkupDraft(structured.auxiliary_exam);
+    }
     if (structured.treatment_plan && !treatmentDraft) {
       setTreatmentDraft(structured.treatment_plan);
     }
-  }, [structured.diagnosis, structured.treatment_plan]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [structured.diagnosis, structured.auxiliary_exam, structured.treatment_plan]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track whether any FieldWithAI is in inline edit mode → disables finalize
   const [editingFields, setEditingFields] = useState({
@@ -686,6 +478,58 @@ function InlineReviewLayout({
     treatment: false,
   });
   const anyFieldEditing = Object.values(editingFields).some(Boolean);
+
+  // Completed-record edit mode (Part 2). Only relevant when isCompleted.
+  // Doctor taps 编辑 → diagnosis/treatment_plan textareas appear; 保存 calls
+  // updateRecord, 取消 reverts to the saved structured values.
+  const [completedEditing, setCompletedEditing] = useState(false);
+  const [savingCompleted, setSavingCompleted] = useState(false);
+  const cancelCompletedEdit = () => {
+    setDiagnosisDraft(structured.diagnosis || "");
+    setWorkupDraft(structured.auxiliary_exam || acceptedWorkupText || "");
+    setTreatmentDraft(structured.treatment_plan || "");
+    setCompletedEditing(false);
+  };
+  const submitCompletedEdit = async () => {
+    if (savingCompleted || !onSaveEdits) return;
+    setSavingCompleted(true);
+    try {
+      await onSaveEdits({
+        diagnosis: diagnosisDraft || "",
+        auxiliary_exam: workupDraft || "",
+        treatment_plan: treatmentDraft || "",
+      });
+      setCompletedEditing(false);
+    } finally {
+      setSavingCompleted(false);
+    }
+  };
+
+  // Joined string for the 检查建议 plain-record render. We use the user-
+  // adopted suggestions (confirmed/edited/custom). Edited suggestions show
+  // their `edited_text` so the doctor sees the final adopted wording.
+  const acceptedWorkupText = useMemo(() => {
+    const items = (suggestions || []).filter(
+      (s) =>
+        s.section === "workup" &&
+        (s.decision === "confirmed" ||
+          s.decision === "edited" ||
+          s.decision === "custom")
+    );
+    return items
+      .map((s) => (s.edited_text || s.content || "").trim())
+      .filter(Boolean)
+      .join("；");
+  }, [suggestions]);
+
+  // Hydrate workupDraft from joined suggestions when the canonical column
+  // is empty. Runs once acceptedWorkupText resolves; doctor-edited values
+  // (workupDraft non-empty) are preserved.
+  useEffect(() => {
+    if (!structured.auxiliary_exam && acceptedWorkupText && !workupDraft) {
+      setWorkupDraft(acceptedWorkupText);
+    }
+  }, [acceptedWorkupText, structured.auxiliary_exam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Custom composer state: keyed by section
   const [composerSection, setComposerSection] = useState(null);
@@ -867,7 +711,7 @@ function InlineReviewLayout({
           </>
         )}
 
-        {/* AI 建议 list header */}
+        {/* Section header — different language for active review vs. completed record */}
         <div
           style={{
             padding: "12px 16px 4px",
@@ -876,56 +720,101 @@ function InlineReviewLayout({
             letterSpacing: "0.02em",
           }}
         >
-          AI 建议 · 请逐项确认
+          {isCompleted ? "诊疗记录" : "AI 建议 · 请逐项确认"}
         </div>
 
-        <FieldWithAI
-          label="诊断"
-          sectionKey="differential"
-          allowCycle={false}
-          editableFieldValue={diagnosisDraft}
-          onEditableFieldChange={setDiagnosisDraft}
-          suggestions={bySection.differential}
-          knowledgeMap={knowledgeMap}
-          onDecide={onDecide}
-          onOpenCitation={onOpenCitation}
-          onOpenFeedback={setFeedbackFor}
-          onEditingChange={(v) =>
-            setEditingFields((prev) => ({ ...prev, differential: v }))
-          }
-        />
+        {isCompleted ? (
+          <div
+            style={{
+              background: APP.surface,
+              margin: "0 12px 6px",
+              border: `0.5px solid ${APP.border}`,
+              borderRadius: RADIUS.md,
+              padding: "10px 14px",
+            }}
+          >
+            <CompletedRecordSection
+              label="诊断"
+              value={diagnosisDraft}
+              editing={completedEditing}
+              editable={true}
+              onChange={setDiagnosisDraft}
+              isFirst={true}
+            />
+            {/* 检查建议 is fully editable. The textarea binds to workupDraft,
+                which hydrates from `auxiliary_exam` (canonical column once
+                doctor-edited) or falls back to the joined-from-suggestions
+                string. On save, the edited value lands on `auxiliary_exam`
+                so the next view reflects the doctor's wording, not the
+                stale suggestion join. */}
+            <CompletedRecordSection
+              label="检查建议"
+              value={workupDraft}
+              editing={completedEditing}
+              editable={true}
+              onChange={setWorkupDraft}
+              isFirst={false}
+            />
+            <CompletedRecordSection
+              label="治疗方向"
+              value={treatmentDraft}
+              editing={completedEditing}
+              editable={true}
+              onChange={setTreatmentDraft}
+              isFirst={false}
+            />
+          </div>
+        ) : (
+          <>
+            <FieldWithAI
+              label="诊断"
+              sectionKey="differential"
+              allowCycle={false}
+              editableFieldValue={diagnosisDraft}
+              onEditableFieldChange={setDiagnosisDraft}
+              suggestions={bySection.differential}
+              knowledgeMap={knowledgeMap}
+              onDecide={onDecide}
+              onOpenCitation={onOpenCitation}
+              onOpenFeedback={setFeedbackFor}
+              onEditingChange={(v) =>
+                setEditingFields((prev) => ({ ...prev, differential: v }))
+              }
+            />
 
-        <FieldWithAI
-          label="检查建议"
-          sectionKey="workup"
-          allowCycle={true}
-          editableFieldValue={null}
-          onEditableFieldChange={() => {}}
-          suggestions={bySection.workup}
-          knowledgeMap={knowledgeMap}
-          onDecide={onDecide}
-          onOpenCitation={onOpenCitation}
-          onOpenFeedback={setFeedbackFor}
-          onEditingChange={(v) =>
-            setEditingFields((prev) => ({ ...prev, workup: v }))
-          }
-        />
+            <FieldWithAI
+              label="检查建议"
+              sectionKey="workup"
+              allowCycle={true}
+              editableFieldValue={null}
+              onEditableFieldChange={() => {}}
+              suggestions={bySection.workup}
+              knowledgeMap={knowledgeMap}
+              onDecide={onDecide}
+              onOpenCitation={onOpenCitation}
+              onOpenFeedback={setFeedbackFor}
+              onEditingChange={(v) =>
+                setEditingFields((prev) => ({ ...prev, workup: v }))
+              }
+            />
 
-        <FieldWithAI
-          label="治疗方向"
-          sectionKey="treatment"
-          allowCycle={false}
-          editableFieldValue={treatmentDraft}
-          onEditableFieldChange={setTreatmentDraft}
-          suggestions={bySection.treatment}
-          knowledgeMap={knowledgeMap}
-          onDecide={onDecide}
-          onOpenCitation={onOpenCitation}
-          onOpenFeedback={setFeedbackFor}
-          onEditingChange={(v) =>
-            setEditingFields((prev) => ({ ...prev, treatment: v }))
-          }
-        />
+            <FieldWithAI
+              label="治疗方向"
+              sectionKey="treatment"
+              allowCycle={false}
+              editableFieldValue={treatmentDraft}
+              onEditableFieldChange={setTreatmentDraft}
+              suggestions={bySection.treatment}
+              knowledgeMap={knowledgeMap}
+              onDecide={onDecide}
+              onOpenCitation={onOpenCitation}
+              onOpenFeedback={setFeedbackFor}
+              onEditingChange={(v) =>
+                setEditingFields((prev) => ({ ...prev, treatment: v }))
+              }
+            />
+          </>
+        )}
 
         {/* Custom-add buttons — hidden on completed reviews (read-only) */}
         {!isCompleted && (
@@ -1032,42 +921,75 @@ function InlineReviewLayout({
         )}
       </div>
 
-      {/* Bottom bar — read-only completion footer with reopen affordance */}
+      {/* Bottom bar — completed record: 编辑 toggles in-place edit mode for
+          诊断 / 治疗方向. We do NOT re-open the AI review flow from this
+          button; handleReopen on the parent stays available for a future
+          "full AI re-review" affordance but is no longer wired to the
+          primary edit CTA. `onReopen` / `reopening` are intentionally kept
+          in the prop list so that surface remains live. */}
       {isCompleted ? (
-        <ActionFooter
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
-          <span style={{ fontSize: FONT.sm, color: APP.text4 }}>
-            ✓ 审核已完成
-          </span>
-          <button
-            type="button"
-            onClick={onReopen}
-            disabled={reopening}
+        completedEditing ? (
+          <ActionFooter
             style={{
-              fontSize: FONT.sm,
-              color: APP.primary,
-              fontWeight: 500,
-              background: "none",
-              border: "none",
-              padding: "6px 4px",
-              cursor: reopening ? "default" : "pointer",
-              opacity: reopening ? 0.6 : 1,
-              fontFamily: "inherit",
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              flexDirection: "row",
+              gap: 8,
             }}
           >
-            {reopening ? "打开中…" : "重新编辑记录"}
-          </button>
-        </ActionFooter>
+            <Button
+              block
+              fill="outline"
+              size="large"
+              disabled={savingCompleted}
+              onClick={cancelCompletedEdit}
+            >
+              取消
+            </Button>
+            <Button
+              block
+              color="primary"
+              size="large"
+              loading={savingCompleted}
+              disabled={savingCompleted}
+              onClick={submitCompletedEdit}
+            >
+              保存
+            </Button>
+          </ActionFooter>
+        ) : (
+          <ActionFooter
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <div
+              style={{
+                fontSize: FONT.xs,
+                color: APP.text4,
+                padding: "0 4px 4px",
+                textAlign: "center",
+              }}
+            >
+              ✓ 审核已完成
+            </div>
+            <Button
+              block
+              color="primary"
+              size="large"
+              onClick={() => setCompletedEditing(true)}
+            >
+              编辑
+            </Button>
+          </ActionFooter>
+        )
       ) : (
       <ActionFooter
         style={{
@@ -1202,6 +1124,7 @@ export default function ReviewPage({ recordId }) {
     getTaskRecord,
     getKnowledgeBatch,
     submitFeedback,
+    updateRecord,
   } = api;
   const { doctorId } = useDoctorStore();
   const queryClient = useQueryClient();
@@ -1405,6 +1328,39 @@ export default function ReviewPage({ recordId }) {
     });
   }
 
+  async function handleSaveCompletedEdits(fields) {
+    if (!updateRecord) {
+      Toast.show({ content: "保存失败", position: "bottom" });
+      throw new Error("updateRecord unavailable");
+    }
+    try {
+      await updateRecord(doctorId, recordId, fields);
+      // Reflect saved values immediately. Note PATCH creates a versioned
+      // row server-side; the UI keeps the same recordId and just updates
+      // the displayed structured fields. Background invalidation refreshes
+      // any other surface that lists this record.
+      setRecord((prev) =>
+        prev
+          ? {
+              ...prev,
+              structured: { ...(prev.structured || {}), ...fields },
+              diagnosis:
+                fields.diagnosis !== undefined ? fields.diagnosis : prev.diagnosis,
+              treatment_plan:
+                fields.treatment_plan !== undefined
+                  ? fields.treatment_plan
+                  : prev.treatment_plan,
+            }
+          : prev
+      );
+      queryClient.invalidateQueries({ queryKey: QK.taskRecord(recordId, doctorId) });
+      Toast.show({ content: "已保存", position: "bottom" });
+    } catch (err) {
+      Toast.show({ content: "保存失败", position: "bottom" });
+      throw err;
+    }
+  }
+
   async function handleSubmitFeedback({ suggestion, reasonTag, reasonText }) {
     if (!submitFeedback || !suggestion) {
       throw new Error("submitFeedback unavailable");
@@ -1484,7 +1440,7 @@ export default function ReviewPage({ recordId }) {
 
   // Citation preview — open the centered-modal swiper instead of navigating
   // away so the doctor keeps their review context. Popup rendered at the root
-  // (see end of this component). Each SuggestionCard passes its full list of
+  // (see end of this component). Each FieldWithAI passes its full list of
   // citedRules and the tapped index so the swiper opens on the right card.
   const [citationPopupItems, setCitationPopupItems] = useState(null);
   const [citationPopupIndex, setCitationPopupIndex] = useState(0);
@@ -1532,6 +1488,7 @@ export default function ReviewPage({ recordId }) {
           isCompleted={isCompleted}
           onReopen={handleReopen}
           reopening={reopening}
+          onSaveEdits={handleSaveCompletedEdits}
           onBack={() => navigate(-1)}
           teachEditId={teachEditId}
           onTeachSkip={() => setTeachEditId(null)}
@@ -1677,17 +1634,6 @@ export default function ReviewPage({ recordId }) {
             </Button>
           </Card>
         )}
-
-        {/* Flat suggestion list — no categories, no urgency */}
-        {hasSuggestions && (suggestions || []).map((s) => (
-          <SuggestionCard
-            key={s.id}
-            suggestion={s}
-            onDecide={handleDecide}
-            knowledgeMap={knowledgeMap}
-            onOpenCitation={handleOpenCitation}
-          />
-        ))}
 
         {/* Inline "+ 添加我的建议" bottom of list — always visible */}
         {hasSuggestions && !addingCustom && (

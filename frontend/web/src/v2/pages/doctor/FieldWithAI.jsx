@@ -139,9 +139,9 @@ function AIPendingRow({
       >
         <span
           style={{
-            fontSize: FONT.sm,
+            fontSize: FONT.md,
             color: APP.text1,
-            lineHeight: 1.45,
+            lineHeight: 1.4,
             fontWeight: 600,
             flex: 1,
             minWidth: 0,
@@ -236,61 +236,18 @@ function AIPendingRow({
           ))}
         </div>
       )}
+      {/* Action row: 反馈 leftmost, decisions (修改 / 采纳, plus optional
+          换一条) grouped on the right. Mirrors the standalone ReviewPage
+          SuggestionCard layout so doctors get a consistent action map. */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 16,
+          justifyContent: "space-between",
           marginTop: 8,
         }}
       >
-        <button
-          onClick={onAccept}
-          style={{
-            padding: "5px 14px",
-            borderRadius: RADIUS.xs,
-            background: APP.primary,
-            color: APP.white,
-            fontSize: FONT.sm,
-            fontWeight: 500,
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          采纳
-        </button>
-        {allowCycle && (
-          <button
-            onClick={cycleExhausted ? undefined : onCycle}
-            disabled={cycleExhausted}
-            style={{
-              fontSize: FONT.sm,
-              color: cycleExhausted ? APP.text4 : APP.primary,
-              fontWeight: 500,
-              background: "none",
-              border: "none",
-              padding: 0,
-              cursor: cycleExhausted ? "not-allowed" : "pointer",
-            }}
-          >
-            {cycleExhausted ? "已看完" : "换一条"}
-          </button>
-        )}
-        <button
-          onClick={onEdit}
-          style={{
-            fontSize: FONT.sm,
-            color: APP.primary,
-            fontWeight: 500,
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-          }}
-        >
-          修改
-        </button>
-        {onOpenFeedback && (
+        {onOpenFeedback ? (
           <button
             type="button"
             onClick={(e) => {
@@ -300,7 +257,6 @@ function AIPendingRow({
             title="反馈这条建议不合理"
             aria-label="反馈"
             style={{
-              marginLeft: "auto",
               fontSize: FONT.sm,
               color: APP.text4,
               background: "none",
@@ -328,7 +284,57 @@ function AIPendingRow({
             </svg>
             反馈
           </button>
+        ) : (
+          <span />
         )}
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          {allowCycle && (
+            <button
+              onClick={cycleExhausted ? undefined : onCycle}
+              disabled={cycleExhausted}
+              style={{
+                fontSize: FONT.sm,
+                color: cycleExhausted ? APP.text4 : APP.primary,
+                fontWeight: 500,
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: cycleExhausted ? "not-allowed" : "pointer",
+              }}
+            >
+              {cycleExhausted ? "已看完" : "换一条"}
+            </button>
+          )}
+          <button
+            onClick={onEdit}
+            style={{
+              fontSize: FONT.sm,
+              color: APP.primary,
+              fontWeight: 500,
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+            }}
+          >
+            修改
+          </button>
+          <button
+            onClick={onAccept}
+            style={{
+              padding: "5px 14px",
+              borderRadius: RADIUS.xs,
+              background: APP.primary,
+              color: APP.white,
+              fontSize: FONT.sm,
+              fontWeight: 500,
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            采纳
+          </button>
+        </div>
       </div>
     </div>
   );
