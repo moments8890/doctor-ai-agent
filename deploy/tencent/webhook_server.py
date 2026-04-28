@@ -36,11 +36,19 @@ BRANCH_DEPLOYS: Dict[str, List[str]] = {
     # which only attaches when systemd-run is invoked as root. The matching
     # NOPASSWD sudoers entry is in /etc/sudoers.d/doctor-ai-deploy
     # (DOCTORAI_STAGING_RUN alias).
+    # --uid/--gid=ubuntu so the deploy runs as the user that owns the
+    # staging tree (and has SSH access to gitee). --slice attaches a
+    # system cgroup. --setenv=HOME=/home/ubuntu so git's safe.directory
+    # lookup finds the right config.
     "staging": [
         "/usr/bin/sudo",
         "/usr/bin/systemd-run",
         "--unit=staging-deploy-%s" % os.getpid(),
         "--slice=staging-build.slice",
+        "--uid=ubuntu",
+        "--gid=ubuntu",
+        "--setenv=HOME=/home/ubuntu",
+        "--setenv=PATH=/home/ubuntu/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "--collect",
         "--wait",
         "--quiet",
