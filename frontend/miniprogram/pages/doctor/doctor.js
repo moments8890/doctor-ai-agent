@@ -33,7 +33,7 @@ Page({
       return;
     }
 
-    const webBase = app.globalData.apiBase;
+    const webBase = app.globalData.webBase;
     const qs = [
       "token="     + encodeURIComponent(token),
       "doctor_id=" + encodeURIComponent(doctorId),
@@ -149,7 +149,7 @@ Page({
 
   _pollVoiceSession(doctorId, token) {
     wx.request({
-      url: runtimeConfig.apiBase + "/api/voice/session?doctor_id=" + encodeURIComponent(doctorId),
+      url: getApp().globalData.apiBase + "/api/voice/session?doctor_id=" + encodeURIComponent(doctorId),
       header: { "Authorization": "Bearer " + token },
       timeout: 3000,
       success: (res) => {
@@ -234,7 +234,7 @@ Page({
     const doctorId = app.globalData.doctorId;
     const token = app.globalData.accessToken;
     wx.request({
-      url: runtimeConfig.apiBase + "/api/voice/session",
+      url: app.globalData.apiBase + "/api/voice/session",
       method: "POST",
       header: {
         "Authorization": "Bearer " + token,

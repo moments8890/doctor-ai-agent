@@ -25,7 +25,7 @@ Page({
 
     // Show the web /login page inside a WebView. Cache-buster: X5 ignores
     // Cache-Control on HTML; timestamp forces a fresh fetch each session.
-    const webBase = app.globalData.apiBase;
+    const webBase = app.globalData.webBase;
     this.setData({ url: webBase + "/login?_t=" + Date.now(), loading: false });
   },
 

@@ -1,0 +1,12 @@
+[Unit]
+Description=Staging build/deploy resource cap
+
+[Slice]
+# Cover the entire deploy: pip install, npm ci, vite build, alembic, etc.
+# These are the workloads that historically OOM. Capping the slice (not
+# the unit) puts every transient process spawned via `systemd-run --slice=...`
+# under the same cgroup, so the deploy itself can't push prod into swap.
+MemoryMax=4G
+MemorySwapMax=0
+CPUQuota=200%
+TasksMax=4096

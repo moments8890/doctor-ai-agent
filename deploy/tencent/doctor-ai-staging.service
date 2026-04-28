@@ -1,0 +1,24 @@
+[Unit]
+Description=doctor-ai-agent staging backend (cli.py --prod, :8001)
+After=network.target docker.service
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/doctor-ai-staging
+EnvironmentFile=/etc/doctor-ai-staging.env
+ExecStart=/home/ubuntu/doctor-ai-staging/.venv/bin/python /home/ubuntu/doctor-ai-staging/cli.py start --prod --no-frontend --host 0.0.0.0 --port 8001
+Restart=always
+RestartSec=5
+
+# Cap the running unit so a runaway staging process can't starve prod.
+# Note: this only covers the long-running FastAPI process. Deploy-time
+# spikes (npm ci, pip install, vite build) are capped separately by
+# staging-build.slice (Task 8).
+MemoryMax=2G
+CPUQuota=150%
+
+StandardOutput=append:/home/ubuntu/doctor-ai-staging/logs/backend.log
+StandardError=append:/home/ubuntu/doctor-ai-staging/logs/backend.log
+
+[Install]
+WantedBy=multi-user.target

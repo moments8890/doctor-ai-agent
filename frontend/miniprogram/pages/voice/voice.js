@@ -1,5 +1,3 @@
-const runtimeConfig = require("../../config.js");
-
 const plugin = requirePlugin("WechatSI");
 
 Page({
@@ -107,8 +105,9 @@ Page({
   },
 
   _postResult(text) {
-    const apiBase = runtimeConfig.apiBase;
-    const doctorId = getApp().globalData.doctorId || "";
+    const app = getApp();
+    const apiBase = app.globalData.apiBase;
+    const doctorId = app.globalData.doctorId || "";
 
     wx.request({
       url: apiBase + "/api/voice/result",

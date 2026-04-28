@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staging Environment Plan — 2026-04-27</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+    background: #f5f6f8;
+    color: #1a1a1a;
+    line-height: 1.55;
+  }
+  .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+  nav.sidebar {
+    background: #fff;
+    border-right: 1px solid #e5e7eb;
+    padding: 24px 18px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    font-size: 13px;
+  }
+  nav.sidebar h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #6b7280; margin: 18px 0 8px; }
+  nav.sidebar h3:first-child { margin-top: 0; }
+  nav.sidebar a {
+    display: block;
+    padding: 5px 8px;
+    color: #374151;
+    text-decoration: none;
+    border-radius: 6px;
+    margin: 2px 0;
+  }
+  nav.sidebar a:hover { background: #f3f4f6; color: #07c160; }
+  main { padding: 32px 48px; max-width: 1080px; }
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  h2 { font-size: 22px; font-weight: 600; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb; }
+  h3 { font-size: 17px; font-weight: 600; margin: 20px 0 8px; }
+  h4 { font-size: 14px; font-weight: 600; margin: 14px 0 6px; color: #4b5563; }
+  p, li { font-size: 14px; }
+  ul, ol { padding-left: 22px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 12.5px; font-family: "SF Mono", Menlo, monospace; }
+  pre { background: #1e1e1e; color: #d4d4d4; padding: 14px 18px; border-radius: 8px; overflow-x: auto; margin: 10px 0; font-size: 12.5px; line-height: 1.45; }
+  pre code { background: transparent; color: inherit; padding: 0; font-size: inherit; }
+  .subtitle { color: #6b7280; font-size: 13px; margin-bottom: 28px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; }
+  .badge.green { background: #e7f7ee; color: #05864d; }
+  .badge.blue  { background: #e6effd; color: #1565c0; }
+  .badge.amber { background: #fff4e0; color: #b65a00; }
+  .badge.red   { background: #fde8e8; color: #c92a2a; }
+  .badge.gray  { background: #ececec; color: #555; }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 22px 26px;
+    margin: 16px 0;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .card h2:first-child, .card h3:first-child { margin-top: 0; border: none; padding: 0; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 880px) { .grid-2 { grid-template-columns: 1fr; } }
+  .grid-2 > div { padding: 14px 18px; border-radius: 10px; border: 1px solid #e5e7eb; background: #fafafa; }
+  .grid-2 > div.prod  { background: #f0fff4; border-color: #c6f0d6; }
+  .grid-2 > div.stg   { background: #fff8e1; border-color: #f5d98a; }
+  .grid-2 .label      { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .grid-2 .prod .label { color: #05864d; }
+  .grid-2 .stg .label  { color: #b65a00; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+  th { font-weight: 600; color: #4b5563; background: #fafafa; font-size: 12px; }
+  td code { font-size: 12px; }
+  .callout {
+    border-left: 4px solid #07c160;
+    background: #f5fef8;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 14px 0;
+    font-size: 13.5px;
+  }
+  .callout.amber { border-color: #f5a623; background: #fff8e6; }
+  .callout.red   { border-color: #d65745; background: #fff5f5; }
+  .callout strong { font-weight: 700; }
+  .mermaid {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 16px;
+    margin: 12px 0;
+    text-align: center;
+  }
+  .task-list { display: grid; grid-template-columns: 50px 1fr 130px 110px; gap: 0; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; font-size: 13px; }
+  .task-list > div { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
+  .task-list > div.head { background: #fafafa; font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.4px; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+  .task-list > div.task-row.touches-prod { background: #fff8e1; }
+  footer { padding: 32px 48px; color: #9ca3af; font-size: 12px; max-width: 1080px; }
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
+  .file-link {
+    display: block;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    color: #1565c0;
+    background: #f3f6fa;
+    padding: 6px 10px;
+    margin: 3px 0;
+    border-radius: 6px;
+    text-decoration: none;
+    border: 1px solid #e0e8f0;
+  }
+  .file-link:hover { background: #e6effd; }
+  .review-checklist {
+    counter-reset: cl;
+    list-style: none;
+    padding: 0;
+  }
+  .review-checklist li {
+    counter-increment: cl;
+    position: relative;
+    padding: 8px 0 8px 36px;
+    border-bottom: 1px dashed #e5e7eb;
+  }
+  .review-checklist li:last-child { border-bottom: none; }
+  .review-checklist li::before {
+    content: counter(cl);
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #07c160;
+    color: #fff;
+    font-weight: 700;
+    text-align: center;
+    line-height: 24px;
+    font-size: 12px;
+  }
+  .alignment-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0;
+  }
+  .alignment-bar .track {
+    flex: 1;
+    height: 8px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .alignment-bar .fill { height: 100%; }
+  .alignment-bar .fill.r1 { width: 66%; background: #d65745; }
+  .alignment-bar .fill.r2 { width: 88%; background: #f5a623; }
+  .alignment-bar .fill.r3 { width: 93%; background: #5cb85c; }
+  .alignment-bar .fill.r4 { width: 96%; background: #07c160; }
+  .alignment-bar .pct { font-weight: 700; font-size: 12px; min-width: 40px; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="sidebar">
+  <h3>Plan</h3>
+  <a href="#tldr">TL;DR</a>
+  <a href="#review-checklist">Reviewer's checklist</a>
+  <a href="#decisions">Decision points</a>
+  <a href="#tasks-glance">Tasks at a glance</a>
+  <a href="#diagram">Workflow diagram</a>
+  <a href="#stacks">Prod vs Staging stacks</a>
+  <a href="#cascading">Cascading impact</a>
+
+  <h3>Critical surface</h3>
+  <a href="#critical-resolveBases">resolveBases() — Task 11</a>
+  <a href="#critical-webhook">Webhook rewrite — Task 3</a>
+  <a href="#critical-ci">CI tag guards — Task 12</a>
+  <a href="#critical-pages">5 page migrations — Task 10</a>
+
+  <h3>Codex review</h3>
+  <a href="#codex">Alignment history</a>
+
+  <h3>Source</h3>
+  <a href="2026-04-27-staging-environment.md">📄 Markdown plan</a>
+</nav>
+
+<main>
+
+<h1>Staging Environment Plan</h1>
+<p class="subtitle">2026-04-27 &middot; <span class="badge green">Codex 96% — SHIP_THIS</span> &middot; 17 tasks &middot; ~half-day execution</p>
+
+<!-- TL;DR -->
+<div class="card" id="tldr">
+  <span class="badge blue">TL;DR</span>
+  <h2 style="margin-top:10px">What this plan ships</h2>
+
+  <p>A parallel pre-prod stack on the same Tencent CVM. Push to <code>gitee/staging</code> auto-deploys to staging server. Tag <code>v*-staging-*</code> uploads the miniapp to WeChat 开发版. Real users on 正式版 see byte-identical behavior to today.</p>
+
+  <h3>Why</h3>
+  <p>Test WeChat miniapp + backend changes against real code without risking prod, before tagging a 正式版 release.</p>
+
+  <h3>Risk profile</h3>
+  <ul>
+    <li><strong style="color:#05864d">To public users:</strong> zero functional change. The miniapp's runtime resolver returns the prod URLs it returns today when <code>envVersion === "release"</code>. Public WeChat users physically cannot reach 开发版 (WeChat platform-side gating).</li>
+    <li><strong style="color:#b65a00">To prod infra:</strong> non-zero. Same kernel, disk, MySQL instance, network. Minimized via cgroup caps, per-branch deploy locks, separate ports/schemas/paths. Residual risks (buffer-pool contention, instance outage, operator-error with wrong DSN) are explicit — escalate to dedicated CVM if any bite.</li>
+  </ul>
+</div>
+
+<!-- Reviewer's checklist -->
+<div class="card" id="review-checklist">
+  <h2>Reviewer's checklist</h2>
+  <p style="color:#6b7280; font-size:13px">If you only have 10 minutes, look at these five things in order.</p>
+  <ol class="review-checklist">
+    <li><strong><a href="#diagram">The mermaid diagram</a></strong> — confirms the routing model is what you want.</li>
+    <li><strong><a href="#critical-resolveBases">The <code>resolveBases()</code> snippet</a></strong> (Task 11) — this is the entire user-facing behavior change. ~15 lines. If this looks right, the rest is plumbing.</li>
+    <li><strong><a href="#critical-webhook">The <code>webhook_server.py</code> rewrite</a></strong> (Task 3) — per-branch dispatch + per-branch locks. Confirms prod and staging deploys can't stomp each other.</li>
+    <li><strong><a href="#critical-ci">The two GitHub Actions workflows</a></strong> (Task 12) — confirms a misnamed tag can't ship the wrong bundle to the wrong slot.</li>
+    <li><strong><a href="#decisions">The decision points table</a></strong> — three things you have to pick before execution.</li>
+  </ol>
+</div>
+
+<!-- Decision points -->
+<div class="card" id="decisions">
+  <h2>Decision points (you need to pick before execution)</h2>
+  <table>
+    <thead><tr><th>#</th><th>Decision</th><th>Why</th><th>Default</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><strong>MySQL password</strong> for the staging MySQL user</td>
+        <td>Stored in <code>/etc/doctor-ai-staging.env</code> (root-owned 0600) on the CVM. Never in repo.</td>
+        <td>You generate one, paste at execution</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><strong>Tester WeChat IDs</strong> for 开发版 access</td>
+        <td>The only WeChats that can scan the staging miniapp QR.</td>
+        <td>Just yours, for now</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><strong>Same gitee remote</strong> or new for staging</td>
+        <td>Plan assumes existing <code>gitee</code> remote, branch <code>staging</code>.</td>
+        <td>Same remote</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout amber">
+    <strong>Two placeholders in the plan body</strong> — fill in at execution time, not now: <code>THE_REAL_PASSWORD</code> (3 occurrences), <code>wxABCDEF1234.txt</code> (the WeChat-issued verification filename, ~6 occurrences).
+  </div>
+</div>
+
+<!-- Prod vs Staging stacks -->
+<div class="card" id="stacks">
+  <h2>Prod vs Staging — same CVM, two lanes</h2>
+  <div class="grid-2">
+    <div class="prod">
+      <div class="label">Prod (unchanged)</div>
+      <ul>
+        <li>nginx vhost: <code>app.* / api.*</code></li>
+        <li>backend: <code>doctor-ai-backend.service</code> on <code>:8000</code></li>
+        <li>working tree: <code>/home/ubuntu/doctor-ai-agent</code></li>
+        <li>DB schema: <code>doctor_ai_prod</code></li>
+        <li>branch: <code>gitee/main</code></li>
+        <li>deploy: <code>deploy.sh</code> via webhook</li>
+        <li>WeChat slot: <code>正式版</code> (envVersion=release)</li>
+      </ul>
+    </div>
+    <div class="stg">
+      <div class="label">Staging (new)</div>
+      <ul>
+        <li>nginx vhost: <code>app.stg.* / api.stg.*</code></li>
+        <li>backend: <code>doctor-ai-staging.service</code> on <code>:8001</code></li>
+        <li>working tree: <code>/home/ubuntu/doctor-ai-staging</code></li>
+        <li>DB schema: <code>doctor_ai_staging</code></li>
+        <li>branch: <code>gitee/staging</code></li>
+        <li>deploy: <code>deploy-staging.sh</code> under <code>staging-build.slice</code> cgroup</li>
+        <li>WeChat slot: <code>开发版</code> (envVersion=develop)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="callout">
+    <strong>What's shared:</strong> kernel, disk, MySQL instance (different schemas), nginx daemon (different vhosts), wildcard TLS cert, WeChat appid <code>wx9667f8091b342fb7</code>. <strong>Not shared:</strong> ports, paths, branches, DB schema, deploy script.
+  </div>
+</div>
+
+<!-- Tasks at a glance -->
+<div class="card" id="tasks-glance">
+  <h2>Tasks at a glance</h2>
+  <p style="color:#6b7280; font-size:13px">Yellow rows touch prod-adjacent surface — review those tasks closely.</p>
+  <div class="task-list">
+    <div class="head">#</div><div class="head">Task</div><div class="head">Type</div><div class="head">Risk</div>
+
+    <div class="task-row">0</div><div class="task-row">Confirm prerequisites</div><div class="task-row"><span class="badge gray">Sanity</span></div><div class="task-row">None</div>
+    <div class="task-row">1</div><div class="task-row">DNS records (<code>app.stg</code> + <code>api.stg</code>)</div><div class="task-row"><span class="badge gray">Manual ops</span></div><div class="task-row">None</div>
+    <div class="task-row">1b</div><div class="task-row">Issue <code>*.stg.doctoragentai.cn</code> wildcard TLS cert</div><div class="task-row"><span class="badge gray">Manual ops (certbot)</span></div><div class="task-row">None — new cert, doesn't touch prod</div>
+    <div class="task-row">2</div><div class="task-row">WeChat 后台 domain whitelist</div><div class="task-row"><span class="badge gray">Manual ops</span></div><div class="task-row">None</div>
+    <div class="task-row touches-prod">3</div><div class="task-row touches-prod">Webhook server: per-branch dispatch + locks</div><div class="task-row touches-prod"><span class="badge blue">Code (Python)</span></div><div class="task-row touches-prod"><span class="badge amber">Touches prod webhook</span></div>
+    <div class="task-row">4</div><div class="task-row">Bootstrap staging working tree</div><div class="task-row"><span class="badge gray">Manual ops</span></div><div class="task-row">None</div>
+    <div class="task-row">5</div><div class="task-row">MySQL schema + secret env file</div><div class="task-row"><span class="badge gray">Manual ops</span></div><div class="task-row">Touches MySQL</div>
+    <div class="task-row">6</div><div class="task-row">nginx vhosts (api + app)</div><div class="task-row"><span class="badge blue">Code (nginx)</span></div><div class="task-row">None — new server blocks</div>
+    <div class="task-row">7</div><div class="task-row">systemd unit for staging backend</div><div class="task-row"><span class="badge blue">Code (systemd)</span></div><div class="task-row">None — new unit</div>
+    <div class="task-row">8</div><div class="task-row">systemd slice for deploy-time caps</div><div class="task-row"><span class="badge blue">Code (systemd)</span></div><div class="task-row">None — new slice</div>
+    <div class="task-row">9</div><div class="task-row"><code>deploy-staging.sh</code> (build-first ordering)</div><div class="task-row"><span class="badge blue">Code (bash)</span></div><div class="task-row">None</div>
+    <div class="task-row touches-prod">10</div><div class="task-row touches-prod">Migrate 5 miniprogram pages off <code>runtimeConfig.apiBase</code></div><div class="task-row touches-prod"><span class="badge blue">Code (JS)</span></div><div class="task-row touches-prod"><span class="badge amber">Touches shipped JS</span></div>
+    <div class="task-row touches-prod">11</div><div class="task-row touches-prod"><code>resolveBases()</code> in <code>app.js</code></div><div class="task-row touches-prod"><span class="badge blue">Code (JS)</span></div><div class="task-row touches-prod"><span class="badge amber">THE user-facing change</span></div>
+    <div class="task-row touches-prod">12</div><div class="task-row touches-prod">CI tag guards (split workflows)</div><div class="task-row touches-prod"><span class="badge blue">Code (CI)</span></div><div class="task-row touches-prod"><span class="badge amber">Touches prod workflow</span></div>
+    <div class="task-row">13</div><div class="task-row">Wire gitee staging webhook</div><div class="task-row"><span class="badge gray">Manual ops</span></div><div class="task-row">None</div>
+    <div class="task-row">14</div><div class="task-row">First miniapp 开发版 upload</div><div class="task-row"><span class="badge gray">Manual + CI</span></div><div class="task-row">None — 开发版 only</div>
+    <div class="task-row">15</div><div class="task-row">Runbook</div><div class="task-row"><span class="badge blue">Code (docs)</span></div><div class="task-row">None</div>
+    <div class="task-row">16</div><div class="task-row">Final verification (5-step smoke)</div><div class="task-row"><span class="badge gray">Manual</span></div><div class="task-row">None</div>
+  </div>
+</div>
+
+<!-- Workflow diagram -->
+<div class="card" id="diagram">
+  <h2>Workflow diagram</h2>
+  <p style="color:#6b7280; font-size:13px">Which slot the WeChat user opens decides which CVM stack their phone talks to. The runtime <code>resolveBases()</code> does the routing once inside the bundle.</p>
+  <div class="mermaid">
+flowchart TB
+  subgraph Phones["Phones in WeChat"]
+    Tester["Tester WeChat<br/>(listed in 后台)"]
+    User["Public user WeChat"]
+  end
+
+  subgraph WeChat["WeChat platform"]
+    DevSlot["开发版<br/>envVersion=develop"]
+    ProdSlot["正式版<br/>envVersion=release"]
+  end
+
+  subgraph CI["GitHub Actions"]
+    StagingWF["miniprogram-staging.yml<br/>tag v*-staging-*<br/>guard: on staging branch"]
+    ProdWF["miniprogram-release.yml<br/>tag v*<br/>guard: on main branch"]
+  end
+
+  subgraph CVM["Tencent CVM (single host)"]
+    Webhook["webhook_server.py<br/>per-branch locks"]
+    subgraph Slice["staging-build.slice cgroup"]
+      DeployS["deploy-staging.sh"]
+    end
+    DeployP["deploy.sh (prod, unchanged)"]
+
+    subgraph ProdStack["Prod stack"]
+      ProdNginx["nginx app.* + api.*"]
+      ProdSvc["doctor-ai-backend :8000"]
+      ProdDB[(doctor_ai_prod)]
+    end
+    subgraph StgStack["Staging stack"]
+      StgNginx["nginx app.stg.* + api.stg.*"]
+      StgSvc["doctor-ai-staging :8001"]
+      StgDB[(doctor_ai_staging)]
+    end
+    MySQL["MySQL :3306 (shared)"]
+  end
+
+  subgraph Gitee["Gitee"]
+    Main["main branch"]
+    Staging["staging branch"]
+  end
+
+  Tester -->|开发版 QR| DevSlot
+  User -->|public icon| ProdSlot
+  DevSlot -->|WebView + wx.request| StgNginx
+  ProdSlot -->|WebView + wx.request| ProdNginx
+  StgNginx --> StgSvc
+  ProdNginx --> ProdSvc
+  StgSvc --> MySQL
+  ProdSvc --> MySQL
+  MySQL --- StgDB
+  MySQL --- ProdDB
+
+  Main -->|push| Webhook
+  Staging -->|push| Webhook
+  Staging -->|tag v*-staging-*| StagingWF
+  Main -->|tag v*| ProdWF
+  Webhook -->|branch=main| DeployP
+  Webhook -->|branch=staging| DeployS
+  DeployP --> ProdSvc
+  DeployS --> StgSvc
+  StagingWF -->|miniprogram-ci upload| DevSlot
+  ProdWF -->|upload + 审核| ProdSlot
+
+  classDef stage fill:#fff8e1,stroke:#f5a623
+  classDef prod fill:#f0fff4,stroke:#5cb85c
+  class StgNginx,StgSvc,StgDB,DeployS,Slice,StagingWF,DevSlot,Tester,Staging stage
+  class ProdNginx,ProdSvc,ProdDB,DeployP,ProdWF,ProdSlot,User,Main prod
+  </div>
+</div>
+
+<!-- Critical surface 1: resolveBases -->
+<div class="card" id="critical-resolveBases">
+  <h2>Critical surface — <code>resolveBases()</code> (Task 11)</h2>
+  <p>The entire user-visible behavior change. ~15 lines. <code>release</code> branch returns the prod URLs unchanged from today.</p>
+  <pre><code>function resolveBases() {
+  // Devtools preview on a developer laptop: respect explicit config.js.
+  try {
+    if (wx.getSystemInfoSync().platform === "devtools" && runtimeConfig.apiBase) {
+      return { webBase: runtimeConfig.apiBase, apiBase: runtimeConfig.apiBase };
+    }
+  } catch (_) { /* fall through */ }
+
+  try {
+    const env = wx.getAccountInfoSync().miniProgram.envVersion;
+    if (env === "release") {
+      return {
+        webBase: "https://app.doctoragentai.cn",
+        apiBase: "https://api.doctoragentai.cn",
+      };
+    }
+    // develop / trial — only WeChat-listed members can reach this slot.
+    return {
+      webBase: "https://app.stg.doctoragentai.cn",
+      apiBase: "https://api.stg.doctoragentai.cn",
+    };
+  } catch (_) {}
+
+  return {
+    webBase: "https://app.doctoragentai.cn",
+    apiBase: "https://api.doctoragentai.cn",
+  };
+}</code></pre>
+  <div class="callout">
+    <strong>Why split webBase + apiBase?</strong> Because in prod, <code>app.doctoragentai.cn</code> has no <code>/api/</code> proxy — it's static-only. The SPA fetches the API from <code>api.doctoragentai.cn</code> cross-origin. The miniprogram's <code>wx.request</code> calls hit a different host than the WebView <code>src</code>. Conflating them was Codex's #1 catch.
+  </div>
+</div>
+
+<!-- Critical surface 2: webhook -->
+<div class="card" id="critical-webhook">
+  <h2>Critical surface — webhook rewrite (Task 3)</h2>
+  <p>Per-branch dispatch + per-branch locks. <code>main</code> and <code>staging</code> deploys run in parallel; same-branch concurrent pushes are de-duplicated.</p>
+  <pre><code>BRANCH_DEPLOYS: Dict[str, List[str]] = {
+    "main": [
+        "/bin/bash",
+        os.environ.get("DEPLOY_SCRIPT_MAIN", "/home/ubuntu/deploy.sh"),
+    ],
+    "staging": [
+        "/usr/bin/systemd-run",
+        "--unit=staging-deploy-%s" % os.getpid(),
+        "--slice=staging-build.slice",
+        "--collect", "--wait", "--quiet",
+        "/bin/bash",
+        os.environ.get("DEPLOY_SCRIPT_STAGING", "/home/ubuntu/deploy-staging.sh"),
+    ],
+}
+
+# One lock per branch.
+_locks: Dict[str, threading.Lock] = {b: threading.Lock() for b in BRANCH_DEPLOYS}</code></pre>
+  <p>The original webhook had a single global lock that <em>dropped</em> concurrent deploys. The naive ref-dispatch I first proposed had no lock at all. This version threads the needle: same-branch dedup, cross-branch parallel.</p>
+</div>
+
+<!-- Critical surface 3: CI -->
+<div class="card" id="critical-ci">
+  <h2>Critical surface — CI tag guards (Task 12)</h2>
+  <p>Two workflows. Each gated by tag pattern (glob, not regex) <em>and</em> branch-of-tag verification.</p>
+  <table>
+    <thead><tr><th>Workflow</th><th>Tag glob</th><th>Job-level filter</th><th>Branch guard</th><th>Builds against</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>miniprogram-release.yml</code></td>
+        <td><code>v*</code></td>
+        <td><code>!contains(ref_name, '-staging-')</code></td>
+        <td>tagged commit must be on <code>main</code></td>
+        <td><code>VITE_API_BASE_URL=https://api.doctoragentai.cn</code></td>
+      </tr>
+      <tr>
+        <td><code>miniprogram-staging.yml</code></td>
+        <td><code>v*-staging-*</code></td>
+        <td>(no extra filter — glob is precise)</td>
+        <td>tagged commit must be on <code>staging</code></td>
+        <td><code>VITE_API_BASE_URL=https://api.stg.doctoragentai.cn</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout amber">
+    <strong>Failure modes the guards prevent:</strong> tagging a feature-branch commit as <code>v1.2.3</code> (CI fails with "not on main"). Tagging a staging commit as <code>v1.2.3</code> without <code>-staging-</code> (CI fails). Tagging a main commit as <code>v1.2.3-staging-X</code> (CI fails). Tagging anything else as <code>v*</code> (job is skipped, not failed).
+  </div>
+</div>
+
+<!-- Critical surface 4: page migrations -->
+<div class="card" id="critical-pages">
+  <h2>Critical surface — 5 page migrations (Task 10)</h2>
+  <p>Codex's #1 catch: these 5 call sites bypass <code>app.globalData</code> and read <code>runtimeConfig.apiBase</code> directly. They would short-circuit the runtime resolver and always hit the LAN dev URL on real phones. All 5 must migrate.</p>
+  <table>
+    <thead><tr><th>File:line</th><th>Currently reads</th><th>Becomes</th></tr></thead>
+    <tbody>
+      <tr><td><code>pages/doctor/doctor.js:152</code></td><td><code>runtimeConfig.apiBase</code></td><td><code>app.globalData.apiBase</code></td></tr>
+      <tr><td><code>pages/doctor/doctor.js:237</code></td><td><code>runtimeConfig.apiBase</code></td><td><code>app.globalData.apiBase</code></td></tr>
+      <tr><td><code>pages/voice/voice.js:110</code></td><td><code>runtimeConfig.apiBase</code></td><td><code>app.globalData.apiBase</code></td></tr>
+      <tr><td><code>pages/add-rule/add-rule.js:110</code></td><td><code>config.apiBase</code></td><td><code>getApp().globalData.apiBase</code></td></tr>
+      <tr><td><code>pages/add-rule/add-rule.js:181</code></td><td><code>config.apiBase</code></td><td><code>getApp().globalData.apiBase</code></td></tr>
+    </tbody>
+  </table>
+  <p>Plus 2 WebView-src readers switch from <code>app.globalData.apiBase</code> to <code>app.globalData.webBase</code>:</p>
+  <ul>
+    <li><code>pages/doctor/doctor.js:36</code></li>
+    <li><code>pages/login/login.js:28</code></li>
+  </ul>
+  <p>Verify zero leftover bypasses with <code>grep -rn "runtimeConfig.apiBase\|config.apiBase" frontend/miniprogram/ --include="*.js"</code>. Should match only <code>app.js</code>.</p>
+</div>
+
+<!-- Cascading impact -->
+<div class="card" id="cascading">
+  <h2>Cascading impact (per AGENTS.md:240)</h2>
+  <table>
+    <thead><tr><th>Category</th><th>Impact</th></tr></thead>
+    <tbody>
+      <tr><td>DB schema</td><td>None — staging gets a separate schema populated by the existing alembic chain. No new tables/columns.</td></tr>
+      <tr><td>ORM models &amp; Pydantic schemas</td><td>None.</td></tr>
+      <tr><td>API endpoints</td><td>None — staging serves the existing FastAPI app verbatim.</td></tr>
+      <tr><td>Domain logic</td><td>None.</td></tr>
+      <tr><td>Prompt files</td><td>None.</td></tr>
+      <tr><td>Frontend</td><td><code>app.js</code> (split apiBase→webBase+apiBase). 5 page-level call sites migrate. 2 WebView-src readers migrate. SPA itself untouched (build-time <code>VITE_API_BASE_URL</code>).</td></tr>
+      <tr><td>Configuration</td><td>New <code>/etc/doctor-ai-staging.env</code> (root 0600). New webhook env vars. New systemd unit + slice. Two new GHA workflows. No <code>runtime.json</code> changes.</td></tr>
+      <tr><td>Existing tests</td><td>None expected to break. No miniprogram unit tests today; backend tests are env-isolated.</td></tr>
+      <tr><td>Cleanup</td><td>Stale <code>docs/superpowers/plans/...</code> deleted. <code>config.js</code> comment updated.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Codex review history -->
+<div class="card" id="codex">
+  <h2>Codex alignment history</h2>
+  <p style="color:#6b7280; font-size:13px">Four review rounds. Each round flagged real issues. Final round: 96%, SHIP_THIS, no new concerns.</p>
+
+  <h4>Round 1 (original plan)</h4>
+  <div class="alignment-bar"><div class="track"><div class="fill r1"></div></div><div class="pct">66%</div></div>
+  <p style="font-size:13px">Caught 10 substantive issues including a fatal <code>apiBase</code> overload bug, missing CI branch guard, webhook race, secrets in unit file, brittle WeChat-verify preservation. <strong>Plan would have shipped broken.</strong></p>
+
+  <h4>Round 2 (full rewrite)</h4>
+  <div class="alignment-bar"><div class="track"><div class="fill r2"></div></div><div class="pct">88%</div></div>
+  <p style="font-size:13px">9/10 prior fixed; 6 new concerns from rewrite: missing Cascading Impact section, missing mermaid, wrong docs path, Python 3.10+ types in 3.9 codebase, DSN-leaking shell, GHA tag glob misuse.</p>
+
+  <h4>Round 3 (six fixes)</h4>
+  <div class="alignment-bar"><div class="track"><div class="fill r3"></div></div><div class="pct">93%</div></div>
+  <p style="font-size:13px">6/6 prior fixed; 2 wording inconsistencies flagged: "serialize cleanly" claim contradicted parallel-deploy design; <code>--setenv-file=</code> wording vs <code>--property=EnvironmentFile=</code> command.</p>
+
+  <h4>Round 4 (wording cleanup)</h4>
+  <div class="alignment-bar"><div class="track"><div class="fill r4"></div></div><div class="pct">96%</div></div>
+  <p style="font-size:13px"><strong>SHIP_THIS.</strong> Both wording fixes landed cleanly. No new concerns introduced.</p>
+</div>
+
+<hr>
+
+<p style="color:#9ca3af; font-size:12px">Plan source: <a href="2026-04-27-staging-environment.md" style="color:#1565c0">2026-04-27-staging-environment.md</a> &middot; This visual companion exists per <a href="../../AGENTS.md" style="color:#1565c0">AGENTS.md:122</a> (companion HTML for docs &gt;200 lines).</p>
+
+</main>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    flowchart: { curve: 'basis', useMaxWidth: true },
+    securityLevel: 'loose'
+  });
+</script>
+</body>
+</html>

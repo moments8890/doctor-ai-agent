@@ -1,5 +1,3 @@
-const config = require('../../config.js');
-
 const plugin = requirePlugin("WechatSI");
 
 const MIN_RECORDING_MS = 1000;
@@ -107,7 +105,7 @@ Page({
     const doctorId = wx.getStorageSync('doctorId') || '';
 
     wx.request({
-      url: `${config.apiBase}/api/manage/knowledge/voice-extract?doctor_id=${encodeURIComponent(doctorId)}`,
+      url: `${getApp().globalData.apiBase}/api/manage/knowledge/voice-extract?doctor_id=${encodeURIComponent(doctorId)}`,
       method: 'POST',
       header: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       data: { doctor_id: doctorId, transcript: transcript },
@@ -178,7 +176,7 @@ Page({
     const doctorId = wx.getStorageSync('doctorId') || '';
 
     wx.request({
-      url: `${config.apiBase}/api/manage/knowledge?doctor_id=${encodeURIComponent(doctorId)}`,
+      url: `${getApp().globalData.apiBase}/api/manage/knowledge?doctor_id=${encodeURIComponent(doctorId)}`,
       method: 'POST',
       header: {
         'Authorization': `Bearer ${token}`,

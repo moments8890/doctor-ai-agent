@@ -1,9 +1,13 @@
 module.exports = {
-  // Local dev: http://localhost:5173  |  Prod: https://your-server.com
+  // Local dev only. Used by app.js when WeChat reports platform === "devtools"
+  // (the laptop preview). On a real phone, app.js ignores this and reads
+  // wx.getAccountInfoSync().miniProgram.envVersion to pick:
+  //   release → webBase=app.* + apiBase=api.*
+  //   develop / trial → webBase=app.stg.* + apiBase=api.stg.*
+  //
+  // For LAN dev: a single Vite host serves both SPA and /api proxy, so we
+  // use the same value for both webBase and apiBase.
   apiBase: "http://localhost:5173",
 
-  // WeChat subscribe-message template ID.
-  // Register a template in the WeChat Mini Program admin, then paste the ID here.
-  // Leave empty ("") to disable subscription requests.
   subscribeTemplateId: "",
 };
