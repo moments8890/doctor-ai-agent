@@ -765,6 +765,16 @@ export default function MyAIPage({ doctorId }) {
             </Card>
           </>
         )}
+        <div
+          style={{
+            textAlign: "center",
+            fontSize: FONT.xs,
+            color: APP.text4,
+            padding: "20px 16px 8px",
+          }}
+        >
+          本服务为AI生成内容，结果仅供参考
+        </div>
         <SafeArea position="bottom" />
       </div>
       <ReleaseNotesDialog
