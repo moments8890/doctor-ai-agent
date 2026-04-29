@@ -26,11 +26,14 @@ jobs:
             exit 1
           fi
 
-      - name: Verify tag is on main
+      - name: Verify tag is on tencent
         run: |
-          if ! git branch -r --contains "$GITHUB_SHA" | grep -qE 'origin/main$'; then
-            echo "::error::Tag ${GITHUB_REF_NAME} (commit ${GITHUB_SHA}) is not on origin/main."
-            echo "Tag a commit that's been merged to main, or use a -staging- tag for staging."
+          # Post 2026-04-28 swap: prod releases live on the `tencent` branch.
+          # main is now the daily/staging trunk; merging main → tencent and
+          # tagging on tencent is the release ritual.
+          if ! git branch -r --contains "$GITHUB_SHA" | grep -qE 'origin/tencent$'; then
+            echo "::error::Tag ${GITHUB_REF_NAME} (commit ${GITHUB_SHA}) is not on origin/tencent."
+            echo "Tag a commit that's been merged to tencent, or use a -staging- tag for staging."
             exit 1
           fi
 

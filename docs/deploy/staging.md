@@ -1,11 +1,20 @@
 # Staging Environment Runbook
 
+## Branch model (post 2026-04-28 swap)
+
+| Branch | Tracks | Auto-deploys to |
+|---|---|---|
+| `gitee/main` (= `origin/main`) | daily trunk; safe to push | **staging** (api.stg.* + app.stg.*) |
+| `gitee/tencent` (= `origin/tencent`) | release pointer; pushed deliberately | **prod** (api.* + app.*) |
+
+Daily flow: `git push gitee main` → staging redeploys, prod untouched.
+Release flow: `git checkout tencent && git merge main && git push gitee tencent` → prod redeploys.
+
 ## What it is
 
 Cheap pre-prod on the same CVM as prod. Reaches `app.stg.doctoragentai.cn`
 + `api.stg.doctoragentai.cn`. Backend on `:8001`, MySQL schema
 `doctor_ai_staging`, working tree `/home/ubuntu/doctor-ai-staging/`.
-Auto-deploys on push to `gitee/staging`.
 
 WeChat appid `wx9667f8091b342fb7`. 开发版 routes to staging; 正式版 routes to
 prod (unchanged). Only WeChat-listed 开发者/体验者 can scan 开发版 QR.
@@ -19,35 +28,45 @@ WeChat 后台 → 成员管理 → 体验成员 → 添加成员 → paste WeCha
 
 ## Deploy to staging server
 
-Just push:
+Just push to main:
 
-    git checkout staging
+    git checkout main
     # ... edits ...
-    git push gitee staging
+    git push gitee main
 
 Webhook → `deploy-staging.sh` (under `staging-build.slice` cgroup, so it
 can't starve prod). ~2-4 min total.
 
+## Deploy to prod server
+
+Merge main into tencent and push:
+
+    git checkout tencent
+    git merge main
+    git push gitee tencent
+
+Webhook → `deploy.sh` → prod backend restart. ~2-4 min total.
+
 ## Deploy to staging miniapp slot
 
-After a server-side staging deploy, upload the WebView shell:
+Tag a main commit (post-staging-deploy is fine; the bundle is tag-snapshot):
 
-    git checkout staging
+    git checkout main
     git tag v1.x.y-staging-YYYY-MM-DD -m "<reason>"
-    git push github v1.x.y-staging-YYYY-MM-DD
+    git push origin v1.x.y-staging-YYYY-MM-DD
 
-GitHub Actions → `miniprogram-staging.yml` (gated to staging branch). On phone,
-open 开发版 from WeChat 后台 → 版本管理.
+GitHub Actions → `miniprogram-staging.yml` (gated: tag must be on main).
+On phone, open 开发版 from WeChat 后台 → 版本管理.
 
 ## Promote staging build to 正式版
 
 Confirmed working in 开发版? Two equally valid paths:
 
-A) **Re-tag the same commit on `main`** (cleanest):
-   1. Merge `staging` to `main`.
-   2. Tag `vX.Y.Z` on main.
-   3. Push tag → `miniprogram-release.yml` uploads.
-   4. WeChat 后台 → 版本管理 → 提交审核 → 发布 (~24h audit).
+A) **Re-tag a tencent commit** (cleanest, separates staging-test from prod-build):
+   1. `git checkout tencent && git merge main && git push gitee tencent` (prod-deploy server).
+   2. Tag `vX.Y.Z` on tencent.
+   3. `git push origin vX.Y.Z` → `miniprogram-release.yml` uploads (gated: tag must be on tencent).
+   4. WeChat 后台 → 版本管理 → 提交审核 → 发布 (~24h–7d audit).
 
 B) **Submit the existing 开发版 directly**: WeChat 后台 → 开发版 → find the
    `[STAGING]` build → 提交审核. Same .wxapkg goes to 正式版; runtime envVersion

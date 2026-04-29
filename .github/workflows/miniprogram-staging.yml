@@ -25,10 +25,12 @@ jobs:
             exit 1
           fi
 
-      - name: Verify tag is on staging
+      - name: Verify tag is on main
         run: |
-          if ! git branch -r --contains "$GITHUB_SHA" | grep -qE 'origin/staging$'; then
-            echo "::error::Tag ${GITHUB_REF_NAME} (commit ${GITHUB_SHA}) is not on origin/staging."
+          # Post 2026-04-28 swap: main is the staging/trunk branch; tag a
+          # main commit with v*-staging-* to ship to WeChat 开发版.
+          if ! git branch -r --contains "$GITHUB_SHA" | grep -qE 'origin/main$'; then
+            echo "::error::Tag ${GITHUB_REF_NAME} (commit ${GITHUB_SHA}) is not on origin/main."
             exit 1
           fi
 

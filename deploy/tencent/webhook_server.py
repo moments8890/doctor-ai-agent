@@ -23,24 +23,22 @@ from typing import Dict, List, Optional
 PORT = int(os.environ.get("WEBHOOK_PORT", "9000"))
 SECRET = os.environ.get("WEBHOOK_SECRET", "")
 
-# Branch → deploy command. The staging command runs under a systemd slice so
-# its RAM/CPU is capped and cannot starve prod. Slice unit lives at
-# /etc/systemd/system/staging-build.slice (see Task 8).
+# Branch → deploy command. Post 2026-04-28 swap:
+#   gitee/main    → staging deploy (daily trunk, safe to push)
+#   gitee/tencent → prod deploy (release pointer, pushed deliberately)
+# Other branches are ignored.
+#
+# The staging command runs under a systemd slice so its RAM/CPU is capped
+# and cannot starve prod. Slice unit lives at
+# /etc/systemd/system/staging-build.slice. systemd-run is prefixed with
+# sudo because the webhook runs as ubuntu but --slice= attaches a system
+# slice that only works as root. --uid=ubuntu drops privileges back so
+# the deploy runs with ubuntu's SSH access to gitee. --setenv=HOME=...
+# so git's safe.directory lookup finds the right gitconfig.
+# Matching NOPASSWD sudoers entry: /etc/sudoers.d/doctor-ai-staging
+# (DOCTORAI_STAGING_RUN alias).
 BRANCH_DEPLOYS: Dict[str, List[str]] = {
     "main": [
-        "/bin/bash",
-        os.environ.get("DEPLOY_SCRIPT_MAIN", "/home/ubuntu/deploy.sh"),
-    ],
-    # systemd-run prefixed with sudo: webhook runs as `ubuntu`, but
-    # `--slice=staging-build.slice` is a system slice (not a user slice),
-    # which only attaches when systemd-run is invoked as root. The matching
-    # NOPASSWD sudoers entry is in /etc/sudoers.d/doctor-ai-deploy
-    # (DOCTORAI_STAGING_RUN alias).
-    # --uid/--gid=ubuntu so the deploy runs as the user that owns the
-    # staging tree (and has SSH access to gitee). --slice attaches a
-    # system cgroup. --setenv=HOME=/home/ubuntu so git's safe.directory
-    # lookup finds the right config.
-    "staging": [
         "/usr/bin/sudo",
         "/usr/bin/systemd-run",
         "--unit=staging-deploy-%s" % os.getpid(),
@@ -54,6 +52,10 @@ BRANCH_DEPLOYS: Dict[str, List[str]] = {
         "--quiet",
         "/bin/bash",
         os.environ.get("DEPLOY_SCRIPT_STAGING", "/home/ubuntu/deploy-staging.sh"),
+    ],
+    "tencent": [
+        "/bin/bash",
+        os.environ.get("DEPLOY_SCRIPT_PROD", "/home/ubuntu/deploy.sh"),
     ],
 }
 

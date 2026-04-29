@@ -26,8 +26,10 @@ echo "=== staging deploy started at $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 cd "$APP_DIR"
 
 # 1. Pull latest staging branch.
+# Branch model (post 2026-04-28 swap): staging tree tracks origin/main;
+# prod tree tracks gitee/tencent. Daily push to main → staging deploy.
 git fetch origin
-git reset --hard origin/staging
+git reset --hard origin/main
 
 GIT_COMMIT=$(git rev-parse HEAD)
 sudo mkdir -p /etc/systemd/system/doctor-ai-staging.service.d
@@ -44,6 +46,7 @@ sudo systemctl daemon-reload
 cd "$APP_DIR/frontend/web"
 npm ci --silent
 VITE_API_BASE_URL=https://api.stg.doctoragentai.cn npm run build
+# Note: building from origin/main (post-swap), not origin/staging.
 
 # 4. Now run migrations (env loaded from EnvironmentFile-equivalent).
 set -a

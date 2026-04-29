@@ -12,9 +12,12 @@ echo "=== deploy started at $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
 cd "$APP_DIR"
 
-# Pull latest (from gitee — webhook triggers on gitee push)
+# Pull latest (from gitee — webhook triggers on gitee push).
+# Branch model (post 2026-04-28 swap):
+#   gitee/main    → daily trunk; auto-deploys to staging via deploy-staging.sh
+#   gitee/tencent → prod-only release pointer; pushed deliberately to ship.
 git fetch gitee
-git reset --hard gitee/main
+git reset --hard gitee/tencent
 
 # Pin current SHA as a systemd env var so Sentry/GlitchTip `release` tag
 # attributes events to the exact deployed commit. Enables regression
