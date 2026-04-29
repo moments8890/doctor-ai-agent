@@ -7,12 +7,18 @@
     <style>html, body { overscroll-behavior: none; } *, *::before, *::after { box-sizing: border-box; }</style>
     <title>鲸鱼随行</title>
     <script>
+      // Inline title prefix — runs before the React bundle so even the brief
+      // pre-hydration tab title shows the env. Mirrors src/lib/pageTitle.js;
+      // keep the two in sync. Order matters: ".stg." check before ".doctoragentai.cn".
       (function() {
         var host = window.location.hostname;
         var port = window.location.port;
         var env = "";
+        var STG_SUFFIX = ".stg.doctoragentai.cn";
+        var PROD_SUFFIX = ".doctoragentai.cn";
         if (host === "localhost" || host === "127.0.0.1" || port === "5173" || port === "5174") env = "dev";
-        else if (host.indexOf(".doctoragentai.cn") !== -1 && host.lastIndexOf(".doctoragentai.cn") === host.length - ".doctoragentai.cn".length) env = "内测版";
+        else if (host.length >= STG_SUFFIX.length && host.lastIndexOf(STG_SUFFIX) === host.length - STG_SUFFIX.length) env = "stg";
+        else if (host.length >= PROD_SUFFIX.length && host.lastIndexOf(PROD_SUFFIX) === host.length - PROD_SUFFIX.length) env = "内测版";
         if (env) document.title = "[" + env + "] " + document.title;
       })();
     </script>

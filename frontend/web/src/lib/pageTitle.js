@@ -1,10 +1,11 @@
 /**
  * pageTitle — set document.title with [env][role] prefix so users can tell
- * dev vs prod tabs apart and identify which surface (wiki / admin / main app)
- * they're looking at.
+ * dev vs staging vs prod tabs apart and identify which surface (wiki / admin
+ * / main app) they're looking at.
  *
  * env detection:
  *   - localhost / 127.0.0.1 / :5173 / :5174 → "dev"
+ *   - *.stg.doctoragentai.cn → "stg"          (post 2026-04-28 split)
  *   - *.doctoragentai.cn → "内测版"
  *   - anything else → no env prefix (test harness, file://, unknown host)
  *
@@ -16,6 +17,10 @@ export function getEnvLabel() {
   const port = window.location.port;
   if (host === "localhost" || host === "127.0.0.1" || port === "5173" || port === "5174") {
     return "dev";
+  }
+  // Order matters: check the more-specific ".stg." suffix first.
+  if (host.endsWith(".stg.doctoragentai.cn")) {
+    return "stg";
   }
   if (host.endsWith(".doctoragentai.cn")) {
     return "内测版";
