@@ -796,6 +796,7 @@ export default function KnowledgeSubpage() {
         <LoadingCenter />
       ) : (
         <div style={scrollable}>
+          <AiDisclaimer />
           <JumboTabs activeKey={activeTab} onChange={(key) => {
             const next = new URLSearchParams(searchParams);
             if (key === "overview") { next.delete("tab"); } else { next.set("tab", key); }
@@ -835,7 +836,6 @@ export default function KnowledgeSubpage() {
               navigate={navigate}
             />
           )}
-          <AiDisclaimer />
         </div>
       )}
     </div>

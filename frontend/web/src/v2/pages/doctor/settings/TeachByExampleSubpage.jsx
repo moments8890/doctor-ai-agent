@@ -64,6 +64,7 @@ export default function TeachByExampleSubpage() {
       </NavBar>
 
       <div style={{ ...scrollable, padding: "16px" }}>
+        <AiDisclaimer />
         {/* Helper text */}
         <p
           style={{
@@ -189,7 +190,6 @@ export default function TeachByExampleSubpage() {
           </div>
         )}
 
-        <AiDisclaimer />
         <div style={{ height: 32 }} />
       </div>
     </div>

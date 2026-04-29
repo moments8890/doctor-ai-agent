@@ -1210,6 +1210,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
 
       {/* Scrollable content — tab-dependent */}
       <div style={scrollable}>
+        {!loading && !error && <AiDisclaimer />}
         {loading && <LoadingCenter />}
 
         {!loading && error && (
@@ -1426,7 +1427,6 @@ export default function PatientDetail({ patientId: propPatientId }) {
           <PatientChatPage patientId={patientId} embedded />
         )}
 
-        {!loading && !error && activeTab !== TAB_CHAT && <AiDisclaimer />}
       </div>
     </div>
   );

@@ -652,6 +652,7 @@ function InlineReviewLayout({
 
       {/* Scrollable content */}
       <div style={{ ...scrollable, paddingBottom: 96 }}>
+        <AiDisclaimer />
         {/* 病例摘要 — read-only summary card */}
         {summaryRows.length > 0 && (
           <>
@@ -1783,7 +1784,6 @@ export default function ReviewPage({ recordId }) {
         </div>
       )}
 
-      <AiDisclaimer />
       <SafeArea position="bottom" />
       {citationPopupNode}
     </div>
