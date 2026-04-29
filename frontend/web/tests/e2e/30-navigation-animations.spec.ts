@@ -15,7 +15,11 @@ test.use({ launchOptions: { slowMo: 0 } });
 const SLIDE = 2800;
 const INSTANT = 800;
 
-test("navigation animations — all key transitions", async ({ doctorPage, patient, steps }) => {
+// Skipped — the doctor app no longer has bottom tabs (我的AI / 患者 / 审核 /
+// 任务). The IA shifted to a single-page MyAI home with subpage overlays;
+// /doctor/review (queue) was retired. This animation walkthrough needs a
+// rewrite for the new IA before it can be re-enabled.
+test.skip("navigation animations — all key transitions", async ({ doctorPage, patient, steps }) => {
   const page = doctorPage;
 
   // Dismiss release notes dialog if present

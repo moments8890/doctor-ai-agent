@@ -36,14 +36,17 @@ test.describe("工作流 15 — 教AI学偏好", () => {
       doctorPage.getByPlaceholder("粘贴一段你满意的回复示例…"),
     ).toBeVisible();
 
-    // step 1.4 — character counter
-    await expect(doctorPage.getByText("0 / 2000")).toBeVisible();
+    // step 1.4 — character counter (antd-mobile TextArea showCount renders
+    // as "0/2000" without spaces — old "0 / 2000" string is gone).
+    await expect(doctorPage.getByText(/0\s*\/\s*2000/)).toBeVisible();
 
-    // step 1.5 — submit button visible but disabled (AppButton = div with opacity: 0.5)
-    const submitBtn = doctorPage.getByText("开始分析", { exact: true });
+    // step 1.5 — submit button visible but disabled. The page uses an
+    // antd-mobile <Button>, which renders a real <button disabled>; query
+    // by role and check the disabled attribute (the legacy spec checked
+    // AppButton opacity, which no longer applies).
+    const submitBtn = doctorPage.getByRole("button", { name: "开始分析" });
     await expect(submitBtn).toBeVisible();
-    // AppButton uses opacity: 0.5 when disabled — check CSS
-    await expect(submitBtn).toHaveCSS("opacity", "0.5");
+    await expect(submitBtn).toBeDisabled();
     await steps.capture(doctorPage, "验证按钮禁用状态");
   });
 
@@ -51,24 +54,24 @@ test.describe("工作流 15 — 教AI学偏好", () => {
     await doctorPage.goto("/doctor/settings/teach");
 
     const textarea = doctorPage.getByPlaceholder("粘贴一段你满意的回复示例…");
-    const submitBtn = doctorPage.getByText("开始分析", { exact: true });
+    const submitBtn = doctorPage.getByRole("button", { name: "开始分析" });
 
-    // step 2.1 — spaces only keeps button disabled (opacity 0.5)
+    // step 2.1 — spaces only keeps button disabled (source: !text.trim()).
     await textarea.fill("   ");
-    await expect(submitBtn).toHaveCSS("opacity", "0.5");
+    await expect(submitBtn).toBeDisabled();
 
-    // step 2.2 — real text enables button (opacity 1)
+    // step 2.2 — real text enables the button.
     await textarea.fill("你好，这是一段测试回复");
-    await expect(submitBtn).toHaveCSS("opacity", "1");
+    await expect(submitBtn).toBeEnabled();
     await steps.capture(doctorPage, "输入文本后按钮启用");
 
     // step 2.2 — counter updates (character count depends on exact text length)
-    await expect(doctorPage.getByText(/\d+ \/ 2000/).first()).toBeVisible();
+    await expect(doctorPage.getByText(/\d+\s*\/\s*2000/).first()).toBeVisible();
 
-    // step 2.3 — clear text re-disables (opacity 0.5)
+    // step 2.3 — clear text re-disables.
     await textarea.fill("");
-    await expect(submitBtn).toHaveCSS("opacity", "0.5");
-    await expect(doctorPage.getByText("0 / 2000")).toBeVisible();
+    await expect(submitBtn).toBeDisabled();
+    await expect(doctorPage.getByText(/0\s*\/\s*2000/)).toBeVisible();
     await steps.capture(doctorPage, "清空后按钮重新禁用");
   });
 

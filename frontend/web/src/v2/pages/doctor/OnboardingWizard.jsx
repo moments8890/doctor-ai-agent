@@ -29,7 +29,7 @@ import {
 import { seedDemo, updateDoctorProfile } from "../../../api";
 import { markPreviousReleasesSeen } from "../../../store/releaseStore";
 import { dp } from "../../../utils/doctorBasePath";
-import { APP, FONT, RADIUS } from "../../theme";
+import { APP, FONT, ICON, RADIUS } from "../../theme";
 import SubpageBackHome from "../../components/SubpageBackHome";
 
 const TOTAL_STEPS = 3;

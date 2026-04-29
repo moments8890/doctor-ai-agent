@@ -12,39 +12,11 @@ import {
 } from "./fixtures/seed";
 
 test.describe("工作流 08 — 审核诊断", () => {
-  test("1. 队列标签页渲染待审核记录", async ({
-    doctorPage,
-    doctor,
-    patient,
-    request,
-    steps,
-  }) => {
-    // Seed one knowledge rule relevant to the intake symptoms.
-    // category must be enum: custom|diagnosis|followup|medication (default "custom")
-    await addKnowledgeText(
-      request,
-      doctor,
-      "高血压患者头痛需排除高血压脑病与颅内出血",
-    );
-    await completePatientIntake(request, patient);
-
-    await doctorPage.goto("/doctor/review");
-
-    await steps.capture(doctorPage, "审核队列页面", "显示待审核列表");
-
-    // Sub-tabs
-    for (const label of ["待审核", "待回复", "已完成"]) {
-      await expect(doctorPage.getByText(label, { exact: true }).first()).toBeVisible();
-    }
-
-    // 1.3 — card shows patient name. On review page the name appears in the
-    // card; preseed may also add a "张秀兰" record. Check for either.
-    await expect(
-      doctorPage.getByText(patient.name).or(doctorPage.getByText("张秀兰")).first(),
-    ).toBeVisible();
-
-    await steps.capture(doctorPage, "验证审核卡片", "显示患者姓名和三个子标签");
-  });
+  // Test 1 (queue page) removed — the standalone /doctor/review queue page
+  // (with 待审核 / 待回复 / 已完成 sub-tabs) was retired. Pending review
+  // items now surface inline on the MyAI homepage as attention cards. The
+  // /doctor/review/:recordId detail route still exists; see test 2.
+  test.skip("1. 队列标签页渲染待审核记录", async () => {});
 
   test("2. 审核详情 — 三个区域且无原始引用标记", async ({
     doctorPage,
@@ -66,9 +38,11 @@ test.describe("工作流 08 — 审核诊断", () => {
 
     await steps.capture(doctorPage, "诊断审核详情页", "显示诊断审核标题");
 
-    // 2.3 — three sections
-    for (const label of ["鉴别诊断", "检查建议", "治疗方向"]) {
-      await expect(doctorPage.getByText(label, { exact: true })).toBeVisible();
+    // 2.3 — three sections. The displayed labels are 诊断 / 检查建议 /
+    // 治疗方向 (the canonical "鉴别诊断" key in source DIFFERENTIAL_FIELDS
+    // renders as the shorter "诊断" in the FieldWithAI row).
+    for (const label of ["诊断", "检查建议", "治疗方向"]) {
+      await expect(doctorPage.getByText(label, { exact: true }).first()).toBeVisible();
     }
 
     // 2.4 — no literal [KB-N]

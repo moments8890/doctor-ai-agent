@@ -201,7 +201,9 @@ test.describe("patient smoke gallery", () => {
   test("01 — chat tab", async ({ page }) => {
     await page.goto("/patient/chat");
     await page.waitForSelector("text=新问诊");
-    await page.waitForSelector("text=查看病历");
+    // The chat tab no longer surfaces a "查看病历" link — the bottom nav
+    // tab labelled "病历" is the canonical entry now. Just wait for the
+    // chat-specific markers.
     // Wait for the welcome / first AI bubble to render.
     await page.waitForSelector("text=AI助手");
     await page.waitForTimeout(400);
@@ -214,9 +216,11 @@ test.describe("patient smoke gallery", () => {
   test("02 — records timeline (unified)", async ({ page }) => {
     // As of 2026-04-24, RecordsTab is a single chronological timeline —
     // view toggle and type filter were dropped (YAGNI for sub-5-record audience).
+    // Page header is "病历" (was "门诊记录"); status badge is "待审核"
+    // (was "预问诊").
     await page.goto("/patient/records");
-    await page.waitForSelector("text=门诊记录");
-    await page.waitForSelector("text=预问诊");
+    await page.waitForSelector("text=病历");
+    await page.waitForSelector("text=待审核");
     // Month section header is rendered by groupByMonth → "2026年4月".
     await page.waitForSelector("text=/2026年.月/");
     await page.waitForTimeout(300);

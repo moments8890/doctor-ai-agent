@@ -46,6 +46,10 @@ test.describe("patient task detail", () => {
     );
     await page.addInitScript((auth) => {
       localStorage.setItem("patient-portal-auth", JSON.stringify(auth));
+      // Pre-set onboarding-done so the patient overlay doesn't intercept
+      // clicks on the task list.
+      localStorage.setItem(`patient_onboarding_done_${auth.state.patientId}`, "1");
+      localStorage.setItem("patient_portal_patient_id", auth.state.patientId);
     }, SEEDED_AUTH);
   });
 

@@ -51,6 +51,11 @@ test.describe("patient record detail", () => {
     );
     await page.addInitScript((auth) => {
       localStorage.setItem("patient-portal-auth", JSON.stringify(auth));
+      // PatientPage useState initializer reads the onboarding-done key once
+      // at mount; pre-set it so the onboarding overlay doesn't render and
+      // intercept clicks on the record list.
+      localStorage.setItem(`patient_onboarding_done_${auth.state.patientId}`, "1");
+      localStorage.setItem("patient_portal_patient_id", auth.state.patientId);
     }, SEEDED_AUTH);
   });
 

@@ -10,7 +10,12 @@ import { createPatientTask } from "./fixtures/seed";
 
 test.describe.configure({ mode: "serial" });
 
-test.describe("工作流 10 — 任务管理", () => {
+// The standalone /doctor/tasks page was retired with the v2 single-page IA
+// shift — tasks now surface inline on the MyAI homepage's 今日关注 cards.
+// All workflow-10 assertions assume the old standalone page; the whole
+// describe block is skipped pending a rewrite for the new IA. The tests
+// inside still run only when this guard flips off.
+test.describe.skip("工作流 10 — 任务管理", () => {
   test("1. 列表外壳渲染两个标签默认待完成", async ({
     doctorPage,
     steps,

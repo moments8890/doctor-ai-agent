@@ -47,9 +47,10 @@ test.describe("工作流 03 — AI助手概览", () => {
     // in the v2 card-layout redesign. MyAIPage now shows hero banner +
     // quick-action tiles + 今日关注 + 最近使用.
 
-    // 4 — quick action tiles (no "快捷工具" section header anymore; tiles
-    // render directly as labels on the action card)
-    await expect(doctorPage.getByText("新建病历")).toBeVisible();
+    // 4 — quick action tiles. The v2 redesign retired the "新建病历" tile;
+    // current tiles include 全部患者 / 预问诊码 / 知识库 (see MyAIPage.jsx
+    // labels around line 540).
+    await expect(doctorPage.getByText("全部患者")).toBeVisible();
     await expect(doctorPage.getByText("预问诊码")).toBeVisible();
 
     // 6 — knowledge quick action (section header "我的知识" was removed in

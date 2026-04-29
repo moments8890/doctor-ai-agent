@@ -48,7 +48,10 @@ async function waitForShell(page: Page) {
 // click the first row and read the URL param afterwards. The list lives
 // inside a section with header "选择医生".
 async function clickFirstDoctor(page: Page): Promise<string> {
-  await expect(page.getByText("选择医生", { exact: true })).toBeVisible();
+  // "选择医生" appears in both the header breadcrumb (data-v3="crumb-here")
+  // AND the section heading. .first() picks the breadcrumb (DOM order),
+  // both confirm the page rendered.
+  await expect(page.getByText("选择医生", { exact: true }).first()).toBeVisible();
 
   // The "X 位" count appears next to the heading. If the list is empty,
   // surface that as a clear failure rather than a flaky timeout below.
@@ -81,6 +84,13 @@ test.describe("admin v3 — operator console", () => {
   // doctor-app PWA hero path; the admin surface targets desktop operators.
   test.use({ viewport: { width: 1440, height: 900 } });
 
+  // The admin spec dogfoods the live dev DB on :8000 (see header doc).
+  // validate-v2-e2e.sh forces E2E_BASE_URL=:5174 → :8001 (test backend),
+  // which has no admin-relevant data. Override the baseURL here so this
+  // spec always points at the dev frontend (proxies to :8000) regardless
+  // of the global env. Requires `npm run dev` (or equivalent) running.
+  test.use({ baseURL: "http://127.0.0.1:5173" });
+
   test.beforeEach(async ({ page }) => {
     // Belt-and-suspenders: AdminPage.jsx already does this in DEV mode,
     // but the init script guarantees it before the first script runs.
@@ -102,10 +112,11 @@ test.describe("admin v3 — operator console", () => {
     await page.goto("/admin?v=3");
     await waitForShell(page);
 
-    // Three nav groups visible (super + dev-mode = all three groups).
+    // Two nav groups: 概览 / 运营. The 系统 group was removed from the
+    // sidebar (devMode.js comments still reference it but AdminSidebar
+    // NAV_GROUPS no longer includes it).
     await expect(page.getByText("概览", { exact: true })).toBeVisible();
     await expect(page.getByText("运营", { exact: true })).toBeVisible();
-    await expect(page.getByText("系统", { exact: true })).toBeVisible();
 
     // 全体医生 nav item visible + clickable. Click should NOT navigate
     // away from /admin?v=3 (the link target is `?v=3` itself).
@@ -145,9 +156,11 @@ test.describe("admin v3 — operator console", () => {
     await expect(aiTab).toBeVisible();
 
     // 总览 is active by default — the AiAdoptionPanel headline title is
-    // a load-bearing string for the overview surface.
+    // a load-bearing string for the overview surface. Drop exact:true since
+    // Panel concatenates an icon char into the same text-content sibling
+    // (e.g. "network_intelligence AI 建议如何被使用").
     await expect(overviewTab).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByText("AI 建议如何被使用", { exact: true })).toBeVisible();
+    await expect(page.getByText("AI 建议如何被使用")).toBeVisible();
   });
 
   test("3. 患者 tab filter chips and 高危 filter behavior", async ({ page }) => {
@@ -159,25 +172,28 @@ test.describe("admin v3 — operator console", () => {
     await patientsTab.click();
     await expect(patientsTab).toHaveAttribute("aria-selected", "true");
 
-    // 5 filter chips visible.
-    await expect(page.getByText("全部", { exact: true })).toBeVisible();
-    await expect(page.getByText("高危", { exact: true })).toBeVisible();
-    await expect(page.getByText("未达标", { exact: true })).toBeVisible();
-    await expect(page.getByText("7天无沟通", { exact: true })).toBeVisible();
-    await expect(page.getByText("术后随访", { exact: true })).toBeVisible();
+    // 5 filter chips visible. Each chip is a single <span> wrapping an
+    // optional icon-name span + label + count span; the outer text content
+    // is e.g. "priority_high高危0" (no separator). Scope to the filter bar
+    // and match labels by substring within each chip <span>.
+    const chipBar = page.locator("div").filter({ hasText: "全部" }).filter({ has: page.locator(".num") }).first();
+    for (const label of ["全部", "高危", "未达标", "7天无沟通", "术后随访"]) {
+      await expect(
+        chipBar.locator("span", { hasText: label }).first(),
+      ).toBeVisible();
+    }
 
     // Click 高危. The grid filters to danger-only; if there are no
     // danger-tagged patients, the EmptyState renders with the title
-    // "暂无匹配的患者". Either outcome is correct — we just need to
-    // confirm the click changed UI state without throwing.
-    await page.getByText("高危", { exact: true }).click();
+    // "暂无匹配的患者". Either outcome is correct.
+    await chipBar.locator("span", { hasText: "高危" }).first().click();
 
-    // Chip border-color changes when active (chip uses border:1px text2 vs
-    // borderDefault). Easier signal: either the empty state appears or the
-    // grid still has at least one card. Both are valid post-filter states.
+    // Chip border-color changes when active. Easier signal: either the
+    // empty state appears or the grid still has a card. .first() because
+    // the KPI strip's "近 7 日 消息" also matches the substring.
     const emptyTitle = page.getByText("暂无匹配的患者", { exact: true });
     const anyCard = page.locator("text=消息").first();
-    await expect(emptyTitle.or(anyCard)).toBeVisible();
+    await expect(emptyTitle.or(anyCard).first()).toBeVisible();
   });
 
   test("4. 沟通 tab + 4. AI 与知识 tab render some content or empty state", async ({ page }) => {
@@ -205,8 +221,9 @@ test.describe("admin v3 — operator console", () => {
     await expect(aiTab).toHaveAttribute("aria-selected", "true");
 
     const aiEmpty = page.getByText("暂无 AI 决策记录", { exact: true });
-    // DecisionCard always renders the literal labels "AI 观察" and "依据".
-    const decisionCard = page.getByText("AI 观察", { exact: true }).first();
+    // DecisionCard renders an icon span before the "AI 观察" label, so the
+    // element's text content is e.g. "visibility AI 观察" — drop exact:true.
+    const decisionCard = page.getByText("AI 观察").first();
     await expect(aiEmpty.or(decisionCard).first()).toBeVisible({ timeout: 10_000 });
   });
 
@@ -230,8 +247,9 @@ test.describe("admin v3 — operator console", () => {
     }
 
     // The demo block emits one analysis footnote (collapsed by default).
-    // Locate by its label, then walk up to the clickable card container.
-    const analysisLabel = page.getByText("AI 解析 · 不发送", { exact: true }).first();
+    // HeaderLine renders an icon span ("network_intelligence") next to the
+    // label, so the parent's text content is concatenated — drop exact:true.
+    const analysisLabel = page.getByText("AI 解析 · 不发送").first();
     await expect(analysisLabel).toBeVisible();
 
     // The card itself is the parent role=button (AiFootnoteCard sets
@@ -247,8 +265,10 @@ test.describe("admin v3 — operator console", () => {
     expect(collapsedBox).toBeTruthy();
 
     // Click the card to expand. The 收起/展开 affordance text flips.
+    // Drop exact:true — the label is followed by an icon char ("expand_less")
+    // in the same parent so accessible text concatenates.
     await card.click();
-    await expect(card.getByText("收起", { exact: true })).toBeVisible();
+    await expect(card.getByText("收起")).toBeVisible();
 
     // CRITICAL: expanded state still infoTint + dashed (codex v3 invariant).
     await expect(card).toHaveCSS("background-color", INFO_TINT_RGB);

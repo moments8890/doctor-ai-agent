@@ -1,114 +1,50 @@
 /**
- * Workflow 17 — QR invite + Patient preview
+ * Workflow 17 — Patient invite code + QR
  *
- * Mirrors docs/qa/workflows/17-qr-patient-preview.md.
+ * The flow was simplified per the security/beta review: a doctor now has
+ * a permanent 4-char attach code (no per-patient generation, no rotation).
+ * Patients scan the QR or type the code to register against this doctor.
+ *
+ * What changed from the old spec:
+ *   - Header: 患者预问诊码 → 我的患者邀请码
+ *   - No per-patient name input + "生成入口" button (auto-loaded code instead)
+ *   - No "预览" action — the doctor-side patient-preview page was removed
+ *     when the per-patient generation flow was retired.
  */
 import { test, expect } from "./fixtures/doctor-auth";
-import { API_BASE_URL } from "./fixtures/doctor-auth";
 
-test.describe("工作流 17 — 二维码与预览", () => {
-  test("1. 二维码页面外壳和表单渲染", async ({ doctorPage, steps }) => {
+test.describe("工作流 17 — 邀请码与二维码", () => {
+  test("1. 邀请码页面外壳渲染", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings/qr");
 
-    // 1.1 — header
-    await expect(doctorPage.getByText("患者预问诊码")).toBeVisible();
-    await steps.capture(doctorPage, "打开二维码页面");
+    await expect(doctorPage.getByText("我的患者邀请码")).toBeVisible();
+    await steps.capture(doctorPage, "打开邀请码页面");
 
-    // 1.2 — form elements
-    await expect(doctorPage.getByText("为患者生成专属入口")).toBeVisible();
+    // The intro paragraph explains the flow.
     await expect(
-      doctorPage.getByPlaceholder("请输入患者姓名，例如：李阿姨"),
+      doctorPage.getByText(/4 位邀请码就可以加入您的患者列表/),
     ).toBeVisible();
-
-    // 1.3 — generate button disabled when name is empty
-    // AppButton renders as div, not <button> — check opacity for disabled state
-    const generateBtn = doctorPage.getByText("生成入口", { exact: true });
-    await expect(generateBtn).toHaveCSS("opacity", "0.5");
-    await steps.capture(doctorPage, "验证表单和按钮禁用");
   });
 
-  test("2. 生成二维码并查看结果", async ({
-    doctorPage,
-    doctor,
-    steps,
-  }) => {
+  test("2. 邀请码已加载且可复制", async ({ doctorPage, steps }) => {
     await doctorPage.goto("/doctor/settings/qr");
 
-    // 2.1 — type a patient name
-    const nameInput = doctorPage.getByPlaceholder(
-      "请输入患者姓名，例如：李阿姨",
-    );
-    await nameInput.fill("测试患者");
-
-    // 2.1 — button enables (opacity 1)
-    const generateBtn = doctorPage.getByText("生成入口", { exact: true });
-    await expect(generateBtn).toHaveCSS("opacity", "1");
-
-    // 2.2 — tap generate
-    await generateBtn.click();
-
-    // 2.3 — wait for QR code to render. Multiple SVGs exist on page (MUI icons),
-    // so check for the description text that appears alongside the QR code instead.
+    // The code is fetched from getDoctorAttachCode on mount. Wait for the
+    // 4-char display to settle (placeholder is "····" while loading).
+    // Match a 4-char alphanumeric block via regex.
     await expect(
-      doctorPage.getByText(/患者扫码后将进入 AI 预问诊/),
+      doctorPage.getByText(/^[A-Z0-9]{4}$/).first(),
     ).toBeVisible({ timeout: 10_000 });
-    await steps.capture(doctorPage, "二维码生成成功");
 
-    // 2.3 — patient name displayed below QR
-    await expect(doctorPage.getByText("测试患者").first()).toBeVisible();
+    await steps.capture(doctorPage, "邀请码已加载");
 
-    // 2.3 — description text
-    await expect(
-      doctorPage.getByText(/患者扫码后将进入 AI 预问诊/),
-    ).toBeVisible();
-
-    // 2.3 — action buttons (AppButton = div, use getByText)
-    await expect(
-      doctorPage.getByText("复制", { exact: true }),
-    ).toBeVisible();
-    await expect(
-      doctorPage.getByText("预览", { exact: true }),
-    ).toBeVisible();
-    await steps.capture(doctorPage, "验证操作按钮可见");
+    // Copy action surfaces a Toast — clicking shouldn't throw.
+    await doctorPage.getByText("复制邀请码").click();
+    await expect(doctorPage.getByText("已复制")).toBeVisible({ timeout: 5_000 });
+    await steps.capture(doctorPage, "复制邀请码");
   });
 
-  test("3. 从二维码流程加载预览页", async ({
-    doctorPage,
-    doctor,
-    request,
-    steps,
-  }) => {
-    // Seed a patient entry via API (same as what the QR flow does internally)
-    const res = await request.post(
-      `${API_BASE_URL}/api/manage/onboarding/patient-entry`,
-      {
-        headers: {
-          Authorization: `Bearer ${doctor.token}`,
-          "Content-Type": "application/json",
-        },
-        data: {
-          doctor_id: doctor.doctorId,
-          patient_name: "预览测试患者",
-        },
-      },
-    );
-    expect(res.ok(), `patient entry creation failed: ${res.status()}`).toBeTruthy();
-    const body = await res.json();
-    const patientId = body.patient_id;
-    const portalToken = body.portal_token || "";
-    const patientName = body.patient_name || "预览测试患者";
-
-    // Navigate directly to the preview page with proper query params
-    const previewUrl = `/doctor/preview/${patientId}?patient_token=${encodeURIComponent(portalToken)}&patient_name=${encodeURIComponent(patientName)}`;
-    await doctorPage.goto(previewUrl);
-
-    // 4.2 — intro card
-    await expect(doctorPage.getByText("患者端预览").first()).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(
-      doctorPage.getByText(/2 分钟左右的 AI 预问诊流程/),
-    ).toBeVisible();
-    await steps.capture(doctorPage, "患者端预览页面加载");
-  });
+  // Test 3 (preview page) removed — the doctor-side patient preview route
+  // (/doctor/preview/:patientId) was retired with the QR redesign. There is
+  // no per-patient generation flow to preview into anymore.
 });

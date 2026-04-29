@@ -27,6 +27,13 @@ test.describe("patient MyPage subpages", () => {
     );
     await page.addInitScript((auth) => {
       localStorage.setItem("patient-portal-auth", JSON.stringify(auth));
+      // Pre-set the onboarding-done flag BEFORE PatientPage mounts — its
+      // useState initializer reads this key once and never re-checks. Without
+      // this, the onboarding overlay renders on top of MyPage and intercepts
+      // every click on 关于 / 隐私政策 / 字体大小. (Same pattern as
+      // authenticatePatientPage in fixtures/doctor-auth.ts.)
+      localStorage.setItem(`patient_onboarding_done_${auth.state.patientId}`, "1");
+      localStorage.setItem("patient_portal_patient_id", auth.state.patientId);
     }, SEEDED_AUTH);
   });
 
@@ -55,12 +62,15 @@ test.describe("patient MyPage subpages", () => {
     await page.goto("/patient/profile");
     await page.getByText("字体大小", { exact: true }).click();
 
-    // Popup with 标准 / 大 / 特大 radios
-    await expect(page.getByText("标准", { exact: true })).toBeVisible();
-    await expect(page.getByText("大", { exact: true })).toBeVisible();
-    await expect(page.getByText("特大", { exact: true })).toBeVisible();
+    // Popup with 标准 / 大 / 特大 radios. Scope to .adm-radio elements —
+    // the row label "大" on MyPage (current size summary) collides with
+    // the popup's "大" radio under exact-text strict-mode.
+    const radios = page.locator(".adm-radio");
+    await expect(radios.filter({ hasText: "标准" })).toBeVisible();
+    await expect(radios.filter({ hasText: /^大$/ })).toBeVisible();
+    await expect(radios.filter({ hasText: "特大" })).toBeVisible();
 
-    await page.getByText("特大", { exact: true }).click();
+    await radios.filter({ hasText: "特大" }).click();
 
     await page.reload();
     await page.getByText("字体大小", { exact: true }).click();

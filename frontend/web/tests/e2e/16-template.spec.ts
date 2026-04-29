@@ -62,8 +62,11 @@ test.describe("工作流 16 — 模板管理", () => {
     }
     await steps.capture(doctorPage, "标准格式预览弹窗");
 
-    // 2.3 — dismiss (ConfirmDialog uses AppButton = div, use getByText inside dialog)
-    await doctorPage.locator("[role=dialog]").getByText("知道了", { exact: true }).click();
+    // 2.3 — dismiss. antd-mobile's Dialog.show portals the confirm button
+    // outside the [role=dialog] container and doesn't honour Escape — the
+    // intended dismiss is via mask click. Click on the body away from the
+    // dialog content (top-left corner is a safe spot outside the modal).
+    await doctorPage.mouse.click(5, 5);
     await expect(
       doctorPage.getByText("门诊病历标准格式", { exact: true }),
     ).toBeHidden();

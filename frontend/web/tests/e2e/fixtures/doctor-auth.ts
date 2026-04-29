@@ -213,15 +213,18 @@ export async function loginAsTestPatient(
 export async function registerPatient(
   request: import("@playwright/test").APIRequestContext,
   doctorId: string,
-  opts: { name?: string; gender?: string } = {},
+  opts: { name?: string; gender?: string; yearOfBirth?: number } = {},
 ): Promise<TestPatient> {
-  const name = opts.name || "E2E测试患者";
+  // Backend uses `nickname` as the display name (register_patient stores
+  // name=nickname). The legacy fixture took an opts.name that was ignored.
+  // Now we use opts.name AS the nickname when provided, so specs that
+  // assert on a specific name (e.g. 06-patient-list searches for "张秀兰")
+  // see what they wrote. Per-doctor uniqueness is preserved by the reset
+  // endpoint wiping patients before each test.
+  const nickname = opts.name || uniqueNickname("patient");
   // Backend stores gender verbatim; production data uses 男/女 (see
-  // OnboardingWizard createOnboardingPatientEntry). BUG-06 regressed when the
-  // NL search filter only matched male/female; the fix normalizes both, but
-  // seeded patients should match what production actually writes.
+  // OnboardingWizard createOnboardingPatientEntry).
   const gender = opts.gender || "男";
-  const nickname = uniqueNickname("patient");
   const passcode = randomPasscode();
 
   // Patient registration now requires a per-doctor `attach_code` (replaces
@@ -254,7 +257,7 @@ export async function registerPatient(
   return {
     patientId: String(body.patient_id),
     doctorId: body.doctor_id || doctorId,
-    name: body.name || name,
+    name: body.name || nickname,
     nickname,
     passcode,
     gender,

@@ -12,15 +12,24 @@ import { addKnowledgeText } from "./fixtures/seed";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 test.describe("工作流 05 — 知识库管理", () => {
-  test("1. 列表 — 新医生显示预置知识条目", async ({ doctorPage, steps }) => {
-    // A fresh doctor has 3 pre-seeded knowledge items, so the empty state
-    // ("暂无知识条目") will NOT appear. Instead, verify the list renders
-    // with the search bar and stats row.
+  test("1. 列表 — 知识库页面外壳渲染", async ({ doctorPage, steps }) => {
+    // The reset-test-doctor-data endpoint wipes the auto-seeded preset
+    // knowledge items, so this test no longer asserts on those. The
+    // adjacent "1. 列表 — 已配置医生..." test still covers the populated
+    // path via addKnowledgeText seeding.
     await doctorPage.goto("/doctor/settings/knowledge");
-    // Stats strip shows "总规则" (not "条规则") since the v2 redesign.
-    await expect(doctorPage.getByText(/总规则/)).toBeVisible();
-
-    await steps.capture(doctorPage, "知识列表初始状态", "新医生显示预置知识条目");
+    await expect(doctorPage.getByText("我的知识库")).toBeVisible();
+    // Tab bar (.adm-jumbo-tabs scope avoids the home page card behind the
+    // subpage overlay)
+    const tabBar = doctorPage.locator(".adm-jumbo-tabs");
+    for (const label of ["总览", /^全部(\s*\(\d+\))?$/, /^待整理(\s*\(\d+\))?$/]) {
+      await expect(
+        typeof label === "string"
+          ? tabBar.getByText(label, { exact: true })
+          : tabBar.getByText(label),
+      ).toBeVisible();
+    }
+    await steps.capture(doctorPage, "知识库页面渲染", "导航 + 三个标签页可见");
   });
 
   test("1. 列表 — 已配置医生显示统计和条目", async ({
@@ -58,13 +67,21 @@ test.describe("工作流 05 — 知识库管理", () => {
     const textarea = doctorPage.locator("textarea").first();
     await textarea.fill("高血压患者新发头痛→排除高血压脑病");
 
-    // Save — AppButton renders as <div>, not <button>. Use getByText.
-    const saveBtn = doctorPage.getByText("添加", { exact: true });
+    // Save — antd-mobile <Button> renders as a real <button>. exact:true
+    // scopes to the form's "添加" submit button (avoids 添加到桌面 nav
+    // button + 添加第一条规则 onboarding button on the home page behind
+    // the overlay).
+    const saveBtn = doctorPage.getByRole("button", { name: "添加", exact: true });
     await expect(saveBtn).toBeVisible();
     await saveBtn.click();
 
-    // Lands back on doctor page (may navigate to list or main page).
-    await expect(doctorPage).toHaveURL(/\/doctor/);
+    // Save returns via navigate(-1). For a test that ran goto(/add) without
+    // a prior /knowledge visit, that takes us to /doctor (the auth landing).
+    // Navigate to the list explicitly, then switch to 全部 tab to see the
+    // rule we just added.
+    await doctorPage.goto("/doctor/settings/knowledge");
+    const tabBar = doctorPage.locator(".adm-jumbo-tabs");
+    await tabBar.getByText(/^全部(\s*\(\d+\))?$/).click();
     await expect(doctorPage.getByText(/高血压患者新发头痛/).first()).toBeVisible();
 
     await steps.capture(doctorPage, "添加知识成功", "新知识条目在列表中可见");
@@ -93,8 +110,11 @@ test.describe("工作流 05 — 知识库管理", () => {
 
     await steps.capture(doctorPage, "搜索前列表", "显示全部知识条目");
 
-    // Search bar lives in the "全部" tab — switch to it first.
-    await doctorPage.getByText("全部").first().click();
+    // Search bar lives inside the 全部 tab. Scope to .adm-jumbo-tabs to
+    // dodge the homepage 知识库 tile rendered behind the subpage overlay.
+    const tabBar = doctorPage.locator(".adm-jumbo-tabs");
+    await tabBar.getByText(/^全部(\s*\(\d+\))?$/).click();
+
     const search = doctorPage.getByPlaceholder(/搜索知识规则/);
     await search.fill("头痛");
     await expect(doctorPage.getByText("头痛鉴别诊断要点").first()).toBeVisible();

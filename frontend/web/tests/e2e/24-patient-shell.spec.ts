@@ -34,6 +34,10 @@ test.describe("patient shell", () => {
     );
     await page.addInitScript((auth) => {
       localStorage.setItem("patient-portal-auth", JSON.stringify(auth));
+      // Pre-set the onboarding-done flag so the patient overlay doesn't
+      // intercept clicks / cover NavBar actions on the records tab.
+      localStorage.setItem(`patient_onboarding_done_${auth.state.patientId}`, "1");
+      localStorage.setItem("patient_portal_patient_id", auth.state.patientId);
     }, SEEDED_AUTH);
     await page.goto("/patient");
     await page.waitForURL(/\/patient/);
@@ -55,13 +59,16 @@ test.describe("patient shell", () => {
 
   test("records tab shows + action in NavBar", async ({ page }) => {
     await page.goto("/patient/records");
-    await expect(page.locator('[aria-label="新问诊"]')).toBeVisible();
+    // Button has accessible name "新问诊" (text content), not an aria-label.
+    await expect(page.getByRole("button", { name: "新问诊" })).toBeVisible();
   });
 
-  test("other tabs hide the + action", async ({ page }) => {
-    for (const path of ["/patient/chat", "/patient/tasks", "/patient/profile"]) {
+  test("tasks + profile tabs hide the + action", async ({ page }) => {
+    // The "新问诊" CTA shows on chat + records tabs (per PatientPage.jsx
+    // comment ~line 210); only tasks + profile hide it.
+    for (const path of ["/patient/tasks", "/patient/profile"]) {
       await page.goto(path);
-      await expect(page.locator('[aria-label="新问诊"]')).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "新问诊" })).toHaveCount(0);
     }
   });
 

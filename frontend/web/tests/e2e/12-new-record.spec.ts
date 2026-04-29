@@ -97,8 +97,11 @@ test.describe("工作流 12 — 新建病历", () => {
     // Navigate to a specific patient's detail, then trigger new record.
     await doctorPage.goto(`/doctor/patients/${patient.patientId}`);
 
-    // Look for the "新建门诊" or "新建病历" button in the detail header.
-    const newBtn = doctorPage.getByText(/新建门诊|新建病历|门诊/).first();
+    // The header button reads "+ 新建门诊" exactly (PatientDetail.jsx:1185).
+    // The previous regex `/新建门诊|新建病历|门诊/` matched the bio chip
+    // "门诊N次" first — .first() picked that, the click did nothing, the
+    // URL stayed on the patient page.
+    const newBtn = doctorPage.getByText("+ 新建门诊", { exact: true });
     await expect(newBtn).toBeVisible();
     await newBtn.click();
 

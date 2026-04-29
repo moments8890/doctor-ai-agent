@@ -25,8 +25,10 @@ test.describe("工作流 22 — 患者病历", () => {
     // Month section header from groupByMonth — confirms timeline rendered.
     await expect(page.locator("text=/\\d{4}年\\d+月/").first()).toBeVisible({ timeout: 10000 });
 
-    // The seeded intake produces a 预问诊 record card.
-    await expect(page.getByText("预问诊", { exact: true })).toBeVisible({ timeout: 10000 });
+    // The seeded intake creates a record from the test patient's symptom
+    // input ("头痛3天"). Patient-side records cards don't show the doctor's
+    // "待审核" badge — assert on the chief-complaint title instead.
+    await expect(page.getByText("头痛3天").first()).toBeVisible({ timeout: 10000 });
 
     // Card row carries the testid so taps can be wired downstream.
     await expect(page.locator('[data-testid="patient-record-row"]').first()).toBeVisible();

@@ -7,7 +7,7 @@
 import { useState, useRef } from "react";
 import { SafeArea, NavBar, Button, TextArea, Input, Toast, SpinLoading, Dialog, Tabs } from "antd-mobile";
 import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "../../../../lib/queryKeys";
 import { useApi } from "../../../../api/ApiContext";
@@ -20,10 +20,37 @@ import SubpageBackHome from "../../../components/SubpageBackHome";
 
 export default function AddKnowledgeSubpage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const api = useApi();
   const queryClient = useQueryClient();
   const { doctorId } = useDoctorStore();
   const fileInputRef = useRef(null);
+
+  // Onboarding mode: the wizard's Step 1 row clicks navigate here with
+  // ?onboarding=1&source=file|url|text&wizard=1 and expect us to return
+  // to /doctor/onboarding?step=1&saved={source}&savedTitle=...&savedId=...
+  // so the wizard can mark the row done and enable "下一步".
+  const isOnboarding = searchParams.get("onboarding") === "1";
+  const onboardingSource = searchParams.get("source") || "text";
+
+  function returnAfterSave(savedItem, contentForTitle) {
+    if (isOnboarding) {
+      const title =
+        (contentForTitle || savedItem?.content || "")
+          .split("\n")[0]
+          .trim()
+          .slice(0, 30) || "已添加";
+      const params = new URLSearchParams({
+        step: "1",
+        saved: onboardingSource,
+        savedTitle: title,
+      });
+      if (savedItem?.id) params.set("savedId", String(savedItem.id));
+      navigate(`/doctor/onboarding?${params.toString()}`);
+    } else {
+      navigate(-1);
+    }
+  }
 
   const [sourceTab, setSourceTab] = useState("text");
   const [content, setContent] = useState("");
@@ -83,10 +110,10 @@ export default function AddKnowledgeSubpage() {
     setAdding(true);
     setError("");
     try {
-      await api.addKnowledgeItem(doctorId, trimmed);
+      const result = await api.addKnowledgeItem(doctorId, trimmed);
       queryClient.invalidateQueries({ queryKey: QK.knowledge(doctorId) });
       Toast.show({ content: "已添加到知识库", position: "bottom" });
-      navigate(-1);
+      returnAfterSave(result, trimmed);
     } catch (e) {
       setError(e.message || "添加失败");
     } finally {
@@ -139,7 +166,7 @@ export default function AddKnowledgeSubpage() {
     setError("");
     try {
       const isUrl = sourceFilename.startsWith("http://") || sourceFilename.startsWith("https://");
-      await api.uploadKnowledgeSave(
+      const result = await api.uploadKnowledgeSave(
         doctorId,
         trimmed,
         isUrl ? "url" : sourceFilename,
@@ -148,7 +175,7 @@ export default function AddKnowledgeSubpage() {
       queryClient.invalidateQueries({ queryKey: QK.knowledge(doctorId) });
       Toast.show({ content: "已保存到知识库", position: "bottom" });
       setPreviewOpen(false);
-      navigate(-1);
+      returnAfterSave(result, trimmed);
     } catch (e) {
       setError(e.message || "保存失败");
     } finally {

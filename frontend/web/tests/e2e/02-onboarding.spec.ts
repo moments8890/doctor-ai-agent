@@ -65,12 +65,14 @@ test.describe("工作流 02 — 引导向导", () => {
     await knowledge.fillContent("高血压患者新发头痛 → 排除高血压脑病、颅内出血、后循环缺血");
     await knowledge.submit();
 
-    // 2.3 — wizard auto-advances to step 2 after saving
+    // 2.3 — wizard returns to step 1 with the source marked done; "下一步"
+    // is now enabled. Clicking it advances to step 2.
     await expect(doctorPage).toHaveURL(/\/doctor\/onboarding/);
-    await onboarding.expectOnStep(2);
+    await onboarding.expectOnStep(1);
+    await onboarding.clickNext();
     await expect(onboarding.stepHeading(2)).toBeVisible();
 
-    await steps.capture(doctorPage, "保存后进入步骤二", "自动跳转到步骤2/3");
+    await steps.capture(doctorPage, "保存后进入步骤二", "下一步进入步骤2/3");
   });
 
   test("3. 完整向导流程 — 步骤1→2→3→完成", async ({
@@ -98,9 +100,11 @@ test.describe("工作流 02 — 引导向导", () => {
     await knowledge.submit();
 
     // ── Step 2: confirm diagnosis + send reply ────────────────────────
-    // Wizard auto-advances after saving knowledge
+    // Save returns to step 1 with the source marked done. Click "下一步"
+    // to advance to step 2.
     await expect(doctorPage).toHaveURL(/\/doctor\/onboarding/);
-    await onboarding.expectOnStep(2);
+    await onboarding.expectOnStep(1);
+    await onboarding.clickNext();
     await expect(onboarding.stepHeading(2)).toBeVisible();
 
     // Rule echo card shows the saved rule
