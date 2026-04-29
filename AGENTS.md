@@ -157,20 +157,35 @@ Direct pushes to `main` are allowed.
 8. **Pre-push gate** — before pushing, run `/test-gate` to validate no regressions against the existing test suite
 9. **E2E ship gate** — for frontend changes, run `cd frontend/web && npx playwright test` with both servers running (backend :8000, frontend :5173). All non-skipped tests must pass. Review videos in `test-results/` for visual regressions. Generate `README.txt` per result folder for human review. See `docs/qa/e2e-guide.md` for full details
 
-### Publishing (Direct to Main)
+### Branch model (post 2026-04-28 swap)
 
-After the above:
+| Branch | Tracks | Auto-deploys to |
+|---|---|---|
+| `main` (gitee + origin) | daily trunk; safe to push | **staging** (api.stg.* + app.stg.*) |
+| `tencent` (gitee + origin) | release pointer; pushed deliberately | **prod** (api.* + app.*) |
+
+Operational runbook: `docs/deploy/staging.md`.
+
+### Publishing — daily flow (push to staging)
 
 ```bash
-# 1. Commit your changes
 git commit -m "<type>: <short-description>"
-
-# 2. Push directly to main (GitHub + Gitee)
-git push origin main
-git push gitee main
+SKIP_PUSH_SHOTS=1 git push gitee main          # → staging redeploys
+SKIP_PUSH_SHOTS=1 git push origin main         # GitHub mirror; CI watches origin
 ```
 
-- **User shorthand rule** — if the user says `push`, treat it as a direct push to `main` on both remotes: `origin` and `gitee`
+`SKIP_PUSH_SHOTS=1` bypasses `scripts/push-screenshots.sh` when invoked from a non-interactive shell (the hook needs `/dev/tty`).
+
+### Publishing — release flow (promote to prod)
+
+```bash
+git checkout tencent && git merge main
+SKIP_PUSH_SHOTS=1 git push gitee tencent       # → prod redeploys
+SKIP_PUSH_SHOTS=1 git push origin tencent
+git checkout main
+```
+
+- **User shorthand rule** — if the user says `push`, treat it as a direct push to `main` on both remotes (= staging deploy). The user must explicitly say `release` or `push tencent` to deploy prod.
 
 - Commit message prefixes: `feat:`, `fix:`, `ci:`, `refactor:`, `docs:`
 

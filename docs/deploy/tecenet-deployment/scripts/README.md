@@ -20,7 +20,7 @@
 | 对外域名 | `api.doctoragentai.cn`（nginx + Let's Encrypt SSL） |
 | WeChat | WeCom KF 模式，回调 `https://api.doctoragentai.cn/wechat` |
 | LLM | DeepSeek（路由+结构化），Tencent LKEAP 备用 |
-| 自动部署 | `git push gitee main` → Gitee Webhook → `doctor-ai-webhook` 服务 |
+| 自动部署 | `git push gitee tencent` → Gitee Webhook → `doctor-ai-webhook` 服务（post 2026-04-28 swap：main 部署到 staging，tencent 部署到 prod） |
 
 ---
 
@@ -40,13 +40,20 @@
 
 ## 自动部署流程
 
+分支模型（post 2026-04-28 swap）：`gitee/main` → staging，`gitee/tencent` → prod。
+
 ```
-git push gitee main
+git push gitee tencent                 (prod 发布)
   → Gitee Webhook POST https://api.doctoragentai.cn/hooks/deploy
   → nginx 反代 → VM:9000
-  → webhook_server.py（验证 X-Gitee-Token）
-  → /home/ubuntu/deploy.sh
-  → git fetch + reset --hard gitee/main + pip install + systemctl restart doctor-ai-backend
+  → webhook_server.py（验证 X-Gitee-Token，按 ref 路由）
+  → BRANCH_DEPLOYS["tencent"] = /home/ubuntu/deploy.sh
+  → git fetch + reset --hard gitee/tencent + pip install + systemctl restart doctor-ai-backend
+
+git push gitee main                    (日常 → staging)
+  → 同样的 webhook，但路由到：
+  → BRANCH_DEPLOYS["main"] = sudo systemd-run --slice=staging-build.slice ... deploy-staging.sh
+  → 在 cgroup 下 build + restart doctor-ai-staging（端口 8001，独立 MySQL schema）
 ```
 
 手动触发备用：

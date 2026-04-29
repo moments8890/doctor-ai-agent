@@ -2,7 +2,7 @@
 # drift_check.sh — daily prod deploy drift alarm
 #
 # Detects when the gitee→webhook→deploy.sh pipeline silently breaks.
-# Compares gitee/main HEAD to the deployed HEAD on this host. If they
+# Compares gitee/tencent HEAD to the deployed HEAD on this host. If they
 # diverge for more than THRESHOLD_MIN minutes, sends a GlitchTip event
 # so the issue surfaces in the same dashboard as backend errors.
 #
@@ -52,15 +52,15 @@ if [[ "$probe_code" != "401" ]]; then
 fi
 
 # 3. SHA drift
-git fetch gitee main --quiet
-GITEE_SHA=$(git rev-parse gitee/main)
+git fetch gitee tencent --quiet
+GITEE_SHA=$(git rev-parse gitee/tencent)
 PROD_SHA=$(git rev-parse HEAD)
 if [[ "$GITEE_SHA" == "$PROD_SHA" ]]; then
   echo "$(ts) OK: in sync at ${PROD_SHA:0:7}"
   exit 0
 fi
 
-COMMIT_TS=$(git show -s --format=%ct gitee/main)
+COMMIT_TS=$(git show -s --format=%ct gitee/tencent)
 NOW_TS=$(date +%s)
 AGE_MIN=$(( (NOW_TS - COMMIT_TS) / 60 ))
 if (( AGE_MIN < THRESHOLD_MIN )); then
@@ -68,4 +68,4 @@ if (( AGE_MIN < THRESHOLD_MIN )); then
   exit 0
 fi
 
-notify "gitee/main ${GITEE_SHA:0:7} not deployed (${AGE_MIN}m old; prod at ${PROD_SHA:0:7})"
+notify "gitee/tencent ${GITEE_SHA:0:7} not deployed (${AGE_MIN}m old; prod at ${PROD_SHA:0:7})"

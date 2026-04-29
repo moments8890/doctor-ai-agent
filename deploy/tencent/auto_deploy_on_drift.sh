@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # auto_deploy_on_drift.sh — fallback for silently-dropped gitee webhooks.
 #
-# Polls gitee/main every cron tick. If it diverges from the deployed HEAD
-# and the latest commit is at least MIN_AGE_SEC old (so we don't race a
-# webhook-triggered deploy that's already in flight), runs deploy.sh.
+# Polls gitee/tencent every cron tick (post 2026-04-28 swap: tencent is
+# the prod release pointer; main is the staging trunk). If gitee/tencent
+# diverges from the deployed HEAD and the latest commit is at least
+# MIN_AGE_SEC old (so we don't race a webhook-triggered deploy that's
+# already in flight), runs deploy.sh.
 #
 # Coexists with deploy/tencent/drift_check.sh, which only alarms.
 # This one self-heals: gitee webhook becomes a nice-to-have, not load-bearing.
@@ -29,15 +31,15 @@ fi
 
 cd "$APP_DIR"
 
-git fetch gitee main --quiet || { echo "$(ts) WARN: git fetch failed"; exit 0; }
+git fetch gitee tencent --quiet || { echo "$(ts) WARN: git fetch failed"; exit 0; }
 
-GITEE_SHA=$(git rev-parse gitee/main)
+GITEE_SHA=$(git rev-parse gitee/tencent)
 PROD_SHA=$(git rev-parse HEAD)
 if [[ "$GITEE_SHA" == "$PROD_SHA" ]]; then
   exit 0  # in sync — common case
 fi
 
-COMMIT_TS=$(git show -s --format=%ct gitee/main)
+COMMIT_TS=$(git show -s --format=%ct gitee/tencent)
 NOW_TS=$(date +%s)
 AGE_SEC=$(( NOW_TS - COMMIT_TS ))
 
@@ -50,6 +52,6 @@ if (( AGE_SEC > MAX_AGE_SEC )); then
   exit 0
 fi
 
-echo "$(ts) drift detected: gitee/main=${GITEE_SHA:0:7} prod=${PROD_SHA:0:7}, age=$((AGE_SEC/60))m — running deploy.sh"
+echo "$(ts) drift detected: gitee/tencent=${GITEE_SHA:0:7} prod=${PROD_SHA:0:7}, age=$((AGE_SEC/60))m — running deploy.sh"
 bash /home/ubuntu/deploy.sh
 echo "$(ts) auto-deploy complete; prod now at $(git rev-parse HEAD | cut -c1-7)"

@@ -13,7 +13,7 @@
 | 服务器 | `ubuntu@101.35.116.122` |
 | 应用目录 | `/home/ubuntu/doctor-ai-agent` |
 | 后端服务 | `doctor-ai-backend`（systemd） |
-| 自动部署 | `git push gitee main` 触发 webhook → 自动拉取重启 |
+| 自动部署 | `git push gitee tencent` 触发 webhook → 拉取重启（post 2026-04-28 分支模型：tencent=prod，main=staging） |
 | 数据库 | MySQL `127.0.0.1:3306` |
 
 ## 子清单
@@ -114,12 +114,24 @@ PYTHONPATH=src .venv/bin/python3 -m scripts.migrate_persona
 
 ### 3. 自动部署（Webhook）
 
+分支模型（post 2026-04-28 swap）：
+
+| 分支 | 自动部署到 |
+|---|---|
+| `gitee/main` | staging（api.stg.* + app.stg.*） |
+| `gitee/tencent` | prod（api.* + app.*） |
+
 ```bash
-# 本地触发部署
-git push gitee main
+# 日常迭代 → staging
+SKIP_PUSH_SHOTS=1 git push gitee main
+
+# 发布到 prod
+git checkout tencent && git merge main
+SKIP_PUSH_SHOTS=1 git push gitee tencent
+git checkout main
 ```
 
-Webhook 服务收到 Gitee push 事件后自动拉取并重启。参见 `deploy/tencent/setup_webhook.sh`。
+Webhook 服务收到 Gitee push 事件后按分支路由：main → `deploy-staging.sh`（在 `staging-build.slice` cgroup 下），tencent → `deploy.sh`。参见 `deploy/tencent/webhook_server.py` 和 `docs/deploy/staging.md`。
 
 ### 4. 数据库
 

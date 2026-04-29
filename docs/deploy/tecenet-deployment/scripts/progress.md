@@ -33,16 +33,25 @@
 
 ## Auto-Deploy Pipeline (COMPLETE, as of 2026-03-08)
 
-### Flow
+### Flow (post 2026-04-28 swap)
+
+`gitee/main` → staging; `gitee/tencent` → prod. Webhook routes by branch.
+
 ```
-git push gitee main
+git push gitee tencent                 (prod release)
   → Gitee webhook POST https://api.doctoragentai.cn/hooks/deploy
   → nginx proxy → VM:9000
-  → webhook_server.py (verifies X-Gitee-Token)
+  → webhook_server.py (verifies X-Gitee-Token, BRANCH_DEPLOYS["tencent"])
   → /home/ubuntu/deploy.sh
-  → git fetch + reset --hard origin/main + pip install + systemctl restart doctor-ai-backend
+  → git fetch + reset --hard gitee/tencent + pip install + systemctl restart doctor-ai-backend
+
+git push gitee main                    (daily → staging)
+  → same webhook, BRANCH_DEPLOYS["main"]
+  → sudo systemd-run --slice=staging-build.slice --uid=ubuntu ... deploy-staging.sh
+  → restart doctor-ai-staging (port 8001, separate MySQL schema)
 ```
-Manual fallback: `ssh vm 'bash ~/deploy.sh'`
+
+Manual fallback: `ssh vm 'bash ~/deploy.sh'` (prod) or `ssh vm 'bash ~/deploy-staging.sh'` (staging).
 
 ### VM components (all installed & running)
 | Component | Location | Purpose |
