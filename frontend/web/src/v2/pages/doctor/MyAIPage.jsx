@@ -559,7 +559,7 @@ export default function MyAIPage({ doctorId }) {
   return (
     <div style={pageContainer}>
       <div style={{ ...scrollable, paddingTop: 12, paddingBottom: 16 }}>
-        <AiDisclaimer />
+        {/* <AiDisclaimer /> */}
         {/* ── Identity card ────────────────────────────────────────── */}
         <Card>
           <div

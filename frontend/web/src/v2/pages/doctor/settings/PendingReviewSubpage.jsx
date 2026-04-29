@@ -59,7 +59,7 @@ export default function PendingReviewSubpage() {
       </NavBar>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
-        <AiDisclaimer />
+        {/* <AiDisclaimer /> */}
         {isLoading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: 40 }}>
             <SpinLoading color="primary" />

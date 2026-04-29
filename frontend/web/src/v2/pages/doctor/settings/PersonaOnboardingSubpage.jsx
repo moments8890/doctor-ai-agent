@@ -225,7 +225,7 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
       </NavBar>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
-        <AiDisclaimer />
+        {/* <AiDisclaimer /> */}
         {/* Progress bar */}
         <div style={{ height: 3, background: APP.surfaceAlt, borderRadius: RADIUS.xs, marginBottom: 20, overflow: "hidden" }}>
           <div style={{

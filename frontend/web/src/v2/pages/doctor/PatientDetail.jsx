@@ -1210,7 +1210,7 @@ export default function PatientDetail({ patientId: propPatientId }) {
 
       {/* Scrollable content — tab-dependent */}
       <div style={scrollable}>
-        {!loading && !error && <AiDisclaimer />}
+        {/* {!loading && !error && <AiDisclaimer />} */}
         {loading && <LoadingCenter />}
 
         {!loading && error && (

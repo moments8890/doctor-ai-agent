@@ -166,7 +166,7 @@ export default function PersonaSubpage() {
       </NavBar>
 
       <div style={{ ...scrollable, padding: "16px" }}>
-        <AiDisclaimer />
+        {/* <AiDisclaimer /> */}
         {loading && <LoadingCenter />}
 
         {/* Empty state — show template picker first */}

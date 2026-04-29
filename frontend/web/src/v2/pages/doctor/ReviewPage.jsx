@@ -652,7 +652,7 @@ function InlineReviewLayout({
 
       {/* Scrollable content */}
       <div style={{ ...scrollable, paddingBottom: 96 }}>
-        <AiDisclaimer />
+        {/* <AiDisclaimer /> */}
         {/* 病例摘要 — read-only summary card */}
         {summaryRows.length > 0 && (
           <>
