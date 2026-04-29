@@ -15,6 +15,7 @@ import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
 import SubpageBackHome from "../../../components/SubpageBackHome";
+import { AiDisclaimer } from "../../../components";
 
 const FIELD_LABELS = {
   reply_style: "回复风格",
@@ -188,6 +189,7 @@ export default function TeachByExampleSubpage() {
           </div>
         )}
 
+        <AiDisclaimer />
         <div style={{ height: 32 }} />
       </div>
     </div>

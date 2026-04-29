@@ -35,6 +35,7 @@ import {
 } from "../../../lib/doctorQueries";
 import { useReleaseNotes } from "../../../hooks/useReleaseNotes";
 import ReleaseNotesDialog from "../../components/ReleaseNotesDialog";
+import AiDisclaimer from "../../components/AiDisclaimer";
 import { dp } from "../../../utils/doctorBasePath";
 import { formatAge } from "../../../utils/time";
 import { APP, FONT, RADIUS, ICON, CATEGORY_COLOR } from "../../theme";
@@ -765,16 +766,7 @@ export default function MyAIPage({ doctorId }) {
             </Card>
           </>
         )}
-        <div
-          style={{
-            textAlign: "center",
-            fontSize: FONT.xs,
-            color: APP.text4,
-            padding: "20px 16px 8px",
-          }}
-        >
-          本服务为AI生成内容，结果仅供参考
-        </div>
+        <AiDisclaimer />
         <SafeArea position="bottom" />
       </div>
       <ReleaseNotesDialog

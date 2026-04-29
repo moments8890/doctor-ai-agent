@@ -32,7 +32,7 @@ import {
 import { dp } from "../../../../utils/doctorBasePath";
 import { APP, FONT, ICON, RADIUS, CATEGORY_COLOR } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
-import { LoadingCenter, EmptyState } from "../../../components";
+import { LoadingCenter, EmptyState, AiDisclaimer } from "../../../components";
 import SubpageBackHome from "../../../components/SubpageBackHome";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -835,6 +835,7 @@ export default function KnowledgeSubpage() {
               navigate={navigate}
             />
           )}
+          <AiDisclaimer />
         </div>
       )}
     </div>

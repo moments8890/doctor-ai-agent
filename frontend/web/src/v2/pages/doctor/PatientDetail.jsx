@@ -45,7 +45,7 @@ import { recordView } from "../../../hooks/useLastViewed";
 import { formatAge, relativeTime } from "../../../utils/time";
 import { APP, FONT, RADIUS, ICON, CATEGORY_COLOR } from "../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
-import { LoadingCenter, NameAvatar } from "../../components";
+import { LoadingCenter, NameAvatar, AiDisclaimer } from "../../components";
 import { STRUCTURED_FIELD_LABELS } from "../../constants";
 import SubpageBackHome from "../../components/SubpageBackHome";
 
@@ -1425,6 +1425,8 @@ export default function PatientDetail({ patientId: propPatientId }) {
         {!loading && !error && activeTab === TAB_CHAT && (
           <PatientChatPage patientId={patientId} embedded />
         )}
+
+        {!loading && !error && activeTab !== TAB_CHAT && <AiDisclaimer />}
       </div>
     </div>
   );

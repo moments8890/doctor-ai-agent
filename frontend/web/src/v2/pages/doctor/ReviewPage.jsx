@@ -25,7 +25,7 @@ import {
 } from "antd-mobile";
 import { pageContainer, navBarStyle, scrollable } from "../../layouts";
 import { keyboardAwareStyle, useScrollOnKeyboard } from "../../keyboard";
-import { ActionFooter, ListSectionDivider, CitationPopup } from "../../components";
+import { ActionFooter, ListSectionDivider, CitationPopup, AiDisclaimer } from "../../components";
 import { useTaskRecord, useSuggestions, useReviewQueue } from "../../../lib/doctorQueries";
 import { computeNextNav } from "./reviewAutoAdvance";
 import SubpageBackHome from "../../components/SubpageBackHome";
@@ -1783,6 +1783,7 @@ export default function ReviewPage({ recordId }) {
         </div>
       )}
 
+      <AiDisclaimer />
       <SafeArea position="bottom" />
       {citationPopupNode}
     </div>

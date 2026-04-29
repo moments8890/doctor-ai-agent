@@ -6,3 +6,4 @@ export { default as ListSectionDivider } from "./ListSectionDivider";
 export { default as CitationPopup, CategoryPill, buildKnowledgeMap } from "./CitationPopup";
 export { default as Card } from "./Card";
 export { default as TintedIconRow } from "./TintedIconRow";
+export { default as AiDisclaimer } from "./AiDisclaimer";

@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { SafeArea, NavBar, Button, Tag, SpinLoading } from "antd-mobile";
 import EmptyState from "../../../components/EmptyState";
+import AiDisclaimer from "../../../components/AiDisclaimer";
 import { useNavigate } from "react-router-dom";
 import { usePersonaPending, useAcceptPendingItem, useRejectPendingItem } from "../../../../lib/doctorQueries";
 import { APP, FONT, RADIUS } from "../../../theme";
@@ -155,6 +156,7 @@ export default function PendingReviewSubpage() {
             })}
           </div>
         )}
+        <AiDisclaimer />
       </div>
     </div>
   );

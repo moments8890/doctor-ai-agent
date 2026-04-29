@@ -14,7 +14,7 @@ import { usePersona } from "../../../../lib/doctorQueries";
 import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../../theme";
 import { pageContainer, navBarStyle, scrollable } from "../../../layouts";
-import { LoadingCenter } from "../../../components";
+import { LoadingCenter, AiDisclaimer } from "../../../components";
 import SubpageBackHome from "../../../components/SubpageBackHome";
 
 const PLACEHOLDER = `写下你希望 AI 如何工作，可以参考下面这几个方面：
@@ -418,16 +418,7 @@ export default function PersonaSubpage() {
           </div>
         )}
 
-        <div
-          style={{
-            textAlign: "center",
-            fontSize: FONT.xs,
-            color: APP.text4,
-            padding: "20px 16px 8px",
-          }}
-        >
-          本服务为AI生成内容，结果仅供参考
-        </div>
+        <AiDisclaimer />
       </div>
     </div>
   );

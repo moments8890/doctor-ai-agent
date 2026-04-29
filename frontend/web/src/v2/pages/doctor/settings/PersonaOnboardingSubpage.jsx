@@ -16,6 +16,7 @@ import { useApi } from "../../../../api/ApiContext";
 import { useDoctorStore } from "../../../../store/doctorStore";
 import { APP, FONT, RADIUS } from "../../../theme";
 import SubpageBackHome from "../../../components/SubpageBackHome";
+import { AiDisclaimer } from "../../../components";
 
 const FIELD_LABELS = {
   reply_style: "回复风格",
@@ -288,6 +289,7 @@ export default function PersonaOnboardingSubpage({ onComplete }) {
             );
           })}
         </div>
+        <AiDisclaimer />
       </div>
     </div>
   );
